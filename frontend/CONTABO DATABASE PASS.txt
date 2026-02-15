@@ -1,0 +1,9 @@
+sudo ufw allow from  120.89.105.54 to any port 27017
+
+db.createUser({
+  user: "appuser",
+  pwd: "App123",
+  roles: [{ role: "readWrite", db: "Sarathi" }]
+})
+
+mongodb://appuser:App123@84.247.142.54:27017/Sarathi

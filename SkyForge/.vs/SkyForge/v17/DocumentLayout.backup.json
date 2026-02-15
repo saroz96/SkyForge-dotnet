@@ -1,0 +1,88 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\dotnet\\SkyForge\\SkyForge\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{688B2904-464A-4C24-83CD-CB1937D781A0}|SkyForge\\SkyForge.csproj|e:\\dotnet\\skyforge\\skyforge\\skyforge\\migrations\\20260205122050_updatebarcodepreferences.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{688B2904-464A-4C24-83CD-CB1937D781A0}|SkyForge\\SkyForge.csproj|solutionrelative:skyforge\\migrations\\20260205122050_updatebarcodepreferences.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{688B2904-464A-4C24-83CD-CB1937D781A0}|SkyForge\\SkyForge.csproj|e:\\dotnet\\skyforge\\skyforge\\skyforge\\controllers\\retailer\\itemscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{688B2904-464A-4C24-83CD-CB1937D781A0}|SkyForge\\SkyForge.csproj|solutionrelative:skyforge\\controllers\\retailer\\itemscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{688B2904-464A-4C24-83CD-CB1937D781A0}|SkyForge\\SkyForge.csproj|e:\\dotnet\\skyforge\\skyforge\\skyforge\\models\\retailer\\items\\items.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{688B2904-464A-4C24-83CD-CB1937D781A0}|SkyForge\\SkyForge.csproj|solutionrelative:skyforge\\models\\retailer\\items\\items.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{688B2904-464A-4C24-83CD-CB1937D781A0}|SkyForge\\SkyForge.csproj|e:\\dotnet\\skyforge\\skyforge\\skyforge\\services\\retailer\\itemservices\\itemservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{688B2904-464A-4C24-83CD-CB1937D781A0}|SkyForge\\SkyForge.csproj|solutionrelative:skyforge\\services\\retailer\\itemservices\\itemservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "20260205122050_UpdateBarcodePreferences.cs",
+              "DocumentMoniker": "E:\\dotnet\\SkyForge\\SkyForge\\SkyForge\\Migrations\\20260205122050_UpdateBarcodePreferences.cs",
+              "RelativeDocumentMoniker": "SkyForge\\Migrations\\20260205122050_UpdateBarcodePreferences.cs",
+              "ToolTip": "E:\\dotnet\\SkyForge\\SkyForge\\SkyForge\\Migrations\\20260205122050_UpdateBarcodePreferences.cs",
+              "RelativeToolTip": "SkyForge\\Migrations\\20260205122050_UpdateBarcodePreferences.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-05T12:21:00.115Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ItemService.cs",
+              "DocumentMoniker": "E:\\dotnet\\SkyForge\\SkyForge\\SkyForge\\Services\\Retailer\\ItemServices\\ItemService.cs",
+              "RelativeDocumentMoniker": "SkyForge\\Services\\Retailer\\ItemServices\\ItemService.cs",
+              "ToolTip": "E:\\dotnet\\SkyForge\\SkyForge\\SkyForge\\Services\\Retailer\\ItemServices\\ItemService.cs",
+              "RelativeToolTip": "SkyForge\\Services\\Retailer\\ItemServices\\ItemService.cs",
+              "ViewState": "AgIAAIQAAAAAAAAAAAAMwJsAAAA5AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-05T08:41:44.391Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Items.cs",
+              "DocumentMoniker": "E:\\dotnet\\SkyForge\\SkyForge\\SkyForge\\Models\\Retailer\\Items\\Items.cs",
+              "RelativeDocumentMoniker": "SkyForge\\Models\\Retailer\\Items\\Items.cs",
+              "ToolTip": "E:\\dotnet\\SkyForge\\SkyForge\\SkyForge\\Models\\Retailer\\Items\\Items.cs",
+              "RelativeToolTip": "SkyForge\\Models\\Retailer\\Items\\Items.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-05T08:40:44.255Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ItemsController.cs",
+              "DocumentMoniker": "E:\\dotnet\\SkyForge\\SkyForge\\SkyForge\\Controllers\\Retailer\\ItemsController.cs",
+              "RelativeDocumentMoniker": "SkyForge\\Controllers\\Retailer\\ItemsController.cs",
+              "ToolTip": "E:\\dotnet\\SkyForge\\SkyForge\\SkyForge\\Controllers\\Retailer\\ItemsController.cs",
+              "RelativeToolTip": "SkyForge\\Controllers\\Retailer\\ItemsController.cs",
+              "ViewState": "AgIAAA8EAAAAAAAAAAAgwB0EAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-05T08:39:28.892Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

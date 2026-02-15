@@ -1,0 +1,8 @@
+{
+  "name": "Saroj Basnet",
+  "email": "sarozbasnet96@gmail.com",
+  "password": "@96Saroz$",
+  "password2": "@96Saroz$",
+  "isAdmin": true,
+  "role": 0
+}

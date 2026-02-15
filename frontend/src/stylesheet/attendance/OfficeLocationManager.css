@@ -1,0 +1,102 @@
+.office-location-manager {
+    padding: 20px;
+}
+
+.office-location-manager .location-card {
+    border-left: 4px solid #007bff;
+    transition: all 0.3s ease;
+}
+
+.office-location-manager .location-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.office-location-manager .location-card.inactive {
+    border-left-color: #6c757d;
+    opacity: 0.8;
+}
+
+.office-location-manager .coordinate-display {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.office-location-manager .radius-badge {
+    background-color: #17a2b8;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.office-location-manager .map-preview {
+    height: 200px;
+    background-color: #e9ecef;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 15px 0;
+}
+
+.office-location-manager .action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.office-location-manager .location-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.office-location-manager .location-coordinates {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.office-location-manager .form-range {
+    flex: 1;
+}
+
+.office-location-manager .current-location-info {
+    background-color: #e7f3ff;
+    border-left: 3px solid #007bff;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.office-location-manager .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.office-location-manager .empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+    .office-location-manager {
+        padding: 10px;
+    }
+    
+    .office-location-manager .action-buttons {
+        flex-direction: column;
+    }
+    
+    .office-location-manager .action-buttons button {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+}

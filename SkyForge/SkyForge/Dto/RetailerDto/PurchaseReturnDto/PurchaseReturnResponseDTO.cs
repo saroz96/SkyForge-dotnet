@@ -1,0 +1,59 @@
+﻿using SkyForge.Models.Dto.RetailerDto.SalesBillDto;
+using System.Text.Json.Serialization;
+
+namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
+{
+    public class PurchaseReturnResponseDTO
+    {
+        public Guid Id { get; set; }
+
+        public Guid CompanyId { get; set; }
+        public string? CompanyName { get; set; }
+
+        public bool FirstPrinted { get; set; }
+        public int PrintCount { get; set; }
+        public string? PurchaseSalesReturnType { get; set; }
+        public int OriginalCopies { get; set; }
+
+        public Guid UserId { get; set; }
+        public string? UserName { get; set; }
+
+        public string BillNumber { get; set; } = string.Empty;
+        public string? PartyBillNumber { get; set; }
+
+        public Guid? AccountId { get; set; }
+        public string? AccountName { get; set; }
+
+        public Guid? SettingsId { get; set; }
+
+        public Guid FiscalYearId { get; set; }
+        public string? FiscalYearName { get; set; }
+
+        public List<PurchaseReturnItemResponseDTO> Items { get; set; } = new();
+
+        public decimal? SubTotal { get; set; }
+        public decimal? NonVatPurchaseReturn { get; set; }
+        public decimal? TaxableAmount { get; set; }
+        public decimal? DiscountPercentage { get; set; }
+        public decimal? DiscountAmount { get; set; }
+        public decimal VatPercentage { get; set; }
+        public decimal? VatAmount { get; set; }
+        public decimal? TotalAmount { get; set; }
+        public bool IsVatExempt { get; set; }
+        public string? IsVatAll { get; set; }
+        public decimal? RoundOffAmount { get; set; }
+        public string? PaymentMode { get; set; }
+
+        [JsonConverter(typeof(JsonDateTimeConverter))]
+        public DateTime Date { get; set; }
+
+        [JsonConverter(typeof(JsonDateTimeConverter))]
+        public DateTime TransactionDate { get; set; }
+
+        [JsonConverter(typeof(JsonDateTimeConverter))]
+        public DateTime CreatedAt { get; set; }
+
+        [JsonConverter(typeof(JsonDateTimeConverter))]
+        public DateTime UpdatedAt { get; set; }
+    }
+}

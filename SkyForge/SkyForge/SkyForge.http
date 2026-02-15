@@ -1,0 +1,6 @@
+@SkyForge_HostAddress = http://localhost:5142
+
+GET {{SkyForge_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

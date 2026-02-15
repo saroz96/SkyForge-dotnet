@@ -1,0 +1,146 @@
+/* OpeningtrialBalance.css - Bootstrap-enhanced */
+.trial-balance-container {
+    min-height: 100vh;
+}
+
+.trial-balance-report {
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.company-header {
+    border-bottom: 2px solid #333;
+}
+
+.company-header h1 {
+    color: #333;
+    text-transform: uppercase;
+}
+
+.company-header p {
+    color: #666;
+}
+
+.report-title h2 {
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.report-title p {
+    color: #666;
+}
+
+.trial-balance-table th {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    font-weight: 600;
+    color: #333;
+}
+
+.trial-balance-table td {
+    border: 1px solid #dee2e6;
+    vertical-align: top;
+}
+
+.trial-balance-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.trial-balance-table tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+.account-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.debit-amount, .credit-amount {
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+}
+
+.debit-amount {
+    color: #dc3545;
+}
+
+.credit-amount {
+    color: #28a745;
+}
+
+.totals-row, .grand-total-row {
+    background-color: #e9ecef;
+    font-weight: bold;
+}
+
+.totals-row td, .grand-total-row td {
+    border-top: 2px solid #333;
+    border-bottom: 2px solid #333;
+}
+
+.total-debit, .total-credit,
+.grand-total-debit, .grand-total-credit {
+    font-family: 'Courier New', monospace;
+}
+
+.validation-message {
+    font-weight: 500;
+}
+
+.balance-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.balance-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error-message, .no-data {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Print Styles */
+@media print {
+    .page-header {
+        display: none !important;
+    }
+    
+    .trial-balance-container {
+        padding: 0 !important;
+        background-color: white !important;
+    }
+    
+    .trial-balance-report {
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+    
+    .validation-message {
+        page-break-before: avoid;
+    }
+    
+    .btn {
+        display: none !important;
+    }
+}
