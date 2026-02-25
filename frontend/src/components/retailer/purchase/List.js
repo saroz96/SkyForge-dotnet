@@ -116,66 +116,6 @@ const PurchaseBillsList = () => {
         }
     );
 
-    // Fetch company and fiscal year info from purchase entry data (like AddPurchase)
-    // useEffect(() => {
-    //     const fetchInitialData = async () => {
-    //         try {
-    //             // Fetch purchase entry data from ASP.NET endpoint (same as AddPurchase)
-    //             const response = await api.get('/api/retailer/purchase/entry-data');
-
-    //             if (response.data.success) {
-    //                 const data = response.data.data;
-
-    //                 setCompany({
-    //                     ...data.company,
-    //                     dateFormat: data.company.dateFormat || 'nepali',
-    //                     vatEnabled: data.company.vatEnabled || true
-    //                 });
-
-    //                 // Set fiscal year from response
-    //                 const currentFiscalYear = data.currentFiscalYear;
-
-    //                 // Check if we have draft dates
-    //                 const hasDraftDates = draftSave?.purchaseBillsData?.fromDate && draftSave?.purchaseBillsData?.toDate;
-
-    //                 if (!hasDraftDates && currentFiscalYear?.startDate) {
-    //                     // Only set default dates if we don't have draft dates
-    //                     const isNepaliFormat = data.company.dateFormat === 'nepali' || data.company.dateFormat === 'Nepali';
-
-    //                     const fromDateFormatted = isNepaliFormat
-    //                         ? new NepaliDate(currentFiscalYear.startDate).format('YYYY-MM-DD')
-    //                         : new Date(currentFiscalYear.startDate).toISOString().split('T')[0];
-
-    //                     const toDateFormatted = isNepaliFormat ? currentNepaliDate : currentEnglishDate;
-
-    //                     setData(prev => ({
-    //                         ...prev,
-    //                         fromDate: fromDateFormatted,
-    //                         toDate: toDateFormatted,
-    //                         company: data.company,
-    //                         currentFiscalYear
-    //                     }));
-    //                 } else {
-    //                     // If we have draft data, ensure company info is updated
-    //                     setData(prev => ({
-    //                         ...prev,
-    //                         company: data.company,
-    //                         currentFiscalYear
-    //                     }));
-    //                 }
-    //             }
-    //         } catch (err) {
-    //             console.error('Error fetching initial data:', err);
-    //             setNotification({
-    //                 show: true,
-    //                 message: 'Error loading company data',
-    //                 type: 'error'
-    //             });
-    //         }
-    //     };
-
-    //     fetchInitialData();
-    // }, []);
 
     // Fetch company and fiscal year info from purchase entry data (like AddPurchase)
     useEffect(() => {

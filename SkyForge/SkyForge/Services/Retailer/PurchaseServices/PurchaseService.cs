@@ -229,6 +229,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 throw;
             }
         }
+
         public async Task<PurchaseBill> CreatePurchaseBillAsync(CreatePurchaseBillDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -1267,6 +1268,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 throw;
             }
         }
+
         public async Task<PurchaseEditDataDTO> GetPurchaseEditDataAsync(Guid billId, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             try
@@ -1620,9 +1622,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                    .FirstOrDefaultAsync();
             return MapToResponseDTO(purchaseBill, company ?? "English");
         }
-
-
-
         public async Task<IEnumerable<PurchaseBillResponseDTO>> GetPurchaseBillsAsync(Guid companyId, DateTime? fromDate = null, DateTime? toDate = null)
         {
             var query = _context.PurchaseBills
@@ -2521,8 +2520,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         PrintCount = purchaseBill.PrintCount,
                         PaymentMode = purchaseBill.PaymentMode,
                         Date = isNepaliFormat ? purchaseBill.nepaliDate : purchaseBill.Date,
-                        EnglishDate = purchaseBill.Date,
-                        TransactionDate = purchaseBill.TransactionDate,
+                        TransactionDate = isNepaliFormat ? purchaseBill.transactionDateNepali : purchaseBill.TransactionDate,
                         SubTotal = purchaseBill.SubTotal,
                         NonVatPurchase = purchaseBill.NonVatPurchase,
                         TaxableAmount = purchaseBill.TaxableAmount,
@@ -2584,9 +2582,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     LastBalance = finalBalance,
                     BalanceLabel = balanceLabel,
                     PaymentMode = purchaseBill.PaymentMode ?? string.Empty,
-                    NepaliDate = purchaseBill.nepaliDate.ToString("yyyy-MM-dd"),
-                    TransactionDateNepali = purchaseBill.transactionDateNepali.ToString("yyyy-MM-dd"),
-                    EnglishDate = purchaseBill.Date,
                     CompanyDateFormat = company.DateFormat?.ToString()?.ToLower() ?? "english",
                     User = new UserPrintDTO
                     {

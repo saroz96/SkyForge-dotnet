@@ -260,6 +260,8 @@ using System.Text;
 using System.Text.Json.Serialization;
 using SkyForge.Services.BillNumberServices;
 using SkyForge.Middleware;
+using SkyForge.Services.Retailer.PurchaseReturnServices;
+using SkyForge.Services.Retailer.SalesQuotationServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -379,6 +381,8 @@ builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IBillPrefixService, BillPrefixService>();
 builder.Services.AddScoped<IBillNumberService, BillNumberService>();
 builder.Services.AddScoped<IAccountBalanceService, AccountBalanceService>();
+builder.Services.AddScoped<IPurchaseReturnService, PurchaseReturnService>();
+builder.Services.AddScoped<ISalesQuotationService, SalesQuotationService>();
 
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();

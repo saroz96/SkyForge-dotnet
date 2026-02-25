@@ -50,6 +50,18 @@ namespace SkyForge.Models.Retailer.PurchaseReturnModel
         [Column("pu_price")]
         [Precision(18, 2)]
         public decimal? PuPrice { get; set; }
+        [Column("discount_percentage_per_item")]
+        [Precision(5, 2)]
+        public decimal DiscountPercentagePerItem { get; set; } = 0;
+
+        [Column("discount_amount_per_item")]
+        [Precision(18, 2)]
+        public decimal DiscountAmountPerItem { get; set; } = 0;
+
+        [Column("net_pu_price")]
+        [Precision(18, 2)]
+        public decimal NetPuPrice { get; set; }
+
 
         [Column("mrp")]
         [Precision(18, 2)]

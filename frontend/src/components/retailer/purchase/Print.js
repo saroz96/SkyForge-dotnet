@@ -962,6 +962,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Table } from 'react-bootstrap';
 import { BiPrinter, BiArrowBack, BiSolidFilePdf } from 'react-icons/bi';
+import NepaliDate from 'nepali-date-converter';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -1197,10 +1198,28 @@ const PurchaseBillPrint = () => {
         return rounded.toString();
     };
 
-    const formatDate = (dateString) => {
+    const formatDate = (dateString, format = 'english') => {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString();
+
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'N/A';
+
+            if (format === 'nepali') {
+                // Convert to Nepali date
+                const nepaliDate = new NepaliDate(date);
+                return nepaliDate.format('YYYY-MM-DD');
+            }
+
+            // English format
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        } catch (e) {
+            console.error('Date formatting error:', e);
+            return 'N/A';
+        }
     };
 
     if (loading) return (
@@ -1731,21 +1750,16 @@ const PurchaseBillPrint = () => {
                         <br />
                         <div className="details-container compact-text">
                             <div className="left wrap-text">
-                                <div><strong>Supplier:</strong> {billData.bill.account?.name || 'N/A'}</div>
-                                <div><strong>Address:</strong> {billData.bill.account?.address || 'N/A'}</div>
-                                <div><strong>PAN:</strong> {billData.bill.account?.pan || 'N/A'}</div>
+                                <div><strong>Supplier:</strong> {billData.bill.account?.name || ''}</div>
+                                <div><strong>Address:</strong> {billData.bill.account?.address || ''}</div>
+                                <div><strong>PAN:</strong> {billData.bill.account?.pan || ''}</div>
                                 <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
-                                {/* {billData.lastBalance !== null && billData.lastBalance !== undefined && (
-                                    <div><strong>Balance:</strong> {formatTo2Decimal(billData.lastBalance)} {billData.balanceLabel}</div>
-                                )} */}
                             </div>
                             <div className="right">
                                 <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
-                                <div><strong>Supplier Inv No:</strong> {billData.bill.partyBillNumber || 'N/A'}</div>
-                                <div><strong>Transaction Date:</strong> {formatDate(billData.bill.transactionDate)}</div>
-                                <div><strong>Inv. Issue Date:</strong> {formatDate(billData.bill.date)}</div>
-                                {/* <div><strong>Prepared By:</strong> {billData.bill.user?.name || 'N/A'}</div>
-                                {firstBill && <div><span className="badge bg-success">First Print</span></div>} */}
+                                <div><strong>Supplier Inv No:</strong> {billData.bill.partyBillNumber || ''}</div>
+                                <div><strong>Transaction Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.transactionDateNepali, 'nepali') : formatDate(billData.bill.transactionDate)}</div>
+                                <div><strong>Inv. Issue Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.nepaliDate, 'nepali') : formatDate(billData.bill.date)}</div>
                             </div>
                         </div>
 
@@ -1864,18 +1878,16 @@ const PurchaseBillPrint = () => {
 
                     <div className="print-invoice-details">
                         <div>
-                            <div><strong>Supplier:</strong> {billData.bill.account?.name || 'N/A'}</div>
-                            <div><strong>Address:</strong> {billData.bill.account?.address || 'N/A'}</div>
-                            <div><strong>PAN:</strong> {billData.bill.account?.pan || 'N/A'}</div>
+                            <div><strong>Supplier:</strong> {billData.bill.account?.name || ''}</div>
+                            <div><strong>Address:</strong> {billData.bill.account?.address || ''}</div>
+                            <div><strong>PAN:</strong> {billData.bill.account?.pan || ''}</div>
                             <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
                         </div>
                         <div>
                             <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
-                            <div><strong>Supplier Inv No:</strong> {billData.bill.partyBillNumber || 'N/A'}</div>
-                            <div><strong>Transaction Date:</strong> {formatDate(billData.bill.transactionDate)}</div>
-                            <div><strong>Inv. Issue Date:</strong> {formatDate(billData.bill.date)}</div>
-                            {/* <div><strong>Prepared By:</strong> {billData.bill.user?.name || 'N/A'}</div>
-                            {firstBill && <div><strong>First Print</strong></div>} */}
+                            <div><strong>Supplier Inv No:</strong> {billData.bill.partyBillNumber || ''}</div>
+                            <div><strong>Transaction Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.transactionDateNepali, 'nepali') : formatDate(billData.bill.transactionDate)}</div>
+                            <div><strong>Inv. Issue Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.nepaliDate, 'nepali') : formatDate(billData.bill.date)}</div>
                         </div>
                     </div>
 

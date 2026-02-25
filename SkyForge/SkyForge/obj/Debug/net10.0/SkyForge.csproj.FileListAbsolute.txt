@@ -257,3 +257,4 @@ E:\dotnet\SkyForge\SkyForge\SkyForge\obj\Debug\net10.0\refint\SkyForge.dll
 E:\dotnet\SkyForge\SkyForge\SkyForge\obj\Debug\net10.0\SkyForge.pdb
 E:\dotnet\SkyForge\SkyForge\SkyForge\obj\Debug\net10.0\SkyForge.genruntimeconfig.cache
 E:\dotnet\SkyForge\SkyForge\SkyForge\obj\Debug\net10.0\ref\SkyForge.dll
+E:\dotnet\SkyForge\SkyForge\SkyForge\obj\Debug\net10.0\SkyForge.sourcelink.json

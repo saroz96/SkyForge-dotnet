@@ -12,6 +12,7 @@ const PurchaseVoucherNumber = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingLatest, setIsFetchingLatest] = useState(true);
     const [showProductModal, setShowProductModal] = useState(false);
+    const billNumberInputRef = useRef(null);
 
     // Modal states - IMPORTANT: Initialize showPartyModal as false
     const [showPartyModal, setShowPartyModal] = useState(false);
@@ -47,6 +48,32 @@ const PurchaseVoucherNumber = () => {
             return Promise.reject(error);
         }
     );
+
+    // Focus the input when component mounts
+    useEffect(() => {
+        // Small delay to ensure DOM is ready
+        const timer = setTimeout(() => {
+            if (billNumberInputRef.current) {
+                billNumberInputRef.current.focus();
+            }
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    // Also focus when modal closes
+    useEffect(() => {
+        if (!showPartyModal) {
+            // Small delay to ensure modal is fully closed
+            const timer = setTimeout(() => {
+                if (billNumberInputRef.current) {
+                    billNumberInputRef.current.focus();
+                }
+            }, 200);
+
+            return () => clearTimeout(timer);
+        }
+    }, [showPartyModal]);
 
     // Fetch the latest bill number when component mounts
     useEffect(() => {
@@ -266,10 +293,21 @@ const PurchaseVoucherNumber = () => {
         }
     };
 
+    // const handleKeyDown = (e) => {
+    //     if (e.key === 'Enter' && !showPartyModal) {
+    //         e.preventDefault();
+    //         handleFindPurchase();
+    //     }
+    // };
+
     const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !showPartyModal) {
+        if (e.key === 'Enter') {
             e.preventDefault();
-            handleFindPurchase();
+
+            if (!showPartyModal) {
+                // Programmatically click the submit button
+                document.getElementById('findBill').click();
+            }
         }
     };
 
@@ -311,7 +349,7 @@ const PurchaseVoucherNumber = () => {
                                 placeholder="Enter voucher number"
                                 aria-describedby="billHelp"
                                 autoComplete="off"
-                                autoFocus
+                                ref={billNumberInputRef}
                                 value={billNumber}
                                 onChange={(e) => setBillNumber(e.target.value)}
                                 onKeyDown={handleKeyDown}
@@ -326,8 +364,9 @@ const PurchaseVoucherNumber = () => {
                         </div>
 
                         <button
-                            type="submit"
+                            type="button"
                             className="btn btn-primary btn-block mt-3"
+                            onClick={handleFindPurchase}
                             disabled={isLoading || isFetchingLatest || !billNumber.trim()}
                             id="findBill"
                         >

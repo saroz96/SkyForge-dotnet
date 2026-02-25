@@ -528,8 +528,8 @@ namespace SkyForge.Middleware
             var path = context.Request.Path.Value?.ToLower() ?? "";
             var method = context.Request.Method;
 
-            _logger.LogInformation("=== CheckDemoPeriodMiddleware ===");
-            _logger.LogInformation("Path: {Path}, Method: {Method}", path, method);
+            // _logger.LogInformation("=== CheckDemoPeriodMiddleware ===");
+            // _logger.LogInformation("Path: {Path}, Method: {Method}", path, method);
 
             // Skip middleware for specific paths
             if (ShouldSkipMiddleware(context))

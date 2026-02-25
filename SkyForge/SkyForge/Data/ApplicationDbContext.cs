@@ -29,6 +29,7 @@ using SkyForge.Models.UnitModel;
 using SkyForge.Models.UserModel;
 using SkyForge.Models.Retailer.StockAdjustmentModel;
 using System.Text.Json;
+using SkyForge.Models.Retailer.SalesQuotationModel;
 
 namespace SkyForge.Data
 {
@@ -58,6 +59,9 @@ namespace SkyForge.Data
         public DbSet<Rack> Racks { get; set; } = null!;
         public DbSet<SalesBill> SalesBills { get; set; }
         public DbSet<SalesBillItem> SalesBillItems { get; set; }
+
+        public DbSet<SalesQuotation> SalesQuotations { get; set; }
+        public DbSet<SalesQuotationItem> SalesQuotationItems { get; set; }
         public DbSet<Item> Items { get; set; }
         public DbSet<StockEntry> StockEntries { get; set; }
         public DbSet<PurchaseBill> PurchaseBills { get; set; }
@@ -80,7 +84,7 @@ namespace SkyForge.Data
         public DbSet<CreditNoteDebitEntry> CreditNoteDebitEntries { get; set; }
         public DbSet<CreditNoteCreditEntry> CreditNoteCreditEntries { get; set; }
 
-         public DbSet<StockAdjustment> StockAdjustments { get; set; }
+        public DbSet<StockAdjustment> StockAdjustments { get; set; }
         public DbSet<StockAdjustmentItem> StockAdjustmentItems { get; set; }
 
 
@@ -113,10 +117,10 @@ namespace SkyForge.Data
                 c => c != null ? c.GetHashCode() : 0,
                 c => c);
 
-                // Configure BillCounter unique constraint
-        modelBuilder.Entity<BillCounter>()
-            .HasIndex(bc => new { bc.CompanyId, bc.FiscalYearId, bc.TransactionType })
-            .IsUnique();
+            // Configure BillCounter unique constraint
+            modelBuilder.Entity<BillCounter>()
+                .HasIndex(bc => new { bc.CompanyId, bc.FiscalYearId, bc.TransactionType })
+                .IsUnique();
 
             // Receipt configuration
             modelBuilder.Entity<Receipt>(entity =>
@@ -442,6 +446,12 @@ namespace SkyForge.Data
                 entity.HasIndex(dce => dce.DebitNoteId);
             });
 
+            // Unique constraint for SalesQuotation
+            modelBuilder.Entity<SalesQuotation>()
+                .HasIndex(sq => new { sq.Date, sq.BillNumber, sq.CompanyId, sq.FiscalYearId })
+                .IsUnique()
+                .HasDatabaseName("IX_SalesQuotation_Date_BillNumber_Company_FiscalYear");
+
             // Transaction configuration
             modelBuilder.Entity<Transaction>(entity =>
             {
@@ -679,7 +689,7 @@ namespace SkyForge.Data
                       .WithMany()
                       .HasForeignKey(jv => jv.FiscalYearId)
                       .OnDelete(DeleteBehavior.Restrict);
-            }); 
+            });
 
             // Configure User entity
             modelBuilder.Entity<User>(entity =>
@@ -1817,7 +1827,7 @@ namespace SkyForge.Data
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 
-             // StockAdjustment configurations
+            // StockAdjustment configurations
             modelBuilder.Entity<StockAdjustment>(entity =>
             {
                 entity.HasIndex(sa => new { sa.BillNumber, sa.CompanyId, sa.FiscalYearId })

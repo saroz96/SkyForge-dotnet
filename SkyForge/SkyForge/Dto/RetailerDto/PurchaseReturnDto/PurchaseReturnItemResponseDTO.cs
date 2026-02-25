@@ -11,6 +11,8 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public Guid ItemId { get; set; }
         public string? ItemName { get; set; }
         public string? ItemCode { get; set; }
+        public string? Hscode { get; set; }
+        public int? UniqueNumber { get; set; }
 
         public Guid UnitId { get; set; }
         public string? UnitName { get; set; }
@@ -19,6 +21,10 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public decimal? Quantity { get; set; }
         public decimal? Price { get; set; }
         public decimal? PuPrice { get; set; }
+        public decimal DiscountPercentagePerItem { get; set; }
+        public decimal DiscountAmountPerItem { get; set; }
+        public decimal NetPuPrice { get; set; }
+
         public decimal Mrp { get; set; }
         public decimal MarginPercentage { get; set; }
         public string? Currency { get; set; }

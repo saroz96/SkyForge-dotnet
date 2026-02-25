@@ -2381,6 +2381,14 @@ namespace SkyForge.Migrations
                         .HasDefaultValue(13m)
                         .HasColumnName("vat_percentage");
 
+                    b.Property<DateTime>("nepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("nepali_date");
+
+                    b.Property<DateTime>("transactionDateNepali")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date_nepali");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
@@ -2446,6 +2454,16 @@ namespace SkyForge.Migrations
                         .HasColumnType("character varying(10)")
                         .HasColumnName("currency");
 
+                    b.Property<decimal>("DiscountAmountPerItem")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount_amount_per_item");
+
+                    b.Property<decimal>("DiscountPercentagePerItem")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("discount_percentage_per_item");
+
                     b.Property<DateOnly?>("ExpiryDate")
                         .HasColumnType("date")
                         .HasColumnName("expiry_date");
@@ -2467,6 +2485,11 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasDefaultValue(0m)
                         .HasColumnName("mrp");
+
+                    b.Property<decimal>("NetPuPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_pu_price");
 
                     b.Property<decimal?>("Price")
                         .HasPrecision(18, 2)
@@ -2946,6 +2969,234 @@ namespace SkyForge.Migrations
                     b.HasIndex("UnitId");
 
                     b.ToTable("sales_bill_items", (string)null);
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Retailer.SalesQuotationModel.SalesQuotation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<string>("BillNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("bill_number");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount_amount");
+
+                    b.Property<decimal>("DiscountPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("discount_percentage");
+
+                    b.Property<Guid>("FiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fiscal_year_id");
+
+                    b.Property<string>("IsVatAll")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("is_vat_all");
+
+                    b.Property<bool>("IsVatExempt")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_vat_exempt");
+
+                    b.Property<decimal>("NonVatSales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("non_vat_sales");
+
+                    b.Property<string>("PaymentMode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("payment_mode");
+
+                    b.Property<string>("PurchaseSalesType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("purchase_sales_type");
+
+                    b.Property<decimal>("RoundOffAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("round_off_amount");
+
+                    b.Property<Guid?>("SettingsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("settings_id");
+
+                    b.Property<decimal>("SubTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("sub_total");
+
+                    b.Property<decimal>("TaxableAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("taxable_amount");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal>("VatPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("vat_percentage");
+
+                    b.Property<DateTime>("nepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("nepali_date");
+
+                    b.Property<DateTime>("transactionDateNepali")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date_nepali");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("FiscalYearId");
+
+                    b.HasIndex("SettingsId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Date", "BillNumber", "CompanyId", "FiscalYearId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SalesQuotation_Date_BillNumber_Company_FiscalYear");
+
+                    b.ToTable("sales_quotations");
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Retailer.SalesQuotationModel.SalesQuotationItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<decimal>("DiscountAmountPerItem")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount_amount_per_item");
+
+                    b.Property<decimal>("DiscountPercentagePerItem")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("discount_percentage_per_item");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("price");
+
+                    b.Property<decimal?>("PuPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("SalesQuotationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sales_quotation_id");
+
+                    b.Property<string>("UniqueUuid")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("unique_uuid");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("unit_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VatStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("vat_status");
+
+                    b.Property<decimal?>("WsUnit")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)")
+                        .HasColumnName("ws_unit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("SalesQuotationId");
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("sales_quotation_items");
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.SalesReturnModel.SalesReturn", b =>
@@ -5200,6 +5451,72 @@ namespace SkyForge.Migrations
                     b.Navigation("Unit");
                 });
 
+            modelBuilder.Entity("SkyForge.Models.Retailer.SalesQuotationModel.SalesQuotation", b =>
+                {
+                    b.HasOne("SkyForge.Models.AccountModel.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId");
+
+                    b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
+                        .WithMany()
+                        .HasForeignKey("FiscalYearId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.Retailer.SettingsModel.Settings", "Settings")
+                        .WithMany()
+                        .HasForeignKey("SettingsId");
+
+                    b.HasOne("SkyForge.Models.UserModel.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("FiscalYear");
+
+                    b.Navigation("Settings");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Retailer.SalesQuotationModel.SalesQuotationItem", b =>
+                {
+                    b.HasOne("SkyForge.Models.Retailer.Items.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.Retailer.SalesQuotationModel.SalesQuotation", "SalesQuotation")
+                        .WithMany("Items")
+                        .HasForeignKey("SalesQuotationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.UnitModel.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+
+                    b.Navigation("SalesQuotation");
+
+                    b.Navigation("Unit");
+                });
+
             modelBuilder.Entity("SkyForge.Models.Retailer.SalesReturnModel.SalesReturn", b =>
                 {
                     b.HasOne("SkyForge.Models.AccountModel.Account", "Account")
@@ -5733,6 +6050,11 @@ namespace SkyForge.Migrations
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.Sales.SalesBill", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Retailer.SalesQuotationModel.SalesQuotation", b =>
                 {
                     b.Navigation("Items");
                 });

@@ -16,13 +16,21 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public decimal? WsUnit { get; set; }
 
         [Range(0.001, double.MaxValue)]
-        public decimal? Quantity { get; set; }
+        public decimal Quantity { get; set; }
 
         [Range(0, double.MaxValue)]
-        public decimal? Price { get; set; }
+        public decimal Price { get; set; }
 
         [Range(0, double.MaxValue)]
-        public decimal? PuPrice { get; set; }
+        public decimal PuPrice { get; set; }
+        [Range(0, 100)]
+        public decimal DiscountPercentagePerItem { get; set; } = 0;
+
+        [Range(0, double.MaxValue)]
+        public decimal DiscountAmountPerItem { get; set; } = 0;
+
+        [Range(0, double.MaxValue)]
+        public decimal NetPuPrice { get; set; }
 
         [Range(0, double.MaxValue)]
         public decimal Mrp { get; set; } = 0;

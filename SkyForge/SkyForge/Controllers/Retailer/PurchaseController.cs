@@ -318,6 +318,7 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
         // GET: api/retailer/purchase/current-number
         [HttpGet("purchase/current-number")]
         public async Task<IActionResult> GetCurrentPurchaseBillNumber()
@@ -370,6 +371,7 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
         [HttpGet("purchase/check-invoice")]
         public async Task<IActionResult> CheckDuplicateInvoice([FromQuery] string partyBillNumber)
         {
