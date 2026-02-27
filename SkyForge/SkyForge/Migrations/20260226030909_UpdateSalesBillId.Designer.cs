@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkyForge.Data;
@@ -11,9 +12,11 @@ using SkyForge.Data;
 namespace SkyForge.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260226030909_UpdateSalesBillId")]
+    partial class UpdateSalesBillId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2848,14 +2851,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(5,2)")
                         .HasDefaultValue(13m)
                         .HasColumnName("vat_percentage");
-
-                    b.Property<DateTime>("nepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
-
-                    b.Property<DateTime>("transactionDateNepali")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("transaction_date_nepali");
 
                     b.HasKey("Id");
 

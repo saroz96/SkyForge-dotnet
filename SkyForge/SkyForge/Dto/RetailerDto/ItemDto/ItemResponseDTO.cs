@@ -1,5 +1,4 @@
 ﻿using SkyForge.Dto.RetailerDto.StockEntryDto;
-using SkyForge.Models.Dto.RetailerDto.SalesBillDto;
 using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.RetailerDto.ItemDto
@@ -11,7 +10,7 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public int UniqueNumber { get; set; }
         public DateTime AddedAt { get; set; }
     }
-    
+
     public class ItemResponseDTO
     {
         public Guid Id { get; set; }
@@ -71,13 +70,10 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public decimal StockValue { get; set; }
         public ExpiryStatusDTO ExpiryStatus { get; set; } = new();
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime CreatedAt { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime Date { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime UpdatedAt { get; set; }
     }
 

@@ -1,7 +1,7 @@
 ﻿
 using System.ComponentModel.DataAnnotations;
 
-namespace SkyForge.Models.Dto.RetailerDto.SalesBillDto
+namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
     public class SalesBillItemDTO
     {

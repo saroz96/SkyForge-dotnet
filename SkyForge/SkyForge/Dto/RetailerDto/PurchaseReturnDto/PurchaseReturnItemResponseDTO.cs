@@ -1,5 +1,4 @@
-﻿using SkyForge.Models.Dto.RetailerDto.SalesBillDto;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
 {
@@ -45,10 +44,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public decimal? ItemTotal { get; set; }
         public decimal? VatAmount => VatStatus == "vatable" && ItemTotal.HasValue ? ItemTotal * 0.13m : 0; // Assuming 13% VAT
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime CreatedAt { get; set; }
-
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime UpdatedAt { get; set; }
     }
 }

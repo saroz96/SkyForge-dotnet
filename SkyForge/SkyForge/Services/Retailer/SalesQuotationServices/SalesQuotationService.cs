@@ -630,6 +630,7 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
                 VatPercentage = salesQuotation.VatPercentage,
                 VatAmount = salesQuotation.VatAmount,
                 TotalAmount = salesQuotation.TotalAmount,
+                Description = salesQuotation.Description,
                 IsVatExempt = salesQuotation.IsVatExempt,
                 IsVatAll = salesQuotation.IsVatAll,
                 RoundOffAmount = salesQuotation.RoundOffAmount,

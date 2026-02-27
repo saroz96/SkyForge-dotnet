@@ -1,4 +1,3 @@
-using SkyForge.Dto.RetailerDto.ItemDto;
 
 namespace SkyForge.Dto.RetailerDto.CompositionDto
 {
@@ -11,14 +10,13 @@ namespace SkyForge.Dto.RetailerDto.CompositionDto
         public string CompanyName { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        
+
         public ICollection<CompositionItemDTO> Items { get; set; } = new List<CompositionItemDTO>();
         public int ItemCount { get; set; }
         public decimal TotalStockValue { get; set; }
         public decimal TotalCurrentStock { get; set; }
     }
-    
-    // Special DTO for composition items in composition responses
+
     public class CompositionItemDTO
     {
         public Guid Id { get; set; }

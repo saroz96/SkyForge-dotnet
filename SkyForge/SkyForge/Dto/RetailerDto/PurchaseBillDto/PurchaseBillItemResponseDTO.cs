@@ -1,5 +1,4 @@
-﻿using SkyForge.Models.Dto.RetailerDto.SalesBillDto;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
 {
@@ -47,10 +46,8 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public decimal ItemTotal => Quantity * PuPrice;
         public decimal ItemTotalWithDiscount => ItemTotal - DiscountAmountPerItem;
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime CreatedAt { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime UpdatedAt { get; set; }
     }
 }

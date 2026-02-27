@@ -103,7 +103,7 @@ namespace SkyForge.Models.Retailer.TransactionModel
 
         // Bill references
         [ForeignKey("SalesBill")]
-        public Guid? BillId { get; set; }
+        public Guid? SalesBillId { get; set; }
         public virtual SalesBill? SalesBill { get; set; }
 
         [ForeignKey("PurchaseBill")]
@@ -240,9 +240,9 @@ namespace SkyForge.Models.Retailer.TransactionModel
         [MaxLength(50)]
         public string? DrCrNoteAccountTypes { get; set; }
 
-        public decimal Debit { get; set; }=0;
+        public decimal Debit { get; set; } = 0;
 
-        public decimal Credit { get; set; }=0;
+        public decimal Credit { get; set; } = 0;
 
         public decimal? Balance { get; set; }
 
@@ -284,10 +284,10 @@ namespace SkyForge.Models.Retailer.TransactionModel
         public DateTime BillDate { get; set; } = DateTime.UtcNow;
 
         [Column("nepali_date")]
-        public DateTime nepaliDate {get;set;}
-        
+        public DateTime nepaliDate { get; set; }
+
         [Column("transaction_date_nepali")]
-        public DateTime transactionDateNepali {get;set;}
+        public DateTime transactionDateNepali { get; set; }
 
         [Column(TypeName = "varchar(20)")]
         public TransactionStatus Status { get; set; } = TransactionStatus.Active;

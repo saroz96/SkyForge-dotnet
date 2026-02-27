@@ -11,10 +11,12 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
         Task<PurchaseReturn> CreatePurchaseReturnAsync(CreatePurchaseReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId);
         Task<PurchaseReturnRegisterDataDTO> GetPurchaseReturnRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null);
         Task<PurchaseReturnEntryDataDTO> GetPurchaseReturnEntryDataAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+
         Task<PurchaseReturnFindsDTO> GetPurchaseReturnFindsAsync(Guid companyId, Guid fiscalYearId, Guid userId);
         Task<PurchaseReturnPartyInfoDTO?> GetPurchaseReturnPartyInfoAsync(string billNumber, Guid companyId, Guid fiscalYearId);
         Task<ChangePurchaseReturnPartyResponseDTO> ChangePurchaseReturnPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId);
         Task<BillIdResponseDTO> GetPurchaseReturnBillIdByNumberAsync(string billNumber, Guid companyId, Guid fiscalYearId);
+
         // Add this method to your IPurchaseReturnService interface
         Task<PurchaseReturnEditDataDTO> GetPurchaseReturnEditDataAsync(Guid billId, Guid companyId, Guid fiscalYearId, Guid userId);
         // In IPurchaseReturnService.cs

@@ -1,5 +1,4 @@
-﻿using SkyForge.Models.Dto.RetailerDto.SalesBillDto;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.CompositionDto
 {
@@ -14,10 +13,8 @@ namespace SkyForge.Dto.CompositionDto
 
         public List<CompositionItemDto> Items { get; set; } = new();
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime CreatedAt { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime UpdatedAt { get; set; }
 
         // Statistics
@@ -37,7 +34,6 @@ namespace SkyForge.Dto.CompositionDto
         public string? UnitName { get; set; }
         public string? CategoryName { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime CreatedAt { get; set; }
     }
 }

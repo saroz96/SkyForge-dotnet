@@ -1,5 +1,4 @@
-﻿using SkyForge.Models.Dto.RetailerDto.SalesBillDto;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.RetailerDto.SalesReturnDto
 {
@@ -61,16 +60,12 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
 
         public bool IsEditable { get; set; } = true;
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime Date { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime TransactionDate { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime CreatedAt { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime UpdatedAt { get; set; }
     }
 }

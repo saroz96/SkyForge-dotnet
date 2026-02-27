@@ -1,5 +1,4 @@
 ﻿
-using SkyForge.Models.Dto.RetailerDto.SalesBillDto;
 using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.RetailerDto.StockEntryDto
@@ -10,7 +9,6 @@ namespace SkyForge.Dto.RetailerDto.StockEntryDto
         public Guid ItemId { get; set; }
         public string? ItemName { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime Date { get; set; }
 
         public decimal? WsUnit { get; set; }
@@ -49,10 +47,8 @@ namespace SkyForge.Dto.RetailerDto.StockEntryDto
 
         public SourceTransferResponseDto? SourceTransfer { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime CreatedAt { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime UpdatedAt { get; set; }
 
         // Calculated properties
@@ -67,7 +63,6 @@ namespace SkyForge.Dto.RetailerDto.StockEntryDto
         public string? FromStoreName { get; set; }
         public Guid? OriginalEntryId { get; set; }
 
-        [JsonConverter(typeof(JsonDateTimeConverter))]
         public DateTime? TransferDate { get; set; }
     }
 }

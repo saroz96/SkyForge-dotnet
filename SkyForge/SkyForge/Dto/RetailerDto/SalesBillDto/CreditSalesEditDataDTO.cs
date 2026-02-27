@@ -1,14 +1,24 @@
 using SkyForge.Dto.AccountDto;
 
-namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
+namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
-    public class SalesQuotationEditDataDTO
+    public class CreditSalesEditDataDTO
     {
         public CompanyInfoDTO Company { get; set; }
-        public SalesQuotationResponseDTO SalesQuotation { get; set; } = new();
+        public SalesBillResponseDTO SalesBill { get; set; } = new();
         public List<ItemEditDTO> Items { get; set; }
         public List<AccountInfoDTO> Accounts { get; set; }
         public UserEditInfoDTO User { get; set; }
+    }
+
+    public class SalesBillItemEditDTO : SalesBillItemResponseDTO
+    {
+        public decimal Stock { get; set; }
+        public decimal LatestPuPrice { get; set; }
+        public decimal Amount { get; set; }
+        public List<StockEntryInfoDTO> StockEntries { get; set; }
+        public CategoryInfoDTO Category { get; set; }
+        public UnitInfoDTO Unit { get; set; }
     }
 
     public class ItemEditDTO
@@ -40,15 +50,5 @@ namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
         public bool IsAdmin { get; set; }
         public string Role { get; set; }
         public UserPreferencesDTO Preferences { get; set; }
-    }
-
-    public class SalesQuotationItemEditDTO : SalesQuotationItemResponseDTO
-    {
-        public decimal Stock { get; set; }
-        public decimal LatestPuPrice { get; set; }
-        public decimal Amount { get; set; }
-        public List<StockEntryInfoDTO> StockEntries { get; set; }
-        public CategoryInfoDTO Category { get; set; }
-        public UnitInfoDTO Unit { get; set; }
     }
 }

@@ -489,7 +489,7 @@ namespace SkyForge.Data
                 // Bill references - each can be null
                 entity.HasOne(t => t.SalesBill)
                       .WithMany()
-                      .HasForeignKey(t => t.BillId)
+                      .HasForeignKey(t => t.SalesBillId)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(t => t.PurchaseBill)

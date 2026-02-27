@@ -81,15 +81,6 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public DateTime UpdatedAt { get; set; }
     }
 
-    // public class CompanyInfoDTO
-    // {
-    //     public Guid Id { get; set; }
-    //     public DateTime? RenewalDate { get; set; }
-    //     public string? DateFormat { get; set; }
-    //     public bool VatEnabled { get; set; }
-    //     public FiscalYearInfoDTO? FiscalYear { get; set; }
-    // }
-
     public class FiscalYearInfoDTO
     {
         public Guid Id { get; set; }
@@ -107,33 +98,11 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public string? CompanyDateFormat { get; set; }
     }
 
-    // public class CategoryInfoDTO
-    // {
-    //     public Guid Id { get; set; }
-    //     public string? Name { get; set; }
-    // }
-
-    // public class UnitInfoDTO
-    // {
-    //     public Guid Id { get; set; }
-    //     public string? Name { get; set; }
-    // }
-
     public class CompanyGroupInfoDTO
     {
         public Guid Id { get; set; }
         public string? Name { get; set; }
     }
-
-    // public class UserPreferencesDTO
-    // {
-    //     public string Theme { get; set; } = "light";
-    // }
-
-    // public class PermissionsDTO
-    // {
-    //     public bool IsAdminOrSupervisor { get; set; }
-    // }
 
     public class UserInfo
     {
