@@ -56,9 +56,9 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public string? IsVatAll { get; set; }
         public decimal? RoundOffAmount { get; set; }
         public string? PaymentMode { get; set; }
-
+        public DateTime NepaliDate { get; set; }
         public DateTime Date { get; set; }
-
+        public DateTime TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
 
         public bool IsEditable { get; set; } = true;

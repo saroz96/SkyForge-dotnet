@@ -91,8 +91,8 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
 
         public DateTime Date { get; set; }
         public DateTime BillDate { get; set; }
-        public DateTime nepaliDate {get;set;}
-        public DateTime transactionDateNepali {get;set;}
+        public DateTime nepaliDate { get; set; }
+        public DateTime transactionDateNepali { get; set; }
 
         public TransactionStatus Status { get; set; } = TransactionStatus.Active;
         public bool IsActive { get; set; } = true;

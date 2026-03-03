@@ -60,8 +60,12 @@ const AddPurchase = () => {
     const [headerSearchPage, setHeaderSearchPage] = useState(1);
     const [hasMoreHeaderSearchResults, setHasMoreHeaderSearchResults] = useState(false);
     const [totalHeaderSearchItems, setTotalHeaderSearchItems] = useState(0);
+    const [selectedItemForBatch, setSelectedItemForBatch] = useState(null);
+    const [showBatchModal, setShowBatchModal] = useState(false);
 
     const itemsTableRef = useRef(null);
+    const itemDropdownRef = useRef(null);
+
     const [transactionSettings, setTransactionSettings] = useState({
         displayTransactions: false,
         displayTransactionsForPurchase: false,
@@ -238,9 +242,9 @@ const AddPurchase = () => {
             });
 
             if (response.data.success) {
-                const itemsWithLatestPrice = response.data.items.map(item => {
+                const itemsWithLatestPuPrice = response.data.items.map(item => {
                     // Get latest purchase price from stockEntries
-                    let latestPuPrice = 0;
+                    let latestPrice = 0;
                     let latestBatchNumber = '';
                     let latestExpiryDate = '';
                     let latestWSUnit = 1;
@@ -254,7 +258,7 @@ const AddPurchase = () => {
                         const sortedEntries = item.stockEntries.sort((a, b) =>
                             new Date(b.date) - new Date(a.date)
                         );
-                        latestPuPrice = sortedEntries[0].puPrice || 0;
+                        latestPrice = sortedEntries[0].puPrice || 0;
                         latestBatchNumber = sortedEntries[0].batchNumber || '';
                         latestExpiryDate = sortedEntries[0].expiryDate || '';
                         latestWSUnit = sortedEntries[0].WSUnit || 1;
@@ -262,7 +266,7 @@ const AddPurchase = () => {
 
                     return {
                         ...item,
-                        latestPuPrice,
+                        latestPrice,
                         latestBatchNumber,
                         latestExpiryDate,
                         latestWSUnit,
@@ -272,18 +276,18 @@ const AddPurchase = () => {
 
                 if (isHeaderModal) {
                     if (page === 1) {
-                        setHeaderSearchResults(itemsWithLatestPrice);
+                        setHeaderSearchResults(itemsWithLatestPuPrice);
                     } else {
-                        setHeaderSearchResults(prev => [...prev, ...itemsWithLatestPrice]);
+                        setHeaderSearchResults(prev => [...prev, ...itemsWithLatestPuPrice]);
                     }
                     setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
                     setTotalHeaderSearchItems(response.data.pagination.totalItems);
                     setHeaderSearchPage(page);
                 } else {
                     if (page === 1) {
-                        setSearchResults(itemsWithLatestPrice);
+                        setSearchResults(itemsWithLatestPuPrice);
                     } else {
-                        setSearchResults(prev => [...prev, ...itemsWithLatestPrice]);
+                        setSearchResults(prev => [...prev, ...itemsWithLatestPuPrice]);
                     }
                     setHasMoreSearchResults(response.data.pagination.hasNextPage);
                     setTotalSearchItems(response.data.pagination.totalItems);
@@ -910,6 +914,19 @@ const AddPurchase = () => {
                 });
             }, 100);
         }
+    };
+
+    const showBatchModalForItem = (item) => {
+        setSelectedItemForBatch(item);
+        setShowBatchModal(true);
+
+        setTimeout(() => {
+            const firstBatchRow = document.querySelector('.batch-row');
+            if (firstBatchRow) {
+                firstBatchRow.classList.add('bg-primary', 'text-white');
+                firstBatchRow.focus();
+            }
+        }, 100);
     };
 
     useEffect(() => {
@@ -2334,6 +2351,12 @@ const AddPurchase = () => {
         }
     };
 
+    const loadMoreSearchItems = () => {
+        if (!isSearching) {
+            fetchItemsFromBackend(searchQuery, searchPage + 1, false);
+        }
+    };
+
     const loadMoreHeaderSearchItems = () => {
         if (!isHeaderSearching && hasMoreHeaderSearchResults) {
             fetchItemsFromBackend(
@@ -2399,6 +2422,73 @@ const AddPurchase = () => {
 
         return true;
     };
+
+
+    const ItemDropdown = React.useMemo(() => {
+        if (!showItemDropdown) return null;
+
+        const itemsToShow = searchResults;
+
+        return (
+            <div
+                id="dropdownMenu"
+                className="dropdown-menu show"
+                style={{
+                    maxHeight: '280px',
+                    height: '280px',
+                    overflow: 'hidden',
+                    position: 'absolute',
+                    width: '100%',
+                    zIndex: 1000,
+                    border: '1px solid #ddd',
+                    borderRadius: '4px'
+                }}
+                ref={itemDropdownRef}
+            >
+                <div className="dropdown-header" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    alignItems: 'center',
+                    padding: '0 10px',
+                    height: '40px',
+                    background: '#f0f0f0',
+                    fontWeight: 'bold',
+                    borderBottom: '1px solid #dee2e6'
+                }}>
+                    <div><strong>#</strong></div>
+                    <div><strong>HSN</strong></div>
+                    <div><strong>Description</strong></div>
+                    <div><strong>Category</strong></div>
+                    <div><strong>Stock</strong></div>
+                    <div><strong>Unit</strong></div>
+                    <div><strong>Rate</strong></div>
+                </div>
+
+                {itemsToShow.length > 0 ? (
+                    <VirtualizedItemList
+                        items={itemsToShow}
+                        onItemClick={(item) => showBatchModalForItem(item)}
+                        searchRef={itemSearchRef}
+                        hasMore={hasMoreSearchResults}
+                        isSearching={isSearching}
+                        onLoadMore={loadMoreSearchItems}
+                        totalItems={totalSearchItems}
+                        page={searchPage}
+                        searchQuery={searchQuery}
+                        setNotification={setNotification}
+                    />
+                ) : (
+                    <div className="text-center py-3 text-muted">
+                        {searchQuery ? 'No items found' : 'Type to search items'}
+                        <div className="small mt-1">
+                            <small className="text-info">Press F6 to create a new item</small>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }, [showItemDropdown, searchResults, searchQuery, lastSearchQuery, shouldShowLastSearchResults]);
+
 
     return (
         <div className="container-fluid">
@@ -4433,7 +4523,7 @@ const AddPurchase = () => {
                             </div>
 
                             <div className="modal-body p-0">
-                                <div style={{ height: 'calc(35vh - 60px)' }}>
+                                <div style={{ height: 'calc(55vh - 120px)' }}>
                                     <div
                                         id="dropdownMenu"
                                         className="w-100 h-100"

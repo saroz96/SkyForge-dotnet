@@ -5560,6 +5560,7 @@ const AddSalesOpen = () => {
             price: Math.round(batchInfo.price * 100) / 100 || 0,
             puPrice: batchInfo.puPrice || 0,
             netPuPrice: batchInfo.netPuPrice || 0,
+            mrp: batchInfo.mrp,
             amount: 0,
             vatStatus: item.vatStatus,
             uniqueUuid: batchInfo.uniqueUuid
@@ -5701,7 +5702,8 @@ const AddSalesOpen = () => {
                     price: batchInfo.price,
                     uniqueUuid: batchInfo.uniqueUuid,
                     puPrice: batchInfo.puPrice,
-                    netPuPrice: batchInfo.netPuPrice
+                    netPuPrice: batchInfo.netPuPrice,
+                    mrp: batchInfo.mrp
                 }
             });
 
@@ -5734,7 +5736,8 @@ const AddSalesOpen = () => {
                 price: batchInfo.price,
                 uniqueUuid: batchInfo.uniqueUuid,
                 puPrice: batchInfo.puPrice,
-                netPuPrice: batchInfo.netPuPrice
+                netPuPrice: batchInfo.netPuPrice,
+                mrp: batchInfo.mrp
             });
         }
     };
@@ -5809,6 +5812,7 @@ const AddSalesOpen = () => {
             price: selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100,
             puPrice: selectedItemForInsert.batchInfo?.puPrice || 0,
             netPuPrice: selectedItemForInsert.batchInfo?.netPuPrice || 0,
+            mrp: selectedItemForInsert.batchInfo?.mrp || 0,
             amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100),
             vatStatus: selectedItemForInsert.vatStatus,
             uniqueUuid: uniqueUuid
@@ -6245,6 +6249,7 @@ const AddSalesOpen = () => {
                     unitId: item.unitId,
                     price: item.price,
                     puPrice: item.puPrice,
+                    mrp: item.mrp,
                     netPuPrice: item.netPuPrice,
                     vatStatus: item.vatStatus,
                     uniqueUuid: item.uniqueUuid
@@ -6338,7 +6343,7 @@ const AddSalesOpen = () => {
                         <div class="print-company-details">
                             ${printData.currentCompany?.address || ''} | Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || ''}
                         </div>
-                        <div class="print-invoice-title">OPEN CREDIT SALES INVOICE</div>
+                        <div class="print-invoice-title">${printData.firstBill ? 'TAX INVOICE' : 'INVOICE'}</div>
                     </div>
 
                     <div class="print-invoice-details">
@@ -6346,12 +6351,11 @@ const AddSalesOpen = () => {
                             <div><strong>M/S:</strong> ${printData.bill.account?.name || 'N/A'}</div>
                             <div><strong>Address:</strong> ${printData.bill.account?.address || 'N/A'}</div>
                             <div><strong>PAN:</strong> ${printData.bill.account?.pan || 'N/A'}</div>
-                            <div><strong>Email:</strong> ${printData.bill.account?.email || 'N/A'}</div>
-                            <div><strong>Tel:</strong> ${printData.bill.account?.phone || 'N/A'}</div>
+                            <div><strong>Email:</strong> ${printData.bill.account?.email || 'N/A'}, <strong>Tel:</strong> ${printData.bill.account?.phone || 'N/A'}</div>
                         </div>
                         <div>
                             <div><strong>Invoice No:</strong> ${printData.bill.billNumber || 'N/A'}</div>
-                            <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
+                            <div><strong>Trans. Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
                             <div><strong>Invoice Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
                             <div><strong>Mode of Payment:</strong> ${printData.bill.paymentMode || 'N/A'}</div>
                         </div>
@@ -8955,6 +8959,9 @@ const AddSalesOpen = () => {
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Expiry Date</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Stock</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>S.P</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>C.P</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>%</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>MRP</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -8992,6 +8999,7 @@ const AddSalesOpen = () => {
                                                                             price: entry.price,
                                                                             puPrice: entry.puPrice,
                                                                             netPuPrice: entry.netPuPrice,
+                                                                            mrp: entry.mrp,
                                                                             uniqueUuid: entry.uniqueUuid
                                                                         });
                                                                     }
@@ -9006,6 +9014,7 @@ const AddSalesOpen = () => {
                                                                             price: entry.price,
                                                                             puPrice: entry.puPrice,
                                                                             netPuPrice: entry.netPuPrice,
+                                                                            mrp: entry.mrp,
                                                                             uniqueUuid: entry.uniqueUuid
                                                                         });
                                                                     } else if (e.key === 'ArrowDown') {
@@ -9128,6 +9137,9 @@ const AddSalesOpen = () => {
                                                                     </span>
                                                                 </td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.price * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.puPrice * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.marginPercentage * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.mrp * 100) / 100}</td>
                                                                 <td className="d-none">{entry.uniqueUuid}</td>
                                                             </tr>
                                                         );

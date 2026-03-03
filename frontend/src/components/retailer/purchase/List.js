@@ -295,8 +295,8 @@ const PurchaseBillsList = () => {
             const matchesSearch =
                 bill.billNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 bill.partyBillNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                bill.accountName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                bill.userName?.toLowerCase().includes(searchQuery.toLowerCase());
+                bill.accountName?.toLowerCase().includes(searchQuery.toLowerCase())
+            // bill.userName?.toLowerCase().includes(searchQuery.toLowerCase());
 
             const matchesPaymentMode =
                 paymentModeFilter === '' ||
@@ -533,7 +533,7 @@ const PurchaseBillsList = () => {
         rowsToPrint.forEach(bill => {
             tableContent += `
             <tr>
-                <td class="nowrap">${new Date(bill.date).toLocaleDateString()}</td>
+                <td class="nowrap">${new NepaliDate(bill.date).format('YYYY-MM-DD')}</td>
                 <td class="nowrap">${bill.billNumber}</td>
                 <td class="nowrap">${bill.partyBillNumber || 'N/A'}</td>
                 <td class="nowrap">${bill.accountName || 'N/A'}</td>

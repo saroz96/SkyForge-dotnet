@@ -295,8 +295,11 @@ namespace SkyForge.Middleware
             bool isCreditSalesEndpoint = path == "/api/retailer/credit-sales" ||
                                    path.Contains("/api/retailer/credit-sales") ||
                                    path.EndsWith("/credit-sales");
+            bool isCashSalesEndpoint = path == "/api/retailer/cash-sales" ||
+                                    path.Contains("/api/retailer/cash-sales") ||
+                                    path.EndsWith("/cash-sales");
 
-            return (isPurchaseEndpoint || isCreditSalesEndpoint) && method == HttpMethods.Post;
+            return (isPurchaseEndpoint || isCreditSalesEndpoint || isCashSalesEndpoint) && method == HttpMethods.Post;
         }
     }
 }

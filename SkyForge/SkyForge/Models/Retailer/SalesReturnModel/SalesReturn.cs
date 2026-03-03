@@ -159,11 +159,17 @@ namespace SkyForge.Models.Retailer.SalesReturnModel
         [Precision(18, 2)]
         public decimal? Price { get; set; }
 
+        [Column("nepali_date")]
+        public DateTime nepaliDate { get; set; }
+
         [Column("date")]
-        public DateTime Date { get; set; } = DateTime.UtcNow;
+        public DateTime Date { get; set; }
+
+        [Column("transaction_date_nepali")]
+        public DateTime transactionDateNepali { get; set; }
 
         [Column("transaction_date")]
-        public DateTime TransactionDate { get; set; } = DateTime.UtcNow;
+        public DateTime TransactionDate { get; set; }
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -3,10 +3,27 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
-    // DTO for UpdateCreditSalesBill endpoint
-    public class UpdateCreditSalesBillDTO
+    // DTO for UpdateSalesBill endpoint
+    public class UpdateSalesBillDTO
     {
+
         public Guid AccountId { get; set; }
+        [StringLength(255)]
+        public string? CashAccount { get; set; }
+
+        [StringLength(500)]
+        public string? CashAccountAddress { get; set; }
+
+        [StringLength(50)]
+        public string? CashAccountPan { get; set; }
+
+        [EmailAddress]
+        [StringLength(255)]
+        public string? CashAccountEmail { get; set; }
+
+        [Phone]
+        [StringLength(20)]
+        public string? CashAccountPhone { get; set; }
         public List<UpdateSalesBillItemDTO> Items { get; set; }
         public decimal? VatPercentage { get; set; }
 
@@ -59,6 +76,9 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
 
         [Range(0, double.MaxValue)]
         public decimal NetPrice { get; set; } = 0;
+
+        [Range(0, double.MaxValue)]
+        public decimal? Mrp { get; set; }
 
         [StringLength(100)]
         public string? BatchNumber { get; set; }

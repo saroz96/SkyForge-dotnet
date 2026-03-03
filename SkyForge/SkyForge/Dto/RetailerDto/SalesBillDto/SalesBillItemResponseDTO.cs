@@ -22,6 +22,8 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal? Price { get; set; }
         public decimal? NetPrice { get; set; }
         public decimal? PuPrice { get; set; }
+
+        public decimal? Mrp { get; set; }
         public decimal? NetPuPrice { get; set; }
 
         public string? BatchNumber { get; set; }

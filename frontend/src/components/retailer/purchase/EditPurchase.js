@@ -9494,7 +9494,7 @@ const EditPurchase = () => {
 
             if (response.data.success) {
                 const itemsWithLatestPrice = response.data.items.map(item => {
-                    let latestPuPrice = 0;
+                    let latestPrice = 0;
                     let latestBatchNumber = '';
                     let latestExpiryDate = '';
                     let latestWsUnit = 1;
@@ -9506,7 +9506,7 @@ const EditPurchase = () => {
                         const sortedEntries = item.stockEntries.sort((a, b) =>
                             new Date(b.date) - new Date(a.date)
                         );
-                        latestPuPrice = sortedEntries[0].puPrice || 0;
+                        latestPrice = sortedEntries[0].puPrice || 0;
                         latestBatchNumber = sortedEntries[0].batchNumber || '';
                         latestExpiryDate = sortedEntries[0].expiryDate || '';
                         latestWsUnit = sortedEntries[0].wsUnit || 1;
@@ -9514,7 +9514,7 @@ const EditPurchase = () => {
 
                     return {
                         ...item,
-                        latestPuPrice,
+                        latestPrice,
                         latestBatchNumber,
                         latestExpiryDate,
                         latestWsUnit,
@@ -9645,6 +9645,29 @@ const EditPurchase = () => {
                 const invoice = data.purchaseInvoice;
                 const dateFormat = data.company.dateFormat;
 
+                // Helper function to format date properly
+                const formatDate = (dateValue) => {
+                    if (!dateValue) return '';
+
+                    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                        return dateValue;
+                    }
+
+                    try {
+                        const date = new Date(dateValue);
+                        if (isNaN(date.getTime())) return '';
+
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+
+                        return `${year}-${month}-${day}`;
+                    } catch (e) {
+                        console.error('Date formatting error:', e);
+                        return '';
+                    }
+                };
+
                 const accountDoc = data.accounts.find(acc => acc.id === invoice.accountId);
                 const accountNameWithNumber = accountDoc?.uniqueNumber
                     ? `${accountDoc.uniqueNumber} ${invoice.accountName}`
@@ -9682,14 +9705,18 @@ const EditPurchase = () => {
                     accountName: accountNameWithNumber,
                     accountAddress: invoice.accountAddress || '',
                     accountPan: invoice.accountPan || '',
-                    transactionDateNepali: dateFormat === 'nepali' ?
-                        new Date(invoice.transactionDate).toISOString().split('T')[0] : currentNepaliDate,
-                    transactionDateRoman: dateFormat !== 'nepali' ?
-                        new Date(invoice.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                    nepaliDate: dateFormat === 'nepali' ?
-                        new Date(invoice.date).toISOString().split('T')[0] : currentNepaliDate,
-                    billDate: dateFormat !== 'nepali' ?
-                        new Date(invoice.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                    // transactionDateNepali: dateFormat === 'Nepali' ?
+                    //     new Date(invoice.transactionDate).toISOString().split('T')[0] : currentNepaliDate,
+                    // transactionDateRoman: dateFormat !== 'nepali' ?
+                    //     new Date(invoice.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                    // nepaliDate: dateFormat === 'nepali' ?
+                    //     new Date(invoice.date).toISOString().split('T')[0] : currentNepaliDate,
+                    // billDate: dateFormat !== 'nepali' ?
+                    //     new Date(invoice.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                    transactionDateNepali: formatDate(invoice.transactionDateNepali || invoice.transactionDate),
+                    transactionDateRoman: formatDate(invoice.transactionDate || invoice.transactionDateNepali),
+                    nepaliDate: formatDate(invoice.nepaliDate || invoice.date),
+                    billDate: formatDate(invoice.date || invoice.nepaliDate),
                     billNumber: invoice.billNumber,
                     partyBillNumber: invoice.partyBillNumber || '',
                     paymentMode: invoice.paymentMode,

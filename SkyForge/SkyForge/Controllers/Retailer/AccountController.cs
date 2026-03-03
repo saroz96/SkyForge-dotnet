@@ -173,31 +173,195 @@ namespace SkyForge.Controllers.Retailer
                     })
                     .ToListAsync();
 
-                // 11. Calculate balances for all accounts
-                // var accountsWithBalances = new List<AccountSearchResultDTO>();
+                // In the SearchAccounts method, update the response mapping
+                var accountsWithBalances = new List<AccountSearchResultDTO>();
 
-                // foreach (var account in accounts)
-                // {
-                //     var balanceData = await _accountBalanceService.CalculateAccountBalanceAsync(
-                //         account.Id, companyIdGuid, fiscalYearId.Value);
+                foreach (var account in accounts)
+                {
+                    var balanceData = await _accountBalanceService.CalculateAccountBalanceAsync(
+                        account.Id, companyIdGuid, fiscalYearId.Value);
 
-                //     accountsWithBalances.Add(new AccountSearchResultDTO
-                //     {
-                //         Id = account.Id,
-                //         Name = account.Name,
-                //         UniqueNumber = account.UniqueNumber,
-                //         Address = account.Address,
-                //         Pan = account.Pan,
-                //         ContactPerson = account.ContactPerson,
-                //         Email = account.Email,
-                //         Phone = account.Phone,
-                //         CreditLimit = account.CreditLimit,
-                //         CreatedAt = account.CreatedAt,
-                //         Balance = balanceData.Balance,
-                //         BalanceType = balanceData.BalanceType,
-                //         RawBalance = balanceData.RawBalance
-                //     });
-                // }
+                    accountsWithBalances.Add(new AccountSearchResultDTO
+                    {
+                        Id = account.Id,
+                        Name = account.Name,
+                        UniqueNumber = account.UniqueNumber,
+                        Address = account.Address,
+                        Pan = account.Pan,
+                        ContactPerson = account.ContactPerson,
+                        Email = account.Email,
+                        Phone = account.Phone,
+                        CreditLimit = account.CreditLimit,
+                        CreatedAt = account.CreatedAt,
+                        Balance = balanceData.Balance,
+                        BalanceType = balanceData.BalanceType,
+                        RawBalance = balanceData.RawBalance
+                    });
+                }
+
+                // 12. Prepare response
+                var response = new AccountSearchResponseDTO
+                {
+                    Success = true,
+                    Accounts = accountsWithBalances,
+                    Pagination = new PaginationDTO
+                    {
+                        CurrentPage = searchDto.Page,
+                        TotalPages = (int)Math.Ceiling(totalAccounts / (double)searchDto.Limit),
+                        TotalAccounts = totalAccounts,
+                        AccountsPerPage = searchDto.Limit,
+                        HasNextPage = (searchDto.Page * searchDto.Limit) < totalAccounts,
+                        HasPreviousPage = searchDto.Page > 1
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SearchAccounts");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while searching accounts",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        [HttpGet("accounts/cash/search")]
+        public async Task<IActionResult> SearchCashAccounts([FromQuery] AccountSearchDTO searchDto)
+        {
+            try
+            {
+                _logger.LogInformation("=== SearchAccounts Started ===");
+
+                // 1. Extract user and company info from JWT claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // 2. Validate required claims exist
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // 3. Check if company is selected
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // 4. Check if trade type is Retailer
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // 5. Get fiscal year
+                var fiscalYearId = searchDto.FiscalYear;
+                if (!fiscalYearId.HasValue)
+                {
+                    // Get current active fiscal year
+                    var currentFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (currentFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No fiscal year found"
+                        });
+                    }
+                    fiscalYearId = currentFiscalYear.Id;
+                }
+
+                // 6. Get relevant account groups (Sundry Debtors, Sundry Creditors, Cash in Hand)
+                var relevantGroupNames = new[] { "Cash in Hand" };
+                var relevantGroups = await _context.AccountGroups
+                    .Where(ag => ag.CompanyId == companyIdGuid &&
+                                relevantGroupNames.Contains(ag.Name))
+                    .Select(ag => ag.Id)
+                    .ToListAsync();
+
+                if (!relevantGroups.Any())
+                {
+                    return Ok(new AccountSearchResponseDTO
+                    {
+                        Success = true,
+                        Accounts = new List<AccountSearchResultDTO>(),
+                        Pagination = new PaginationDTO
+                        {
+                            CurrentPage = searchDto.Page,
+                            TotalPages = 0,
+                            TotalAccounts = 0,
+                            AccountsPerPage = searchDto.Limit,
+                            HasNextPage = false,
+                            HasPreviousPage = false
+                        }
+                    });
+                }
+
+                // 7. Build base query
+                var baseQuery = _context.Accounts
+                    .Where(a => a.CompanyId == companyIdGuid &&
+                               a.IsActive &&
+                               relevantGroups.Contains(a.AccountGroupsId) &&
+                               (a.OriginalFiscalYearId == fiscalYearId ||
+                                _context.FiscalYears.Any(f => f.Id == fiscalYearId && f.Id > a.OriginalFiscalYearId)));
+
+                // 8. Apply search if provided
+                if (!string.IsNullOrWhiteSpace(searchDto.Search))
+                {
+                    var searchString = searchDto.Search.Trim();
+                    baseQuery = baseQuery.Where(a =>
+                        EF.Functions.ILike(a.Name, $"%{searchString}%") ||
+                        EF.Functions.ILike(a.Address, $"%{searchString}%") ||
+                        EF.Functions.ILike(a.Phone, $"%{searchString}%") ||
+                        EF.Functions.ILike(a.Email, $"%{searchString}%") ||
+                        EF.Functions.ILike(a.ContactPerson, $"%{searchString}%") ||
+                        EF.Functions.ILike(a.Pan, $"%{searchString}%") ||
+                        a.UniqueNumber.ToString().Contains(searchString));
+                }
+
+                // 9. Get total count for pagination
+                var totalAccounts = await baseQuery.CountAsync();
+
+                // 10. Apply pagination
+                var skip = (searchDto.Page - 1) * searchDto.Limit;
+                var accounts = await baseQuery
+                    .OrderBy(a => a.Name)
+                    .Skip(skip)
+                    .Take(searchDto.Limit)
+                    .Select(a => new AccountSearchResultDTO
+                    {
+                        Id = a.Id,
+                        Name = a.Name,
+                        UniqueNumber = a.UniqueNumber,
+                        Address = a.Address,
+                        Pan = a.Pan,
+                        ContactPerson = a.ContactPerson,
+                        Email = a.Email,
+                        Phone = a.Phone,
+                        CreditLimit = a.CreditLimit,
+                        CreatedAt = a.CreatedAt
+                    })
+                    .ToListAsync();
+
                 // In the SearchAccounts method, update the response mapping
                 var accountsWithBalances = new List<AccountSearchResultDTO>();
 

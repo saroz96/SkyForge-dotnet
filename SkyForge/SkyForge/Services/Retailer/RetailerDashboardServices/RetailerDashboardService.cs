@@ -211,8 +211,6 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
             }
         }
 
-        #region Private Helper Methods
-
         private async Task<decimal> GetTotalSalesAsync(Guid companyId, DateTime startDate, DateTime endDate)
         {
             try
@@ -808,7 +806,7 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                     {
                         // Note: Nepali calendar calculation needs proper conversion
                         // This is a simplified version - you may need a proper Nepali date library
-                        int monthIndex = (currentMonth.Month + 5) % 12; // Approximate adjustment
+                        int monthIndex = (currentMonth.Month + 4) % 12; // Approximate adjustment
                         formattedDate = $"{nepaliMonths[monthIndex]} {currentMonth.Year}";
                     }
                     else
@@ -867,101 +865,6 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                 };
             }
         }
-        //private async Task<ChartData> GetChartDataAsync(Guid companyId, DateTime startDate, DateTime endDate, DateFormatEnum? dateFormat)
-        //{
-        //    try
-        //    {
-        //        var salesData = await _context.SalesBills
-        //            .Where(sb => sb.CompanyId == companyId &&
-        //                        sb.Date >= startDate &&
-        //                        sb.Date <= endDate)
-        //            .GroupBy(sb => new { Year = sb.Date.Year, Month = sb.Date.Month })
-        //            .Select(g => new
-        //            {
-        //                g.Key.Year,
-        //                g.Key.Month,
-        //                TotalSales = g.Sum(sb => (decimal?)sb.TotalAmount) ?? 0
-        //            })
-        //            .OrderBy(x => x.Year)
-        //            .ThenBy(x => x.Month)
-        //            .ToListAsync();
-
-        //        var categories = new List<string>();
-        //        var salesDataList = new List<decimal>();
-
-        //        bool isNepaliFormat = dateFormat == DateFormatEnum.Nepali;
-        //        string[] nepaliMonths = { "Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra", "Baisakh", "Jestha", "Ashad" };
-
-        //        // Generate data for all months in the range
-        //        var currentMonth = new DateTime(startDate.Year, startDate.Month, 1);
-        //        var endMonth = new DateTime(endDate.Year, endDate.Month, 1);
-
-        //        while (currentMonth <= endMonth)
-        //        {
-        //            var monthData = salesData.FirstOrDefault(s => s.Year == currentMonth.Year && s.Month == currentMonth.Month);
-
-        //            string formattedDate;
-        //            if (isNepaliFormat)
-        //            {
-        //                int monthIndex = (currentMonth.Month + 5) % 12; // Adjust for Nepali calendar
-        //                formattedDate = $"{nepaliMonths[monthIndex]} {currentMonth.Year}";
-        //            }
-        //            else
-        //            {
-        //                formattedDate = $"{currentMonth:MMM} {currentMonth:yyyy}";
-        //            }
-
-        //            categories.Add(formattedDate);
-        //            salesDataList.Add(monthData?.TotalSales ?? 0);
-
-        //            currentMonth = currentMonth.AddMonths(1);
-        //        }
-
-        //        if (categories.Count == 0)
-        //        {
-        //            // Add at least one data point
-        //            var now = DateTime.Now;
-        //            string formattedDate = isNepaliFormat
-        //                ? "कुनै डाटा उपलब्ध छैन"
-        //                : "No Data Available";
-
-        //            categories.Add(formattedDate);
-        //            salesDataList.Add(0);
-        //        }
-
-        //        return new ChartData
-        //        {
-        //            Categories = categories,
-        //            Series = new List<SeriesData>
-        //            {
-        //                new SeriesData
-        //                {
-        //                    Name = "Sales",
-        //                    Data = salesDataList
-        //                }
-        //            }
-        //        };
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error getting chart data for company {CompanyId}", companyId);
-
-        //        bool isNepaliFormat = dateFormat == DateFormatEnum.Nepali;
-
-        //        return new ChartData
-        //        {
-        //            Categories = new List<string> { isNepaliFormat ? "कुनै डाटा उपलब्ध छैन" : "No Data Available" },
-        //            Series = new List<SeriesData>
-        //            {
-        //                new SeriesData
-        //                {
-        //                    Name = "Sales",
-        //                    Data = new List<decimal> { 0 }
-        //                }
-        //            }
-        //        };
-        //    }
-        //}
 
         private UserInfo GetUserInfo()
         {
@@ -993,6 +896,5 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
             };
         }
 
-        #endregion
     }
 }

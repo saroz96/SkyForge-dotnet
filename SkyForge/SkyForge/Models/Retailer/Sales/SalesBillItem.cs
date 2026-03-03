@@ -47,6 +47,10 @@ namespace SkyForge.Models.Retailer.Sales
         [Precision(18, 2)]
         public decimal? PuPrice { get; set; }
 
+        [Column("mrp")]
+        [Precision(18, 2)]
+        public decimal? Mrp { get; set; }
+
         [Column("net_pu_price")]
         [Precision(18, 2)]
         public decimal? NetPuPrice { get; set; }

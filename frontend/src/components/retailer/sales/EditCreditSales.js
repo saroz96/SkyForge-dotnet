@@ -4978,6 +4978,7 @@ const EditCreditSales = () => {
                     price: item.price || 0,
                     puPrice: item.puPrice || 0,
                     netPuPrice: item.netPuPrice || 0,
+                    mrp: item.mrp || 0,
                     amount: ((item.quantity || 0) * (item.price || 0)).toFixed(2),
                     vatStatus: item.vatStatus,
                     uniqueUuid: item.uniqueUuid
@@ -5261,6 +5262,7 @@ const EditCreditSales = () => {
                     price: batchInfo.price,
                     puPrice: batchInfo.puPrice,
                     netPuPrice: batchInfo.netPuPrice,
+                    mrp: batchInfo.mrp,
                     uniqueUuid: batchInfo.uniqueUuid
                 }
             });
@@ -5296,6 +5298,7 @@ const EditCreditSales = () => {
                 price: batchInfo.price,
                 puPrice: batchInfo.puPrice,
                 netPuPrice: batchInfo.netPuPrice,
+                mrp: batchInfo.mrp,
                 uniqueUuid: batchInfo.uniqueUuid
             });
         }
@@ -5327,6 +5330,7 @@ const EditCreditSales = () => {
             unitName: item.unit?.name || item.unitName,
             price: batchInfo.price || 0,
             puPrice: batchInfo.puPrice || 0,
+            mrp: batchInfo.mrp || 0,
             netPuPrice: batchInfo.netPuPrice || 0,
             amount: 0,
             vatStatus: item.vatStatus,
@@ -5421,6 +5425,7 @@ const EditCreditSales = () => {
             price: selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100,
             puPrice: selectedItemForInsert.batchInfo?.puPrice || 0,
             netPuPrice: selectedItemForInsert.batchInfo?.netPuPrice || 0,
+            mrp: selectedItemForInsert.batchInfo?.mrp || 0,
             amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100),
             vatStatus: selectedItemForInsert.vatStatus,
             uniqueUuid: uniqueUuid
@@ -5823,6 +5828,7 @@ const EditCreditSales = () => {
                     price: item.price,
                     puPrice: item.puPrice || 0,
                     netPuPrice: item.netPuPrice || item.puPrice || 0,
+                    mrp: item.mrp || 0,
                     unitId: item.unitId,
                     vatStatus: item.vatStatus,
                     uniqueUuid: item.uniqueUuid,
@@ -5897,16 +5903,16 @@ const EditCreditSales = () => {
 
                         <div class="print-invoice-details">
                             <div>
-                                <div><strong>M/S:</strong> ${printData.bill.account?.name || printData.bill.cashAccount || 'N/A'}</div>
-                                <div><strong>Address:</strong> ${printData.bill.account?.address || printData.bill.cashAccountAddress || 'N/A'}</div>
-                                <div><strong>PAN:</strong> ${printData.bill.account?.pan || printData.bill.cashAccountPan || 'N/A'} | <strong>Tel:</strong> ${printData.bill.account?.phone || printData.bill.cashAccountPhone || 'N/A'}</div>
-                                <div><strong>Email:</strong> ${printData.bill.account?.email || printData.bill.cashAccountEmail || 'N/A'}</div>
+                                <div><strong>M/S:</strong> ${printData.bill.account?.name || printData.bill.cashAccount || ''}</div>
+                                <div><strong>Address:</strong> ${printData.bill.account?.address || printData.bill.cashAccountAddress || ''}</div>
+                                <div><strong>PAN:</strong> ${printData.bill.account?.pan || printData.bill.cashAccountPan || ''}</div>
+                                <div><strong>Email:</strong> ${printData.bill.account?.email || printData.bill.cashAccountEmail || ''}, <strong>Tel:</strong> ${printData.bill.account?.phone || printData.bill.cashAccountPhone || ''}</div>
                             </div>
                             <div>
-                                <div><strong>Invoice No:</strong> ${printData.bill.billNumber || 'N/A'}</div>
+                                <div><strong>Invoice No:</strong> ${printData.bill.billNumber || ''}</div>
                                 <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
                                 <div><strong>Invoice Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
-                                <div><strong>Mode of Payment:</strong> ${printData.bill.paymentMode || 'N/A'}</div>
+                                <div><strong>Mode of Payment:</strong> ${printData.bill.paymentMode || ''}</div>
                             </div>
                         </div>
 
@@ -7074,6 +7080,7 @@ const EditCreditSales = () => {
                                                 <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
                                                 <input type="hidden" name={`items[${index}][puPrice]`} value={item.puPrice} />
                                                 <input type="hidden" name={`items[${index}][netPuPrice]`} value={item.netPuPrice} />
+                                                <input type="hidden" name={`items[${index}][mrp]`} value={item.mrp} />
                                                 <input type="hidden" name={`items[${index}][uniqueUuid]`} value={item.uniqueUuid} />
                                             </tr>
                                         );
@@ -7899,6 +7906,7 @@ const EditCreditSales = () => {
                                                                             price: entry.price,
                                                                             puPrice: entry.puPrice,
                                                                             netPuPrice: entry.netPuPrice,
+                                                                            mrp: entry.mrp,
                                                                             uniqueUuid: entry.uniqueUuid
                                                                         });
                                                                     }
@@ -7913,6 +7921,7 @@ const EditCreditSales = () => {
                                                                             price: entry.price,
                                                                             puPrice: entry.puPrice,
                                                                             netPuPrice: entry.netPuPrice,
+                                                                            mrp: entry.mrp,
                                                                             uniqueUuid: entry.uniqueUuid
                                                                         });
                                                                     } else if (e.key === 'ArrowDown') {

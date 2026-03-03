@@ -9833,6 +9833,7 @@ const AddSales = () => {
             price: Math.round(firstStockEntry.price * 100) / 100 || 0,
             puPrice: firstStockEntry.puPrice || 0,
             netPuPrice: firstStockEntry.netPuPrice || 0,
+            mrp: firstStockEntry.mrp || 0,
             amount: 0,
             vatStatus: item.vatStatus,
             uniqueUuid: firstStockEntry.uniqueUuid
@@ -10126,6 +10127,7 @@ const AddSales = () => {
             price: selectedItemRate || Math.round(matchingStockEntry.price * 100) / 100,
             puPrice: matchingStockEntry.puPrice || 0,
             netPuPrice: matchingStockEntry.netPuPrice || 0,
+            mrp: matchingStockEntry.mrp || 0,
             amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(matchingStockEntry.price * 100) / 100),
             vatStatus: selectedItemForInsert.vatStatus,
             uniqueUuid: matchingStockEntry.uniqueUuid
@@ -10276,7 +10278,8 @@ const AddSales = () => {
             nonTaxableAmount: finalNonTaxableAmount,
             vatAmount,
             totalAmount,
-            discountAmount
+            discountAmount,
+            roundOffAmount
         };
     };
 
@@ -10535,12 +10538,19 @@ const AddSales = () => {
         try {
             const calculatedValues = calculateTotal();
 
+            console.log('=== CALCULATED VALUES ===');
+            console.log('calculatedValues:', calculatedValues);
+            console.log('roundOffAmount from calculatedValues:', calculatedValues.roundOffAmount);
+            console.log('formData.roundOffAmount:', formData.roundOffAmount);
+            console.log('=========================');
+
+
             // Prepare data according to your CreateSalesBillDTO
             const billData = {
                 accountId: formData.accountId,
                 paymentMode: formData.paymentMode,
-                isVatExempt: formData.isVatExempt === 'true',
-                isVatAll: formData.isVatExempt,
+                isVatExempt: formData.isVatExempt,
+                // isVatAll: formData.isVatExempt,
                 discountPercentage: formData.discountPercentage,
                 discountAmount: formData.discountAmount,
                 vatPercentage: formData.vatPercentage,
@@ -10564,12 +10574,21 @@ const AddSales = () => {
                     unitId: item.unitId,
                     price: item.price,
                     puPrice: item.puPrice,
+                    mrp: item.mrp,
                     netPuPrice: item.netPuPrice,
                     vatStatus: item.vatStatus,
                     uniqueUuid: item.uniqueUuid
                 })),
                 print
             };
+
+            // 🔍 DEBUG: Log the complete request data
+            console.log('=== COMPLETE REQUEST DATA ===');
+            console.log('billData:', JSON.stringify(billData, null, 2));
+            console.log('roundOffAmount being sent:', billData.roundOffAmount);
+            console.log('type of roundOffAmount:', typeof billData.roundOffAmount);
+            console.log('=============================');
+
 
             const response = await api.post('/api/retailer/credit-sales', billData);
 
@@ -10630,15 +10649,14 @@ const AddSales = () => {
 
                     <div class="print-invoice-details">
                         <div>
-                            <div><strong>M/S:</strong> ${printData.bill.account?.name || 'N/A'}</div>
-                            <div><strong>Address:</strong> ${printData.bill.account?.address || 'N/A'}</div>
-                            <div><strong>PAN:</strong> ${printData.bill.account?.pan || 'N/A'}</div>
-                            <div><strong>Email:</strong> ${printData.bill.account?.email || 'N/A'}</div>
-                            <div><strong>Tel:</strong> ${printData.bill.account?.phone || 'N/A'}</div>
+                            <div><strong>M/S:</strong> ${printData.bill.account?.name || ''}</div>
+                            <div><strong>Address:</strong> ${printData.bill.account?.address || ''}</div>
+                            <div><strong>PAN:</strong> ${printData.bill.account?.pan || ''}</div>
+                            <div><strong>Email:</strong> ${printData.bill.account?.email || ''}, <strong>Tel:</strong> ${printData.bill.account?.phone || ''}</div>
                         </div>
                         <div>
                             <div><strong>Invoice No:</strong> ${printData.bill.billNumber || 'N/A'}</div>
-                            <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
+                            <div><strong>Trans. Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
                             <div><strong>Invoice Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
                             <div><strong>Mode of Payment:</strong> ${printData.bill.paymentMode || 'N/A'}</div>
                         </div>

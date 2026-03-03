@@ -10,7 +10,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public decimal Bonus { get; set; }
         public decimal PuPrice { get; set; }  // This matches
         public decimal NetPuPrice { get; set; }
-        public decimal Price{get; set;}
+        public decimal Price { get; set; }
         public decimal Mrp { get; set; }
         public decimal MarginPercentage { get; set; }
         public decimal CcPercentage { get; set; }  // Your React uses ccPercentage (lowercase)

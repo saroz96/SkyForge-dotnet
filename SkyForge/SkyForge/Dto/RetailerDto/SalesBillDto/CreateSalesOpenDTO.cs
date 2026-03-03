@@ -4,8 +4,24 @@ using System.ComponentModel.DataAnnotations;
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
     // DTO for CreateCreditSalesOpen endpoint
-    public class CreateCreditSalesOpenDTO
+    public class CreateSalesOpenDTO
     {
+        [StringLength(255)]
+        public string? CashAccount { get; set; }
+
+        [StringLength(500)]
+        public string? CashAccountAddress { get; set; }
+
+        [StringLength(50)]
+        public string? CashAccountPan { get; set; }
+
+        [EmailAddress]
+        [StringLength(255)]
+        public string? CashAccountEmail { get; set; }
+
+        [Phone]
+        [StringLength(20)]
+        public string? CashAccountPhone { get; set; }
         public Guid AccountId { get; set; }
         public List<SalesBillItemDTO> Items { get; set; }
         public decimal? VatPercentage { get; set; }
@@ -27,10 +43,10 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal? TotalAmount { get; set; }
     }
 
-    public class CreditSalesOpenResponseDTO
+    public class SalesOpenResponseDTO
     {
-        public CreditSalesOpenCompanyDTO Company { get; set; }
-        public List<CreditSalesOpenAccountDTO> Accounts { get; set; }
+        public SalesOpenCompanyDTO Company { get; set; }
+        public List<SalesOpenAccountDTO> Accounts { get; set; }
         public DatesDTO Dates { get; set; }
         public FiscalYearInfoDTO CurrentFiscalYear { get; set; }
         public List<CategoryInfoDTO> Categories { get; set; }
@@ -41,7 +57,7 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public PermissionsDTO Permissions { get; set; }
     }
 
-    public class CreditSalesOpenCompanyDTO
+    public class SalesOpenCompanyDTO
     {
         public Guid Id { get; set; }
         public DateTime? RenewalDate { get; set; }
@@ -54,7 +70,7 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public string Pan { get; set; }
     }
 
-    public class CreditSalesOpenAccountDTO
+    public class SalesOpenAccountDTO
     {
         public Guid Id { get; set; }
         public string UniqueNumber { get; set; }

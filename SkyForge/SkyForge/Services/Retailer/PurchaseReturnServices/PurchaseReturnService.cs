@@ -28,6 +28,393 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
             _billNumberService = billNumberService;
         }
 
+        // public async Task<PurchaseReturn> CreatePurchaseReturnAsync(CreatePurchaseReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         // Validate company and fiscal year
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears.FindAsync(fiscalYearId);
+        //         if (fiscalYear == null || fiscalYear.CompanyId != companyId)
+        //             throw new ArgumentException("Invalid fiscal year");
+
+        //         // Get default accounts
+        //         var purchaseAccountId = await GetDefaultAccountIdAsync("Purchase", companyId);
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+        //         var cashAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
+
+        //         // Parse payment mode from string to enum
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+        //         var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "purchaseReturn");
+
+        //         // Validate account
+        //         var account = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
+        //         if (account == null)
+        //             throw new ArgumentException("Invalid account for this company");
+
+        //         // Calculate totals and validate items
+        //         decimal subTotal = 0;
+        //         decimal totalTaxableAmount = 0;
+        //         decimal totalNonTaxableAmount = 0;
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // Dictionary to track items and stock reductions
+        //         var productStockReductions = new Dictionary<Guid, (Item item, List<StockEntry> stockEntries, decimal totalReducedQuantity)>();
+
+        //         // First pass: Validate items and calculate totals with detailed logging
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Log what we're looking for vs what's available
+        //             _logger.LogInformation($"Looking for batch: {itemDto.BatchNumber}, UUID: {itemDto.UniqueUuid} in item: {item.Name}");
+
+        //             if (item.StockEntries != null)
+        //             {
+        //                 foreach (var se in item.StockEntries)
+        //                 {
+        //                     _logger.LogInformation($"Available - Batch: '{se.BatchNumber}', UUID: '{se.UniqueUuid}', Qty: {se.Quantity}");
+        //                 }
+        //             }
+
+        //             decimal itemTotal = itemDto.PuPrice * itemDto.Quantity;
+        //             subTotal += itemTotal;
+
+        //             if (item.VatStatus == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //                 totalTaxableAmount += itemTotal;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //                 totalNonTaxableAmount += itemTotal;
+        //             }
+
+        //             // Validate batch entry exists
+        //             if (item.StockEntries == null || !item.StockEntries.Any())
+        //                 throw new ArgumentException($"No stock entries found for item: {item.Name}");
+
+        //             var batchEntry = item.StockEntries
+        //                 .FirstOrDefault(e => e.BatchNumber == itemDto.BatchNumber &&
+        //                                     e.UniqueUuid == itemDto.UniqueUuid);
+
+        //             if (batchEntry == null)
+        //             {
+        //                 var availableBatches = string.Join("; ", item.StockEntries.Select(e =>
+        //                     $"Batch: '{e.BatchNumber}', UUID: '{e.UniqueUuid}', Qty: {e.Quantity}"));
+
+        //                 throw new ArgumentException(
+        //                     $"Batch number '{itemDto.BatchNumber}' with UUID '{itemDto.UniqueUuid}' not found for item: {item.Name}. " +
+        //                     $"Available batches: {availableBatches}");
+        //             }
+
+        //             // Check stock quantity
+        //             if (batchEntry.Quantity < itemDto.Quantity)
+        //                 throw new ArgumentException(
+        //                     $"Not enough stock for item: {item.Name}. " +
+        //                     $"Available in batch '{itemDto.BatchNumber}': {batchEntry.Quantity}, " +
+        //                     $"Required: {itemDto.Quantity}");
+        //         }
+
+        //         // Create purchase return bill
+        //         var purchaseReturn = new PurchaseReturn
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             CompanyId = companyId,
+        //             UserId = userId,
+        //             BillNumber = billNumber,
+        //             PartyBillNumber = dto.PartyBillNumber,
+        //             AccountId = dto.AccountId,
+        //             SettingsId = dto.SettingsId,
+        //             FiscalYearId = fiscalYearId,
+        //             SubTotal = subTotal,
+        //             NonVatPurchaseReturn = dto.NonVatPurchaseReturn,
+        //             TaxableAmount = dto.TaxableAmount,
+        //             DiscountPercentage = dto.DiscountPercentage,
+        //             DiscountAmount = dto.DiscountAmount,
+        //             VatPercentage = dto.VatPercentage,
+        //             VatAmount = dto.VatAmount,
+        //             TotalAmount = dto.TotalAmount,
+        //             IsVatExempt = dto.IsVatExempt,
+        //             IsVatAll = dto.IsVatAll,
+        //             RoundOffAmount = dto.RoundOffAmount,
+        //             PaymentMode = dto.PaymentMode,
+        //             nepaliDate = dto.NepaliDate,
+        //             Date = dto.Date,
+        //             transactionDateNepali = dto.TransactionDateNepali,
+        //             TransactionDate = dto.TransactionDate,
+        //             PurchaseSalesReturnType = "Purchase Return",
+        //             OriginalCopies = dto.OriginalCopies,
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         // Add purchase return to context FIRST so it exists for foreign key references
+        //         await _context.PurchaseReturns.AddAsync(purchaseReturn);
+
+        //         // Process items
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Reduce stock (no SaveChangesAsync inside now)
+        //             ReduceStockBatchWise(item, itemDto.BatchNumber, itemDto.Quantity, itemDto.UniqueUuid);
+
+        //             // Get the batch entry for values (from context change tracker)
+        //             var batchEntryForValues = _context.ChangeTracker.Entries<StockEntry>()
+        //                 .Where(e => e.Entity.BatchNumber == itemDto.BatchNumber &&
+        //                            e.Entity.UniqueUuid == itemDto.UniqueUuid)
+        //                 .Select(e => e.Entity)
+        //                 .FirstOrDefault();
+
+        //             if (batchEntryForValues == null)
+        //             {
+        //                 // If not found in change tracker, try to get from database
+        //                 batchEntryForValues = await _context.StockEntries
+        //                     .AsNoTracking()
+        //                     .FirstOrDefaultAsync(e => e.BatchNumber == itemDto.BatchNumber &&
+        //                                              e.UniqueUuid == itemDto.UniqueUuid);
+        //             }
+
+        //             if (batchEntryForValues == null)
+        //                 throw new ArgumentException($"Cannot find batch entry data for item: {item.Name}");
+
+        //             // Calculate values
+        //             decimal wsUnit = batchEntryForValues.WsUnit ?? 1m;
+        //             decimal quantity = itemDto.Quantity;
+        //             decimal netQuantity = quantity * wsUnit;
+
+        //             // Calculate discount per item
+        //             decimal discountPercentage = dto.DiscountPercentage ?? 0m;
+        //             decimal discountAmountPerItem = ((itemDto.PuPrice) * quantity * discountPercentage) / 100m;
+
+        //             // Calculate net pu price after discount
+        //             decimal netPuPrice = (itemDto.PuPrice) - ((itemDto.PuPrice) * discountPercentage / 100m);
+
+        //             // Create purchase return bill item
+        //             var billItem = new PurchaseReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PurchaseReturnId = purchaseReturn.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = quantity,
+        //                 Price = itemDto.Price,
+        //                 PuPrice = itemDto.PuPrice,
+        //                 DiscountPercentagePerItem = discountPercentage,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPuPrice = netPuPrice,
+        //                 BatchNumber = itemDto.BatchNumber,
+        //                 ExpiryDate = itemDto.ExpiryDate,
+        //                 VatStatus = item.VatStatus,
+        //                 UniqueUuid = itemDto.UniqueUuid,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             purchaseReturn.Items.Add(billItem);
+
+        //             // Track stock reductions
+        //             if (!productStockReductions.ContainsKey(item.Id))
+        //             {
+        //                 productStockReductions[item.Id] = (item, new List<StockEntry>(), 0m);
+        //             }
+
+        //             productStockReductions[item.Id].stockEntries.Add(batchEntryForValues);
+        //             productStockReductions[item.Id] = (
+        //                 productStockReductions[item.Id].item,
+        //                 productStockReductions[item.Id].stockEntries,
+        //                 productStockReductions[item.Id].totalReducedQuantity + netQuantity
+        //             );
+
+        //             // Create item-level party transaction
+        //             var previousTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == dto.AccountId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal previousBalance = previousTransaction?.Balance ?? 0;
+
+        //             var partyTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 WSUnit = (int?)wsUnit,
+        //                 Quantity = quantity,
+        //                 Bonus = 0,
+        //                 Price = itemDto.Price,
+        //                 PuPrice = itemDto.PuPrice,
+        //                 DiscountPercentagePerItem = discountPercentage,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPuPrice = netPuPrice,
+        //                 AccountId = dto.AccountId,
+        //                 PurchaseReturnBillId = purchaseReturn.Id,  // This now references an entity that's in the context
+        //                 BillNumber = purchaseReturn.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 Type = TransactionType.PrRt,
+        //                 PurchaseSalesReturnType = "Purchase Return",
+        //                 Debit = purchaseReturn.TotalAmount ?? 0,
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = purchaseReturn.Date,
+        //                 BillDate = purchaseReturn.Date,
+        //                 nepaliDate = purchaseReturn.nepaliDate,
+        //                 transactionDateNepali = purchaseReturn.transactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(partyTransaction);
+        //         }
+
+        //         // 1. Purchase Account transaction
+        //         if (purchaseAccountId.HasValue)
+        //         {
+        //             var purchaseAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatPurchaseReturn ?? 0);
+
+        //             var purchaseTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = purchaseAccountId.Value,
+        //                 PurchaseReturnBillId = purchaseReturn.Id,
+        //                 BillNumber = purchaseReturn.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 Type = TransactionType.PrRt,
+        //                 PurchaseSalesReturnType = account.Name,
+        //                 Debit = 0,
+        //                 Credit = purchaseAmount,
+        //                 PaymentMode = paymentMode,
+        //                 Date = purchaseReturn.TransactionDate,
+        //                 BillDate = purchaseReturn.Date,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(purchaseTransaction);
+        //         }
+
+        //         // 2. VAT transaction if applicable
+        //         if (dto.VatAmount > 0 && vatAccountId.HasValue && !dto.IsVatExempt)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccountId.Value,
+        //                 PurchaseReturnBillId = purchaseReturn.Id,
+        //                 BillNumber = purchaseReturn.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.PrRt,
+        //                 PurchaseSalesReturnType = account.Name,
+        //                 Debit = 0,
+        //                 Credit = dto.VatAmount.Value,
+        //                 PaymentMode = paymentMode,
+        //                 Date = purchaseReturn.TransactionDate,
+        //                 BillDate = purchaseReturn.Date,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(vatTransaction);
+        //         }
+
+        //         // 3. Round-off transaction if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccountId.Value,
+        //                 PurchaseReturnBillId = purchaseReturn.Id,
+        //                 BillNumber = purchaseReturn.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.PrRt,
+        //                 PurchaseSalesReturnType = account.Name,
+        //                 Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = purchaseReturn.TransactionDate,
+        //                 BillDate = purchaseReturn.Date,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(roundOffTransaction);
+        //         }
+
+        //         // 4. Cash transaction if payment mode is cash
+        //         if (paymentMode == PaymentMode.Cash && cashAccountId.HasValue)
+        //         {
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashAccountId.Value,
+        //                 PurchaseReturnBillId = purchaseReturn.Id,
+        //                 BillNumber = purchaseReturn.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 Type = TransactionType.PrRt,
+        //                 PurchaseSalesReturnType = "Purchase Return",
+        //                 Debit = dto.TotalAmount ?? 0,
+        //                 Credit = 0,
+        //                 PaymentMode = PaymentMode.Cash,
+        //                 Date = purchaseReturn.TransactionDate,
+        //                 BillDate = purchaseReturn.Date,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(cashTransaction);
+        //         }
+
+        //         // Save everything at once
+        //         await _context.SaveChangesAsync();
+        //         await transaction.CommitAsync();
+
+        //         return purchaseReturn;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, "Error creating purchase return");
+        //         throw;
+        //     }
+        // }
+
         public async Task<PurchaseReturn> CreatePurchaseReturnAsync(CreatePurchaseReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -58,6 +445,20 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                 if (account == null)
                     throw new ArgumentException("Invalid account for this company");
 
+                // ✅ LOAD ALL ITEMS AT ONCE
+                var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+                var itemsDict = await _context.Items
+                    .Include(i => i.StockEntries)
+                    .Where(i => itemIds.Contains(i.Id))
+                    .ToDictionaryAsync(i => i.Id);
+
+                // ✅ GET PREVIOUS TRANSACTION BALANCE ONCE
+                var previousTransaction = await _context.Transactions
+                    .Where(t => t.AccountId == dto.AccountId)
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefaultAsync();
+                decimal previousBalance = previousTransaction?.Balance ?? 0;
+
                 // Calculate totals and validate items
                 decimal subTotal = 0;
                 decimal totalTaxableAmount = 0;
@@ -68,53 +469,58 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                 // Dictionary to track items and stock reductions
                 var productStockReductions = new Dictionary<Guid, (Item item, List<StockEntry> stockEntries, decimal totalReducedQuantity)>();
 
-                // First pass: Validate items and calculate totals with detailed logging
+                // Create purchase return bill FIRST (so it has an ID)
+                var purchaseReturn = new PurchaseReturn
+                {
+                    Id = Guid.NewGuid(),
+                    CompanyId = companyId,
+                    UserId = userId,
+                    BillNumber = billNumber,
+                    PartyBillNumber = dto.PartyBillNumber,
+                    AccountId = dto.AccountId,
+                    SettingsId = dto.SettingsId,
+                    FiscalYearId = fiscalYearId,
+                    SubTotal = dto.SubTotal ?? 0, // Use dto values directly
+                    NonVatPurchaseReturn = dto.NonVatPurchaseReturn ?? 0,
+                    TaxableAmount = dto.TaxableAmount ?? 0,
+                    DiscountPercentage = dto.DiscountPercentage ?? 0,
+                    DiscountAmount = dto.DiscountAmount ?? 0,
+                    VatPercentage = dto.VatPercentage,
+                    VatAmount = dto.VatAmount ?? 0,
+                    TotalAmount = dto.TotalAmount ?? 0,
+                    IsVatExempt = dto.IsVatExempt,
+                    IsVatAll = dto.IsVatAll,
+                    RoundOffAmount = dto.RoundOffAmount ?? 0,
+                    PaymentMode = dto.PaymentMode,
+                    nepaliDate = dto.NepaliDate,
+                    Date = dto.Date,
+                    transactionDateNepali = dto.TransactionDateNepali,
+                    TransactionDate = dto.TransactionDate,
+                    PurchaseSalesReturnType = "Purchase Return",
+                    OriginalCopies = dto.OriginalCopies,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                await _context.PurchaseReturns.AddAsync(purchaseReturn);
+
+                // ✅ PROCESS ITEMS IN MEMORY (NO ADDITIONAL DB CALLS)
                 foreach (var itemDto in dto.Items)
                 {
-                    var item = await _context.Items
-                        .Include(i => i.StockEntries)
-                        .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
-
-                    if (item == null)
+                    if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
                         throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
 
-                    // Log what we're looking for vs what's available
                     _logger.LogInformation($"Looking for batch: {itemDto.BatchNumber}, UUID: {itemDto.UniqueUuid} in item: {item.Name}");
 
-                    if (item.StockEntries != null)
-                    {
-                        foreach (var se in item.StockEntries)
-                        {
-                            _logger.LogInformation($"Available - Batch: '{se.BatchNumber}', UUID: '{se.UniqueUuid}', Qty: {se.Quantity}");
-                        }
-                    }
-
-                    decimal itemTotal = itemDto.PuPrice * itemDto.Quantity;
-                    subTotal += itemTotal;
-
-                    if (item.VatStatus == "vatable")
-                    {
-                        hasVatableItems = true;
-                        totalTaxableAmount += itemTotal;
-                    }
-                    else
-                    {
-                        hasNonVatableItems = true;
-                        totalNonTaxableAmount += itemTotal;
-                    }
-
-                    // Validate batch entry exists
-                    if (item.StockEntries == null || !item.StockEntries.Any())
-                        throw new ArgumentException($"No stock entries found for item: {item.Name}");
-
-                    var batchEntry = item.StockEntries
+                    // Find the batch entry
+                    var batchEntry = item.StockEntries?
                         .FirstOrDefault(e => e.BatchNumber == itemDto.BatchNumber &&
                                             e.UniqueUuid == itemDto.UniqueUuid);
 
                     if (batchEntry == null)
                     {
-                        var availableBatches = string.Join("; ", item.StockEntries.Select(e =>
-                            $"Batch: '{e.BatchNumber}', UUID: '{e.UniqueUuid}', Qty: {e.Quantity}"));
+                        var availableBatches = string.Join("; ", item.StockEntries?.Select(e =>
+                            $"Batch: '{e.BatchNumber}', UUID: '{e.UniqueUuid}', Qty: {e.Quantity}") ?? new List<string>());
 
                         throw new ArgumentException(
                             $"Batch number '{itemDto.BatchNumber}' with UUID '{itemDto.UniqueUuid}' not found for item: {item.Name}. " +
@@ -127,86 +533,21 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                             $"Not enough stock for item: {item.Name}. " +
                             $"Available in batch '{itemDto.BatchNumber}': {batchEntry.Quantity}, " +
                             $"Required: {itemDto.Quantity}");
-                }
 
-                // Create purchase return bill
-                var purchaseReturn = new PurchaseReturn
-                {
-                    Id = Guid.NewGuid(),
-                    CompanyId = companyId,
-                    UserId = userId,
-                    BillNumber = billNumber,
-                    PartyBillNumber = dto.PartyBillNumber,
-                    AccountId = dto.AccountId,
-                    SettingsId = dto.SettingsId,
-                    FiscalYearId = fiscalYearId,
-                    SubTotal = subTotal,
-                    NonVatPurchaseReturn = dto.NonVatPurchaseReturn,
-                    TaxableAmount = dto.TaxableAmount,
-                    DiscountPercentage = dto.DiscountPercentage,
-                    DiscountAmount = dto.DiscountAmount,
-                    VatPercentage = dto.VatPercentage,
-                    VatAmount = dto.VatAmount,
-                    TotalAmount = dto.TotalAmount,
-                    IsVatExempt = dto.IsVatExempt,
-                    IsVatAll = dto.IsVatAll,
-                    RoundOffAmount = dto.RoundOffAmount,
-                    PaymentMode = dto.PaymentMode,
-                    nepaliDate = dto.NepaliDate,
-                    Date = dto.Date,
-                    transactionDateNepali = dto.TransactionDateNepali,
-                    TransactionDate = dto.TransactionDate,
-                    PurchaseSalesReturnType = "Purchase Return",
-                    OriginalCopies = dto.OriginalCopies,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
+                    // Reduce stock directly on the loaded entity
+                    batchEntry.Quantity -= itemDto.Quantity;
+                    batchEntry.UpdatedAt = DateTime.UtcNow;
 
-                // Add purchase return to context FIRST so it exists for foreign key references
-                await _context.PurchaseReturns.AddAsync(purchaseReturn);
-
-                // Process items
-                foreach (var itemDto in dto.Items)
-                {
-                    var item = await _context.Items
-                        .Include(i => i.StockEntries)
-                        .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId);
-
-                    if (item == null)
-                        throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
-
-                    // Reduce stock (no SaveChangesAsync inside now)
-                    ReduceStockBatchWise(item, itemDto.BatchNumber, itemDto.Quantity, itemDto.UniqueUuid);
-
-                    // Get the batch entry for values (from context change tracker)
-                    var batchEntryForValues = _context.ChangeTracker.Entries<StockEntry>()
-                        .Where(e => e.Entity.BatchNumber == itemDto.BatchNumber &&
-                                   e.Entity.UniqueUuid == itemDto.UniqueUuid)
-                        .Select(e => e.Entity)
-                        .FirstOrDefault();
-
-                    if (batchEntryForValues == null)
+                    if (batchEntry.Quantity == 0)
                     {
-                        // If not found in change tracker, try to get from database
-                        batchEntryForValues = await _context.StockEntries
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync(e => e.BatchNumber == itemDto.BatchNumber &&
-                                                     e.UniqueUuid == itemDto.UniqueUuid);
+                        // Optionally mark or handle empty batch
                     }
 
-                    if (batchEntryForValues == null)
-                        throw new ArgumentException($"Cannot find batch entry data for item: {item.Name}");
-
                     // Calculate values
-                    decimal wsUnit = batchEntryForValues.WsUnit ?? 1m;
+                    decimal wsUnit = batchEntry.WsUnit ?? 1m;
                     decimal quantity = itemDto.Quantity;
-                    decimal netQuantity = quantity * wsUnit;
-
-                    // Calculate discount per item
                     decimal discountPercentage = dto.DiscountPercentage ?? 0m;
                     decimal discountAmountPerItem = ((itemDto.PuPrice) * quantity * discountPercentage) / 100m;
-
-                    // Calculate net pu price after discount
                     decimal netPuPrice = (itemDto.PuPrice) - ((itemDto.PuPrice) * discountPercentage / 100m);
 
                     // Create purchase return bill item
@@ -224,7 +565,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         NetPuPrice = netPuPrice,
                         BatchNumber = itemDto.BatchNumber,
                         ExpiryDate = itemDto.ExpiryDate,
-                        VatStatus = item.VatStatus,
+                        VatStatus = item.VatStatus ?? "vatable",
                         UniqueUuid = itemDto.UniqueUuid,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -238,21 +579,14 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         productStockReductions[item.Id] = (item, new List<StockEntry>(), 0m);
                     }
 
-                    productStockReductions[item.Id].stockEntries.Add(batchEntryForValues);
+                    productStockReductions[item.Id].stockEntries.Add(batchEntry);
                     productStockReductions[item.Id] = (
                         productStockReductions[item.Id].item,
                         productStockReductions[item.Id].stockEntries,
-                        productStockReductions[item.Id].totalReducedQuantity + netQuantity
+                        productStockReductions[item.Id].totalReducedQuantity + (quantity * wsUnit)
                     );
 
                     // Create item-level party transaction
-                    var previousTransaction = await _context.Transactions
-                        .Where(t => t.AccountId == dto.AccountId)
-                        .OrderByDescending(t => t.CreatedAt)
-                        .FirstOrDefaultAsync();
-
-                    decimal previousBalance = previousTransaction?.Balance ?? 0;
-
                     var partyTransaction = new Transaction
                     {
                         Id = Guid.NewGuid(),
@@ -268,7 +602,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         DiscountAmountPerItem = discountAmountPerItem,
                         NetPuPrice = netPuPrice,
                         AccountId = dto.AccountId,
-                        PurchaseReturnBillId = purchaseReturn.Id,  // This now references an entity that's in the context
+                        PurchaseReturnBillId = purchaseReturn.Id,
                         BillNumber = purchaseReturn.BillNumber,
                         PartyBillNumber = dto.PartyBillNumber,
                         Type = TransactionType.PrRt,
@@ -276,6 +610,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         Debit = purchaseReturn.TotalAmount ?? 0,
                         Credit = 0,
                         PaymentMode = paymentMode,
+                        Balance = previousBalance - purchaseReturn.TotalAmount,
                         Date = purchaseReturn.Date,
                         BillDate = purchaseReturn.Date,
                         nepaliDate = purchaseReturn.nepaliDate,
@@ -289,36 +624,36 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                     await _context.Transactions.AddAsync(partyTransaction);
                 }
 
-                // 1. Purchase Account transaction
+                // Add other transactions (Purchase, VAT, Round-off, Cash)
                 if (purchaseAccountId.HasValue)
                 {
                     var purchaseAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatPurchaseReturn ?? 0);
-
-                    var purchaseTransaction = new Transaction
+                    if (purchaseAmount > 0)
                     {
-                        Id = Guid.NewGuid(),
-                        CompanyId = companyId,
-                        AccountId = purchaseAccountId.Value,
-                        PurchaseReturnBillId = purchaseReturn.Id,
-                        BillNumber = purchaseReturn.BillNumber,
-                        PartyBillNumber = dto.PartyBillNumber,
-                        Type = TransactionType.PrRt,
-                        PurchaseSalesReturnType = account.Name,
-                        Debit = 0,
-                        Credit = purchaseAmount,
-                        PaymentMode = paymentMode,
-                        Date = purchaseReturn.TransactionDate,
-                        BillDate = purchaseReturn.Date,
-                        FiscalYearId = fiscalYearId,
-                        CreatedAt = DateTime.UtcNow,
-                        Status = TransactionStatus.Active,
-                        IsActive = true
-                    };
-
-                    await _context.Transactions.AddAsync(purchaseTransaction);
+                        var purchaseTransaction = new Transaction
+                        {
+                            Id = Guid.NewGuid(),
+                            CompanyId = companyId,
+                            AccountId = purchaseAccountId.Value,
+                            PurchaseReturnBillId = purchaseReturn.Id,
+                            BillNumber = purchaseReturn.BillNumber,
+                            PartyBillNumber = dto.PartyBillNumber,
+                            Type = TransactionType.PrRt,
+                            PurchaseSalesReturnType = account.Name,
+                            Debit = 0,
+                            Credit = purchaseAmount,
+                            PaymentMode = paymentMode,
+                            Date = purchaseReturn.TransactionDate,
+                            BillDate = purchaseReturn.Date,
+                            FiscalYearId = fiscalYearId,
+                            CreatedAt = DateTime.UtcNow,
+                            Status = TransactionStatus.Active,
+                            IsActive = true
+                        };
+                        await _context.Transactions.AddAsync(purchaseTransaction);
+                    }
                 }
 
-                // 2. VAT transaction if applicable
                 if (dto.VatAmount > 0 && vatAccountId.HasValue && !dto.IsVatExempt)
                 {
                     var vatTransaction = new Transaction
@@ -342,11 +677,9 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         Status = TransactionStatus.Active,
                         IsActive = true
                     };
-
                     await _context.Transactions.AddAsync(vatTransaction);
                 }
 
-                // 3. Round-off transaction if applicable
                 if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
                 {
                     var roundOffTransaction = new Transaction
@@ -370,11 +703,9 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         Status = TransactionStatus.Active,
                         IsActive = true
                     };
-
                     await _context.Transactions.AddAsync(roundOffTransaction);
                 }
 
-                // 4. Cash transaction if payment mode is cash
                 if (paymentMode == PaymentMode.Cash && cashAccountId.HasValue)
                 {
                     var cashTransaction = new Transaction
@@ -397,11 +728,10 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         Status = TransactionStatus.Active,
                         IsActive = true
                     };
-
                     await _context.Transactions.AddAsync(cashTransaction);
                 }
 
-                // Save everything at once
+                // ✅ SINGLE SAVE CHANGES CALL
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -409,12 +739,11 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Error creating purchase return");
+                await transaction.RollbackAsync();
                 throw;
             }
         }
-
         private async Task ReduceStockBatchWise(Item item, string batchNumber, decimal quantity, string uniqueUuid)
         {
             // Reload the item with stock entries to ensure we have the latest data
@@ -948,7 +1277,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                 RoundOffAmount = purchaseReturn.RoundOffAmount,
                 PaymentMode = purchaseReturn.PaymentMode,
                 nepaliDate = purchaseReturn.nepaliDate,
-                Date = purchaseReturn.Date,
+                Date = isNepaliFormat ? purchaseReturn.nepaliDate : purchaseReturn.Date,
                 transactionDateNepali = purchaseReturn.transactionDateNepali,
                 TransactionDate = purchaseReturn.TransactionDate,
                 CreatedAt = purchaseReturn.CreatedAt,

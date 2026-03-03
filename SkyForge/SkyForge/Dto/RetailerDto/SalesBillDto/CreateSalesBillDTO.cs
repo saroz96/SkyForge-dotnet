@@ -5,17 +5,14 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
     public class CreateSalesBillDTO
     {
-        [Required]
         public Guid CompanyId { get; set; }
 
-        [Required]
         [StringLength(50)]
         public string? PurchaseSalesType { get; set; }
 
         [Range(1, int.MaxValue)]
         public int OriginalCopies { get; set; } = 1;
 
-        [Required]
         public Guid UserId { get; set; }
 
         [StringLength(100)]
@@ -42,10 +39,8 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
 
         public Guid? SettingsId { get; set; }
 
-        [Required]
         public Guid FiscalYearId { get; set; }
 
-        [Required]
         [MinLength(1)]
         public List<SalesBillItemDTO> Items { get; set; } = new();
 
@@ -73,10 +68,10 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         [Range(0, double.MaxValue)]
         public decimal? TotalAmount { get; set; }
 
-        public bool IsVatExempt { get; set; } = false;
+        public string IsVatExempt { get; set; } // "true", "false", or "all"
 
-        [StringLength(50)]
-        public string? IsVatAll { get; set; }
+        // [StringLength(50)]
+        // public string? IsVatAll { get; set; }
 
         [Range(-double.MaxValue, double.MaxValue)]
         public decimal? RoundOffAmount { get; set; }
@@ -140,7 +135,6 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public List<AccountInfoDTO> Accounts { get; set; } = new();
         public DateInfoDTO Dates { get; set; } = new();
         public FiscalYearDTO CurrentFiscalYear { get; set; } = new();
-        public string NextSalesBillNumber { get; set; } = string.Empty;
         public UserPreferencesDTO UserPreferences { get; set; } = new();
         public PermissionsDTO Permissions { get; set; } = new();
         public string CurrentCompanyName { get; set; } = string.Empty;

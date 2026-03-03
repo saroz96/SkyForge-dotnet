@@ -29,6 +29,9 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal? PuPrice { get; set; }
 
         [Range(0, double.MaxValue)]
+        public decimal? Mrp { get; set; }
+
+        [Range(0, double.MaxValue)]
         public decimal? NetPuPrice { get; set; }
 
         [Range(0, 100)]

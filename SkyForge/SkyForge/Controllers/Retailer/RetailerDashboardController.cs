@@ -108,6 +108,6 @@ namespace SkyForge.Controllers.Retailer
                 return StatusCode(500, response);
             }
         }
-   
+
     }
 }

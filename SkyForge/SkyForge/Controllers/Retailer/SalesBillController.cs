@@ -389,7 +389,7 @@ namespace SkyForge.Controllers.Retailer
                             taxableAmount = result.TaxableAmount,
                             nonVatSales = result.NonVatSales,
                             isVatExempt = result.IsVatExempt,
-                            isVatAll = result.IsVatAll,
+                            // isVatAll = result.IsVatAll,
                             vatPercentage = result.VatPercentage,
                             paymentMode = result.PaymentMode,
                             cashAccount = result.CashAccount,
@@ -652,7 +652,7 @@ namespace SkyForge.Controllers.Retailer
 
         // POST: api/retailer/credit-sales/open
         [HttpPost("credit-sales/open")]
-        public async Task<IActionResult> CreateCreditSalesOpen([FromBody] CreateCreditSalesOpenDTO dto)
+        public async Task<IActionResult> CreateCreditSalesOpen([FromBody] CreateSalesOpenDTO dto)
         {
             try
             {
@@ -909,6 +909,97 @@ namespace SkyForge.Controllers.Retailer
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in GetCreditSalesFinds");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error"
+                });
+            }
+        }
+
+        // GET: api/retailer/credit-sales/check-editable
+        [HttpGet("credit-sales/check-editable")]
+        public async Task<IActionResult> CheckCreditSalesBillEditable([FromQuery] string billNumber)
+        {
+            try
+            {
+                _logger.LogInformation("Checking if bill {BillNumber} is editable", billNumber);
+
+                // Extract claims from JWT token
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeType = User.FindFirst("tradeType")?.Value;
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeType) || tradeType.ToLower() != "retailer")
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Invalid trade type"
+                    });
+                }
+
+                // Validate user ID
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company ID
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Check if bill exists and is editable
+                var bill = await _context.SalesBills
+                    .Where(b => b.CompanyId == companyIdGuid &&
+                               b.BillNumber == billNumber)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BillNumber,
+                        b.CashAccount,
+                        b.PaymentMode
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (bill == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        error = "Voucher not found",
+                        isEditable = false
+                    });
+                }
+
+                // Bill is not editable if CashAccount is not null
+                bool isEditable = bill.CashAccount == null;
+
+                return Ok(new
+                {
+                    success = true,
+                    isEditable = isEditable,
+                    billNumber = bill.BillNumber,
+                    message = isEditable ?
+                        "Voucher is editable" :
+                        "This is a cash sales voucher and cannot be edited as credit sales",
+                    hasCashAccount = bill.CashAccount != null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if bill is editable for number: {BillNumber}", billNumber);
                 return StatusCode(500, new
                 {
                     success = false,
@@ -1409,7 +1500,7 @@ namespace SkyForge.Controllers.Retailer
 
         // PUT: api/retailer/credit-sales/edit/{id}
         [HttpPut("credit-sales/edit/{id}")]
-        public async Task<IActionResult> UpdateCreditSalesBill(Guid id, [FromBody] UpdateCreditSalesBillDTO dto)
+        public async Task<IActionResult> UpdateCreditSalesBill(Guid id, [FromBody] UpdateSalesBillDTO dto)
         {
             try
             {
@@ -1587,8 +1678,1399 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // GET: api/retailer/cash-sales
+        [HttpGet("cash-sales")]
+        public async Task<IActionResult> GetCashSalesData()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCashSalesData Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access forbidden for this trade type"
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // If not in claims, get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                var cashSalesData = await _salesBillService.GetCashSalesDataAsync(
+                    companyIdGuid,
+                    fiscalYearIdGuid,
+                    userIdGuid);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = cashSalesData
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetCashSalesData");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching cash sales data",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+        [HttpGet("cash-sales/next-number")]
+        public async Task<IActionResult> GetNextCashSalesBillNumber()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetNextCashSalesBillNumber Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access forbidden for this trade type"
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // If not in claims, get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                var nextBillNumber = await _salesBillService.GetNextCashSalesBillNumberAsync(companyIdGuid, fiscalYearIdGuid);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        nextCashSalesBillNumber = nextBillNumber
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetNextCreditSalesBillNumber");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // GET: api/retailer/cash-sales/current-number
+        [HttpGet("cash-sales/current-number")]
+        public async Task<IActionResult> GetCurrentCashSalesBillNumber()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCurrentCashSalesBillNumber Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                if (fiscalYear == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Fiscal year not found"
+                    });
+                }
+
+                var currentBillNumber = await _salesBillService.GetCurrentCashSalesBillNumberAsync(companyIdGuid, fiscalYear.Id);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        currentCashSalesBillNumber = currentBillNumber
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetCurrentCashSalesBillNumber");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error"
+                });
+            }
+        }
+
+        // POST: api/retailer/cash-sales
+        [HttpPost("cash-sales")]
+        public async Task<IActionResult> CreateCashSales([FromBody] CreateSalesBillDTO dto)
+        {
+            try
+            {
+                _logger.LogInformation("=== CreateCashSales Started ===");
+
+                // Get user claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate user
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access forbidden for this trade type"
+                    });
+                }
+
+                // Validate fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Cash sales specific validations
+                if (string.IsNullOrEmpty(dto.CashAccount))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Cash account is required."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(dto.PaymentMode))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Invalid payment mode."
+                    });
+                }
+
+                // Validate required fields
+                if (dto.Items == null || dto.Items.Count == 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "At least one item is required."
+                    });
+                }
+
+                // Validate calculated amounts are provided
+                if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+                    !dto.NonVatSales.HasValue || !dto.TotalAmount.HasValue)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "SubTotal, TaxableAmount, NonVatSales, and TotalAmount are required from frontend."
+                    });
+                }
+
+                // Create cash sales bill
+                var result = await _salesBillService.CreateCashSalesBillAsync(
+                    dto, userIdGuid, companyIdGuid, fiscalYearIdGuid);
+
+                // Prepare response
+                var response = new
+                {
+                    success = true,
+                    message = "Cash bill created successfully",
+                    data = new
+                    {
+                        bill = new
+                        {
+                            _id = result.Id,
+                            billNumber = result.BillNumber,
+                            cashAccount = result.CashAccount,
+                            cashAccountAddress = result.CashAccountAddress,
+                            cashAccountPan = result.CashAccountPan,
+                            cashAccountEmail = result.CashAccountEmail,
+                            cashAccountPhone = result.CashAccountPhone,
+                            totalAmount = result.TotalAmount,
+                            date = result.Date,
+                            transactionDate = result.TransactionDate,
+                            items = result.Items.Select(i => new
+                            {
+                                item = i.ItemId,
+                                quantity = i.Quantity,
+                                price = i.Price,
+                                puPrice = i.PuPrice,
+                                batchNumber = i.BatchNumber,
+                                expiryDate = i.ExpiryDate
+                            }),
+                            vatAmount = result.VatAmount,
+                            discountAmount = result.DiscountAmount,
+                            roundOffAmount = result.RoundOffAmount,
+                            subTotal = result.SubTotal,
+                            taxableAmount = result.TaxableAmount,
+                            nonVatSales = result.NonVatSales,
+                            isVatExempt = result.IsVatExempt,
+                            isVatAll = result.IsVatAll,
+                            vatPercentage = result.VatPercentage,
+                            paymentMode = result.PaymentMode
+                        }
+                    },
+                };
+
+                return StatusCode(201, response);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error in CreateCashSales");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Stock validation error in CreateCashSales");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in CreateCashSales");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error creating cash sales bill",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // GET: api/retailer/cash-sales/open
+        [HttpGet("cash-sales/open")]
+        public async Task<IActionResult> GetCashSalesOpenData()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCashSalesOpenData Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access forbidden for this trade type"
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // If not in claims, get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                var cashSalesOpenData = await _salesBillService.GetCashSalesOpenDataAsync(
+                    companyIdGuid,
+                    fiscalYearIdGuid,
+                    userIdGuid);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = cashSalesOpenData
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetCashSalesOpenData");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching cash sales open data",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        [HttpGet("cash-sales/open/next-number")]
+        public async Task<IActionResult> GetNextCashSalesOpenBillNumber()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetNextCashSalesOpenBillNumber Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access forbidden for this trade type"
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // If not in claims, get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                var nextBillNumber = await _salesBillService.GetNextCashSalesOpenBillNumberAsync(companyIdGuid, fiscalYearIdGuid);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        nextCashSalesOpenBillNumber = nextBillNumber
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetNextCashSalesOpenBillNumber");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // GET: api/retailer/cash-sales/current-number
+        [HttpGet("cash-sales/open/current-number")]
+        public async Task<IActionResult> GetCurrentCashSalesOpenBillNumber()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCurrentCashSalesOpenBillNumber Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                if (fiscalYear == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Fiscal year not found"
+                    });
+                }
+
+                var currentBillNumber = await _salesBillService.GetCurrentCashSalesOpenBillNumberAsync(companyIdGuid, fiscalYear.Id);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        currentCashSalesOpenBillNumber = currentBillNumber
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetNextCashSalesOpenBillNumber");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error"
+                });
+            }
+        }
+
+        // POST: api/retailer/cash-sales/open
+        [HttpPost("cash-sales/open")]
+        public async Task<IActionResult> CreateCashSalesOpen([FromBody] CreateSalesOpenDTO dto)
+        {
+            try
+            {
+                _logger.LogInformation("=== CreateCashSalesOpen Started ===");
+
+                // Get user claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate user
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access forbidden for this trade type"
+                    });
+                }
+
+                // Validate fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Validate required fields
+                if (dto.Items == null || dto.Items.Count == 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "At least one item is required."
+                    });
+                }
+
+                // Validate VAT selection
+                if (string.IsNullOrEmpty(dto.IsVatExempt))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Invalid VAT selection."
+                    });
+                }
+
+                // Validate payment mode
+                if (string.IsNullOrEmpty(dto.PaymentMode))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Invalid payment mode."
+                    });
+                }
+
+                // Validate cash account details for cash sales
+                if (string.IsNullOrEmpty(dto.CashAccount))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Cash account name is required."
+                    });
+                }
+
+                // Validate calculated amounts are provided
+                if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+                    !dto.NonTaxableAmount.HasValue || !dto.TotalAmount.HasValue)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "SubTotal, TaxableAmount, NonTaxableAmount, and TotalAmount are required from frontend."
+                    });
+                }
+
+                // Create cash sales open bill
+                var result = await _salesBillService.CreateCashSalesOpenBillAsync(
+                    dto, userIdGuid, companyIdGuid, fiscalYearIdGuid);
+
+                // Prepare response
+                var response = new
+                {
+                    success = true,
+                    message = "Cash sales bill created successfully",
+                    data = new
+                    {
+                        bill = new
+                        {
+                            _id = result.Id,
+                            billNumber = result.BillNumber,
+                            cashAccount = result.CashAccount,
+                            totalAmount = result.TotalAmount,
+                            date = result.Date,
+                            transactionDate = result.TransactionDate,
+                            items = result.Items.Select(i => new
+                            {
+                                item = i.ItemId,
+                                quantity = i.Quantity,
+                                price = i.Price,
+                                batchNumber = i.BatchNumber
+                            }),
+                            vatAmount = result.VatAmount,
+                            discountAmount = result.DiscountAmount,
+                            roundOffAmount = result.RoundOffAmount,
+                            paymentMode = result.PaymentMode
+                        }
+                    },
+                    printUrl = Request.Query["print"] == "true" ? $"/bills/{result.Id}/direct-print/cash-open" : null
+                };
+
+                return StatusCode(201, response);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error in CreateCashSalesOpen");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Stock validation error in CreateCashSalesOpen");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    details = ex.Data.Count > 0 ? ex.Data : null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in CreateCashSalesOpen");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error creating cash sales open bill",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // GET: api/retailer/cash-sales/finds
+        [HttpGet("cash-sales/finds")]
+        public async Task<IActionResult> GetCashSalesFinds()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCashSalesFinds Started ===");
+
+                // Extract claims from JWT token
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value; // CHANGED: Use "fiscalYearId" not "currentFiscalYear"
+                var tradeType = User.FindFirst("tradeType")?.Value;
+                var companyName = User.FindFirst("currentCompanyName")?.Value;
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                var isAdmin = User.FindFirst("isAdmin")?.Value;
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeType) || tradeType.ToLower() != "retailer")
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Invalid trade type"
+                    });
+                }
+
+                // Validate user ID
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company ID
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback to active fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // If not in claims, get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        // Try to get any fiscal year as fallback
+                        activeFiscalYear = await _context.FiscalYears
+                            .Where(f => f.CompanyId == companyIdGuid)
+                            .OrderByDescending(f => f.StartDate)
+                            .FirstOrDefaultAsync();
+
+                        if (activeFiscalYear == null)
+                        {
+                            return BadRequest(new
+                            {
+                                success = false,
+                                error = "No fiscal year found for this company. Please select a fiscal year first."
+                            });
+                        }
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+
+                    _logger.LogInformation($"Using active fiscal year: {fiscalYearIdGuid}");
+                }
+
+                // Get purchase finds data from service
+                var result = await _salesBillService.GetCashSalesFindsAsync(
+                    companyIdGuid,
+                    fiscalYearIdGuid,
+                    userIdGuid);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetCashSalesFinds");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error"
+                });
+            }
+        }
+
+        // GET: api/retailer/credit-sales/check-editable
+        [HttpGet("cash-sales/check-editable")]
+        public async Task<IActionResult> CheckCashSalesBillEditable([FromQuery] string billNumber)
+        {
+            try
+            {
+                _logger.LogInformation("Checking if bill {BillNumber} is editable", billNumber);
+
+                // Extract claims from JWT token
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeType = User.FindFirst("tradeType")?.Value;
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeType) || tradeType.ToLower() != "retailer")
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Invalid trade type"
+                    });
+                }
+
+                // Validate user ID
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company ID
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Check if bill exists and is editable
+                var bill = await _context.SalesBills
+                    .Where(b => b.CompanyId == companyIdGuid &&
+                               b.BillNumber == billNumber)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.BillNumber,
+                        b.Account,
+                        b.PaymentMode
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (bill == null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        error = "Voucher not found",
+                        isEditable = false
+                    });
+                }
+
+                // Bill is not editable if Account is not null
+                bool isEditable = bill.Account == null;
+
+                return Ok(new
+                {
+                    success = true,
+                    isEditable = isEditable,
+                    billNumber = bill.BillNumber,
+                    message = isEditable ?
+                        "Voucher is editable" :
+                        "This is a credit sales voucher and cannot be edited as cash sales",
+                    hasCreditAccount = bill.Account != null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if bill is editable for number: {BillNumber}", billNumber);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error"
+                });
+            }
+        }
+
+        [HttpGet("cash-sales/get-id-by-number")]
+        public async Task<IActionResult> GetCashSalesBillIdByNumber([FromQuery] string billNumber)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCashSalesBillIdByNumber Started for Bill Number: {BillNumber} ===", billNumber);
+
+                // Validate bill number
+                if (string.IsNullOrWhiteSpace(billNumber))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Bill number is required"
+                    });
+                }
+
+                // Extract claims from JWT
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // Handle fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // If not in claims, get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Get bill ID from service
+                var result = await _salesBillService.GetCashSalesBillIdByNumberAsync(
+                    billNumber,
+                    companyIdGuid,
+                    fiscalYearIdGuid);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        id = result.Id,
+                        billNumber = result.BillNumber
+                    }
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error in GetCashSalesBillIdByNumber");
+                return NotFound(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetCashSalesBillIdByNumber for bill {BillNumber}", billNumber);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching bill ID"
+                });
+            }
+        }
+
+        // GET: api/retailer/cash-sales/edit/{id}
+        [HttpGet("cash-sales/edit/{id}")]
+        public async Task<IActionResult> GetCashSalesEditData(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCashSalesEditData Started for Bill ID: {BillId} ===", id);
+
+                // Extract claims from JWT
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate user
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // If not in claims, get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        // Try to get any fiscal year as fallback
+                        activeFiscalYear = await _context.FiscalYears
+                            .Where(f => f.CompanyId == companyIdGuid)
+                            .OrderByDescending(f => f.StartDate)
+                            .FirstOrDefaultAsync();
+
+                        if (activeFiscalYear == null)
+                        {
+                            return BadRequest(new
+                            {
+                                success = false,
+                                error = "No fiscal year found for this company."
+                            });
+                        }
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+
+                    _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+                }
+
+                // Get cash sales edit data from service
+                var editData = await _salesBillService.GetCashSalesEditDataAsync(
+                    id,
+                    companyIdGuid,
+                    fiscalYearIdGuid,
+                    userIdGuid);
+
+                if (editData == null || editData.SalesBill == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Cash sales bill not found or does not belong to the selected company"
+                    });
+                }
+
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        company = new
+                        {
+                            _id = editData.Company.Id,
+                            vatEnabled = editData.Company.VatEnabled,
+                            dateFormat = editData.Company.DateFormat,
+                            name = editData.Company.Name,
+                            fiscalYear = editData.Company.FiscalYear
+                        },
+                        salesBill = editData.SalesBill,
+                        items = editData.Items,
+                        accounts = editData.Accounts,
+                        user = editData.User
+                    }
+                };
+
+                _logger.LogInformation($"Successfully fetched cash sales edit data for Bill ID: {id}");
+
+                return Ok(response);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error in GetCashSalesEditData");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetCashSalesEditData for bill {BillId}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching cash sales edit data",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // PUT: api/retailer/cash-sales/edit/{id}
+        [HttpPut("cash-sales/edit/{id}")]
+        public async Task<IActionResult> UpdateCashSalesBill(Guid id, [FromBody] UpdateSalesBillDTO dto)
+        {
+            try
+            {
+                _logger.LogInformation("=== UpdateCashSalesBill Started for Bill ID: {BillId} ===", id);
+
+                // Get user claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate user
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access forbidden for this trade type"
+                    });
+                }
+
+                // Validate fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Validate required fields
+                if (string.IsNullOrEmpty(dto.CashAccount))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Cash account name is required."
+                    });
+                }
+
+                if (dto.Items == null || dto.Items.Count == 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "At least one item is required."
+                    });
+                }
+
+                // Validate VAT selection
+                if (string.IsNullOrEmpty(dto.IsVatExempt))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Invalid VAT selection."
+                    });
+                }
+
+                // Validate payment mode
+                if (string.IsNullOrEmpty(dto.PaymentMode))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Invalid payment mode."
+                    });
+                }
+
+                // Validate calculated amounts are provided
+                if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+                    !dto.NonTaxableAmount.HasValue || !dto.TotalAmount.HasValue)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "SubTotal, TaxableAmount, NonTaxableAmount, and TotalAmount are required from frontend."
+                    });
+                }
+
+                // Update cash sales bill
+                var result = await _salesBillService.UpdateCashSalesBillAsync(
+                    id, dto, userIdGuid, companyIdGuid, fiscalYearIdGuid);
+
+                // Prepare response
+                var response = new
+                {
+                    success = true,
+                    message = "Cash sales bill updated successfully",
+                    data = new
+                    {
+                        bill = new
+                        {
+                            _id = result.Id,
+                            billNumber = result.BillNumber,
+                            cashAccount = result.CashAccount,
+                            totalAmount = result.TotalAmount,
+                            items = result.Items.Select(i => new
+                            {
+                                itemId = i.ItemId,
+                                quantity = i.Quantity,
+                                price = i.Price,
+                                batchNumber = i.BatchNumber
+                            }),
+                            vatAmount = result.VatAmount,
+                            discountAmount = result.DiscountAmount,
+                            roundOffAmount = result.RoundOffAmount
+                        }
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error in UpdateCashSalesBill");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Stock validation error in UpdateCashSalesBill");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    details = ex.Data.Count > 0 ? ex.Data : null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in UpdateCashSalesBill for bill {BillId}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error updating cash sales bill",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
         // GET: api/retailer/sales-register
-        [HttpGet("/sales-register")]
+        [HttpGet("sales-register")]
         public async Task<IActionResult> GetSalesRegister([FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
         {
             try
@@ -1699,6 +3181,224 @@ namespace SkyForge.Controllers.Retailer
                 {
                     success = false,
                     error = "Internal server error while fetching sales register",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+        // GET: api/retailer/sales-register/entry-data
+        [HttpGet("sales-register/entry-data")]
+        public async Task<IActionResult> GetSalesRegisterEntryData()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetSalesRegisterEntryData Started ===");
+
+                // Extract user and company info from JWT claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate required claims
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Check trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access forbidden for this trade type. This is a Retailer-only feature."
+                    });
+                }
+
+                // Get current active fiscal year
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                if (fiscalYear == null)
+                {
+                    // Try to get any fiscal year as fallback
+                    fiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyIdGuid)
+                        .OrderByDescending(f => f.StartDate)
+                        .FirstOrDefaultAsync();
+
+                    if (fiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No fiscal year found for this company"
+                        });
+                    }
+                }
+
+                // Get sales entry data from service
+                var salesData = await _salesBillService.GetSalesRegisterEntryDataAsync(companyIdGuid, fiscalYear.Id, userIdGuid);
+
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        company = salesData.Company,
+                        accounts = salesData.Accounts,
+                        dates = salesData.Dates,
+                        currentFiscalYear = salesData.CurrentFiscalYear,
+                        userPreferences = salesData.UserPreferences,
+                        permissions = salesData.Permissions,
+                        currentCompanyName = salesData.CurrentCompanyName
+                    }
+                };
+
+                _logger.LogInformation($"Successfully fetched sales entry data for company {salesData.Company.Name}");
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetSalesRegisterEntryData");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // GET: api/retailer/sales/{id}/print
+        [HttpGet("sales/{id}/print")]
+        public async Task<IActionResult> GetSalesForPrint(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetSalesForPrint Started for ID: {BillId} ===", id);
+
+                // Extract claims from JWT
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate user
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // If not in claims, get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        // Try to get any fiscal year as fallback
+                        activeFiscalYear = await _context.FiscalYears
+                            .Where(f => f.CompanyId == companyIdGuid)
+                            .OrderByDescending(f => f.StartDate)
+                            .FirstOrDefaultAsync();
+
+                        if (activeFiscalYear == null)
+                        {
+                            return BadRequest(new
+                            {
+                                success = false,
+                                error = "No fiscal year found for this company."
+                            });
+                        }
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+
+                    _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+                }
+
+                // Get purchase bill print data from service
+                var printData = await _salesBillService.GetSalesForPrintAsync(
+                    id,
+                    companyIdGuid,
+                    userIdGuid,
+                    fiscalYearIdGuid);
+
+                if (printData == null || printData.Bill == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Sales bill not found"
+                    });
+                }
+
+                var response = new
+                {
+                    success = true,
+                    data = printData
+                };
+
+                _logger.LogInformation($"Successfully fetched sales print data for ID: {id}");
+
+                return Ok(response);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error in GetSalesForPrint");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetSalesForPrint for bill {BillId}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching sales bill for printing",
                     details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
                 });
             }

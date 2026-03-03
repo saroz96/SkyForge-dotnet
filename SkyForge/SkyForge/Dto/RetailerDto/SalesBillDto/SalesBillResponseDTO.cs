@@ -22,7 +22,6 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public string PaymentMode { get; set; } = string.Empty;
         public DateTime NepaliDate { get; set; }
         public DateTime Date { get; set; }
-
         public DateTime TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
         public UserInfo? User { get; set; }
@@ -34,6 +33,8 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public Guid SalesBillId { get; set; }
         public Guid CompanyId { get; set; }
         public string? CompanyName { get; set; }
+        public CompanyInfoDTO Company { get; set; }
+        public CompanyInfoDTO CurrentCompany { get; set; }
 
         public bool FirstPrinted { get; set; }
         public int PrintCount { get; set; }
@@ -61,7 +62,6 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
 
         public List<SalesBillItemResponseDTO> Items { get; set; } = new();
 
-        public CompanyInfoDTO? Company { get; set; }
         public DatesDTO? Dates { get; set; }
         public string NextSalesBillNumber { get; set; } = string.Empty;
         public FiscalYearInfoDTO? CurrentFiscalYear { get; set; }

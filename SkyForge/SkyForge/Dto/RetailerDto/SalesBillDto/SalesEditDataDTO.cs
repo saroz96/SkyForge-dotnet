@@ -2,7 +2,7 @@ using SkyForge.Dto.AccountDto;
 
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
-    public class CreditSalesEditDataDTO
+    public class SalesEditDataDTO
     {
         public CompanyInfoDTO Company { get; set; }
         public SalesBillResponseDTO SalesBill { get; set; } = new();

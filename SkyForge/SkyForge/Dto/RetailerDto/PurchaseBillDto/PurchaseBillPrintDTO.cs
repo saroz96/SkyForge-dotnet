@@ -15,9 +15,9 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public string PaymentMode { get; set; } = string.Empty;
         public string NepaliDate { get; set; } = string.Empty;
         public string TransactionDateNepali { get; set; } = string.Empty;
-        
+
         public DateTime EnglishDate { get; set; }
-        
+
         public string CompanyDateFormat { get; set; } = string.Empty;
         public UserPrintDTO User { get; set; } = new();
         public bool IsAdminOrSupervisor { get; set; }
@@ -26,9 +26,9 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
     public class CompanyPrintDTO
     {
         public Guid Id { get; set; }
-        
+
         public DateTime? RenewalDate { get; set; }
-        
+
         public string DateFormat { get; set; } = string.Empty;
         public FiscalYearDTO? FiscalYear { get; set; }
     }
@@ -59,13 +59,13 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public bool FirstPrinted { get; set; }
         public int PrintCount { get; set; }
         public string? PaymentMode { get; set; }
-        
+
         public DateTime Date { get; set; }
-        
-       public DateTime EnglishDate { get; set; }
-        
+
+        public DateTime EnglishDate { get; set; }
+
         public DateTime TransactionDate { get; set; }
-        
+
         public decimal? SubTotal { get; set; }
         public decimal? NonVatPurchase { get; set; }
         public decimal? TaxableAmount { get; set; }
@@ -77,7 +77,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public decimal? TotalAmount { get; set; }
         public bool IsVatExempt { get; set; }
         public decimal? RoundOffAmount { get; set; }
-        
+
         public AccountPrintDTO? Account { get; set; }
         public UserPrintDTO? User { get; set; }
         public List<PurchaseBillItemPrintDTO> Items { get; set; } = new();
@@ -105,7 +105,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public Guid Id { get; set; }
         public Guid ItemId { get; set; }
         public string? ItemName { get; set; }
-         public string? Hscode { get; set; }  // Add this
+        public string? Hscode { get; set; }  // Add this
         public int? UniqueNumber { get; set; }  // Add this
         public Guid UnitId { get; set; }
         public string? UnitName { get; set; }
@@ -125,7 +125,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public string? BatchNumber { get; set; }
         public DateOnly? ExpiryDate { get; set; }
         public string VatStatus { get; set; } = string.Empty;
-        
+
         // Calculated properties
         public decimal ItemTotal => Quantity * PuPrice;
         public decimal ItemTotalWithDiscount => ItemTotal - DiscountAmountPerItem;

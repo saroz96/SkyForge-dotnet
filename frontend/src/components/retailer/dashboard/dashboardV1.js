@@ -465,7 +465,7 @@ const DashboardV1 = () => {
 
     // Get company ID with multiple fallbacks
     const getCompanyId = () => {
-        return currentCompany?.id || currentCompany.Id || currentCompany._id || '';
+        return currentCompany?.id || currentCompany._id || '';
     };
 
     // Get fiscal year for API call
