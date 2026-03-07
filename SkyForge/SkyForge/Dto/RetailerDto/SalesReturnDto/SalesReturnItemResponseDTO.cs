@@ -9,7 +9,8 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
 
         public Guid ItemId { get; set; }
         public string? ItemName { get; set; }
-        public string? ItemCode { get; set; }
+        public string? Hscode { get; set; }
+        public int? UniqueNumber { get; set; }
 
         public Guid UnitId { get; set; }
         public string? UnitName { get; set; }

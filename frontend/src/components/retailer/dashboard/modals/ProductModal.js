@@ -65,6 +65,9 @@ const ProductModal = ({ onClose }) => {
                     // Calculate latest price from stock entries
                     latestPrice: item.stockEntries && item.stockEntries.length > 0
                         ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.price || 0
+                        : 0,
+                    latestMarginPercentage: item.stockEntries && item.stockEntries.length > 0
+                        ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.marginPercentage || 0
                         : 0
                 }));
 
@@ -268,7 +271,7 @@ const ProductModal = ({ onClose }) => {
                                 >
                                     <div className="dropdown-header" style={{
                                         display: 'grid',
-                                        gridTemplateColumns: 'repeat(8, 1fr)',
+                                        gridTemplateColumns: 'repeat(9, 1fr)',
                                         alignItems: 'center',
                                         padding: '0 8px',
                                         height: '20px',
@@ -288,6 +291,7 @@ const ProductModal = ({ onClose }) => {
                                         <div><strong>with tax</strong></div>
                                         <div><strong>Stock</strong></div>
                                         <div><strong>Unit</strong></div>
+                                        <div><strong>%</strong></div>
                                     </div>
 
                                     {displayProducts.length > 0 ? (

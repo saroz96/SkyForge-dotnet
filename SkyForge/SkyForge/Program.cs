@@ -28,6 +28,7 @@ using SkyForge.Middleware;
 using SkyForge.Services.Retailer.PurchaseReturnServices;
 using SkyForge.Services.Retailer.SalesQuotationServices;
 using SkyForge.Services.Retailer.SalesBillServices;
+using SkyForge.Services.Retailer.SalesReturnServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -150,6 +151,7 @@ builder.Services.AddScoped<IAccountBalanceService, AccountBalanceService>();
 builder.Services.AddScoped<IPurchaseReturnService, PurchaseReturnService>();
 builder.Services.AddScoped<ISalesQuotationService, SalesQuotationService>();
 builder.Services.AddScoped<ISalesBillService, SalesBillService>();
+builder.Services.AddScoped<ISalesReturnService, SalesReturnService>();
 
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();

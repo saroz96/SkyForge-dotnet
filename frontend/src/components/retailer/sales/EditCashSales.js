@@ -7,7 +7,7 @@
 // import '../../../stylesheet/noDateIcon.css';
 // import ProductModal from '../dashboard/modals/ProductModal';
 // import useDebounce from '../../../hooks/useDebounce';
-// import VirtualizedItemList from '../../VirtualizedItemList';
+// import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 // import VirtualizedAccountList from '../../VirtualizedAccountList';
 // import { Button } from 'react-bootstrap';
 // import { BiArrowBack } from 'react-icons/bi';
@@ -1605,7 +1605,7 @@
 //                 </div>
 
 //                 {itemsToShow.length > 0 ? (
-//                     <VirtualizedItemList
+//                     <VirtualizedItemListForSales
 //                         items={itemsToShow}
 //                         onItemClick={(item) => showBatchModalForItem(item)}
 //                         searchRef={itemSearchRef}
@@ -3612,7 +3612,7 @@
 //                                         </div>
 
 //                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-//                                             <VirtualizedItemList
+//                                             <VirtualizedItemListForSales
 //                                                 items={headerSearchResults}
 //                                                 onItemClick={(item) => {
 //                                                     selectItemForInsert(item);
@@ -4112,7 +4112,7 @@ import '../../../stylesheet/noDateIcon.css';
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemList from '../../VirtualizedItemList';
+import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
@@ -5470,8 +5470,8 @@ const EditCashSales = () => {
                 cashAccount: formData.cashAccount,
                 cashAccountAddress: formData.cashAccountAddress,
                 cashAccountPan: formData.cashAccountPan,
-                cashAccountEmail: cashAccountEmail, // Send null if empty
-                cashAccountPhone: cashAccountPhone, // Send null if empty
+                cashAccountEmail: cashAccountEmail,
+                cashAccountPhone: cashAccountPhone,
                 paymentMode: formData.paymentMode,
                 isVatExempt: formData.isVatExempt === 'true' ? 'true' :
                     (formData.isVatExempt === 'all' ? 'all' : 'false'),
@@ -7311,7 +7311,7 @@ const EditCashSales = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemList
+                                            <VirtualizedItemListForSales
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);

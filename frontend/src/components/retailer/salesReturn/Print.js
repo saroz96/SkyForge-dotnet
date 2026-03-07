@@ -45,7 +45,7 @@
 //         printWindow.document.write(`
 //             <html>
 //                 <head>
-//                     <title>Sales_Invoice_${billData.bill.billNumber}</title>
+//                     <title>Sales_Return_${billData.bill.billNumber}</title>
 //                     <style>${styles}</style>
 //                 </head>
 //                 <body>
@@ -121,7 +121,7 @@
 //                 heightLeft -= pageHeight;
 //             }
 
-//             pdf.save(`Sales_Invoice_${billData.bill.billNumber}.pdf`);
+//             pdf.save(`Sales_Return_${billData.bill.billNumber}.pdf`);
 
 //             if (originalText) {
 //                 originalText.textContent = 'PDF';
@@ -206,18 +206,17 @@
 //         navigate(-1);
 //     };
 
-//     if (loading) return <div>Loading...</div>;
-//     if (error) return <div>Error: {error}</div>;
-//     if (!billData) return <div>No bill data found</div>;
-
-
-//     function formatTo2Decimal(num) {
+//     const formatTo2Decimal = (num) => {
 //         const rounded = Math.round(num * 100) / 100;
 //         const parts = rounded.toString().split(".");
 //         if (!parts[1]) return parts[0] + ".00";
 //         if (parts[1].length === 1) return parts[0] + "." + parts[1] + "0";
 //         return rounded.toString();
-//     }
+//     };
+
+//     if (loading) return <div>Loading...</div>;
+//     if (error) return <div>Error: {error}</div>;
+//     if (!billData) return <div>No bill data found</div>;
 
 //     return (
 //         <>
@@ -249,7 +248,7 @@
 //                     .print-invoice-header {
 //                         text-align: center;
 //                         margin-bottom: 3mm;
-//                         border-bottom: 1px dashed #000;
+//                         border-bottom: 1px solid #000;
 //                         padding-bottom: 2mm;
 //                     }
 
@@ -284,11 +283,12 @@
 //                         margin: 3mm 0;
 //                         font-size: 8pt;
 //                         border: none;
+//                         table-layout: fixed;
 //                     }
 
 //                     .print-invoice-table thead {
-//                         border-top: 1px dashed #000;
-//                         border-bottom: 1px dashed #000;
+//                         border-top: 1px solid #000;
+//                         border-bottom: 1px solid #000;
 //                     }
 
 //                     .print-invoice-table th {
@@ -305,8 +305,72 @@
 //                         border-bottom: 1px solid #eee;
 //                     }
 
+//                     /* Fixed column widths for print */
+//                     .print-invoice-table th:nth-child(1),
+//                     .print-invoice-table td:nth-child(1) {
+//                         width: 4%;
+//                     }
+
+//                     .print-invoice-table th:nth-child(2),
+//                     .print-invoice-table td:nth-child(2) {
+//                         width: 7%;
+//                     }
+
+//                     .print-invoice-table th:nth-child(3),
+//                     .print-invoice-table td:nth-child(3) {
+//                         width: 8%;
+//                     }
+
+//                     .print-invoice-table th:nth-child(4),
+//                     .print-invoice-table td:nth-child(4) {
+//                         width: 25%;
+//                     }
+
+//                     .print-invoice-table th:nth-child(5),
+//                     .print-invoice-table td:nth-child(5) {
+//                         width: 6%;
+//                     }
+
+//                     .print-invoice-table th:nth-child(6),
+//                     .print-invoice-table td:nth-child(6) {
+//                         width: 8%;
+//                     }
+
+//                     .print-invoice-table th:nth-child(7),
+//                     .print-invoice-table td:nth-child(7) {
+//                         width: 8%;
+//                     }
+
+//                     .print-invoice-table th:nth-child(8),
+//                     .print-invoice-table td:nth-child(8) {
+//                         width: 6%;
+//                         text-align: right;
+//                     }
+
+//                     .print-invoice-table th:nth-child(9),
+//                     .print-invoice-table td:nth-child(9) {
+//                         width: 10%;
+//                         text-align: right;
+//                     }
+
+//                     .print-invoice-table th:nth-child(10),
+//                     .print-invoice-table td:nth-child(10) {
+//                         width: 10%;
+//                         text-align: right;
+//                         padding-right: 2mm;
+//                     }
+
+//                     /* Ensure numbers are fully visible */
+//                     .print-invoice-table td:nth-child(9),
+//                     .print-invoice-table td:nth-child(10) {
+//                         white-space: nowrap;
+//                         overflow: visible !important;
+//                         text-overflow: clip !important;
+//                     }
+
 //                     .print-text-right {
 //                         text-align: right;
+//                         padding-right: 2mm;
 //                     }
 
 //                     .print-text-center {
@@ -330,7 +394,7 @@
 //                     .print-signature-box {
 //                         text-align: center;
 //                         width: 30%;
-//                         border-top: 1px dashed #000;
+//                         border-top: 1px solid #000;
 //                         padding-top: 1mm;
 //                         font-weight:bold;
 //                     }
@@ -346,11 +410,20 @@
 //                         padding: 1mm;
 //                     }
 
+//                     .print-totals-table td:nth-child(2) {
+//                         text-align: right;
+//                         padding-right: 2mm;
+//                         width: 40%;
+//                         white-space: nowrap;
+//                         overflow: visible !important;
+//                         text-overflow: clip !important;
+//                     }
+
 //                     .print-footer {
 //                         text-align: center;
 //                         font-size: 7pt;
 //                         margin-top: 3mm;
-//                         border-top: 1px dashed #000;
+//                         border-top: 1px solid #000;
 //                         padding-top: 1mm;
 //                     }
 
@@ -368,74 +441,139 @@
 //                         display: none;
 //                     }
 
+//                     /* Compact Screen Version */
 //                     .container {
 //                         max-width: 100%;
-//                         padding: 10px;
+//                         padding: 5px;
 //                     }
 
 //                     .card {
 //                         border: 1px solid #ddd;
-//                         margin: 10px 0;
-//                         padding: 15px;
-//                         box-shadow: 0 0 10px rgba(0,0,0,0.1);
+//                         margin: 5px 0;
+//                         padding: 8px;
+//                         box-shadow: 0 0 5px rgba(0,0,0,0.1);
+//                         font-size: 12px;
 //                     }
 
 //                     .header {
 //                         text-align: center;
-//                         margin-bottom: 15px;
+//                         margin-bottom: 8px;
 //                     }
 
 //                     .header h1 {
 //                         margin: 0;
-//                         font-size: 30px;
+//                         font-size: 18px;
 //                         font-weight: bold;
+//                         line-height: 1.1;
 //                     }
 
 //                     .header h2 {
-//                         font-size: 18px;
-//                         margin: 10px 0;
+//                         font-size: 14px;
+//                         margin: 5px 0;
+//                         line-height: 1.1;
 //                     }
 
 //                     .header h4 {
-//                         font-size: 14px;
-//                         margin: 10px 0;
+//                         font-size: 11px;
+//                         margin: 3px 0;
+//                         line-height: 1.1;
 //                     }
 
 //                     .details-container {
 //                         display: flex;
 //                         justify-content: space-between;
-//                         margin-bottom: 15px;
-//                         font-size: 13px;
+//                         margin-bottom: 8px;
+//                         font-size: 11px;
+//                         line-height: 1.1;
 //                     }
 
 //                     .table {
 //                         width: 100%;
 //                         border-collapse: collapse;
-//                         margin-top: 10px;
-//                         font-size: 13px;
+//                         margin-top: 5px;
+//                         font-size: 11px;
+//                         table-layout: fixed;
 //                     }
 
 //                     .table th {
 //                         background-color: #f0f0f0;
 //                         border: 1px solid #ddd;
-//                         padding: 8px;
+//                         padding: 4px;
 //                         text-align: left;
+//                         height: 25px;
 //                     }
 
 //                     .table td {
 //                         border: 1px solid #ddd;
-//                         padding: 8px;
+//                         padding: 3px;
 //                         text-align: left;
+//                         height: 25px;
+//                         vertical-align: top;
+//                     }
+
+//                     /* Compact column widths for screen */
+//                     .table th:nth-child(1),
+//                     .table td:nth-child(1) {
+//                         width: 4%;
+//                     }
+
+//                     .table th:nth-child(2),
+//                     .table td:nth-child(2) {
+//                         width: 7%;
+//                     }
+
+//                     .table th:nth-child(3),
+//                     .table td:nth-child(3) {
+//                         width: 8%;
+//                     }
+
+//                     .table th:nth-child(4),
+//                     .table td:nth-child(4) {
+//                         width: 25%;
+//                     }
+
+//                     .table th:nth-child(5),
+//                     .table td:nth-child(5) {
+//                         width: 6%;
+//                     }
+
+//                     .table th:nth-child(6),
+//                     .table td:nth-child(6) {
+//                         width: 8%;
+//                     }
+
+//                     .table th:nth-child(7),
+//                     .table td:nth-child(7) {
+//                         width: 8%;
+//                     }
+
+//                     .table th:nth-child(8),
+//                     .table td:nth-child(8) {
+//                         width: 6%;
+//                         text-align: right;
+//                     }
+
+//                     .table th:nth-child(9),
+//                     .table td:nth-child(9) {
+//                         width: 10%;
+//                         text-align: right;
+//                     }
+
+//                     .table th:nth-child(10),
+//                     .table td:nth-child(10) {
+//                         width: 10%;
+//                         text-align: right;
 //                     }
 
 //                     .amount-in-words {
 //                         font-style: italic;
-//                         margin-top: 10px;
-//                         font-size: 13px;
+//                         margin-top: 5px;
+//                         font-size: 11px;
+//                         line-height: 1.1;
 //                     }
 
 //                     .signature-area {
-//                         margin-top: 50px;
+//                         margin-top: 20px;
 //                         display: flex;
 //                         justify-content: space-between;
 //                     }
@@ -443,72 +581,116 @@
 //                     .signature-box {
 //                         width: 30%;
 //                         text-align: center;
-//                         border-top: 1px dashed #000;
-//                         padding-top: 10px;
-//                         font-size: 13px;
+//                         border-top: 1px solid #000;
+//                         padding-top: 5px;
+//                         font-size: 11px;
+//                         height: 40px;
 //                     }
 
 //                     .total-table {
 //                         width: 40%;
 //                         float: right;
-//                         margin-top: 20px;
-//                         font-size: 13px;
+//                         margin-top: 10px;
+//                         font-size: 11px;
+//                     }
+
+//                     .total-table table {
+//                         font-size: 11px;
+//                     }
+
+//                     .total-table td {
+//                         padding: 2px;
+//                         height: 20px;
 //                     }
 
 //                     hr {
 //                         border-top: 1px solid #000;
-//                         margin: 10px 0;
+//                         margin: 5px 0;
+//                     }
+
+//                     .btn {
+//                         padding: 3px 8px;
+//                         font-size: 12px;
+//                     }
+
+//                     .btn svg {
+//                         width: 14px;
+//                         height: 14px;
+//                     }
+
+//                     /* Utility classes for better spacing */
+//                     .compact-text {
+//                         line-height: 1;
+//                         margin: 0;
+//                         padding: 0;
+//                     }
+
+//                     .compact-row {
+//                         margin: 0;
+//                         padding: 0;
+//                     }
+
+//                     /* Ensure no overflow */
+//                     .no-overflow {
+//                         overflow: hidden;
+//                         text-overflow: ellipsis;
+//                         white-space: nowrap;
+//                     }
+
+//                     .wrap-text {
+//                         word-wrap: break-word;
+//                         overflow-wrap: break-word;
+//                         white-space: normal;
 //                     }
 //                 }
 //                 `}
 //             </style>
 
-//             {/* Screen Version */}
+//             {/* Screen Version - Compact */}
 //             <div className="screen-version">
-//                 <Container>
-//                     <div className="d-flex justify-content-end mb-3">
-//                         <Button variant="secondary" className="me-2" onClick={handleBack}>
+//                 <Container fluid>
+//                     <div className="d-flex justify-content-end mb-2">
+//                         <Button variant="secondary" size="sm" className="me-2" onClick={handleBack}>
 //                             <BiArrowBack /> Back
 //                         </Button>
-//                         <Button variant="primary" className="me-2" onClick={generatePdf}>
+//                         <Button variant="primary" size="sm" className="me-2" onClick={generatePdf}>
 //                             <BiSolidFilePdf /> <span className="pdf-button-text">PDF</span>
 //                         </Button>
-//                         <Button variant="info" onClick={printBill}>
+//                         <Button variant="info" size="sm" onClick={printBill}>
 //                             <BiPrinter /> Print
 //                         </Button>
 //                     </div>
 
-//                     <Card>
-//                         <div className="header">
-//                             <h1>{billData.currentCompanyName}</h1>
-//                             <h4>
+//                     <Card className="p-4">
+//                         <div className="header compact-text">
+//                             <h1 className="compact-text">{billData.currentCompanyName}</h1>
+//                             <h4 className="compact-text">
 //                                 {billData.currentCompany.address}, {billData.currentCompany.city}
 //                                 <br />
 //                                 Tel: {billData.currentCompany.phone} | PAN: {billData.currentCompany.pan}
 //                             </h4>
-//                             <h2 className="bordered">SALES RETURN</h2>
+//                             <h2 className="compact-text">SALES RETURN</h2>
 //                         </div>
-
-//                         <div className="details-container">
-//                             <div className="left">
+//                         <br />
+//                         <div className="details-container compact-text">
+//                             <div className="left wrap-text">
 //                                 <div><strong>M/S:</strong> {billData.bill.account?.name || billData.bill.cashAccount || 'Account Not Found'}</div>
 //                                 <div><strong>Address:</strong> {billData.bill.account?.address || billData.bill.cashAccountAddress || 'N/A'}</div>
 //                                 <div><strong>PAN:</strong> {billData.bill.account?.pan || billData.bill.cashAccountPan || 'N/A'} | <strong>Tel:</strong> {billData.bill.account?.phone || billData.bill.cashAccountPhone || 'N/A'}</div>
 //                                 <div><strong>Email:</strong> {billData.bill.account?.email || billData.bill.cashAccountEmail || 'N/A'}</div>
-//                                 {/* <div><strong>Tel:</strong> {billData.bill.account?.phone || billData.bill.cashAccountPhone || 'N/A'}</div> */}
 //                             </div>
 //                             <div className="right">
-//                                 <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
+//                                 <div><strong>Return No:</strong> {billData.bill.billNumber}</div>
 //                                 <div><strong>Org. Inv.:</strong> {billData.bill.originalSalesBillNumber || 'N/A'}</div>
-//                                 <div><strong>Transaction Date:</strong> {new Date(billData.bill.transactionDate).toLocaleDateString()}</div>
-//                                 <div><strong>Invoice Issue Date:</strong> {new Date(billData.bill.date).toLocaleDateString()}</div>
+//                                 <div><strong>Tran. Date:</strong> {new Date(billData.bill.transactionDate).toLocaleDateString()}</div>
+//                                 <div><strong>Return Date:</strong> {new Date(billData.bill.date).toLocaleDateString()}</div>
 //                                 <div><strong>Mode of Payment:</strong> {billData.bill.paymentMode}</div>
 //                             </div>
 //                         </div>
 
-//                         <hr />
+//                         <hr className="my-1" />
 
-//                         <Table bordered>
+//                         <Table bordered size="sm">
 //                             <thead>
 //                                 <tr>
 //                                     <th>S.N.</th>
@@ -532,25 +714,25 @@
 //                                         <td>
 //                                             {item.item.vatStatus === 'vatExempt' ? (
 //                                                 <>
-//                                                     {item.item.name} <span style={{ color: 'red' }}>*</span>
+//                                                     <span className="wrap-text">{item.item.name}</span> <span style={{ color: 'red' }}>*</span>
 //                                                 </>
 //                                             ) : (
-//                                                 item.item.name
+//                                                 <span className="wrap-text">{item.item.name}</span>
 //                                             )}
 //                                         </td>
 //                                         <td>{item.item.unit?.name || ''}</td>
 //                                         <td>{item.batchNumber}</td>
 //                                         <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-//                                         <td>{item.quantity}</td>
-//                                         <td>{formatTo2Decimal(item.price)}</td>
-//                                         <td>{formatTo2Decimal(item.quantity * item.price)}</td>
+//                                         <td className="text-right">{item.quantity}</td>
+//                                         <td className="text-right">{formatTo2Decimal(item.price)}</td>
+//                                         <td className="text-right">{formatTo2Decimal(item.quantity * item.price)}</td>
 //                                     </tr>
 //                                 ))}
 //                             </tbody>
 //                         </Table>
 
 //                         <div className="total-table">
-//                             <table className="table">
+//                             <table className="table table-sm border-0">
 //                                 <tbody>
 //                                     <tr>
 //                                         <td><strong>Sub-Total:</strong></td>
@@ -586,7 +768,7 @@
 //                             </table>
 //                         </div>
 
-//                         <div className="amount-in-words">
+//                         <div className="amount-in-words compact-text">
 //                             <strong>In Words:</strong> {numberToWordsWithPaisa(billData.bill.totalAmount)} Only.
 //                         </div>
 
@@ -616,13 +798,12 @@
 //                             <div><strong>Address:</strong> {billData.bill.account?.address || billData.bill.cashAccountAddress || 'N/A'}</div>
 //                             <div><strong>PAN:</strong> {billData.bill.account?.pan || billData.bill.cashAccountPan || 'N/A'} | <strong>Tel:</strong> {billData.bill.account?.phone || billData.bill.cashAccountPhone || 'N/A'}</div>
 //                             <div><strong>Email:</strong> {billData.bill.account?.email || billData.bill.cashAccountEmail || 'N/A'}</div>
-//                             {/* <div><strong>Tel:</strong> {billData.bill.account?.phone || billData.bill.cashAccountPhone || 'N/A'}</div> */}
 //                         </div>
 //                         <div>
-//                             <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
+//                             <div><strong>Return No:</strong> {billData.bill.billNumber}</div>
 //                             <div><strong>Org. Inv.:</strong> {billData.bill.originalSalesBillNumber || 'N/A'}</div>
-//                             <div><strong>Transaction Date:</strong> {new Date(billData.bill.transactionDate).toLocaleDateString()}</div>
-//                             <div><strong>Invoice Issue Date:</strong> {new Date(billData.bill.date).toLocaleDateString()}</div>
+//                             <div><strong>Tran. Date:</strong> {new Date(billData.bill.transactionDate).toLocaleDateString()}</div>
+//                             <div><strong>Return Date:</strong> {new Date(billData.bill.date).toLocaleDateString()}</div>
 //                             <div><strong>Mode of Payment:</strong> {billData.bill.paymentMode}</div>
 //                         </div>
 //                     </div>
@@ -658,14 +839,14 @@
 //                                     <td>{item.item.unit?.name || ''}</td>
 //                                     <td>{item.batchNumber}</td>
 //                                     <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-//                                     <td>{item.quantity}</td>
-//                                     <td>{formatTo2Decimal(item.price)}</td>
-//                                     <td>{formatTo2Decimal(item.quantity * item.price)}</td>
+//                                     <td className="print-text-right">{item.quantity}</td>
+//                                     <td className="print-text-right">{formatTo2Decimal(item.price)}</td>
+//                                     <td className="print-text-right">{formatTo2Decimal(item.quantity * item.price)}</td>
 //                                 </tr>
 //                             ))}
 //                         </tbody>
 //                         <tr>
-//                             <td colSpan="11" style={{ borderBottom: '1px dashed #000' }}></td>
+//                             <td colSpan="10" style={{ borderBottom: '1px solid #000' }}></td>
 //                         </tr>
 //                     </table>
 
@@ -707,7 +888,7 @@
 //                     <div className="print-amount-in-words">
 //                         <strong>In Words:</strong> {numberToWordsWithPaisa(billData.bill.totalAmount)} Only.
 //                     </div>
-//                     <br /><br />
+
 //                     <div className="print-signature-area">
 //                         <div className="print-signature-box">Received By</div>
 //                         <div className="print-signature-box">Prepared By: {billData.bill.user.name}</div>
@@ -721,8 +902,7 @@
 
 // export default SalesReturnPrint;
 
-//-----------------------------------------------------------end
-
+//------------------------------------------------------------------end
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -730,6 +910,8 @@ import { Container, Card, Button, Table } from 'react-bootstrap';
 import { BiPrinter, BiArrowBack, BiSolidFilePdf } from 'react-icons/bi';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import axios from 'axios';
+import NepaliDate from 'nepali-date-converter';
 
 const SalesReturnPrint = () => {
     const { id } = useParams();
@@ -737,24 +919,45 @@ const SalesReturnPrint = () => {
     const [billData, setBillData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [firstBill, setFirstBill] = useState(false);
     const printableRef = useRef();
+
+    // API instance with JWT token
+    const api = axios.create({
+        baseURL: process.env.REACT_APP_API_BASE_URL,
+        withCredentials: true,
+    });
+
+    // Add authorization header to all requests
+    api.interceptors.request.use(
+        (config) => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        },
+        (error) => {
+            return Promise.reject(error);
+        }
+    );
 
     useEffect(() => {
         const fetchBillData = async () => {
             try {
-                const response = await fetch(`/api/retailer/sales-return/${id}/print`, {
-                    credentials: 'include'
-                });
-                const data = await response.json();
+                setLoading(true);
+                const response = await api.get(`/api/retailer/sales-return/${id}/print`);
 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to fetch bill data');
+                if (!response.data.success) {
+                    throw new Error(response.data.error || 'Failed to fetch bill data');
                 }
 
-                setBillData(data.data);
+                setBillData(response.data.data);
+                setFirstBill(response.data.data.firstBill);
                 setLoading(false);
             } catch (err) {
-                setError(err.message);
+                console.error('Error fetching bill data:', err);
+                setError(err.response?.data?.error || err.message || 'Failed to fetch bill data');
                 setLoading(false);
             }
         };
@@ -933,6 +1136,7 @@ const SalesReturnPrint = () => {
     };
 
     const formatTo2Decimal = (num) => {
+        if (num === null || num === undefined) return '0.00';
         const rounded = Math.round(num * 100) / 100;
         const parts = rounded.toString().split(".");
         if (!parts[1]) return parts[0] + ".00";
@@ -940,9 +1144,63 @@ const SalesReturnPrint = () => {
         return rounded.toString();
     };
 
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error}</div>;
-    if (!billData) return <div>No bill data found</div>;
+    const formatDate = (dateString, format = 'english') => {
+        if (!dateString) return 'N/A';
+
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'N/A';
+
+            if (format === 'nepali') {
+                // Convert to Nepali date
+                const nepaliDate = new NepaliDate(date);
+                return nepaliDate.format('YYYY-MM-DD');
+            }
+
+            // English format
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        } catch (e) {
+            console.error('Date formatting error:', e);
+            return 'N/A';
+        }
+    };
+
+    if (loading) return (
+        <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+            <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    );
+
+    if (error) return (
+        <Container fluid className="mt-4">
+            <div className="alert alert-danger" role="alert">
+                <h4 className="alert-heading">Error!</h4>
+                <p>{error}</p>
+                <hr />
+                <Button variant="outline-danger" onClick={handleBack}>
+                    <BiArrowBack /> Go Back
+                </Button>
+            </div>
+        </Container>
+    );
+
+    if (!billData || !billData.bill) return (
+        <Container fluid className="mt-4">
+            <div className="alert alert-warning" role="alert">
+                <h4 className="alert-heading">No Data</h4>
+                <p>No bill data found</p>
+                <hr />
+                <Button variant="outline-warning" onClick={handleBack}>
+                    <BiArrowBack /> Go Back
+                </Button>
+            </div>
+        </Container>
+    );
 
     return (
         <>
@@ -993,7 +1251,7 @@ const SalesReturnPrint = () => {
                     .print-company-details {
                         font-size: 8pt;
                         margin: 1mm 0;
-                        font-weight:bold;
+                        font-weight: bold;
                     }
 
                     .print-invoice-details {
@@ -1031,7 +1289,7 @@ const SalesReturnPrint = () => {
                         border-bottom: 1px solid #eee;
                     }
 
-                    /* Fixed column widths for print */
+                    /* Fixed column widths for print - Sales Return specific */
                     .print-invoice-table th:nth-child(1),
                     .print-invoice-table td:nth-child(1) {
                         width: 4%;
@@ -1075,7 +1333,7 @@ const SalesReturnPrint = () => {
 
                     .print-invoice-table th:nth-child(9),
                     .print-invoice-table td:nth-child(9) {
-                        width: 10%;
+                        width: 8%;
                         text-align: right;
                     }
 
@@ -1122,7 +1380,7 @@ const SalesReturnPrint = () => {
                         width: 30%;
                         border-top: 1px solid #000;
                         padding-top: 1mm;
-                        font-weight:bold;
+                        font-weight: bold;
                     }
 
                     .print-totals-table {
@@ -1237,7 +1495,7 @@ const SalesReturnPrint = () => {
                         vertical-align: top;
                     }
 
-                    /* Compact column widths for screen */
+                    /* Compact column widths for screen - Sales Return specific */
                     .table th:nth-child(1),
                     .table td:nth-child(1) {
                         width: 4%;
@@ -1281,7 +1539,7 @@ const SalesReturnPrint = () => {
 
                     .table th:nth-child(9),
                     .table td:nth-child(9) {
-                        width: 10%;
+                        width: 8%;
                         text-align: right;
                     }
 
@@ -1391,26 +1649,49 @@ const SalesReturnPrint = () => {
                         <div className="header compact-text">
                             <h1 className="compact-text">{billData.currentCompanyName}</h1>
                             <h4 className="compact-text">
-                                {billData.currentCompany.address}, {billData.currentCompany.city}
-                                <br />
-                                Tel: {billData.currentCompany.phone} | PAN: {billData.currentCompany.pan}
+                                {billData.currentCompany.address} | Tel: {billData.currentCompany.phone} | PAN: {billData.currentCompany.pan}
                             </h4>
                             <h2 className="compact-text">SALES RETURN</h2>
                         </div>
-                        <br/>
+                        <br />
                         <div className="details-container compact-text">
                             <div className="left wrap-text">
-                                <div><strong>M/S:</strong> {billData.bill.account?.name || billData.bill.cashAccount || 'Account Not Found'}</div>
-                                <div><strong>Address:</strong> {billData.bill.account?.address || billData.bill.cashAccountAddress || 'N/A'}</div>
-                                <div><strong>PAN:</strong> {billData.bill.account?.pan || billData.bill.cashAccountPan || 'N/A'} | <strong>Tel:</strong> {billData.bill.account?.phone || billData.bill.cashAccountPhone || 'N/A'}</div>
-                                <div><strong>Email:</strong> {billData.bill.account?.email || billData.bill.cashAccountEmail || 'N/A'}</div>
+                                {/* Display account or cash account details */}
+                                {billData.bill.account ? (
+                                    // Credit Sales Return - Display account details
+                                    <>
+                                        <div><strong>M/S:</strong> {billData.bill.account.name}</div>
+                                        <div><strong>Address:</strong> {billData.bill.account.address || ''}</div>
+                                        <div><strong>PAN:</strong> {billData.bill.account.pan || ''}</div>
+                                        <div><strong>Email:</strong> {billData.bill.account.email || ''}</div>
+                                        <div><strong>Phone:</strong> {billData.bill.account.phone || ''}</div>
+                                    </>
+                                ) : billData.bill.cashAccount ? (
+                                    // Cash Sales Return - Display cash account details
+                                    <>
+                                        <div><strong>Customer:</strong> {billData.bill.cashAccount}</div>
+                                        <div><strong>Address:</strong> {billData.bill.cashAccountAddress || ''}</div>
+                                        <div><strong>PAN:</strong> {billData.bill.cashAccountPan || ''}</div>
+                                        <div><strong>Email:</strong> {billData.bill.cashAccountEmail || ''}</div>
+                                        <div><strong>Phone:</strong> {billData.bill.cashAccountPhone || ''}</div>
+                                    </>
+                                ) : (
+                                    // Fallback - No party information
+                                    <>
+                                        <div><strong>Customer:</strong> Cash Return</div>
+                                        <div><strong>Address:</strong></div>
+                                        <div><strong>PAN:</strong> </div>
+                                        <div><strong>Email:</strong> </div>
+                                        <div><strong>Phone:</strong> </div>
+                                    </>
+                                )}
                             </div>
                             <div className="right">
-                                <div><strong>Return No:</strong> {billData.bill.billNumber}</div>
-                                <div><strong>Org. Inv.:</strong> {billData.bill.originalSalesBillNumber || 'N/A'}</div>
-                                <div><strong>Tran. Date:</strong> {new Date(billData.bill.transactionDate).toLocaleDateString()}</div>
-                                <div><strong>Return Date:</strong> {new Date(billData.bill.date).toLocaleDateString()}</div>
-                                <div><strong>Mode of Payment:</strong> {billData.bill.paymentMode}</div>
+                                <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
+                                <div><strong>Org. Inv.:</strong> {billData.bill.originalSalesBillNumber || ''}</div>
+                                <div><strong>Transaction Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.transactionDateNepali, 'nepali') : formatDate(billData.bill.transactionDate)}</div>
+                                <div><strong>Invoice Issue Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.nepaliDate, 'nepali') : formatDate(billData.bill.date)}</div>
+                                <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
                             </div>
                         </div>
 
@@ -1427,33 +1708,36 @@ const SalesReturnPrint = () => {
                                     <th>Batch</th>
                                     <th>Expiry</th>
                                     <th>Qty</th>
-                                    <th>Price (Rs.)</th>
-                                    <th>Total (Rs.)</th>
+                                    <th>Price</th>
+                                    <th>Amount</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {billData.bill.items.map((item, i) => (
-                                    <tr key={i}>
-                                        <td>{i + 1}</td>
-                                        <td>{item.item.uniqueNumber}</td>
-                                        <td>{item.item.hscode}</td>
-                                        <td>
-                                            {item.item.vatStatus === 'vatExempt' ? (
-                                                <>
-                                                    <span className="wrap-text">{item.item.name}</span> <span style={{ color: 'red' }}>*</span>
-                                                </>
-                                            ) : (
-                                                <span className="wrap-text">{item.item.name}</span>
-                                            )}
-                                        </td>
-                                        <td>{item.item.unit?.name || ''}</td>
-                                        <td>{item.batchNumber}</td>
-                                        <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="text-right">{item.quantity}</td>
-                                        <td className="text-right">{formatTo2Decimal(item.price)}</td>
-                                        <td className="text-right">{formatTo2Decimal(item.quantity * item.price)}</td>
-                                    </tr>
-                                ))}
+                                {billData.bill.items.map((item, i) => {
+                                    const itemTotal = (item.quantity || 0) * (item.price || 0);
+                                    return (
+                                        <tr key={i}>
+                                            <td>{i + 1}</td>
+                                            <td>{item.uniqueNumber || ''}</td>
+                                            <td>{item.hscode || ''}</td>
+                                            <td>
+                                                {item.vatStatus === 'vatExempt' ? (
+                                                    <>
+                                                        <span className="wrap-text">{item.itemName || ''}</span> <span style={{ color: 'red' }}>*</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="wrap-text">{item.itemName || ''}</span>
+                                                )}
+                                            </td>
+                                            <td>{item.unitName || ''}</td>
+                                            <td>{item.batchNumber || 'N/A'}</td>
+                                            <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
+                                            <td className="text-right">{formatTo2Decimal(item.quantity)}</td>
+                                            <td className="text-right">{formatTo2Decimal(item.price)}</td>
+                                            <td className="text-right">{formatTo2Decimal(itemTotal)}</td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </Table>
 
@@ -1478,8 +1762,8 @@ const SalesReturnPrint = () => {
                                     </tr>
                                     {!billData.bill.isVatExempt && (
                                         <tr>
-                                            <td><strong>VAT ({billData.bill.vatPercentage}%):</strong></td>
-                                            <td className="text-right">{formatTo2Decimal(billData.bill.taxableAmount * billData.bill.vatPercentage / 100)}</td>
+                                            <td><strong>VAT ({billData.bill.vatPercentage || 0}%):</strong></td>
+                                            <td className="text-right">{formatTo2Decimal(billData.bill.vatAmount)}</td>
                                         </tr>
                                     )}
                                     <tr>
@@ -1500,7 +1784,7 @@ const SalesReturnPrint = () => {
 
                         <div className="signature-area">
                             <div className="signature-box">Received By</div>
-                            <div className="signature-box">Prepared By: {billData.bill.user.name}</div>
+                            <div className="signature-box">Prepared By: {billData.bill.user?.name || ''}</div>
                             <div className="signature-box">For: {billData.currentCompanyName}</div>
                         </div>
                     </Card>
@@ -1520,17 +1804,41 @@ const SalesReturnPrint = () => {
 
                     <div className="print-invoice-details">
                         <div>
-                            <div><strong>M/S:</strong> {billData.bill.account?.name || billData.bill.cashAccount || 'Account Not Found'}</div>
-                            <div><strong>Address:</strong> {billData.bill.account?.address || billData.bill.cashAccountAddress || 'N/A'}</div>
-                            <div><strong>PAN:</strong> {billData.bill.account?.pan || billData.bill.cashAccountPan || 'N/A'} | <strong>Tel:</strong> {billData.bill.account?.phone || billData.bill.cashAccountPhone || 'N/A'}</div>
-                            <div><strong>Email:</strong> {billData.bill.account?.email || billData.bill.cashAccountEmail || 'N/A'}</div>
+                            {/* Display account or cash account details */}
+                            {billData.bill.account ? (
+                                // Credit Sales Return - Display account details
+                                <>
+                                    <div><strong>M/S:</strong> {billData.bill.account.name}</div>
+                                    <div><strong>Address:</strong> {billData.bill.account.address || ''}</div>
+                                    <div><strong>PAN:</strong> {billData.bill.account.pan || ''}</div>
+                                    <div><strong>Email:</strong> {billData.bill.account.email || ''}</div>
+                                    <div><strong>Phone:</strong> {billData.bill.account.phone || ''}</div>
+                                </>
+                            ) : billData.bill.cashAccount ? (
+                                // Cash Sales Return - Display cash account details
+                                <>
+                                    <div><strong>Customer:</strong> {billData.bill.cashAccount}</div>
+                                    <div><strong>Address:</strong> {billData.bill.cashAccountAddress || ''}</div>
+                                    <div><strong>PAN:</strong> {billData.bill.cashAccountPan || ''}</div>
+                                    <div><strong>Email:</strong> {billData.bill.cashAccountEmail || ''}</div>
+                                    <div><strong>Phone:</strong> {billData.bill.cashAccountPhone || ''}</div>
+                                </>
+                            ) : (
+                                // Fallback - No party information
+                                <>
+                                    <div><strong>Customer:</strong> Cash Return</div>
+                                    <div><strong>Address:</strong> N/A</div>
+                                    <div><strong>PAN:</strong> N/A</div>
+                                    <div><strong>Email:</strong> N/A, <strong>Phone:</strong> N/A</div>
+                                </>
+                            )}
                         </div>
-                        <div>
-                            <div><strong>Return No:</strong> {billData.bill.billNumber}</div>
-                            <div><strong>Org. Inv.:</strong> {billData.bill.originalSalesBillNumber || 'N/A'}</div>
-                            <div><strong>Tran. Date:</strong> {new Date(billData.bill.transactionDate).toLocaleDateString()}</div>
-                            <div><strong>Return Date:</strong> {new Date(billData.bill.date).toLocaleDateString()}</div>
-                            <div><strong>Mode of Payment:</strong> {billData.bill.paymentMode}</div>
+                        <div className="right">
+                            <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
+                            <div><strong>Org. Inv.:</strong> {billData.bill.originalSalesBillNumber || ''}</div>
+                            <div><strong>Transaction Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.transactionDateNepali, 'nepali') : formatDate(billData.bill.transactionDate)}</div>
+                            <div><strong>Invoice Issue Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.nepaliDate, 'nepali') : formatDate(billData.bill.date)}</div>
+                            <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
                         </div>
                     </div>
 
@@ -1545,31 +1853,34 @@ const SalesReturnPrint = () => {
                                 <th>Batch</th>
                                 <th>Expiry</th>
                                 <th>Qty</th>
-                                <th>Price (Rs.)</th>
-                                <th>Total (Rs.)</th>
+                                <th>Price</th>
+                                <th>Amount</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {billData.bill.items.map((item, i) => (
-                                <tr key={i}>
-                                    <td>{i + 1}</td>
-                                    <td>{item.item.uniqueNumber}</td>
-                                    <td>{item.item.hscode}</td>
-                                    <td>
-                                        {item.item.vatStatus === 'vatExempt' ? (
-                                            `${item.item.name} *`
-                                        ) : (
-                                            item.item.name
-                                        )}
-                                    </td>
-                                    <td>{item.item.unit?.name || ''}</td>
-                                    <td>{item.batchNumber}</td>
-                                    <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-                                    <td className="print-text-right">{item.quantity}</td>
-                                    <td className="print-text-right">{formatTo2Decimal(item.price)}</td>
-                                    <td className="print-text-right">{formatTo2Decimal(item.quantity * item.price)}</td>
-                                </tr>
-                            ))}
+                            {billData.bill.items.map((item, i) => {
+                                const itemTotal = (item.quantity || 0) * (item.price || 0);
+                                return (
+                                    <tr key={i}>
+                                        <td>{i + 1}</td>
+                                        <td>{item.uniqueNumber || ''}</td>
+                                        <td>{item.hscode || ''}</td>
+                                        <td>
+                                            {item.vatStatus === 'vatExempt' ? (
+                                                `${item.itemName || ''} *`
+                                            ) : (
+                                                item.itemName || ''
+                                            )}
+                                        </td>
+                                        <td>{item.unitName || ''}</td>
+                                        <td>{item.batchNumber || 'N/A'}</td>
+                                        <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="print-text-right">{formatTo2Decimal(item.quantity)}</td>
+                                        <td className="print-text-right">{formatTo2Decimal(item.price)}</td>
+                                        <td className="print-text-right">{formatTo2Decimal(itemTotal)}</td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                         <tr>
                             <td colSpan="10" style={{ borderBottom: '1px solid #000' }}></td>
@@ -1596,8 +1907,8 @@ const SalesReturnPrint = () => {
                             </tr>
                             {!billData.bill.isVatExempt && (
                                 <tr>
-                                    <td><strong>VAT ({billData.bill.vatPercentage}%):</strong></td>
-                                    <td className="print-text-right">{formatTo2Decimal(billData.bill.taxableAmount * billData.bill.vatPercentage / 100)}</td>
+                                    <td><strong>VAT ({billData.bill.vatPercentage || 0}%):</strong></td>
+                                    <td className="print-text-right">{formatTo2Decimal(billData.bill.vatAmount)}</td>
                                 </tr>
                             )}
                             <tr>
@@ -1615,9 +1926,10 @@ const SalesReturnPrint = () => {
                         <strong>In Words:</strong> {numberToWordsWithPaisa(billData.bill.totalAmount)} Only.
                     </div>
 
+                    <br /><br />
                     <div className="print-signature-area">
                         <div className="print-signature-box">Received By</div>
-                        <div className="print-signature-box">Prepared By: {billData.bill.user.name}</div>
+                        <div className="print-signature-box">Prepared By: {billData.bill.user?.name || ''}</div>
                         <div className="print-signature-box">For: {billData.currentCompanyName}</div>
                     </div>
                 </div>

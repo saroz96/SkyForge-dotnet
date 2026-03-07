@@ -26,6 +26,12 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
         [Range(0, double.MaxValue)]
         public decimal? PuPrice { get; set; }
 
+        [Range(0, double.MaxValue)]
+        public decimal MarginPercentage { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public decimal? Mrp { get; set; }
+
         [Range(0, 100)]
         public decimal DiscountPercentagePerItem { get; set; } = 0;
 
@@ -53,5 +59,8 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
         public string? UnitName { get; set; }
         public string? ItemCode { get; set; }
         public decimal? AvailableStock { get; set; }
+
+        public Guid? StoreId { get; set; }
+        public Guid? RackId { get; set; }
     }
 }

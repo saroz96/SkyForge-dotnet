@@ -9028,7 +9028,7 @@ import '../../../stylesheet/noDateIcon.css'
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemList from '../../VirtualizedItemList';
+import VirtualizedItemList from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 
@@ -9926,13 +9926,15 @@ const AddSales = () => {
         setShowHeaderItemModal(false);
         setSelectedItemForInsert(item);
 
+        // Use latestPrice which now includes last sales price for out-of-stock items
+        setSelectedItemRate(item.latestPrice || 0);
+
         if (item.stockEntries && item.stockEntries.length > 0) {
             // Sort by date for FIFO (oldest first)
-            const sortedStockEntries = [...item.stockEntries].sort((a, b) =>
+            const sortedStockEntries = [...(item.stockEntries || [])].sort((a, b) =>
                 new Date(a.date) - new Date(b.date)
             );
             const firstStockEntry = sortedStockEntries[0];
-            setSelectedItemRate(firstStockEntry.price || 0);
             setSelectedItemBatchNumber(firstStockEntry.batchNumber || '');
 
             let expiryDate = '';
@@ -9953,6 +9955,10 @@ const AddSales = () => {
                 }
             }
             setSelectedItemExpiryDate(expiryDate);
+        } else {
+            // For out-of-stock items with no stock entries, clear batch and expiry
+            setSelectedItemBatchNumber('');
+            setSelectedItemExpiryDate('');
         }
 
         let hasTransactions = false;

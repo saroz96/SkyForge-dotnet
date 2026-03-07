@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SkyForge.Dto.RetailerDto;
 
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
@@ -47,15 +48,11 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public bool IsVatExempt { get; set; }
         public string? IsVatAll { get; set; }
         public decimal RoundOffAmount { get; set; }
-
-        // Cash account details (for cash sales)
         public string? CashAccount { get; set; }
         public string? CashAccountAddress { get; set; }
         public string? CashAccountPan { get; set; }
         public string? CashAccountEmail { get; set; }
         public string? CashAccountPhone { get; set; }
-
-        // Navigation properties
         public AccountPrintDTO? Account { get; set; }
         public UserPrintDTO? User { get; set; }
         public List<SalesBillItemPrintDTO> Items { get; set; } = new();
@@ -97,32 +94,6 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal ItemTotal => Quantity * Price;
         public decimal ItemTotalWithDiscount => ItemTotal - DiscountAmountPerItem;
         public decimal ItemTotalWithVat => (ItemTotal - DiscountAmountPerItem) * (VatStatus == "vatable" ? 1.13m : 1m);
-    }
-
-    public class CompanyPrintDTO
-    {
-        public Guid Id { get; set; }
-        public DateTime? RenewalDate { get; set; }
-        public string DateFormat { get; set; } = string.Empty;
-        public FiscalYearDTO? FiscalYear { get; set; }
-    }
-
-    public class CompanyPrintInfoDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string? Phone { get; set; }
-        public string? Pan { get; set; }
-        public string? Address { get; set; }
-    }
-
-    public class UserPrintDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public bool IsAdmin { get; set; }
-        public string? Role { get; set; }
-        public UserPreferencesDTO? Preferences { get; set; }
     }
 
     public class AccountPrintDTO

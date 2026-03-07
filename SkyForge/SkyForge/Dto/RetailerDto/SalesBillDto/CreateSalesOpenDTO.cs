@@ -47,8 +47,8 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
     {
         public SalesOpenCompanyDTO Company { get; set; }
         public List<SalesOpenAccountDTO> Accounts { get; set; }
-        public DatesDTO Dates { get; set; }
-        public FiscalYearInfoDTO CurrentFiscalYear { get; set; }
+        public DateInfoDTO Dates { get; set; }
+        public FiscalYearDTO CurrentFiscalYear { get; set; }
         public List<CategoryInfoDTO> Categories { get; set; }
         public List<UnitInfoDTO> Units { get; set; }
         public List<CompanyGroupInfoDTO> CompanyGroups { get; set; }

@@ -3,10 +3,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
-    // DTO for UpdateSalesBill endpoint
     public class UpdateSalesBillDTO
     {
-
         public Guid AccountId { get; set; }
         [StringLength(255)]
         public string? CashAccount { get; set; }

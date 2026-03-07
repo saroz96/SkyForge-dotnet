@@ -5,16 +5,16 @@
 namespace SkyForge.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdateSalesQuotationItemsTables : Migration
+    public partial class AddAccountUniqueNumberToSalesBill : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "unique_uuid",
-                table: "sales_quotation_items",
-                type: "character varying(100)",
-                maxLength: 100,
+                name: "account_unique_number",
+                table: "sales_bills",
+                type: "character varying(50)",
+                maxLength: 50,
                 nullable: true);
         }
 
@@ -22,8 +22,8 @@ namespace SkyForge.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "unique_uuid",
-                table: "sales_quotation_items");
+                name: "account_unique_number",
+                table: "sales_bills");
         }
     }
 }

@@ -128,6 +128,10 @@ import AttendanceDashboard from './components/attendance/AttendanceDashboard';
 import AdminDashboard from './components/systemOwner/AdminDashboard';
 import RoleRedirect from './components/RoleRedirect';
 import Clients from './components/systemOwner/pages/Clients';
+import CreditSalesReturnVoucherNumber from './components/retailer/salesReturn/CreditVoucherNumber';
+import EditSalesReturn from './components/retailer/salesReturn/EditSalesReturn';
+import EditCashSalesReturn from './components/retailer/salesReturn/EditCashSalesReturn';
+import CashSalesReturnVoucherNumber from './components/retailer/salesReturn/CashVoucherNumber';
 
 function AppContent() {
   const { currentUser } = useAuth();
@@ -541,10 +545,42 @@ function AppContent() {
               }
             />
             <Route
+              path="/retailer/sales-return/finds"
+              element={
+                <ProtectedRoute>
+                  <CreditSalesReturnVoucherNumber />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/sales-return/edit/:id"
+              element={
+                <ProtectedRoute>
+                  <EditSalesReturn />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/retailer/cash/sales-return"
               element={
                 <ProtectedRoute>
                   <AddCashSalesReturn />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/cash/sales-return/finds"
+              element={
+                <ProtectedRoute>
+                  <CashSalesReturnVoucherNumber />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/cash/sales-return/edit/:id"
+              element={
+                <ProtectedRoute>
+                  <EditCashSalesReturn />
                 </ProtectedRoute>
               }
             />

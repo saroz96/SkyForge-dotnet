@@ -1125,8 +1125,8 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
                         ItemName = item.Item?.Name,
                         Hscode = item.Item?.Hscode,
                         UniqueNumber = item.Item?.UniqueNumber,
-                        UnitId = item.UnitId,
-                        UnitName = unitInfo?.Name,
+                        UnitId = item.Item?.UnitId ?? item.UnitId,  // Current unit ID
+                        UnitName = item.Item?.Unit?.Name ?? item.Unit?.Name ?? "",  // Current unit name
                         WsUnit = item.WsUnit,
                         Quantity = item.Quantity,
                         Price = item.Price,

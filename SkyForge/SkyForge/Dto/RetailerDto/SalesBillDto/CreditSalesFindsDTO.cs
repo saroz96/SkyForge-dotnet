@@ -1,4 +1,5 @@
 using SkyForge.Dto.AccountDto;
+using SkyForge.Dto.RetailerDto;
 
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
@@ -15,15 +16,5 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public UserInfoDTO User { get; set; } = new();
         public string Theme { get; set; } = "light";
         public bool IsAdminOrSupervisor { get; set; }
-    }
-
-    public class UserInfoDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public bool IsAdmin { get; set; }
-        public string Role { get; set; } = string.Empty;
-        public UserPreferencesDTO Preferences { get; set; } = new();
     }
 }

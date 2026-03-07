@@ -9,7 +9,7 @@
 // import ProductModal from '../dashboard/modals/ProductModal';
 // import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 // import useDebounce from '../../../hooks/useDebounce';
-// import VirtualizedItemList from '../../VirtualizedItemList';
+// import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 // import VirtualizedAccountList from '../../VirtualizedAccountList';
 
 // const AddPurcRtn = () => {
@@ -1923,7 +1923,7 @@
 //                 </div>
 
 //                 {itemsToShow.length > 0 ? (
-//                     <VirtualizedItemList
+//                     <VirtualizedItemListForPurchase
 //                         items={itemsToShow}
 //                         onItemClick={(item) => showBatchModalForItem(item)}
 //                         searchRef={itemSearchRef}
@@ -4131,7 +4131,7 @@
 //                                         </div>
 
 //                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-//                                             <VirtualizedItemList
+//                                             <VirtualizedItemListForPurchase
 //                                                 items={headerSearchResults}
 //                                                 onItemClick={(item) => {
 //                                                     selectItemForInsert(item);
@@ -4648,7 +4648,7 @@
 // import ProductModal from '../dashboard/modals/ProductModal';
 // import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 // import useDebounce from '../../../hooks/useDebounce';
-// import VirtualizedItemList from '../../VirtualizedItemList';
+// import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 // import VirtualizedAccountList from '../../VirtualizedAccountList';
 
 // const AddPurcRtn = () => {
@@ -6663,7 +6663,7 @@
 //                 </div>
 
 //                 {itemsToShow.length > 0 ? (
-//                     <VirtualizedItemList
+//                     <VirtualizedItemListForPurchase
 //                         items={itemsToShow}
 //                         onItemClick={(item) => showBatchModalForItem(item)}
 //                         searchRef={itemSearchRef}
@@ -8877,7 +8877,7 @@
 //                                         </div>
 
 //                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-//                                             <VirtualizedItemList
+//                                             <VirtualizedItemListForPurchase
 //                                                 items={headerSearchResults}
 //                                                 onItemClick={(item) => {
 //                                                     selectItemForInsert(item);
@@ -9394,7 +9394,7 @@ import '../../../stylesheet/noDateIcon.css'
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemList from '../../VirtualizedItemList';
+import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 
 const AddPurcRtn = () => {
@@ -11461,7 +11461,7 @@ const AddPurcRtn = () => {
                 </div>
 
                 {itemsToShow.length > 0 ? (
-                    <VirtualizedItemList
+                    <VirtualizedItemListForPurchase
                         items={itemsToShow}
                         onItemClick={(item) => showBatchModalForItem(item)}
                         searchRef={itemSearchRef}
@@ -13674,7 +13674,7 @@ const AddPurcRtn = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemList
+                                            <VirtualizedItemListForPurchase
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);

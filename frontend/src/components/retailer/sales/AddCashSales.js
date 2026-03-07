@@ -8,7 +8,7 @@ import '../../../stylesheet/retailer/sales/AddCashSales.css'
 import '../../../stylesheet/noDateIcon.css'
 import ProductModal from '../dashboard/modals/ProductModal';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemList from '../../VirtualizedItemList';
+import VirtualizedItemList from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import AccountCreationModal from './AccountCreationModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
@@ -721,6 +721,53 @@ const AddCashSales = () => {
         }, 100);
     };
 
+    // const selectItemForInsert = (item) => {
+    //     setSelectedItemForInsert(item);
+    //     setShowHeaderItemModal(false);
+
+    //     if (headerSearchQuery.trim() !== '') {
+    //         setHeaderLastSearchQuery(headerSearchQuery);
+    //         setHeaderShouldShowLastSearchResults(true);
+    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
+    //         setHeaderShouldShowLastSearchResults(true);
+    //     }
+    //     setHeaderSearchQuery('');
+
+    //     if (item.stockEntries && item.stockEntries.length > 0) {
+    //         const sortedStockEntries = item.stockEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    //         const firstStockEntry = sortedStockEntries[0];
+    //         setSelectedItemRate(firstStockEntry.price || 0);
+    //         setSelectedItemBatchNumber(firstStockEntry.batchNumber || '');
+
+    //         let expiryDate = '';
+    //         if (item.firstExpiryDate) {
+    //             expiryDate = item.firstExpiryDate;
+    //         } else if (firstStockEntry.expiryDate) {
+    //             if (firstStockEntry.expiryDate instanceof Date) {
+    //                 expiryDate = firstStockEntry.expiryDate.toISOString().split('T')[0];
+    //             } else if (typeof firstStockEntry.expiryDate === 'string') {
+    //                 try {
+    //                     const parsedDate = new Date(firstStockEntry.expiryDate);
+    //                     if (!isNaN(parsedDate.getTime())) {
+    //                         expiryDate = parsedDate.toISOString().split('T')[0];
+    //                     }
+    //                 } catch (error) {
+    //                     console.error('Error parsing expiry date:', error);
+    //                 }
+    //             }
+    //         }
+    //         setSelectedItemExpiryDate(expiryDate);
+    //     }
+
+    //     setTimeout(() => {
+    //         const quantityInput = document.getElementById('selectedItemQuantity');
+    //         if (quantityInput) {
+    //             quantityInput.focus();
+    //             quantityInput.select();
+    //         }
+    //     }, 100);
+    // };
+
     const selectItemForInsert = (item) => {
         setSelectedItemForInsert(item);
         setShowHeaderItemModal(false);
@@ -733,10 +780,16 @@ const AddCashSales = () => {
         }
         setHeaderSearchQuery('');
 
-        if (item.stockEntries && item.stockEntries.length > 0) {
-            const sortedStockEntries = item.stockEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+        const hasStockEntries = item.stockEntries && item.stockEntries.length > 0;
+
+        // Use latestPrice which now includes last sales price for out-of-stock items
+        setSelectedItemRate(item.latestPrice || 0);
+
+        if (hasStockEntries) {
+            const sortedStockEntries = [...(item.stockEntries || [])].sort((a, b) =>
+                new Date(a.date) - new Date(b.date)
+            );
             const firstStockEntry = sortedStockEntries[0];
-            setSelectedItemRate(firstStockEntry.price || 0);
             setSelectedItemBatchNumber(firstStockEntry.batchNumber || '');
 
             let expiryDate = '';
@@ -757,6 +810,10 @@ const AddCashSales = () => {
                 }
             }
             setSelectedItemExpiryDate(expiryDate);
+        } else {
+            // For out-of-stock items, clear batch and expiry
+            setSelectedItemBatchNumber('');
+            setSelectedItemExpiryDate('');
         }
 
         setTimeout(() => {

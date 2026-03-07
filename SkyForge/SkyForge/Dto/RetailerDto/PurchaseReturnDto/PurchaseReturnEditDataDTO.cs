@@ -1,4 +1,5 @@
 using SkyForge.Dto.AccountDto;
+using SkyForge.Dto.RetailerDto;
 
 namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
 {
@@ -27,17 +28,17 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public List<StockEntryInfoDTO> StockEntries { get; set; }
     }
 
-    public class UnitInfoDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; }
-    }
+    // public class UnitInfoDTO
+    // {
+    //     public Guid Id { get; set; }
+    //     public string Name { get; set; }
+    // }
 
-    public class CategoryInfoDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; }
-    }
+    // public class CategoryInfoDTO
+    // {
+    //     public Guid Id { get; set; }
+    //     public string Name { get; set; }
+    // }
 
     public class StockEntryInfoDTO
     {

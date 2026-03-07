@@ -1,5 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using SkyForge.Dto.AccountDto;
+using SkyForge.Dto.RetailerDto;
+
 
 namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
 {
@@ -24,7 +26,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public string PartyBillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }
-        public UserInfo? User { get; set; }
+        public UserInfoDTO? User { get; set; }
     }
     public class PurchaseReturnResponseDTO
     {
@@ -50,9 +52,9 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public string? FiscalYearName { get; set; }
         public List<PurchaseReturnItemResponseDTO> Items { get; set; } = new();
         public CompanyInfoDTO? Company { get; set; }
-        public DatesDTO? Dates { get; set; }
+        public DateInfoDTO? Dates { get; set; }
         public string NextPurchaseReturnBillNumber { get; set; } = string.Empty;
-        public FiscalYearInfoDTO? CurrentFiscalYear { get; set; }
+        public FiscalYearDTO? CurrentFiscalYear { get; set; }
         public List<CategoryInfoDTO> Categories { get; set; } = new();
         public List<UnitInfoDTO> Units { get; set; } = new();
         public List<CompanyGroupInfoDTO> CompanyGroups { get; set; } = new();
@@ -60,6 +62,8 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public PermissionsDTO? Permissions { get; set; }
         public string? CurrentCompanyName { get; set; }
 
+        public Guid? UnitId { get; set; }
+        public string? UnitName { get; set; }
         public decimal? VatAmount { get; set; }
         public decimal? DiscountPercentage { get; set; }
         public decimal? DiscountAmount { get; set; }
@@ -76,36 +80,8 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public DateTime Date { get; set; }
         public DateTime transactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
-        public UserInfo? User { get; set; }
+        public UserInfoDTO? User { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-    }
-
-    public class FiscalYearInfoDTO
-    {
-        public Guid Id { get; set; }
-        public string? Name { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-        public bool IsActive { get; set; }
-        public string? DateFormat { get; set; }
-    }
-
-    public class DatesDTO
-    {
-        public string? NepaliDate { get; set; }
-        public string? TransactionDateNepali { get; set; }
-        public string? CompanyDateFormat { get; set; }
-    }
-
-    public class CompanyGroupInfoDTO
-    {
-        public Guid Id { get; set; }
-        public string? Name { get; set; }
-    }
-
-    public class UserInfo
-    {
-        public string Name { get; set; } = string.Empty;
     }
 }

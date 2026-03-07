@@ -1039,21 +1039,21 @@ const Header = () => {
   // Function to build query parameters for dashboard API
   const buildDashboardApiParams = () => {
     if (!currentCompany) return '';
-    
+
     const params = new URLSearchParams();
-    
+
     // Add company ID (with multiple fallbacks)
     const companyId = currentCompany.id || currentCompany.Id || currentCompany._id;
     if (companyId) {
       params.append('companyId', companyId);
     }
-    
+
     // Add company name (with multiple fallbacks)
     const companyName = currentCompany.name || currentCompany.Name;
     if (companyName) {
       params.append('companyName', companyName);
     }
-    
+
     // Add fiscal year if available
     if (currentCompany.fiscalYear) {
       const fiscalYearJson = JSON.stringify({
@@ -1065,7 +1065,7 @@ const Header = () => {
       });
       params.append('fiscalYearJson', fiscalYearJson);
     }
-    
+
     return params.toString();
   };
 
@@ -1088,7 +1088,7 @@ const Header = () => {
       }
 
       console.log('Fetching dashboard data with params:', params);
-      
+
       // Call the single dashboard API
       const response = await api.get(`/api/retailer/retailerDashboard/indexv1?${params}`);
 
@@ -1098,7 +1098,7 @@ const Header = () => {
 
         // Extract user info from dashboard response
         const userData = dashboardData.user || {};
-        
+
         // Extract company info from dashboard response
         const companyDataFromApi = {
           name: dashboardData.company?.name || currentCompany.name || currentCompany.Name || '',
@@ -1128,7 +1128,7 @@ const Header = () => {
       }
     } catch (err) {
       console.error('Dashboard data fetch failed:', err);
-      
+
       // If we have headerDraftSave, use it
       if (headerDraftSave) {
         console.log('Using cached header data');
@@ -1409,7 +1409,7 @@ const Header = () => {
                           <Link to="/retailer/sales-return">Add</Link>
                         </li>
                         <li className="menu-item">
-                          <Link to="/sales-return/finds">Edit</Link>
+                          <Link to="/retailer/sales-return/finds">Edit</Link>
                         </li>
                       </ul>
                     </li>
@@ -1423,7 +1423,7 @@ const Header = () => {
                           <Link to="/retailer/cash/sales-return">Add</Link>
                         </li>
                         <li className="menu-item">
-                          <Link to="/cash-sales-return/sales-return/finds">Edit</Link>
+                          <Link to="/retailer/cash/sales-return/finds">Edit</Link>
                         </li>
                       </ul>
                     </li>

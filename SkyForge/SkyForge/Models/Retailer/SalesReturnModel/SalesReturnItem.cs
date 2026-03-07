@@ -53,6 +53,13 @@ namespace SkyForge.Models.Retailer.SalesReturnModel
         [Precision(18, 2)]
         public decimal? PuPrice { get; set; }
 
+        [Column("margin_percentage")]
+        [Precision(5, 2)]
+        public decimal MarginPercentage { get; set; } = 0;
+        [Column("mrp")]
+        [Precision(18, 2)]
+        public decimal? Mrp { get; set; }
+
         [Column("discount_percentage_per_item")]
         [Precision(5, 2)]
         public decimal DiscountPercentagePerItem { get; set; } = 0;

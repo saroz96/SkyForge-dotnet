@@ -1439,7 +1439,9 @@ namespace SkyForge.Migrations
                     is_vat_all = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     round_off_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     payment_mode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    nepali_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    transaction_date_nepali = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     transaction_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
@@ -1517,7 +1519,9 @@ namespace SkyForge.Migrations
                     is_vat_all = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     round_off_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     payment_mode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    nepali_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    transaction_date_nepali = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     transaction_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
@@ -1561,6 +1565,71 @@ namespace SkyForge.Migrations
                         column: x => x.ItemId,
                         principalTable: "items",
                         principalColumn: "id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "sales_quotations",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    purchase_sales_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    bill_number = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    account_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    settings_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    sub_total = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    non_vat_sales = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    taxable_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    discount_percentage = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
+                    discount_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    vat_percentage = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
+                    vat_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    total_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    is_vat_exempt = table.Column<bool>(type: "boolean", nullable: false),
+                    is_vat_all = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    round_off_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    payment_mode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    nepali_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    transaction_date_nepali = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    transaction_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_sales_quotations", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_sales_quotations_Accounts_account_id",
+                        column: x => x.account_id,
+                        principalTable: "Accounts",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_sales_quotations_Companies_company_id",
+                        column: x => x.company_id,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_sales_quotations_FiscalYears_fiscal_year_id",
+                        column: x => x.fiscal_year_id,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_sales_quotations_Settings_settings_id",
+                        column: x => x.settings_id,
+                        principalTable: "Settings",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_sales_quotations_Users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -1658,84 +1727,6 @@ namespace SkyForge.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "stock_entries",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    item_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    ws_unit = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: true),
-                    quantity = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: false),
-                    bonus = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: true),
-                    batch_number = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false, defaultValue: "XXX"),
-                    expiry_date = table.Column<DateOnly>(type: "date", nullable: false),
-                    price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
-                    net_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
-                    pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
-                    item_cc_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
-                    discount_percentage_per_item = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
-                    discount_amount_per_item = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
-                    net_pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, computedColumnSql: "CASE WHEN ws_unit IS NOT NULL AND ws_unit > 0 THEN net_price / ws_unit ELSE net_price END", stored: true),
-                    main_unit_pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
-                    mrp = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
-                    margin_percentage = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
-                    currency = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
-                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    unique_uuid = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    purchase_bill_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    expiry_status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "safe"),
-                    days_until_expiry = table.Column<int>(type: "integer", nullable: false, defaultValue: 730),
-                    store_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    rack_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    source_transfer_from_store_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    source_transfer_original_entry_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    source_transfer_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
-                    created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    ParentItemId = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_stock_entries", x => x.id);
-                    table.CheckConstraint("CK_StockEntry_ExpiryStatus", "expiry_status IN ('safe', 'warning', 'danger', 'expired')");
-                    table.ForeignKey(
-                        name: "FK_stock_entries_FiscalYears_fiscal_year_id",
-                        column: x => x.fiscal_year_id,
-                        principalTable: "FiscalYears",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_stock_entries_Racks_rack_id",
-                        column: x => x.rack_id,
-                        principalTable: "Racks",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_stock_entries_Stores_store_id",
-                        column: x => x.store_id,
-                        principalTable: "Stores",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_stock_entries_items_ParentItemId",
-                        column: x => x.ParentItemId,
-                        principalTable: "items",
-                        principalColumn: "id");
-                    table.ForeignKey(
-                        name: "FK_stock_entries_items_item_id",
-                        column: x => x.item_id,
-                        principalTable: "items",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_stock_entries_purchase_bills_purchase_bill_id",
-                        column: x => x.purchase_bill_id,
-                        principalTable: "purchase_bills",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "purchase_return_items",
                 columns: table => new
                 {
@@ -1747,6 +1738,9 @@ namespace SkyForge.Migrations
                     quantity = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: true),
                     price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    discount_percentage_per_item = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
+                    discount_amount_per_item = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    net_pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     mrp = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     margin_percentage = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
                     currency = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
@@ -1802,12 +1796,14 @@ namespace SkyForge.Migrations
                     quantity = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: false),
                     price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    mrp = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     net_pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     discount_percentage_per_item = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
                     discount_amount_per_item = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     net_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     batch_number = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     expiry_date = table.Column<DateOnly>(type: "date", nullable: true),
+                    margin_percentage = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
                     vat_status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     unique_uuid = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     purchase_bill_id = table.Column<Guid>(type: "uuid", nullable: true),
@@ -1874,7 +1870,9 @@ namespace SkyForge.Migrations
                     payment_mode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     quantity = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: true),
                     price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    nepali_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    transaction_date_nepali = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     transaction_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
@@ -1933,6 +1931,49 @@ namespace SkyForge.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "sales_quotation_items",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    sales_quotation_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    item_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    unit_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ws_unit = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: true),
+                    quantity = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: false),
+                    price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    vat_status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    unique_uuid = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    PuPrice = table.Column<decimal>(type: "numeric", nullable: true),
+                    discount_percentage_per_item = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
+                    discount_amount_per_item = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_sales_quotation_items", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_sales_quotation_items_Units_unit_id",
+                        column: x => x.unit_id,
+                        principalTable: "Units",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_sales_quotation_items_items_item_id",
+                        column: x => x.item_id,
+                        principalTable: "items",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_sales_quotation_items_sales_quotations_sales_quotation_id",
+                        column: x => x.sales_quotation_id,
+                        principalTable: "sales_quotations",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "sales_return_items",
                 columns: table => new
                 {
@@ -1944,6 +1985,8 @@ namespace SkyForge.Migrations
                     price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     net_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    margin_percentage = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
+                    mrp = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     discount_percentage_per_item = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
                     discount_amount_per_item = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     net_pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
@@ -1979,6 +2022,90 @@ namespace SkyForge.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "stock_entries",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    item_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    ws_unit = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: true),
+                    quantity = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: false),
+                    bonus = table.Column<decimal>(type: "numeric(10,3)", precision: 10, scale: 3, nullable: true),
+                    batch_number = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false, defaultValue: "XXX"),
+                    expiry_date = table.Column<DateOnly>(type: "date", nullable: false),
+                    price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    net_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    item_cc_amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    discount_percentage_per_item = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
+                    discount_amount_per_item = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    net_pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, computedColumnSql: "CASE WHEN ws_unit IS NOT NULL AND ws_unit > 0 THEN net_price / ws_unit ELSE net_price END", stored: true),
+                    main_unit_pu_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    mrp = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    margin_percentage = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
+                    currency = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
+                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    unique_uuid = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    purchase_bill_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    sales_return_bill_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    expiry_status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "safe"),
+                    days_until_expiry = table.Column<int>(type: "integer", nullable: false, defaultValue: 730),
+                    store_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    rack_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    source_transfer_from_store_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    source_transfer_original_entry_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    source_transfer_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    ParentItemId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_stock_entries", x => x.id);
+                    table.CheckConstraint("CK_StockEntry_ExpiryStatus", "expiry_status IN ('safe', 'warning', 'danger', 'expired')");
+                    table.ForeignKey(
+                        name: "FK_stock_entries_FiscalYears_fiscal_year_id",
+                        column: x => x.fiscal_year_id,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_stock_entries_Racks_rack_id",
+                        column: x => x.rack_id,
+                        principalTable: "Racks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_stock_entries_Stores_store_id",
+                        column: x => x.store_id,
+                        principalTable: "Stores",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_stock_entries_items_ParentItemId",
+                        column: x => x.ParentItemId,
+                        principalTable: "items",
+                        principalColumn: "id");
+                    table.ForeignKey(
+                        name: "FK_stock_entries_items_item_id",
+                        column: x => x.item_id,
+                        principalTable: "items",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_stock_entries_purchase_bills_purchase_bill_id",
+                        column: x => x.purchase_bill_id,
+                        principalTable: "purchase_bills",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_stock_entries_sales_returns_sales_return_bill_id",
+                        column: x => x.sales_return_bill_id,
+                        principalTable: "sales_returns",
+                        principalColumn: "id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Transactions",
                 columns: table => new
                 {
@@ -1988,7 +2115,7 @@ namespace SkyForge.Migrations
                     UnitId = table.Column<Guid>(type: "uuid", nullable: true),
                     MainUnitId = table.Column<Guid>(type: "uuid", nullable: true),
                     AccountId = table.Column<Guid>(type: "uuid", nullable: true),
-                    BillId = table.Column<Guid>(type: "uuid", nullable: true),
+                    SalesBillId = table.Column<Guid>(type: "uuid", nullable: true),
                     PurchaseBillId = table.Column<Guid>(type: "uuid", nullable: true),
                     PurchaseReturnBillId = table.Column<Guid>(type: "uuid", nullable: true),
                     JournalBillId = table.Column<Guid>(type: "uuid", nullable: true),
@@ -2151,8 +2278,8 @@ namespace SkyForge.Migrations
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_Transactions_sales_bills_BillId",
-                        column: x => x.BillId,
+                        name: "FK_Transactions_sales_bills_SalesBillId",
+                        column: x => x.SalesBillId,
                         principalTable: "sales_bills",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
@@ -2977,6 +3104,52 @@ namespace SkyForge.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_sales_quotation_items_item_id",
+                table: "sales_quotation_items",
+                column: "item_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_sales_quotation_items_sales_quotation_id",
+                table: "sales_quotation_items",
+                column: "sales_quotation_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_sales_quotation_items_unit_id",
+                table: "sales_quotation_items",
+                column: "unit_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_sales_quotations_account_id",
+                table: "sales_quotations",
+                column: "account_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_sales_quotations_company_id",
+                table: "sales_quotations",
+                column: "company_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_sales_quotations_fiscal_year_id",
+                table: "sales_quotations",
+                column: "fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_sales_quotations_settings_id",
+                table: "sales_quotations",
+                column: "settings_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_sales_quotations_user_id",
+                table: "sales_quotations",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SalesQuotation_Date_BillNumber_Company_FiscalYear",
+                table: "sales_quotations",
+                columns: new[] { "date", "bill_number", "company_id", "fiscal_year_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_sales_return_items_unit_id",
                 table: "sales_return_items",
                 column: "unit_id");
@@ -3126,6 +3299,11 @@ namespace SkyForge.Migrations
                 column: "rack_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_stock_entries_sales_return_bill_id",
+                table: "stock_entries",
+                column: "sales_return_bill_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_stock_entries_store_id",
                 table: "stock_entries",
                 column: "store_id");
@@ -3170,11 +3348,6 @@ namespace SkyForge.Migrations
                 name: "IX_Transactions_AccountTypeId",
                 table: "Transactions",
                 column: "AccountTypeId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Transactions_BillId",
-                table: "Transactions",
-                column: "BillId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Transactions_BillNumber",
@@ -3260,6 +3433,11 @@ namespace SkyForge.Migrations
                 name: "IX_Transactions_ReceiptAccountId2",
                 table: "Transactions",
                 column: "ReceiptAccountId2");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Transactions_SalesBillId",
+                table: "Transactions",
+                column: "SalesBillId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Transactions_SalesReturnBillId",
@@ -3485,6 +3663,9 @@ namespace SkyForge.Migrations
                 name: "sales_bill_items");
 
             migrationBuilder.DropTable(
+                name: "sales_quotation_items");
+
+            migrationBuilder.DropTable(
                 name: "sales_return_items");
 
             migrationBuilder.DropTable(
@@ -3501,6 +3682,9 @@ namespace SkyForge.Migrations
 
             migrationBuilder.DropTable(
                 name: "compositions");
+
+            migrationBuilder.DropTable(
+                name: "sales_quotations");
 
             migrationBuilder.DropTable(
                 name: "stock_adjustments");

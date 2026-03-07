@@ -9,7 +9,7 @@
 // import ProductModal from '../dashboard/modals/ProductModal';
 // import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 // import useDebounce from '../../../hooks/useDebounce';
-// import VirtualizedItemList from '../../VirtualizedItemList';
+// import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 // import VirtualizedAccountList from '../../VirtualizedAccountList';
 // import { Button } from 'react-bootstrap';
 // import { BiArrowBack } from 'react-icons/bi';
@@ -3911,7 +3911,7 @@
 //                                         </div>
 
 //                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-//                                             <VirtualizedItemList
+//                                             <VirtualizedItemListForPurchase
 //                                                 items={headerSearchResults}
 //                                                 onItemClick={(item) => {
 //                                                     selectItemForInsert(item);
@@ -4887,7 +4887,7 @@
 // import ProductModal from '../dashboard/modals/ProductModal';
 // import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 // import useDebounce from '../../../hooks/useDebounce';
-// import VirtualizedItemList from '../../VirtualizedItemList';
+// import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 // import VirtualizedAccountList from '../../VirtualizedAccountList';
 // import { Button } from 'react-bootstrap';
 // import { BiArrowBack } from 'react-icons/bi';
@@ -8237,7 +8237,7 @@
 //                                         </div>
 
 //                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-//                                             <VirtualizedItemList
+//                                             <VirtualizedItemListForPurchase
 //                                                 items={headerSearchResults}
 //                                                 onItemClick={(item) => {
 //                                                     selectItemForInsert(item);
@@ -9272,7 +9272,7 @@ import '../../../stylesheet/noDateIcon.css';
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemList from '../../VirtualizedItemList';
+import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
@@ -9705,14 +9705,6 @@ const EditPurchase = () => {
                     accountName: accountNameWithNumber,
                     accountAddress: invoice.accountAddress || '',
                     accountPan: invoice.accountPan || '',
-                    // transactionDateNepali: dateFormat === 'Nepali' ?
-                    //     new Date(invoice.transactionDate).toISOString().split('T')[0] : currentNepaliDate,
-                    // transactionDateRoman: dateFormat !== 'nepali' ?
-                    //     new Date(invoice.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                    // nepaliDate: dateFormat === 'nepali' ?
-                    //     new Date(invoice.date).toISOString().split('T')[0] : currentNepaliDate,
-                    // billDate: dateFormat !== 'nepali' ?
-                    //     new Date(invoice.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                     transactionDateNepali: formatDate(invoice.transactionDateNepali || invoice.transactionDate),
                     transactionDateRoman: formatDate(invoice.transactionDate || invoice.transactionDateNepali),
                     nepaliDate: formatDate(invoice.nepaliDate || invoice.date),
@@ -12654,7 +12646,7 @@ const EditPurchase = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemList
+                                            <VirtualizedItemListForPurchase
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);

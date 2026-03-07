@@ -11,7 +11,7 @@ import '../../../stylesheet/noDateIcon.css'
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemList from '../../VirtualizedItemList';
+import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 
 const AddPurchase = () => {
@@ -2465,7 +2465,7 @@ const AddPurchase = () => {
                 </div>
 
                 {itemsToShow.length > 0 ? (
-                    <VirtualizedItemList
+                    <VirtualizedItemListForPurchase
                         items={itemsToShow}
                         onItemClick={(item) => showBatchModalForItem(item)}
                         searchRef={itemSearchRef}
@@ -2476,6 +2476,7 @@ const AddPurchase = () => {
                         page={searchPage}
                         searchQuery={searchQuery}
                         setNotification={setNotification}
+                        priceType="purchase"
                     />
                 ) : (
                     <div className="text-center py-3 text-muted">
@@ -4557,7 +4558,7 @@ const AddPurchase = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemList
+                                            <VirtualizedItemListForPurchase
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);

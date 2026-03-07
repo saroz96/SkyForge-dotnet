@@ -23,34 +23,6 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public bool IsAdminOrSupervisor { get; set; }
     }
 
-    public class CompanyPrintDTO
-    {
-        public Guid Id { get; set; }
-
-        public DateTime? RenewalDate { get; set; }
-
-        public string DateFormat { get; set; } = string.Empty;
-        public FiscalYearDTO? FiscalYear { get; set; }
-    }
-
-    public class CompanyPrintInfoDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string? Phone { get; set; }
-        public string? Pan { get; set; }
-        public string? Address { get; set; }
-    }
-
-    public class UserPrintDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public bool IsAdmin { get; set; }
-        public string? Role { get; set; }
-        public UserPreferencesDTO? Preferences { get; set; }
-    }
-
     public class PurchaseReturnPrintBillDTO
     {
         public Guid Id { get; set; }

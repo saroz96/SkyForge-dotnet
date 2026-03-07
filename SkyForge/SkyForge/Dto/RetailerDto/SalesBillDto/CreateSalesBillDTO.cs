@@ -1,5 +1,6 @@
 ﻿using SkyForge.Dto.AccountDto;
 using System.ComponentModel.DataAnnotations;
+using SkyForge.Dto.RetailerDto;
 
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
@@ -83,60 +84,5 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
 
         public DateTime TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
-    }
-
-    public class CompanyInfoDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string City { get; set; } = string.Empty;
-        public string Phone { get; set; } = string.Empty;
-        public string Pan { get; set; } = string.Empty;
-        public string? RenewalDate { get; set; }
-        public string DateFormat { get; set; } = string.Empty;
-        public bool VatEnabled { get; set; }
-        public FiscalYearDTO FiscalYear { get; set; } = new();
-    }
-
-    public class FiscalYearDTO
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-        public string? StartDateNepali { get; set; }
-        public string? EndDateNepali { get; set; }
-        public bool IsActive { get; set; }
-        public string DateFormat { get; set; } = "English";
-    }
-
-    public class DateInfoDTO
-    {
-        public string NepaliDate { get; set; } = string.Empty;
-        public string TransactionDateNepali { get; set; } = string.Empty;
-        public string CompanyDateFormat { get; set; } = string.Empty;
-    }
-
-    public class UserPreferencesDTO
-    {
-        public string Theme { get; set; } = "light";
-    }
-
-    public class PermissionsDTO
-    {
-        public bool IsAdminOrSupervisor { get; set; }
-        public bool StoreManagementEnabled { get; set; }
-    }
-
-    public class SalesBillEntryDataDTO
-    {
-        public CompanyInfoDTO Company { get; set; } = new();
-        public List<AccountInfoDTO> Accounts { get; set; } = new();
-        public DateInfoDTO Dates { get; set; } = new();
-        public FiscalYearDTO CurrentFiscalYear { get; set; } = new();
-        public UserPreferencesDTO UserPreferences { get; set; } = new();
-        public PermissionsDTO Permissions { get; set; } = new();
-        public string CurrentCompanyName { get; set; } = string.Empty;
     }
 }

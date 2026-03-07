@@ -6,7 +6,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
     public class PurchaseReturnRegisterDTO
     {
         public object? Company { get; set; }
-        public FiscalYearInfoDTO? CurrentFiscalYear { get; set; }
+        public FiscalYearDTO? CurrentFiscalYear { get; set; }
         public List<PurchaseReturnBillData> Bills { get; set; } = new();
         public AccountInfoDTO? Account { get; set; }
 

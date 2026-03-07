@@ -74,6 +74,10 @@ namespace SkyForge.Models.Retailer.Sales
         [Column("expiry_date")]
         public DateOnly? ExpiryDate { get; set; }
 
+        [Column("margin_percentage")]
+        [Precision(5, 2)]
+        public decimal MarginPercentage { get; set; } = 0;
+
         [Required]
         [Column("vat_status")]
         [StringLength(20)]

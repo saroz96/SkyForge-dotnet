@@ -449,23 +449,9 @@ const DashboardV1 = () => {
         );
     }
 
-    // if (!currentCompany) {
-    //     return (
-    //         <div className="container mt-5">
-    //             <Alert variant="info">
-    //                 <Alert.Heading>Select a Company</Alert.Heading>
-    //                 <p>Please select a company to continue.</p>
-    //                 <Button variant="primary" onClick={handleSwitchCompany}>
-    //                     Select Company
-    //                 </Button>
-    //             </Alert>
-    //         </div>
-    //     );
-    // }
-
     // Get company ID with multiple fallbacks
     const getCompanyId = () => {
-        return currentCompany?.id || currentCompany._id || '';
+        return currentCompany?.id || currentCompany?._id || '';
     };
 
     // Get fiscal year for API call
@@ -480,10 +466,6 @@ const DashboardV1 = () => {
             });
         }
         return null;
-    };
-
-    const getUserDisplayName = () => {
-        return currentUser.name || currentUser.Name || currentUser.email || currentUser.Email || 'User';
     };
 
     return (

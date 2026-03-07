@@ -1434,10 +1434,6 @@ namespace SkyForge.Controllers.Retailer
                     {
                         currentStock = item.StockEntries.Sum(entry => entry.Quantity);
                     }
-                    // else
-                    // {
-                    //     currentStock = item.OpeningStock;
-                    // }
 
                     // Prepare stock entries for response - Cast to object
                     object stockEntriesObj;
@@ -1454,6 +1450,7 @@ namespace SkyForge.Controllers.Retailer
                             PuPrice = se.PuPrice,
                             NetPuPrice = se.NetPuPrice,
                             MainUnitPuPrice = se.MainUnitPuPrice,
+                            MarginPercentage = se.MarginPercentage,
                             Mrp = se.Mrp,
                             UniqueUuid = se.UniqueUuid,  // This will be serialized as "uniqueUuid" in JSON
                             BatchNumber = se.BatchNumber,
@@ -1561,5 +1558,199 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        [HttpGet("items/{itemId}/last-sales-price")]
+        public async Task<IActionResult> GetLastSalesPrice(Guid itemId)
+        {
+            try
+            {
+                _logger.LogInformation($"=== GetLastSalesPrice Started for Item: {itemId} ===");
+
+                // Extract company and fiscal year from claims
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearId = User.FindFirst("currentFiscalYear")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected"
+                    });
+                }
+
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearId) || !Guid.TryParse(fiscalYearId, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No fiscal year found"
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                decimal lastPrice = 0;
+                decimal? lastMarginPercentage = null;
+
+                // 1. Try to get from sales bills first (most recent)
+                var lastSalesBillItem = await _context.SalesBillItems
+                    .Include(sbi => sbi.SalesBill)
+                    .Where(sbi => sbi.ItemId == itemId
+                        && sbi.SalesBill.CompanyId == companyIdGuid
+                        && sbi.SalesBill.FiscalYearId == fiscalYearIdGuid)
+                    .OrderByDescending(sbi => sbi.SalesBill.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (lastSalesBillItem != null)
+                {
+                    lastPrice = lastSalesBillItem.Price;
+                    lastMarginPercentage = lastSalesBillItem.MarginPercentage;
+                    _logger.LogInformation($"Found price from sales bill: {lastPrice}, margin: {lastMarginPercentage}");
+                    return Ok(new
+                    {
+                        success = true,
+                        price = lastPrice,
+                        marginPercentage = lastMarginPercentage,
+                        source = "sales"
+                    });
+                }
+
+                // 3. Try from stock entries (purchase price)
+                var lastStockEntry = await _context.StockEntries
+                    .Where(se => se.ItemId == itemId)
+                    .OrderByDescending(se => se.Date)
+                    .FirstOrDefaultAsync();
+
+                if (lastStockEntry != null)
+                {
+                    lastPrice = lastStockEntry.Price;
+                    lastMarginPercentage = lastStockEntry.MarginPercentage;
+                    _logger.LogInformation($"Found price from stock entry: {lastPrice}");
+                    return Ok(new
+                    {
+                        success = true,
+                        price = lastPrice,
+                        marginPercentage = lastMarginPercentage,
+                    });
+                }
+
+                // 4. Fallback to item's default price
+                var item = await _context.Items.FindAsync(itemId);
+                if (item != null && item.Price.HasValue)
+                {
+                    lastPrice = item.Price.Value;
+                    _logger.LogInformation($"Found price from item default: {lastPrice}");
+                    return Ok(new { success = true, price = lastPrice, source = "default" });
+                }
+
+                return Ok(new { success = true, price = 0, source = "none" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting last sales price for item {itemId}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Failed to get last sales price"
+                });
+            }
+        }
+
+
+        [HttpGet("items/{itemId}/last-purchase-price")]
+        public async Task<IActionResult> GetLastPurchasePrice(Guid itemId)
+        {
+            try
+            {
+                _logger.LogInformation($"=== GetLastPurchasePrice Started for Item: {itemId} ===");
+
+                // Extract company and fiscal year from claims
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearId = User.FindFirst("currentFiscalYear")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected"
+                    });
+                }
+
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearId) || !Guid.TryParse(fiscalYearId, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No fiscal year found"
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                decimal lastPrice = 0;
+
+                // 1. Try to get from purchase bills first (most recent)
+                var lastPurchaseBillItem = await _context.PurchaseBillItems
+                    .Include(pbi => pbi.PurchaseBill)
+                    .Where(pbi => pbi.ItemId == itemId
+                        && pbi.PurchaseBill.CompanyId == companyIdGuid
+                        && pbi.PurchaseBill.FiscalYearId == fiscalYearIdGuid)
+                    .OrderByDescending(pbi => pbi.PurchaseBill.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (lastPurchaseBillItem != null)
+                {
+                    lastPrice = lastPurchaseBillItem.PuPrice; // Using PuPrice as purchase price
+                    _logger.LogInformation($"Found price from purchase bill: {lastPrice}");
+                    return Ok(new { success = true, price = lastPrice, source = "purchase" });
+                }
+
+                // 3. Try from stock entries
+                var lastStockEntry = await _context.StockEntries
+                    .Where(se => se.ItemId == itemId)
+                    .OrderByDescending(se => se.Date)
+                    .FirstOrDefaultAsync();
+
+                if (lastStockEntry != null)
+                {
+                    lastPrice = lastStockEntry.PuPrice > 0 ? lastStockEntry.PuPrice : lastStockEntry.Price;
+                    _logger.LogInformation($"Found price from stock entry: {lastPrice}");
+                    return Ok(new { success = true, price = lastPrice, source = "stock" });
+                }
+
+                // 4. Fallback to item's default purchase price
+                var item = await _context.Items.FindAsync(itemId);
+                if (item != null && item.PuPrice.HasValue)
+                {
+                    lastPrice = item.PuPrice.Value;
+                    _logger.LogInformation($"Found price from item default: {lastPrice}");
+                    return Ok(new { success = true, price = lastPrice, source = "default" });
+                }
+
+                return Ok(new { success = true, price = 0, source = "none" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting last purchase price for item {itemId}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Failed to get last purchase price"
+                });
+            }
+        }
     }
 }

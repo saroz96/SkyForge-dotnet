@@ -4,6 +4,7 @@ using SkyForge.Models.Retailer.Purchase;
 using SkyForge.Models.Retailer.StoreModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SkyForge.Models.Retailer.SalesReturnModel;
 
 namespace SkyForge.Models.Retailer.Items
 {
@@ -35,7 +36,7 @@ namespace SkyForge.Models.Retailer.Items
 
         [Column("bonus")]
         [Precision(10, 3)]
-        public decimal? Bonus { get; set; }=0;
+        public decimal? Bonus { get; set; } = 0;
 
         [Column("batch_number")]
         [StringLength(100)]
@@ -70,7 +71,7 @@ namespace SkyForge.Models.Retailer.Items
 
         [Column("net_pu_price")]
         [Precision(18, 2)]
-        public decimal NetPuPrice { get; set; }=0;
+        public decimal NetPuPrice { get; set; } = 0;
 
         [Column("main_unit_pu_price")]
         [Precision(18, 2)]
@@ -104,6 +105,11 @@ namespace SkyForge.Models.Retailer.Items
         [ForeignKey("PurchaseBillId")]
         public PurchaseBill? PurchaseBill { get; set; }
 
+        [Column("sales_return_bill_id")]
+        public Guid? SalesReturnBillId { get; set; }
+
+        [ForeignKey("SalesReturnBillId")]
+        public SalesReturn? SalesReturnBill { get; set; }
         [Required]
         [Column("expiry_status")]
         [StringLength(20)]

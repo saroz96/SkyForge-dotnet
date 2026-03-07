@@ -1,13 +1,75 @@
+
 import React, { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { calculateExpiryStatus } from './retailer/dashboard/modals/ExpiryStatus';
+import axios from 'axios';
+
+// Create axios instance with auth interceptor
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_BASE_URL,
+  withCredentials: true,
+});
+
+// Add authorization header to all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 const ProductRow = memo(({ product, index, style, onProductClick, searchRef }) => {
-  const handleClick = () => onProductClick(product);
+  const [displayPrice, setDisplayPrice] = useState(product.latestPrice || 0);
+  const [displayMargin, setDisplayMargin] = useState(product.latestMarginPercentage || 0);
+
+  useEffect(() => {
+    // Only fetch if stock is zero and we don't already have a price
+    const fetchPriceAndMarginIfNeeded = async () => {
+      const currentStock = product.currentStock || product.CurrentStock || 0;
+
+      // If we already have a price, use it
+      if (displayPrice > 0 && displayMargin > 0) {
+        return;
+      }
+
+      // If stock is zero, try to get last sales price
+      if (currentStock <= 0) {
+        try {
+          const response = await api.get(`/api/retailer/items/${product.id}/last-sales-price`);
+          if (response.data.success && response.data.price > 0) {
+            setDisplayPrice(response.data.price);
+          }
+          if (response.data.marginPercentage !== undefined) {
+            setDisplayMargin(response.data.marginPercentage);
+          }
+        } catch (error) {
+          // Silently fail - keep existing price
+          console.error('Error fetching price:', error);
+        }
+      }
+    };
+
+    fetchPriceAndMarginIfNeeded();
+  }, [product.id, product.currentStock, product.CurrentStock, displayPrice, displayMargin]);
+
+  const handleClick = () => {
+    // Pass the product with the fetched price
+    onProductClick({
+      ...product,
+      latestPrice: displayPrice,
+      latestMarginPercentage: displayMargin
+    });
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      onProductClick(product);
+      handleClick();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       const nextItem = e.target.nextElementSibling;
@@ -45,7 +107,7 @@ const ProductRow = memo(({ product, index, style, onProductClick, searchRef }) =
   const VAT_RATE = 0.13;
 
   // Calculate price with VAT based on vatStatus
-  const basePrice = product.latestPrice || 0;
+  const basePrice = displayPrice;
 
   // Determine if product is vatable
   const isVatable = product.vatStatus === 'vatable';
@@ -76,7 +138,7 @@ const ProductRow = memo(({ product, index, style, onProductClick, searchRef }) =
       style={{
         ...style,
         display: 'grid',
-        gridTemplateColumns: 'repeat(8, 1fr)',
+        gridTemplateColumns: 'repeat(9, 1fr)',
         alignItems: 'center',
         padding: '0 8px',
         borderBottom: '1px solid #eee',
@@ -88,26 +150,15 @@ const ProductRow = memo(({ product, index, style, onProductClick, searchRef }) =
       onKeyDown={handleKeyDown}
       onFocus={handleFocus}
     >
-      <div>{product.uniqueNumber || 'N/A'}</div>
-      <div>{product.hscode || 'N/A'}</div>
+      <div>{product.uniqueNumber || ''}</div>
+      <div>{product.hscode || ''}</div>
       <div className="dropdown-items-name">{product.name}</div>
       <div>{displayCategory}</div>
-      <div>Rs.{formatter.format(product.latestPrice || 0)}</div>
-      <div>
-        Rs. {formatter.format(priceWithVAT)}
-        {isVatable && (
-          <span style={{ fontSize: '8px', marginLeft: '4px', color: '#28a745' }}>
-            (+13%)
-          </span>
-        )}
-        {!isVatable && (
-          <span style={{ fontSize: '8px', marginLeft: '4px', color: '#6c757d' }}>
-            (Exempt)
-          </span>
-        )}
-      </div>
-      <div>{product.currentStock || 0}</div>
+      <div>Rs.{formatter.format(displayPrice)}</div>
+      <div>Rs. {formatter.format(priceWithVAT)}</div>
+      <div>{displayStock}</div>
       <div>{displayUnit}</div>
+      <div>{displayMargin}</div>
     </div>
   );
 });
@@ -199,7 +250,7 @@ const VirtualizedProductList = memo(({
       <div style={{ position: 'relative' }}>
         {visibleItems.map((product, index) => (
           <ProductRow
-            key={product._id || index}
+            key={product._id || product.id || index}
             product={product}
             index={index}
             style={{

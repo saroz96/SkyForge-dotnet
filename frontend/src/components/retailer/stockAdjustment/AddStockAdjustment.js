@@ -5,7 +5,7 @@
 // import Header from '../Header';
 // import NotificationToast from '../../NotificationToast';
 // import '../../../stylesheet/noDateIcon.css'
-// import VirtualizedItemList from '../../VirtualizedItemList';
+// import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 // import useDebounce from '../../../hooks/useDebounce';
 // import ProductModal from '../dashboard/modals/ProductModal';
 
@@ -622,7 +622,7 @@
 //                 </div>
 
 //                 {itemsToShow.length > 0 ? (
-//                     <VirtualizedItemList
+//                     <VirtualizedItemListForSales
 //                         items={itemsToShow}
 //                         onItemClick={(item) => {
 //                             if (formData.adjustmentType === 'short') {
@@ -1534,7 +1534,7 @@ import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
 import '../../../stylesheet/noDateIcon.css'
-import VirtualizedItemList from '../../VirtualizedItemList';
+import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import useDebounce from '../../../hooks/useDebounce';
 import ProductModal from '../dashboard/modals/ProductModal';
 
@@ -2558,7 +2558,7 @@ const AddStockAdjustment = () => {
                 </div>
 
                 {itemsToShow.length > 0 ? (
-                    <VirtualizedItemList
+                    <VirtualizedItemListForSales
                         items={itemsToShow}
                         onItemClick={(item) => {
                             // Check adjustment type to decide whether to show batch modal or add directly
@@ -4129,7 +4129,7 @@ const AddStockAdjustment = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemList
+                                            <VirtualizedItemListForSales
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);

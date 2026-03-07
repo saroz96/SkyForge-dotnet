@@ -6,7 +6,7 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
     public class SalesRegisterDTO
     {
         public object? Company { get; set; }
-        public FiscalYearInfoDTO? CurrentFiscalYear { get; set; }
+        public FiscalYearDTO? CurrentFiscalYear { get; set; }
         public List<SalesBillData> Bills { get; set; } = new();
         public AccountInfoDTO? Account { get; set; }
 
@@ -30,5 +30,16 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public bool VatEnabled { get; set; }
         public bool IsVatExempt { get; set; }
         public bool IsAdminOrSupervisor { get; set; }
+    }
+
+    public class SalesBillEntryDataDTO
+    {
+        public CompanyInfoDTO Company { get; set; } = new();
+        public List<AccountInfoDTO> Accounts { get; set; } = new();
+        public DateInfoDTO Dates { get; set; } = new();
+        public FiscalYearDTO CurrentFiscalYear { get; set; } = new();
+        public UserPreferencesDTO UserPreferences { get; set; } = new();
+        public PermissionsDTO Permissions { get; set; } = new();
+        public string CurrentCompanyName { get; set; } = string.Empty;
     }
 }

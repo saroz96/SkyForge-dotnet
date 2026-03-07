@@ -9,7 +9,7 @@
 // import ProductModal from '../dashboard/modals/ProductModal';
 // import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 // import useDebounce from '../../../hooks/useDebounce';
-// import VirtualizedItemList from '../../VirtualizedItemList';
+// import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 // import VirtualizedAccountList from '../../VirtualizedAccountList';
 // import { Button } from 'react-bootstrap';
 // import { BiArrowBack } from 'react-icons/bi';
@@ -3215,7 +3215,7 @@
 //                                         </div>
 
 //                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-//                                             <VirtualizedItemList
+//                                             <VirtualizedItemListForSales
 //                                                 items={headerSearchResults}
 //                                                 onItemClick={(item) => {
 //                                                     selectItemForInsert(item);
@@ -3661,7 +3661,7 @@
 // import ProductModal from '../dashboard/modals/ProductModal';
 // import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 // import useDebounce from '../../../hooks/useDebounce';
-// import VirtualizedItemList from '../../VirtualizedItemList';
+// import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 // import VirtualizedAccountList from '../../VirtualizedAccountList';
 // import { Button } from 'react-bootstrap';
 // import { BiArrowBack } from 'react-icons/bi';
@@ -6831,7 +6831,7 @@
 //                                         </div>
 
 //                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-//                                             <VirtualizedItemList
+//                                             <VirtualizedItemListForSales
 //                                                 items={headerSearchResults}
 //                                                 onItemClick={(item) => {
 //                                                     selectItemForInsert(item);
@@ -7304,7 +7304,7 @@ import '../../../stylesheet/noDateIcon.css'
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemList from '../../VirtualizedItemList';
+import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
@@ -8055,10 +8055,77 @@ const EditSalesQuotation = () => {
         }, 100);
     };
 
-    const selectItemForInsert = async (item) => {
-        setSelectedItemForInsert(item);
-        setShowHeaderItemModal(false);
+    // const selectItemForInsert = async (item) => {
+    //     setSelectedItemForInsert(item);
+    //     setShowHeaderItemModal(false);
 
+    //     if (headerSearchQuery.trim() !== '') {
+    //         setHeaderLastSearchQuery(headerSearchQuery);
+    //         setHeaderShouldShowLastSearchResults(true);
+    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
+    //         setHeaderShouldShowLastSearchResults(true);
+    //     }
+    //     setHeaderSearchQuery('');
+
+    //     if (item.stockEntries && item.stockEntries.length > 0) {
+    //         const sortedStockEntries = item.stockEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    //         const firstStockEntry = sortedStockEntries[0];
+    //         setSelectedItemRate(firstStockEntry.price || 0);
+    //     }
+
+    //     let hasTransactions = false;
+    //     if (transactionSettings.displayTransactions && formData.accountId) {
+    //         const cacheKey = `${item.id}-${formData.accountId}`;
+    //         if (transactionCache.has(cacheKey)) {
+    //             const cachedTransactions = transactionCache.get(cacheKey);
+    //             if (cachedTransactions.length > 0) {
+    //                 setTransactions(cachedTransactions);
+    //                 setShowTransactionModal(true);
+    //                 hasTransactions = true;
+    //             }
+    //         }
+
+    //         if (!hasTransactions) {
+    //             try {
+    //                 setIsLoadingTransactions(true);
+    //                 const controller = new AbortController();
+    //                 const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    //                 const response = await api.get(`/api/retailer/transactions/${item.id}/${formData.accountId}/Sales`, {
+    //                     signal: controller.signal
+    //                 });
+
+    //                 clearTimeout(timeoutId);
+
+    //                 if (response.data.success && response.data.data.transactions.length > 0) {
+    //                     setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
+    //                     setTransactions(response.data.data.transactions);
+    //                     setShowTransactionModal(true);
+    //                     hasTransactions = true;
+    //                 }
+    //             } catch (error) {
+    //                 if (error.name !== 'AbortError') {
+    //                     console.error('Error fetching transactions:', error);
+    //                 }
+    //             } finally {
+    //                 setIsLoadingTransactions(false);
+    //             }
+    //         }
+    //     }
+
+    //     if (!hasTransactions) {
+    //         setTimeout(() => {
+    //             const descriptionInput = document.getElementById('headerItemDescription');
+    //             if (descriptionInput) {
+    //                 descriptionInput.focus();
+    //                 descriptionInput.select();
+    //             }
+    //         }, 100);
+    //     }
+    // };
+
+
+    const selectItemForInsert = async (item) => {
         if (headerSearchQuery.trim() !== '') {
             setHeaderLastSearchQuery(headerSearchQuery);
             setHeaderShouldShowLastSearchResults(true);
@@ -8067,61 +8134,57 @@ const EditSalesQuotation = () => {
         }
         setHeaderSearchQuery('');
 
-        if (item.stockEntries && item.stockEntries.length > 0) {
-            const sortedStockEntries = item.stockEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-            const firstStockEntry = sortedStockEntries[0];
-            setSelectedItemRate(firstStockEntry.price || 0);
-        }
+        setShowHeaderItemModal(false);
+        setSelectedItemForInsert(item);
+        setSelectedItemRate(item.latestPrice || 0);
+        setSelectedItemDescription('');
 
-        let hasTransactions = false;
+        // Check transaction settings for header insert
         if (transactionSettings.displayTransactions && formData.accountId) {
             const cacheKey = `${item.id}-${formData.accountId}`;
+
             if (transactionCache.has(cacheKey)) {
                 const cachedTransactions = transactionCache.get(cacheKey);
                 if (cachedTransactions.length > 0) {
                     setTransactions(cachedTransactions);
                     setShowTransactionModal(true);
-                    hasTransactions = true;
+                    return;
                 }
             }
 
-            if (!hasTransactions) {
-                try {
-                    setIsLoadingTransactions(true);
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 3000);
+            try {
+                setIsLoadingTransactions(true);
+                const controller = new AbortController();
 
-                    const response = await api.get(`/api/retailer/transactions/${item.id}/${formData.accountId}/Sales`, {
-                        signal: controller.signal
-                    });
+                const response = await api.get(`/api/retailer/transactions/${item.id}/${formData.accountId}/Sales`, {
+                    signal: controller.signal
+                });
 
-                    clearTimeout(timeoutId);
+                if (response.data.success) {
+                    setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
 
-                    if (response.data.success && response.data.data.transactions.length > 0) {
-                        setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
+                    if (response.data.data.transactions.length > 0) {
                         setTransactions(response.data.data.transactions);
                         setShowTransactionModal(true);
-                        hasTransactions = true;
+                        return;
                     }
-                } catch (error) {
-                    if (error.name !== 'AbortError') {
-                        console.error('Error fetching transactions:', error);
-                    }
-                } finally {
-                    setIsLoadingTransactions(false);
                 }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Error fetching transactions:', error);
+                }
+            } finally {
+                setIsLoadingTransactions(false);
             }
         }
 
-        if (!hasTransactions) {
-            setTimeout(() => {
-                const descriptionInput = document.getElementById('headerItemDescription');
-                if (descriptionInput) {
-                    descriptionInput.focus();
-                    descriptionInput.select();
-                }
-            }, 100);
-        }
+        setTimeout(() => {
+            const descriptionInput = document.getElementById('headerItemDescription');
+            if (descriptionInput) {
+                descriptionInput.focus();
+                descriptionInput.select();
+            }
+        }, 100);
     };
 
     const insertSelectedItem = () => {
@@ -8381,9 +8444,9 @@ const EditSalesQuotation = () => {
                 type: 'success'
             });
 
-            if (print && response.data.data?.quotation?.id) {
+            if ((print || printAfterSave) && response.data.data?.quotation?._id) {
                 setIsSaving(false);
-                await printQuotationImmediately(response.data.data.quotation.id);
+                await printQuotationImmediately(response.data.data.quotation._id);
                 setTimeout(() => {
                     handleBack();
                 }, 1000);
@@ -8476,131 +8539,287 @@ const EditSalesQuotation = () => {
         navigate(-1);
     };
 
+    // const printQuotationImmediately = async (quotationId) => {
+    //     try {
+    //         const response = await api.get(`/api/retailer/sales-quotation/${quotationId}/print`);
+    //         const printData = response.data.data;
+
+    //         const tempDiv = document.createElement('div');
+    //         tempDiv.style.position = 'absolute';
+    //         tempDiv.style.left = '-9999px';
+    //         document.body.appendChild(tempDiv);
+
+    //         tempDiv.innerHTML = `
+    //             <div id="printableContent">
+    //                 <div class="print-quotation-container">
+    //                     <div class="print-quotation-header">
+    //                         <div class="print-company-name">${printData.currentCompanyName || ''}</div>
+    //                         <div class="print-company-details">
+    //                             ${printData.currentCompany?.address || ''} | Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || ''}
+    //                         </div>
+    //                         <div class="print-quotation-title">SALES QUOTATION</div>
+    //                     </div>
+
+    //                     <div class="print-quotation-details">
+    //                         <div>
+    //                             <div><strong>M/S:</strong> ${printData.quotation.account?.name || 'N/A'}</div>
+    //                             <div><strong>Address:</strong> ${printData.quotation.account?.address || 'N/A'}</div>
+    //                             <div><strong>PAN:</strong> ${printData.quotation.account?.pan || 'N/A'}</div>
+    //                             <div><strong>Email:</strong> ${printData.quotation.account?.email || 'N/A'}</div>
+    //                         </div>
+    //                         <div>
+    //                             <div><strong>Quotation No:</strong> ${printData.quotation.billNumber || 'N/A'}</div>
+    //                             <div><strong>Validity Periods:</strong> ${new Date(printData.quotation.transactionDate).toLocaleDateString()}</div>
+    //                             <div><strong>Quotation Issue Date:</strong> ${new Date(printData.quotation.date).toLocaleDateString()}</div>
+    //                             <div><strong>Mode of Payment:</strong> ${printData.quotation.paymentMode || 'N/A'}</div>
+    //                         </div>
+    //                     </div>
+
+    //                     <table class="print-quotation-table">
+    //                         <thead>
+    //                             <tr>
+    //                                 <th>S.N.</th>
+    //                                 <th>#</th>
+    //                                 <th>HSN</th>
+    //                                 <th>Description of Goods</th>
+    //                                 <th>Description</th>
+    //                                 <th>Qty</th>
+    //                                 <th>Unit</th>
+    //                                 <th>Rate (Rs.)</th>
+    //                                 <th>Total (Rs.)</th>
+    //                             </tr>
+    //                         </thead>
+    //                         <tbody>
+    //                             ${printData.quotation.items?.map((item, i) => `
+    //                                 <tr key="${i}">
+    //                                     <td>${i + 1}</td>
+    //                                     <td>${item.item?.uniqueNumber || item.uniqueNumber || ''}</td>
+    //                                     <td>${item.item?.hscode || item.hscode || ''}</td>
+    //                                     <td>${item.item?.name || item.itemName || ''}</td>
+    //                                     <td>${item.description || ''}</td>
+    //                                     <td>${item.quantity || 0}</td>
+    //                                     <td>${item.item?.unit?.name || item.unitName || ''}</td>
+    //                                     <td>${(item.price || 0).toFixed(2)}</td>
+    //                                     <td>${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
+    //                                 </tr>
+    //                             `).join('') || ''}
+    //                         </tbody>
+    //                         <tr>
+    //                             <td colSpan="9" style="border-bottom: 1px solid #000"></td>
+    //                         </tr>
+    //                     </table>
+
+    //                     <table class="print-totals-table">
+    //                         <tbody>
+    //                             <tr>
+    //                                 <td><strong>Sub-Total:</strong></td>
+    //                                 <td class="print-text-right">${(printData.quotation.subTotal || 0).toFixed(2)}</td>
+    //                             </tr>
+    //                             <tr>
+    //                                 <td><strong>Discount (${printData.quotation.discountPercentage || 0}%):</strong></td>
+    //                                 <td class="print-text-right">${(printData.quotation.discountAmount || 0).toFixed(2)}</td>
+    //                             </tr>
+    //                             <tr>
+    //                                 <td><strong>Non-Taxable:</strong></td>
+    //                                 <td class="print-text-right">${(printData.quotation.nonVatSales || 0).toFixed(2)}</td>
+    //                             </tr>
+    //                             <tr>
+    //                                 <td><strong>Taxable Amount:</strong></td>
+    //                                 <td class="print-text-right">${(printData.quotation.taxableAmount || 0).toFixed(2)}</td>
+    //                             </tr>
+    //                             ${!printData.quotation.isVatExempt ? `
+    //                                 <tr>
+    //                                     <td><strong>VAT (${printData.quotation.vatPercentage || 13}%):</strong></td>
+    //                                     <td class="print-text-right">${(printData.quotation.vatAmount || 0).toFixed(2)}</td>
+    //                                 </tr>
+    //                             ` : ''}
+    //                             <tr>
+    //                                 <td><strong>Round Off:</strong></td>
+    //                                 <td class="print-text-right">${(printData.quotation.roundOffAmount || 0).toFixed(2)}</td>
+    //                             </tr>
+    //                             <tr>
+    //                                 <td><strong>Grand Total:</strong></td>
+    //                                 <td class="print-text-right">${(printData.quotation.totalAmount || 0).toFixed(2)}</td>
+    //                             </tr>
+    //                         </tbody>
+    //                     </table>
+
+    //                     <div class="print-amount-in-words">
+    //                         <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.quotation.totalAmount || 0)} Only.
+    //                     </div>
+
+    //                     ${printData.quotation.description ? `
+    //                         <div class="mt-3 print-note">
+    //                             <strong>Note:</strong> ${printData.quotation.description}
+    //                         </div>
+    //                     ` : ''}
+
+    //                     <div class="print-signature-area">
+    //                         <div class="print-signature-box">Received By</div>
+    //                         <div class="print-signature-box">Prepared By: ${printData.quotation.user?.name || ''}</div>
+    //                         <div class="print-signature-box">For: ${printData.currentCompanyName || ''}</div>
+    //                     </div>
+    //                 </div>
+    //             </div>
+    //         `;
+
+    //         const styles = `
+    //             @page {
+    //                 size: A4;
+    //                 margin: 5mm;
+    //             }
+    //             body {
+    //                 font-family: 'Arial Narrow', Arial, sans-serif;
+    //                 font-size: 9pt;
+    //                 line-height: 1.2;
+    //                 color: #000;
+    //                 background: white;
+    //                 margin: 0;
+    //                 padding: 0;
+    //             }
+    //             .print-quotation-container {
+    //                 width: 100%;
+    //                 max-width: 210mm;
+    //                 margin: 0 auto;
+    //                 padding: 2mm;
+    //             }
+    //             .print-quotation-header {
+    //                 text-align: center;
+    //                 margin-bottom: 3mm;
+    //                 border-bottom: 1px solid #000;
+    //                 padding-bottom: 2mm;
+    //             }
+    //             .print-quotation-title {
+    //                 font-size: 12pt;
+    //                 font-weight: bold;
+    //                 margin: 2mm 0;
+    //                 text-transform: uppercase;
+    //             }
+    //             .print-company-name {
+    //                 font-size: 16pt;
+    //                 font-weight: bold;
+    //             }
+    //             .print-company-details {
+    //                 font-size: 8pt;
+    //                 margin: 1mm 0;
+    //                 font-weight: bold;
+    //             }
+    //             .print-quotation-details {
+    //                 display: flex;
+    //                 justify-content: space-between;
+    //                 margin: 2mm 0;
+    //                 font-size: 8pt;
+    //             }
+    //             .print-quotation-table {
+    //                 width: 100%;
+    //                 border-collapse: collapse;
+    //                 margin: 3mm 0;
+    //                 font-size: 8pt;
+    //                 border: none;
+    //             }
+    //             .print-quotation-table thead {
+    //                 border-top: 1px solid #000;
+    //                 border-bottom: 1px solid #000;
+    //             }
+    //             .print-quotation-table th {
+    //                 background-color: transparent;
+    //                 border: none;
+    //                 padding: 1mm;
+    //                 text-align: left;
+    //                 font-weight: bold;
+    //             }
+    //             .print-quotation-table td {
+    //                 border: none;
+    //                 padding: 1mm;
+    //                 border-bottom: 1px solid #eee;
+    //             }
+    //             .print-text-right {
+    //                 text-align: right;
+    //             }
+    //             .print-text-center {
+    //                 text-align: center;
+    //             }
+    //             .print-amount-in-words {
+    //                 font-size: 8pt;
+    //                 margin: 2mm 0;
+    //                 padding: 1mm;
+    //                 border: 1px dashed #000;
+    //             }
+    //             .print-signature-area {
+    //                 display: flex;
+    //                 justify-content: space-between;
+    //                 margin-top: 5mm;
+    //                 font-size: 8pt;
+    //             }
+    //             .print-signature-box {
+    //                 text-align: center;
+    //                 width: 30%;
+    //                 border-top: 1px solid #000;
+    //                 padding-top: 1mm;
+    //                 font-weight: bold;
+    //             }
+    //             .print-totals-table {
+    //                 width: 60%;
+    //                 margin-left: auto;
+    //                 border-collapse: collapse;
+    //                 font-size: 8pt;
+    //             }
+    //             .print-totals-table td {
+    //                 padding: 1mm;
+    //             }
+    //         `;
+
+    //         const printWindow = window.open('', '_blank');
+    //         printWindow.document.write(`
+    //             <html>
+    //                 <head>
+    //                     <title>Sales_Quotation_${printData.quotation.billNumber}</title>
+    //                     <style>${styles}</style>
+    //                 </head>
+    //                 <body>
+    //                     ${tempDiv.innerHTML}
+    //                     <script>
+    //                         window.onload = function() {
+    //                             setTimeout(function() {
+    //                                 window.print();
+    //                                 window.close();
+    //                             }, 200);
+    //                         };
+    //                     </script>
+    //                 </body>
+    //             </html>
+    //         `);
+    //         printWindow.document.close();
+    //         document.body.removeChild(tempDiv);
+    //     } catch (error) {
+    //         console.error('Error fetching print data:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Quotation saved but failed to load print data',
+    //             type: 'warning'
+    //         });
+    //     }
+    // };
+
     const printQuotationImmediately = async (quotationId) => {
         try {
             const response = await api.get(`/api/retailer/sales-quotation/${quotationId}/print`);
+
+            if (!response.data.success) {
+                throw new Error(response.data.error || 'Failed to fetch quotation data');
+            }
+
             const printData = response.data.data;
 
+            // Create a temporary div for the printable content
             const tempDiv = document.createElement('div');
             tempDiv.style.position = 'absolute';
             tempDiv.style.left = '-9999px';
             document.body.appendChild(tempDiv);
 
+            // Build the HTML structure matching your SalesQuotationPrint component
             tempDiv.innerHTML = `
-                <div id="printableContent">
-                    <div class="print-quotation-container">
-                        <div class="print-quotation-header">
-                            <div class="print-company-name">${printData.currentCompanyName || ''}</div>
-                            <div class="print-company-details">
-                                ${printData.currentCompany?.address || ''} | Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || ''}
-                            </div>
-                            <div class="print-quotation-title">SALES QUOTATION</div>
-                        </div>
-
-                        <div class="print-quotation-details">
-                            <div>
-                                <div><strong>M/S:</strong> ${printData.quotation.account?.name || 'N/A'}</div>
-                                <div><strong>Address:</strong> ${printData.quotation.account?.address || 'N/A'}</div>
-                                <div><strong>PAN:</strong> ${printData.quotation.account?.pan || 'N/A'}</div>
-                                <div><strong>Email:</strong> ${printData.quotation.account?.email || 'N/A'}</div>
-                            </div>
-                            <div>
-                                <div><strong>Quotation No:</strong> ${printData.quotation.billNumber || 'N/A'}</div>
-                                <div><strong>Validity Periods:</strong> ${new Date(printData.quotation.transactionDate).toLocaleDateString()}</div>
-                                <div><strong>Quotation Issue Date:</strong> ${new Date(printData.quotation.date).toLocaleDateString()}</div>
-                                <div><strong>Mode of Payment:</strong> ${printData.quotation.paymentMode || 'N/A'}</div>
-                            </div>
-                        </div>
-
-                        <table class="print-quotation-table">
-                            <thead>
-                                <tr>
-                                    <th>S.N.</th>
-                                    <th>#</th>
-                                    <th>HSN</th>
-                                    <th>Description of Goods</th>
-                                    <th>Description</th>
-                                    <th>Qty</th>
-                                    <th>Unit</th>
-                                    <th>Rate (Rs.)</th>
-                                    <th>Total (Rs.)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${printData.quotation.items?.map((item, i) => `
-                                    <tr key="${i}">
-                                        <td>${i + 1}</td>
-                                        <td>${item.item?.uniqueNumber || item.uniqueNumber || ''}</td>
-                                        <td>${item.item?.hscode || item.hscode || ''}</td>
-                                        <td>${item.item?.name || item.itemName || ''}</td>
-                                        <td>${item.description || ''}</td>
-                                        <td>${item.quantity || 0}</td>
-                                        <td>${item.item?.unit?.name || item.unitName || ''}</td>
-                                        <td>${(item.price || 0).toFixed(2)}</td>
-                                        <td>${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
-                                    </tr>
-                                `).join('') || ''}
-                            </tbody>
-                            <tr>
-                                <td colSpan="9" style="border-bottom: 1px solid #000"></td>
-                            </tr>
-                        </table>
-
-                        <table class="print-totals-table">
-                            <tbody>
-                                <tr>
-                                    <td><strong>Sub-Total:</strong></td>
-                                    <td class="print-text-right">${(printData.quotation.subTotal || 0).toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Discount (${printData.quotation.discountPercentage || 0}%):</strong></td>
-                                    <td class="print-text-right">${(printData.quotation.discountAmount || 0).toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Non-Taxable:</strong></td>
-                                    <td class="print-text-right">${(printData.quotation.nonVatSales || 0).toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Taxable Amount:</strong></td>
-                                    <td class="print-text-right">${(printData.quotation.taxableAmount || 0).toFixed(2)}</td>
-                                </tr>
-                                ${!printData.quotation.isVatExempt ? `
-                                    <tr>
-                                        <td><strong>VAT (${printData.quotation.vatPercentage || 13}%):</strong></td>
-                                        <td class="print-text-right">${(printData.quotation.vatAmount || 0).toFixed(2)}</td>
-                                    </tr>
-                                ` : ''}
-                                <tr>
-                                    <td><strong>Round Off:</strong></td>
-                                    <td class="print-text-right">${(printData.quotation.roundOffAmount || 0).toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Grand Total:</strong></td>
-                                    <td class="print-text-right">${(printData.quotation.totalAmount || 0).toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-
-                        <div class="print-amount-in-words">
-                            <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.quotation.totalAmount || 0)} Only.
-                        </div>
-
-                        ${printData.quotation.description ? `
-                            <div class="mt-3 print-note">
-                                <strong>Note:</strong> ${printData.quotation.description}
-                            </div>
-                        ` : ''}
-
-                        <div class="print-signature-area">
-                            <div class="print-signature-box">Received By</div>
-                            <div class="print-signature-box">Prepared By: ${printData.quotation.user?.name || ''}</div>
-                            <div class="print-signature-box">For: ${printData.currentCompanyName || ''}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            const styles = `
+            <style>
                 @page {
                     size: A4;
                     margin: 5mm;
@@ -8614,19 +8833,19 @@ const EditSalesQuotation = () => {
                     margin: 0;
                     padding: 0;
                 }
-                .print-quotation-container {
+                .print-invoice-container {
                     width: 100%;
                     max-width: 210mm;
                     margin: 0 auto;
                     padding: 2mm;
                 }
-                .print-quotation-header {
+                .print-invoice-header {
                     text-align: center;
                     margin-bottom: 3mm;
                     border-bottom: 1px solid #000;
                     padding-bottom: 2mm;
                 }
-                .print-quotation-title {
+                .print-invoice-title {
                     font-size: 12pt;
                     font-weight: bold;
                     margin: 2mm 0;
@@ -8641,40 +8860,78 @@ const EditSalesQuotation = () => {
                     margin: 1mm 0;
                     font-weight: bold;
                 }
-                .print-quotation-details {
+                .print-invoice-details {
                     display: flex;
                     justify-content: space-between;
                     margin: 2mm 0;
                     font-size: 8pt;
                 }
-                .print-quotation-table {
+                .print-invoice-table {
                     width: 100%;
                     border-collapse: collapse;
                     margin: 3mm 0;
                     font-size: 8pt;
                     border: none;
+                    table-layout: fixed;
                 }
-                .print-quotation-table thead {
+                .print-invoice-table thead {
                     border-top: 1px solid #000;
                     border-bottom: 1px solid #000;
                 }
-                .print-quotation-table th {
+                .print-invoice-table th {
                     background-color: transparent;
                     border: none;
                     padding: 1mm;
                     text-align: left;
                     font-weight: bold;
                 }
-                .print-quotation-table td {
+                .print-invoice-table td {
                     border: none;
                     padding: 1mm;
                     border-bottom: 1px solid #eee;
                 }
-                .print-text-right {
+                .print-invoice-table th:nth-child(1),
+                .print-invoice-table td:nth-child(1) {
+                    width: 4%;
+                }
+                .print-invoice-table th:nth-child(2),
+                .print-invoice-table td:nth-child(2) {
+                    width: 6%;
+                }
+                .print-invoice-table th:nth-child(3),
+                .print-invoice-table td:nth-child(3) {
+                    width: 7%;
+                }
+                .print-invoice-table th:nth-child(4),
+                .print-invoice-table td:nth-child(4) {
+                    width: 20%;
+                }
+                .print-invoice-table th:nth-child(5),
+                .print-invoice-table td:nth-child(5) {
+                    width: 20%;
+                }
+                .print-invoice-table th:nth-child(6),
+                .print-invoice-table td:nth-child(6) {
+                    width: 6%;
                     text-align: right;
                 }
-                .print-text-center {
-                    text-align: center;
+                .print-invoice-table th:nth-child(7),
+                .print-invoice-table td:nth-child(7) {
+                    width: 6%;
+                }
+                .print-invoice-table th:nth-child(8),
+                .print-invoice-table td:nth-child(8) {
+                    width: 12%;
+                    text-align: right;
+                }
+                .print-invoice-table th:nth-child(9),
+                .print-invoice-table td:nth-child(9) {
+                    width: 12%;
+                    text-align: right;
+                }
+                .print-text-right {
+                    text-align: right;
+                    padding-right: 2mm;
                 }
                 .print-amount-in-words {
                     font-size: 8pt;
@@ -8704,38 +8961,212 @@ const EditSalesQuotation = () => {
                 .print-totals-table td {
                     padding: 1mm;
                 }
-            `;
+                .print-totals-table td:nth-child(2) {
+                    text-align: right;
+                    padding-right: 2mm;
+                    width: 40%;
+                }
+            </style>
+            <div class="print-invoice-container">
+                <div class="print-invoice-header">
+                    <div class="print-company-name">${printData.currentCompanyName || ''}</div>
+                    <div class="print-company-details">
+                        ${printData.currentCompany?.address || ''} | Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || ''}
+                    </div>
+                    <div class="print-invoice-title">SALES QUOTATION</div>
+                </div>
 
+                <div class="print-invoice-details">
+                    <div>
+                        <div><strong>Customer:</strong> ${printData.bill?.account?.name || ''}</div>
+                        <div><strong>Address:</strong> ${printData.bill?.account?.address || ''}</div>
+                        <div><strong>PAN:</strong> ${printData.bill?.account?.pan || ''}</div>
+                        <div><strong>Email:</strong> ${printData.bill?.account?.email || ''}, <strong>Phone:</strong> ${printData.bill?.account?.phone || ''}</div>
+                    </div>
+                    <div>
+                        <div><strong>Quot. No:</strong> ${printData.bill?.billNumber || ''}</div>
+                        <div><strong>Validity:</strong> ${printData.companyDateFormat === 'Nepali' ? formatDate(printData.transactionDateNepali, 'nepali') : formatDate(printData.bill?.transactionDate)}</div>
+                        <div><strong>Date:</strong> ${printData.companyDateFormat === 'Nepali' ? formatDate(printData.nepaliDate, 'nepali') : formatDate(printData.bill?.date)}</div>
+                        <div><strong>Payment Mode:</strong> ${printData.bill?.paymentMode || 'N/A'}</div>
+                    </div>
+                </div>
+
+                <table class="print-invoice-table">
+                    <thead>
+                        <tr>
+                            <th>S.N.</th>
+                            <th>#</th>
+                            <th>HSN</th>
+                            <th>Description of Goods</th>
+                            <th>Description</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th>Rate (Rs.)</th>
+                            <th>Total (Rs.)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${printData.bill?.items?.map((item, i) => {
+                const itemTotal = (item.quantity || 0) * (item.price || 0);
+                return `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${item.uniqueNumber || ''}</td>
+                                    <td>${item.hscode || ''}</td>
+                                    <td>${item.vatStatus === 'vatExempt' ? `${item.itemName || ''} *` : (item.itemName || '')}</td>
+                                    <td>${item.description || ''}</td>
+                                    <td class="print-text-right">${(item.quantity || 0).toFixed(2)}</td>
+                                    <td>${item.unitName || ''}</td>
+                                    <td class="print-text-right">${(item.price || 0).toFixed(2)}</td>
+                                    <td class="print-text-right">${itemTotal.toFixed(2)}</td>
+                                </tr>
+                            `;
+            }).join('')}
+                    </tbody>
+                    <tr>
+                        <td colspan="9" style="border-bottom: 1px solid #000"></td>
+                    </tr>
+                </table>
+
+                <table class="print-totals-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>Sub-Total:</strong></td>
+                            <td class="print-text-right">${(printData.bill?.subTotal || 0).toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Discount (${printData.bill?.discountPercentage || 0}%):</strong></td>
+                            <td class="print-text-right">${(printData.bill?.discountAmount || 0).toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Non-Taxable:</strong></td>
+                            <td class="print-text-right">${(printData.bill?.nonVatSales || 0).toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Taxable Amount:</strong></td>
+                            <td class="print-text-right">${(printData.bill?.taxableAmount || 0).toFixed(2)}</td>
+                        </tr>
+                        ${!printData.bill?.isVatExempt ? `
+                            <tr>
+                                <td><strong>VAT (${printData.bill?.vatPercentage || 0}%):</strong></td>
+                                <td class="print-text-right">${(printData.bill?.vatAmount || 0).toFixed(2)}</td>
+                            </tr>
+                        ` : ''}
+                        <tr>
+                            <td><strong>Round Off:</strong></td>
+                            <td class="print-text-right">${(printData.bill?.roundOffAmount || 0).toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Grand Total:</strong></td>
+                            <td class="print-text-right">${(printData.bill?.totalAmount || 0).toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="print-amount-in-words">
+                    <strong>In Words:</strong> ${numberToWordsWithPaisa(printData.bill?.totalAmount || 0)} Only.
+                </div>
+
+                ${printData.bill?.description ? `
+                    <div class="mt-3 print-note">
+                        <strong>Note:</strong> ${printData.bill.description}
+                    </div>
+                ` : ''}
+
+                <br /><br />
+                <div class="print-signature-area">
+                    <div class="print-signature-box">Received By</div>
+                    <div class="print-signature-box">Prepared By: ${printData.bill?.user?.name || ''}</div>
+                    <div class="print-signature-box">For: ${printData.currentCompanyName || ''}</div>
+                </div>
+            </div>
+        `;
+
+            // Open print window
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>Sales_Quotation_${printData.quotation.billNumber}</title>
-                        <style>${styles}</style>
-                    </head>
-                    <body>
-                        ${tempDiv.innerHTML}
-                        <script>
-                            window.onload = function() {
-                                setTimeout(function() {
-                                    window.print();
-                                    window.close();
-                                }, 200);
-                            };
-                        </script>
-                    </body>
-                </html>
-            `);
+            <html>
+                <head>
+                    <title>Sales_Quotation_${printData.bill?.billNumber || ''}</title>
+                </head>
+                <body>
+                    ${tempDiv.innerHTML}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                window.close();
+                            }, 200);
+                        };
+                    <\/script>
+                </body>
+            </html>
+        `);
             printWindow.document.close();
+
+            // Clean up
             document.body.removeChild(tempDiv);
+
         } catch (error) {
             console.error('Error fetching print data:', error);
-            setNotification({
-                show: true,
-                message: 'Quotation saved but failed to load print data',
-                type: 'warning'
-            });
+            throw error; // Re-throw to be caught by the calling function
         }
+    };
+
+    // Helper function for number to words (add this inside your component)
+    const numberToWordsWithPaisa = (amount) => {
+        const rupees = Math.floor(amount);
+        const paisa = Math.round((amount - rupees) * 100);
+
+        let result = numberToWords(rupees) + ' Rupees';
+
+        if (paisa > 0) {
+            result += ' and ' + numberToWords(paisa) + ' Paisa';
+        }
+
+        return result;
+    };
+
+    const numberToWords = (num) => {
+        const ones = [
+            '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen'
+        ];
+        const tens = [
+            '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
+        ];
+        const scales = ['', 'Thousand', 'Million', 'Billion'];
+
+        const convertHundreds = (num) => {
+            let words = '';
+            if (num > 99) {
+                words += ones[Math.floor(num / 100)] + ' Hundred ';
+                num %= 100;
+            }
+            if (num > 19) {
+                words += tens[Math.floor(num / 10)] + ' ';
+                num %= 10;
+            }
+            if (num > 0) {
+                words += ones[num] + ' ';
+            }
+            return words.trim();
+        };
+
+        if (num === 0) return 'Zero';
+        if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
+
+        let words = '';
+        for (let i = 0; i < scales.length; i++) {
+            let unit = Math.pow(1000, scales.length - i - 1);
+            let currentNum = Math.floor(num / unit);
+            if (currentNum > 0) {
+                words += convertHundreds(currentNum) + ' ' + scales[scales.length - i - 1] + ' ';
+            }
+            num %= unit;
+        }
+        return words.trim();
     };
 
     const formatter = new Intl.NumberFormat('en-NP', {
@@ -10135,7 +10566,7 @@ const EditSalesQuotation = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemList
+                                            <VirtualizedItemListForSales
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);

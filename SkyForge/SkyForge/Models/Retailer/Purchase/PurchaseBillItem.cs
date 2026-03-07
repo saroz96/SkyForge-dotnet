@@ -3,6 +3,7 @@ using SkyForge.Models.Retailer.Purchase;
 using SkyForge.Models.UnitModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SkyForge.Dto.RetailerDto.ItemDto;
 
 namespace SkyForge.Models.Retailer.Purchase
 {

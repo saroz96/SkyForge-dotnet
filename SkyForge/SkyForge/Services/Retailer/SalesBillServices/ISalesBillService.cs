@@ -41,6 +41,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
         Task<SalesBill> UpdateCashSalesBillAsync(Guid billId, UpdateSalesBillDTO dto, Guid userId, Guid companyId, Guid fiscalYearId);
         Task<SalesRegisterDataDTO> GetSalesRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null);
         Task<SalesBillEntryDataDTO> GetSalesRegisterEntryDataAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+
         Task<SalesBillPrintDTO> GetSalesForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId);
     }
 }

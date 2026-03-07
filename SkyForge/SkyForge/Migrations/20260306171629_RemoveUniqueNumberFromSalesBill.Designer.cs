@@ -12,8 +12,8 @@ using SkyForge.Data;
 namespace SkyForge.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260226030909_UpdateSalesBillId")]
-    partial class UpdateSalesBillId
+    [Migration("20260306171629_RemoveUniqueNumberFromSalesBill")]
+    partial class RemoveUniqueNumberFromSalesBill
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1549,6 +1549,10 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("rack_id");
 
+                    b.Property<Guid?>("SalesReturnBillId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sales_return_bill_id");
+
                     b.Property<DateTime?>("SourceTransferDate")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("source_transfer_date");
@@ -1599,6 +1603,8 @@ namespace SkyForge.Migrations
                     b.HasIndex("PurchaseBillId");
 
                     b.HasIndex("RackId");
+
+                    b.HasIndex("SalesReturnBillId");
 
                     b.HasIndex("StoreId");
 
@@ -2852,6 +2858,14 @@ namespace SkyForge.Migrations
                         .HasDefaultValue(13m)
                         .HasColumnName("vat_percentage");
 
+                    b.Property<DateTime>("nepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("nepali_date");
+
+                    b.Property<DateTime>("transactionDateNepali")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date_nepali");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
@@ -2908,6 +2922,16 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
+
+                    b.Property<decimal>("MarginPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("margin_percentage");
+
+                    b.Property<decimal?>("Mrp")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("mrp");
 
                     b.Property<decimal>("NetPrice")
                         .HasPrecision(18, 2)
@@ -3396,6 +3420,14 @@ namespace SkyForge.Migrations
                         .HasDefaultValue(13m)
                         .HasColumnName("vat_percentage");
 
+                    b.Property<DateTime>("nepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("nepali_date");
+
+                    b.Property<DateTime>("transactionDateNepali")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date_nepali");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
@@ -3467,6 +3499,16 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
+
+                    b.Property<decimal>("MarginPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("margin_percentage");
+
+                    b.Property<decimal?>("Mrp")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("mrp");
 
                     b.Property<decimal?>("NetPrice")
                         .HasPrecision(18, 2)
@@ -5013,6 +5055,10 @@ namespace SkyForge.Migrations
                         .HasForeignKey("RackId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("SkyForge.Models.Retailer.SalesReturnModel.SalesReturn", "SalesReturnBill")
+                        .WithMany()
+                        .HasForeignKey("SalesReturnBillId");
+
                     b.HasOne("SkyForge.Models.Retailer.StoreModel.Store", "Store")
                         .WithMany()
                         .HasForeignKey("StoreId")
@@ -5027,6 +5073,8 @@ namespace SkyForge.Migrations
                     b.Navigation("PurchaseBill");
 
                     b.Navigation("Rack");
+
+                    b.Navigation("SalesReturnBill");
 
                     b.Navigation("Store");
                 });

@@ -8,6 +8,7 @@ using SkyForge.Dto.AccountDto;
 using SkyForge.Models.Shared;
 using SkyForge.Dto.RetailerDto.SalesBillDto;
 using SkyForge.Models.Retailer.Sales;
+using SkyForge.Dto.RetailerDto;
 
 namespace SkyForge.Services.Retailer.SalesBillServices
 {
@@ -55,7 +56,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 // Get fiscal year
                 var currentFiscalYear = await _context.FiscalYears
                     .Where(fy => fy.Id == fiscalYearId && fy.CompanyId == companyId)
-                    .Select(fy => new FiscalYearInfoDTO
+                    .Select(fy => new FiscalYearDTO
                     {
                         Id = fy.Id,
                         Name = fy.Name,
@@ -144,7 +145,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 var response = new SalesBillResponseDTO
                 {
                     Company = company,
-                    Dates = new DatesDTO
+                    Dates = new DateInfoDTO
                     {
                         NepaliDate = nepaliDate,
                         TransactionDateNepali = transactionDateNepali,
@@ -215,10 +216,6 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 if (account == null)
                     throw new ArgumentException("Invalid account for this company");
 
-                // // Parse VAT exemption
-                // bool isVatExemptBool = dto.IsVatExempt;
-                // string isVatAll = dto.IsVatExempt ? "all" : dto.IsVatAll;
-
                 // Parse VAT exemption
                 bool isVatExemptBool = dto.IsVatExempt == "true" || dto.IsVatExempt == "True" || dto.IsVatExempt == "1";
                 bool isVatAll = dto.IsVatExempt == "all";
@@ -269,16 +266,6 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     }
                 }
 
-                // VAT validation
-                // if (!dto.IsVatExempt) // Not "all" case
-                // {
-                //     if (dto.IsVatExempt && hasVatableItems)
-                //         throw new InvalidOperationException("Cannot save VAT exempt bill with vatable items");
-
-                //     if (!dto.IsVatExempt && hasNonVatableItems)
-                //         throw new InvalidOperationException("Cannot save bill with non-vatable items when VAT is applied");
-                // }
-
                 if (dto.IsVatExempt != "all")
                 {
                     if (isVatExemptBool && hasVatableItems)
@@ -296,6 +283,9 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
                 if (lastTransaction != null)
                     previousBalance = lastTransaction.Balance ?? 0;
+
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
 
                 // Create sales bill with frontend-calculated values
                 var salesBill = new SalesBill
@@ -401,7 +391,14 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
                     // Calculate net price after discount
                     decimal netPrice = itemDto.Price - (itemDto.Price * (dto.DiscountPercentage ?? 0) / 100);
-
+                    // decimal newMarginPercentage = (itemDto.Price - itemDto.PuPrice ?? 0 / itemDto.PuPrice ?? 0) * 100;
+                    decimal newMarginPercentage = 0;
+                    if (itemDto.PuPrice.HasValue && itemDto.PuPrice.Value > 0)
+                    {
+                        newMarginPercentage = ((itemDto.Price - itemDto.PuPrice.Value) / itemDto.PuPrice.Value) * 100;
+                        newMarginPercentage = Math.Round(newMarginPercentage, 2);
+                    }
+                    // If PuPrice is null or zero, margin remains 0
                     // Create sales bill item
                     var billItem = new SalesBillItem
                     {
@@ -412,6 +409,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         Quantity = itemDto.Quantity,
                         Price = itemDto.Price,
                         PuPrice = itemDto.PuPrice,
+                        MarginPercentage = newMarginPercentage,
                         NetPuPrice = itemDto.NetPuPrice ?? itemDto.PuPrice,
                         Mrp = itemDto.Mrp ?? 0,
                         DiscountPercentagePerItem = dto.DiscountPercentage ?? 0,
@@ -423,8 +421,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                             : null,
                         VatStatus = item.VatStatus ?? "vatable",
                         UniqueUuid = usedUniqueUuid,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+                        UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
                     };
 
                     salesBill.Items.Add(billItem);
@@ -615,7 +613,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 // Get current fiscal year
                 var currentFiscalYear = await _context.FiscalYears
                     .Where(fy => fy.Id == fiscalYearId && fy.CompanyId == companyId)
-                    .Select(fy => new FiscalYearInfoDTO
+                    .Select(fy => new FiscalYearDTO
                     {
                         Id = fy.Id,
                         Name = fy.Name,
@@ -693,7 +691,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 var response = new SalesOpenResponseDTO
                 {
                     Company = company,
-                    Dates = new DatesDTO
+                    Dates = new DateInfoDTO
                     {
                         NepaliDate = nepaliDate,
                         TransactionDateNepali = transactionDateNepali,
@@ -846,6 +844,9 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
                 var cashAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
 
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
                 // Create sales bill with frontend-calculated values
                 var salesBill = new SalesBill
                 {
@@ -911,7 +912,12 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
                     // Calculate net price after discount
                     decimal netPrice = itemDto.Price - (itemDto.Price * (dto.DiscountPercentage ?? 0) / 100);
-
+                    decimal newMarginPercentage = 0;
+                    if (itemDto.PuPrice.HasValue && itemDto.PuPrice.Value > 0)
+                    {
+                        newMarginPercentage = ((itemDto.Price - itemDto.PuPrice.Value) / itemDto.PuPrice.Value) * 100;
+                        newMarginPercentage = Math.Round(newMarginPercentage, 2);
+                    }
                     // Create sales bill item
                     var billItem = new SalesBillItem
                     {
@@ -922,6 +928,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         Quantity = itemDto.Quantity,
                         Price = itemDto.Price,
                         PuPrice = itemDto.PuPrice,
+                        MarginPercentage = newMarginPercentage,
                         Mrp = itemDto.Mrp ?? 0,
                         NetPuPrice = itemDto.NetPuPrice ?? itemDto.PuPrice,
                         DiscountPercentagePerItem = dto.DiscountPercentage ?? 0,
@@ -931,8 +938,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         ExpiryDate = itemDto.ExpiryDate,
                         VatStatus = item.VatStatus ?? "vatable",
                         UniqueUuid = batchToReduce?.UniqueUuid,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+                        UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
                     };
 
                     salesBill.Items.Add(billItem);
@@ -1132,169 +1139,6 @@ namespace SkyForge.Services.Retailer.SalesBillServices
             };
         }
 
-
-        // public async Task<CreditSalesFindsDTO> GetCreditSalesFindsAsync(Guid companyId, Guid fiscalYearId, Guid userId)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetCreditSalesFindsAsync called for Company: {CompanyId}, FiscalYear: {FiscalYearId}, User: {UserId}",
-        //             companyId, fiscalYearId, userId);
-
-        //         // Get company information
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Address = c.Address,
-        //                 City = c.City,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 RenewalDate = c.RenewalDate,
-        //                 DateFormat = c.DateFormat.ToString(),
-        //                 VatEnabled = c.VatEnabled,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //         {
-        //             _logger.LogWarning("Company not found with ID: {CompanyId}", companyId);
-        //             throw new ArgumentException("Company not found");
-        //         }
-
-        //         // Determine if company uses Nepali date format
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
-        //             company.DateFormat, isNepaliFormat);
-
-        //         // Get fiscal year information
-        //         var currentFiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (currentFiscalYear == null)
-        //         {
-        //             _logger.LogWarning("Fiscal year not found with ID: {FiscalYearId} for Company: {CompanyId}",
-        //                 fiscalYearId, companyId);
-        //             throw new ArgumentException("Fiscal year not found");
-        //         }
-
-        //         // Get company date format string
-        //         string companyDateFormat = company.DateFormat?.ToLower() ?? "english";
-
-        //         // Fetch the latest purchase bill for this company and fiscal year
-        //         // Order by the appropriate date field based on company format
-        //         var latestBillQuery = _context.SalesBills
-        //             .Where(pb => pb.CompanyId == companyId && pb.FiscalYearId == fiscalYearId);
-
-        //         if (isNepaliFormat)
-        //         {
-        //             // For Nepali format, order by nepaliDate descending
-        //             latestBillQuery = latestBillQuery.OrderByDescending(pb => pb.nepaliDate)
-        //                                              .ThenByDescending(pb => pb.BillNumber);
-        //         }
-        //         else
-        //         {
-        //             // For English format, order by Date descending
-        //             latestBillQuery = latestBillQuery.OrderByDescending(pb => pb.Date)
-        //                                              .ThenByDescending(pb => pb.BillNumber);
-        //         }
-
-        //         var latestBill = await latestBillQuery
-        //             .Select(pb => new
-        //             {
-        //                 pb.BillNumber,
-        //                 pb.Date,
-        //                 pb.nepaliDate
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         _logger.LogInformation("Latest bill query result: BillNumber: {BillNumber}, Date: {Date}, NepaliDate: {NepaliDate}",
-        //             latestBill?.BillNumber, latestBill?.Date, latestBill?.nepaliDate);
-
-        //         // Get user with roles
-        //         var user = await _context.Users
-        //             .Include(u => u.UserRoles)
-        //                 .ThenInclude(ur => ur.Role)
-        //             .FirstOrDefaultAsync(u => u.Id == userId);
-
-        //         if (user == null)
-        //         {
-        //             _logger.LogWarning("User not found with ID: {UserId}", userId);
-        //             throw new ArgumentException("User not found");
-        //         }
-
-        //         bool isAdmin = user?.IsAdmin ?? false;
-        //         string userRole = "User";
-
-        //         if (isAdmin)
-        //         {
-        //             userRole = "Admin";
-        //         }
-        //         else if (user?.UserRoles != null)
-        //         {
-        //             var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
-        //             if (primaryRole?.Role != null)
-        //             {
-        //                 userRole = primaryRole.Role.Name;
-        //             }
-        //         }
-
-        //         // Determine if user is admin or supervisor
-        //         bool isAdminOrSupervisor = isAdmin || userRole == "Supervisor";
-
-        //         // Create user info DTO
-        //         var userInfo = new UserInfoDTO
-        //         {
-        //             Id = user.Id,
-        //             Name = user.Name,
-        //             Email = user.Email,
-        //             IsAdmin = isAdmin,
-        //             Role = userRole,
-        //             Preferences = new UserPreferencesDTO
-        //             {
-        //                 Theme = user.Preferences?.Theme.ToString() ?? "light"
-        //             }
-        //         };
-
-        //         // Create response DTO
-        //         var response = new CreditSalesFindsDTO
-        //         {
-        //             Company = company,
-        //             BillNumber = latestBill?.BillNumber ?? string.Empty,
-        //             CurrentFiscalYear = currentFiscalYear,
-        //             CompanyDateFormat = companyDateFormat,
-        //             CurrentCompanyName = company.Name,
-        //             Date = DateTime.UtcNow.Date,
-        //             Title = string.Empty,
-        //             Body = string.Empty,
-        //             User = userInfo,
-        //             Theme = userInfo.Preferences?.Theme ?? "light",
-        //             IsAdminOrSupervisor = isAdminOrSupervisor
-        //         };
-
-        //         _logger.LogInformation("Successfully retrieved credit sales finds data for Company: {CompanyId}", companyId);
-
-        //         return response;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error in GetCreditSalesFindsAsync for Company: {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
         public async Task<CreditSalesFindsDTO> GetCreditSalesFindsAsync(Guid companyId, Guid fiscalYearId, Guid userId)
         {
             try
@@ -1500,6 +1344,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 throw;
             }
         }
+
         public async Task<ChangeCreditSalesPartyResponseDTO> ChangeCreditSalesPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
@@ -1571,15 +1416,15 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Check if this is the main party transaction (old party)
                     // Party transaction is identified by having AccountId = oldAccountId AND Debit = 0, Credit = totalAmount
                     var isMainPartyTransaction = trans.AccountId == oldAccountId &&
-                                                 trans.Debit == 0 &&
-                                                 trans.Credit == totalAmount &&
-                                                 trans.Type == TransactionType.Purc;
+                                                 trans.Debit == totalAmount &&
+                                                 trans.Credit == 0 &&
+                                                 trans.Type == TransactionType.Sale;
 
                     if (isMainPartyTransaction)
                     {
-                        // Update to new party - Party account should be CREDIT side
+                        // Update to new party - Party account should be DEBIT side
                         trans.AccountId = newAccountId;
-                        trans.PurchaseSalesReturnType = newAccount.Name;
+                        trans.PurchaseSalesType = newAccount.Name;
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated main party transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
@@ -1587,8 +1432,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Check if this is a purchase account transaction
                     else if (creditSalesAccountId.HasValue && trans.AccountId == creditSalesAccountId.Value)
                     {
-                        // Purchase account should be DEBIT side (purchase expense)
-                        trans.PurchaseSalesReturnType = newAccount.Name;
+                        trans.PurchaseSalesType = newAccount.Name;
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated credit sales account transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1856,8 +1700,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         ItemName = item.Item?.Name,
                         Hscode = item.Item?.Hscode,
                         UniqueNumber = item.Item?.UniqueNumber,
-                        UnitId = item.UnitId,
-                        UnitName = unitInfo?.Name,
+                        UnitId = item.Item?.UnitId ?? item.UnitId,  // Current unit ID
+                        UnitName = item.Item?.Unit?.Name ?? item.Unit?.Name ?? "",  // Current unit name
                         Quantity = item.Quantity,
                         Price = item.Price,
                         PuPrice = item.PuPrice,
@@ -2255,6 +2099,14 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Calculate net price after discount
                     decimal netPrice = itemDto.Price - (itemDto.Price * (dto.DiscountPercentage ?? 0) / 100);
 
+                    // Determine if company uses Nepali date format
+                    bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+                    decimal newMarginPercentage = 0;
+                    if (itemDto.PuPrice.HasValue && itemDto.PuPrice.Value > 0)
+                    {
+                        newMarginPercentage = ((itemDto.Price - itemDto.PuPrice.Value) / itemDto.PuPrice.Value) * 100;
+                        newMarginPercentage = Math.Round(newMarginPercentage, 2);
+                    }
                     // Create sales bill item
                     var billItem = new SalesBillItem
                     {
@@ -2266,6 +2118,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         Price = itemDto.Price,
                         PuPrice = itemDto.PuPrice,
                         NetPuPrice = itemDto.NetPuPrice ?? itemDto.PuPrice,
+                        MarginPercentage = newMarginPercentage,
                         Mrp = itemDto.Mrp ?? 0,
                         DiscountPercentagePerItem = dto.DiscountPercentage ?? 0,
                         DiscountAmountPerItem = (itemDto.Price * itemDto.Quantity * (dto.DiscountPercentage ?? 0)) / 100,
@@ -2275,8 +2128,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         VatStatus = item.VatStatus ?? "vatable",
                         UniqueUuid = batchToReduce?.UniqueUuid,
                         PurchaseBillId = itemDto.PurchaseBillId,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+                        UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
                     };
 
                     existingBill.Items.Add(billItem);
@@ -2638,7 +2491,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 // Get fiscal year
                 var currentFiscalYear = await _context.FiscalYears
                     .Where(fy => fy.Id == fiscalYearId && fy.CompanyId == companyId)
-                    .Select(fy => new FiscalYearInfoDTO
+                    .Select(fy => new FiscalYearDTO
                     {
                         Id = fy.Id,
                         Name = fy.Name,
@@ -2724,7 +2577,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 var response = new SalesBillResponseDTO
                 {
                     Company = company,
-                    Dates = new DatesDTO
+                    Dates = new DateInfoDTO
                     {
                         NepaliDate = nepaliDate,
                         TransactionDateNepali = transactionDateNepali,
@@ -2754,6 +2607,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 throw;
             }
         }
+
         public async Task<string> GetNextCashSalesBillNumberAsync(Guid companyId, Guid fiscalYearId)
         {
             return await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "sales");
@@ -2871,6 +2725,10 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 if (lastTransaction != null)
                     previousBalance = lastTransaction.Balance ?? 0;
 
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+
                 // Create sales bill with frontend-calculated values
                 var salesBill = new SalesBill
                 {
@@ -2986,7 +2844,12 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
                     // Calculate net price after discount
                     decimal netPrice = itemDto.Price - (itemDto.Price * (dto.DiscountPercentage ?? 0) / 100);
-
+                    decimal newMarginPercentage = 0;
+                    if (itemDto.PuPrice.HasValue && itemDto.PuPrice.Value > 0)
+                    {
+                        newMarginPercentage = ((itemDto.Price - itemDto.PuPrice.Value) / itemDto.PuPrice.Value) * 100;
+                        newMarginPercentage = Math.Round(newMarginPercentage, 2);
+                    }
                     // Create sales bill items for each batch used
                     foreach (var batch in batchesUsed)
                     {
@@ -3000,6 +2863,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                             Price = itemDto.Price,
                             PuPrice = itemDto.PuPrice,
                             NetPuPrice = itemDto.NetPuPrice ?? itemDto.PuPrice,
+                            MarginPercentage = newMarginPercentage,
                             Mrp = itemDto.Mrp ?? 0,
                             DiscountPercentagePerItem = dto.DiscountPercentage ?? 0,
                             DiscountAmountPerItem = (itemDto.Price * batch.Quantity * (dto.DiscountPercentage ?? 0)) / 100,
@@ -3010,8 +2874,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                                 : null,
                             VatStatus = item.VatStatus ?? "vatable",
                             UniqueUuid = batch.UniqueUuid,
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow
+                            CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+                            UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
                         };
 
                         billItems.Add(billItem);
@@ -3221,7 +3085,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 // Get current fiscal year
                 var currentFiscalYear = await _context.FiscalYears
                     .Where(fy => fy.Id == fiscalYearId && fy.CompanyId == companyId)
-                    .Select(fy => new FiscalYearInfoDTO
+                    .Select(fy => new FiscalYearDTO
                     {
                         Id = fy.Id,
                         Name = fy.Name,
@@ -3296,7 +3160,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 var response = new SalesOpenResponseDTO
                 {
                     Company = company,
-                    Dates = new DatesDTO
+                    Dates = new DateInfoDTO
                     {
                         NepaliDate = nepaliDate,
                         TransactionDateNepali = transactionDateNepali,
@@ -3433,6 +3297,10 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
                 var cashInHandAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
 
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+
                 // Create sales bill with frontend-calculated values - NO CALCULATIONS HERE
                 var salesBill = new SalesBill
                 {
@@ -3500,6 +3368,13 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Update item total stock
                     _context.Items.Update(item);
 
+                    decimal newMarginPercentage = 0;
+                    if (itemDto.PuPrice.HasValue && itemDto.PuPrice.Value > 0)
+                    {
+                        newMarginPercentage = ((itemDto.Price - itemDto.PuPrice.Value) / itemDto.PuPrice.Value) * 100;
+                        newMarginPercentage = Math.Round(newMarginPercentage, 2);
+                    }
+
                     // Create sales bill item - use frontend values
                     var billItem = new SalesBillItem
                     {
@@ -3511,6 +3386,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         Price = itemDto.Price,
                         PuPrice = itemDto.PuPrice,
                         NetPuPrice = itemDto.NetPuPrice ?? itemDto.PuPrice,
+                        MarginPercentage = newMarginPercentage,
                         Mrp = itemDto.Mrp ?? 0,
                         DiscountPercentagePerItem = itemDto.DiscountPercentagePerItem,
                         DiscountAmountPerItem = itemDto.DiscountAmountPerItem,
@@ -3519,8 +3395,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         ExpiryDate = itemDto.ExpiryDate,
                         VatStatus = item.VatStatus ?? "vatable",
                         UniqueUuid = batchToReduce?.UniqueUuid,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+                        UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
                     };
 
                     salesBill.Items.Add(billItem);
@@ -4022,8 +3898,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         ItemName = item.Item?.Name,
                         Hscode = item.Item?.Hscode,
                         UniqueNumber = item.Item?.UniqueNumber,
-                        UnitId = item.UnitId,
-                        UnitName = unitInfo?.Name,
+                        UnitId = item.Item?.UnitId ?? item.UnitId,  // Current unit ID
+                        UnitName = item.Item?.Unit?.Name ?? item.Unit?.Name ?? "",  // Current unit name
                         Quantity = item.Quantity,
                         Price = item.Price,
                         PuPrice = item.PuPrice,
@@ -4322,6 +4198,15 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Calculate net price after discount
                     decimal netPrice = itemDto.Price - (itemDto.Price * (dto.DiscountPercentage ?? 0) / 100);
 
+                    // Determine if company uses Nepali date format
+                    bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+                    decimal newMarginPercentage = 0;
+                    if (itemDto.PuPrice.HasValue && itemDto.PuPrice.Value > 0)
+                    {
+                        newMarginPercentage = ((itemDto.Price - itemDto.PuPrice.Value) / itemDto.PuPrice.Value) * 100;
+                        newMarginPercentage = Math.Round(newMarginPercentage, 2);
+                    }
                     // Create sales bill item
                     var billItem = new SalesBillItem
                     {
@@ -4333,17 +4218,18 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         Price = itemDto.Price,
                         PuPrice = itemDto.PuPrice,
                         NetPuPrice = itemDto.NetPuPrice ?? itemDto.PuPrice,
+                        MarginPercentage = newMarginPercentage,
                         Mrp = itemDto.Mrp,
                         DiscountPercentagePerItem = dto.DiscountPercentage ?? 0,
-                        DiscountAmountPerItem = (itemDto.Price * itemDto.Quantity * (dto.DiscountPercentage ?? 0)) / 100,
+                        DiscountAmountPerItem = (itemDto.Price * itemDto.Quantity * dto.DiscountPercentage ?? 0) / 100,
                         NetPrice = netPrice,
                         BatchNumber = itemDto.BatchNumber,
                         ExpiryDate = itemDto.ExpiryDate,
                         VatStatus = item.VatStatus ?? "vatable",
                         UniqueUuid = batchToReduce?.UniqueUuid,
                         PurchaseBillId = itemDto.PurchaseBillId,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+                        UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
                     };
 
                     existingBill.Items.Add(billItem);
@@ -4998,3 +4884,4 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
     }
 }
+

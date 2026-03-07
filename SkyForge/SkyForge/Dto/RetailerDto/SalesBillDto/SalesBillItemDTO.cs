@@ -1,5 +1,6 @@
 ﻿
 using System.ComponentModel.DataAnnotations;
+using SkyForge.Dto.RetailerDto.ItemDto;
 
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
@@ -11,6 +12,9 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public Guid ItemId { get; set; }
 
         public string? ItemName { get; set; } // For response only
+        public string? Hscode { get; set; }
+        public int? UniqueNumber { get; set; }
+        public CategoryInfoDTO? Category { get; set; }
 
         [Required]
         public Guid UnitId { get; set; }
@@ -59,6 +63,7 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public Guid? PurchaseBillId { get; set; }
 
         // Calculated properties (for response)
+        public ItemDetailsDTO? Item { get; set; }
         public decimal? ItemTotal { get; set; }
         public decimal? ItemVatAmount { get; set; }
     }

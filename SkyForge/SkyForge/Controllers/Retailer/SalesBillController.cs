@@ -112,6 +112,7 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+
         [HttpGet("credit-sales/next-number")]
         public async Task<IActionResult> GetNextCreditSalesBillNumber()
         {
@@ -367,7 +368,7 @@ namespace SkyForge.Controllers.Retailer
                                 id = result.AccountId,
                                 name = result.Account?.Name,
                                 address = result.Account?.Address,
-                                pan = result.Account?.Pan
+                                pan = result.Account?.Pan,
                             },
                             totalAmount = result.TotalAmount,
                             date = result.Date,
@@ -1759,6 +1760,8 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
+
         [HttpGet("cash-sales/next-number")]
         public async Task<IActionResult> GetNextCashSalesBillNumber()
         {
