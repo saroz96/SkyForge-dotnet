@@ -144,7 +144,7 @@ function AppContent() {
   return (
 
     <Router>
-      <NetworkStatus pingUrl="/api/ping" pingInterval={10000} />
+      <NetworkStatus pingUrl="/api/health/ping" pingInterval={10000} />
       <BackgroundWrapper>
         <PageNotRefreshProvider>
           <Routes>
@@ -678,7 +678,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/retailer/payments/:id"
+              path="/retailer/payments/edit/:id"
               element={
                 <ProtectedRoute>
                   <EditPayment />
@@ -711,7 +711,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/retailer/receipts/:id"
+              path="/retailer/receipts/edit/:id"
               element={
                 <ProtectedRoute>
                   <EditReceipt />

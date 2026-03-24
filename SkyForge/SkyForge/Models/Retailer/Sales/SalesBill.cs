@@ -33,6 +33,10 @@ namespace SkyForge.Models.Retailer.Sales
         [StringLength(50)]
         public string PurchaseSalesType { get; set; } = string.Empty;
 
+        [Column("type")]
+        [StringLength(50)]
+        public string? Type { get; set; }
+
         [Column("original_copies")]
         public int OriginalCopies { get; set; } = 1;
 

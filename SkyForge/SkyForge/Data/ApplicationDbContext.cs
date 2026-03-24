@@ -192,7 +192,7 @@ namespace SkyForge.Data
 
                 // Indexes for performance
                 entity.HasIndex(r => r.Date);
-                entity.HasIndex(r => r.BillDate);
+                entity.HasIndex(r => r.Date);
                 entity.HasIndex(r => r.AccountId);
                 entity.HasIndex(r => r.ReceiptAccountId);
                 entity.HasIndex(r => r.InstType);
@@ -274,7 +274,7 @@ namespace SkyForge.Data
 
                 // Indexes for performance
                 entity.HasIndex(p => p.Date);
-                entity.HasIndex(p => p.BillDate);
+                entity.HasIndex(p => p.NepaliDate);
                 entity.HasIndex(p => p.AccountId);
                 entity.HasIndex(p => p.PaymentAccountId);
                 entity.HasIndex(p => p.InstType);

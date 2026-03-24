@@ -711,14 +711,6 @@ const AddSalesReturn = () => {
             setSelectedItemQuantity(0);
             setShowHeaderItemModal(false);
 
-            // Show warning notification
-            // setNotification({
-            //     show: true,
-            //     message: `No stock available for ${item.name}. Please enter batch details manually.`,
-            //     type: 'warning',
-            //     duration: 4000
-            // });
-
             // Focus on batch number input in header row
             setTimeout(() => {
                 const batchInput = document.getElementById('headerBatch');
@@ -729,34 +721,6 @@ const AddSalesReturn = () => {
             }, 100);
         }
     };
-
-    // Handle batch selection from modal - sets to header row
-    // const handleBatchSelect = (stockEntry) => {
-    //     if (!selectedItemForBatch) return;
-
-    //     // Set the selected batch details to the header row
-    //     setSelectedItemForInsert(selectedItemForBatch);
-    //     setSelectedItemBatchNumber(stockEntry.batchNumber || 'XXX');
-    //     setSelectedItemExpiryDate(stockEntry.expiryDate || getDefaultExpiryDate());
-    //     setSelectedItemRate(Math.round(stockEntry.price * 100) / 100 || 0);
-    //     setSelectedItemQuantity(0); // Default quantity to 1
-
-    //     // Store the stock entry ID for reference
-    //     setSelectedBatchEntry(stockEntry);
-
-    //     // Close batch modal
-    //     setShowBatchSelectionModal(false);
-    //     setSelectedItemForBatch(null);
-
-    //     // Focus on batch number input in header row
-    //     setTimeout(() => {
-    //         const batchInput = document.getElementById('headerBatch');
-    //         if (batchInput) {
-    //             batchInput.focus();
-    //             batchInput.select();
-    //         }
-    //     }, 100);
-    // };
 
     // Handle batch selection from modal - sets to header row
     const handleBatchSelect = (stockEntry) => {

@@ -229,6 +229,9 @@ namespace SkyForge.Models.Retailer.TransactionModel
         public string? PurchaseSalesReturnType { get; set; }
 
         [MaxLength(50)]
+        public string? PaymentReceiptType { get; set; }
+
+        [MaxLength(50)]
         public string? JournalAccountType { get; set; }
 
         [MaxLength(10)]

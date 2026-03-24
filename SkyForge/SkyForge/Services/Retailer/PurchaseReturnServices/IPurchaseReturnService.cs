@@ -17,9 +17,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
         Task<ChangePurchaseReturnPartyResponseDTO> ChangePurchaseReturnPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId);
         Task<BillIdResponseDTO> GetPurchaseReturnBillIdByNumberAsync(string billNumber, Guid companyId, Guid fiscalYearId);
 
-        // Add this method to your IPurchaseReturnService interface
         Task<PurchaseReturnEditDataDTO> GetPurchaseReturnEditDataAsync(Guid billId, Guid companyId, Guid fiscalYearId, Guid userId);
-        // In IPurchaseReturnService.cs
         Task<PurchaseReturn> UpdatePurchaseReturnAsync(Guid id, UpdatePurchaseReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId);
         Task<PurchaseReturnPrintDTO> GetPurchaseReturnForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId);
 

@@ -29,18 +29,6 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public List<StockEntryInfoDTO> StockEntries { get; set; }
     }
 
-    // public class UnitInfoDTO
-    // {
-    //     public Guid Id { get; set; }
-    //     public string Name { get; set; }
-    // }
-
-    // public class CategoryInfoDTO
-    // {
-    //     public Guid Id { get; set; }
-    //     public string Name { get; set; }
-    // }
-
     public class StockEntryInfoDTO
     {
         public Guid Id { get; set; }
@@ -56,7 +44,6 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public UserPreferencesDTO Preferences { get; set; }
     }
 
-    // Extended PurchaseBillItemResponseDTO for edit view
     public class PurchaseBillItemEditDTO : PurchaseBillItemResponseDTO
     {
         public decimal Stock { get; set; }

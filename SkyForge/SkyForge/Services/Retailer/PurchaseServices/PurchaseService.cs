@@ -274,6 +274,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     UnitId = dto.UnitId,
                     SettingsId = dto.SettingsId,
                     FiscalYearId = fiscalYearId,
+                    Type = "Purc",
                     SubTotal = dto.SubTotal ?? 0,
                     NonVatPurchase = dto.NonVatPurchase ?? 0,
                     TaxableAmount = dto.TaxableAmount ?? 0,
@@ -324,7 +325,8 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     // Total quantity including bonus multiplied by WS Unit
                     decimal totalQuantityWithBonus = quantity + bonus;
                     decimal netQuantity = totalQuantityWithBonus * wsUnit;
-
+                    decimal altQuantityWithoutBonus = quantity * wsUnit;
+                    decimal altBonusQuantity = bonus * wsUnit;
                     // Calculate total purchase value before discount and CC (only for purchased quantity, not bonus)
                     decimal totalPurchaseValueBeforeDiscount = itemDto.PuPrice * quantity;
 
@@ -376,7 +378,8 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         WsUnit = wsUnit,
                         Quantity = quantity,
                         Bonus = bonus,
-                        AltBonus = itemDto.AltBonus ?? 0,
+                        AltQuantity = altQuantityWithoutBonus,
+                        AltBonus = altBonusQuantity,
                         Price = itemDto.Price ?? 0,
                         PuPrice = itemDto.PuPrice,
                         DiscountPercentagePerItem = overallDiscountPercentage,
@@ -385,11 +388,11 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         CcPercentage = ccPercentage,
                         ItemCcAmount = ccAmountForItem,
                         Mrp = itemDto.Mrp,
+                        AltMrp = wsUnit > 0 ? itemDto.Mrp / wsUnit : 0m,
                         MarginPercentage = itemDto.MarginPercentage,
                         Currency = itemDto.Currency ?? "NPR",
-                        AltQuantity = itemDto.AltQuantity ?? 0,
-                        AltPrice = itemDto.AltPrice ?? 0,
-                        AltPuPrice = itemDto.AltPuPrice ?? 0,
+                        AltPrice = wsUnit > 0 ? itemDto.Price / wsUnit : 0m,
+                        AltPuPrice = wsUnit > 0 ? itemDto.PuPrice / wsUnit : 0m,
                         BatchNumber = itemDto.BatchNumber ?? "XXX",
                         ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
                         VatStatus = itemDto.VatStatus,
@@ -411,14 +414,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         BatchNumber = itemDto.BatchNumber ?? "XXX",
                         ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
                         Price = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m,
-
-                        // THIS IS THE FIXED PART - Using finalPuPricePerUnit which accounts for:
-                        // 1. Original PuPrice
-                        // 2. Overall voucher discount
-                        // 3. CC charges (added to cost)
-                        // 4. Bonus items (spreading cost across all units)
                         PuPrice = finalPuPricePerUnit,
-
                         NetPuPrice = finalPuPricePerUnit, // Also set NetPuPrice to the same value for consistency
                         ItemCcAmount = ccAmountForItem,
                         DiscountPercentagePerItem = overallDiscountPercentage,
@@ -1146,7 +1142,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 // 6. Update purchase bill with new account
                 originalBill.AccountId = newAccountId;
                 originalBill.UpdatedAt = DateTime.UtcNow;
-                originalBill.PurchaseSalesType = newAccount.Name; // Update purchase type with new party name
+                originalBill.PurchaseSalesType = "Purchase"; // Update purchase type with new party name
 
                 // 7. Process each transaction
                 foreach (var trans in transactions)
@@ -1162,7 +1158,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     {
                         // Update to new party - Party account should be CREDIT side
                         trans.AccountId = newAccountId;
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Purchase";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated main party transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
@@ -1171,7 +1167,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     else if (purchaseAccountId.HasValue && trans.AccountId == purchaseAccountId.Value)
                     {
                         // Purchase account should be DEBIT side (purchase expense)
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Purchase";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated purchase account transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1179,7 +1175,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     // Check if this is a VAT transaction
                     else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
                     {
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Purchase";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated VAT transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1187,7 +1183,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     // Check if this is a RoundOff transaction
                     else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
                     {
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Purchase";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated RoundOff transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1195,7 +1191,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     // Check if this is a cash transaction (if payment mode was cash)
                     else if (trans.PaymentMode == PaymentMode.Cash && trans.Debit == 0 && trans.Credit == totalAmount)
                     {
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Purchase";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated cash transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1205,7 +1201,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     {
                         // These are the item-level party transactions created in CreatePurchaseBillAsync
                         trans.AccountId = newAccountId; // Update the account to new party
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Purchase";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated item-level party transaction {trans.Id} for item {trans.ItemId}");
@@ -1836,6 +1832,8 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     // Total quantity including bonus multiplied by WS Unit
                     decimal totalQuantityWithBonus = quantity + bonus;
                     decimal netQuantity = totalQuantityWithBonus * wsUnit;
+                    decimal altQuantityWithoutBonus = quantity * wsUnit;
+                    decimal altBonusQuantity = bonus * wsUnit;
 
                     // Calculate total purchase value before discount (only for purchased quantity, not bonus)
                     decimal totalPurchaseValueBeforeDiscount = itemDto.PuPrice * quantity;
@@ -1909,8 +1907,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         UnitId = itemDto.UnitId,
                         WsUnit = wsUnit,
                         Quantity = quantity,
+                        AltQuantity = altQuantityWithoutBonus,
                         Bonus = bonus,
-                        AltBonus = bonus,
+                        AltBonus = altBonusQuantity,
                         Price = itemDto.Price ?? 0,
                         PuPrice = itemDto.PuPrice,
                         DiscountPercentagePerItem = overallDiscountPercentage,
@@ -1919,11 +1918,11 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         CcPercentage = ccPercentage,
                         ItemCcAmount = ccAmountForItem,
                         Mrp = itemDto.Mrp,
+                        AltMrp = wsUnit > 0 ? itemDto.Mrp / wsUnit : 0m,
                         MarginPercentage = itemDto.MarginPercentage,
                         Currency = itemDto.Currency ?? "NPR",
-                        AltQuantity = quantity,
-                        AltPrice = itemDto.Price ?? 0,
-                        AltPuPrice = itemDto.PuPrice,
+                        AltPrice = wsUnit > 0 ? itemDto.Price / wsUnit : 0m,
+                        AltPuPrice = wsUnit > 0 ? itemDto.PuPrice / wsUnit : 0m,
                         BatchNumber = itemDto.BatchNumber ?? "XXX",
                         ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
                         VatStatus = itemDto.VatStatus ?? product.VatStatus ?? "vatable",
@@ -2138,6 +2137,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 throw;
             }
         }
+
         private async Task CheckIfStockIsUsedAsync(PurchaseBill existingBill, Guid companyId)
         {
             foreach (var existingItem in existingBill.Items)

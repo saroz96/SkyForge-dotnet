@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import NepaliDate from 'nepali-date-converter';
 import { Modal, Button, Form, Table, InputGroup, FormControl, Badge } from 'react-bootstrap';
@@ -9,13 +10,19 @@ import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import '../../../stylesheet/retailer/Items/ItemsLedger.css';
 import ProductModal from '../dashboard/modals/ProductModal';
 import useDebounce from '../../../hooks/useDebounce';
-import NewVirtualizedItemList from '../../NewVirtualizedItemList';
+import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 
 const ItemsLedger = () => {
     const navigate = useNavigate();
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
     const { draftSave, setDraftSave, clearDraft } = usePageNotRefreshContext();
+    const [notification, setNotification] = useState({
+        show: false,
+        message: '',
+        type: 'success',
+        duration: 3000
+    });
     const [company, setCompany] = useState({
         dateFormat: 'nepali',
         vatEnabled: true,
@@ -34,7 +41,7 @@ const ItemsLedger = () => {
             company: null,
             currentFiscalYear: null,
             fromDate: '',
-            toDate: company.dateFormat === 'nepali' ? currentNepaliDate : currentEnglishDate
+            toDate: ''
         };
     });
 
@@ -70,6 +77,20 @@ const ItemsLedger = () => {
         withCredentials: true,
     });
 
+    // Add authorization header to all requests
+    api.interceptors.request.use(
+        (config) => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        },
+        (error) => {
+            return Promise.reject(error);
+        }
+    );
+
     // Handle keyboard navigation between fields
     const handleKeyDown = (e, currentFieldId) => {
         if (e.key === 'Enter') {
@@ -86,30 +107,33 @@ const ItemsLedger = () => {
         }
     };
 
-    const handleRowDoubleClick = (item) => {
-        // Determine the route based on transaction type and payment mode
+    const handleRowDoubleClick = (entry) => {
+        // Determine the route based on transaction type display
         let route = '';
-        const billId = item.billId || item._id;
-        const purchaseBillId = item.purchaseBillId || item._id;
-        const purchaseReturnBillId = item.purchaseReturnBillId || item._id;
 
-        switch (item.type?.toLowerCase()) {
-            case 'sale':
-                if (item.paymentMode === 'cash') {
-                    route = `/retailer/cash-sales/edit/${billId}`;
-                } else if (item.paymentMode === 'credit') {
-                    route = `/retailer/credit-sales/edit/${billId}`;
+        switch (entry.typeDisplay) {
+            case 'Purc':
+                route = `/retailer/purchase/edit/${entry.transactionId}`;
+                break;
+            case 'PrRt':
+                route = `/retailer/purchase-return/edit/${entry.transactionId}`;
+                break;
+            case 'Sale':
+                if (entry.paymentMode === 'cash') {
+                    route = `/retailer/cash-sales/edit/${entry.transactionId}`;
+                } else {
+                    route = `/retailer/credit-sales/edit/${entry.transactionId}`;
                 }
                 break;
-            case 'purc':
-                route = `/retailer/purchase/edit/${purchaseBillId}`;
+            case 'SlRt':
+                route = `/retailer/sales-return/edit/${entry.transactionId}`;
                 break;
-
-            case 'prrt':
-                route = `/retailer/purchase-return/edit/${purchaseReturnBillId}`;
+            case 'xcess':
+            case 'short':
+                route = `/retailer/stock-adjustments/edit/${entry.transactionId}`;
                 break;
             default:
-                console.log('No edit route for transaction type:', item.type);
+                console.log('No edit route for transaction type:', entry.typeDisplay);
                 return;
         }
 
@@ -118,37 +142,121 @@ const ItemsLedger = () => {
         }
     };
 
+    // useEffect(() => {
+    //     const fetchInitialData = async () => {
+    //         try {
+    //             const response = await api.get('/api/my-company');
+    //             if (response.data.success) {
+    //                 const { company: companyData, currentFiscalYear } = response.data;
+
+    //                 // Set company info
+    //                 const dateFormat = companyData.dateFormat || 'english';
+    //                 setCompany({
+    //                     dateFormat,
+    //                     isVatExempt: companyData.isVatExempt || false,
+    //                     vatEnabled: companyData.vatEnabled !== false,
+    //                     fiscalYear: currentFiscalYear || {}
+    //                 });
+
+    //                 // Set dates based on fiscal year
+    //                 if (currentFiscalYear?.startDate) {
+    //                     setData(prev => ({
+    //                         ...prev,
+    //                         fromDate: dateFormat === 'Nepali'
+    //                             ? new NepaliDate(currentFiscalYear.startDate).format('YYYY-MM-DD')
+    //                             : new Date(currentFiscalYear.startDate).toISOString().split('T')[0],
+    //                         toDate: dateFormat === 'Nepali' ? currentNepaliDate : currentEnglishDate,
+    //                         company: companyData,
+    //                         currentFiscalYear
+    //                     }));
+    //                 }
+    //             }
+    //         } catch (err) {
+    //             console.error('Error fetching initial data:', err);
+    //         }
+    //     };
+
+    //     fetchInitialData();
+    // }, []);
+
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const response = await api.get('/api/my-company');
-                if (response.data.success) {
-                    const { company: companyData, currentFiscalYear } = response.data;
+                // Fetch sales entry data from ASP.NET endpoint
+                const response = await api.get('/api/retailer/sales-register/entry-data');
 
-                    // Set company info
-                    const dateFormat = companyData.dateFormat || 'english';
+                if (response.data.success) {
+                    const data = response.data.data;
+
                     setCompany({
-                        dateFormat,
-                        isVatExempt: companyData.isVatExempt || false,
-                        vatEnabled: companyData.vatEnabled !== false, // default true
-                        fiscalYear: currentFiscalYear || {}
+                        ...data.company,
+                        dateFormat: data.company.dateFormat?.toLowerCase() || 'english',
+                        vatEnabled: data.company.vatEnabled || true,
+                        isVatExempt: data.company.isVatExempt || false
                     });
 
-                    // Set dates based on fiscal year
-                    if (currentFiscalYear?.startDate) {
+                    // Set fiscal year from response
+                    const currentFiscalYear = data.currentFiscalYear;
+
+                    // Determine date format
+                    const isNepaliFormat = data.company.dateFormat?.toLowerCase() === 'nepali';
+
+                    // Check if we have draft dates
+                    const hasDraftDates = draftSave?.salesBillsData?.fromDate && draftSave?.salesBillsData?.toDate;
+
+                    if (!hasDraftDates && currentFiscalYear) {
+                        // Set default dates based on company date format
+                        let fromDateFormatted = '';
+                        let toDateFormatted = '';
+
+                        if (isNepaliFormat) {
+                            // Use Nepali date fields from fiscal year
+                            fromDateFormatted = currentFiscalYear.startDateNepali || currentNepaliDate;
+                            toDateFormatted = currentNepaliDate;
+                        } else {
+                            // Use English date fields from fiscal year
+                            fromDateFormatted = currentFiscalYear.startDate
+                                ? new Date(currentFiscalYear.startDate).toISOString().split('T')[0]
+                                : currentEnglishDate;
+
+                            toDateFormatted = currentFiscalYear.endDate
+                                ? new Date(currentFiscalYear.endDate).toISOString().split('T')[0]
+                                : currentEnglishDate;
+                        }
+
                         setData(prev => ({
                             ...prev,
-                            fromDate: dateFormat === 'nepali'
-                                ? new NepaliDate(currentFiscalYear.startDate).format('YYYY-MM-DD')
-                                : new NepaliDate(currentFiscalYear.startDate).format('YYYY-MM-DD'),
-                            toDate: dateFormat === 'nepali' ? currentNepaliDate : currentEnglishDate,
-                            company: companyData,
-                            currentFiscalYear
+                            fromDate: fromDateFormatted,
+                            toDate: toDateFormatted,
+                            company: data.company,
+                            currentFiscalYear,
+                            currentCompanyName: data.company.name,
+                            companyDateFormat: data.company.dateFormat,
+                            vatEnabled: data.company.vatEnabled,
+                            isVatExempt: data.company.isVatExempt || false,
+                            isAdminOrSupervisor: data.isAdminOrSupervisor || false
+                        }));
+                    } else {
+                        // If we have draft data, ensure company info is updated
+                        setData(prev => ({
+                            ...prev,
+                            company: data.company,
+                            currentFiscalYear,
+                            currentCompanyName: data.company.name,
+                            companyDateFormat: data.company.dateFormat,
+                            vatEnabled: data.company.vatEnabled,
+                            isVatExempt: data.company.isVatExempt || false,
+                            isAdminOrSupervisor: data.isAdminOrSupervisor || false
                         }));
                     }
                 }
             } catch (err) {
                 console.error('Error fetching initial data:', err);
+                setNotification({
+                    show: true,
+                    message: 'Error loading company data',
+                    type: 'error'
+                });
             }
         };
 
@@ -163,7 +271,6 @@ const ItemsLedger = () => {
                 params: {
                     search: searchTerm,
                     page: page,
-                    // limit: searchTerm.trim() ? 15 : 25,
                     limit: 15,
                     sortBy: searchTerm.trim() ? 'relevance' : 'name'
                 }
@@ -193,13 +300,6 @@ const ItemsLedger = () => {
             setIsSearching(false);
         }
     };
-
-    // Load more items for infinite scrolling
-    // const loadMoreSearchItems = () => {
-    //     if (!isSearching) {
-    //         fetchItemsFromBackend(itemSearchQuery, searchPage + 1);
-    //     }
-    // };
 
     const loadMoreSearchItems = () => {
         if (!isSearching && hasMoreSearchResults) {
@@ -262,16 +362,15 @@ const ItemsLedger = () => {
         }
 
         // Regex patterns for date validation
-        const nepaliDatePattern = /^\d{4}-\d{2}-\d{2}$/;
-        const englishDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
         let isValid = false;
         let errorMessage = '';
 
         if (company.dateFormat === 'nepali') {
             // Validate Nepali date
-            if (!nepaliDatePattern.test(value)) {
-                // errorMessage = 'Invalid Nepali date format. Use YYYY-MM-DD';
+            if (!datePattern.test(value)) {
+                errorMessage = 'Invalid Nepali date format. Use YYYY-MM-DD';
             } else {
                 try {
                     const nepaliDate = new NepaliDate(value);
@@ -291,7 +390,7 @@ const ItemsLedger = () => {
             }
         } else {
             // Validate English date
-            if (!englishDatePattern.test(value)) {
+            if (!datePattern.test(value)) {
                 errorMessage = 'Invalid English date format. Use YYYY-MM-DD';
             } else {
                 const date = new Date(value);
@@ -402,7 +501,7 @@ const ItemsLedger = () => {
     // Handle item selection
     const handleSelectItem = (item) => {
         setSelectedItem({
-            id: item._id,
+            id: item.id,
             name: item.name,
             unit: item.unit?.name || 'N/A'
         });
@@ -421,10 +520,10 @@ const ItemsLedger = () => {
         const printWindow = window.open("", "_blank");
         const printHeader = `
             <div class="print-header">
-                <h1>${ledgerData.currentCompanyName || 'Company Name'}</h1>
+                <h1>${ledgerData?.currentCompanyName || 'Company Name'}</h1>
                 <p>
-                    ${ledgerData.currentCompany?.address || ''}-${ledgerData.currentCompany?.ward || ''}, ${ledgerData.currentCompany?.city || ''},
-                    TPIN: ${ledgerData.currentCompany?.pan || ''}<br>
+                    ${ledgerData?.currentCompany?.address || ''}, ${ledgerData?.currentCompany?.city || ''},
+                    Tel: ${ledgerData?.currentCompany?.phone || ''} | PAN: ${ledgerData?.currentCompany?.pan || ''}<br>
                 </p>
                 <hr>
             </div>
@@ -437,8 +536,8 @@ const ItemsLedger = () => {
                 margin: 10mm;
             }
             body { 
-                font-family: Arial, sans-serif; 
-                font-size: 10px; 
+                font-family: 'Arial Narrow', Arial, sans-serif; 
+                font-size: 9pt; 
                 margin: 0;
                 padding: 10mm;
             }
@@ -468,9 +567,16 @@ const ItemsLedger = () => {
             .nowrap {
                 white-space: nowrap;
             }
+            .type-Purc { color: #28a745; }
+            .type-PrRt { color: #dc3545; }
+            .type-Sale { color: #007bff; }
+            .type-SlRt { color: #17a2b8; }
+            .type-xcess { color: #28a745; }
+            .type-short { color: #dc3545; }
         </style>
         ${printHeader}
-        <h1 style="text-align:center;text-decoration:underline;">Items Ledger: ${selectedItem?.name || ''}</h1>
+        <h1 style="text-align:center;text-decoration:underline;">Item Ledger</h1>
+        <h3 style="text-align:center;">${selectedItem?.name || ''}</h3>
         <p style="text-align:center;">Period: ${data.fromDate} to ${data.toDate}</p>
         <table>
             <thead>
@@ -492,17 +598,19 @@ const ItemsLedger = () => {
 
         // Add opening stock
         tableContent += `
-            <tr className="opening-row">
-                <td><strong>${data.fromDate}</strong></td>
-                <td colSpan="1"><strong></strong></td>
-                <td colSpan="1"><strong>Opening</strong></td>
-                <td colSpan="5"><strong></strong></td>
-                <td><strong>${ledgerData?.purchasePrice || ''}</strong></td>
-                <td><strong>${ledgerData?.openingStock?.toFixed(2) || '0.00'}</strong></td>
+            <tr class="opening-row" style="font-weight:bold; background-color:#f8f9fa;">
+                <td>${data.fromDate}</td>
+                <td></td>
+                <td>Opening</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="text-right">${ledgerData?.purchasePrice ? ledgerData.purchasePrice.toFixed(2) : ''}</td>
+                <td class="text-right">${ledgerData?.openingStock?.toFixed(2) || '0.00'}</td>
             </tr>
         `;
-
-        let runningBalance = ledgerData?.openingStock || 0;
 
         entriesToPrint.forEach(entry => {
             tableContent += `
@@ -510,27 +618,27 @@ const ItemsLedger = () => {
                 <td class="nowrap">${new Date(entry.date).toLocaleDateString()}</td>
                 <td class="nowrap">${entry.billNumber || ''}</td>
                 <td class="nowrap">${entry.partyName}</td>
-                <td class="nowrap">${entry.type}</td>
-                <td class="nowrap">${entry.qtyIn || '-'}</td>
-                <td class="nowrap">${entry.qtyOut || '-'}</td>
-                <td class="nowrap">${entry.bonus || 0}</td>
+                <td class="nowrap type-${entry.typeDisplay}">${entry.typeDisplay || entry.type}</td>
+                <td class="nowrap text-right">${entry.qtyIn ? entry.qtyIn.toFixed(2) : '-'}</td>
+                <td class="nowrap text-right">${entry.qtyOut ? entry.qtyOut.toFixed(2) : '-'}</td>
+                <td class="nowrap text-right">${entry.bonus ? entry.bonus.toFixed(2) : '0.00'}</td>
                 <td class="nowrap">${entry.unit || ''}</td>
-                <td class="nowrap">${Math.round(entry.price || '') * 100 / 100}</td>
-                <td class="nowrap">${entry.balance?.toFixed(2)}</td>
+                <td class="nowrap text-right">${entry.price ? entry.price.toFixed(2) : ''}</td>
+                <td class="nowrap text-right">${entry.balance?.toFixed(2)}</td>
             </tr>
             `;
         });
 
         // Add totals row
         tableContent += `
-            <tr style="font-weight:bold; border-top: 2px solid #000;">
+            <tr style="font-weight:bold; border-top: 2px solid #000; background-color:#f2f2f2;">
                 <td colspan="4">Totals:</td>
-                <td>${totals.qtyIn.toFixed(2)}</td>
-                <td>${totals.qtyOut.toFixed(2)}</td>
-                <td>${totals.free.toFixed(2)}</td>
+                <td class="text-right">${totals.qtyIn.toFixed(2)}</td>
+                <td class="text-right">${totals.qtyOut.toFixed(2)}</td>
+                <td class="text-right">${totals.free.toFixed(2)}</td>
                 <td></td>
                 <td></td>
-                <td>${totals.balance.toFixed(2)}</td>
+                <td class="text-right">${totals.balance.toFixed(2)}</td>
             </tr>
             </tbody>
         </table>
@@ -539,7 +647,7 @@ const ItemsLedger = () => {
         printWindow.document.write(`
         <html>
             <head>
-                <title>Items Ledger: ${selectedItem?.name || ''}</title>
+                <title>Item Ledger: ${selectedItem?.name || ''}</title>
             </head>
             <body>
                 ${tableContent}
@@ -556,10 +664,37 @@ const ItemsLedger = () => {
         printWindow.document.close();
     };
 
-    // Filter ledger entries
+    // Get type display name for filter options - using actual TypeDisplay values from backend
+    const getTypeOptions = () => {
+        return [
+            { value: '', label: 'All' },
+            { value: 'Purc', label: 'Purchase' },
+            { value: 'PrRt', label: 'Purchase Return' },
+            { value: 'Sale', label: 'Sales' },
+            { value: 'SlRt', label: 'Sales Return' },
+            { value: 'xcess', label: 'Excess' },
+            { value: 'short', label: 'Short' }
+        ];
+    };
+
+    // Map typeDisplay to readable label for display
+    const getTypeLabel = (typeDisplay) => {
+        const map = {
+            'Purc': 'Purchase',
+            'PrRt': 'Purchase Return',
+            'Sale': 'Sales',
+            'SlRt': 'Sales Return',
+            'xcess': 'Excess',
+            'short': 'Short'
+        };
+        return map[typeDisplay] || typeDisplay;
+    };
+
+    // Filter ledger entries using typeDisplay
     const filteredEntries = ledgerData?.entries?.filter(entry => {
-        const matchesSearch = entry.partyName.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesType = !typeFilter || entry.type.toLowerCase() === typeFilter.toLowerCase();
+        const matchesSearch = entry.partyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            entry.billNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = !typeFilter || entry.typeDisplay === typeFilter;
         return matchesSearch && matchesType;
     }) || [];
 
@@ -599,7 +734,6 @@ const ItemsLedger = () => {
         }
     };
 
-
     const formatter = new Intl.NumberFormat('en-NP', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -612,7 +746,7 @@ const ItemsLedger = () => {
                 <div className="card-header">
                     <h2 className="card-title text-center">
                         <BiBox className="" />
-                        {selectedItem ? `Items Ledger: ${selectedItem.name}` : 'Items Ledger'}
+                        {selectedItem ? `Item Ledger: ${selectedItem.name}` : 'Item Ledger'}
                     </h2>
                 </div>
                 <div className="card-body">
@@ -678,7 +812,7 @@ const ItemsLedger = () => {
                                 flex: '1'
                             }}
                         >
-                            {/* From Date */}
+                            {/* From Date
                             <div className="filter-group" style={{ minWidth: '100px', maxWidth: '180px' }}>
                                 <div className="position-relative">
                                     <input
@@ -726,7 +860,6 @@ const ItemsLedger = () => {
                                 </div>
                             </div>
 
-                            {/* To Date */}
                             <div className="filter-group" style={{ minWidth: '100px', maxWidth: '180px' }}>
                                 <div className="position-relative">
                                     <input
@@ -765,6 +898,405 @@ const ItemsLedger = () => {
                                         }}
                                     >
                                         To Date
+                                    </label>
+                                    {dateError.toDate && (
+                                        <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                            {dateError.toDate}
+                                        </div>
+                                    )}
+                                </div>
+                            </div> */}
+
+                            {/* From Date */}
+                            <div className="filter-group" style={{ minWidth: '100px', maxWidth: '180px' }}>
+                                <div className="position-relative">
+                                    <input
+                                        type="text"
+                                        name="fromDate"
+                                        id="fromDate"
+                                        ref={fromDateRef}
+                                        className={`form-control form-control-sm no-date-icon ${dateError.fromDate ? 'is-invalid' : ''}`}
+                                        value={data.fromDate}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            // Allow only numbers, / and - while typing
+                                            const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+                                            if (sanitizedValue.length <= 10) {
+                                                setData(prev => ({ ...prev, fromDate: sanitizedValue }));
+                                                setDateError(prev => ({ ...prev, fromDate: '' }));
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            const allowedKeys = [
+                                                'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                'Home', 'End'
+                                            ];
+
+                                            if (!allowedKeys.includes(e.key) &&
+                                                !/^\d$/.test(e.key) &&
+                                                e.key !== '/' &&
+                                                e.key !== '-' &&
+                                                !e.ctrlKey && !e.metaKey) {
+                                                e.preventDefault();
+                                            }
+
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const dateStr = e.target.value.trim();
+
+                                                if (!dateStr) {
+                                                    // Auto-correct empty date to current date
+                                                    const currentDate = company.dateFormat === 'nepali'
+                                                        ? new NepaliDate().format('YYYY-MM-DD')
+                                                        : new Date().toISOString().split('T')[0];
+
+                                                    setData(prev => ({ ...prev, fromDate: currentDate }));
+                                                    setDateError(prev => ({ ...prev, fromDate: '' }));
+
+                                                    // Show notification
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Date required. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+
+                                                    // Move to next field
+                                                    document.getElementById('toDate').focus();
+                                                } else if (dateError.fromDate) {
+                                                    e.target.focus();
+                                                } else {
+                                                    document.getElementById('toDate').focus();
+                                                }
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            try {
+                                                const dateStr = e.target.value.trim();
+                                                if (!dateStr) {
+                                                    setDateError(prev => ({ ...prev, fromDate: '' }));
+                                                    return;
+                                                }
+
+                                                if (company.dateFormat === 'nepali') {
+                                                    // Validate Nepali date
+                                                    const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+                                                    if (!nepaliDateFormat.test(dateStr)) {
+                                                        const currentDate = new NepaliDate().format('YYYY-MM-DD');
+                                                        setData(prev => ({ ...prev, fromDate: currentDate }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid date format. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                        return;
+                                                    }
+
+                                                    // Normalize the date string (replace - with / for parsing)
+                                                    const normalizedDateStr = dateStr.replace(/-/g, '/');
+                                                    const [year, month, day] = normalizedDateStr.split('/').map(Number);
+
+                                                    // Validate month and day ranges
+                                                    if (month < 1 || month > 12) {
+                                                        throw new Error("Month must be between 1-12");
+                                                    }
+                                                    if (day < 1 || day > 32) {
+                                                        throw new Error("Day must be between 1-32");
+                                                    }
+
+                                                    // Create Nepali date object
+                                                    const nepaliDate = new NepaliDate(year, month - 1, day);
+
+                                                    // Verify the date is valid by checking if the parsed values match
+                                                    if (
+                                                        nepaliDate.getYear() !== year ||
+                                                        nepaliDate.getMonth() + 1 !== month ||
+                                                        nepaliDate.getDate() !== day
+                                                    ) {
+                                                        const currentDate = new NepaliDate().format('YYYY-MM-DD');
+                                                        setData(prev => ({ ...prev, fromDate: currentDate }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    } else {
+                                                        // Format back to YYYY-MM-DD
+                                                        setData(prev => ({
+                                                            ...prev,
+                                                            fromDate: nepaliDate.format('YYYY-MM-DD')
+                                                        }));
+                                                        setDateError(prev => ({ ...prev, fromDate: '' }));
+                                                    }
+                                                } else {
+                                                    // Validate English date
+                                                    const englishDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+                                                    if (!englishDateFormat.test(dateStr)) {
+                                                        const currentDate = new Date().toISOString().split('T')[0];
+                                                        setData(prev => ({ ...prev, fromDate: currentDate }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid date format. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                        return;
+                                                    }
+
+                                                    const dateObj = new Date(dateStr);
+                                                    if (isNaN(dateObj.getTime())) {
+                                                        throw new Error("Invalid English date");
+                                                    }
+
+                                                    setData(prev => ({
+                                                        ...prev,
+                                                        fromDate: dateObj.toISOString().split('T')[0]
+                                                    }));
+                                                    setDateError(prev => ({ ...prev, fromDate: '' }));
+                                                }
+                                            } catch (error) {
+                                                // Auto-correct to current date on any error
+                                                const currentDate = company.dateFormat === 'nepali'
+                                                    ? new NepaliDate().format('YYYY-MM-DD')
+                                                    : new Date().toISOString().split('T')[0];
+
+                                                setData(prev => ({ ...prev, fromDate: currentDate }));
+                                                setDateError(prev => ({ ...prev, fromDate: '' }));
+
+                                                setNotification({
+                                                    show: true,
+                                                    message: error.message
+                                                        ? `${error.message}. Auto-corrected to current date.`
+                                                        : 'Invalid date. Auto-corrected to current date.',
+                                                    type: 'warning',
+                                                    duration: 3000
+                                                });
+                                            }
+                                        }}
+                                        placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                        required
+                                        autoComplete="off"
+                                        style={{
+                                            height: '26px',
+                                            fontSize: '0.875rem',
+                                            paddingTop: '0.75rem',
+                                            width: '100%'
+                                        }}
+                                    />
+                                    <label
+                                        className="position-absolute"
+                                        style={{
+                                            top: '-0.5rem',
+                                            left: '0.75rem',
+                                            fontSize: '0.75rem',
+                                            backgroundColor: 'white',
+                                            padding: '0 0.25rem',
+                                            color: '#6c757d',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        From Date: <span className="text-danger">*</span>
+                                    </label>
+                                    {dateError.fromDate && (
+                                        <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                            {dateError.fromDate}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* To Date */}
+                            <div className="filter-group" style={{ minWidth: '100px', maxWidth: '180px' }}>
+                                <div className="position-relative">
+                                    <input
+                                        type="text"
+                                        name="toDate"
+                                        id="toDate"
+                                        ref={toDateRef}
+                                        className={`form-control form-control-sm no-date-icon ${dateError.toDate ? 'is-invalid' : ''}`}
+                                        value={data.toDate}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+                                            if (sanitizedValue.length <= 10) {
+                                                setData(prev => ({ ...prev, toDate: sanitizedValue }));
+                                                setDateError(prev => ({ ...prev, toDate: '' }));
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            const allowedKeys = [
+                                                'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                'Home', 'End'
+                                            ];
+
+                                            if (!allowedKeys.includes(e.key) &&
+                                                !/^\d$/.test(e.key) &&
+                                                e.key !== '/' &&
+                                                e.key !== '-' &&
+                                                !e.ctrlKey && !e.metaKey) {
+                                                e.preventDefault();
+                                            }
+
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const dateStr = e.target.value.trim();
+
+                                                if (!dateStr) {
+                                                    const currentDate = company.dateFormat === 'nepali'
+                                                        ? new NepaliDate().format('YYYY-MM-DD')
+                                                        : new Date().toISOString().split('T')[0];
+
+                                                    setData(prev => ({ ...prev, toDate: currentDate }));
+                                                    setDateError(prev => ({ ...prev, toDate: '' }));
+
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Date required. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+
+                                                    document.getElementById('generateReportButton').focus();
+                                                } else if (dateError.toDate) {
+                                                    e.target.focus();
+                                                } else {
+                                                    document.getElementById('generateReportButton').focus();
+                                                }
+                                            }
+                                        }}
+                                        onPaste={(e) => {
+                                            e.preventDefault();
+                                            const pastedData = e.clipboardData.getData('text');
+                                            const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
+                                            const newValue = data.toDate + cleanedData;
+                                            if (newValue.length <= 10) {
+                                                setData(prev => ({ ...prev, toDate: newValue }));
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            try {
+                                                const dateStr = e.target.value.trim();
+                                                if (!dateStr) {
+                                                    setDateError(prev => ({ ...prev, toDate: '' }));
+                                                    return;
+                                                }
+
+                                                if (company.dateFormat === 'nepali') {
+                                                    const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+                                                    if (!nepaliDateFormat.test(dateStr)) {
+                                                        const currentDate = new NepaliDate().format('YYYY-MM-DD');
+                                                        setData(prev => ({ ...prev, toDate: currentDate }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid date format. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                        return;
+                                                    }
+
+                                                    const normalizedDateStr = dateStr.replace(/-/g, '/');
+                                                    const [year, month, day] = normalizedDateStr.split('/').map(Number);
+
+                                                    if (month < 1 || month > 12) {
+                                                        throw new Error("Month must be between 1-12");
+                                                    }
+                                                    if (day < 1 || day > 32) {
+                                                        throw new Error("Day must be between 1-32");
+                                                    }
+
+                                                    const nepaliDate = new NepaliDate(year, month - 1, day);
+
+                                                    if (
+                                                        nepaliDate.getYear() !== year ||
+                                                        nepaliDate.getMonth() + 1 !== month ||
+                                                        nepaliDate.getDate() !== day
+                                                    ) {
+                                                        const currentDate = new NepaliDate().format('YYYY-MM-DD');
+                                                        setData(prev => ({ ...prev, toDate: currentDate }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    } else {
+                                                        setData(prev => ({
+                                                            ...prev,
+                                                            toDate: nepaliDate.format('YYYY-MM-DD')
+                                                        }));
+                                                        setDateError(prev => ({ ...prev, toDate: '' }));
+                                                    }
+                                                } else {
+                                                    const englishDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+                                                    if (!englishDateFormat.test(dateStr)) {
+                                                        const currentDate = new Date().toISOString().split('T')[0];
+                                                        setData(prev => ({ ...prev, toDate: currentDate }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid date format. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                        return;
+                                                    }
+
+                                                    const dateObj = new Date(dateStr);
+                                                    if (isNaN(dateObj.getTime())) {
+                                                        throw new Error("Invalid English date");
+                                                    }
+
+                                                    setData(prev => ({
+                                                        ...prev,
+                                                        toDate: dateObj.toISOString().split('T')[0]
+                                                    }));
+                                                    setDateError(prev => ({ ...prev, toDate: '' }));
+                                                }
+                                            } catch (error) {
+                                                const currentDate = company.dateFormat === 'nepali'
+                                                    ? new NepaliDate().format('YYYY-MM-DD')
+                                                    : new Date().toISOString().split('T')[0];
+
+                                                setData(prev => ({ ...prev, toDate: currentDate }));
+                                                setDateError(prev => ({ ...prev, toDate: '' }));
+
+                                                setNotification({
+                                                    show: true,
+                                                    message: error.message
+                                                        ? `${error.message}. Auto-corrected to current date.`
+                                                        : 'Invalid date. Auto-corrected to current date.',
+                                                    type: 'warning',
+                                                    duration: 3000
+                                                });
+                                            }
+                                        }}
+                                        placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                        required
+                                        autoComplete='off'
+                                        style={{
+                                            height: '26px',
+                                            fontSize: '0.875rem',
+                                            paddingTop: '0.75rem',
+                                            width: '100%'
+                                        }}
+                                    />
+                                    <label
+                                        className="position-absolute"
+                                        style={{
+                                            top: '-0.5rem',
+                                            left: '0.75rem',
+                                            fontSize: '0.75rem',
+                                            backgroundColor: 'white',
+                                            padding: '0 0.25rem',
+                                            color: '#6c757d',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        To Date: <span className="text-danger">*</span>
                                     </label>
                                     {dateError.toDate && (
                                         <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
@@ -844,12 +1376,12 @@ const ItemsLedger = () => {
                         <div className="filter-group" style={{ minWidth: '160px', flex: '0 0 auto' }}>
                             <div className="position-relative">
                                 <select
-                                    id="adjustmentTypeFilter"
+                                    id="typeFilter"
                                     value={typeFilter}
                                     onChange={(e) => setTypeFilter(e.target.value)}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                            handleKeyDown(e, 'adjustmentTypeFilter');
+                                            handleKeyDown(e, 'typeFilter');
                                         }
                                     }}
                                     className="form-control form-control-sm"
@@ -860,13 +1392,11 @@ const ItemsLedger = () => {
                                         width: '100%'
                                     }}
                                 >
-                                    <option value="">All</option>
-                                    <option value="xcess">Xcess</option>
-                                    <option value="short">Short</option>
-                                    <option value="Sale">Sales</option>
-                                    <option value="SlRt">Sales Return</option>
-                                    <option value="Purc">Purchase</option>
-                                    <option value="PrRt">Purchase Return</option>
+                                    {getTypeOptions().map(option => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
                                 </select>
                                 <label
                                     className="position-absolute"
@@ -922,9 +1452,9 @@ const ItemsLedger = () => {
                         </div>
                     </div>
 
-                    <div className="table-container" style={{ height: '400px' }}>
+                    <div className="table-container" style={{ height: '400px', overflowY: 'auto' }}>
                         <Table striped bordered hover className="ledger-table small-table" ref={tableRef} style={{ fontSize: '0.8rem', marginBottom: '0' }}>
-                            <thead>
+                            <thead style={{ position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 1 }}>
                                 <tr style={{ height: '30px' }}>
                                     <th style={{ padding: '4px 6px', fontWeight: '600' }}>Date</th>
                                     <th style={{ padding: '4px 6px', fontWeight: '600' }}>Vch/Inv.</th>
@@ -957,19 +1487,27 @@ const ItemsLedger = () => {
 
                                 {!loading && ledgerData && (
                                     <>
-                                        <tr className="opening-row" style={{ height: '28px' }}>
-                                            <td style={{ padding: '4px 6px' }}><strong>{data.fromDate}</strong></td>
-                                            <td style={{ padding: '4px 6px' }} colSpan="1"><strong></strong></td>
-                                            <td style={{ padding: '4px 6px' }} colSpan="1"><strong>Opening</strong></td>
-                                            <td style={{ padding: '4px 6px' }} colSpan="5"><strong></strong></td>
-                                            <td style={{ padding: '4px 6px' }}><strong>{ledgerData?.purchasePrice || ''}</strong></td>
-                                            <td style={{ padding: '4px 6px' }}><strong>{ledgerData?.openingStock?.toFixed(2) || '0.00'}</strong></td>
+                                        <tr className="opening-row" style={{ height: '28px', backgroundColor: '#f8f9fa', fontWeight: 'bold' }}>
+                                            <td style={{ padding: '4px 6px' }}>{data.fromDate}</td>
+                                            <td style={{ padding: '4px 6px' }} colSpan="1"></td>
+                                            <td style={{ padding: '4px 6px' }} colSpan="1">Opening</td>
+                                            <td style={{ padding: '4px 6px' }} colSpan="1"></td>
+                                            <td style={{ padding: '4px 6px' }} colSpan="1"></td>
+                                            <td style={{ padding: '4px 6px' }} colSpan="1"></td>
+                                            <td style={{ padding: '4px 6px' }} colSpan="1"></td>
+                                            <td style={{ padding: '4px 6px' }} colSpan="1"></td>
+                                            <td style={{ padding: '4px 6px', textAlign: 'right' }}>
+                                                {ledgerData?.purchasePrice ? ledgerData.purchasePrice.toFixed(2) : ''}
+                                            </td>
+                                            <td style={{ padding: '4px 6px', textAlign: 'right' }}>
+                                                {ledgerData?.openingStock?.toFixed(2) || '0.00'}
+                                            </td>
                                         </tr>
 
                                         {filteredEntries.map((entry, index) => (
                                             <tr
                                                 key={index}
-                                                className={`searchClass`}
+                                                className={`type-${entry.typeDisplay}`}
                                                 onDoubleClick={() => handleRowDoubleClick(entry)}
                                                 onClick={() => setSelectedRowIndex(index)}
                                                 onKeyDown={(e) => {
@@ -981,20 +1519,37 @@ const ItemsLedger = () => {
                                                 tabIndex={0}
                                                 style={{
                                                     height: '26px',
-                                                    cursor: 'pointer'
+                                                    cursor: 'pointer',
+                                                    backgroundColor: selectedRowIndex === index ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
                                                 }}
                                                 title="Double-click to edit"
                                             >
-                                                <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{new NepaliDate(entry.date).format('YYYY-MM-DD')}</td>
+                                                <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>
+                                                    {company.dateFormat === 'Nepali' || company.dateFormat === 'nepali'
+                                                        ? new NepaliDate(entry.nepaliDate).format('YYYY-MM-DD')
+                                                        : new Date(entry.date).toLocaleDateString()}
+                                                </td>
                                                 <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{entry.billNumber || ''}</td>
                                                 <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{entry.partyName}</td>
-                                                <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }} className={`type-${entry.type}`}>{entry.type}</td>
-                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.qtyIn || '-'}</td>
-                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.qtyOut || '-'}</td>
-                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.bonus || 0}</td>
+                                                <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }} className={`type-${entry.typeDisplay}`}>
+                                                    {getTypeLabel(entry.typeDisplay)}
+                                                </td>
+                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                    {entry.qtyIn ? entry.qtyIn.toFixed(2) : '-'}
+                                                </td>
+                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                    {entry.qtyOut ? entry.qtyOut.toFixed(2) : '-'}
+                                                </td>
+                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                    {entry.bonus ? entry.bonus.toFixed(2) : '0.00'}
+                                                </td>
                                                 <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{entry.unit || ''}</td>
-                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatter.format(entry.price || '')}</td>
-                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.balance?.toFixed(2)}</td>
+                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                    {entry.price ? entry.price.toFixed(2) : ''}
+                                                </td>
+                                                <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                    {entry.balance?.toFixed(2)}
+                                                </td>
                                             </tr>
                                         ))}
                                     </>
@@ -1002,15 +1557,15 @@ const ItemsLedger = () => {
                             </tbody>
 
                             {ledgerData && filteredEntries.length > 0 && (
-                                <tfoot>
-                                    <tr className="bg-light" style={{ height: '28px' }}>
-                                        <td colSpan="4" style={{ padding: '4px 6px' }}><strong>Totals:</strong></td>
-                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}><strong>{totals.qtyIn.toFixed(2)}</strong></td>
-                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}><strong>{totals.qtyOut.toFixed(2)}</strong></td>
-                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}><strong>{totals.free.toFixed(2)}</strong></td>
+                                <tfoot style={{ position: 'sticky', bottom: 0, backgroundColor: '#fff', zIndex: 1 }}>
+                                    <tr className="bg-light" style={{ height: '28px', fontWeight: 'bold', borderTop: '2px solid #dee2e6' }}>
+                                        <td colSpan="4" style={{ padding: '4px 6px' }}>Totals:</td>
+                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}>{totals.qtyIn.toFixed(2)}</td>
+                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}>{totals.qtyOut.toFixed(2)}</td>
+                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}>{totals.free.toFixed(2)}</td>
                                         <td style={{ padding: '4px 6px' }}></td>
                                         <td style={{ padding: '4px 6px' }}></td>
-                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}><strong>{totals.balance.toFixed(2)}</strong></td>
+                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}>{totals.balance.toFixed(2)}</td>
                                     </tr>
                                 </tfoot>
                             )}
@@ -1021,7 +1576,7 @@ const ItemsLedger = () => {
 
             {/* Item Selection Modal */}
             {showItemModal && (
-                <div className="modal fade show" id="itemModal" tabIndex="-1" style={{ display: 'block' }}>
+                <div className="modal fade show" id="itemModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
                     <div className="modal-dialog modal-xl modal-dialog-centered">
                         <div className="modal-content" style={{ height: '440px' }}>
                             <div className="modal-header py-1">
@@ -1040,7 +1595,7 @@ const ItemsLedger = () => {
                                     type="text"
                                     id="searchItem"
                                     className="form-control form-control-sm"
-                                    placeholder="Search Item..."
+                                    placeholder="Search Item... (Press ESC to close)"
                                     autoFocus
                                     autoComplete='off'
                                     value={itemSearchQuery}
@@ -1051,7 +1606,6 @@ const ItemsLedger = () => {
                                             setShowItemModal(false);
                                         } else if (e.key === 'ArrowDown') {
                                             e.preventDefault();
-                                            // Focus on first item in the list
                                             const firstItem = document.querySelector('.dropdown-item');
                                             if (firstItem) {
                                                 firstItem.focus();
@@ -1095,7 +1649,7 @@ const ItemsLedger = () => {
                                         </div>
 
                                         {searchResults.length > 0 ? (
-                                            <NewVirtualizedItemList
+                                            <VirtualizedItemListForSales
                                                 items={searchResults}
                                                 onItemClick={handleSelectItem}
                                                 searchRef={itemInputRef}
@@ -1119,7 +1673,9 @@ const ItemsLedger = () => {
                                 <div className="d-flex justify-content-between w-100">
                                     <div>
                                         Showing {searchResults.length} of {totalSearchItems} items
-                                        {/* {itemSearchQuery.trim() && searchResults.length >= 15 && ' (Showing first 15 matches)'} */}
+                                    </div>
+                                    <div>
+                                        <small className="text-muted">Press ESC to close</small>
                                     </div>
                                 </div>
                             </div>

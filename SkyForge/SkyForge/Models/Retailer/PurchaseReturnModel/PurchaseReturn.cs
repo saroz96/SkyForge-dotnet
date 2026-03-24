@@ -32,6 +32,10 @@ namespace SkyForge.Models.Retailer.PurchaseReturnModel
         [StringLength(50)]
         public string? PurchaseSalesReturnType { get; set; }
 
+        [Column("type")]
+        [StringLength(50)]
+        public string? Type { get; set; }
+
         [Column("original_copies")]
         public int OriginalCopies { get; set; } = 1;
 

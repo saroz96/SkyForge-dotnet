@@ -21,11 +21,11 @@ namespace SkyForge.Models.Retailer.PaymentModel
         [StringLength(50)]
         public string BillNumber { get; set; }
 
-        [Required]
-        public DateTime Date { get; set; } = DateTime.UtcNow;
+        [Column("nepali_date")]
+        public DateTime NepaliDate { get; set; }
 
-        [Required]
-        public DateTime BillDate { get; set; } = DateTime.UtcNow;
+        [Column("date")]
+        public DateTime Date { get; set; }
 
         [ForeignKey("Account")]
         public Guid? AccountId { get; set; }
@@ -43,9 +43,8 @@ namespace SkyForge.Models.Retailer.PaymentModel
         public Guid? PaymentAccountId { get; set; }
         public virtual AccountModel.Account PaymentAccount { get; set; }
 
-        [Required]
         [Column(TypeName = "varchar(20)")]
-        public InstrumentType InstType { get; set; } = InstrumentType.NA;
+        public PaymentInstrumentType InstType { get; set; } = PaymentInstrumentType.NA;
 
         [StringLength(100)]
         public string InstNo { get; set; }
@@ -78,7 +77,7 @@ namespace SkyForge.Models.Retailer.PaymentModel
         public DateTime? UpdatedAt { get; set; }
     }
 
-    public enum InstrumentType
+    public enum PaymentInstrumentType
     {
         NA,
         RTGS,

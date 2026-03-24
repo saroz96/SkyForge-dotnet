@@ -1765,9 +1765,6 @@ namespace SkyForge.Migrations
                     b.Property<Guid?>("AccountId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("BillDate")
-                        .HasColumnType("timestamp without time zone");
-
                     b.Property<string>("BillNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1784,7 +1781,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<decimal>("Debit")
                         .HasPrecision(18, 2)
@@ -1811,6 +1809,10 @@ namespace SkyForge.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("nepali_date");
+
                     b.Property<Guid?>("PaymentAccountId")
                         .HasColumnType("uuid");
 
@@ -1831,8 +1833,6 @@ namespace SkyForge.Migrations
 
                     b.HasIndex("AccountId");
 
-                    b.HasIndex("BillDate");
-
                     b.HasIndex("Date");
 
                     b.HasIndex("FiscalYearId");
@@ -1840,6 +1840,8 @@ namespace SkyForge.Migrations
                     b.HasIndex("InstType");
 
                     b.HasIndex("IsActive");
+
+                    b.HasIndex("NepaliDate");
 
                     b.HasIndex("PaymentAccountId");
 
@@ -1999,6 +2001,11 @@ namespace SkyForge.Migrations
                         .HasColumnName("transaction_date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("Type")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
                     b.Property<Guid?>("UnitId")
                         .HasColumnType("uuid")
                         .HasColumnName("unit_id");
@@ -2083,6 +2090,11 @@ namespace SkyForge.Migrations
                         .HasPrecision(10, 3)
                         .HasColumnType("numeric(10,3)")
                         .HasColumnName("alt_bonus");
+
+                    b.Property<decimal?>("AltMrp")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("alt_mrp");
 
                     b.Property<decimal?>("AltPrice")
                         .HasPrecision(18, 2)
@@ -2365,6 +2377,11 @@ namespace SkyForge.Migrations
                         .HasColumnName("transaction_date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("Type")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
@@ -2585,9 +2602,6 @@ namespace SkyForge.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("BillDate")
-                        .HasColumnType("timestamp without time zone");
-
                     b.Property<string>("BillNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -2631,6 +2645,10 @@ namespace SkyForge.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("nepali_date");
+
                     b.Property<Guid?>("ReceiptAccountId")
                         .HasColumnType("uuid");
 
@@ -2652,8 +2670,6 @@ namespace SkyForge.Migrations
                     b.HasIndex("AccountId");
 
                     b.HasIndex("BankAcc");
-
-                    b.HasIndex("BillDate");
 
                     b.HasIndex("Date");
 
@@ -2832,6 +2848,11 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("transaction_date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -3391,6 +3412,11 @@ namespace SkyForge.Migrations
                         .HasColumnName("transaction_date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("Type")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
                     b.Property<Guid?>("UnitId")
                         .HasColumnType("uuid")
                         .HasColumnName("unit_id");
@@ -3703,6 +3729,10 @@ namespace SkyForge.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_vat_exempt");
 
+                    b.Property<DateTime>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("nepali_date");
+
                     b.Property<decimal>("NonVatAdjustment")
                         .HasColumnType("numeric")
                         .HasColumnName("non_vat_adjustment");
@@ -4001,6 +4031,10 @@ namespace SkyForge.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
+
+                    b.Property<string>("PaymentReceiptType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)

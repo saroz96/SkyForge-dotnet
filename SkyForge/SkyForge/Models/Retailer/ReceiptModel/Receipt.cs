@@ -2,6 +2,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SkyForge.Models.Retailer.PaymentModel;
 
 namespace SkyForge.Models.Retailer.ReceiptModel
 {
@@ -32,9 +33,8 @@ namespace SkyForge.Models.Retailer.ReceiptModel
         public Guid? ReceiptAccountId { get; set; }
         public virtual AccountModel.Account ReceiptAccount { get; set; }
 
-        [Required]
         [Column(TypeName = "varchar(20)")]
-        public InstrumentType InstType { get; set; } = InstrumentType.NA;
+        public ReceiptInstrumentType InstType { get; set; } = ReceiptInstrumentType.NA;
 
         [StringLength(100)]
         public string BankAcc { get; set; }
@@ -74,14 +74,14 @@ namespace SkyForge.Models.Retailer.ReceiptModel
         [Required]
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        [Required]
-        public DateTime BillDate { get; set; } = DateTime.UtcNow;
+        [Column("nepali_date")]
+        public DateTime NepaliDate { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
     }
 
-    public enum InstrumentType
+    public enum ReceiptInstrumentType
     {
         NA,
         RTGS,

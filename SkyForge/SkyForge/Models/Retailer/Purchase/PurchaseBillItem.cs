@@ -85,6 +85,10 @@ namespace SkyForge.Models.Retailer.Purchase
         [Precision(18, 2)]
         public decimal Mrp { get; set; } = 0;
 
+        [Column("alt_mrp")]
+        [Precision(18, 2)]
+        public decimal? AltMrp { get; set; }
+
         [Column("margin_percentage")]
         [Precision(5, 2)]
         public decimal MarginPercentage { get; set; } = 0;

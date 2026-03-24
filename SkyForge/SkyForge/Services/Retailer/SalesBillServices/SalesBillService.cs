@@ -303,6 +303,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     CashAccountPhone = dto.CashAccountPhone,
                     SettingsId = dto.SettingsId,
                     FiscalYearId = fiscalYearId,
+                    Type = "Sale",
                     SubTotal = dto.SubTotal ?? 0,
                     NonVatSales = dto.NonVatSales ?? 0,
                     TaxableAmount = dto.TaxableAmount ?? 0,
@@ -445,7 +446,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         SalesBillId = salesBill.Id,
                         BillNumber = salesBill.BillNumber,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = salesBill.TotalAmount,
                         Credit = 0,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -474,7 +475,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         SalesBillId = salesBill.Id,
                         BillNumber = salesBill.BillNumber,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = 0,
                         Credit = salesAmount,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -501,7 +502,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = salesBill.BillNumber,
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = 0,
                         Credit = dto.VatAmount.Value,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -528,7 +529,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = salesBill.BillNumber,
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
                         Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -857,6 +858,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     PurchaseSalesType = "Sales",
                     AccountId = dto.AccountId,
                     FiscalYearId = fiscalYearId,
+                    Type = "Sale",
                     SubTotal = dto.SubTotal ?? 0,
                     NonVatSales = dto.NonTaxableAmount ?? 0,
                     TaxableAmount = dto.TaxableAmount ?? 0,
@@ -967,7 +969,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         SalesBillId = salesBill.Id,
                         BillNumber = salesBill.BillNumber,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = dto.TotalAmount ?? 0,
                         Credit = 0,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -999,7 +1001,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                             SalesBillId = salesBill.Id,
                             BillNumber = salesBill.BillNumber,
                             Type = TransactionType.Sale,
-                            PurchaseSalesType = account.Name,
+                            PurchaseSalesType = "Sales",
                             Debit = 0,
                             Credit = salesAmount,
                             PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -1029,7 +1031,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = salesBill.BillNumber,
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = 0,
                         Credit = dto.VatAmount.Value,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -1057,7 +1059,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = salesBill.BillNumber,
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
                         Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -1424,7 +1426,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     {
                         // Update to new party - Party account should be DEBIT side
                         trans.AccountId = newAccountId;
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Sales";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated main party transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
@@ -1432,7 +1434,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Check if this is a purchase account transaction
                     else if (creditSalesAccountId.HasValue && trans.AccountId == creditSalesAccountId.Value)
                     {
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Sales";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated credit sales account transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1440,7 +1442,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Check if this is a VAT transaction
                     else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
                     {
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Sales";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated VAT transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1448,7 +1450,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Check if this is a RoundOff transaction
                     else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
                     {
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Sales";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated RoundOff transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1456,7 +1458,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Check if this is a cash transaction (if payment mode was cash)
                     else if (trans.PaymentMode == PaymentMode.Cash && trans.Debit == 0 && trans.Credit == totalAmount)
                     {
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Sales";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated cash transaction {trans.Id} with new party name: {newAccount.Name}");
@@ -1466,7 +1468,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     {
                         // These are the item-level party transactions created in CreatesalesBillAsync
                         trans.AccountId = newAccountId; // Update the account to new party
-                        trans.PurchaseSalesType = newAccount.Name;
+                        trans.PurchaseSalesType = "Sales";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated item-level party transaction {trans.Id} for item {trans.ItemId}");
@@ -1891,7 +1893,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 CompanyName = salesBill.Company?.Name,
                 FirstPrinted = salesBill.FirstPrinted,
                 PrintCount = salesBill.PrintCount,
-                PurchaseSalesType = salesBill.PurchaseSalesType,
+                PurchaseSalesType = "Sales",
                 OriginalCopies = salesBill.OriginalCopies,
                 UserId = salesBill.UserId,
                 UserName = salesBill.User?.Name,
@@ -2151,7 +2153,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     SalesBillId = existingBill.Id,
                     BillNumber = existingBill.BillNumber,
                     Type = TransactionType.Sale,
-                    PurchaseSalesType = account.Name,
+                    PurchaseSalesType = "Sales",
                     Debit = dto.TotalAmount ?? 0,
                     Credit = 0,
                     PaymentMode = paymentMode,
@@ -2180,7 +2182,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                             SalesBillId = existingBill.Id,
                             BillNumber = existingBill.BillNumber,
                             Type = TransactionType.Sale,
-                            PurchaseSalesType = account.Name,
+                            PurchaseSalesType = "Sales",
                             Debit = 0,
                             Credit = salesAmount,
                             PaymentMode = paymentMode,
@@ -2209,7 +2211,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = existingBill.BillNumber,
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = 0,
                         Credit = dto.VatAmount.Value,
                         PaymentMode = paymentMode,
@@ -2236,7 +2238,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = existingBill.BillNumber,
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = account.Name,
+                        PurchaseSalesType = "Sales",
                         Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
                         Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
                         PaymentMode = paymentMode,
@@ -2737,6 +2739,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     UserId = userId,
                     BillNumber = billNumber,
                     PurchaseSalesType = "Sales",
+                    Type = "Sale",
                     AccountId = null, // No account for cash sales
                     CashAccount = dto.CashAccount,
                     CashAccountAddress = dto.CashAccountAddress,
@@ -2938,7 +2941,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         SalesBillId = salesBill.Id,
                         BillNumber = salesBill.BillNumber,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = dto.CashAccount,
+                        PurchaseSalesType = "Sales",
                         Debit = 0,
                         Credit = salesAmount,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -2967,7 +2970,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = salesBill.BillNumber,
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = dto.CashAccount,
+                        PurchaseSalesType = "Sales",
                         Debit = 0,
                         Credit = dto.VatAmount.Value,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -2996,7 +2999,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = salesBill.BillNumber,
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = dto.CashAccount,
+                        PurchaseSalesType = "Sales",
                         Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
                         Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -3309,6 +3312,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     UserId = userId,
                     BillNumber = billNumber,
                     PurchaseSalesType = "Sales",
+                    Type = "Sale",
                     CashAccount = dto.CashAccount,
                     CashAccountAddress = dto.CashAccountAddress,
                     CashAccountPan = dto.CashAccountPan,
@@ -3441,7 +3445,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                             BillNumber = billNumber,
                             SalesBillId = salesBill.Id,
                             Type = TransactionType.Sale,
-                            PurchaseSalesType = dto.CashAccount,
+                            PurchaseSalesType = "Sales",
                             Debit = 0,
                             Credit = salesAmount,
                             PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -3470,7 +3474,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         SalesBillId = salesBill.Id,
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = dto.CashAccount,
+                        PurchaseSalesType = "Sales",
                         Debit = 0,
                         Credit = dto.VatAmount.Value,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -3497,7 +3501,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         SalesBillId = salesBill.Id,
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = dto.CashAccount,
+                        PurchaseSalesType = "Sales",
                         Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
                         Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
                         PaymentMode = ParsePaymentMode(dto.PaymentMode),
@@ -4278,7 +4282,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                             SalesBillId = existingBill.Id,
                             BillNumber = existingBill.BillNumber,
                             Type = TransactionType.Sale,
-                            PurchaseSalesType = dto.CashAccount,
+                            PurchaseSalesType = "Sales",
                             Debit = 0,
                             Credit = salesAmount,
                             PaymentMode = paymentMode,
@@ -4306,7 +4310,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = existingBill.BillNumber,
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = dto.CashAccount,
+                        PurchaseSalesType = "Sales",
                         Debit = 0,
                         Credit = dto.VatAmount.Value,
                         PaymentMode = paymentMode,
@@ -4332,7 +4336,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         BillNumber = existingBill.BillNumber,
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.Sale,
-                        PurchaseSalesType = dto.CashAccount,
+                        PurchaseSalesType = "Sales",
                         Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
                         Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
                         PaymentMode = paymentMode,

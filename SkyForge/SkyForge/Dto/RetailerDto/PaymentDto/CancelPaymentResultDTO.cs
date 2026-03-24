@@ -1,0 +1,9 @@
+namespace SkyForge.Dto.RetailerDto.PaymentDto
+{
+    public class CancelPaymentResultDTO
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string BillNumber { get; set; } = string.Empty;
+    }
+}
