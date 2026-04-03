@@ -2591,17 +2591,6 @@ namespace SkyForge.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("AccountGroupId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("AccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("BankAcc")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<string>("BillNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -2613,34 +2602,18 @@ namespace SkyForge.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
-                    b.Property<decimal>("Credit")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp without time zone");
 
-                    b.Property<decimal>("Debit")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
                     b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("InstNo")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("InstType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -2649,13 +2622,14 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("nepali_date");
 
-                    b.Property<Guid?>("ReceiptAccountId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
@@ -2665,38 +2639,102 @@ namespace SkyForge.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountGroupId");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("BankAcc");
+                    b.HasIndex("BillNumber");
 
                     b.HasIndex("Date");
 
                     b.HasIndex("FiscalYearId");
 
-                    b.HasIndex("InstNo");
-
-                    b.HasIndex("InstType");
-
                     b.HasIndex("IsActive");
-
-                    b.HasIndex("ReceiptAccountId");
 
                     b.HasIndex("Status");
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("InstType", "Status");
-
                     b.HasIndex("BillNumber", "CompanyId", "FiscalYearId")
                         .IsUnique();
+
+                    b.HasIndex("CompanyId", "FiscalYearId", "BillNumber");
 
                     b.HasIndex("CompanyId", "FiscalYearId", "Date");
 
                     b.HasIndex("CompanyId", "Status", "IsActive");
 
-                    b.ToTable("Receipts");
+                    b.ToTable("Receipts", (string)null);
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Retailer.ReceiptModel.ReceiptEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BankAcc")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("EntryType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("InstNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("InstType")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("EntryType");
+
+                    b.HasIndex("InstType");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.HasIndex("ReferenceNumber");
+
+                    b.HasIndex("AccountId", "EntryType");
+
+                    b.HasIndex("EntryType", "Amount");
+
+                    b.HasIndex("InstType", "BankAcc");
+
+                    b.HasIndex("ReceiptId", "EntryType");
+
+                    b.HasIndex("ReceiptId", "AccountId", "EntryType");
+
+                    b.ToTable("ReceiptEntries", (string)null);
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.Sales.SalesBill", b =>
@@ -5415,16 +5453,6 @@ namespace SkyForge.Migrations
 
             modelBuilder.Entity("SkyForge.Models.Retailer.ReceiptModel.Receipt", b =>
                 {
-                    b.HasOne("SkyForge.Models.AccountGroupModel.AccountGroup", "AccountGroup")
-                        .WithMany()
-                        .HasForeignKey("AccountGroupId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SkyForge.Models.AccountModel.Account", "Account")
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
@@ -5437,28 +5465,36 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("SkyForge.Models.AccountModel.Account", "ReceiptAccount")
-                        .WithMany()
-                        .HasForeignKey("ReceiptAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("SkyForge.Models.UserModel.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Account");
-
-                    b.Navigation("AccountGroup");
-
                     b.Navigation("Company");
 
                     b.Navigation("FiscalYear");
 
-                    b.Navigation("ReceiptAccount");
-
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Retailer.ReceiptModel.ReceiptEntry", b =>
+                {
+                    b.HasOne("SkyForge.Models.AccountModel.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.Retailer.ReceiptModel.Receipt", "Receipt")
+                        .WithMany("ReceiptEntries")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Receipt");
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.Sales.SalesBill", b =>
@@ -6129,6 +6165,11 @@ namespace SkyForge.Migrations
             modelBuilder.Entity("SkyForge.Models.Retailer.PurchaseReturnModel.PurchaseReturn", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Retailer.ReceiptModel.Receipt", b =>
+                {
+                    b.Navigation("ReceiptEntries");
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.Sales.SalesBill", b =>

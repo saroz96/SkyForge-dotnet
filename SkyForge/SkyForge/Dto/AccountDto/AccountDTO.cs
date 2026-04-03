@@ -79,18 +79,18 @@ namespace SkyForge.Dto.AccountDto
     }
 
     public class AccountInfoDTO
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public int? UniqueNumber { get; set; }
-    public string Address { get; set; } = string.Empty;
-    public string? Pan { get; set; }
-    public string ContactPerson { get; set; } = string.Empty;
-    public string? Email { get; set; }
-    public string? Phone { get; set; }
-    public decimal? CreditLimit { get; set; }
-}
-public class AccountSearchDTO
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int? UniqueNumber { get; set; }
+        public string Address { get; set; } = string.Empty;
+        public string? Pan { get; set; }
+        public string ContactPerson { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public decimal? CreditLimit { get; set; }
+    }
+    public class AccountSearchDTO
     {
         public string? Search { get; set; }
         public int Page { get; set; } = 1;
@@ -98,29 +98,29 @@ public class AccountSearchDTO
         public Guid? FiscalYear { get; set; }
     }
 
-public class AccountSearchResultDTO
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public int? UniqueNumber { get; set; }
-    public string Address { get; set; } = string.Empty;
-    public string? Pan { get; set; }
-    public string ContactPerson { get; set; } = string.Empty;
-    public string? Email { get; set; }
-    public string? Phone { get; set; }
-    public decimal? CreditLimit { get; set; }
-    public decimal Balance { get; set; }
-    public string BalanceType { get; set; } = string.Empty;
-    public decimal RawBalance { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+    public class AccountSearchResultDTO
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int? UniqueNumber { get; set; }
+        public string Address { get; set; } = string.Empty;
+        public string? Pan { get; set; }
+        public string ContactPerson { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public decimal? CreditLimit { get; set; }
+        public decimal Balance { get; set; }
+        public string BalanceType { get; set; } = string.Empty;
+        public decimal RawBalance { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
 
-   public class AccountSearchResponseDTO
-{
-    public bool Success { get; set; }
-    public List<AccountSearchResultDTO> Accounts { get; set; } = new List<AccountSearchResultDTO>();
-    public PaginationDTO Pagination { get; set; } = new PaginationDTO();
-}
+    public class AccountSearchResponseDTO
+    {
+        public bool Success { get; set; }
+        public List<AccountSearchResultDTO> Accounts { get; set; } = new List<AccountSearchResultDTO>();
+        public PaginationDTO Pagination { get; set; } = new PaginationDTO();
+    }
 
     public class PaginationDTO
     {

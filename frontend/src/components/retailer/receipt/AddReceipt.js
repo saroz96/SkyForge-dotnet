@@ -6,39 +6,38 @@
 // import Header from '../Header';
 // import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 // import ProductModal from '../dashboard/modals/ProductModal';
-// import NewVirtualizedAccountList from '../../NewVirtualizedAccountList';
+// import VirtualizedAccountList from '../../VirtualizedAccountList';
 
 // const AddReceipt = () => {
 //     const navigate = useNavigate();
 //     const [isSaving, setIsSaving] = useState(false);
+//     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+//     const [isLoading, setIsLoading] = useState(true);
 //     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-//     const [printData, setPrintData] = useState(null);
-//     const printableRef = useRef();
 //     const [showProductModal, setShowProductModal] = useState(false);
+//     const transactionDateRef = useRef(null);
+
 //     const [company, setCompany] = useState({
 //         dateFormat: 'nepali',
 //         vatEnabled: true,
 //         fiscalYear: {}
 //     });
 
-//     const [printAfterSave, setPrintAfterSave] = useState(
-//         localStorage.getItem('printAfterSaveReceipt') === 'true' || false
-//     );
 //     const [dateErrors, setDateErrors] = useState({
-//         transactionDateNepali: '',
 //         nepaliDate: ''
 //     });
 
+//     const [selectedAccountId, setSelectedAccountId] = useState('');
+
 //     const [formData, setFormData] = useState({
-//         billDate: new Date().toISOString().split('T')[0],
 //         nepaliDate: currentNepaliDate,
-//         receiptAccount: '',
+//         billDate: new Date().toISOString().split('T')[0],
+//         receiptAccountId: '',
 //         accountId: '',
 //         credit: '',
-//         InstType: 'N/A',
-//         bankAcc: 'N/A',
-//         InstNo: '',
-//         description: ''
+//         instType: 0, // N/A = 0
+//         instNo: '',
+//         description: '',
 //     });
 
 //     const [notification, setNotification] = useState({
@@ -46,7 +45,6 @@
 //         message: '',
 //         type: 'success'
 //     });
-//     const [selectedAccountId, setSelectedAccountId] = useState('');
 
 //     // Account search states
 //     const [isAccountSearching, setIsAccountSearching] = useState(false);
@@ -62,16 +60,47 @@
 //     const [cashAccounts, setCashAccounts] = useState([]);
 //     const [bankAccounts, setBankAccounts] = useState([]);
 //     const [nextBillNumber, setNextBillNumber] = useState('');
+//     const [currentBillNumber, setCurrentBillNumber] = useState('');
 //     const [companyDateFormat, setCompanyDateFormat] = useState('nepali');
 //     const [showBankDetails, setShowBankDetails] = useState(false);
 //     const [error, setError] = useState(null);
 //     const [showAccountModal, setShowAccountModal] = useState(false);
-//     const transactionDateRef = useRef(null);
+//     const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
+
+//     // Print after save state
+//     const [printAfterSave, setPrintAfterSave] = useState(
+//         localStorage.getItem('printAfterSaveReceipt') === 'true' || false
+//     );
 
 //     const api = axios.create({
 //         baseURL: process.env.REACT_APP_API_BASE_URL,
 //         withCredentials: true,
 //     });
+
+//     // Add authorization header to all requests
+//     api.interceptors.request.use(
+//         (config) => {
+//             const token = localStorage.getItem('token');
+//             if (token) {
+//                 config.headers.Authorization = `Bearer ${token}`;
+//             }
+//             return config;
+//         },
+//         (error) => {
+//             return Promise.reject(error);
+//         }
+//     );
+
+//     // Function to get the current bill number (does NOT increment)
+//     const getCurrentBillNumber = async () => {
+//         try {
+//             const response = await api.get('/api/retailer/receipts/current-number');
+//             return response.data.data.currentReceiptsBillNumber;
+//         } catch (error) {
+//             console.error('Error getting current bill number:', error);
+//             return null;
+//         }
+//     };
 
 //     // Fetch accounts from backend
 //     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
@@ -113,43 +142,72 @@
 //         }
 //     };
 
+//     // Fetch receipt form data
 //     useEffect(() => {
 //         const fetchReceiptFormData = async () => {
 //             try {
-//                 const response = await api.get('/api/retailer/receipts');
-//                 const { data } = response;
+//                 setIsLoading(true);
 
-//                 setCashAccounts(data.data.cashAccounts);
-//                 setBankAccounts(data.data.bankAccounts);
-//                 setNextBillNumber(data.data.nextBillNumber);
-//                 setCompanyDateFormat(data.data.companyDateFormat);
+//                 // Get current bill number (does NOT increment)
+//                 const currentBillNum = await getCurrentBillNumber();
+
+//                 // Fetch form data
+//                 const response = await api.get('/api/retailer/receipts');
+//                 const { data } = response.data;
+
+//                 setCompany({
+//                     ...data.company,
+//                     dateFormat: data.company.dateFormat || 'nepali'
+//                 });
+
+//                 setCashAccounts(data.cashAccounts || []);
+//                 setBankAccounts(data.bankAccounts || []);
+//                 setCompanyDateFormat(data.companyDateFormat || 'nepali');
+//                 setCurrentBillNumber(currentBillNum);
+//                 setNextBillNumber(currentBillNum);
+
+//                 // Set initial form data
 //                 setFormData(prev => ({
 //                     ...prev,
-//                     receiptAccount: data.data.cashAccounts[0]?._id || '',
-//                     billNumber: data.data.nextBillNumber
+//                     receiptAccountId: data.cashAccounts[0]?.id || '',
+//                     nepaliDate: currentNepaliDate,
+//                     billDate: new Date().toISOString().split('T')[0],
 //                 }));
 
-//                 // Fetch accounts initially
-//                 fetchAccountsFromBackend('', 1);
+//                 setIsInitialDataLoaded(true);
 //             } catch (err) {
+//                 console.error('Error fetching receipt form data:', err);
 //                 setError(err.response?.data?.message || 'Failed to load receipt form');
+//             } finally {
+//                 setIsLoading(false);
 //             }
 //         };
 
 //         fetchReceiptFormData();
 //     }, []);
 
+//     // Set focus on date input after initial load
 //     useEffect(() => {
-//         // Add F9 key handler here
-//         const handleKeyDown = (e) => {
+//         if (isInitialDataLoaded && transactionDateRef.current) {
+//             const timer = setTimeout(() => {
+//                 transactionDateRef.current.focus();
+//             }, 50);
+
+//             return () => clearTimeout(timer);
+//         }
+//     }, [isInitialDataLoaded, company.dateFormat]);
+
+//     useEffect(() => {
+//         // Add F9 key handler
+//         const handleF9KeyDown = (e) => {
 //             if (e.key === 'F9') {
 //                 e.preventDefault();
 //                 setShowProductModal(prev => !prev);
 //             }
 //         };
-//         window.addEventListener('keydown', handleKeyDown);
+//         window.addEventListener('keydown', handleF9KeyDown);
 //         return () => {
-//             window.removeEventListener('keydown', handleKeyDown);
+//             window.removeEventListener('keydown', handleF9KeyDown);
 //         };
 //     }, []);
 
@@ -158,6 +216,9 @@
 //             if (e.key === 'Escape' && showAccountModal) {
 //                 e.preventDefault();
 //                 handleAccountModalClose();
+//             } else if (e.key === 'Escape' && showAccountCreationModal) {
+//                 e.preventDefault();
+//                 handleAccountCreationModalClose();
 //             }
 //         };
 
@@ -166,9 +227,37 @@
 //         return () => {
 //             window.removeEventListener('keydown', handleEscapeKey);
 //         };
+//     }, [showAccountModal, showAccountCreationModal]);
+
+//     useEffect(() => {
+//         const handleF6KeyForAccounts = (e) => {
+//             if (e.key === 'F6' && showAccountModal) {
+//                 e.preventDefault();
+//                 setShowAccountCreationModal(true);
+//                 setShowAccountModal(false);
+//             }
+//         };
+
+//         window.addEventListener('keydown', handleF6KeyForAccounts);
+//         return () => {
+//             window.removeEventListener('keydown', handleF6KeyForAccounts);
+//         };
 //     }, [showAccountModal]);
 
-//     // Add print after save handler
+//     useEffect(() => {
+//         if (showAccountModal) {
+//             setAccountSearchQuery('');
+//             setAccountSearchPage(1);
+
+//             if (accountShouldShowLastSearchResults && accountLastSearchQuery.trim() !== '') {
+//                 fetchAccountsFromBackend(accountLastSearchQuery, 1);
+//             } else {
+//                 fetchAccountsFromBackend('', 1);
+//             }
+//         }
+//     }, [showAccountModal]);
+
+//     // Print after save handler
 //     const handlePrintAfterSaveChange = (e) => {
 //         const isChecked = e.target.checked;
 //         setPrintAfterSave(isChecked);
@@ -186,36 +275,72 @@
 //         const isBankAccount = selectedOption.getAttribute('data-group') === 'bank';
 
 //         setShowBankDetails(isBankAccount);
-//         setFormData(prev => ({ ...prev, receiptAccount: selectedValue }));
+//         setFormData(prev => ({ ...prev, receiptAccountId: selectedValue }));
 //     };
 
-//     const resetForm = () => {
-//         const currentDate = new Date().toISOString().split('T')[0];
+//     const resetAfterSave = async () => {
+//         try {
+//             // Get current bill number (this increments the counter)
+//             const currentBillNum = await getCurrentBillNumber();
 
-//         setFormData({
-//             billDate: currentDate,
-//             nepaliDate: currentNepaliDate,
-//             receiptAccount: cashAccounts[0]?._id || '',
-//             accountId: '',
-//             accountName: '',
-//             credit: '',
-//             InstType: 'N/A',
-//             bankAcc: 'N/A',
-//             InstNo: '',
-//             description: '',
-//             billNumber: nextBillNumber
-//         });
+//             // Fetch other data
+//             const response = await api.get('/api/retailer/receipts');
+//             const { data } = response.data;
 
-//         setShowBankDetails(false);
+//             const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+//             const currentRomanDate = new Date().toISOString().split('T')[0];
+
+//             setFormData({
+//                 nepaliDate: currentNepaliDate,
+//                 billDate: currentRomanDate,
+//                 receiptAccountId: data.cashAccounts[0]?.id || '',
+//                 accountId: '',
+//                 credit: '',
+//                 instType: 0,
+//                 instNo: '',
+//                 description: '',
+//             });
+
+//             setCashAccounts(data.cashAccounts || []);
+//             setBankAccounts(data.bankAccounts || []);
+//             setCompanyDateFormat(data.companyDateFormat || 'nepali');
+//             setCurrentBillNumber(currentBillNum);
+//             setNextBillNumber(currentBillNum);
+//             setShowBankDetails(false);
+//             setSelectedAccountId('');
+
+//             setTimeout(() => {
+//                 if (transactionDateRef.current) {
+//                     transactionDateRef.current.focus();
+//                 }
+//             }, 50);
+//         } catch (err) {
+//             console.error('Error resetting after save:', err);
+//             setNotification({
+//                 show: true,
+//                 message: 'Error refreshing form data',
+//                 type: 'error'
+//             });
+//         }
 //     };
 
 //     const handleSubmit = async (print = false) => {
 //         setIsSaving(true);
 
 //         try {
+//             // Convert InstrumentType enum
+//             const instTypeValue = getInstrumentTypeValue(formData.instType);
+
 //             const payload = {
-//                 ...formData,
-//                 print: print || printAfterSave // Use the parameter or the saved preference
+//                 nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
+//                 date: formData.billDate,
+//                 receiptAccountId: formData.receiptAccountId,
+//                 accountId: formData.accountId,
+//                 credit: parseFloat(formData.credit) || 0,
+//                 instType: instTypeValue,
+//                 instNo: formData.instNo || '',
+//                 description: formData.description || '',
+//                 print: print || printAfterSave
 //             };
 
 //             const response = await api.post('/api/retailer/receipts', payload);
@@ -226,61 +351,26 @@
 //                 type: 'success'
 //             });
 
-//             // After successful save, refetch the initial form data
-//             try {
-//                 const formDataResponse = await api.get('/api/retailer/receipts');
-//                 const { data } = formDataResponse;
-
-//                 setNextBillNumber(data.data.nextBillNumber);
-//                 const currentDate = new Date().toISOString().split('T')[0];
-
-//                 // Check if the selected receipt account is a bank account
-//                 const isBankAccount = data.data.bankAccounts.some(
-//                     account => account._id === formData.receiptAccount
-//                 );
-
-//                 setFormData(prev => ({
-//                     ...prev,
-//                     billDate: currentDate,
-//                     nepaliDate: currentNepaliDate,
-//                     billNumber: data.data.nextBillNumber,
-//                     accountId: '',
-//                     accountName: '',
-//                     credit: '',
-//                     InstType: 'N/A',
-//                     bankAcc: 'N/A',
-//                     InstNo: '',
-//                     description: ''
-//                 }));
-
-//                 // Set showBankDetails based on receipt account type
-//                 setShowBankDetails(isBankAccount);
-
-//                 // If print was requested (either explicitly or via printAfterSave), fetch print data and print immediately
-//                 if ((print || printAfterSave) && response.data.data?.receipt?._id) {
-//                     try {
-//                         const printResponse = await api.get(`/api/retailer/receipts/${response.data.data.receipt._id}/print`);
-//                         printVoucherImmediately(printResponse.data.data);
-//                     } catch (printError) {
-//                         console.error('Error fetching print data:', printError);
-//                         setNotification({
-//                             show: true,
-//                             message: 'Receipt saved but failed to load print data',
-//                             type: 'warning'
-//                         });
-//                     }
-//                 } else {
-//                     // Move focus to date input field
-//                     setTimeout(() => {
-//                         const dateInputId = companyDateFormat === 'nepali' ? 'nepaliDate' : 'billDate';
-//                         document.getElementById(dateInputId)?.focus();
-//                     }, 0);
+//             // If print was requested, fetch print data and print
+//             if ((print || printAfterSave) && response.data.data?.receipt?.id) {
+//                 try {
+//                     const printResponse = await api.get(`/api/retailer/receipts/${response.data.data.receipt.id}/print`);
+//                     printVoucherImmediately(printResponse.data.data);
+//                     await resetAfterSave();
+//                 } catch (printError) {
+//                     console.error('Error fetching print data:', printError);
+//                     setNotification({
+//                         show: true,
+//                         message: 'Receipt saved but failed to load print data',
+//                         type: 'warning'
+//                     });
+//                     await resetAfterSave();
 //                 }
-//             } catch (err) {
-//                 console.error('Error refetching form data:', err);
-//                 resetForm();
+//             } else {
+//                 await resetAfterSave();
 //             }
 //         } catch (err) {
+//             console.error('Error saving receipt:', err);
 //             setNotification({
 //                 show: true,
 //                 message: err.response?.data?.message || 'Failed to save receipt',
@@ -289,6 +379,31 @@
 //         } finally {
 //             setIsSaving(false);
 //         }
+//     };
+
+//     // Helper function to convert instrument type to enum value
+//     const getInstrumentTypeValue = (type) => {
+//         // If type is already a number, return it directly
+//         if (typeof type === 'number') {
+//             return type;
+//         }
+
+//         // If type is a string, convert to lowercase and map
+//         if (typeof type === 'string') {
+//             switch (type.toLowerCase()) {
+//                 case 'rtgs': return 1;
+//                 case 'fonepay': return 2;
+//                 case 'cheque': return 3;
+//                 case 'connect-ips': return 4;
+//                 case 'esewa': return 5;
+//                 case 'khalti': return 6;
+//                 case 'n/a':
+//                 default: return 0;
+//             }
+//         }
+
+//         // Default return for any other type
+//         return 0;
 //     };
 
 //     const handleAccountSearch = (e) => {
@@ -308,32 +423,29 @@
 //         return () => clearTimeout(timer);
 //     };
 
-//     useEffect(() => {
-//         if (showAccountModal) {
-//             setAccountSearchQuery('');
-//             setAccountSearchPage(1);
-
-//             if (accountShouldShowLastSearchResults && accountLastSearchQuery.trim() !== '') {
-//                 fetchAccountsFromBackend(accountLastSearchQuery, 1);
-//             } else {
-//                 fetchAccountsFromBackend('', 1);
-//             }
-//         }
-//     }, [showAccountModal]);
-
 //     const handleAccountModalClose = () => {
 //         setShowAccountModal(false);
+//     };
+
+//     const handleAccountCreationModalClose = () => {
+//         setShowAccountCreationModal(false);
+//         setShowAccountModal(true);
+//         fetchAccountsFromBackend('', 1);
 //     };
 
 //     const selectAccount = (account) => {
 //         setFormData({
 //             ...formData,
-//             accountId: account._id,
+//             accountId: account.id,
 //             accountName: `${account.uniqueNumber || ''} ${account.name}`.trim(),
 //         });
-//         setSelectedAccountId(account._id);
+//         setSelectedAccountId(account.id);
 //         setShowAccountModal(false);
-//         document.getElementById('credit')?.focus();
+
+//         // Focus on credit amount field after account selection
+//         setTimeout(() => {
+//             document.getElementById('credit')?.focus();
+//         }, 50);
 //     };
 
 //     const handleKeyDown = (e, currentFieldId) => {
@@ -351,212 +463,231 @@
 //         }
 //     };
 
+//     const loadMoreAccounts = () => {
+//         if (!isAccountSearching) {
+//             fetchAccountsFromBackend(accountSearchQuery, accountSearchPage + 1);
+//         }
+//     };
+
 //     const printVoucherImmediately = (printData) => {
+//         // Create a temporary div to hold the print content
 //         const tempDiv = document.createElement('div');
 //         tempDiv.style.position = 'absolute';
 //         tempDiv.style.left = '-9999px';
 //         document.body.appendChild(tempDiv);
 
+//         // Create the printable content
 //         tempDiv.innerHTML = `
-//             <div id="printableContent">
-//                 <div class="print-voucher-container">
-//                     <div class="print-voucher-header">
-//                         <div class="print-company-name">${printData.currentCompanyName}</div>
-//                         <div class="print-company-details">
-//                             ${printData.currentCompany.address}-${printData.currentCompany.ward}, ${printData.currentCompany.city}
-//                             <br />
-//                             Tel: ${printData.currentCompany.phone} | PAN: ${printData.currentCompany.pan || 'N/A'}
-//                         </div>
-//                         <div class="print-voucher-title">RECEIPT VOUCHER</div>
+//         <div id="printableContent">
+//             <div class="print-voucher-container">
+//                 <div class="print-voucher-header">
+//                     <div class="print-company-name">${printData.currentCompanyName}</div>
+//                     <div class="print-company-details">
+//                         ${printData.currentCompany?.address || ''}-${printData.currentCompany?.ward || ''}, ${printData.currentCompany?.city || ''}
+//                         <br />
+//                         Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
 //                     </div>
+//                     <div class="print-voucher-title">RECEIPT VOUCHER</div>
+//                 </div>
 
-//                     <div class="print-voucher-details">
-//                         <div>
-//                             <div><strong>Vch. No:</strong> ${printData.receipt.billNumber}</div>
-//                         </div>
-//                         <div>
-//                             <div><strong>Date:</strong> ${new Date(printData.receipt.date).toLocaleDateString()}</div>
-//                         </div>
+//                 <div class="print-voucher-details">
+//                     <div>
+//                         <div><strong>Vch. No:</strong> ${printData.receipt.billNumber}</div>
 //                     </div>
-
-//                     <table class="print-voucher-table">
-//                         <thead>
-//                             <tr>
-//                                 <th>S.N</th>
-//                                 <th>Particular</th>
-//                                 <th>Debit Amount</th>
-//                                 <th>Credit Amount</th>
-//                             </tr>
-//                         </thead>
-//                         <tbody>
-//                             <tr>
-//                                 <td>1</td>
-//                                 <td>${printData.receipt.receiptAccount?.name || 'N/A'}</td>
-//                                 <td>${printData.receipt.credit?.toFixed(2)}</td>
-//                                 <td>0.00</td>
-//                             </tr>
-//                             <tr>
-//                                 <td>2</td>
-//                                 <td>${printData.receipt.account?.name || 'N/A'}</td>
-//                                 <td>0.00</td>
-//                                 <td>${printData.receipt.credit?.toFixed(2)}</td>
-//                             </tr>
-//                         </tbody>
-//                         <tfoot>
-//                             <tr>
-//                                 <th colSpan="2">Total</th>
-//                                 <th>${printData.receipt.credit?.toFixed(2)}</th>
-//                                 <th>${printData.receipt.credit?.toFixed(2)}</th>
-//                             </tr>
-//                         </tfoot>
-//                     </table>
-
-//                     <div style="margin-top: 3mm;">
-//                         <strong>Note:</strong> ${printData.receipt.description || 'N/A'}
+//                     <div>
+//                         <div><strong>Date:</strong> ${new Date(printData.receipt.date).toLocaleDateString()}</div>
 //                     </div>
+//                 </div>
 
-//                     <div style="margin-top: 3mm;">
-//                         <div><strong>Mode of Receipt:</strong> ${printData.receipt.InstType || 'N/A'}</div>
-//                         <div><strong>Inst No:</strong> ${printData.receipt.InstNo || 'N/A'}</div>
+//                 <table class="print-voucher-table">
+//                     <thead>
+//                         <tr>
+//                             <th>S.N</th>
+//                             <th>Particular</th>
+//                             <th>Debit Amount</th>
+//                             <th>Credit Amount</th>
+//                         </tr>
+//                     </thead>
+//                     <tbody>
+//                         <tr>
+//                             <td>1</td>
+//                             <td>${printData.receipt.receiptAccount?.name || 'N/A'}</td>
+//                             <td>${(printData.receipt.credit || 0).toFixed(2)}</td>
+//                             <td>0.00</td>
+//                         </tr>
+//                         <tr>
+//                             <td>2</td>
+//                             <td>${printData.receipt.account?.name || 'N/A'}</td>
+//                             <td>0.00</td>
+//                             <td>${(printData.receipt.credit || 0).toFixed(2)}</td>
+//                         </tr>
+//                     </tbody>
+//                     <tfoot>
+//                         <tr>
+//                             <th colSpan="2">Total</th>
+//                             <th>${(printData.receipt.credit || 0).toFixed(2)}</th>
+//                             <th>${(printData.receipt.credit || 0).toFixed(2)}</th>
+//                         </tr>
+//                     </tfoot>
+//                 </table>
+
+//                 <div style="margin-top: 3mm;">
+//                     <strong>Note:</strong> ${printData.receipt.description || 'N/A'}
+//                 </div>
+
+//                 <div style="margin-top: 3mm;">
+//                     <div><strong>Mode of Receipt:</strong> ${getInstrumentTypeName(printData.receipt.instType) || 'N/A'}</div>
+//                     <div><strong>Inst No:</strong> ${printData.receipt.instNo || 'N/A'}</div>
+//                 </div>
+
+//                 <div class="print-signature-area">
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">
+//                             <strong>${printData.receipt.user?.name || 'N/A'}</strong>
+//                         </div>
+//                         Prepared By
 //                     </div>
-
-//                     <div class="print-signature-area">
-//                         <div class="print-signature-box">
-//                             <div style="margin-bottom: 1mm;">
-//                                 <strong>${printData.receipt.user?.name || 'N/A'}</strong>
-//                             </div>
-//                             Prepared By
-//                         </div>
-//                         <div class="print-signature-box">
-//                             <div style="margin-bottom: 1mm;">&nbsp;</div>
-//                             Checked By
-//                         </div>
-//                         <div class="print-signature-box">
-//                             <div style="margin-bottom: 1mm;">&nbsp;</div>
-//                             Approved By
-//                         </div>
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//                         Checked By
+//                     </div>
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//                         Approved By
 //                     </div>
 //                 </div>
 //             </div>
-//         `;
+//         </div>
+//     `;
 
+//         // Add print styles
 //         const styles = `
-//             @page {
-//                 size: A4;
-//                 margin: 5mm;
-//             }
-//             body {
-//                 font-family: 'Arial Narrow', Arial, sans-serif;
-//                 font-size: 9pt;
-//                 line-height: 1.2;
-//                 color: #000;
-//                 background: white;
-//                 margin: 0;
-//                 padding: 0;
-//             }
-//             .print-voucher-container {
-//                 width: 100%;
-//                 max-width: 210mm;
-//                 margin: 0 auto;
-//                 padding: 2mm;
-//             }
-//             .print-voucher-header {
-//                 text-align: center;
-//                 margin-bottom: 3mm;
-//                 border-bottom: 1px dashed #000;
-//                 padding-bottom: 2mm;
-//             }
-//             .print-voucher-title {
-//                 font-size: 12pt;
-//                 font-weight: bold;
-//                 margin: 2mm 0;
-//                 text-transform: uppercase;
-//                 text-decoration: underline;
-//                 letter-spacing: 1px;
-//             }
-//             .print-company-name {
-//                 font-size: 16pt;
-//                 font-weight: bold;
-//             }
-//             .print-company-details {
-//                 font-size: 8pt;
-//                 margin: 1mm 0;
-//             }
-//             .print-voucher-details {
-//                 display: flex;
-//                 justify-content: space-between;
-//                 margin: 2mm 0;
-//                 font-size: 8pt;
-//             }
-//             .print-voucher-table {
-//                 width: 100%;
-//                 border-collapse: collapse;
-//                 margin: 3mm 0;
-//                 font-size: 8pt;
-//             }
-//             .print-voucher-table thead {
-//                 border-top: 1px dashed #000;
-//                 border-bottom: 1px dashed #000;
-//             }
-//             .print-voucher-table th {
-//                 background-color: transparent;
-//                 border: 1px solid #000;
-//                 padding: 1mm;
-//                 text-align: left;
-//                 font-weight: bold;
-//             }
-//             .print-voucher-table td {
-//                 border: 1px solid #000;
-//                 padding: 1mm;
-//             }
-//             .print-text-right {
-//                 text-align: right;
-//             }
-//             .print-text-center {
-//                 text-align: center;
-//             }
-//             .print-signature-area {
-//                 display: flex;
-//                 justify-content: space-between;
-//                 margin-top: 5mm;
-//                 font-size: 8pt;
-//             }
-//             .print-signature-box {
-//                 text-align: center;
-//                 width: 30%;
-//                 border-top: 1px dashed #000;
-//                 padding-top: 1mm;
-//                 font-weight: bold;
-//             }
-//         `;
+//         @page {
+//             size: A4;
+//             margin: 5mm;
+//         }
+//         body {
+//             font-family: 'Arial Narrow', Arial, sans-serif;
+//             font-size: 9pt;
+//             line-height: 1.2;
+//             color: #000;
+//             background: white;
+//             margin: 0;
+//             padding: 0;
+//         }
+//         .print-voucher-container {
+//             width: 100%;
+//             max-width: 210mm;
+//             margin: 0 auto;
+//             padding: 2mm;
+//         }
+//         .print-voucher-header {
+//             text-align: center;
+//             margin-bottom: 3mm;
+//             border-bottom: 1px dashed #000;
+//             padding-bottom: 2mm;
+//         }
+//         .print-voucher-title {
+//             font-size: 12pt;
+//             font-weight: bold;
+//             margin: 2mm 0;
+//             text-transform: uppercase;
+//             text-decoration: underline;
+//             letter-spacing: 1px;
+//         }
+//         .print-company-name {
+//             font-size: 16pt;
+//             font-weight: bold;
+//         }
+//         .print-company-details {
+//             font-size: 8pt;
+//             margin: 1mm 0;
+//         }
+//         .print-voucher-details {
+//             display: flex;
+//             justify-content: space-between;
+//             margin: 2mm 0;
+//             font-size: 8pt;
+//         }
+//         .print-voucher-table {
+//             width: 100%;
+//             border-collapse: collapse;
+//             margin: 3mm 0;
+//             font-size: 8pt;
+//         }
+//         .print-voucher-table thead {
+//             border-top: 1px dashed #000;
+//             border-bottom: 1px dashed #000;
+//         }
+//         .print-voucher-table th {
+//             background-color: transparent;
+//             border: 1px solid #000;
+//             padding: 1mm;
+//             text-align: left;
+//             font-weight: bold;
+//         }
+//         .print-voucher-table td {
+//             border: 1px solid #000;
+//             padding: 1mm;
+//         }
+//         .print-text-right {
+//             text-align: right;
+//         }
+//         .print-text-center {
+//             text-align: center;
+//         }
+//         .print-signature-area {
+//             display: flex;
+//             justify-content: space-between;
+//             margin-top: 5mm;
+//             font-size: 8pt;
+//         }
+//         .print-signature-box {
+//             text-align: center;
+//             width: 30%;
+//             border-top: 1px dashed #000;
+//             padding-top: 1mm;
+//             font-weight: bold;
+//         }
+//     `;
 
+//         // Create print window
 //         const printWindow = window.open('', '_blank');
 //         printWindow.document.write(`
-//             <html>
-//                 <head>
-//                     <title>Receipt_Voucher_${printData.receipt.billNumber}</title>
-//                     <style>${styles}</style>
-//                 </head>
-//                 <body>
-//                     ${tempDiv.innerHTML}
-//                     <script>
-//                         window.onload = function() {
-//                             setTimeout(function() {
-//                                 window.print();
-//                                 window.close();
-//                             }, 200);
-//                         };
-//                     </script>
-//                 </body>
-//             </html>
-//         `);
+//         <html>
+//             <head>
+//                 <title>Receipt_Voucher_${printData.receipt.billNumber}</title>
+//                 <style>${styles}</style>
+//             </head>
+//             <body>
+//                 ${tempDiv.innerHTML}
+//                 <script>
+//                     window.onload = function() {
+//                         setTimeout(function() {
+//                             window.print();
+//                             window.close();
+//                         }, 200);
+//                     };
+//                 </script>
+//             </body>
+//         </html>
+//     `);
 //         printWindow.document.close();
+
+//         // Clean up
 //         document.body.removeChild(tempDiv);
 //     };
 
-//     const loadMoreAccounts = () => {
-//         if (!isAccountSearching) {
-//             fetchAccountsFromBackend(accountSearchQuery, accountSearchPage + 1);
+//     const getInstrumentTypeName = (type) => {
+//         switch (type) {
+//             case 1: return 'RTGS';
+//             case 2: return 'Fonepay';
+//             case 3: return 'Cheque';
+//             case 4: return 'Connect-Ips';
+//             case 5: return 'Esewa';
+//             case 6: return 'Khalti';
+//             case 0:
+//             default: return 'N/A';
 //         }
 //     };
 
@@ -583,7 +714,7 @@
 //                         }}>
 //                             {/* Date and Basic Info Row */}
 //                             <div className="row g-2 mb-3">
-//                                 {companyDateFormat === 'nepali' ? (
+//                                 {(company.dateFormat === 'nepali' || company.dateFormat === 'Nepali') ? (
 //                                     <>
 //                                         <div className="col-12 col-md-6 col-lg-2">
 //                                             <div className="position-relative">
@@ -591,8 +722,8 @@
 //                                                     type="text"
 //                                                     name="nepaliDate"
 //                                                     id="nepaliDate"
-//                                                     ref={company.dateFormat === 'nepali' ? transactionDateRef : null}
 //                                                     autoComplete='off'
+//                                                     autoFocus
 //                                                     className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
 //                                                     value={formData.nepaliDate}
 //                                                     onChange={(e) => {
@@ -778,8 +909,8 @@
 //                                                     name="billDate"
 //                                                     id="billDate"
 //                                                     className="form-control form-control-sm"
-//                                                     ref={company.dateFormat === 'roman' ? transactionDateRef : null}
 //                                                     value={formData.billDate}
+//                                                     autoFocus
 //                                                     onChange={(e) => {
 //                                                         const value = e.target.value;
 //                                                         const selectedDate = new Date(value);
@@ -940,18 +1071,18 @@
 //                                     </div>
 //                                 </div>
 
-//                                 <div className="col-12 col-md-6 col-lg-5">
+//                                 <div className="col-12 col-md-6 col-lg-2">
 //                                     <div className="position-relative">
 //                                         <select
-//                                             name="receiptAccount"
-//                                             id="receiptAccount"
+//                                             name="receiptAccountId"
+//                                             id="receiptAccountId"
 //                                             className="form-control form-control-sm"
 //                                             required
-//                                             value={formData.receiptAccount}
+//                                             value={formData.receiptAccountId}
 //                                             onChange={handleReceiptAccountChange}
 //                                             onKeyDown={(e) => {
 //                                                 if (e.key === 'Enter') {
-//                                                     handleKeyDown(e, 'receiptAccount');
+//                                                     handleKeyDown(e, 'receiptAccountId');
 //                                                 }
 //                                             }}
 //                                             style={{
@@ -964,8 +1095,8 @@
 //                                             <optgroup label="Cash">
 //                                                 {cashAccounts.map(cashAccount => (
 //                                                     <option
-//                                                         key={cashAccount._id}
-//                                                         value={cashAccount._id}
+//                                                         key={cashAccount.id}
+//                                                         value={cashAccount.id}
 //                                                         data-group="cash"
 //                                                     >
 //                                                         {cashAccount.name}
@@ -975,8 +1106,8 @@
 //                                             <optgroup label="Bank">
 //                                                 {bankAccounts.map(bankAccount => (
 //                                                     <option
-//                                                         key={bankAccount._id}
-//                                                         value={bankAccount._id}
+//                                                         key={bankAccount.id}
+//                                                         value={bankAccount.id}
 //                                                         data-group="bank"
 //                                                     >
 //                                                         {bankAccount.name}
@@ -996,7 +1127,7 @@
 //                                                 fontWeight: '500'
 //                                             }}
 //                                         >
-//                                             Receipt Mode:
+//                                             Receipt Account: <span className="text-danger">*</span>
 //                                         </label>
 //                                     </div>
 //                                 </div>
@@ -1018,10 +1149,12 @@
 //                                             onFocus={() => setShowAccountModal(true)}
 //                                             onKeyDown={(e) => {
 //                                                 if (e.key === 'Enter') {
+//                                                     e.preventDefault();
 //                                                     handleKeyDown(e, 'account');
 //                                                 }
 //                                             }}
 //                                             readOnly
+//                                             required
 //                                             style={{
 //                                                 height: '26px',
 //                                                 fontSize: '0.875rem',
@@ -1058,12 +1191,20 @@
 //                                             placeholder="Credit Amount"
 //                                             value={formData.credit}
 //                                             onChange={handleInputChange}
+//                                             onFocus={(e) => e.target.select()}
 //                                             onKeyDown={(e) => {
 //                                                 if (e.key === 'Enter') {
-//                                                     handleKeyDown(e, 'credit');
+//                                                     e.preventDefault();
+//                                                     if (showBankDetails) {
+//                                                         document.getElementById('instType')?.focus();
+//                                                     } else {
+//                                                         document.getElementById('description')?.focus();
+//                                                     }
 //                                                 }
 //                                             }}
 //                                             required
+//                                             min="0.01"
+//                                             step="0.01"
 //                                             style={{
 //                                                 height: '26px',
 //                                                 fontSize: '0.875rem',
@@ -1095,14 +1236,15 @@
 //                                             <div className="col-4">
 //                                                 <div className="position-relative">
 //                                                     <select
-//                                                         name="InstType"
-//                                                         id="InstType"
+//                                                         name="instType"
+//                                                         id="instType"
 //                                                         className="form-control form-control-sm"
-//                                                         value={formData.InstType}
+//                                                         value={formData.instType}
 //                                                         onChange={handleInputChange}
 //                                                         onKeyDown={(e) => {
 //                                                             if (e.key === 'Enter') {
-//                                                                 handleKeyDown(e, 'InstType');
+//                                                                 e.preventDefault();
+//                                                                 document.getElementById('instNo')?.focus();
 //                                                             }
 //                                                         }}
 //                                                         style={{
@@ -1112,13 +1254,13 @@
 //                                                             width: '100%'
 //                                                         }}
 //                                                     >
-//                                                         <option value="N/A">N/A</option>
-//                                                         <option value="RTGS">RTGS</option>
-//                                                         <option value="Fonepay">Fonepay</option>
-//                                                         <option value="Cheque">Cheque</option>
-//                                                         <option value="Connect-Ips">Connect-Ips</option>
-//                                                         <option value="Esewa">Esewa</option>
-//                                                         <option value="Khalti">Khalti</option>
+//                                                         <option value="0">N/A</option>
+//                                                         <option value="1">RTGS</option>
+//                                                         <option value="2">Fonepay</option>
+//                                                         <option value="3">Cheque</option>
+//                                                         <option value="4">Connect-Ips</option>
+//                                                         <option value="5">Esewa</option>
+//                                                         <option value="6">Khalti</option>
 //                                                     </select>
 //                                                     <label
 //                                                         className="position-absolute"
@@ -1137,77 +1279,19 @@
 //                                                 </div>
 //                                             </div>
 
-//                                             <div className="col-4">
-//                                                 <div className="position-relative">
-//                                                     <select
-//                                                         name="bankAcc"
-//                                                         id="bankAcc"
-//                                                         className="form-control form-control-sm"
-//                                                         value={formData.bankAcc}
-//                                                         onChange={handleInputChange}
-//                                                         onKeyDown={(e) => {
-//                                                             if (e.key === 'Enter') {
-//                                                                 handleKeyDown(e, 'bankAcc');
-//                                                             }
-//                                                         }}
-//                                                         style={{
-//                                                             height: '26px',
-//                                                             fontSize: '0.875rem',
-//                                                             paddingTop: '0.25rem',
-//                                                             width: '100%'
-//                                                         }}
-//                                                     >
-//                                                         <option value="N/A">N/A</option>
-//                                                         <option value="Agriculture Development Bank">Agriculture Development Bank</option>
-//                                                         <option value="Nepal Bank">Nepal Bank</option>
-//                                                         <option value="Rastriya Banijya Bank">Rastriya Banijya Bank</option>
-//                                                         <option value="Citizens Bank International">Citizens Bank International</option>
-//                                                         <option value="Nabil Bank">Nabil Bank</option>
-//                                                         <option value="Himalayan Bank">Himalayan Bank</option>
-//                                                         <option value="Laxmi Sunrise Bank">Laxmi Sunrise Bank</option>
-//                                                         <option value="Nepal Investment Mega Bank">Nepal Investment Mega Bank</option>
-//                                                         <option value="Kumari Bank">Kumari Bank</option>
-//                                                         <option value="Global IME Bank Limited">Global IME Bank Limited</option>
-//                                                         <option value="NIC Asia Bank">NIC Asia Bank</option>
-//                                                         <option value="Machhapuchchhre Bank">Machhapuchchhre Bank</option>
-//                                                         <option value="Nepal SBI Bank">Nepal SBI Bank</option>
-//                                                         <option value="Everest Bank">Everest Bank</option>
-//                                                         <option value="NMB Bank Nepal">NMB Bank Nepal</option>
-//                                                         <option value="Prabhu Bank">Prabhu Bank</option>
-//                                                         <option value="Prime Commercial Bank">Prime Commercial Bank</option>
-//                                                         <option value="Sanima Bank">Sanima Bank</option>
-//                                                         <option value="Siddhartha Bank">Siddhartha Bank</option>
-//                                                         <option value="Standard Chartered Bank">Standard Chartered Bank</option>
-//                                                     </select>
-//                                                     <label
-//                                                         className="position-absolute"
-//                                                         style={{
-//                                                             top: '-0.5rem',
-//                                                             left: '0.75rem',
-//                                                             fontSize: '0.75rem',
-//                                                             backgroundColor: 'white',
-//                                                             padding: '0 0.25rem',
-//                                                             color: '#6c757d',
-//                                                             fontWeight: '500'
-//                                                         }}
-//                                                     >
-//                                                         Bank
-//                                                     </label>
-//                                                 </div>
-//                                             </div>
-
-//                                             <div className="col-4">
+//                                             <div className="col-6">
 //                                                 <div className="position-relative">
 //                                                     <input
 //                                                         type="text"
-//                                                         name="InstNo"
-//                                                         id="InstNo"
+//                                                         name="instNo"
+//                                                         id="instNo"
 //                                                         className="form-control form-control-sm"
-//                                                         value={formData.InstNo}
+//                                                         value={formData.instNo}
 //                                                         onChange={handleInputChange}
 //                                                         onKeyDown={(e) => {
 //                                                             if (e.key === 'Enter') {
-//                                                                 handleKeyDown(e, 'InstNo');
+//                                                                 e.preventDefault();
+//                                                                 document.getElementById('description')?.focus();
 //                                                             }
 //                                                         }}
 //                                                         autoComplete='off'
@@ -1369,7 +1453,7 @@
 //                                             <button
 //                                                 type="button"
 //                                                 className="btn btn-secondary btn-sm d-flex align-items-center"
-//                                                 onClick={resetForm}
+//                                                 onClick={resetAfterSave}
 //                                                 disabled={isSaving}
 //                                                 style={{
 //                                                     height: '26px',
@@ -1385,7 +1469,6 @@
 //                                                 type="submit"
 //                                                 className="btn btn-primary btn-sm d-flex align-items-center"
 //                                                 id="saveBill"
-//                                                 onClick={(e) => handleSubmit(e, printAfterSave)}
 //                                                 disabled={isSaving}
 //                                                 style={{
 //                                                     height: '26px',
@@ -1443,6 +1526,9 @@
 //                                     <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
 //                                         Select an Account
 //                                     </h5>
+//                                     <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
+//                                         {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
+//                                     </small>
 //                                     <button type="button" className="btn-close" onClick={handleAccountModalClose}></button>
 //                                 </div>
 //                                 <div className="p-2 bg-white sticky-top">
@@ -1467,14 +1553,15 @@
 //                                                 const firstAccountItem = document.querySelector('.account-item.active');
 //                                                 if (firstAccountItem) {
 //                                                     const accountId = firstAccountItem.getAttribute('data-account-id');
-//                                                     const account = accounts.find(a => a._id === accountId);
+//                                                     const account = accounts.find(a => a.id === accountId);
 //                                                     if (account) {
 //                                                         selectAccount(account);
 //                                                     }
 //                                                 }
 //                                             } else if (e.key === 'F6') {
 //                                                 e.preventDefault();
-//                                                 // You can add account creation modal here if needed
+//                                                 setShowAccountCreationModal(true);
+//                                                 setShowAccountModal(false);
 //                                             }
 //                                         }}
 //                                         ref={accountSearchRef}
@@ -1487,7 +1574,7 @@
 //                                 </div>
 //                                 <div className="modal-body p-0">
 //                                     <div style={{ height: 'calc(400px - 120px)' }}>
-//                                         <NewVirtualizedAccountList
+//                                         <VirtualizedAccountList
 //                                             accounts={accounts}
 //                                             onAccountClick={(account) => {
 //                                                 selectAccount(account);
@@ -1508,6 +1595,42 @@
 //                 </>
 //             )}
 
+//             {/* Account Creation Modal */}
+//             {showAccountCreationModal && (
+//                 <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+//                     <div className="modal-dialog modal-fullscreen">
+//                         <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+//                             <div className="modal-header bg-primary text-white">
+//                                 <h5 className="modal-title">Create New Account</h5>
+//                                 <div className="d-flex align-items-center">
+//                                     <button
+//                                         type="button"
+//                                         className="btn-close btn-close-white"
+//                                         onClick={handleAccountCreationModalClose}
+//                                     ></button>
+//                                 </div>
+//                             </div>
+//                             <div className="modal-body p-0">
+//                                 <iframe
+//                                     src="/retailer/accounts"
+//                                     title="Account Creation"
+//                                     style={{ width: '100%', height: '100%', border: 'none' }}
+//                                 />
+//                             </div>
+//                             <div className="modal-footer bg-light">
+//                                 <button
+//                                     type="button"
+//                                     className="btn btn-secondary"
+//                                     onClick={handleAccountCreationModalClose}
+//                                 >
+//                                     <i className="bi bi-arrow-left me-2"></i>Close
+//                                 </button>
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </div>
+//             )}
+
 //             <NotificationToast
 //                 show={notification.show}
 //                 message={notification.message}
@@ -1525,7 +1648,7 @@
 
 // export default AddReceipt;
 
-//------------------------------------------------------------------------end
+//----------------------------------------------------------------------------------------end
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -1558,12 +1681,13 @@ const AddReceipt = () => {
 
     const [selectedAccountId, setSelectedAccountId] = useState('');
 
+    // Form data - maintains same structure as before but internally maps to entries
     const [formData, setFormData] = useState({
         nepaliDate: currentNepaliDate,
         billDate: new Date().toISOString().split('T')[0],
         receiptAccountId: '',
         accountId: '',
-        credit: '',
+        amount: '',
         instType: 0, // N/A = 0
         instNo: '',
         description: '',
@@ -1699,6 +1823,7 @@ const AddReceipt = () => {
                 setFormData(prev => ({
                     ...prev,
                     receiptAccountId: data.cashAccounts[0]?.id || '',
+                    amount: '',
                     nepaliDate: currentNepaliDate,
                     billDate: new Date().toISOString().split('T')[0],
                 }));
@@ -1824,7 +1949,7 @@ const AddReceipt = () => {
                 billDate: currentRomanDate,
                 receiptAccountId: data.cashAccounts[0]?.id || '',
                 accountId: '',
-                credit: '',
+                amount: '',
                 instType: 0,
                 instNo: '',
                 description: '',
@@ -1857,18 +1982,45 @@ const AddReceipt = () => {
         setIsSaving(true);
 
         try {
-            // Convert InstrumentType enum
-            const instTypeValue = getInstrumentTypeValue(formData.instType);
+            const amount = parseFloat(formData.amount) || 0;
 
+            if (amount <= 0) {
+                throw new Error('Amount must be greater than 0');
+            }
+
+            if (!formData.receiptAccountId) {
+                throw new Error('Receipt account is required');
+            }
+
+            if (!formData.accountId) {
+                throw new Error('Party account is required');
+            }
+
+            // Prepare payload with entries structure (same as backend expects)
             const payload = {
                 nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
                 date: formData.billDate,
-                receiptAccountId: formData.receiptAccountId,
-                accountId: formData.accountId,
-                credit: parseFloat(formData.credit) || 0,
-                instType: instTypeValue,
-                instNo: formData.instNo || '',
                 description: formData.description || '',
+                entries: [
+                    {
+                        accountId: formData.receiptAccountId,
+                        entryType: 'Debit',
+                        amount: amount,
+                        instType: showBankDetails ? parseInt(formData.instType) : 0,
+                        instNo: formData.instNo || '',
+                        bankAcc: '',
+                        referenceNumber: ''
+                    },
+                    {
+                        accountId: formData.accountId,
+                        entryType: 'Credit',
+                        amount: amount,
+                        instType: null,
+                        instNo: '',
+                        bankAcc: '',
+                        referenceNumber: ''
+                    }
+                ],
                 print: print || printAfterSave
             };
 
@@ -1902,37 +2054,12 @@ const AddReceipt = () => {
             console.error('Error saving receipt:', err);
             setNotification({
                 show: true,
-                message: err.response?.data?.message || 'Failed to save receipt',
+                message: err.response?.data?.error || err.message || 'Failed to save receipt',
                 type: 'error'
             });
         } finally {
             setIsSaving(false);
         }
-    };
-
-    // Helper function to convert instrument type to enum value
-    const getInstrumentTypeValue = (type) => {
-        // If type is already a number, return it directly
-        if (typeof type === 'number') {
-            return type;
-        }
-
-        // If type is a string, convert to lowercase and map
-        if (typeof type === 'string') {
-            switch (type.toLowerCase()) {
-                case 'rtgs': return 1;
-                case 'fonepay': return 2;
-                case 'cheque': return 3;
-                case 'connect-ips': return 4;
-                case 'esewa': return 5;
-                case 'khalti': return 6;
-                case 'n/a':
-                default: return 0;
-            }
-        }
-
-        // Default return for any other type
-        return 0;
     };
 
     const handleAccountSearch = (e) => {
@@ -1971,9 +2098,9 @@ const AddReceipt = () => {
         setSelectedAccountId(account.id);
         setShowAccountModal(false);
 
-        // Focus on credit amount field after account selection
+        // Focus on amount field after account selection
         setTimeout(() => {
-            document.getElementById('credit')?.focus();
+            document.getElementById('amount')?.focus();
         }, 50);
     };
 
@@ -2005,202 +2132,230 @@ const AddReceipt = () => {
         tempDiv.style.left = '-9999px';
         document.body.appendChild(tempDiv);
 
-        // Create the printable content
+        // Get debit and credit entries from print data
+        const debitEntries = printData.debitEntries || [];
+        const creditEntries = printData.creditEntries || [];
+
+        let rows = '';
+        let totalDebit = 0;
+        let totalCredit = 0;
+        let rowNumber = 1;
+
+        // Add debit entries
+        debitEntries.forEach(entry => {
+            rows += `
+                <tr>
+                    <td class="print-text-center">${rowNumber++}</td>
+                    <td>
+                        ${entry.accountName}
+                        ${entry.instType !== 'NA' ? `<small class="d-block text-muted">${entry.instType} ${entry.instNo ? `- ${entry.instNo}` : ''}${entry.bankAcc ? ` (${entry.bankAcc})` : ''}</small>` : ''}
+                        ${entry.referenceNumber ? `<small class="d-block text-muted">Ref: ${entry.referenceNumber}</small>` : ''}
+                    </td>
+                    <td class="print-text-right">${entry.amount.toFixed(2)}</td>
+                    <td class="print-text-right">0.00</td>
+                </tr>
+            `;
+            totalDebit += entry.amount;
+        });
+
+        // Add credit entries
+        creditEntries.forEach(entry => {
+            rows += `
+                <tr>
+                    <td class="print-text-center">${rowNumber++}</td>
+                    <td>
+                        ${entry.accountName}
+                        ${entry.referenceNumber ? `<small class="d-block text-muted">Ref: ${entry.referenceNumber}</small>` : ''}
+                    </td>
+                    <td class="print-text-right">0.00</td>
+                    <td class="print-text-right">${entry.amount.toFixed(2)}</td>
+                </tr>
+            `;
+            totalCredit += entry.amount;
+        });
+
         tempDiv.innerHTML = `
-        <div id="printableContent">
-            <div class="print-voucher-container">
-                <div class="print-voucher-header">
-                    <div class="print-company-name">${printData.currentCompanyName}</div>
-                    <div class="print-company-details">
-                        ${printData.currentCompany?.address || ''}-${printData.currentCompany?.ward || ''}, ${printData.currentCompany?.city || ''}
-                        <br />
-                        Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
-                    </div>
-                    <div class="print-voucher-title">RECEIPT VOUCHER</div>
-                </div>
-
-                <div class="print-voucher-details">
-                    <div>
-                        <div><strong>Vch. No:</strong> ${printData.receipt.billNumber}</div>
-                    </div>
-                    <div>
-                        <div><strong>Date:</strong> ${new Date(printData.receipt.date).toLocaleDateString()}</div>
-                    </div>
-                </div>
-
-                <table class="print-voucher-table">
-                    <thead>
-                        <tr>
-                            <th>S.N</th>
-                            <th>Particular</th>
-                            <th>Debit Amount</th>
-                            <th>Credit Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>1</td>
-                            <td>${printData.receipt.receiptAccount?.name || 'N/A'}</td>
-                            <td>${(printData.receipt.credit || 0).toFixed(2)}</td>
-                            <td>0.00</td>
-                        </tr>
-                        <tr>
-                            <td>2</td>
-                            <td>${printData.receipt.account?.name || 'N/A'}</td>
-                            <td>0.00</td>
-                            <td>${(printData.receipt.credit || 0).toFixed(2)}</td>
-                        </tr>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th colSpan="2">Total</th>
-                            <th>${(printData.receipt.credit || 0).toFixed(2)}</th>
-                            <th>${(printData.receipt.credit || 0).toFixed(2)}</th>
-                        </tr>
-                    </tfoot>
-                </table>
-
-                <div style="margin-top: 3mm;">
-                    <strong>Note:</strong> ${printData.receipt.description || 'N/A'}
-                </div>
-
-                <div style="margin-top: 3mm;">
-                    <div><strong>Mode of Receipt:</strong> ${getInstrumentTypeName(printData.receipt.instType) || 'N/A'}</div>
-                    <div><strong>Inst No:</strong> ${printData.receipt.instNo || 'N/A'}</div>
-                </div>
-
-                <div class="print-signature-area">
-                    <div class="print-signature-box">
-                        <div style="margin-bottom: 1mm;">
-                            <strong>${printData.receipt.user?.name || 'N/A'}</strong>
+            <div id="printableContent">
+                <div class="print-voucher-container">
+                    <div class="print-voucher-header">
+                        <div class="print-company-name">${printData.currentCompanyName}</div>
+                        <div class="print-company-details">
+                            ${printData.currentCompany?.address || ''}, ${printData.currentCompany?.city || ''}
+                            <br />
+                            Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
                         </div>
-                        Prepared By
+                        <div class="print-voucher-title">RECEIPT VOUCHER</div>
                     </div>
-                    <div class="print-signature-box">
-                        <div style="margin-bottom: 1mm;">&nbsp;</div>
-                        Checked By
+
+                    <div class="print-voucher-details">
+                        <div>
+                            <div><strong>Vch. No:</strong> ${printData.receipt.billNumber}</div>
+                        </div>
+                        <div>
+                            <div><strong>Date:</strong> ${new Date(printData.receipt.date).toLocaleDateString()}</div>
+                        </div>
                     </div>
-                    <div class="print-signature-box">
-                        <div style="margin-bottom: 1mm;">&nbsp;</div>
-                        Approved By
+
+                    <table class="print-voucher-table">
+                        <thead>
+                            <tr>
+                                <th>S.N</th>
+                                <th>Particular</th>
+                                <th>Debit Amount</th>
+                                <th>Credit Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colSpan="2">Total</th>
+                                <th>${totalDebit.toFixed(2)}</th>
+                                <th>${totalCredit.toFixed(2)}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div style="margin-top: 3mm;">
+                        <strong>Note:</strong> ${printData.receipt.description || 'N/A'}
+                    </div>
+
+                    <div class="print-signature-area">
+                        <div class="print-signature-box">
+                            <div style="margin-bottom: 1mm;">
+                                <strong>${printData.receipt.user?.name || 'N/A'}</strong>
+                            </div>
+                            Prepared By
+                        </div>
+                        <div class="print-signature-box">
+                            <div style="margin-bottom: 1mm;">&nbsp;</div>
+                            Checked By
+                        </div>
+                        <div class="print-signature-box">
+                            <div style="margin-bottom: 1mm;">&nbsp;</div>
+                            Approved By
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
 
-        // Add print styles
+        // Add print styles (same as before)
         const styles = `
-        @page {
-            size: A4;
-            margin: 5mm;
-        }
-        body {
-            font-family: 'Arial Narrow', Arial, sans-serif;
-            font-size: 9pt;
-            line-height: 1.2;
-            color: #000;
-            background: white;
-            margin: 0;
-            padding: 0;
-        }
-        .print-voucher-container {
-            width: 100%;
-            max-width: 210mm;
-            margin: 0 auto;
-            padding: 2mm;
-        }
-        .print-voucher-header {
-            text-align: center;
-            margin-bottom: 3mm;
-            border-bottom: 1px dashed #000;
-            padding-bottom: 2mm;
-        }
-        .print-voucher-title {
-            font-size: 12pt;
-            font-weight: bold;
-            margin: 2mm 0;
-            text-transform: uppercase;
-            text-decoration: underline;
-            letter-spacing: 1px;
-        }
-        .print-company-name {
-            font-size: 16pt;
-            font-weight: bold;
-        }
-        .print-company-details {
-            font-size: 8pt;
-            margin: 1mm 0;
-        }
-        .print-voucher-details {
-            display: flex;
-            justify-content: space-between;
-            margin: 2mm 0;
-            font-size: 8pt;
-        }
-        .print-voucher-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 3mm 0;
-            font-size: 8pt;
-        }
-        .print-voucher-table thead {
-            border-top: 1px dashed #000;
-            border-bottom: 1px dashed #000;
-        }
-        .print-voucher-table th {
-            background-color: transparent;
-            border: 1px solid #000;
-            padding: 1mm;
-            text-align: left;
-            font-weight: bold;
-        }
-        .print-voucher-table td {
-            border: 1px solid #000;
-            padding: 1mm;
-        }
-        .print-text-right {
-            text-align: right;
-        }
-        .print-text-center {
-            text-align: center;
-        }
-        .print-signature-area {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5mm;
-            font-size: 8pt;
-        }
-        .print-signature-box {
-            text-align: center;
-            width: 30%;
-            border-top: 1px dashed #000;
-            padding-top: 1mm;
-            font-weight: bold;
-        }
-    `;
+            @page {
+                size: A4;
+                margin: 5mm;
+            }
+            body {
+                font-family: 'Arial Narrow', Arial, sans-serif;
+                font-size: 9pt;
+                line-height: 1.2;
+                color: #000;
+                background: white;
+                margin: 0;
+                padding: 0;
+            }
+            .print-voucher-container {
+                width: 100%;
+                max-width: 210mm;
+                margin: 0 auto;
+                padding: 2mm;
+            }
+            .print-voucher-header {
+                text-align: center;
+                margin-bottom: 3mm;
+                border-bottom: 1px dashed #000;
+                padding-bottom: 2mm;
+            }
+            .print-voucher-title {
+                font-size: 12pt;
+                font-weight: bold;
+                margin: 2mm 0;
+                text-transform: uppercase;
+                text-decoration: underline;
+                letter-spacing: 1px;
+            }
+            .print-company-name {
+                font-size: 16pt;
+                font-weight: bold;
+            }
+            .print-company-details {
+                font-size: 8pt;
+                margin: 1mm 0;
+            }
+            .print-voucher-details {
+                display: flex;
+                justify-content: space-between;
+                margin: 2mm 0;
+                font-size: 8pt;
+            }
+            .print-voucher-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 3mm 0;
+                font-size: 8pt;
+            }
+            .print-voucher-table thead {
+                border-top: 1px dashed #000;
+                border-bottom: 1px dashed #000;
+            }
+            .print-voucher-table th {
+                background-color: transparent;
+                border: 1px solid #000;
+                padding: 1mm;
+                text-align: left;
+                font-weight: bold;
+            }
+            .print-voucher-table td {
+                border: 1px solid #000;
+                padding: 1mm;
+            }
+            .print-text-right {
+                text-align: right;
+            }
+            .print-text-center {
+                text-align: center;
+            }
+            .print-signature-area {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 5mm;
+                font-size: 8pt;
+            }
+            .print-signature-box {
+                text-align: center;
+                width: 30%;
+                border-top: 1px dashed #000;
+                padding-top: 1mm;
+                font-weight: bold;
+            }
+            .text-danger {
+                color: #dc3545 !important;
+            }
+        `;
 
         // Create print window
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
-        <html>
-            <head>
-                <title>Receipt_Voucher_${printData.receipt.billNumber}</title>
-                <style>${styles}</style>
-            </head>
-            <body>
-                ${tempDiv.innerHTML}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            window.close();
-                        }, 200);
-                    };
-                </script>
-            </body>
-        </html>
-    `);
+            <html>
+                <head>
+                    <title>Receipt_Voucher_${printData.receipt.billNumber}</title>
+                    <style>${styles}</style>
+                </head>
+                <body>
+                    ${tempDiv.innerHTML}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                window.close();
+                            }, 200);
+                        };
+                    </script>
+                </body>
+            </html>
+        `);
         printWindow.document.close();
 
         // Clean up
@@ -2253,6 +2408,7 @@ const AddReceipt = () => {
                                                     id="nepaliDate"
                                                     autoComplete='off'
                                                     autoFocus
+                                                    ref={transactionDateRef}
                                                     className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
                                                     value={formData.nepaliDate}
                                                     onChange={(e) => {
@@ -2264,140 +2420,7 @@ const AddReceipt = () => {
                                                             setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
                                                         }
                                                     }}
-                                                    onKeyDown={(e) => {
-                                                        const allowedKeys = [
-                                                            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                                            'Home', 'End'
-                                                        ];
-
-                                                        if (!allowedKeys.includes(e.key) &&
-                                                            !/^\d$/.test(e.key) &&
-                                                            e.key !== '/' &&
-                                                            e.key !== '-' &&
-                                                            !e.ctrlKey && !e.metaKey) {
-                                                            e.preventDefault();
-                                                        }
-
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            const dateStr = e.target.value.trim();
-
-                                                            if (!dateStr) {
-                                                                const currentDate = new NepaliDate();
-                                                                const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    nepaliDate: correctedDate
-                                                                });
-                                                                setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                                setNotification({
-                                                                    show: true,
-                                                                    message: 'Date required. Auto-corrected to current date.',
-                                                                    type: 'warning',
-                                                                    duration: 3000
-                                                                });
-
-                                                                handleKeyDown(e, 'nepaliDate');
-                                                            } else if (dateErrors.nepaliDate) {
-                                                                e.target.focus();
-                                                            } else {
-                                                                handleKeyDown(e, 'nepaliDate');
-                                                            }
-                                                        }
-                                                    }}
-                                                    onPaste={(e) => {
-                                                        e.preventDefault();
-                                                        const pastedData = e.clipboardData.getData('text');
-                                                        const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                                        const newValue = formData.nepaliDate + cleanedData;
-                                                        if (newValue.length <= 10) {
-                                                            setFormData({ ...formData, nepaliDate: newValue });
-                                                        }
-                                                    }}
-                                                    onBlur={(e) => {
-                                                        try {
-                                                            const dateStr = e.target.value.trim();
-                                                            if (!dateStr) {
-                                                                setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                                return;
-                                                            }
-
-                                                            const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                            if (!nepaliDateFormat.test(dateStr)) {
-                                                                const currentDate = new NepaliDate();
-                                                                const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    nepaliDate: correctedDate
-                                                                });
-                                                                setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                                setNotification({
-                                                                    show: true,
-                                                                    message: 'Invalid date format. Auto-corrected to current date.',
-                                                                    type: 'warning',
-                                                                    duration: 3000
-                                                                });
-                                                                return;
-                                                            }
-
-                                                            const normalizedDateStr = dateStr.replace(/-/g, '/');
-                                                            const [year, month, day] = normalizedDateStr.split('/').map(Number);
-
-                                                            if (month < 1 || month > 12) {
-                                                                throw new Error("Month must be between 1-12");
-                                                            }
-                                                            if (day < 1 || day > 32) {
-                                                                throw new Error("Day must be between 1-32");
-                                                            }
-
-                                                            const nepaliDate = new NepaliDate(year, month - 1, day);
-
-                                                            if (
-                                                                nepaliDate.getYear() !== year ||
-                                                                nepaliDate.getMonth() + 1 !== month ||
-                                                                nepaliDate.getDate() !== day
-                                                            ) {
-                                                                const currentDate = new NepaliDate();
-                                                                const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    nepaliDate: correctedDate
-                                                                });
-                                                                setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                                setNotification({
-                                                                    show: true,
-                                                                    message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                                    type: 'warning',
-                                                                    duration: 3000
-                                                                });
-                                                            } else {
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    nepaliDate: nepaliDate.format('YYYY-MM-DD')
-                                                                });
-                                                                setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                            }
-                                                        } catch (error) {
-                                                            const currentDate = new NepaliDate();
-                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: correctedDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-                                                        }
-                                                    }}
+                                                    onKeyDown={(e) => handleKeyDown(e, 'nepaliDate')}
                                                     placeholder="YYYY-MM-DD"
                                                     required
                                                     style={{
@@ -2440,6 +2463,7 @@ const AddReceipt = () => {
                                                     className="form-control form-control-sm"
                                                     value={formData.billDate}
                                                     autoFocus
+                                                    ref={transactionDateRef}
                                                     onChange={(e) => {
                                                         const value = e.target.value;
                                                         const selectedDate = new Date(value);
@@ -2460,42 +2484,7 @@ const AddReceipt = () => {
                                                             setFormData({ ...formData, billDate: value });
                                                         }
                                                     }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            const value = e.target.value;
-
-                                                            if (!value) {
-                                                                const today = new Date();
-                                                                const todayStr = today.toISOString().split('T')[0];
-                                                                setFormData({ ...formData, billDate: todayStr });
-
-                                                                setNotification({
-                                                                    show: true,
-                                                                    message: 'Date required. Auto-corrected to today.',
-                                                                    type: 'warning',
-                                                                    duration: 3000
-                                                                });
-                                                            }
-
-                                                            handleKeyDown(e, 'billDate');
-                                                        }
-                                                    }}
-                                                    onBlur={(e) => {
-                                                        const value = e.target.value;
-                                                        if (!value) {
-                                                            const today = new Date();
-                                                            const todayStr = today.toISOString().split('T')[0];
-                                                            setFormData({ ...formData, billDate: todayStr });
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Date required. Auto-corrected to today.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-                                                        }
-                                                    }}
+                                                    onKeyDown={(e) => handleKeyDown(e, 'billDate')}
                                                     max={new Date().toISOString().split('T')[0]}
                                                     required
                                                     style={{
@@ -2532,11 +2521,7 @@ const AddReceipt = () => {
                                             id="billNumber"
                                             className="form-control form-control-sm"
                                             value={nextBillNumber}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    handleKeyDown(e, 'billNumber');
-                                                }
-                                            }}
+                                            onKeyDown={(e) => handleKeyDown(e, 'billNumber')}
                                             readOnly
                                             style={{
                                                 height: '26px',
@@ -2570,12 +2555,12 @@ const AddReceipt = () => {
                                             id="accountType"
                                             className="form-control form-control-sm"
                                             value="Receipt"
+                                            readOnly
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') {
                                                     handleKeyDown(e, 'accountType');
                                                 }
                                             }}
-                                            readOnly
                                             style={{
                                                 height: '26px',
                                                 fontSize: '0.875rem',
@@ -2609,11 +2594,7 @@ const AddReceipt = () => {
                                             required
                                             value={formData.receiptAccountId}
                                             onChange={handleReceiptAccountChange}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    handleKeyDown(e, 'receiptAccountId');
-                                                }
-                                            }}
+                                            onKeyDown={(e) => handleKeyDown(e, 'receiptAccountId')}
                                             style={{
                                                 height: '26px',
                                                 fontSize: '0.875rem',
@@ -2676,12 +2657,7 @@ const AddReceipt = () => {
                                             placeholder=""
                                             value={formData.accountName || ''}
                                             onFocus={() => setShowAccountModal(true)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleKeyDown(e, 'account');
-                                                }
-                                            }}
+                                            onKeyDown={(e) => handleKeyDown(e, 'account')}
                                             readOnly
                                             required
                                             style={{
@@ -2714,11 +2690,11 @@ const AddReceipt = () => {
                                     <div className="position-relative">
                                         <input
                                             type="number"
-                                            name="credit"
-                                            id="credit"
+                                            name="amount"
+                                            id="amount"
                                             className="form-control form-control-sm"
-                                            placeholder="Credit Amount"
-                                            value={formData.credit}
+                                            placeholder="Amount"
+                                            value={formData.amount}
                                             onChange={handleInputChange}
                                             onFocus={(e) => e.target.select()}
                                             onKeyDown={(e) => {
@@ -2874,7 +2850,7 @@ const AddReceipt = () => {
                                                 <AccountBalanceDisplay
                                                     accountId={formData.accountId}
                                                     api={api}
-                                                    newTransactionAmount={parseFloat(formData.credit) || 0}
+                                                    newTransactionAmount={parseFloat(formData.amount) || 0}
                                                     compact={true}
                                                     transactionType="receipt"
                                                     dateFormat={companyDateFormat}

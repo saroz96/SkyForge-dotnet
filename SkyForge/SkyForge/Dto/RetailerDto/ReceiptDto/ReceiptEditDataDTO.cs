@@ -1,4 +1,7 @@
 using SkyForge.Dto.AccountDto;
+using SkyForge.Models.Retailer.ReceiptModel;
+using System;
+using System.Collections.Generic;
 
 namespace SkyForge.Dto.RetailerDto.ReceiptDto
 {
@@ -6,6 +9,7 @@ namespace SkyForge.Dto.RetailerDto.ReceiptDto
     {
         public CompanyInfoDTO Company { get; set; } = new();
         public ReceiptEditDTO Receipt { get; set; } = new();
+        public List<ReceiptEntryEditDTO> Entries { get; set; } = new();
         public List<AccountInfoDTO> Accounts { get; set; } = new();
         public List<AccountInfoDTO> CashAccounts { get; set; } = new();
         public List<AccountInfoDTO> BankAccounts { get; set; } = new();
@@ -25,18 +29,7 @@ namespace SkyForge.Dto.RetailerDto.ReceiptDto
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
         public DateTime NepaliDate { get; set; }
-        public Guid AccountId { get; set; }
-        public string AccountName { get; set; } = string.Empty;
-        public string AccountPan { get; set; } = string.Empty;
-        public string AccountAddress { get; set; } = string.Empty;
-        public decimal Credit { get; set; }
-        public Guid ReceiptAccountId { get; set; }
-        public string ReceiptAccountName { get; set; } = string.Empty;
-        public string ReceiptAccountCode { get; set; } = string.Empty;
-        public string ReceiptAccountUniqueNumber { get; set; } = string.Empty;
-        public string InstType { get; set; } = string.Empty;
-        public string? InstNo { get; set; }
-        public string? BankAcc { get; set; }
+        public decimal TotalAmount { get; set; }
         public string? Description { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string UserEmail { get; set; } = string.Empty;
@@ -54,9 +47,4 @@ namespace SkyForge.Dto.RetailerDto.ReceiptDto
         public string Role { get; set; } = string.Empty;
         public UserPreferencesDTO Preferences { get; set; } = new();
     }
-
-    // public class UserPreferencesDTO
-    // {
-    //     public string Theme { get; set; } = "light";
-    // }
 }

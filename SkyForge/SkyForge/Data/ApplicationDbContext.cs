@@ -90,6 +90,7 @@ namespace SkyForge.Data
 
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Receipt> Receipts { get; set; }
+        public DbSet<ReceiptEntry> ReceiptEntries { get; set; }
 
         public DbSet<BarcodePreference> BarcodePreferences { get; set; }
         public DbSet<BillCounter> BillCounters { get; set; } = null!;
@@ -122,41 +123,109 @@ namespace SkyForge.Data
                 .HasIndex(bc => new { bc.CompanyId, bc.FiscalYearId, bc.TransactionType })
                 .IsUnique();
 
+            // // Receipt configuration
+            // modelBuilder.Entity<Receipt>(entity =>
+            // {
+            //     // Unique constraint
+            //     entity.HasIndex(r => new { r.BillNumber, r.CompanyId, r.FiscalYearId })
+            //           .IsUnique();
+
+            //     // Enum conversions
+            //     entity.Property(r => r.InstType)
+            //           .HasConversion<string>()
+            //           .HasMaxLength(20);
+
+            //     entity.Property(r => r.Status)
+            //           .HasConversion<string>()
+            //           .HasMaxLength(20);
+
+            //     // Relationships
+            //     entity.HasOne(r => r.Account)
+            //           .WithMany()
+            //           .HasForeignKey(r => r.AccountId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.HasOne(r => r.ReceiptAccount)
+            //           .WithMany()
+            //           .HasForeignKey(r => r.ReceiptAccountId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.HasOne(r => r.User)
+            //           .WithMany()
+            //           .HasForeignKey(r => r.UserId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.HasOne(r => r.AccountGroup)
+            //           .WithMany()
+            //           .HasForeignKey(r => r.AccountGroupId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.HasOne(r => r.Company)
+            //           .WithMany()
+            //           .HasForeignKey(r => r.CompanyId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.HasOne(r => r.FiscalYear)
+            //           .WithMany()
+            //           .HasForeignKey(r => r.FiscalYearId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     // Property configurations
+            //     entity.Property(r => r.BillNumber)
+            //           .HasMaxLength(50)
+            //           .IsRequired();
+
+            //     entity.Property(r => r.BankAcc)
+            //           .HasMaxLength(100);
+
+            //     entity.Property(r => r.InstNo)
+            //           .HasMaxLength(100);
+
+            //     entity.Property(r => r.Description)
+            //           .HasMaxLength(500);
+
+            //     // Decimal precision
+            //     entity.Property(r => r.Debit)
+            //           .HasPrecision(18, 2);
+
+            //     entity.Property(r => r.Credit)
+            //           .HasPrecision(18, 2);
+
+            //     // Indexes for performance
+            //     entity.HasIndex(r => r.Date);
+            //     entity.HasIndex(r => r.Date);
+            //     entity.HasIndex(r => r.AccountId);
+            //     entity.HasIndex(r => r.ReceiptAccountId);
+            //     entity.HasIndex(r => r.InstType);
+            //     entity.HasIndex(r => r.Status);
+            //     entity.HasIndex(r => r.IsActive);
+            //     entity.HasIndex(r => r.AccountGroupId);
+            //     entity.HasIndex(r => r.BankAcc);
+            //     entity.HasIndex(r => r.InstNo);
+            //     entity.HasIndex(r => new { r.CompanyId, r.FiscalYearId, r.Date });
+            //     entity.HasIndex(r => new { r.CompanyId, r.Status, r.IsActive });
+            //     entity.HasIndex(r => new { r.InstType, r.Status });
+            // });
             // Receipt configuration
+           
             modelBuilder.Entity<Receipt>(entity =>
             {
+                // Table name
+                entity.ToTable("Receipts");
+
                 // Unique constraint
                 entity.HasIndex(r => new { r.BillNumber, r.CompanyId, r.FiscalYearId })
                       .IsUnique();
 
                 // Enum conversions
-                entity.Property(r => r.InstType)
-                      .HasConversion<string>()
-                      .HasMaxLength(20);
-
                 entity.Property(r => r.Status)
                       .HasConversion<string>()
                       .HasMaxLength(20);
 
                 // Relationships
-                entity.HasOne(r => r.Account)
-                      .WithMany()
-                      .HasForeignKey(r => r.AccountId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(r => r.ReceiptAccount)
-                      .WithMany()
-                      .HasForeignKey(r => r.ReceiptAccountId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
                 entity.HasOne(r => r.User)
                       .WithMany()
                       .HasForeignKey(r => r.UserId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(r => r.AccountGroup)
-                      .WithMany()
-                      .HasForeignKey(r => r.AccountGroupId)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(r => r.Company)
@@ -174,38 +243,104 @@ namespace SkyForge.Data
                       .HasMaxLength(50)
                       .IsRequired();
 
-                entity.Property(r => r.BankAcc)
-                      .HasMaxLength(100);
-
-                entity.Property(r => r.InstNo)
-                      .HasMaxLength(100);
-
                 entity.Property(r => r.Description)
                       .HasMaxLength(500);
 
                 // Decimal precision
-                entity.Property(r => r.Debit)
-                      .HasPrecision(18, 2);
-
-                entity.Property(r => r.Credit)
-                      .HasPrecision(18, 2);
+                entity.Property(r => r.TotalAmount)
+                      .HasPrecision(18, 2)
+                      .IsRequired();
 
                 // Indexes for performance
+                entity.HasIndex(r => r.BillNumber);
                 entity.HasIndex(r => r.Date);
-                entity.HasIndex(r => r.Date);
-                entity.HasIndex(r => r.AccountId);
-                entity.HasIndex(r => r.ReceiptAccountId);
-                entity.HasIndex(r => r.InstType);
                 entity.HasIndex(r => r.Status);
                 entity.HasIndex(r => r.IsActive);
-                entity.HasIndex(r => r.AccountGroupId);
-                entity.HasIndex(r => r.BankAcc);
-                entity.HasIndex(r => r.InstNo);
                 entity.HasIndex(r => new { r.CompanyId, r.FiscalYearId, r.Date });
                 entity.HasIndex(r => new { r.CompanyId, r.Status, r.IsActive });
-                entity.HasIndex(r => new { r.InstType, r.Status });
+                entity.HasIndex(r => new { r.CompanyId, r.FiscalYearId, r.BillNumber });
             });
 
+            // ReceiptEntry configuration
+            modelBuilder.Entity<ReceiptEntry>(entity =>
+            {
+                // Table name
+                entity.ToTable("ReceiptEntries");
+
+                // Primary key
+                entity.HasKey(e => e.Id);
+
+                // Relationships
+                entity.HasOne(e => e.Receipt)
+                      .WithMany(r => r.ReceiptEntries)
+                      .HasForeignKey(e => e.ReceiptId)
+                      .OnDelete(DeleteBehavior.Cascade); // When receipt is deleted, delete all entries
+
+                entity.HasOne(e => e.Account)
+                      .WithMany()
+                      .HasForeignKey(e => e.AccountId)
+                      .OnDelete(DeleteBehavior.Restrict); // Prevent deletion of account if it has entries
+
+                // Property configurations
+                entity.Property(e => e.EntryType)
+                      .HasMaxLength(10)
+                      .IsRequired()
+                      .HasConversion<string>();
+
+                entity.Property(e => e.Amount)
+                      .HasPrecision(18, 2)
+                      .IsRequired();
+
+                entity.Property(e => e.Description)
+                      .HasMaxLength(500);
+
+                entity.Property(e => e.BankAcc)
+                      .HasMaxLength(100);
+
+                entity.Property(e => e.InstNo)
+                      .HasMaxLength(100);
+
+                entity.Property(e => e.ReferenceNumber)
+                      .HasMaxLength(50);
+
+                // Enum conversion for InstType (nullable)
+                entity.Property(e => e.InstType)
+                      .HasConversion<string>()
+                      .HasMaxLength(20)
+                      .IsRequired(false);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.ReceiptId);
+                entity.HasIndex(e => e.AccountId);
+                entity.HasIndex(e => e.EntryType);
+                entity.HasIndex(e => e.InstType);
+                entity.HasIndex(e => e.ReferenceNumber);
+                entity.HasIndex(e => new { e.ReceiptId, e.EntryType });
+                entity.HasIndex(e => new { e.AccountId, e.EntryType });
+                entity.HasIndex(e => new { e.EntryType, e.Amount });
+                entity.HasIndex(e => new { e.InstType, e.BankAcc });
+
+                // Composite index for common queries
+                entity.HasIndex(e => new { e.ReceiptId, e.AccountId, e.EntryType });
+
+                // Index for date range queries (using receipt date)
+                entity.HasIndex(e => e.CreatedAt);
+            });
+
+            // Optional: Configure shadow properties for audit fields if needed
+            modelBuilder.Entity<Receipt>(entity =>
+            {
+                // Shadow property for soft delete
+                entity.Property<DateTime?>("DeletedAt");
+                entity.HasQueryFilter(e => EF.Property<DateTime?>(e, "DeletedAt") == null);
+            });
+
+            modelBuilder.Entity<ReceiptEntry>(entity =>
+            {
+                // Shadow property for soft delete
+                entity.Property<DateTime?>("DeletedAt");
+                entity.HasQueryFilter(e => EF.Property<DateTime?>(e, "DeletedAt") == null);
+            });
 
             // Payment configuration
             modelBuilder.Entity<Payment>(entity =>

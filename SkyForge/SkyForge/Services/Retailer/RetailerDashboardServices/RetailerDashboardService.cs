@@ -577,16 +577,16 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                         cashBalance -= payment.Debit; // Payments reduce cash
                     }
 
-                    var cashReceipts = await _context.Receipts
-                        .Where(r => r.ReceiptAccountId == cashAccount.Id &&
-                                   r.Date <= endDate &&
-                                   r.Status == ReceiptStatus.Active)
-                        .ToListAsync();
+                    // var cashReceipts = await _context.Receipts
+                    //     .Where(r => r.ReceiptAccountId == cashAccount.Id &&
+                    //                r.Date <= endDate &&
+                    //                r.Status == ReceiptStatus.Active)
+                    //     .ToListAsync();
 
-                    foreach (var receipt in cashReceipts)
-                    {
-                        cashBalance += receipt.Debit; // Receipts increase cash
-                    }
+                    // foreach (var receipt in cashReceipts)
+                    // {
+                    //     cashBalance += receipt.Debit; // Receipts increase cash
+                    // }
                 }
                 catch (Exception ex)
                 {
@@ -658,16 +658,16 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                             accountBalance -= payment.Debit;
                         }
 
-                        var receipts = await _context.Receipts
-                            .Where(r => r.ReceiptAccountId == account.Id &&
-                                       r.Date <= endDate &&
-                                       r.Status == ReceiptStatus.Active)
-                            .ToListAsync();
+                        // var receipts = await _context.Receipts
+                        //     .Where(r => r.ReceiptAccountId == account.Id &&
+                        //                r.Date <= endDate &&
+                        //                r.Status == ReceiptStatus.Active)
+                        //     .ToListAsync();
 
-                        foreach (var receipt in receipts)
-                        {
-                            accountBalance += receipt.Debit;
-                        }
+                        // foreach (var receipt in receipts)
+                        // {
+                        //     accountBalance += receipt.Debit;
+                        // }
 
                         balance += accountBalance;
                     }
