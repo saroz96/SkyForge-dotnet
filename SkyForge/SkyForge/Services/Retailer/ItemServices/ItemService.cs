@@ -549,428 +549,860 @@ namespace SkyForge.Services.Retailer.ItemServices
             }
         }
 
-        /// <summary>
-        /// Updates an existing item with transaction-aware stock updates
-        /// </summary>
-        public async Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid currentFiscalYearId)
+        // /// <summary>
+        // /// Updates an existing item with transaction-aware stock updates
+        // /// </summary>
+        // public async Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid currentFiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         // Load the item WITHOUT tracking for related entities initially
+        //         var existingItem = await _context.Items
+        //             .AsNoTracking() // Important: Avoid tracking conflicts
+        //             .Include(i => i.ItemCompositions)
+        //             .Include(i => i.InitialOpeningStock)
+        //             .Include(i => i.OpeningStocksByFiscalYear)
+        //             .Include(i => i.ClosingStocksByFiscalYear)
+        //             .Include(i => i.StockEntries)
+        //             .Include(i => i.Sales)
+        //             .Include(i => i.Purchases)
+        //             .Include(i => i.SalesReturns)
+        //             .Include(i => i.PurchaseReturns)
+        //             .FirstOrDefaultAsync(i => i.Id == itemId);
+
+        //         if (existingItem == null)
+        //         {
+        //             throw new KeyNotFoundException($"Item with ID {itemId} not found");
+        //         }
+
+        //         // Now attach the main entity for updates
+        //         _context.Items.Attach(existingItem);
+
+        //         // Check for duplicate name (excluding current item)
+        //         if (!string.IsNullOrEmpty(updateItemDto.Name))
+        //         {
+        //             var duplicateItem = await _context.Items
+        //                 .AsNoTracking()
+        //                 .FirstOrDefaultAsync(i => i.Id != itemId
+        //                     && i.CompanyId == existingItem.CompanyId
+        //                     && i.FiscalYearId == existingItem.FiscalYearId
+        //                     && i.Name.ToLower() == updateItemDto.Name.Trim().ToLower());
+
+        //             if (duplicateItem != null)
+        //             {
+        //                 throw new InvalidOperationException($"Item '{updateItemDto.Name?.Trim()}' already exists for this fiscal year");
+        //             }
+        //         }
+
+        //         // Check if item has any transactions
+        //         bool hasTransactions = existingItem.Sales.Any() || existingItem.Purchases.Any() ||
+        //                               existingItem.SalesReturns.Any() || existingItem.PurchaseReturns.Any();
+
+        //         // Update basic properties
+        //         if (!string.IsNullOrEmpty(updateItemDto.Name))
+        //         {
+        //             existingItem.Name = updateItemDto.Name.Trim();
+        //         }
+
+        //         existingItem.Hscode = updateItemDto.Hscode;
+
+        //         if (updateItemDto.CategoryId.HasValue)
+        //         {
+        //             var categoryExists = await _context.Categories
+        //                 .AsNoTracking()
+        //                 .AnyAsync(c => c.Id == updateItemDto.CategoryId.Value && c.CompanyId == existingItem.CompanyId);
+
+        //             if (!categoryExists)
+        //             {
+        //                 throw new InvalidOperationException("Invalid category");
+        //             }
+        //             existingItem.CategoryId = updateItemDto.CategoryId.Value;
+        //         }
+
+        //         if (updateItemDto.ItemsCompanyId.HasValue)
+        //         {
+        //             var itemsCompanyExists = await _context.ItemCompanies
+        //                 .AsNoTracking()
+        //                 .AnyAsync(ic => ic.Id == updateItemDto.ItemsCompanyId.Value && ic.CompanyId == existingItem.CompanyId);
+
+        //             if (!itemsCompanyExists)
+        //             {
+        //                 throw new InvalidOperationException("Invalid item company");
+        //             }
+        //             existingItem.ItemsCompanyId = updateItemDto.ItemsCompanyId.Value;
+        //         }
+
+        //         // Update prices
+        //         existingItem.Price = updateItemDto.Price ?? existingItem.Price;
+        //         existingItem.PuPrice = updateItemDto.PuPrice ?? existingItem.PuPrice;
+        //         existingItem.MainUnitPuPrice = updateItemDto.MainUnitPuPrice ?? existingItem.MainUnitPuPrice;
+
+        //         if (updateItemDto.MainUnitId.HasValue)
+        //         {
+        //             if (updateItemDto.MainUnitId.Value != Guid.Empty)
+        //             {
+        //                 var mainUnitExists = await _context.MainUnits
+        //                     .AsNoTracking()
+        //                     .AnyAsync(u => u.Id == updateItemDto.MainUnitId.Value && u.CompanyId == existingItem.CompanyId);
+
+        //                 if (!mainUnitExists)
+        //                 {
+        //                     throw new InvalidOperationException("Invalid main unit");
+        //                 }
+        //             }
+        //             existingItem.MainUnitId = updateItemDto.MainUnitId.Value;
+        //         }
+
+        //         existingItem.WsUnit = updateItemDto.WsUnit ?? existingItem.WsUnit;
+
+        //         if (updateItemDto.UnitId.HasValue)
+        //         {
+        //             var unitExists = await _context.Units
+        //                 .AsNoTracking()
+        //                 .AnyAsync(u => u.Id == updateItemDto.UnitId.Value && u.CompanyId == existingItem.CompanyId);
+
+        //             if (!unitExists)
+        //             {
+        //                 throw new InvalidOperationException("Invalid unit");
+        //             }
+        //             existingItem.UnitId = updateItemDto.UnitId.Value;
+        //         }
+
+        //         if (!string.IsNullOrEmpty(updateItemDto.VatStatus))
+        //         {
+        //             existingItem.VatStatus = updateItemDto.VatStatus;
+        //         }
+
+        //         existingItem.MinStock = updateItemDto.MinStock ?? existingItem.MinStock;
+        //         existingItem.MaxStock = updateItemDto.MaxStock ?? existingItem.MaxStock;
+        //         existingItem.ReorderLevel = updateItemDto.ReorderLevel ?? existingItem.ReorderLevel;
+
+        //         if (!string.IsNullOrEmpty(updateItemDto.Status))
+        //         {
+        //             existingItem.Status = updateItemDto.Status;
+        //         }
+
+        //         existingItem.UpdatedAt = DateTime.UtcNow;
+
+        //         // Update compositions if provided
+        //         if (updateItemDto.CompositionIds != null)
+        //         {
+        //             // Remove existing compositions
+        //             var existingCompositions = await _context.ItemCompositions
+        //                 .Where(ic => ic.ItemId == itemId)
+        //                 .ToListAsync();
+
+        //             if (existingCompositions.Any())
+        //             {
+        //                 _context.ItemCompositions.RemoveRange(existingCompositions);
+        //             }
+
+        //             // Add new compositions
+        //             if (updateItemDto.CompositionIds.Any())
+        //             {
+        //                 // Validate new compositions
+        //                 var validCompositionsCount = await _context.Compositions
+        //                     .AsNoTracking()
+        //                     .Where(c => updateItemDto.CompositionIds.Contains(c.Id) && c.CompanyId == existingItem.CompanyId)
+        //                     .CountAsync();
+
+        //                 if (validCompositionsCount != updateItemDto.CompositionIds.Count)
+        //                 {
+        //                     throw new InvalidOperationException("One or more invalid compositions");
+        //                 }
+
+        //                 var newCompositions = updateItemDto.CompositionIds.Select(compositionId => new ItemComposition
+        //                 {
+        //                     ItemId = existingItem.Id,
+        //                     CompositionId = compositionId
+        //                 }).ToList();
+
+        //                 await _context.ItemCompositions.AddRangeAsync(newCompositions);
+        //             }
+        //         }
+
+        //         // Handle stock updates ONLY if item has no transactions
+        //         if (!hasTransactions)
+        //         {
+        //             // Update opening stock if provided
+        //             if (updateItemDto.OpeningStock.HasValue)
+        //             {
+        //                 decimal newOpeningStock = updateItemDto.OpeningStock.Value;
+        //                 existingItem.OpeningStock = newOpeningStock;
+
+        //                 // Calculate opening stock balance
+        //                 decimal openingStockBalance = newOpeningStock * (existingItem.PuPrice ?? 0);
+
+        //                 // Update or create initial opening stock
+        //                 if (existingItem.InitialOpeningStock != null)
+        //                 {
+        //                     // Attach and update existing initial opening stock
+        //                     _context.Attach(existingItem.InitialOpeningStock);
+        //                     existingItem.InitialOpeningStock.OpeningStock = newOpeningStock;
+        //                     existingItem.InitialOpeningStock.OpeningStockValue = updateItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockBalance;
+        //                     existingItem.InitialOpeningStock.PurchasePrice = updateItemDto.InitialOpeningStock?.PurchasePrice ?? (existingItem.PuPrice ?? 0);
+        //                     existingItem.InitialOpeningStock.SalesPrice = updateItemDto.InitialOpeningStock?.SalesPrice ?? (existingItem.Price ?? 0);
+        //                     existingItem.InitialOpeningStock.Date = updateItemDto.InitialOpeningStock?.Date ?? existingItem.InitialOpeningStock.Date;
+        //                     existingItem.InitialOpeningStock.UpdatedAt = DateTime.UtcNow;
+        //                 }
+        //                 else if (updateItemDto.InitialOpeningStock != null)
+        //                 {
+        //                     var initialOpeningStock = new ItemInitialOpeningStock
+        //                     {
+        //                         Id = Guid.NewGuid(),
+        //                         ItemId = existingItem.Id,
+        //                         InitialFiscalYearId = updateItemDto.InitialOpeningStock.InitialFiscalYearId ?? currentFiscalYearId,
+        //                         OpeningStock = newOpeningStock,
+        //                         OpeningStockValue = updateItemDto.InitialOpeningStock.OpeningStockValue,
+        //                         PurchasePrice = updateItemDto.InitialOpeningStock.PurchasePrice,
+        //                         SalesPrice = updateItemDto.InitialOpeningStock.SalesPrice,
+        //                         Date = updateItemDto.InitialOpeningStock.Date ?? DateTime.UtcNow,
+        //                         CreatedAt = DateTime.UtcNow,
+        //                         UpdatedAt = DateTime.UtcNow
+        //                     };
+        //                     await _context.Set<ItemInitialOpeningStock>().AddAsync(initialOpeningStock);
+        //                 }
+
+        //                 // Update opening stocks by fiscal year for current fiscal year
+        //                 var currentFiscalYearOpeningStock = existingItem.OpeningStocksByFiscalYear?
+        //                     .FirstOrDefault(os => os.FiscalYearId == currentFiscalYearId);
+
+        //                 if (currentFiscalYearOpeningStock != null)
+        //                 {
+        //                     // Attach and update
+        //                     _context.Attach(currentFiscalYearOpeningStock);
+        //                     currentFiscalYearOpeningStock.OpeningStock = newOpeningStock;
+        //                     currentFiscalYearOpeningStock.OpeningStockValue = openingStockBalance;
+        //                     currentFiscalYearOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0;
+        //                     currentFiscalYearOpeningStock.SalesPrice = existingItem.Price ?? 0;
+        //                     currentFiscalYearOpeningStock.UpdatedAt = DateTime.UtcNow;
+        //                 }
+        //                 else
+        //                 {
+        //                     var newOpeningStockRecord = new ItemOpeningStockByFiscalYear
+        //                     {
+        //                         Id = Guid.NewGuid(),
+        //                         ItemId = existingItem.Id,
+        //                         FiscalYearId = currentFiscalYearId,
+        //                         OpeningStock = newOpeningStock,
+        //                         OpeningStockValue = openingStockBalance,
+        //                         PurchasePrice = existingItem.PuPrice ?? 0,
+        //                         SalesPrice = existingItem.Price ?? 0,
+        //                         CreatedAt = DateTime.UtcNow,
+        //                         UpdatedAt = DateTime.UtcNow
+        //                     };
+
+        //                     await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStockRecord);
+        //                 }
+
+        //                 // Update stock entries if opening stock > 0
+        //                 if (newOpeningStock > 0)
+        //                 {
+        //                     // Remove existing stock entries
+        //                     var existingStockEntries = await _context.StockEntries
+        //                         .Where(se => se.ItemId == itemId)
+        //                         .ToListAsync();
+
+        //                     if (existingStockEntries.Any())
+        //                     {
+        //                         _context.StockEntries.RemoveRange(existingStockEntries);
+        //                     }
+
+        //                     // Create new stock entry for opening stock
+        //                     var stockEntry = new StockEntry
+        //                     {
+        //                         Id = Guid.NewGuid(),
+        //                         ItemId = existingItem.Id,
+        //                         Date = DateTime.UtcNow,
+        //                         WsUnit = existingItem.WsUnit,
+        //                         Quantity = newOpeningStock,
+        //                         Price = existingItem.Price ?? 0,
+        //                         NetPrice = existingItem.Price ?? 0,
+        //                         PuPrice = existingItem.PuPrice ?? 0,
+        //                         NetPuPrice = existingItem.PuPrice ?? 0,
+        //                         MainUnitPuPrice = existingItem.MainUnitPuPrice,
+        //                         Mrp = existingItem.Price ?? 0,
+        //                         BatchNumber = "XXX",
+        //                         ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+        //                         ExpiryStatus = "safe",
+        //                         DaysUntilExpiry = 730,
+        //                         FiscalYearId = currentFiscalYearId,
+        //                         UniqueUuid = Guid.NewGuid().ToString(),
+        //                         CreatedAt = DateTime.UtcNow,
+        //                         UpdatedAt = DateTime.UtcNow
+        //                     };
+
+        //                     await _context.StockEntries.AddAsync(stockEntry);
+        //                 }
+        //                 else
+        //                 {
+        //                     // Remove all stock entries if opening stock is 0
+        //                     var existingStockEntries = await _context.StockEntries
+        //                         .Where(se => se.ItemId == itemId)
+        //                         .ToListAsync();
+
+        //                     if (existingStockEntries.Any())
+        //                     {
+        //                         _context.StockEntries.RemoveRange(existingStockEntries);
+        //                     }
+        //                 }
+        //             }
+
+        //             // Update opening stocks by fiscal year if provided
+        //             if (updateItemDto.OpeningStocksByFiscalYear != null && updateItemDto.OpeningStocksByFiscalYear.Any())
+        //             {
+        //                 foreach (var openingStockDto in updateItemDto.OpeningStocksByFiscalYear)
+        //                 {
+        //                     var existingOpeningStock = existingItem.OpeningStocksByFiscalYear?
+        //                         .FirstOrDefault(os => os.FiscalYearId == openingStockDto.FiscalYearId);
+
+        //                     if (existingOpeningStock != null)
+        //                     {
+        //                         // Attach and update
+        //                         _context.Attach(existingOpeningStock);
+        //                         existingOpeningStock.OpeningStock = openingStockDto.OpeningStock;
+        //                         existingOpeningStock.OpeningStockValue = openingStockDto.OpeningStockValue;
+        //                         existingOpeningStock.PurchasePrice = openingStockDto.PurchasePrice;
+        //                         existingOpeningStock.SalesPrice = openingStockDto.SalesPrice;
+        //                         existingOpeningStock.UpdatedAt = DateTime.UtcNow;
+        //                     }
+        //                     else
+        //                     {
+        //                         // Validate fiscal year exists and belongs to company
+        //                         var fiscalYear = await _context.FiscalYears
+        //                             .AsNoTracking()
+        //                             .FirstOrDefaultAsync(f => f.Id == openingStockDto.FiscalYearId && f.CompanyId == existingItem.CompanyId);
+
+        //                         if (fiscalYear == null)
+        //                         {
+        //                             throw new InvalidOperationException($"Fiscal year {openingStockDto.FiscalYearId} not found");
+        //                         }
+
+        //                         var newOpeningStock = new ItemOpeningStockByFiscalYear
+        //                         {
+        //                             Id = Guid.NewGuid(),
+        //                             ItemId = existingItem.Id,
+        //                             FiscalYearId = openingStockDto.FiscalYearId,
+        //                             OpeningStock = openingStockDto.OpeningStock,
+        //                             OpeningStockValue = openingStockDto.OpeningStockValue,
+        //                             PurchasePrice = openingStockDto.PurchasePrice,
+        //                             SalesPrice = openingStockDto.SalesPrice,
+        //                             CreatedAt = DateTime.UtcNow,
+        //                             UpdatedAt = DateTime.UtcNow
+        //                         };
+
+        //                         await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStock);
+        //                     }
+        //                 }
+        //             }
+
+        //             // Update closing stocks by fiscal year if provided
+        //             if (updateItemDto.ClosingStocksByFiscalYear != null && updateItemDto.ClosingStocksByFiscalYear.Any())
+        //             {
+        //                 foreach (var closingStockDto in updateItemDto.ClosingStocksByFiscalYear)
+        //                 {
+        //                     var existingClosingStock = existingItem.ClosingStocksByFiscalYear?
+        //                         .FirstOrDefault(cs => cs.FiscalYearId == closingStockDto.FiscalYearId);
+
+        //                     if (existingClosingStock != null)
+        //                     {
+        //                         // Attach and update
+        //                         _context.Attach(existingClosingStock);
+        //                         existingClosingStock.ClosingStock = closingStockDto.ClosingStock;
+        //                         existingClosingStock.ClosingStockValue = closingStockDto.ClosingStockValue;
+        //                         existingClosingStock.PurchasePrice = closingStockDto.PurchasePrice;
+        //                         existingClosingStock.SalesPrice = closingStockDto.SalesPrice;
+        //                         existingClosingStock.UpdatedAt = DateTime.UtcNow;
+        //                     }
+        //                     else
+        //                     {
+        //                         // Validate fiscal year exists and belongs to company
+        //                         var fiscalYear = await _context.FiscalYears
+        //                             .AsNoTracking()
+        //                             .FirstOrDefaultAsync(f => f.Id == closingStockDto.FiscalYearId && f.CompanyId == existingItem.CompanyId);
+
+        //                         if (fiscalYear == null)
+        //                         {
+        //                             throw new InvalidOperationException($"Fiscal year {closingStockDto.FiscalYearId} not found");
+        //                         }
+
+        //                         var newClosingStock = new ItemClosingStockByFiscalYear
+        //                         {
+        //                             Id = Guid.NewGuid(),
+        //                             ItemId = existingItem.Id,
+        //                             FiscalYearId = closingStockDto.FiscalYearId,
+        //                             ClosingStock = closingStockDto.ClosingStock,
+        //                             ClosingStockValue = closingStockDto.ClosingStockValue,
+        //                             PurchasePrice = closingStockDto.PurchasePrice,
+        //                             SalesPrice = closingStockDto.SalesPrice,
+        //                             CreatedAt = DateTime.UtcNow,
+        //                             UpdatedAt = DateTime.UtcNow
+        //                         };
+
+        //                         await _context.Set<ItemClosingStockByFiscalYear>().AddAsync(newClosingStock);
+        //                     }
+        //                 }
+        //             }
+        //         }
+
+        //         // Mark the item as modified
+        //         _context.Entry(existingItem).State = EntityState.Modified;
+
+        //         try
+        //         {
+        //             await _context.SaveChangesAsync();
+        //             await transaction.CommitAsync();
+
+        //             _logger.LogInformation("Item {ItemId} updated successfully. HasTransactions: {HasTransactions}", itemId, hasTransactions);
+        //             return existingItem;
+        //         }
+        //         catch (DbUpdateConcurrencyException ex)
+        //         {
+        //             await transaction.RollbackAsync();
+        //             _logger.LogError(ex, "Concurrency error updating item {ItemId}. Data may have been modified by another process.", itemId);
+        //             throw new InvalidOperationException("The item was modified by another process. Please refresh and try again.");
+        //         }
+        //     }
+        //     catch (Exception)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
+/// <summary>
+/// Updates an existing item with transaction-aware stock updates
+/// </summary>
+public async Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid currentFiscalYearId)
+{
+    using var transaction = await _context.Database.BeginTransactionAsync();
+
+    try
+    {
+        // Load the item WITH tracking for updates
+        var existingItem = await _context.Items
+            .Include(i => i.ItemCompositions)
+            .Include(i => i.InitialOpeningStock)
+            .Include(i => i.OpeningStocksByFiscalYear)
+            .Include(i => i.ClosingStocksByFiscalYear)
+            .Include(i => i.StockEntries)
+            .Include(i => i.Sales)
+            .Include(i => i.Purchases)
+            .Include(i => i.SalesReturns)
+            .Include(i => i.PurchaseReturns)
+            .FirstOrDefaultAsync(i => i.Id == itemId);
+
+        if (existingItem == null)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            throw new KeyNotFoundException($"Item with ID {itemId} not found");
+        }
 
-            try
+        // Check for duplicate name (excluding current item)
+        if (!string.IsNullOrEmpty(updateItemDto.Name))
+        {
+            var duplicateItem = await _context.Items
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.Id != itemId
+                    && i.CompanyId == existingItem.CompanyId
+                    && i.FiscalYearId == existingItem.FiscalYearId
+                    && i.Name.ToLower() == updateItemDto.Name.Trim().ToLower());
+
+            if (duplicateItem != null)
             {
-                // Load the item WITHOUT tracking for related entities initially
-                var existingItem = await _context.Items
-                    .AsNoTracking() // Important: Avoid tracking conflicts
-                    .Include(i => i.ItemCompositions)
-                    .Include(i => i.InitialOpeningStock)
-                    .Include(i => i.OpeningStocksByFiscalYear)
-                    .Include(i => i.ClosingStocksByFiscalYear)
-                    .Include(i => i.StockEntries)
-                    .Include(i => i.Sales)
-                    .Include(i => i.Purchases)
-                    .Include(i => i.SalesReturns)
-                    .Include(i => i.PurchaseReturns)
-                    .FirstOrDefaultAsync(i => i.Id == itemId);
-
-                if (existingItem == null)
-                {
-                    throw new KeyNotFoundException($"Item with ID {itemId} not found");
-                }
-
-                // Now attach the main entity for updates
-                _context.Items.Attach(existingItem);
-
-                // Check for duplicate name (excluding current item)
-                if (!string.IsNullOrEmpty(updateItemDto.Name))
-                {
-                    var duplicateItem = await _context.Items
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(i => i.Id != itemId
-                            && i.CompanyId == existingItem.CompanyId
-                            && i.FiscalYearId == existingItem.FiscalYearId
-                            && i.Name.ToLower() == updateItemDto.Name.Trim().ToLower());
-
-                    if (duplicateItem != null)
-                    {
-                        throw new InvalidOperationException($"Item '{updateItemDto.Name?.Trim()}' already exists for this fiscal year");
-                    }
-                }
-
-                // Check if item has any transactions
-                bool hasTransactions = existingItem.Sales.Any() || existingItem.Purchases.Any() ||
-                                      existingItem.SalesReturns.Any() || existingItem.PurchaseReturns.Any();
-
-                // Update basic properties
-                if (!string.IsNullOrEmpty(updateItemDto.Name))
-                {
-                    existingItem.Name = updateItemDto.Name.Trim();
-                }
-
-                existingItem.Hscode = updateItemDto.Hscode;
-
-                if (updateItemDto.CategoryId.HasValue)
-                {
-                    var categoryExists = await _context.Categories
-                        .AsNoTracking()
-                        .AnyAsync(c => c.Id == updateItemDto.CategoryId.Value && c.CompanyId == existingItem.CompanyId);
-
-                    if (!categoryExists)
-                    {
-                        throw new InvalidOperationException("Invalid category");
-                    }
-                    existingItem.CategoryId = updateItemDto.CategoryId.Value;
-                }
-
-                if (updateItemDto.ItemsCompanyId.HasValue)
-                {
-                    var itemsCompanyExists = await _context.ItemCompanies
-                        .AsNoTracking()
-                        .AnyAsync(ic => ic.Id == updateItemDto.ItemsCompanyId.Value && ic.CompanyId == existingItem.CompanyId);
-
-                    if (!itemsCompanyExists)
-                    {
-                        throw new InvalidOperationException("Invalid item company");
-                    }
-                    existingItem.ItemsCompanyId = updateItemDto.ItemsCompanyId.Value;
-                }
-
-                // Update prices
-                existingItem.Price = updateItemDto.Price ?? existingItem.Price;
-                existingItem.PuPrice = updateItemDto.PuPrice ?? existingItem.PuPrice;
-                existingItem.MainUnitPuPrice = updateItemDto.MainUnitPuPrice ?? existingItem.MainUnitPuPrice;
-
-                if (updateItemDto.MainUnitId.HasValue)
-                {
-                    if (updateItemDto.MainUnitId.Value != Guid.Empty)
-                    {
-                        var mainUnitExists = await _context.MainUnits
-                            .AsNoTracking()
-                            .AnyAsync(u => u.Id == updateItemDto.MainUnitId.Value && u.CompanyId == existingItem.CompanyId);
-
-                        if (!mainUnitExists)
-                        {
-                            throw new InvalidOperationException("Invalid main unit");
-                        }
-                    }
-                    existingItem.MainUnitId = updateItemDto.MainUnitId.Value;
-                }
-
-                existingItem.WsUnit = updateItemDto.WsUnit ?? existingItem.WsUnit;
-
-                if (updateItemDto.UnitId.HasValue)
-                {
-                    var unitExists = await _context.Units
-                        .AsNoTracking()
-                        .AnyAsync(u => u.Id == updateItemDto.UnitId.Value && u.CompanyId == existingItem.CompanyId);
-
-                    if (!unitExists)
-                    {
-                        throw new InvalidOperationException("Invalid unit");
-                    }
-                    existingItem.UnitId = updateItemDto.UnitId.Value;
-                }
-
-                if (!string.IsNullOrEmpty(updateItemDto.VatStatus))
-                {
-                    existingItem.VatStatus = updateItemDto.VatStatus;
-                }
-
-                existingItem.MinStock = updateItemDto.MinStock ?? existingItem.MinStock;
-                existingItem.MaxStock = updateItemDto.MaxStock ?? existingItem.MaxStock;
-                existingItem.ReorderLevel = updateItemDto.ReorderLevel ?? existingItem.ReorderLevel;
-
-                if (!string.IsNullOrEmpty(updateItemDto.Status))
-                {
-                    existingItem.Status = updateItemDto.Status;
-                }
-
-                existingItem.UpdatedAt = DateTime.UtcNow;
-
-                // Update compositions if provided
-                if (updateItemDto.CompositionIds != null)
-                {
-                    // Remove existing compositions
-                    var existingCompositions = await _context.ItemCompositions
-                        .Where(ic => ic.ItemId == itemId)
-                        .ToListAsync();
-
-                    if (existingCompositions.Any())
-                    {
-                        _context.ItemCompositions.RemoveRange(existingCompositions);
-                    }
-
-                    // Add new compositions
-                    if (updateItemDto.CompositionIds.Any())
-                    {
-                        // Validate new compositions
-                        var validCompositionsCount = await _context.Compositions
-                            .AsNoTracking()
-                            .Where(c => updateItemDto.CompositionIds.Contains(c.Id) && c.CompanyId == existingItem.CompanyId)
-                            .CountAsync();
-
-                        if (validCompositionsCount != updateItemDto.CompositionIds.Count)
-                        {
-                            throw new InvalidOperationException("One or more invalid compositions");
-                        }
-
-                        var newCompositions = updateItemDto.CompositionIds.Select(compositionId => new ItemComposition
-                        {
-                            ItemId = existingItem.Id,
-                            CompositionId = compositionId
-                        }).ToList();
-
-                        await _context.ItemCompositions.AddRangeAsync(newCompositions);
-                    }
-                }
-
-                // Handle stock updates ONLY if item has no transactions
-                if (!hasTransactions)
-                {
-                    // Update opening stock if provided
-                    if (updateItemDto.OpeningStock.HasValue)
-                    {
-                        decimal newOpeningStock = updateItemDto.OpeningStock.Value;
-                        existingItem.OpeningStock = newOpeningStock;
-
-                        // Calculate opening stock balance
-                        decimal openingStockBalance = newOpeningStock * (existingItem.PuPrice ?? 0);
-
-                        // Update or create initial opening stock
-                        if (existingItem.InitialOpeningStock != null)
-                        {
-                            // Attach and update existing initial opening stock
-                            _context.Attach(existingItem.InitialOpeningStock);
-                            existingItem.InitialOpeningStock.OpeningStock = newOpeningStock;
-                            existingItem.InitialOpeningStock.OpeningStockValue = updateItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockBalance;
-                            existingItem.InitialOpeningStock.PurchasePrice = updateItemDto.InitialOpeningStock?.PurchasePrice ?? (existingItem.PuPrice ?? 0);
-                            existingItem.InitialOpeningStock.SalesPrice = updateItemDto.InitialOpeningStock?.SalesPrice ?? (existingItem.Price ?? 0);
-                            existingItem.InitialOpeningStock.Date = updateItemDto.InitialOpeningStock?.Date ?? existingItem.InitialOpeningStock.Date;
-                            existingItem.InitialOpeningStock.UpdatedAt = DateTime.UtcNow;
-                        }
-                        else if (updateItemDto.InitialOpeningStock != null)
-                        {
-                            var initialOpeningStock = new ItemInitialOpeningStock
-                            {
-                                Id = Guid.NewGuid(),
-                                ItemId = existingItem.Id,
-                                InitialFiscalYearId = updateItemDto.InitialOpeningStock.InitialFiscalYearId ?? currentFiscalYearId,
-                                OpeningStock = newOpeningStock,
-                                OpeningStockValue = updateItemDto.InitialOpeningStock.OpeningStockValue,
-                                PurchasePrice = updateItemDto.InitialOpeningStock.PurchasePrice,
-                                SalesPrice = updateItemDto.InitialOpeningStock.SalesPrice,
-                                Date = updateItemDto.InitialOpeningStock.Date ?? DateTime.UtcNow,
-                                CreatedAt = DateTime.UtcNow,
-                                UpdatedAt = DateTime.UtcNow
-                            };
-                            await _context.Set<ItemInitialOpeningStock>().AddAsync(initialOpeningStock);
-                        }
-
-                        // Update opening stocks by fiscal year for current fiscal year
-                        var currentFiscalYearOpeningStock = existingItem.OpeningStocksByFiscalYear?
-                            .FirstOrDefault(os => os.FiscalYearId == currentFiscalYearId);
-
-                        if (currentFiscalYearOpeningStock != null)
-                        {
-                            // Attach and update
-                            _context.Attach(currentFiscalYearOpeningStock);
-                            currentFiscalYearOpeningStock.OpeningStock = newOpeningStock;
-                            currentFiscalYearOpeningStock.OpeningStockValue = openingStockBalance;
-                            currentFiscalYearOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0;
-                            currentFiscalYearOpeningStock.SalesPrice = existingItem.Price ?? 0;
-                            currentFiscalYearOpeningStock.UpdatedAt = DateTime.UtcNow;
-                        }
-                        else
-                        {
-                            var newOpeningStockRecord = new ItemOpeningStockByFiscalYear
-                            {
-                                Id = Guid.NewGuid(),
-                                ItemId = existingItem.Id,
-                                FiscalYearId = currentFiscalYearId,
-                                OpeningStock = newOpeningStock,
-                                OpeningStockValue = openingStockBalance,
-                                PurchasePrice = existingItem.PuPrice ?? 0,
-                                SalesPrice = existingItem.Price ?? 0,
-                                CreatedAt = DateTime.UtcNow,
-                                UpdatedAt = DateTime.UtcNow
-                            };
-
-                            await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStockRecord);
-                        }
-
-                        // Update stock entries if opening stock > 0
-                        if (newOpeningStock > 0)
-                        {
-                            // Remove existing stock entries
-                            var existingStockEntries = await _context.StockEntries
-                                .Where(se => se.ItemId == itemId)
-                                .ToListAsync();
-
-                            if (existingStockEntries.Any())
-                            {
-                                _context.StockEntries.RemoveRange(existingStockEntries);
-                            }
-
-                            // Create new stock entry for opening stock
-                            var stockEntry = new StockEntry
-                            {
-                                Id = Guid.NewGuid(),
-                                ItemId = existingItem.Id,
-                                Date = DateTime.UtcNow,
-                                WsUnit = existingItem.WsUnit,
-                                Quantity = newOpeningStock,
-                                Price = existingItem.Price ?? 0,
-                                NetPrice = existingItem.Price ?? 0,
-                                PuPrice = existingItem.PuPrice ?? 0,
-                                NetPuPrice = existingItem.PuPrice ?? 0,
-                                MainUnitPuPrice = existingItem.MainUnitPuPrice,
-                                Mrp = existingItem.Price ?? 0,
-                                BatchNumber = "XXX",
-                                ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
-                                ExpiryStatus = "safe",
-                                DaysUntilExpiry = 730,
-                                FiscalYearId = currentFiscalYearId,
-                                UniqueUuid = Guid.NewGuid().ToString(),
-                                CreatedAt = DateTime.UtcNow,
-                                UpdatedAt = DateTime.UtcNow
-                            };
-
-                            await _context.StockEntries.AddAsync(stockEntry);
-                        }
-                        else
-                        {
-                            // Remove all stock entries if opening stock is 0
-                            var existingStockEntries = await _context.StockEntries
-                                .Where(se => se.ItemId == itemId)
-                                .ToListAsync();
-
-                            if (existingStockEntries.Any())
-                            {
-                                _context.StockEntries.RemoveRange(existingStockEntries);
-                            }
-                        }
-                    }
-
-                    // Update opening stocks by fiscal year if provided
-                    if (updateItemDto.OpeningStocksByFiscalYear != null && updateItemDto.OpeningStocksByFiscalYear.Any())
-                    {
-                        foreach (var openingStockDto in updateItemDto.OpeningStocksByFiscalYear)
-                        {
-                            var existingOpeningStock = existingItem.OpeningStocksByFiscalYear?
-                                .FirstOrDefault(os => os.FiscalYearId == openingStockDto.FiscalYearId);
-
-                            if (existingOpeningStock != null)
-                            {
-                                // Attach and update
-                                _context.Attach(existingOpeningStock);
-                                existingOpeningStock.OpeningStock = openingStockDto.OpeningStock;
-                                existingOpeningStock.OpeningStockValue = openingStockDto.OpeningStockValue;
-                                existingOpeningStock.PurchasePrice = openingStockDto.PurchasePrice;
-                                existingOpeningStock.SalesPrice = openingStockDto.SalesPrice;
-                                existingOpeningStock.UpdatedAt = DateTime.UtcNow;
-                            }
-                            else
-                            {
-                                // Validate fiscal year exists and belongs to company
-                                var fiscalYear = await _context.FiscalYears
-                                    .AsNoTracking()
-                                    .FirstOrDefaultAsync(f => f.Id == openingStockDto.FiscalYearId && f.CompanyId == existingItem.CompanyId);
-
-                                if (fiscalYear == null)
-                                {
-                                    throw new InvalidOperationException($"Fiscal year {openingStockDto.FiscalYearId} not found");
-                                }
-
-                                var newOpeningStock = new ItemOpeningStockByFiscalYear
-                                {
-                                    Id = Guid.NewGuid(),
-                                    ItemId = existingItem.Id,
-                                    FiscalYearId = openingStockDto.FiscalYearId,
-                                    OpeningStock = openingStockDto.OpeningStock,
-                                    OpeningStockValue = openingStockDto.OpeningStockValue,
-                                    PurchasePrice = openingStockDto.PurchasePrice,
-                                    SalesPrice = openingStockDto.SalesPrice,
-                                    CreatedAt = DateTime.UtcNow,
-                                    UpdatedAt = DateTime.UtcNow
-                                };
-
-                                await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStock);
-                            }
-                        }
-                    }
-
-                    // Update closing stocks by fiscal year if provided
-                    if (updateItemDto.ClosingStocksByFiscalYear != null && updateItemDto.ClosingStocksByFiscalYear.Any())
-                    {
-                        foreach (var closingStockDto in updateItemDto.ClosingStocksByFiscalYear)
-                        {
-                            var existingClosingStock = existingItem.ClosingStocksByFiscalYear?
-                                .FirstOrDefault(cs => cs.FiscalYearId == closingStockDto.FiscalYearId);
-
-                            if (existingClosingStock != null)
-                            {
-                                // Attach and update
-                                _context.Attach(existingClosingStock);
-                                existingClosingStock.ClosingStock = closingStockDto.ClosingStock;
-                                existingClosingStock.ClosingStockValue = closingStockDto.ClosingStockValue;
-                                existingClosingStock.PurchasePrice = closingStockDto.PurchasePrice;
-                                existingClosingStock.SalesPrice = closingStockDto.SalesPrice;
-                                existingClosingStock.UpdatedAt = DateTime.UtcNow;
-                            }
-                            else
-                            {
-                                // Validate fiscal year exists and belongs to company
-                                var fiscalYear = await _context.FiscalYears
-                                    .AsNoTracking()
-                                    .FirstOrDefaultAsync(f => f.Id == closingStockDto.FiscalYearId && f.CompanyId == existingItem.CompanyId);
-
-                                if (fiscalYear == null)
-                                {
-                                    throw new InvalidOperationException($"Fiscal year {closingStockDto.FiscalYearId} not found");
-                                }
-
-                                var newClosingStock = new ItemClosingStockByFiscalYear
-                                {
-                                    Id = Guid.NewGuid(),
-                                    ItemId = existingItem.Id,
-                                    FiscalYearId = closingStockDto.FiscalYearId,
-                                    ClosingStock = closingStockDto.ClosingStock,
-                                    ClosingStockValue = closingStockDto.ClosingStockValue,
-                                    PurchasePrice = closingStockDto.PurchasePrice,
-                                    SalesPrice = closingStockDto.SalesPrice,
-                                    CreatedAt = DateTime.UtcNow,
-                                    UpdatedAt = DateTime.UtcNow
-                                };
-
-                                await _context.Set<ItemClosingStockByFiscalYear>().AddAsync(newClosingStock);
-                            }
-                        }
-                    }
-                }
-
-                // Mark the item as modified
-                _context.Entry(existingItem).State = EntityState.Modified;
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    _logger.LogInformation("Item {ItemId} updated successfully. HasTransactions: {HasTransactions}", itemId, hasTransactions);
-                    return existingItem;
-                }
-                catch (DbUpdateConcurrencyException ex)
-                {
-                    await transaction.RollbackAsync();
-                    _logger.LogError(ex, "Concurrency error updating item {ItemId}. Data may have been modified by another process.", itemId);
-                    throw new InvalidOperationException("The item was modified by another process. Please refresh and try again.");
-                }
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                throw;
+                throw new InvalidOperationException($"Item '{updateItemDto.Name?.Trim()}' already exists for this fiscal year");
             }
         }
+
+        // Check if item has any transactions
+        bool hasTransactions = existingItem.Sales.Any() || existingItem.Purchases.Any() ||
+                              existingItem.SalesReturns.Any() || existingItem.PurchaseReturns.Any();
+
+        // Update basic properties
+        if (!string.IsNullOrEmpty(updateItemDto.Name))
+        {
+            existingItem.Name = updateItemDto.Name.Trim();
+        }
+
+        existingItem.Hscode = updateItemDto.Hscode;
+
+        if (updateItemDto.CategoryId.HasValue)
+        {
+            var categoryExists = await _context.Categories
+                .AsNoTracking()
+                .AnyAsync(c => c.Id == updateItemDto.CategoryId.Value && c.CompanyId == existingItem.CompanyId);
+
+            if (!categoryExists)
+            {
+                throw new InvalidOperationException("Invalid category");
+            }
+            existingItem.CategoryId = updateItemDto.CategoryId.Value;
+        }
+
+        if (updateItemDto.ItemsCompanyId.HasValue)
+        {
+            var itemsCompanyExists = await _context.ItemCompanies
+                .AsNoTracking()
+                .AnyAsync(ic => ic.Id == updateItemDto.ItemsCompanyId.Value && ic.CompanyId == existingItem.CompanyId);
+
+            if (!itemsCompanyExists)
+            {
+                throw new InvalidOperationException("Invalid item company");
+            }
+            existingItem.ItemsCompanyId = updateItemDto.ItemsCompanyId.Value;
+        }
+
+        // Update prices
+        existingItem.Price = updateItemDto.Price ?? existingItem.Price;
+        existingItem.PuPrice = updateItemDto.PuPrice ?? existingItem.PuPrice;
+        existingItem.MainUnitPuPrice = updateItemDto.MainUnitPuPrice ?? existingItem.MainUnitPuPrice;
+
+        if (updateItemDto.MainUnitId.HasValue)
+        {
+            if (updateItemDto.MainUnitId.Value != Guid.Empty)
+            {
+                var mainUnitExists = await _context.MainUnits
+                    .AsNoTracking()
+                    .AnyAsync(u => u.Id == updateItemDto.MainUnitId.Value && u.CompanyId == existingItem.CompanyId);
+
+                if (!mainUnitExists)
+                {
+                    throw new InvalidOperationException("Invalid main unit");
+                }
+            }
+            existingItem.MainUnitId = updateItemDto.MainUnitId.Value;
+        }
+
+        existingItem.WsUnit = updateItemDto.WsUnit ?? existingItem.WsUnit;
+
+        if (updateItemDto.UnitId.HasValue)
+        {
+            var unitExists = await _context.Units
+                .AsNoTracking()
+                .AnyAsync(u => u.Id == updateItemDto.UnitId.Value && u.CompanyId == existingItem.CompanyId);
+
+            if (!unitExists)
+            {
+                throw new InvalidOperationException("Invalid unit");
+            }
+            existingItem.UnitId = updateItemDto.UnitId.Value;
+        }
+
+        if (!string.IsNullOrEmpty(updateItemDto.VatStatus))
+        {
+            existingItem.VatStatus = updateItemDto.VatStatus;
+        }
+
+        existingItem.MinStock = updateItemDto.MinStock ?? existingItem.MinStock;
+        existingItem.MaxStock = updateItemDto.MaxStock ?? existingItem.MaxStock;
+        existingItem.ReorderLevel = updateItemDto.ReorderLevel ?? existingItem.ReorderLevel;
+
+        if (!string.IsNullOrEmpty(updateItemDto.Status))
+        {
+            existingItem.Status = updateItemDto.Status;
+        }
+
+        existingItem.UpdatedAt = DateTime.UtcNow;
+
+        // Update compositions if provided
+        if (updateItemDto.CompositionIds != null)
+        {
+            // Remove existing compositions
+            var existingCompositions = await _context.ItemCompositions
+                .Where(ic => ic.ItemId == itemId)
+                .ToListAsync();
+
+            if (existingCompositions.Any())
+            {
+                _context.ItemCompositions.RemoveRange(existingCompositions);
+            }
+
+            // Add new compositions
+            if (updateItemDto.CompositionIds.Any())
+            {
+                // Validate new compositions
+                var validCompositionsCount = await _context.Compositions
+                    .AsNoTracking()
+                    .Where(c => updateItemDto.CompositionIds.Contains(c.Id) && c.CompanyId == existingItem.CompanyId)
+                    .CountAsync();
+
+                if (validCompositionsCount != updateItemDto.CompositionIds.Count)
+                {
+                    throw new InvalidOperationException("One or more invalid compositions");
+                }
+
+                var newCompositions = updateItemDto.CompositionIds.Select(compositionId => new ItemComposition
+                {
+                    ItemId = existingItem.Id,
+                    CompositionId = compositionId
+                }).ToList();
+
+                await _context.ItemCompositions.AddRangeAsync(newCompositions);
+            }
+        }
+
+        // Handle stock updates ONLY if item has no transactions
+        if (!hasTransactions)
+        {
+            // Update opening stock if provided
+            if (updateItemDto.OpeningStock.HasValue)
+            {
+                decimal newOpeningStock = updateItemDto.OpeningStock.Value;
+                decimal oldOpeningStock = existingItem.OpeningStock;
+                existingItem.OpeningStock = newOpeningStock;
+
+                // Calculate opening stock balance
+                decimal openingStockBalance = newOpeningStock * (existingItem.PuPrice ?? 0);
+
+                // Update or create initial opening stock
+                if (existingItem.InitialOpeningStock != null)
+                {
+                    existingItem.InitialOpeningStock.OpeningStock = newOpeningStock;
+                    existingItem.InitialOpeningStock.OpeningStockValue = updateItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockBalance;
+                    existingItem.InitialOpeningStock.PurchasePrice = updateItemDto.InitialOpeningStock?.PurchasePrice ?? (existingItem.PuPrice ?? 0);
+                    existingItem.InitialOpeningStock.SalesPrice = updateItemDto.InitialOpeningStock?.SalesPrice ?? (existingItem.Price ?? 0);
+                    existingItem.InitialOpeningStock.Date = updateItemDto.InitialOpeningStock?.Date ?? existingItem.InitialOpeningStock.Date;
+                    existingItem.InitialOpeningStock.UpdatedAt = DateTime.UtcNow;
+                }
+                else if (updateItemDto.InitialOpeningStock != null)
+                {
+                    var initialOpeningStock = new ItemInitialOpeningStock
+                    {
+                        Id = Guid.NewGuid(),
+                        ItemId = existingItem.Id,
+                        InitialFiscalYearId = updateItemDto.InitialOpeningStock.InitialFiscalYearId ?? currentFiscalYearId,
+                        OpeningStock = newOpeningStock,
+                        OpeningStockValue = updateItemDto.InitialOpeningStock.OpeningStockValue,
+                        PurchasePrice = updateItemDto.InitialOpeningStock.PurchasePrice,
+                        SalesPrice = updateItemDto.InitialOpeningStock.SalesPrice,
+                        Date = updateItemDto.InitialOpeningStock.Date ?? DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    await _context.Set<ItemInitialOpeningStock>().AddAsync(initialOpeningStock);
+                }
+
+                // Update opening stocks by fiscal year for current fiscal year
+                var currentFiscalYearOpeningStock = existingItem.OpeningStocksByFiscalYear?
+                    .FirstOrDefault(os => os.FiscalYearId == currentFiscalYearId);
+
+                if (currentFiscalYearOpeningStock != null)
+                {
+                    currentFiscalYearOpeningStock.OpeningStock = newOpeningStock;
+                    currentFiscalYearOpeningStock.OpeningStockValue = openingStockBalance;
+                    currentFiscalYearOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0;
+                    currentFiscalYearOpeningStock.SalesPrice = existingItem.Price ?? 0;
+                    currentFiscalYearOpeningStock.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    var newOpeningStockRecord = new ItemOpeningStockByFiscalYear
+                    {
+                        Id = Guid.NewGuid(),
+                        ItemId = existingItem.Id,
+                        FiscalYearId = currentFiscalYearId,
+                        OpeningStock = newOpeningStock,
+                        OpeningStockValue = openingStockBalance,
+                        PurchasePrice = existingItem.PuPrice ?? 0,
+                        SalesPrice = existingItem.Price ?? 0,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStockRecord);
+                }
+
+                // CRITICAL FIX: Preserve existing stock entries instead of deleting them
+                var existingStockEntries = await _context.StockEntries
+                    .Where(se => se.ItemId == itemId)
+                    .ToListAsync();
+
+                if (newOpeningStock > 0)
+                {
+                    // If no stock entries exist, create an initial one
+                    if (!existingStockEntries.Any())
+                    {
+                        var stockEntry = new StockEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ItemId = existingItem.Id,
+                            Date = DateTime.UtcNow,
+                            WsUnit = existingItem.WsUnit,
+                            Quantity = newOpeningStock,
+                            Price = existingItem.Price ?? 0,
+                            NetPrice = existingItem.Price ?? 0,
+                            PuPrice = existingItem.PuPrice ?? 0,
+                            NetPuPrice = existingItem.PuPrice ?? 0,
+                            MainUnitPuPrice = existingItem.MainUnitPuPrice,
+                            Mrp = existingItem.Price ?? 0,
+                            BatchNumber = "INITIAL",
+                            ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                            ExpiryStatus = "safe",
+                            DaysUntilExpiry = 730,
+                            FiscalYearId = currentFiscalYearId,
+                            UniqueUuid = Guid.NewGuid().ToString(),
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        await _context.StockEntries.AddAsync(stockEntry);
+                    }
+                    // If there's exactly one stock entry and it's an initial entry, update its quantity
+                    else if (existingStockEntries.Count == 1 && 
+                             existingStockEntries.First().BatchNumber == "INITIAL" &&
+                             existingStockEntries.First().PurchaseBillId == null &&
+                             existingStockEntries.First().SalesReturnBillId == null)
+                    {
+                        var initialEntry = existingStockEntries.First();
+                        initialEntry.Quantity = newOpeningStock;
+                        initialEntry.Price = existingItem.Price ?? 0;
+                        initialEntry.NetPrice = existingItem.Price ?? 0;
+                        initialEntry.PuPrice = existingItem.PuPrice ?? 0;
+                        initialEntry.NetPuPrice = existingItem.PuPrice ?? 0;
+                        initialEntry.UpdatedAt = DateTime.UtcNow;
+                    }
+                    // If there are existing stock entries from transactions, don't modify them
+                    else if (existingStockEntries.Count > 0)
+                    {
+                        _logger.LogInformation("Item {ItemId} has {Count} existing stock entries from transactions. Preserving them during update.", 
+                            itemId, existingStockEntries.Count);
+                    }
+                }
+                else if (newOpeningStock == 0 && existingStockEntries.Any())
+                {
+                    // Only remove stock entries if they are all initial entries with no transaction links
+                    bool hasTransactionLinks = existingStockEntries.Any(se => 
+                        se.PurchaseBillId != null || 
+                        se.SalesReturnBillId != null ||
+                        (se.BatchNumber != "INITIAL" && se.BatchNumber != "XXX"));
+
+                    if (!hasTransactionLinks)
+                    {
+                        _context.StockEntries.RemoveRange(existingStockEntries);
+                        _logger.LogInformation("Removed all initial stock entries for item {ItemId} as opening stock set to 0", itemId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Cannot remove stock entries for item {ItemId} as they are linked to transactions", itemId);
+                    }
+                }
+            }
+
+            // Update opening stocks by fiscal year if provided
+            if (updateItemDto.OpeningStocksByFiscalYear != null && updateItemDto.OpeningStocksByFiscalYear.Any())
+            {
+                foreach (var openingStockDto in updateItemDto.OpeningStocksByFiscalYear)
+                {
+                    var existingOpeningStock = existingItem.OpeningStocksByFiscalYear?
+                        .FirstOrDefault(os => os.FiscalYearId == openingStockDto.FiscalYearId);
+
+                    if (existingOpeningStock != null)
+                    {
+                        existingOpeningStock.OpeningStock = openingStockDto.OpeningStock;
+                        existingOpeningStock.OpeningStockValue = openingStockDto.OpeningStockValue;
+                        existingOpeningStock.PurchasePrice = openingStockDto.PurchasePrice;
+                        existingOpeningStock.SalesPrice = openingStockDto.SalesPrice;
+                        existingOpeningStock.UpdatedAt = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        // Validate fiscal year exists and belongs to company
+                        var fiscalYear = await _context.FiscalYears
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(f => f.Id == openingStockDto.FiscalYearId && f.CompanyId == existingItem.CompanyId);
+
+                        if (fiscalYear == null)
+                        {
+                            throw new InvalidOperationException($"Fiscal year {openingStockDto.FiscalYearId} not found");
+                        }
+
+                        var newOpeningStock = new ItemOpeningStockByFiscalYear
+                        {
+                            Id = Guid.NewGuid(),
+                            ItemId = existingItem.Id,
+                            FiscalYearId = openingStockDto.FiscalYearId,
+                            OpeningStock = openingStockDto.OpeningStock,
+                            OpeningStockValue = openingStockDto.OpeningStockValue,
+                            PurchasePrice = openingStockDto.PurchasePrice,
+                            SalesPrice = openingStockDto.SalesPrice,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStock);
+                    }
+                }
+            }
+
+            // Update closing stocks by fiscal year if provided
+            if (updateItemDto.ClosingStocksByFiscalYear != null && updateItemDto.ClosingStocksByFiscalYear.Any())
+            {
+                foreach (var closingStockDto in updateItemDto.ClosingStocksByFiscalYear)
+                {
+                    var existingClosingStock = existingItem.ClosingStocksByFiscalYear?
+                        .FirstOrDefault(cs => cs.FiscalYearId == closingStockDto.FiscalYearId);
+
+                    if (existingClosingStock != null)
+                    {
+                        existingClosingStock.ClosingStock = closingStockDto.ClosingStock;
+                        existingClosingStock.ClosingStockValue = closingStockDto.ClosingStockValue;
+                        existingClosingStock.PurchasePrice = closingStockDto.PurchasePrice;
+                        existingClosingStock.SalesPrice = closingStockDto.SalesPrice;
+                        existingClosingStock.UpdatedAt = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        // Validate fiscal year exists and belongs to company
+                        var fiscalYear = await _context.FiscalYears
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(f => f.Id == closingStockDto.FiscalYearId && f.CompanyId == existingItem.CompanyId);
+
+                        if (fiscalYear == null)
+                        {
+                            throw new InvalidOperationException($"Fiscal year {closingStockDto.FiscalYearId} not found");
+                        }
+
+                        var newClosingStock = new ItemClosingStockByFiscalYear
+                        {
+                            Id = Guid.NewGuid(),
+                            ItemId = existingItem.Id,
+                            FiscalYearId = closingStockDto.FiscalYearId,
+                            ClosingStock = closingStockDto.ClosingStock,
+                            ClosingStockValue = closingStockDto.ClosingStockValue,
+                            PurchasePrice = closingStockDto.PurchasePrice,
+                            SalesPrice = closingStockDto.SalesPrice,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        await _context.Set<ItemClosingStockByFiscalYear>().AddAsync(newClosingStock);
+                    }
+                }
+            }
+        }
+
+        try
+        {
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            _logger.LogInformation("Item {ItemId} updated successfully. HasTransactions: {HasTransactions}", itemId, hasTransactions);
+            return existingItem;
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Concurrency error updating item {ItemId}. Data may have been modified by another process.", itemId);
+            throw new InvalidOperationException("The item was modified by another process. Please refresh and try again.");
+        }
+    }
+    catch (Exception)
+    {
+        await transaction.RollbackAsync();
+        throw;
+    }
+}
 
 /// <summary>
 /// Deletes an item (checks for transactions first)

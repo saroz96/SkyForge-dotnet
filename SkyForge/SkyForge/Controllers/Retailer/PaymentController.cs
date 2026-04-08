@@ -256,6 +256,142 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // [HttpPost("payments")]
+        // public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentDTO dto)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== CreatePayment Started ===");
+
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access forbidden for this trade type"
+        //             });
+        //         }
+
+        //         // Handle fiscal year
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 return BadRequest(new
+        //                 {
+        //                     success = false,
+        //                     error = "No active fiscal year found for this company."
+        //                 });
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+        //         }
+
+        //         // Validate required fields
+        //         if (dto.AccountId == Guid.Empty)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Account ID is required."
+        //             });
+        //         }
+
+        //         if (dto.PaymentAccountId == Guid.Empty)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Payment account ID is required."
+        //             });
+        //         }
+
+        //         if (dto.Debit <= 0)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Debit amount must be greater than 0."
+        //             });
+        //         }
+
+        //         var payment = await _paymentService.CreatePaymentAsync(
+        //             dto,
+        //             userIdGuid,
+        //             companyIdGuid,
+        //             fiscalYearIdGuid);
+
+        //         // Prepare response
+        //         var response = new
+        //         {
+        //             success = true,
+        //             message = "Payment created successfully",
+        //             data = new
+        //             {
+        //                 payment = new
+        //                 {
+        //                     id = payment.Id,
+        //                     billNumber = payment.BillNumber,
+        //                     date = payment.Date,
+        //                     accountId = payment.AccountId,
+        //                     debit = payment.Debit,
+        //                     paymentAccountId = payment.PaymentAccountId,
+        //                     description = payment.Description,
+        //                     instType = payment.InstType,
+        //                     instNo = payment.InstNo
+        //                 }
+        //             }
+        //         };
+
+        //         return Ok(response);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in CreatePayment");
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in CreatePayment");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while creating payment",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         [HttpPost("payments")]
         public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentDTO dto)
         {
@@ -263,37 +399,21 @@ namespace SkyForge.Controllers.Retailer
             {
                 _logger.LogInformation("=== CreatePayment Started ===");
 
+                // Extract claims
                 var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var companyId = User.FindFirst("currentCompany")?.Value;
                 var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
                 var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
 
+                // Validations
                 if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
-                {
-                    return Unauthorized(new
-                    {
-                        success = false,
-                        error = "Invalid user token. Please login again."
-                    });
-                }
+                    return Unauthorized(new { success = false, error = "Invalid user token" });
 
                 if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "No company selected. Please select a company first."
-                    });
-                }
+                    return BadRequest(new { success = false, error = "No company selected" });
 
                 if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
-                {
-                    return StatusCode(403, new
-                    {
-                        success = false,
-                        error = "Access forbidden for this trade type"
-                    });
-                }
+                    return StatusCode(403, new { success = false, error = "Access forbidden" });
 
                 // Handle fiscal year
                 Guid fiscalYearIdGuid;
@@ -303,44 +423,27 @@ namespace SkyForge.Controllers.Retailer
                         .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
 
                     if (activeFiscalYear == null)
-                    {
-                        return BadRequest(new
-                        {
-                            success = false,
-                            error = "No active fiscal year found for this company."
-                        });
-                    }
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+
                     fiscalYearIdGuid = activeFiscalYear.Id;
                 }
 
-                // Validate required fields
-                if (dto.AccountId == Guid.Empty)
+                // Validate entries
+                if (dto.Entries == null || dto.Entries.Count < 2)
                 {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "Account ID is required."
-                    });
+                    return BadRequest(new { success = false, error = "At least 2 entries required (one debit and one credit)" });
                 }
 
-                if (dto.PaymentAccountId == Guid.Empty)
+                // Validate total debit equals total credit
+                decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+                decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+                if (totalDebit != totalCredit)
                 {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "Payment account ID is required."
-                    });
+                    return BadRequest(new { success = false, error = $"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})" });
                 }
 
-                if (dto.Debit <= 0)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "Debit amount must be greater than 0."
-                    });
-                }
-
+                // Create payment
                 var payment = await _paymentService.CreatePaymentAsync(
                     dto,
                     userIdGuid,
@@ -348,37 +451,32 @@ namespace SkyForge.Controllers.Retailer
                     fiscalYearIdGuid);
 
                 // Prepare response
-                var response = new
+                var responseData = new
                 {
                     success = true,
-                    message = "Payment created successfully",
-                    data = new
+                    message = "Payment saved successfully!",
+                    data = new PaymentResponseDTO
                     {
-                        payment = new
+                        Payment = new PaymentInfoDTO
                         {
-                            id = payment.Id,
-                            billNumber = payment.BillNumber,
-                            date = payment.Date,
-                            accountId = payment.AccountId,
-                            debit = payment.Debit,
-                            paymentAccountId = payment.PaymentAccountId,
-                            description = payment.Description,
-                            instType = payment.InstType,
-                            instNo = payment.InstNo
-                        }
+                            Id = payment.Id,
+                            BillNumber = payment.BillNumber,
+                            Date = payment.Date,
+                            TotalAmount = payment.TotalAmount,
+                            Description = payment.Description,
+                            Status = payment.Status.ToString()
+                        },
+                        PrintUrl = $"/api/retailer/payments/{payment.Id}/print",
+                        RedirectUrl = $"/retailer/payments/{payment.Id}/print"
                     }
                 };
 
-                return Ok(response);
+                return Ok(responseData);
             }
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Validation error in CreatePayment");
-                return BadRequest(new
-                {
-                    success = false,
-                    error = ex.Message
-                });
+                return BadRequest(new { success = false, error = ex.Message });
             }
             catch (Exception ex)
             {
@@ -589,6 +687,153 @@ namespace SkyForge.Controllers.Retailer
         }
 
         // GET: api/retailer/payment/edit/{id}
+        // [HttpGet("payment/edit/{id}")]
+        // public async Task<IActionResult> GetPaymentEditData(Guid id)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetPaymentEditData Started for Payment ID: {PaymentId} ===", id);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // Handle fiscal year - get from claims first, then fallback
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             // If not in claims, get active fiscal year for the company
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 // Try to get any fiscal year as fallback
+        //                 activeFiscalYear = await _context.FiscalYears
+        //                     .Where(f => f.CompanyId == companyIdGuid)
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (activeFiscalYear == null)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "No fiscal year found for this company."
+        //                     });
+        //                 }
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+
+        //             _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+        //         }
+
+        //         // Get payment edit data from service
+        //         var editData = await _paymentService.GetPaymentEditDataAsync(
+        //             id,
+        //             companyIdGuid,
+        //             fiscalYearIdGuid,
+        //             userIdGuid);
+
+        //         if (editData == null || editData.Payment == null)
+        //         {
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Payment voucher not found or does not belong to the selected company"
+        //             });
+        //         }
+
+        //         var response = new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 company = new
+        //                 {
+        //                     id = editData.Company.Id,
+        //                     name = editData.Company.Name,
+        //                     address = editData.Company.Address,
+        //                     city = editData.Company.City,
+        //                     phone = editData.Company.Phone,
+        //                     pan = editData.Company.Pan,
+        //                     renewalDate = editData.Company.RenewalDate,
+        //                     dateFormat = editData.Company.DateFormat,
+        //                     vatEnabled = editData.Company.VatEnabled
+        //                 },
+        //                 payment = editData.Payment,
+        //                 accounts = editData.Accounts,
+        //                 cashAccounts = editData.CashAccounts,
+        //                 bankAccounts = editData.BankAccounts,
+        //                 paymentAccounts = editData.PaymentAccounts,
+        //                 currentFiscalYear = editData.CurrentFiscalYear,
+        //                 nepaliDate = editData.NepaliDate,
+        //                 companyDateFormat = editData.CompanyDateFormat,
+        //                 currentCompanyName = editData.CurrentCompanyName,
+        //                 date = editData.CurrentDate,
+        //                 user = editData.User,
+        //                 isAdminOrSupervisor = editData.IsAdminOrSupervisor
+        //             }
+        //         };
+
+        //         _logger.LogInformation($"Successfully fetched payment edit data for Payment ID: {id}");
+
+        //         return Ok(response);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in GetPaymentEditData");
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetPaymentEditData for payment {PaymentId}", id);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while fetching payment edit data",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // GET: api/retailer/payment/edit/{id}
         [HttpGet("payment/edit/{id}")]
         public async Task<IActionResult> GetPaymentEditData(Guid id)
         {
@@ -696,6 +941,7 @@ namespace SkyForge.Controllers.Retailer
                             vatEnabled = editData.Company.VatEnabled
                         },
                         payment = editData.Payment,
+                        entries = editData.Entries,  // <-- ADD THIS LINE - include entries
                         accounts = editData.Accounts,
                         cashAccounts = editData.CashAccounts,
                         bankAccounts = editData.BankAccounts,
@@ -735,8 +981,211 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // PUT: api/retailer/payment/edit/{id}
-        [HttpPut("payment/edit/{id}")]
+        // // PUT: api/retailer/payment/edit/{id}
+        // [HttpPut("payment/edit/{id}")]
+        // public async Task<IActionResult> UpdatePayment(Guid id, [FromBody] UpdatePaymentDTO request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== UpdatePayment Started for ID: {PaymentId} ===", id);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // Handle fiscal year - get from claims first, then fallback
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             // If not in claims, get active fiscal year for the company
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 // Try to get any fiscal year as fallback
+        //                 activeFiscalYear = await _context.FiscalYears
+        //                     .Where(f => f.CompanyId == companyIdGuid)
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (activeFiscalYear == null)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "No fiscal year found for this company."
+        //                     });
+        //                 }
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+
+        //             _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+        //         }
+
+        //         // Validate request
+        //         if (!ModelState.IsValid)
+        //         {
+        //             var errors = ModelState.Values
+        //                 .SelectMany(v => v.Errors)
+        //                 .Select(e => e.ErrorMessage)
+        //                 .ToList();
+
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Validation failed",
+        //                 details = errors
+        //             });
+        //         }
+
+        //         // Validate required fields
+        //         if (request.AccountId == Guid.Empty)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Account ID is required"
+        //             });
+        //         }
+
+        //         if (request.PaymentAccountId == Guid.Empty)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Payment account ID is required"
+        //             });
+        //         }
+
+        //         if (request.Debit <= 0)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Debit amount must be greater than 0"
+        //             });
+        //         }
+
+        //         // Validate dates based on company format
+        //         var company = await _context.Companies.FindAsync(companyIdGuid);
+        //         if (company != null)
+        //         {
+        //             bool isNepaliFormat = company.DateFormat == DateFormatEnum.Nepali;
+
+        //             if (isNepaliFormat)
+        //             {
+        //                 if (request.NepaliDate == default)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "Invalid Nepali date"
+        //                     });
+        //                 }
+        //             }
+        //             else
+        //             {
+        //                 if (request.Date == default)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "Invalid date"
+        //                     });
+        //                 }
+        //             }
+        //         }
+
+        //         // Update payment using service
+        //         var updatedPayment = await _paymentService.UpdatePaymentAsync(
+        //             id,
+        //             request,
+        //             companyIdGuid,
+        //             fiscalYearIdGuid,
+        //             userIdGuid
+        //         );
+
+        //         _logger.LogInformation($"Successfully updated payment: {id}");
+
+        //         // Prepare response
+        //         var response = new
+        //         {
+        //             success = true,
+        //             message = "Payment updated successfully",
+        //             data = new
+        //             {
+        //                 payment = new
+        //                 {
+        //                     id = updatedPayment.Id,
+        //                     billNumber = updatedPayment.BillNumber,
+        //                     date = updatedPayment.Date,
+        //                     accountId = updatedPayment.AccountId,
+        //                     debit = updatedPayment.Debit,
+        //                     paymentAccountId = updatedPayment.PaymentAccountId,
+        //                     description = updatedPayment.Description
+        //                 },
+        //                 printUrl = $"/api/retailer/payments/{updatedPayment.Id}/direct-print"
+        //             }
+        //         };
+
+        //         return Ok(response);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in UpdatePayment");
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in UpdatePayment for payment {PaymentId}", id);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while updating payment",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // PUT: api/retailer/payments/edit/{id}
+        [HttpPut("payments/edit/{id}")]
         public async Task<IActionResult> UpdatePayment(Guid id, [FromBody] UpdatePaymentDTO request)
         {
             try
@@ -779,17 +1228,15 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                // Handle fiscal year - get from claims first, then fallback
+                // Handle fiscal year
                 Guid fiscalYearIdGuid;
                 if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
                 {
-                    // If not in claims, get active fiscal year for the company
                     var activeFiscalYear = await _context.FiscalYears
                         .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
 
                     if (activeFiscalYear == null)
                     {
-                        // Try to get any fiscal year as fallback
                         activeFiscalYear = await _context.FiscalYears
                             .Where(f => f.CompanyId == companyIdGuid)
                             .OrderByDescending(f => f.StartDate)
@@ -825,31 +1272,26 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                // Validate required fields
-                if (request.AccountId == Guid.Empty)
+                // Validate entries
+                if (request.Entries == null || request.Entries.Count < 2)
                 {
                     return BadRequest(new
                     {
                         success = false,
-                        error = "Account ID is required"
+                        error = "At least 2 entries required (one debit and one credit)"
                     });
                 }
 
-                if (request.PaymentAccountId == Guid.Empty)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "Payment account ID is required"
-                    });
-                }
+                // Validate total debit equals total credit
+                decimal totalDebit = request.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+                decimal totalCredit = request.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
 
-                if (request.Debit <= 0)
+                if (totalDebit != totalCredit)
                 {
                     return BadRequest(new
                     {
                         success = false,
-                        error = "Debit amount must be greater than 0"
+                        error = $"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})"
                     });
                 }
 
@@ -906,14 +1348,25 @@ namespace SkyForge.Controllers.Retailer
                             id = updatedPayment.Id,
                             billNumber = updatedPayment.BillNumber,
                             date = updatedPayment.Date,
-                            accountId = updatedPayment.AccountId,
-                            debit = updatedPayment.Debit,
-                            paymentAccountId = updatedPayment.PaymentAccountId,
-                            description = updatedPayment.Description
+                            totalAmount = updatedPayment.TotalAmount,
+                            description = updatedPayment.Description,
+                            entryCount = updatedPayment.PaymentEntries?.Count ?? 0
                         },
-                        printUrl = $"/api/retailer/payments/{updatedPayment.Id}/direct-print"
+                        printUrl = $"/api/retailer/payments/{updatedPayment.Id}/print"
                     }
                 };
+
+                // If print was requested, add redirect URL
+                if (request.Print == true)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "Payment updated successfully",
+                        data = response.data,
+                        redirectUrl = $"/api/retailer/payments/{updatedPayment.Id}/print"
+                    });
+                }
 
                 return Ok(response);
             }
@@ -1629,7 +2082,7 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-    
+
     }
 }
 

@@ -135,11 +135,17 @@ import CashSalesReturnVoucherNumber from './components/retailer/salesReturn/Cash
 
 function AppContent() {
   const { currentUser } = useAuth();
-  const { showLoading, hideLoading } = useLoading();
+  const { showLoading, hideLoading, updateProgress } = useLoading();
+
+  // useEffect(() => {
+  //   setupInterceptors(showLoading, hideLoading);
+  // }, [showLoading, hideLoading]);
 
   useEffect(() => {
-    setupInterceptors(showLoading, hideLoading);
-  }, [showLoading, hideLoading]);
+    // Pass all three functions to setupInterceptors
+    setupInterceptors(showLoading, hideLoading, updateProgress);
+  }, [showLoading, hideLoading, updateProgress]);
+
 
   return (
 
@@ -896,7 +902,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/retailer/journal/:id"
+              path="/retailer/journal/edit/:id"
               element={
                 <ProtectedRoute>
                   <EditJournalVoucher />
@@ -986,7 +992,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/retailer/debit-note/:id"
+              path="/retailer/debit-note/edit/:id"
               element={
                 <ProtectedRoute>
                   <EditDebitNote />

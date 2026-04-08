@@ -27,6 +27,422 @@ namespace SkyForge.Controllers.Retailer
         }
 
         // GET: api/retailer/items-ledger/{id}
+        // [HttpGet("items-ledger/{id}")]
+        // public async Task<IActionResult> GetItemsLedger(Guid id, [FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetItemsLedger Started for Item ID: {ItemId} ===", id);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             _logger.LogWarning($"Access denied: TradeType is {tradeTypeClaim}, not Retailer");
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access denied for this trade type. This is a Retailer-only feature.",
+        //                 redirectTo = "/user-dashboard"
+        //             });
+        //         }
+
+        //         // Validate item ID
+        //         var item = await _context.Items
+        //             .Include(i => i.Unit)
+        //             .Include(i => i.Category)
+        //             .FirstOrDefaultAsync(i => i.Id == id && i.CompanyId == companyIdGuid);
+
+        //         if (item == null)
+        //         {
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Item not found"
+        //             });
+        //         }
+
+        //         // Get company information
+        //         var company = await _context.Companies
+        //             .Where(c => c.Id == companyIdGuid)
+        //             .Select(c => new
+        //             {
+        //                 c.Id,
+        //                 c.Name,
+        //                 c.RenewalDate,
+        //                 DateFormat = c.DateFormat,
+        //                 VatEnabled = c.VatEnabled
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         // If no dates provided, return empty response
+        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
+        //         {
+        //             var emptyResponse = new ItemsLedgerResponseDTO
+        //             {
+        //                 OpeningStock = 0,
+        //                 PurchasePrice = 0,
+        //                 Entries = new List<LedgerEntryDTO>(),
+        //                 Summary = new LedgerSummaryDTO()
+        //             };
+
+        //             return Ok(new
+        //             {
+        //                 success = true,
+        //                 data = emptyResponse
+        //             });
+        //         }
+
+        //         // Parse dates
+        //         if (!DateTime.TryParse(fromDate, out DateTime startDate) ||
+        //             !DateTime.TryParse(toDate, out DateTime endDate))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid date format. Please use YYYY-MM-DD format."
+        //             });
+        //         }
+
+        //         // Set end date to end of day
+        //         endDate = endDate.Date.AddDays(1).AddTicks(-1);
+
+        //         // Calculate opening stock
+        //         decimal openingStock = 0;
+        //         decimal purchasePrice = 0;
+
+        //         // Get initial opening stock if available
+        //         if (item.InitialOpeningStock != null)
+        //         {
+        //             openingStock = item.InitialOpeningStock.OpeningStock;
+        //             purchasePrice = item.InitialOpeningStock.PurchasePrice;
+        //         }
+
+        //         // Calculate historical stock movements before the fromDate
+        //         var historicalStockChange = await CalculateHistoricalStockAsync(
+        //             id, companyIdGuid, startDate);
+
+        //         openingStock += historicalStockChange;
+
+        //         // Fetch all ledger entries for the date range
+        //         var entries = await GetLedgerEntriesAsync(id, companyIdGuid, startDate, endDate);
+
+        //         // Sort entries by date
+        //         entries = entries.OrderBy(e => e.nepaliDate).ToList();
+
+        //         // Calculate running balance starting from opening stock
+        //         decimal balance = openingStock;
+        //         var processedEntries = entries.Select(entry =>
+        //         {
+        //             // Update balance based on transaction type
+        //             if (entry.Type == LedgerEntryType.Purchase || entry.Type == LedgerEntryType.SalesReturn)
+        //             {
+        //                 // Purchases and Sales Returns increase stock
+        //                 balance += entry.QtyIn + entry.Bonus;
+        //             }
+        //             else if (entry.Type == LedgerEntryType.Sales || entry.Type == LedgerEntryType.PurchaseReturn)
+        //             {
+        //                 // Sales and Purchase Returns decrease stock
+        //                 balance -= entry.QtyOut;
+        //             }
+        //             else if (entry.Type == LedgerEntryType.Excess)
+        //             {
+        //                 // Excess adjustments increase stock
+        //                 balance += entry.QtyIn;
+        //             }
+        //             else if (entry.Type == LedgerEntryType.Short)
+        //             {
+        //                 // Short adjustments decrease stock
+        //                 balance -= entry.QtyOut;
+        //             }
+
+        //             entry.Balance = balance;
+        //             return entry;
+        //         }).ToList();
+
+        //         // Calculate summary
+        //         var summary = new LedgerSummaryDTO
+        //         {
+        //             TotalPurchases = processedEntries
+        //                 .Where(e => e.Type == LedgerEntryType.Purchase)
+        //                 .Sum(e => e.QtyIn),
+        //             TotalSales = processedEntries
+        //                 .Where(e => e.Type == LedgerEntryType.Sales)
+        //                 .Sum(e => e.QtyOut),
+        //             TotalPurchaseReturns = processedEntries
+        //                 .Where(e => e.Type == LedgerEntryType.PurchaseReturn)
+        //                 .Sum(e => e.QtyOut),
+        //             TotalSalesReturns = processedEntries
+        //                 .Where(e => e.Type == LedgerEntryType.SalesReturn)
+        //                 .Sum(e => e.QtyIn),
+        //             TotalAdjustments = processedEntries
+        //                 .Where(e => e.Type == LedgerEntryType.Excess || e.Type == LedgerEntryType.Short)
+        //                 .Sum(e => e.QtyIn - e.QtyOut)
+        //         };
+
+        //         var response = new ItemsLedgerResponseDTO
+        //         {
+        //             OpeningStock = openingStock,
+        //             PurchasePrice = purchasePrice,
+        //             Entries = processedEntries,
+        //             Summary = summary,
+        //             Item = new ItemLedgerInfoDTO
+        //             {
+        //                 Id = item.Id,
+        //                 Name = item.Name,
+        //                 // Code = item.Code,
+        //                 Hscode = item.Hscode,
+        //                 UniqueNumber = item.UniqueNumber,
+        //                 UnitName = item.Unit?.Name,
+        //                 CategoryName = item.Category?.Name
+        //             }
+        //         };
+
+        //         _logger.LogInformation($"Successfully fetched ledger for item {item.Name} with {entries.Count} entries");
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             data = response
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetItemsLedger for item {ItemId}", id);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while fetching items ledger",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // Update the GetItemsLedger method in ItemsLedgerController.cs
+
+        // [HttpGet("items-ledger/{id}")]
+        // public async Task<IActionResult> GetItemsLedger(Guid id, [FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetItemsLedger Started for Item ID: {ItemId} ===", id);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             _logger.LogWarning($"Access denied: TradeType is {tradeTypeClaim}, not Retailer");
+        //             return StatusCode(403, new { success = false, error = "Access denied for this trade type. This is a Retailer-only feature." });
+        //         }
+
+        //         // Validate item ID and get item with initial opening stock
+        //         var item = await _context.Items
+        //             .Include(i => i.Unit)
+        //             .Include(i => i.Category)
+        //             .Include(i => i.InitialOpeningStock)  // Include initial opening stock
+        //             .FirstOrDefaultAsync(i => i.Id == id && i.CompanyId == companyIdGuid);
+
+        //         if (item == null)
+        //         {
+        //             return NotFound(new { success = false, error = "Item not found" });
+        //         }
+
+        //         // Get company information
+        //         var company = await _context.Companies
+        //             .Where(c => c.Id == companyIdGuid)
+        //             .Select(c => new
+        //             {
+        //                 c.Id,
+        //                 c.Name,
+        //                 c.RenewalDate,
+        //                 DateFormat = c.DateFormat,
+        //                 VatEnabled = c.VatEnabled
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         // If no dates provided, return empty response
+        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
+        //         {
+        //             var emptyResponse = new ItemsLedgerResponseDTO
+        //             {
+        //                 OpeningStock = 0,
+        //                 PurchasePrice = 0,
+        //                 Entries = new List<LedgerEntryDTO>(),
+        //                 Summary = new LedgerSummaryDTO(),
+        //                 Item = new ItemLedgerInfoDTO
+        //                 {
+        //                     Id = item.Id,
+        //                     Name = item.Name,
+        //                     Hscode = item.Hscode,
+        //                     UniqueNumber = item.UniqueNumber,
+        //                     UnitName = item.Unit?.Name,
+        //                     CategoryName = item.Category?.Name
+        //                 }
+        //             };
+
+        //             return Ok(new { success = true, data = emptyResponse });
+        //         }
+
+        //         // Parse dates
+        //         if (!DateTime.TryParse(fromDate, out DateTime startDate) || !DateTime.TryParse(toDate, out DateTime endDate))
+        //         {
+        //             return BadRequest(new { success = false, error = "Invalid date format. Please use YYYY-MM-DD format." });
+        //         }
+
+        //         // Set end date to end of day
+        //         endDate = endDate.Date.AddDays(1).AddTicks(-1);
+
+        //         // Calculate opening stock - PRIORITIZE InitialOpeningStock if it exists
+        //         decimal openingStock = 0;
+        //         decimal purchasePrice = 0;
+
+        //         // Check if item has initial opening stock record
+        //         if (item.InitialOpeningStock != null)
+        //         {
+        //             // Use the opening stock from the InitialOpeningStock table
+        //             openingStock = item.InitialOpeningStock.OpeningStock;
+        //             purchasePrice = item.InitialOpeningStock.PurchasePrice;
+        //             _logger.LogInformation($"Using InitialOpeningStock for item {item.Name}: OpeningStock={openingStock}, PurchasePrice={purchasePrice}");
+        //         }
+        //         else if (item.OpeningStock > 0)
+        //         {
+        //             // Fallback to the direct OpeningStock field on Item
+        //             openingStock = item.OpeningStock;
+        //             purchasePrice = item.PuPrice ?? 0;
+        //             _logger.LogInformation($"Using Item.OpeningStock for item {item.Name}: OpeningStock={openingStock}, PurchasePrice={purchasePrice}");
+        //         }
+        //         else
+        //         {
+        //             _logger.LogInformation($"No opening stock found for item {item.Name}");
+        //         }
+
+        //         // Calculate historical stock movements before the fromDate
+        //         var historicalStockChange = await CalculateHistoricalStockAsync(id, companyIdGuid, startDate);
+
+        //         // Add historical changes to opening stock
+        //         openingStock += historicalStockChange;
+
+        //         _logger.LogInformation($"After historical calculation: OpeningStock={openingStock}, HistoricalChange={historicalStockChange}");
+
+        //         // Fetch all ledger entries for the date range
+        //         var entries = await GetLedgerEntriesAsync(id, companyIdGuid, startDate, endDate);
+
+        //         // Sort entries by date
+        //         entries = entries.OrderBy(e => e.nepaliDate).ToList();
+
+        //         // Calculate running balance starting from opening stock
+        //         decimal balance = openingStock;
+        //         var processedEntries = entries.Select(entry =>
+        //         {
+        //             // Update balance based on transaction type
+        //             if (entry.Type == LedgerEntryType.Purchase || entry.Type == LedgerEntryType.SalesReturn)
+        //             {
+        //                 // Purchases and Sales Returns increase stock
+        //                 balance += entry.QtyIn + entry.Bonus;
+        //             }
+        //             else if (entry.Type == LedgerEntryType.Sales || entry.Type == LedgerEntryType.PurchaseReturn)
+        //             {
+        //                 // Sales and Purchase Returns decrease stock
+        //                 balance -= entry.QtyOut;
+        //             }
+        //             else if (entry.Type == LedgerEntryType.Excess)
+        //             {
+        //                 // Excess adjustments increase stock
+        //                 balance += entry.QtyIn;
+        //             }
+        //             else if (entry.Type == LedgerEntryType.Short)
+        //             {
+        //                 // Short adjustments decrease stock
+        //                 balance -= entry.QtyOut;
+        //             }
+
+        //             entry.Balance = balance;
+        //             return entry;
+        //         }).ToList();
+
+        //         // Calculate summary
+        //         var summary = new LedgerSummaryDTO
+        //         {
+        //             TotalPurchases = processedEntries.Where(e => e.Type == LedgerEntryType.Purchase).Sum(e => e.QtyIn),
+        //             TotalSales = processedEntries.Where(e => e.Type == LedgerEntryType.Sales).Sum(e => e.QtyOut),
+        //             TotalPurchaseReturns = processedEntries.Where(e => e.Type == LedgerEntryType.PurchaseReturn).Sum(e => e.QtyOut),
+        //             TotalSalesReturns = processedEntries.Where(e => e.Type == LedgerEntryType.SalesReturn).Sum(e => e.QtyIn),
+        //             TotalAdjustments = processedEntries.Where(e => e.Type == LedgerEntryType.Excess || e.Type == LedgerEntryType.Short).Sum(e => e.QtyIn - e.QtyOut)
+        //         };
+
+        //         var response = new ItemsLedgerResponseDTO
+        //         {
+        //             OpeningStock = openingStock,
+        //             PurchasePrice = purchasePrice,
+        //             Entries = processedEntries,
+        //             Summary = summary,
+        //             Item = new ItemLedgerInfoDTO
+        //             {
+        //                 Id = item.Id,
+        //                 Name = item.Name,
+        //                 Hscode = item.Hscode,
+        //                 UniqueNumber = item.UniqueNumber,
+        //                 UnitName = item.Unit?.Name,
+        //                 CategoryName = item.Category?.Name
+        //             }
+        //         };
+
+        //         _logger.LogInformation($"Successfully fetched ledger for item {item.Name} with {entries.Count} entries, Opening Stock: {openingStock}");
+
+        //         return Ok(new { success = true, data = response });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetItemsLedger for item {ItemId}", id);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while fetching items ledger",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         [HttpGet("items-ledger/{id}")]
         public async Task<IActionResult> GetItemsLedger(Guid id, [FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
         {
@@ -42,48 +458,32 @@ namespace SkyForge.Controllers.Retailer
                 // Validate user
                 if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
                 {
-                    return Unauthorized(new
-                    {
-                        success = false,
-                        error = "Invalid user token. Please login again."
-                    });
+                    return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
                 }
 
                 // Validate company
                 if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
                 {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "No company selected. Please select a company first."
-                    });
+                    return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
                 }
 
                 // Validate trade type
                 if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
                 {
                     _logger.LogWarning($"Access denied: TradeType is {tradeTypeClaim}, not Retailer");
-                    return StatusCode(403, new
-                    {
-                        success = false,
-                        error = "Access denied for this trade type. This is a Retailer-only feature.",
-                        redirectTo = "/user-dashboard"
-                    });
+                    return StatusCode(403, new { success = false, error = "Access denied for this trade type. This is a Retailer-only feature." });
                 }
 
-                // Validate item ID
+                // Validate item ID and get item with initial opening stock
                 var item = await _context.Items
                     .Include(i => i.Unit)
                     .Include(i => i.Category)
+                    .Include(i => i.InitialOpeningStock)
                     .FirstOrDefaultAsync(i => i.Id == id && i.CompanyId == companyIdGuid);
 
                 if (item == null)
                 {
-                    return NotFound(new
-                    {
-                        success = false,
-                        error = "Item not found"
-                    });
+                    return NotFound(new { success = false, error = "Item not found" });
                 }
 
                 // Get company information
@@ -107,25 +507,25 @@ namespace SkyForge.Controllers.Retailer
                         OpeningStock = 0,
                         PurchasePrice = 0,
                         Entries = new List<LedgerEntryDTO>(),
-                        Summary = new LedgerSummaryDTO()
+                        Summary = new LedgerSummaryDTO(),
+                        Item = new ItemLedgerInfoDTO
+                        {
+                            Id = item.Id,
+                            Name = item.Name,
+                            Hscode = item.Hscode,
+                            UniqueNumber = item.UniqueNumber,
+                            UnitName = item.Unit?.Name,
+                            CategoryName = item.Category?.Name
+                        }
                     };
 
-                    return Ok(new
-                    {
-                        success = true,
-                        data = emptyResponse
-                    });
+                    return Ok(new { success = true, data = emptyResponse });
                 }
 
                 // Parse dates
-                if (!DateTime.TryParse(fromDate, out DateTime startDate) ||
-                    !DateTime.TryParse(toDate, out DateTime endDate))
+                if (!DateTime.TryParse(fromDate, out DateTime startDate) || !DateTime.TryParse(toDate, out DateTime endDate))
                 {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "Invalid date format. Please use YYYY-MM-DD format."
-                    });
+                    return BadRequest(new { success = false, error = "Invalid date format. Please use YYYY-MM-DD format." });
                 }
 
                 // Set end date to end of day
@@ -133,20 +533,27 @@ namespace SkyForge.Controllers.Retailer
 
                 // Calculate opening stock
                 decimal openingStock = 0;
-                decimal purchasePrice = 0;
+                decimal initialPurchasePrice = 0;
 
                 // Get initial opening stock if available
                 if (item.InitialOpeningStock != null)
                 {
                     openingStock = item.InitialOpeningStock.OpeningStock;
-                    purchasePrice = item.InitialOpeningStock.PurchasePrice;
+                    initialPurchasePrice = item.InitialOpeningStock.PurchasePrice;
+                    _logger.LogInformation($"Initial Opening Stock: {openingStock}, Price: {initialPurchasePrice}");
+                }
+                else if (item.OpeningStock > 0)
+                {
+                    openingStock = item.OpeningStock;
+                    initialPurchasePrice = item.PuPrice ?? 0;
+                    _logger.LogInformation($"Using Item.OpeningStock: {openingStock}, Price: {initialPurchasePrice}");
                 }
 
                 // Calculate historical stock movements before the fromDate
-                var historicalStockChange = await CalculateHistoricalStockAsync(
-                    id, companyIdGuid, startDate);
-
+                var historicalStockChange = await CalculateHistoricalStockAsync(id, companyIdGuid, startDate);
                 openingStock += historicalStockChange;
+
+                _logger.LogInformation($"After historical calculation: OpeningStock={openingStock}, HistoricalChange={historicalStockChange}");
 
                 // Fetch all ledger entries for the date range
                 var entries = await GetLedgerEntriesAsync(id, companyIdGuid, startDate, endDate);
@@ -154,71 +561,87 @@ namespace SkyForge.Controllers.Retailer
                 // Sort entries by date
                 entries = entries.OrderBy(e => e.nepaliDate).ToList();
 
-                // Calculate running balance starting from opening stock
+                // Calculate running balance and track current purchase price
                 decimal balance = openingStock;
-                var processedEntries = entries.Select(entry =>
+                decimal currentPurchasePrice = initialPurchasePrice;
+
+                // Find the latest purchase price from entries before the fromDate
+                var latestPurchaseBeforeFromDate = await GetLatestPurchasePriceBeforeDateAsync(id, companyIdGuid, startDate);
+                if (latestPurchaseBeforeFromDate > 0)
                 {
+                    currentPurchasePrice = latestPurchaseBeforeFromDate;
+                    _logger.LogInformation($"Latest purchase price before fromDate: {currentPurchasePrice}");
+                }
+
+                var processedEntries = new List<LedgerEntryDTO>();
+
+                foreach (var entry in entries)
+                {
+                    // Update current purchase price when new purchase comes in
+                    if (entry.Type == LedgerEntryType.Purchase && entry.Price > 0)
+                    {
+                        currentPurchasePrice = entry.Price;
+                        _logger.LogInformation($"Updated purchase price to {currentPurchasePrice} from purchase entry");
+                    }
+
+                    // For the opening stock row, use the current purchase price
+                    entry.CurrentPurchasePrice = currentPurchasePrice;
+
                     // Update balance based on transaction type
                     if (entry.Type == LedgerEntryType.Purchase || entry.Type == LedgerEntryType.SalesReturn)
                     {
-                        // Purchases and Sales Returns increase stock
                         balance += entry.QtyIn + entry.Bonus;
                     }
                     else if (entry.Type == LedgerEntryType.Sales || entry.Type == LedgerEntryType.PurchaseReturn)
                     {
-                        // Sales and Purchase Returns decrease stock
                         balance -= entry.QtyOut;
                     }
                     else if (entry.Type == LedgerEntryType.Excess)
                     {
-                        // Excess adjustments increase stock
                         balance += entry.QtyIn;
                     }
                     else if (entry.Type == LedgerEntryType.Short)
                     {
-                        // Short adjustments decrease stock
                         balance -= entry.QtyOut;
                     }
 
                     entry.Balance = balance;
-                    return entry;
-                }).ToList();
+                    processedEntries.Add(entry);
+                }
+
+                // After processing all entries, get the final purchase price (from the last purchase or initial)
+                var finalPurchasePrice = currentPurchasePrice;
+
+                // If there are no purchases in the range, check the latest purchase before the toDate
+                if (!processedEntries.Any(e => e.Type == LedgerEntryType.Purchase))
+                {
+                    var latestPurchaseBeforeToDate = await GetLatestPurchasePriceBeforeDateAsync(id, companyIdGuid, endDate);
+                    if (latestPurchaseBeforeToDate > 0)
+                    {
+                        finalPurchasePrice = latestPurchaseBeforeToDate;
+                    }
+                }
 
                 // Calculate summary
                 var summary = new LedgerSummaryDTO
                 {
-                    TotalPurchases = processedEntries
-                        .Where(e => e.Type == LedgerEntryType.Purchase)
-                        .Sum(e => e.QtyIn),
-                    TotalSales = processedEntries
-                        .Where(e => e.Type == LedgerEntryType.Sales)
-                        .Sum(e => e.QtyOut),
-                    TotalPurchaseReturns = processedEntries
-                        .Where(e => e.Type == LedgerEntryType.PurchaseReturn)
-                        .Sum(e => e.QtyOut),
-                    TotalSalesReturns = processedEntries
-                        .Where(e => e.Type == LedgerEntryType.SalesReturn)
-                        .Sum(e => e.QtyIn),
-                    TotalAdjustments = processedEntries
-                        .Where(e => e.Type == LedgerEntryType.Excess || e.Type == LedgerEntryType.Short)
-                        .Sum(e => e.QtyIn - e.QtyOut)
+                    TotalPurchases = processedEntries.Where(e => e.Type == LedgerEntryType.Purchase).Sum(e => e.QtyIn),
+                    TotalSales = processedEntries.Where(e => e.Type == LedgerEntryType.Sales).Sum(e => e.QtyOut),
+                    TotalPurchaseReturns = processedEntries.Where(e => e.Type == LedgerEntryType.PurchaseReturn).Sum(e => e.QtyOut),
+                    TotalSalesReturns = processedEntries.Where(e => e.Type == LedgerEntryType.SalesReturn).Sum(e => e.QtyIn),
+                    TotalAdjustments = processedEntries.Where(e => e.Type == LedgerEntryType.Excess || e.Type == LedgerEntryType.Short).Sum(e => e.QtyIn - e.QtyOut)
                 };
 
                 var response = new ItemsLedgerResponseDTO
                 {
                     OpeningStock = openingStock,
-                    PurchasePrice = purchasePrice,
+                    PurchasePrice = finalPurchasePrice, // Use the latest purchase price
                     Entries = processedEntries,
-                    // Company = company,
-                    // CurrentCompany = currentCompany,
-                    // CurrentCompanyName = company?.Name ?? string.Empty,
-                    // CompanyDateFormat = company?.DateFormat ?? "english",
                     Summary = summary,
                     Item = new ItemLedgerInfoDTO
                     {
                         Id = item.Id,
                         Name = item.Name,
-                        // Code = item.Code,
                         Hscode = item.Hscode,
                         UniqueNumber = item.UniqueNumber,
                         UnitName = item.Unit?.Name,
@@ -226,13 +649,9 @@ namespace SkyForge.Controllers.Retailer
                     }
                 };
 
-                _logger.LogInformation($"Successfully fetched ledger for item {item.Name} with {entries.Count} entries");
+                _logger.LogInformation($"Successfully fetched ledger for item {item.Name} with {entries.Count} entries, Opening Stock: {openingStock}, Current Purchase Price: {finalPurchasePrice}");
 
-                return Ok(new
-                {
-                    success = true,
-                    data = response
-                });
+                return Ok(new { success = true, data = response });
             }
             catch (Exception ex)
             {
@@ -244,6 +663,54 @@ namespace SkyForge.Controllers.Retailer
                     details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
                 });
             }
+        }
+
+        // Add this helper method to get the latest purchase price before a specific date
+        private async Task<decimal> GetLatestPurchasePriceBeforeDateAsync(Guid itemId, Guid companyId, DateTime beforeDate)
+        {
+            decimal latestPrice = 0;
+
+            // Check purchases before the date
+            var latestPurchase = await _context.PurchaseBills
+                .Include(p => p.Items)
+                .Where(p => p.CompanyId == companyId &&
+                           p.nepaliDate < beforeDate &&
+                           p.Items.Any(i => i.ItemId == itemId))
+                .OrderByDescending(p => p.nepaliDate)
+                .FirstOrDefaultAsync();
+
+            if (latestPurchase != null)
+            {
+                var itemEntry = latestPurchase.Items.FirstOrDefault(i => i.ItemId == itemId);
+                if (itemEntry != null)
+                {
+                    latestPrice = itemEntry.AltPuPrice ?? 0;
+                }
+            }
+
+            // If no purchase found, check stock adjustments with price
+            if (latestPrice == 0)
+            {
+                var latestAdjustment = await _context.StockAdjustments
+                    .Include(sa => sa.Items)
+                    .Where(sa => sa.CompanyId == companyId &&
+                                sa.NepaliDate < beforeDate &&
+                                sa.Items.Any(i => i.ItemId == itemId) &&
+                                sa.Items.Any(i => i.PuPrice > 0))
+                    .OrderByDescending(sa => sa.NepaliDate)
+                    .FirstOrDefaultAsync();
+
+                if (latestAdjustment != null)
+                {
+                    var itemEntry = latestAdjustment.Items.FirstOrDefault(i => i.ItemId == itemId);
+                    if (itemEntry != null)
+                    {
+                        latestPrice = itemEntry.PuPrice;
+                    }
+                }
+            }
+
+            return latestPrice;
         }
 
         private async Task<decimal> CalculateHistoricalStockAsync(Guid itemId, Guid companyId, DateTime fromDate)

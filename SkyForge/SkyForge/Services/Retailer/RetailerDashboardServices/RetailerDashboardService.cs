@@ -566,16 +566,16 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                     }
 
                     // Also check if there are any payments/receipts directly linked to this account
-                    var cashPayments = await _context.Payments
-                        .Where(p => p.PaymentAccountId == cashAccount.Id &&
-                                   p.Date <= endDate &&
-                                   p.Status == PaymentStatus.Active)
-                        .ToListAsync();
+                    // var cashPayments = await _context.Payments
+                    //     .Where(p => p.PaymentAccountId == cashAccount.Id &&
+                    //                p.Date <= endDate &&
+                    //                p.Status == PaymentStatus.Active)
+                    //     .ToListAsync();
 
-                    foreach (var payment in cashPayments)
-                    {
-                        cashBalance -= payment.Debit; // Payments reduce cash
-                    }
+                    // foreach (var payment in cashPayments)
+                    // {
+                    //     cashBalance -= payment.Debit; // Payments reduce cash
+                    // }
 
                     // var cashReceipts = await _context.Receipts
                     //     .Where(r => r.ReceiptAccountId == cashAccount.Id &&
@@ -647,16 +647,16 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                         }
 
                         // Check for payments/receipts through this bank account
-                        var payments = await _context.Payments
-                            .Where(p => p.PaymentAccountId == account.Id &&
-                                       p.Date <= endDate &&
-                                       p.Status == PaymentStatus.Active)
-                            .ToListAsync();
+                        // var payments = await _context.Payments
+                        //     .Where(p => p.PaymentAccountId == account.Id &&
+                        //                p.Date <= endDate &&
+                        //                p.Status == PaymentStatus.Active)
+                        //     .ToListAsync();
 
-                        foreach (var payment in payments)
-                        {
-                            accountBalance -= payment.Debit;
-                        }
+                        // foreach (var payment in payments)
+                        // {
+                        //     accountBalance -= payment.Debit;
+                        // }
 
                         // var receipts = await _context.Receipts
                         //     .Where(r => r.ReceiptAccountId == account.Id &&

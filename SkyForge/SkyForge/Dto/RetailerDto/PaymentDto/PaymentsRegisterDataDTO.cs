@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using SkyForge.Dto.AccountDto;
+
 namespace SkyForge.Dto.RetailerDto.PaymentDto
 {
     public class PaymentsRegisterDataDTO
@@ -22,12 +26,14 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
         public DateTime NepaliDate { get; set; }
         public Guid AccountId { get; set; }
         public string AccountName { get; set; } = string.Empty;
+        public string AccountUniqueNumber { get; set; } = string.Empty;
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
         public Guid PaymentAccountId { get; set; }
         public string PaymentAccountName { get; set; } = string.Empty;
         public string InstType { get; set; } = string.Empty;
         public string? InstNo { get; set; }
+        public string? BankAcc { get; set; }
         public string? Description { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;

@@ -7,6 +7,7 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
     {
         public CompanyInfoDTO Company { get; set; } = new();
         public PaymentEditDTO Payment { get; set; } = new();
+        public List<PaymentEntryEditDTO> Entries { get; set; } = new();
         public List<AccountInfoDTO> Accounts { get; set; } = new();
         public List<AccountInfoDTO> CashAccounts { get; set; } = new();
         public List<AccountInfoDTO> BankAccounts { get; set; } = new();
@@ -28,13 +29,15 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
         public DateTime NepaliDate { get; set; }
         public Guid AccountId { get; set; }
         public string AccountName { get; set; } = string.Empty;
-        public decimal Debit { get; set; }
+        // public decimal Debit { get; set; }
+        public decimal TotalAmount { get; set; }
         public Guid PaymentAccountId { get; set; }
         public string PaymentAccountName { get; set; } = string.Empty;
         public string InstType { get; set; } = string.Empty;
         public string? InstNo { get; set; }
         public string? Description { get; set; }
         public string UserName { get; set; } = string.Empty;
+        public string UserEmail { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

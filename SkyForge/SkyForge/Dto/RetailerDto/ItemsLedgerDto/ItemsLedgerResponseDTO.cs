@@ -8,6 +8,8 @@ namespace SkyForge.Dto.RetailerDto.ItemsLedgerDto
     {
         public decimal OpeningStock { get; set; }
         public decimal PurchasePrice { get; set; }
+        public decimal? InitialOpeningStock { get; set; }  // ADD THIS
+        public decimal? InitialPurchasePrice { get; set; } // ADD THIS
         public List<LedgerEntryDTO> Entries { get; set; } = new();
         public CompanyLedgerDTO? Company { get; set; }
         public CurrentCompanyDTO? CurrentCompany { get; set; }
@@ -36,6 +38,7 @@ namespace SkyForge.Dto.RetailerDto.ItemsLedgerDto
         public decimal Balance { get; set; }
         public string? PaymentMode { get; set; }
         public string? Reason { get; set; }
+        public decimal CurrentPurchasePrice { get; set; }
     }
 
     public enum LedgerEntryType

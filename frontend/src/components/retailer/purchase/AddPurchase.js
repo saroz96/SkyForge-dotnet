@@ -3327,6 +3327,7 @@ const AddPurchase = () => {
                                             newTransactionAmount={parseFloat(totals.totalAmount) || 0}
                                             compact={true}
                                             transactionType="payment"
+                                            entryType="Credit"
                                             dateFormat={company.dateFormat}
                                             style={{
                                                 fontSize: '0.875rem',
@@ -5114,7 +5115,7 @@ const AddPurchase = () => {
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
                                                         e.preventDefault();
-                                                        document.getElementById('marginPercentage')?.focus();
+                                                        document.getElementById('currency')?.focus();
                                                     }
                                                 }}
                                                 style={{
@@ -5143,68 +5144,7 @@ const AddPurchase = () => {
                                 </div>
 
                                 <div className="row g-2 mb-2">
-                                    <div className="col-12 col-md-6">
-                                        <div className="position-relative">
-                                            <input
-                                                type="number"
-                                                className="form-control form-control-sm"
-                                                id="marginPercentage"
-                                                min="0"
-                                                step="any"
-                                                value={Math.round(salesPriceData.marginPercentage * 100) / 100}
-                                                onFocus={(e) => {
-                                                    e.target.select();
-                                                }}
-                                                onChange={(e) => {
-                                                    const margin = parseFloat(e.target.value) || 0;
-                                                    const puPrice = parseFloat(salesPriceData.puPrice) || 0;
-                                                    const salesPrice = puPrice + (puPrice * margin / 100);
-
-                                                    setSalesPriceData({
-                                                        ...salesPriceData,
-                                                        marginPercentage: margin,
-                                                        salesPrice: parseFloat(salesPrice.toFixed(2))
-                                                    });
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const margin = parseFloat(e.target.value) || 0;
-                                                        const puPrice = parseFloat(salesPriceData.puPrice) || 0;
-                                                        const salesPrice = puPrice + (puPrice * margin / 100);
-
-                                                        setSalesPriceData({
-                                                            ...salesPriceData,
-                                                            marginPercentage: margin,
-                                                            salesPrice: parseFloat(salesPrice.toFixed(2))
-                                                        });
-                                                        document.getElementById('currency')?.focus();
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Margin (%)
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div className="col-12 col-md-6">
+                                      <div className="col-12 col-md-6">
                                         <div className="position-relative">
                                             <select
                                                 className="form-control form-control-sm"
@@ -5243,10 +5183,7 @@ const AddPurchase = () => {
                                             </label>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="row g-2 mb-2">
-                                    <div className="col-12 col-md-6">
+                                     <div className="col-12 col-md-6">
                                         <div className="position-relative">
                                             <input
                                                 type="number"
@@ -5275,7 +5212,7 @@ const AddPurchase = () => {
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
                                                         e.preventDefault();
-                                                        document.getElementById('salesPrice')?.focus();
+                                                        document.getElementById('marginPercentage')?.focus();
                                                     }
                                                 }}
                                                 style={{
@@ -5298,6 +5235,70 @@ const AddPurchase = () => {
                                                 }}
                                             >
                                                 MRP (Rs.)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="row g-2 mb-2">
+                                     <div className="col-12 col-md-6">
+                                        <div className="position-relative">
+                                            <input
+                                                type="number"
+                                                className="form-control form-control-sm"
+                                                id="marginPercentage"
+                                                min="0"
+                                                step="any"
+                                                value={Math.round(salesPriceData.marginPercentage * 100) / 100}
+                                                onFocus={(e) => {
+                                                    e.target.select();
+                                                }}
+                                                onChange={(e) => {
+                                                    const margin = parseFloat(e.target.value) || 0;
+                                                    const puPrice = parseFloat(salesPriceData.puPrice) || 0;
+                                                    const salesPrice = puPrice + (puPrice * margin / 100);
+
+                                                    setSalesPriceData({
+                                                        ...salesPriceData,
+                                                        marginPercentage: margin,
+                                                        salesPrice: parseFloat(salesPrice.toFixed(2))
+                                                    });
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const margin = parseFloat(e.target.value) || 0;
+                                                        const puPrice = parseFloat(salesPriceData.puPrice) || 0;
+                                                        const salesPrice = puPrice + (puPrice * margin / 100);
+
+                                                        setSalesPriceData({
+                                                            ...salesPriceData,
+                                                            marginPercentage: margin,
+                                                            salesPrice: parseFloat(salesPrice.toFixed(2))
+                                                        });
+                                                        document.getElementById('salesPrice')?.focus();
+                                                    }
+                                                }}
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Margin (%)
                                             </label>
                                         </div>
                                     </div>

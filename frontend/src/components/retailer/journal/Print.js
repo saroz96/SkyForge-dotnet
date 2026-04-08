@@ -1,9 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Table } from 'react-bootstrap';
 import { BiPrinter, BiArrowBack, BiSolidFilePdf, BiReceipt } from 'react-icons/bi';
+import NepaliDate from 'nepali-date-converter';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import axios from 'axios';
 
 const JournalVoucherPrint = () => {
     const { id } = useParams();
@@ -13,22 +16,42 @@ const JournalVoucherPrint = () => {
     const [error, setError] = useState(null);
     const printableRef = useRef();
 
+    // API instance with JWT token
+    const api = axios.create({
+        baseURL: process.env.REACT_APP_API_BASE_URL,
+        withCredentials: true,
+    });
+
+    // Add authorization header to all requests
+    api.interceptors.request.use(
+        (config) => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        },
+        (error) => {
+            return Promise.reject(error);
+        }
+    );
+
     useEffect(() => {
         const fetchJournalData = async () => {
             try {
-                const response = await fetch(`/api/retailer/journal/${id}/print`, {
-                    credentials: 'include'
-                });
-                const data = await response.json();
+                setLoading(true);
+                const response = await api.get(`/api/retailer/journal/${id}/print`);
 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to fetch journal data');
+                if (!response.data.success) {
+                    throw new Error(response.data.error || 'Failed to fetch journal data');
                 }
 
-                setJournalData(data.data);
+                console.log('Print data:', response.data.data);
+                setJournalData(response.data.data);
                 setLoading(false);
             } catch (err) {
-                setError(err.message);
+                console.error('Error fetching journal data:', err);
+                setError(err.response?.data?.error || err.message || 'Failed to fetch journal data');
                 setLoading(false);
             }
         };
@@ -57,7 +80,7 @@ const JournalVoucherPrint = () => {
                                 window.close();
                             }, 200);
                         };
-                    </script>
+                    <\/script>
                 </body>
             </html>
         `);
@@ -137,31 +160,148 @@ const JournalVoucherPrint = () => {
         }
     };
 
-    if (loading) return <div className="text-center py-5">Loading...</div>;
-    if (error) return <div className="alert alert-danger text-center py-5">{error}</div>;
-    if (!journalData) return <div className="text-center py-5">No journal data found</div>;
+    const numberToWords = (num) => {
+        const ones = [
+            '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen'
+        ];
 
-    function formatTo2Decimal(num) {
+        const tens = [
+            '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
+        ];
+
+        const scales = ['', 'Thousand', 'Million', 'Billion'];
+
+        const convertHundreds = (num) => {
+            let words = '';
+
+            if (num > 99) {
+                words += ones[Math.floor(num / 100)] + ' Hundred ';
+                num %= 100;
+            }
+
+            if (num > 19) {
+                words += tens[Math.floor(num / 10)] + ' ';
+                num %= 10;
+            }
+
+            if (num > 0) {
+                words += ones[num] + ' ';
+            }
+
+            return words.trim();
+        };
+
+        if (num === 0) return 'Zero';
+        if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
+
+        let words = '';
+
+        for (let i = 0; i < scales.length; i++) {
+            let unit = Math.pow(1000, scales.length - i - 1);
+            let currentNum = Math.floor(num / unit);
+
+            if (currentNum > 0) {
+                words += convertHundreds(currentNum) + ' ' + scales[scales.length - i - 1] + ' ';
+            }
+
+            num %= unit;
+        }
+
+        return words.trim();
+    };
+
+    const numberToWordsWithPaisa = (amount) => {
+        const rupees = Math.floor(amount);
+        const paisa = Math.round((amount - rupees) * 100);
+
+        let result = numberToWords(rupees) + ' Rupees';
+
+        if (paisa > 0) {
+            result += ' and ' + numberToWords(paisa) + ' Paisa';
+        }
+
+        return result;
+    };
+
+    const handleBack = () => {
+        navigate(-1);
+    };
+
+    const formatTo2Decimal = (num) => {
+        if (num === null || num === undefined) return '0.00';
         const rounded = Math.round(num * 100) / 100;
         const parts = rounded.toString().split(".");
         if (!parts[1]) return parts[0] + ".00";
         if (parts[1].length === 1) return parts[0] + "." + parts[1] + "0";
         return rounded.toString();
-    }
-
-    // Helper function to format account names with commas
-    const formatAccountNames = (accounts) => {
-        return accounts.map(account => account.account?.name || 'N/A').join(', ');
     };
 
-    // Helper function to format amounts with commas
-    const formatAmounts = (accounts, amountType) => {
-        return accounts.map(account => formatTo2Decimal(account[amountType] || 0)).join(', ');
+    const formatDate = (dateString, format = 'english') => {
+        if (!dateString) return 'N/A';
+
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'N/A';
+
+            if (format === 'nepali') {
+                const nepaliDate = new NepaliDate(date);
+                return nepaliDate.format('YYYY-MM-DD');
+            }
+
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        } catch (e) {
+            console.error('Date formatting error:', e);
+            return 'N/A';
+        }
     };
 
-    // Calculate total debit and credit
-    const totalDebit = journalData.journalVoucher.debitAccounts.reduce((sum, account) => sum + (account.debit || 0), 0);
-    const totalCredit = journalData.journalVoucher.creditAccounts.reduce((sum, account) => sum + (account.credit || 0), 0);
+    if (loading) return (
+        <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+            <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    );
+
+    if (error) return (
+        <Container fluid className="mt-4">
+            <div className="alert alert-danger" role="alert">
+                <h4 className="alert-heading">Error!</h4>
+                <p>{error}</p>
+                <hr />
+                <Button variant="outline-danger" onClick={handleBack}>
+                    <BiArrowBack /> Go Back
+                </Button>
+            </div>
+        </Container>
+    );
+
+    if (!journalData || !journalData.journalVoucher) return (
+        <Container fluid className="mt-4">
+            <div className="alert alert-warning" role="alert">
+                <h4 className="alert-heading">No Data</h4>
+                <p>No journal data found</p>
+                <hr />
+                <Button variant="outline-warning" onClick={handleBack}>
+                    <BiArrowBack /> Go Back
+                </Button>
+            </div>
+        </Container>
+    );
+
+    const journal = journalData.journalVoucher;
+    const debitEntries = journalData.debitEntries || [];
+    const creditEntries = journalData.creditEntries || [];
+    const isCanceled = journal.status === 'Canceled';
+
+    // Calculate totals
+    const totalDebit = debitEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    const totalCredit = creditEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
 
     return (
         <>
@@ -193,7 +333,7 @@ const JournalVoucherPrint = () => {
                     .print-voucher-header {
                         text-align: center;
                         margin-bottom: 3mm;
-                        border-bottom: 1px dashed #000;
+                        border-bottom: 1px solid #000;
                         padding-bottom: 2mm;
                     }
 
@@ -202,8 +342,6 @@ const JournalVoucherPrint = () => {
                         font-weight: bold;
                         margin: 2mm 0;
                         text-transform: uppercase;
-                        text-decoration: underline;
-                        letter-spacing: 1px;
                     }
 
                     .print-company-name {
@@ -214,6 +352,7 @@ const JournalVoucherPrint = () => {
                     .print-company-details {
                         font-size: 8pt;
                         margin: 1mm 0;
+                        font-weight: bold;
                     }
 
                     .print-voucher-details {
@@ -228,28 +367,56 @@ const JournalVoucherPrint = () => {
                         border-collapse: collapse;
                         margin: 3mm 0;
                         font-size: 8pt;
+                        border: none;
+                        table-layout: fixed;
                     }
 
                     .print-voucher-table thead {
-                        border-top: 1px dashed #000;
-                        border-bottom: 1px dashed #000;
+                        border-top: 1px solid #000;
+                        border-bottom: 1px solid #000;
                     }
 
                     .print-voucher-table th {
                         background-color: transparent;
-                        border: 1px solid #000;
+                        border: none;
                         padding: 1mm;
                         text-align: left;
                         font-weight: bold;
                     }
 
                     .print-voucher-table td {
-                        border: 1px solid #000;
+                        border: none;
                         padding: 1mm;
+                        border-bottom: 1px solid #eee;
+                    }
+
+                    .print-voucher-table th:nth-child(1),
+                    .print-voucher-table td:nth-child(1) {
+                        width: 10%;
+                        text-align: center;
+                    }
+
+                    .print-voucher-table th:nth-child(2),
+                    .print-voucher-table td:nth-child(2) {
+                        width: 50%;
+                    }
+
+                    .print-voucher-table th:nth-child(3),
+                    .print-voucher-table td:nth-child(3) {
+                        width: 20%;
+                        text-align: right;
+                    }
+
+                    .print-voucher-table th:nth-child(4),
+                    .print-voucher-table td:nth-child(4) {
+                        width: 20%;
+                        text-align: right;
+                        padding-right: 2mm;
                     }
 
                     .print-text-right {
                         text-align: right;
+                        padding-right: 2mm;
                     }
 
                     .print-text-center {
@@ -266,26 +433,21 @@ const JournalVoucherPrint = () => {
                     .print-signature-box {
                         text-align: center;
                         width: 30%;
-                        border-top: 1px dashed #000;
+                        border-top: 1px solid #000;
                         padding-top: 1mm;
                         font-weight: bold;
+                    }
+
+                    .text-danger {
+                        color: #dc3545 !important;
                     }
 
                     .no-print {
                         display: none;
                     }
 
-                    .bordered-digit {
-                        display: inline-block;
-                        border: 1px solid #000;
-                        padding: 0 2px;
-                        margin: 0 1px;
-                        min-width: 12px;
-                        text-align: center;
-                    }
-
-                    .text-danger {
-                        color: #dc3545 !important;
+                    .screen-version {
+                        display: none;
                     }
                 }
 
@@ -296,131 +458,184 @@ const JournalVoucherPrint = () => {
 
                     .container {
                         max-width: 100%;
-                        padding: 10px;
+                        padding: 5px;
                     }
 
                     .card {
                         border: 1px solid #ddd;
-                        margin: 10px 0;
-                        padding: 15px;
-                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                        margin: 5px 0;
+                        padding: 8px;
+                        box-shadow: 0 0 5px rgba(0,0,0,0.1);
+                        font-size: 12px;
                     }
 
                     .header {
                         text-align: center;
-                        margin-bottom: 15px;
+                        margin-bottom: 8px;
+                    }
+
+                    .header h1 {
+                        margin: 0;
+                        font-size: 18px;
+                        font-weight: bold;
+                        line-height: 1.1;
                     }
 
                     .header h2 {
-                        margin: 0;
-                        font-size: 24px;
-                        font-weight: bold;
+                        font-size: 14px;
+                        margin: 5px 0;
+                        line-height: 1.1;
                     }
 
                     .header h4 {
-                        font-size: 14px;
-                        margin: 10px 0;
+                        font-size: 11px;
+                        margin: 3px 0;
+                        line-height: 1.1;
                     }
 
-                    .voucher-header {
+                    .details-container {
                         display: flex;
                         justify-content: space-between;
-                        margin-bottom: 15px;
+                        margin-bottom: 8px;
+                        font-size: 11px;
+                        line-height: 1.1;
                     }
 
-                     .invoice-details {
-                        text-align: right;
-                        font-size: 14px;
-                    }
-
-                    .voucher-table {
+                    .table {
                         width: 100%;
                         border-collapse: collapse;
-                        margin: 15px 0;
+                        margin-top: 5px;
+                        font-size: 11px;
+                        table-layout: fixed;
                     }
 
-                    .voucher-table th, .voucher-table td {
-                        border: 1px solid #ddd;
-                        padding: 8px;
-                        text-align: left;
-                    }
-
-                    .voucher-table th {
+                    .table th {
                         background-color: #f0f0f0;
+                        border: 1px solid #ddd;
+                        padding: 4px;
+                        text-align: left;
+                        height: 25px;
                     }
 
-                    .signature-section {
-                        display: flex;
-                        justify-content: space-between;
-                        margin-top: 30px;
+                    .table td {
+                        border: 1px solid #ddd;
+                        padding: 3px;
+                        text-align: left;
+                        height: 25px;
+                        vertical-align: top;
                     }
 
-                    .signature {
-                        width: 30%;
+                    .table th:nth-child(1),
+                    .table td:nth-child(1) {
+                        width: 10%;
                         text-align: center;
                     }
 
-                    .signature p {
-                        margin: 0;
+                    .table th:nth-child(2),
+                    .table td:nth-child(2) {
+                        width: 50%;
+                    }
+
+                    .table th:nth-child(3),
+                    .table td:nth-child(3) {
+                        width: 20%;
+                        text-align: right;
+                    }
+
+                    .table th:nth-child(4),
+                    .table td:nth-child(4) {
+                        width: 20%;
+                        text-align: right;
+                    }
+
+                    .signature-area {
+                        margin-top: 15px;
+                        display: flex;
+                        justify-content: space-between;
+                    }
+
+                    .signature-box {
+                        width: 30%;
+                        text-align: center;
+                        border-top: 1px solid #000;
+                        padding-top: 5px;
+                        font-size: 11px;
+                        height: 40px;
+                    }
+
+                    .amount-in-words {
+                        font-style: italic;
+                        margin-top: 5px;
+                        font-size: 11px;
+                        line-height: 1.1;
                     }
 
                     hr {
                         border-top: 1px solid #000;
-                        margin: 10px 0;
+                        margin: 5px 0;
+                    }
+
+                    .btn {
+                        padding: 3px 8px;
+                        font-size: 12px;
+                    }
+
+                    .btn svg {
+                        width: 14px;
+                        height: 14px;
+                    }
+
+                    .compact-text {
+                        line-height: 1;
+                        margin: 0;
+                        padding: 0;
                     }
 
                     .text-danger {
                         color: #dc3545;
                     }
-
                 }
                 `}
             </style>
 
-            {/* Screen Version */}
+            {/* Screen Version - Compact */}
             <div className="screen-version">
-                <Container>
-                    <div className="d-flex justify-content-end mb-3">
-                        <Button variant="secondary" className="me-2" onClick={() => navigate(-1)}>
+                <Container fluid>
+                    <div className="d-flex justify-content-end mb-2">
+                        <Button variant="secondary" size="sm" className="me-2" onClick={handleBack}>
                             <BiArrowBack /> Back
                         </Button>
-                        <Button variant="primary" className="me-2" onClick={generatePdf}>
+                        <Button variant="primary" size="sm" className="me-2" onClick={generatePdf}>
                             <BiSolidFilePdf /> <span className="pdf-button-text">PDF</span>
                         </Button>
-                        <Button variant="info" className='me-2' onClick={printVoucher}>
+                        <Button variant="info" size="sm" className="me-2" onClick={printVoucher}>
                             <BiPrinter /> Print
-                        </Button>
-                        <Button variant="success" onClick={() => navigate('/journal/new')}>
-                            <BiReceipt /> New Journal
                         </Button>
                     </div>
 
-                    <Card>
-                        <div className="header">
-                            <h2 className="card-subtitle">
-                                {journalData.currentCompanyName}
-                            </h2>
-                            <h4>
-                                <b>
-                                    {journalData.currentCompany.address}-{journalData.currentCompany.ward}, {journalData.currentCompany.city}
-                                </b>
+                    <Card className="p-4">
+                        <div className="header compact-text">
+                            <h1 className="compact-text">{journalData.currentCompanyName}</h1>
+                            <h4 className="compact-text">
+                                {journalData.currentCompany.address}, {journalData.currentCompany.city}
                                 <br />
                                 Tel: {journalData.currentCompany.phone} | PAN: {journalData.currentCompany.pan}
                             </h4>
-                            <hr style={{ border: '0.5px solid' }} />
+                            <h2 className="compact-text">JOURNAL VOUCHER</h2>
                         </div>
-
-                        <div className="voucher-header">
-                            <h1 className="text-center" style={{ textDecoration: 'underline', letterSpacing: '3px' }}>
-                                Journal Voucher
-                            </h1>
-                            <div className="invoice-details">
-                                <p><strong>Vch. No:</strong> {journalData.journalVoucher.billNumber}</p>
-                                <p><strong>Date:</strong> {new Date(journalData.journalVoucher.date).toLocaleDateString()}</p>
+                        <br />
+                        <div className="details-container compact-text">
+                            <div className="left">
+                                <div><strong>Vch. No:</strong> {journal.billNumber}</div>
+                            </div>
+                            <div className="right">
+                                <div><strong>Date:</strong> {journalData.companyDateFormat === 'Nepali' ? formatDate(journal.nepaliDate, 'nepali') : formatDate(journal.date)}</div>
                             </div>
                         </div>
 
-                        <Table className="voucher-table">
+                        <hr className="my-1" />
+
+                        <Table bordered size="sm">
                             <thead>
                                 <tr>
                                     <th>S.N</th>
@@ -430,73 +645,92 @@ const JournalVoucherPrint = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* Debit Accounts */}
-                                {journalData.journalVoucher.debitAccounts.map((account, index) => (
-                                    <tr key={`debit-${index}`}>
+                                {/* Debit Entries */}
+                                {debitEntries.map((entry, index) => (
+                                    <tr key={entry.id || index}>
                                         <td>{index + 1}</td>
                                         <td>
-                                            {journalData.journalVoucher.isActive ?
-                                                account.account?.name :
-                                                <span className="text-danger">Canceled</span>}
+                                            {!isCanceled ? (
+                                                <>
+                                                    {entry.accountName}
+                                                    {entry.referenceNumber && (
+                                                        <small className="d-block text-muted">
+                                                            Ref: {entry.referenceNumber}
+                                                        </small>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="text-danger">Canceled</span>
+                                            )}
                                         </td>
-                                        <td>
-                                            {journalData.journalVoucher.isActive ?
-                                                <span>{formatTo2Decimal(account.debit)}</span> :
-                                                <span className="text-danger">0.00</span>}
+                                        <td className="text-right">
+                                            {!isCanceled ? formatTo2Decimal(entry.amount) : <span className="text-danger">0.00</span>}
                                         </td>
-                                        <td>0.00</td>
+                                        <td className="text-right">0.00</td>
                                     </tr>
                                 ))}
 
-                                {/* Credit Accounts */}
-                                {journalData.journalVoucher.creditAccounts.map((account, index) => (
-                                    <tr key={`credit-${index}`}>
-                                        <td>{journalData.journalVoucher.debitAccounts.length + index + 1}</td>
+                                {/* Credit Entries */}
+                                {creditEntries.map((entry, index) => (
+                                    <tr key={entry.id || index}>
+                                        <td>{debitEntries.length + index + 1}</td>
                                         <td>
-                                            {journalData.journalVoucher.isActive ?
-                                                account.account?.name :
-                                                <span className="text-danger">Canceled</span>}
+                                            {!isCanceled ? (
+                                                <>
+                                                    {entry.accountName}
+                                                    {entry.referenceNumber && (
+                                                        <small className="d-block text-muted">
+                                                            Ref: {entry.referenceNumber}
+                                                        </small>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="text-danger">Canceled</span>
+                                            )}
                                         </td>
-                                        <td>0.00</td>
-                                        <td>
-                                            {journalData.journalVoucher.isActive ?
-                                                <span>{formatTo2Decimal(account.credit)}</span> :
-                                                <span className="text-danger">0.00</span>}
+                                        <td className="text-right">0.00</td>
+                                        <td className="text-right">
+                                            {!isCanceled ? formatTo2Decimal(entry.amount) : <span className="text-danger">0.00</span>}
                                         </td>
                                     </tr>
                                 ))}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <th colSpan="2">Total</th>
-                                    <th>{journalData.journalVoucher.isActive ?
-                                        formatTo2Decimal(totalDebit) :
-                                        <span className="text-danger">0.00</span>}
-                                    </th>
-                                    <th>{journalData.journalVoucher.isActive ?
-                                        formatTo2Decimal(totalCredit) :
-                                        <span className="text-danger">0.00</span>}
-                                    </th>
+
+                                <tr style={{ borderTop: '2px solid #000' }}>
+                                    <td colSpan="2" className="text-right"><strong>Total</strong></td>
+                                    <td className="text-right">
+                                        <strong>
+                                            {!isCanceled ? formatTo2Decimal(totalDebit) : <span className="text-danger">0.00</span>}
+                                        </strong>
+                                    </td>
+                                    <td className="text-right">
+                                        <strong>
+                                            {!isCanceled ? formatTo2Decimal(totalCredit) : <span className="text-danger">0.00</span>}
+                                        </strong>
+                                    </td>
                                 </tr>
-                            </tfoot>
+                            </tbody>
                         </Table>
 
-                        <p><strong>Note:</strong> {journalData.journalVoucher.description || 'N/A'}</p>
+                        <div className="compact-text">
+                            <div><strong>Note:</strong> {journal.description || 'N/A'}</div>
+                        </div>
 
-                        <div className="signature-section">
-                            <div className="signature">
-                                <p style={{ marginBottom: 0 }}>
-                                    <strong>{journalData.journalVoucher.user?.name || 'N/A'}</strong>
-                                </p>
-                                <p style={{ textDecoration: 'overline', marginTop: '5px' }}>Prepared By:</p>
+                        <div className="amount-in-words compact-text">
+                            <strong>In Words:</strong> {numberToWordsWithPaisa(totalCredit)} Only.
+                        </div>
+
+                        <div className="signature-area">
+                            <div className="signature-box">
+                                <div className="compact-text"><strong>{journal.user?.name || 'N/A'}</strong></div>
+                                Prepared By
                             </div>
-                            <div className="signature">
-                                <p style={{ marginBottom: 0 }}>&nbsp;</p>
-                                <p style={{ textDecoration: 'overline', marginTop: '5px' }}>Checked By:</p>
+                            <div className="signature-box">
+                                <div className="compact-text">&nbsp;</div>
+                                Checked By
                             </div>
-                            <div className="signature">
-                                <p style={{ marginBottom: 0 }}>&nbsp;</p>
-                                <p style={{ textDecoration: 'overline', marginTop: '5px' }}>Approved By:</p>
+                            <div className="signature-box">
+                                <div className="compact-text">&nbsp;</div>
+                                Approved By
                             </div>
                         </div>
                     </Card>
@@ -509,19 +743,19 @@ const JournalVoucherPrint = () => {
                     <div className="print-voucher-header">
                         <div className="print-company-name">{journalData.currentCompanyName}</div>
                         <div className="print-company-details">
-                            {journalData.currentCompany.address}-{journalData.currentCompany.ward}, {journalData.currentCompany.city}
+                            {journalData.currentCompany.address}, {journalData.currentCompany.city}
                             <br />
-                            Tel: {journalData.currentCompany.phone} | PAN: {journalData.currentCompany.pan ? journalData.currentCompany.pan : 'N/A'}
+                            Tel: {journalData.currentCompany.phone} | PAN: {journalData.currentCompany.pan}
                         </div>
                         <div className="print-voucher-title">JOURNAL VOUCHER</div>
                     </div>
 
                     <div className="print-voucher-details">
                         <div>
-                            <div><strong>Vch. No:</strong> {journalData.journalVoucher.billNumber}</div>
+                            <div><strong>Vch. No:</strong> {journal.billNumber}</div>
                         </div>
                         <div>
-                            <div><strong>Date:</strong> {new Date(journalData.journalVoucher.date).toLocaleDateString()}</div>
+                            <div><strong>Date:</strong> {journalData.companyDateFormat === 'Nepali' ? formatDate(journal.nepaliDate, 'nepali') : formatDate(journal.date)}</div>
                         </div>
                     </div>
 
@@ -535,59 +769,76 @@ const JournalVoucherPrint = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {/* Debit Accounts */}
-                            {journalData.journalVoucher.debitAccounts.map((account, index) => (
-                                <tr key={`debit-${index}`}>
-                                    <td>{index + 1}</td>
+                            {/* Debit Entries */}
+                            {debitEntries.map((entry, index) => (
+                                <tr key={entry.id || index}>
+                                    <td className="print-text-center">{index + 1}</td>
                                     <td>
-                                        {journalData.journalVoucher.isActive ?
-                                            account.account?.name :
-                                            <span className="text-danger">Canceled</span>}
+                                        {!isCanceled ? (
+                                            <>
+                                                {entry.accountName}
+                                                {entry.referenceNumber && (
+                                                    <small className="d-block text-muted">
+                                                        Ref: {entry.referenceNumber}
+                                                    </small>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <span className="text-danger">Canceled</span>
+                                        )}
                                     </td>
-                                    <td>
-                                        {journalData.journalVoucher.isActive ?
-                                            formatTo2Decimal(account.debit) :
-                                            <span className="text-danger">0.00</span>}
+                                    <td className="print-text-right">
+                                        {!isCanceled ? formatTo2Decimal(entry.amount) : <span className="text-danger">0.00</span>}
                                     </td>
-                                    <td>0.00</td>
+                                    <td className="print-text-right">0.00</td>
                                 </tr>
                             ))}
 
-                            {/* Credit Accounts */}
-                            {journalData.journalVoucher.creditAccounts.map((account, index) => (
-                                <tr key={`credit-${index}`}>
-                                    <td>{journalData.journalVoucher.debitAccounts.length + index + 1}</td>
+                            {/* Credit Entries */}
+                            {creditEntries.map((entry, index) => (
+                                <tr key={entry.id || index}>
+                                    <td className="print-text-center">{debitEntries.length + index + 1}</td>
                                     <td>
-                                        {journalData.journalVoucher.isActive ?
-                                            account.account?.name :
-                                            <span className="text-danger">Canceled</span>}
+                                        {!isCanceled ? (
+                                            <>
+                                                {entry.accountName}
+                                                {entry.referenceNumber && (
+                                                    <small className="d-block text-muted">
+                                                        Ref: {entry.referenceNumber}
+                                                    </small>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <span className="text-danger">Canceled</span>
+                                        )}
                                     </td>
-                                    <td>0.00</td>
-                                    <td>
-                                        {journalData.journalVoucher.isActive ?
-                                            formatTo2Decimal(account.credit) :
-                                            <span className="text-danger">0.00</span>}
+                                    <td className="print-text-right">0.00</td>
+                                    <td className="print-text-right">
+                                        {!isCanceled ? formatTo2Decimal(entry.amount) : <span className="text-danger">0.00</span>}
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                         <tfoot>
                             <tr>
-                                <th colSpan="2">Total</th>
-                                <th>{journalData.journalVoucher.isActive ? formatTo2Decimal(totalDebit) : <span className="text-danger">0.00</span>}</th>
-                                <th>{journalData.journalVoucher.isActive ? formatTo2Decimal(totalCredit) : <span className="text-danger">0.00</span>}</th>
+                                <td colSpan="4" style={{ borderBottom: '1px solid #000' }}></td>
                             </tr>
                         </tfoot>
                     </table>
 
                     <div style={{ marginTop: '3mm' }}>
-                        <strong>Note:</strong> {journalData.journalVoucher.description || 'N/A'}
+                        <div><strong>Note:</strong> {journal.description || 'N/A'}</div>
                     </div>
 
+                    <div className="print-amount-in-words" style={{ marginTop: '3mm', padding: '1mm', border: '1px dashed #000' }}>
+                        <strong>In Words:</strong> {numberToWordsWithPaisa(totalCredit)} Only.
+                    </div>
+
+                    <br /><br />
                     <div className="print-signature-area">
                         <div className="print-signature-box">
                             <div style={{ marginBottom: '1mm' }}>
-                                <strong>{journalData.journalVoucher.user?.name || 'N/A'}</strong>
+                                <strong>{journal.user?.name || 'N/A'}</strong>
                             </div>
                             Prepared By
                         </div>

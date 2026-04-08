@@ -22,6 +22,7 @@ namespace SkyForge.Services.Retailer.PaymentServices
         Task<PaymentsRegisterDataDTO> GetPaymentsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null);
 
         Task<PaymentEntryDataDTO> GetPaymentEntryDataAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+       
         Task<PaymentPrintDTO> GetPaymentForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId);
     }
 }
