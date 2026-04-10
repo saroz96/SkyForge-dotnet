@@ -1171,6 +1171,159 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
             };
         }
 
+        // public async Task<DebitNotePrintDTO> GetDebitNoteForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("GetDebitNoteForPrintAsync called for Debit Note ID: {DebitNoteId}", id);
+
+        //         var companyEntity = await _context.Companies
+        //             .FirstOrDefaultAsync(c => c.Id == companyId);
+
+        //         if (companyEntity == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var debitNote = await _context.DebitNotes
+        //             .Include(d => d.DebitNoteEntries)
+        //                 .ThenInclude(e => e.Account)
+        //             .Include(d => d.User)
+        //             .FirstOrDefaultAsync(d => d.Id == id && d.CompanyId == companyId);
+
+        //         if (debitNote == null)
+        //             throw new ArgumentException("Debit note not found");
+
+        //         var entries = debitNote.DebitNoteEntries.ToList();
+        //         var debitEntries = entries.Where(e => e.EntryType == "Debit")
+        //             .OrderBy(e => e.LineNumber)
+        //             .ToList();
+        //         var creditEntries = entries.Where(e => e.EntryType == "Credit")
+        //             .OrderBy(e => e.LineNumber)
+        //             .ToList();
+
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
+        //             .Select(f => new FiscalYearDTO
+        //             {
+        //                 Id = f.Id,
+        //                 Name = f.Name,
+        //                 StartDate = f.StartDate,
+        //                 EndDate = f.EndDate,
+        //                 IsActive = f.IsActive,
+        //                 StartDateNepali = f.StartDateNepali,
+        //                 EndDateNepali = f.EndDateNepali
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         var currentCompany = new CompanyPrintInfoDTO
+        //         {
+        //             Id = companyEntity.Id,
+        //             Name = companyEntity.Name,
+        //             Phone = companyEntity.Phone,
+        //             Pan = companyEntity.Pan,
+        //             Address = companyEntity.Address,
+        //         };
+
+        //         var user = await _context.Users
+        //             .Include(u => u.UserRoles)
+        //                 .ThenInclude(ur => ur.Role)
+        //             .FirstOrDefaultAsync(u => u.Id == userId);
+
+        //         bool isAdminOrSupervisor = user?.IsAdmin == true ||
+        //                                   (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor") ?? false);
+
+        //         // Get user role string
+        //         string userRole = "User";
+        //         if (user?.IsAdmin == true)
+        //         {
+        //             userRole = "Admin";
+        //         }
+        //         else if (user?.UserRoles != null)
+        //         {
+        //             var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
+        //             if (primaryRole?.Role != null)
+        //             {
+        //                 userRole = primaryRole.Role.Name;
+        //             }
+        //         }
+
+        //         var response = new DebitNotePrintDTO
+        //         {
+        //             Company = new CompanyPrintDTO
+        //             {
+        //                 Id = companyEntity.Id,
+        //                 DateFormat = companyEntity.DateFormat.ToString(),
+        //                 FiscalYear = null
+        //             },
+        //             CurrentFiscalYear = currentFiscalYear,
+        //             DebitNote = new DebitNotePrintDataDTO
+        //             {
+        //                 Id = debitNote.Id,
+        //                 BillNumber = debitNote.BillNumber,
+        //                 Date = debitNote.Date,
+        //                 NepaliDate = debitNote.NepaliDate,
+        //                 TotalAmount = debitNote.TotalAmount,
+        //                 Description = debitNote.Description,
+        //                 Status = debitNote.Status.ToString(),
+        //                 CreatedAt = debitNote.CreatedAt,
+        //                 UpdatedAt = debitNote.UpdatedAt,
+        //                 User = debitNote.User != null ? new UserPrintDTO
+        //                 {
+        //                     Id = debitNote.User.Id,
+        //                     Name = debitNote.User.Name,
+        //                     Role = debitNote.User.UserRoles?
+        //                         .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User",
+        //                     IsAdmin = debitNote.User.IsAdmin
+        //                 } : null
+        //             },
+        //             DebitEntries = debitEntries.Select(e => new DebitNoteEntryPrintDTO
+        //             {
+        //                 Id = e.Id,
+        //                 AccountId = e.AccountId,
+        //                 AccountName = e.Account?.Name ?? string.Empty,
+        //                 EntryType = e.EntryType,
+        //                 Amount = e.Amount,
+        //                 Description = e.Description ?? string.Empty,
+        //                 ReferenceNumber = e.ReferenceNumber ?? string.Empty,
+        //                 LineNumber = e.LineNumber
+        //             }).ToList(),
+        //             CreditEntries = creditEntries.Select(e => new DebitNoteEntryPrintDTO
+        //             {
+        //                 Id = e.Id,
+        //                 AccountId = e.AccountId,
+        //                 AccountName = e.Account?.Name ?? string.Empty,
+        //                 EntryType = e.EntryType,
+        //                 Amount = e.Amount,
+        //                 Description = e.Description ?? string.Empty,
+        //                 ReferenceNumber = e.ReferenceNumber ?? string.Empty,
+        //                 LineNumber = e.LineNumber
+        //             }).ToList(),
+        //             CurrentCompanyName = currentCompany.Name ?? string.Empty,
+        //             CurrentCompany = currentCompany,
+        //             NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             EnglishDate = DateTime.UtcNow,
+        //             CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
+        //             User = new UserPrintDTO
+        //             {
+        //                 Id = userId,
+        //                 Name = user?.Name ?? string.Empty,
+        //                 IsAdmin = user?.IsAdmin ?? false,
+        //                 Role = userRole
+        //             },
+        //             IsAdminOrSupervisor = isAdminOrSupervisor
+        //         };
+
+        //         _logger.LogInformation("Successfully retrieved debit note print data for Debit Note ID: {DebitNoteId} with {DebitCount} debit and {CreditCount} credit entries",
+        //             id, debitEntries.Count, creditEntries.Count);
+
+        //         return response;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error getting debit note for print: {DebitNoteId}", id);
+        //         throw;
+        //     }
+        // }
+
         public async Task<DebitNotePrintDTO> GetDebitNoteForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
         {
             try
@@ -1182,6 +1335,9 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
 
                 if (companyEntity == null)
                     throw new ArgumentException("Company not found");
+
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = companyEntity.DateFormat?.ToString().ToLower() == "nepali";
 
                 var debitNote = await _context.DebitNotes
                     .Include(d => d.DebitNoteEntries)
@@ -1246,20 +1402,24 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
                     }
                 }
 
+                var today = DateTime.UtcNow;
+                var nepaliDate = today.ToString("yyyy-MM-dd");
+
                 var response = new DebitNotePrintDTO
                 {
                     Company = new CompanyPrintDTO
                     {
                         Id = companyEntity.Id,
                         DateFormat = companyEntity.DateFormat.ToString(),
-                        FiscalYear = null
+                        FiscalYear = currentFiscalYear
                     },
                     CurrentFiscalYear = currentFiscalYear,
                     DebitNote = new DebitNotePrintDataDTO
                     {
                         Id = debitNote.Id,
                         BillNumber = debitNote.BillNumber,
-                        Date = debitNote.Date,
+                        // FIX: Return the correct date based on company format
+                        Date = isNepaliFormat ? debitNote.NepaliDate : debitNote.Date,
                         NepaliDate = debitNote.NepaliDate,
                         TotalAmount = debitNote.TotalAmount,
                         Description = debitNote.Description,
@@ -1299,8 +1459,8 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
                     }).ToList(),
                     CurrentCompanyName = currentCompany.Name ?? string.Empty,
                     CurrentCompany = currentCompany,
-                    NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    EnglishDate = DateTime.UtcNow,
+                    NepaliDate = nepaliDate,
+                    EnglishDate = today,
                     CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
                     User = new UserPrintDTO
                     {

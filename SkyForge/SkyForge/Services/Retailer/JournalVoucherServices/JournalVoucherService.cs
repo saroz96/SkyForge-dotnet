@@ -1165,7 +1165,142 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                 CreditAmounts = creditAmounts
             };
         }
-       
+
+        // public async Task<JournalVoucherPrintDTO> GetJournalVoucherForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("GetJournalVoucherForPrintAsync called for Journal ID: {JournalId}", id);
+
+        //         var companyEntity = await _context.Companies
+        //             .FirstOrDefaultAsync(c => c.Id == companyId);
+
+        //         if (companyEntity == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var journalVoucher = await _context.JournalVouchers
+        //             .Include(j => j.JournalEntries)
+        //                 .ThenInclude(e => e.Account)
+        //             .Include(j => j.User)
+        //             .FirstOrDefaultAsync(j => j.Id == id && j.CompanyId == companyId);
+
+        //         if (journalVoucher == null)
+        //             throw new ArgumentException("Journal voucher not found");
+
+        //         var entries = journalVoucher.JournalEntries.ToList();
+        //         var debitEntries = entries.Where(e => e.EntryType == "Debit")
+        //             .OrderBy(e => e.LineNumber)
+        //             .ToList();
+        //         var creditEntries = entries.Where(e => e.EntryType == "Credit")
+        //             .OrderBy(e => e.LineNumber)
+        //             .ToList();
+
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
+        //             .Select(f => new FiscalYearDTO
+        //             {
+        //                 Id = f.Id,
+        //                 Name = f.Name,
+        //                 StartDate = f.StartDate,
+        //                 EndDate = f.EndDate,
+        //                 IsActive = f.IsActive
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         var currentCompany = new CompanyPrintInfoDTO
+        //         {
+        //             Id = companyEntity.Id,
+        //             Name = companyEntity.Name,
+        //             Phone = companyEntity.Phone,
+        //             Pan = companyEntity.Pan,
+        //             Address = companyEntity.Address,
+        //         };
+
+        //         var user = await _context.Users
+        //             .Include(u => u.UserRoles)
+        //                 .ThenInclude(ur => ur.Role)
+        //             .FirstOrDefaultAsync(u => u.Id == userId);
+
+        //         bool isAdminOrSupervisor = user?.IsAdmin == true ||
+        //                                   (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor") ?? false);
+
+        //         var response = new JournalVoucherPrintDTO
+        //         {
+        //             Company = new CompanyPrintDTO
+        //             {
+        //                 Id = companyEntity.Id,
+        //                 DateFormat = companyEntity.DateFormat.ToString(),
+        //                 FiscalYear = null
+        //             },
+        //             CurrentFiscalYear = currentFiscalYear,
+        //             JournalVoucher = new JournalVoucherPrintDataDTO
+        //             {
+        //                 Id = journalVoucher.Id,
+        //                 BillNumber = journalVoucher.BillNumber,
+        //                 Date = journalVoucher.Date,
+        //                 NepaliDate = journalVoucher.NepaliDate,
+        //                 TotalAmount = journalVoucher.TotalAmount,
+        //                 Description = journalVoucher.Description,
+        //                 Status = journalVoucher.Status.ToString(),
+        //                 CreatedAt = journalVoucher.CreatedAt,
+        //                 UpdatedAt = journalVoucher.UpdatedAt,
+        //                 User = journalVoucher.User != null ? new UserPrintDTO
+        //                 {
+        //                     Id = journalVoucher.User.Id,
+        //                     Name = journalVoucher.User.Name,
+        //                     Role = journalVoucher.User.UserRoles?
+        //                         .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
+        //                 } : null
+        //             },
+        //             DebitEntries = debitEntries.Select(e => new JournalEntryPrintDTO
+        //             {
+        //                 Id = e.Id,
+        //                 AccountId = e.AccountId,
+        //                 AccountName = e.Account?.Name ?? string.Empty,
+        //                 EntryType = e.EntryType,
+        //                 Amount = e.Amount,
+        //                 Description = e.Description,
+        //                 ReferenceNumber = e.ReferenceNumber,
+        //                 LineNumber = e.LineNumber
+        //             }).ToList(),
+        //             CreditEntries = creditEntries.Select(e => new JournalEntryPrintDTO
+        //             {
+        //                 Id = e.Id,
+        //                 AccountId = e.AccountId,
+        //                 AccountName = e.Account?.Name ?? string.Empty,
+        //                 EntryType = e.EntryType,
+        //                 Amount = e.Amount,
+        //                 Description = e.Description,
+        //                 ReferenceNumber = e.ReferenceNumber,
+        //                 LineNumber = e.LineNumber
+        //             }).ToList(),
+        //             CurrentCompanyName = currentCompany.Name ?? string.Empty,
+        //             CurrentCompany = currentCompany,
+        //             NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             EnglishDate = DateTime.UtcNow,
+        //             CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
+        //             User = new UserPrintDTO
+        //             {
+        //                 Id = userId,
+        //                 Name = user?.Name ?? string.Empty,
+        //                 IsAdmin = user?.IsAdmin ?? false,
+        //                 Role = user?.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
+        //             },
+        //             IsAdminOrSupervisor = isAdminOrSupervisor
+        //         };
+
+        //         _logger.LogInformation("Successfully retrieved journal voucher print data for Journal ID: {JournalId} with {DebitCount} debit and {CreditCount} credit entries",
+        //             id, debitEntries.Count, creditEntries.Count);
+
+        //         return response;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error getting journal voucher for print: {JournalId}", id);
+        //         throw;
+        //     }
+        // }
+
         public async Task<JournalVoucherPrintDTO> GetJournalVoucherForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
         {
             try
@@ -1177,6 +1312,9 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
 
                 if (companyEntity == null)
                     throw new ArgumentException("Company not found");
+
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = companyEntity.DateFormat?.ToString().ToLower() == "nepali";
 
                 var journalVoucher = await _context.JournalVouchers
                     .Include(j => j.JournalEntries)
@@ -1203,7 +1341,9 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                         Name = f.Name,
                         StartDate = f.StartDate,
                         EndDate = f.EndDate,
-                        IsActive = f.IsActive
+                        IsActive = f.IsActive,
+                        StartDateNepali = f.StartDateNepali,
+                        EndDateNepali = f.EndDateNepali
                     })
                     .FirstOrDefaultAsync();
 
@@ -1224,20 +1364,38 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                 bool isAdminOrSupervisor = user?.IsAdmin == true ||
                                           (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor") ?? false);
 
+                string userRole = "User";
+                if (user?.IsAdmin == true)
+                {
+                    userRole = "Admin";
+                }
+                else if (user?.UserRoles != null)
+                {
+                    var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
+                    if (primaryRole?.Role != null)
+                    {
+                        userRole = primaryRole.Role.Name;
+                    }
+                }
+
+                var today = DateTime.UtcNow;
+                var nepaliDate = today.ToString("yyyy-MM-dd");
+
                 var response = new JournalVoucherPrintDTO
                 {
                     Company = new CompanyPrintDTO
                     {
                         Id = companyEntity.Id,
                         DateFormat = companyEntity.DateFormat.ToString(),
-                        FiscalYear = null
+                        FiscalYear = currentFiscalYear
                     },
                     CurrentFiscalYear = currentFiscalYear,
                     JournalVoucher = new JournalVoucherPrintDataDTO
                     {
                         Id = journalVoucher.Id,
                         BillNumber = journalVoucher.BillNumber,
-                        Date = journalVoucher.Date,
+                        // FIX: Return the correct date based on company format
+                        Date = isNepaliFormat ? journalVoucher.NepaliDate : journalVoucher.Date,
                         NepaliDate = journalVoucher.NepaliDate,
                         TotalAmount = journalVoucher.TotalAmount,
                         Description = journalVoucher.Description,
@@ -1248,6 +1406,7 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                         {
                             Id = journalVoucher.User.Id,
                             Name = journalVoucher.User.Name,
+                            IsAdmin = journalVoucher.User.IsAdmin,
                             Role = journalVoucher.User.UserRoles?
                                 .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
                         } : null
@@ -1276,15 +1435,15 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                     }).ToList(),
                     CurrentCompanyName = currentCompany.Name ?? string.Empty,
                     CurrentCompany = currentCompany,
-                    NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    EnglishDate = DateTime.UtcNow,
+                    NepaliDate = nepaliDate,
+                    EnglishDate = today,
                     CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
                     User = new UserPrintDTO
                     {
                         Id = userId,
                         Name = user?.Name ?? string.Empty,
                         IsAdmin = user?.IsAdmin ?? false,
-                        Role = user?.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
+                        Role = userRole
                     },
                     IsAdminOrSupervisor = isAdminOrSupervisor
                 };
@@ -1300,6 +1459,5 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                 throw;
             }
         }
-    
     }
 }

@@ -288,3 +288,4 @@ const JournalVoucherNumberForm = () => {
 };
 
 export default JournalVoucherNumberForm;
+

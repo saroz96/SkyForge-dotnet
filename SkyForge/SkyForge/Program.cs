@@ -34,6 +34,8 @@ using SkyForge.Services.Retailer.PaymentServices;
 using SkyForge.Services.Retailer.ReceiptServices;
 using SkyForge.Services.Retailer.JournalVoucherServices;
 using SkyForge.Services.Retailer.DebitNoteServices;
+using SkyForge.Services.Retailer.CreditNoteServices;
+using SkyForge.Services.Retailer.StatementServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -162,7 +164,9 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReceiptService, ReceiptService>();
 builder.Services.AddScoped<IJournalVoucherService, JournalVoucherService>();
 builder.Services.AddScoped<IDebitNoteService, DebitNoteService>();
+builder.Services.AddScoped<ICreditNoteService, CreditNoteService>();
 
+builder.Services.AddScoped<IStatementService, StatementService>();
 
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();

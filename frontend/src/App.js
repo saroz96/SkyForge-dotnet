@@ -948,7 +948,7 @@ function AppContent() {
             />
 
             <Route
-              path="/retailer/credit-note/:id"
+              path="/retailer/credit-note/edit/:id"
               element={
                 <ProtectedRoute>
                   <EditCreditNote />

@@ -1186,8 +1186,8 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 ReferenceNumber = e.ReferenceNumber
             }).ToList();
         }
-       
-       // public async Task<Receipt> UpdateReceiptAsync(Guid id, UpdateReceiptDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+
+        // public async Task<Receipt> UpdateReceiptAsync(Guid id, UpdateReceiptDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         // {
         //     // Use execution strategy for transaction handling
         //     var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -1966,31 +1966,31 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         // {
         //     try
         //     {
-        //         _logger.LogInformation("GetReceiptForPrintAsync called for Receipt ID: {ReceiptId}, Company: {CompanyId}", id, companyId);
+        //         _logger.LogInformation("GetReceiptForPrintAsync called for Receipt ID: {ReceiptId}", id);
 
         //         // Get company details
         //         var companyEntity = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .FirstOrDefaultAsync();
+        //             .FirstOrDefaultAsync(c => c.Id == companyId);
 
         //         if (companyEntity == null)
         //             throw new ArgumentException("Company not found");
 
-        //         // Parse renewal date
-        //         DateTime? renewalDate = null;
-        //         if (DateTime.TryParse(companyEntity.RenewalDate, out var parsedDate))
-        //         {
-        //             renewalDate = parsedDate;
-        //         }
+        //         // Get receipt with all entries and accounts
+        //         var receipt = await _context.Receipts
+        //             .Include(r => r.ReceiptEntries)
+        //                 .ThenInclude(e => e.Account)
+        //             .Include(r => r.User)
+        //             .FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId);
 
-        //         // Create company DTO
-        //         var company = new CompanyPrintDTO
-        //         {
-        //             Id = companyEntity.Id,
-        //             RenewalDate = renewalDate,
-        //             DateFormat = companyEntity.DateFormat.ToString(),
-        //             FiscalYear = null
-        //         };
+        //         if (receipt == null)
+        //             throw new ArgumentException("Receipt voucher not found");
+
+        //         // Get all receipt entries
+        //         var entries = receipt.ReceiptEntries.ToList();
+
+        //         // Separate debit and credit entries
+        //         var debitEntries = entries.Where(e => e.EntryType == "Debit").ToList();
+        //         var creditEntries = entries.Where(e => e.EntryType == "Credit").ToList();
 
         //         // Get fiscal year
         //         var currentFiscalYear = await _context.FiscalYears
@@ -2001,185 +2001,92 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         //                 Name = f.Name,
         //                 StartDate = f.StartDate,
         //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
         //                 IsActive = f.IsActive
         //             })
         //             .FirstOrDefaultAsync();
 
-        //         // Get current company info for display
-        //         var currentCompany = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyPrintInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 Address = c.Address,
-        //             })
-        //             .FirstOrDefaultAsync();
+        //         // Get current company info
+        //         var currentCompany = new CompanyPrintInfoDTO
+        //         {
+        //             Id = companyEntity.Id,
+        //             Name = companyEntity.Name,
+        //             Phone = companyEntity.Phone,
+        //             Pan = companyEntity.Pan,
+        //             Address = companyEntity.Address,
+        //         };
 
-        //         // Get the receipt with all related data
-        //         var receipt = await _context.Receipts
-        //             .Include(r => r.Account)
-        //             .Include(r => r.ReceiptAccount)
-        //             .Include(r => r.User)
-        //             .FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId);
-
-        //         if (receipt == null)
-        //             throw new ArgumentException("Receipt voucher not found");
-
-        //         // Get related transactions (debit and credit)
-        //         var debitTransaction = await _context.Transactions
-        //             .Where(t => t.ReceiptAccountId == id &&
-        //                        t.Type == TransactionType.Rcpt &&
-        //                        t.Debit > 0)
-        //             .Include(t => t.Account)
-        //             .OrderBy(t => t.CreatedAt)
-        //             .Select(t => new TransactionPrintDTO
-        //             {
-        //                 Id = t.Id,
-        //                 AccountId = t.AccountId ?? Guid.Empty,
-        //                 AccountName = t.Account != null ? t.Account.Name : string.Empty,
-        //                 DrCrNoteAccountTypes = t.DrCrNoteAccountTypes ?? string.Empty,
-        //                 Debit = t.Debit,
-        //                 Credit = t.Credit,
-        //                 Balance = t.Balance,
-        //                 Date = t.Date
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         var creditTransaction = await _context.Transactions
-        //             .Where(t => t.ReceiptAccountId == id &&
-        //                        t.Type == TransactionType.Rcpt &&
-        //                        t.Credit > 0)
-        //             .Include(t => t.Account)
-        //             .OrderBy(t => t.CreatedAt)
-        //             .Select(t => new TransactionPrintDTO
-        //             {
-        //                 Id = t.Id,
-        //                 AccountId = t.AccountId ?? Guid.Empty,
-        //                 AccountName = t.Account != null ? t.Account.Name : string.Empty,
-        //                 DrCrNoteAccountTypes = t.DrCrNoteAccountTypes ?? string.Empty,
-        //                 Debit = t.Debit,
-        //                 Credit = t.Credit,
-        //                 Balance = t.Balance,
-        //                 Date = t.Date
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // Get all transactions for the receipt (if needed for detailed view)
-        //         var allTransactions = await _context.Transactions
-        //             .Where(t => t.ReceiptAccountId == id && t.Type == TransactionType.Rcpt)
-        //             .Include(t => t.Account)
-        //             .OrderBy(t => t.CreatedAt)
-        //             .Select(t => new TransactionPrintDTO
-        //             {
-        //                 Id = t.Id,
-        //                 AccountId = t.AccountId ?? Guid.Empty,
-        //                 AccountName = t.Account != null ? t.Account.Name : string.Empty,
-        //                 DrCrNoteAccountTypes = t.DrCrNoteAccountTypes ?? string.Empty,
-        //                 Debit = t.Debit,
-        //                 Credit = t.Credit,
-        //                 Balance = t.Balance,
-        //                 Date = t.Date
-        //             })
-        //             .ToListAsync();
-
-        //         // Get user with roles
+        //         // Get user info
         //         var user = await _context.Users
         //             .Include(u => u.UserRoles)
         //                 .ThenInclude(ur => ur.Role)
         //             .FirstOrDefaultAsync(u => u.Id == userId);
 
-        //         // Create user preferences DTO
-        //         var userPreferences = new UserPreferencesDTO
-        //         {
-        //             Theme = user?.Preferences?.Theme.ToString() ?? "Light"
-        //         };
-
-        //         // Determine if user is admin or supervisor
         //         bool isAdminOrSupervisor = user?.IsAdmin == true ||
-        //                                   (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor" &&
-        //                                                              (ur.ExpiresAt == null || ur.ExpiresAt > DateTime.UtcNow)) ?? false);
+        //                                   (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor") ?? false);
 
-        //         // Get company date format
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         // Get today's Nepali date
-        //         var today = DateTime.UtcNow;
-        //         var nepaliDate = today.ToString("yyyy-MM-dd");
-
-        //         // Map to response DTO
+        //         // Map to print DTO
         //         var response = new ReceiptPrintDTO
         //         {
-        //             Company = company,
+        //             Company = new CompanyPrintDTO
+        //             {
+        //                 Id = companyEntity.Id,
+        //                 DateFormat = companyEntity.DateFormat.ToString(),
+        //                 FiscalYear = null
+        //             },
         //             CurrentFiscalYear = currentFiscalYear,
         //             Receipt = new ReceiptPrintReceiptDTO
         //             {
         //                 Id = receipt.Id,
         //                 BillNumber = receipt.BillNumber,
-        //                 Date = isNepaliFormat ? receipt.NepaliDate : receipt.Date,
+        //                 Date = receipt.Date,
         //                 NepaliDate = receipt.NepaliDate,
-        //                 Debit = receipt.Debit,
-        //                 Credit = receipt.Credit,
+        //                 TotalAmount = receipt.TotalAmount,
         //                 Description = receipt.Description,
-        //                 InstType = receipt.InstType.ToString(),
-        //                 BankAcc = receipt.BankAcc,
-        //                 InstNo = receipt.InstNo,
         //                 Status = receipt.Status.ToString(),
         //                 CreatedAt = receipt.CreatedAt,
         //                 UpdatedAt = receipt.UpdatedAt,
-        //                 Account = receipt.Account != null ? new AccountPrintDTO
-        //                 {
-        //                     Id = receipt.Account.Id,
-        //                     Name = receipt.Account.Name,
-        //                     Pan = receipt.Account.Pan,
-        //                     Address = receipt.Account.Address,
-        //                     Email = receipt.Account.Email,
-        //                     Phone = receipt.Account.Phone,
-        //                 } : null,
-        //                 ReceiptAccount = receipt.ReceiptAccount != null ? new AccountPrintDTO
-        //                 {
-        //                     Id = receipt.ReceiptAccount.Id,
-        //                     Name = receipt.ReceiptAccount.Name,
-        //                     Pan = receipt.ReceiptAccount.Pan,
-        //                     Address = receipt.ReceiptAccount.Address,
-        //                     Email = receipt.ReceiptAccount.Email,
-        //                     Phone = receipt.ReceiptAccount.Phone
-        //                 } : null,
         //                 User = receipt.User != null ? new UserPrintDTO
         //                 {
         //                     Id = receipt.User.Id,
         //                     Name = receipt.User.Name,
-        //                     IsAdmin = receipt.User.IsAdmin,
         //                     Role = receipt.User.UserRoles?
         //                         .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
         //                 } : null
         //             },
-        //             CurrentCompanyName = currentCompany?.Name ?? string.Empty,
-        //             CurrentCompany = currentCompany ?? new CompanyPrintInfoDTO(),
-        //             NepaliDate = nepaliDate,
-        //             EnglishDate = today,
-        //             CompanyDateFormat = company.DateFormat?.ToLower() ?? "english",
+        //             DebitEntries = debitEntries.Select(e => new ReceiptEntryPrintDTO
+        //             {
+        //                 Id = e.Id,
+        //                 AccountId = e.AccountId,
+        //                 AccountName = e.Account?.Name ?? string.Empty,
+        //                 Amount = e.Amount,
+        //                 Description = e.Description,
+        //                 InstType = e.InstType?.ToString() ?? "N/A",
+        //                 BankAcc = e.BankAcc,
+        //                 InstNo = e.InstNo,
+        //                 ReferenceNumber = e.ReferenceNumber
+        //             }).ToList(),
+        //             CreditEntries = creditEntries.Select(e => new ReceiptEntryPrintDTO
+        //             {
+        //                 Id = e.Id,
+        //                 AccountId = e.AccountId,
+        //                 AccountName = e.Account?.Name ?? string.Empty,
+        //                 Amount = e.Amount,
+        //                 Description = e.Description,
+        //                 ReferenceNumber = e.ReferenceNumber
+        //             }).ToList(),
+        //             CurrentCompanyName = currentCompany.Name ?? string.Empty,
+        //             CurrentCompany = currentCompany,
+        //             NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             EnglishDate = DateTime.UtcNow,
+        //             CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
         //             User = new UserPrintDTO
         //             {
         //                 Id = userId,
         //                 Name = user?.Name ?? string.Empty,
         //                 IsAdmin = user?.IsAdmin ?? false,
-        //                 Role = user?.UserRoles?
-        //                     .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ??
-        //                        (user?.IsAdmin == true ? "Admin" : "User"),
-        //                 Preferences = userPreferences
+        //                 Role = user?.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
         //             },
-        //             IsAdminOrSupervisor = isAdminOrSupervisor,
-        //             Transactions = allTransactions,
-        //             // TransactionsDetail = new ReceiptTransactionDetailDTO
-        //             // {
-        //             //     DebitTransaction = debitTransaction,
-        //             //     CreditTransaction = creditTransaction
-        //             // }
+        //             IsAdminOrSupervisor = isAdminOrSupervisor
         //         };
 
         //         return response;
@@ -2203,6 +2110,9 @@ namespace SkyForge.Services.Retailer.ReceiptServices
 
                 if (companyEntity == null)
                     throw new ArgumentException("Company not found");
+
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = companyEntity.DateFormat?.ToString().ToLower() == "nepali";
 
                 // Get receipt with all entries and accounts
                 var receipt = await _context.Receipts
@@ -2230,7 +2140,9 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         Name = f.Name,
                         StartDate = f.StartDate,
                         EndDate = f.EndDate,
-                        IsActive = f.IsActive
+                        IsActive = f.IsActive,
+                        StartDateNepali = f.StartDateNepali,
+                        EndDateNepali = f.EndDateNepali
                     })
                     .FirstOrDefaultAsync();
 
@@ -2253,6 +2165,23 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 bool isAdminOrSupervisor = user?.IsAdmin == true ||
                                           (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor") ?? false);
 
+                string userRole = "User";
+                if (user?.IsAdmin == true)
+                {
+                    userRole = "Admin";
+                }
+                else if (user?.UserRoles != null)
+                {
+                    var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
+                    if (primaryRole?.Role != null)
+                    {
+                        userRole = primaryRole.Role.Name;
+                    }
+                }
+
+                var today = DateTime.UtcNow;
+                var nepaliDate = today.ToString("yyyy-MM-dd");
+
                 // Map to print DTO
                 var response = new ReceiptPrintDTO
                 {
@@ -2260,14 +2189,15 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     {
                         Id = companyEntity.Id,
                         DateFormat = companyEntity.DateFormat.ToString(),
-                        FiscalYear = null
+                        FiscalYear = currentFiscalYear
                     },
                     CurrentFiscalYear = currentFiscalYear,
                     Receipt = new ReceiptPrintReceiptDTO
                     {
                         Id = receipt.Id,
                         BillNumber = receipt.BillNumber,
-                        Date = receipt.Date,
+                        // FIX: Return the correct date based on company format
+                        Date = isNepaliFormat ? receipt.NepaliDate : receipt.Date,
                         NepaliDate = receipt.NepaliDate,
                         TotalAmount = receipt.TotalAmount,
                         Description = receipt.Description,
@@ -2278,6 +2208,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         {
                             Id = receipt.User.Id,
                             Name = receipt.User.Name,
+                            IsAdmin = receipt.User.IsAdmin,
                             Role = receipt.User.UserRoles?
                                 .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
                         } : null
@@ -2305,18 +2236,21 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     }).ToList(),
                     CurrentCompanyName = currentCompany.Name ?? string.Empty,
                     CurrentCompany = currentCompany,
-                    NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    EnglishDate = DateTime.UtcNow,
+                    NepaliDate = nepaliDate,
+                    EnglishDate = today,
                     CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
                     User = new UserPrintDTO
                     {
                         Id = userId,
                         Name = user?.Name ?? string.Empty,
                         IsAdmin = user?.IsAdmin ?? false,
-                        Role = user?.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
+                        Role = userRole
                     },
                     IsAdminOrSupervisor = isAdminOrSupervisor
                 };
+
+                _logger.LogInformation("Successfully retrieved receipt print data for Receipt ID: {ReceiptId} with {DebitCount} debit and {CreditCount} credit entries",
+                    id, debitEntries.Count, creditEntries.Count);
 
                 return response;
             }
@@ -2326,6 +2260,5 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 throw;
             }
         }
-    
     }
 }

@@ -22,8 +22,9 @@ namespace SkyForge.Models.Retailer.PaymentModel
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }
 
-        [Required]
-        public DateTime Date { get; set; } = DateTime.UtcNow;
+   
+        [Column("date")]
+        public DateTime Date { get; set; }
 
         [Column("nepali_date")]
         public DateTime NepaliDate { get; set; }

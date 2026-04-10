@@ -78,11 +78,8 @@ namespace SkyForge.Data
 
         public DbSet<DebitNote> DebitNotes { get; set; }
         public DbSet<DebitNoteEntry> DebitNoteEntries { get; set; }
-
         public DbSet<CreditNote> CreditNotes { get; set; }
-        public DbSet<CreditNoteDebitEntry> CreditNoteDebitEntries { get; set; }
-        public DbSet<CreditNoteCreditEntry> CreditNoteCreditEntries { get; set; }
-
+        public DbSet<CreditNoteEntry> CreditNoteEntries { get; set; }
         public DbSet<StockAdjustment> StockAdjustments { get; set; }
         public DbSet<StockAdjustmentItem> StockAdjustmentItems { get; set; }
 
@@ -563,14 +560,101 @@ namespace SkyForge.Data
             });
 
             // Credit Note configuration
+            // modelBuilder.Entity<CreditNote>(entity =>
+            // {
+            //     entity.HasIndex(cn => new { cn.BillNumber, cn.CompanyId, cn.FiscalYearId })
+            //           .IsUnique();
+
+            //     entity.Property(cn => cn.Status)
+            //           .HasConversion<string>()
+            //           .HasMaxLength(20);
+
+            //     // Relationships
+            //     entity.HasOne(cn => cn.User)
+            //           .WithMany()
+            //           .HasForeignKey(cn => cn.UserId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.HasOne(cn => cn.Company)
+            //           .WithMany()
+            //           .HasForeignKey(cn => cn.CompanyId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.HasOne(cn => cn.FiscalYear)
+            //           .WithMany()
+            //           .HasForeignKey(cn => cn.FiscalYearId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     // Properties
+            //     entity.Property(cn => cn.BillNumber)
+            //           .HasMaxLength(50);
+
+            //     entity.Property(cn => cn.Description)
+            //           .HasMaxLength(500);
+
+            //     // Indexes for performance
+            //     entity.HasIndex(cn => cn.Date);
+            //     entity.HasIndex(cn => cn.Status);
+            //     entity.HasIndex(cn => cn.IsActive);
+            //     entity.HasIndex(cn => new { cn.CompanyId, cn.FiscalYearId, cn.Date });
+            // });
+
+            // // Credit Note Debit Entry configuration
+            // modelBuilder.Entity<CreditNoteDebitEntry>(entity =>
+            // {
+            //     entity.HasOne(cde => cde.CreditNote)
+            //           .WithMany(cn => cn.DebitAccounts)
+            //           .HasForeignKey(cde => cde.CreditNoteId)
+            //           .OnDelete(DeleteBehavior.Cascade);
+
+            //     entity.HasOne(cde => cde.Account)
+            //           .WithMany()
+            //           .HasForeignKey(cde => cde.AccountId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.Property(cde => cde.Debit)
+            //           .HasPrecision(18, 2);
+
+            //     entity.HasIndex(cde => cde.AccountId);
+            //     entity.HasIndex(cde => cde.CreditNoteId);
+            // });
+
+            // // Credit Note Credit Entry configuration
+            // modelBuilder.Entity<CreditNoteCreditEntry>(entity =>
+            // {
+            //     entity.HasOne(cce => cce.CreditNote)
+            //           .WithMany(cn => cn.CreditAccounts)
+            //           .HasForeignKey(cce => cce.CreditNoteId)
+            //           .OnDelete(DeleteBehavior.Cascade);
+
+            //     entity.HasOne(cce => cce.Account)
+            //           .WithMany()
+            //           .HasForeignKey(cce => cce.AccountId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.Property(cce => cce.Credit)
+            //           .HasPrecision(18, 2);
+
+            //     entity.HasIndex(cce => cce.AccountId);
+            //     entity.HasIndex(cce => cce.CreditNoteId);
+            // });
+
+            // Credit Note configuration
             modelBuilder.Entity<CreditNote>(entity =>
             {
+                entity.ToTable("CreditNotes");
+
                 entity.HasIndex(cn => new { cn.BillNumber, cn.CompanyId, cn.FiscalYearId })
                       .IsUnique();
 
                 entity.Property(cn => cn.Status)
                       .HasConversion<string>()
                       .HasMaxLength(20);
+
+                // Total amount precision
+                entity.Property(cn => cn.TotalAmount)
+                      .HasPrecision(18, 2)
+                      .IsRequired();
 
                 // Relationships
                 entity.HasOne(cn => cn.User)
@@ -590,60 +674,74 @@ namespace SkyForge.Data
 
                 // Properties
                 entity.Property(cn => cn.BillNumber)
-                      .HasMaxLength(50);
+                      .HasMaxLength(100)
+                      .IsRequired();
 
                 entity.Property(cn => cn.Description)
-                      .HasMaxLength(500);
+                      .HasMaxLength(1000);
+
+                entity.Property(cn => cn.NepaliDate)
+                      .IsRequired();
 
                 // Indexes for performance
+                entity.HasIndex(cn => cn.BillNumber);
                 entity.HasIndex(cn => cn.Date);
+                entity.HasIndex(cn => cn.NepaliDate);
                 entity.HasIndex(cn => cn.Status);
                 entity.HasIndex(cn => cn.IsActive);
                 entity.HasIndex(cn => new { cn.CompanyId, cn.FiscalYearId, cn.Date });
+                entity.HasIndex(cn => new { cn.CompanyId, cn.Status, cn.IsActive });
+                entity.HasIndex(cn => new { cn.CompanyId, cn.FiscalYearId, cn.BillNumber });
             });
 
-            // Credit Note Debit Entry configuration
-            modelBuilder.Entity<CreditNoteDebitEntry>(entity =>
+            // Credit Note Entry configuration (unified entries)
+            modelBuilder.Entity<CreditNoteEntry>(entity =>
             {
-                entity.HasOne(cde => cde.CreditNote)
-                      .WithMany(cn => cn.DebitAccounts)
-                      .HasForeignKey(cde => cde.CreditNoteId)
+                entity.ToTable("CreditNoteEntries");
+
+                entity.HasKey(cne => cne.Id);
+
+                entity.HasIndex(cne => new { cne.CreditNoteId, cne.EntryType })
+                      .HasDatabaseName("IX_CreditNoteEntries_Note_Type");
+
+                entity.HasIndex(cne => cne.AccountId)
+                      .HasDatabaseName("IX_CreditNoteEntries_AccountId");
+
+                entity.HasOne(cne => cne.CreditNote)
+                      .WithMany(cn => cn.CreditNoteEntries)
+                      .HasForeignKey(cne => cne.CreditNoteId)
                       .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasOne(cde => cde.Account)
+                entity.HasOne(cne => cne.Account)
                       .WithMany()
-                      .HasForeignKey(cde => cde.AccountId)
+                      .HasForeignKey(cne => cne.AccountId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                entity.Property(cde => cde.Debit)
-                      .HasPrecision(18, 2);
+                entity.Property(cne => cne.EntryType)
+                      .HasMaxLength(10)
+                      .IsRequired()
+                      .HasConversion<string>();
 
-                entity.HasIndex(cde => cde.AccountId);
-                entity.HasIndex(cde => cde.CreditNoteId);
+                entity.Property(cne => cne.Amount)
+                      .HasPrecision(18, 2)
+                      .IsRequired();
+
+                entity.Property(cne => cne.Description)
+                      .HasMaxLength(500);
+
+                entity.Property(cne => cne.ReferenceNumber)
+                      .HasMaxLength(100);
+
+                // Indexes for performance
+                entity.HasIndex(cne => cne.LineNumber);
+                entity.HasIndex(cne => cne.CreatedAt);
+                entity.HasIndex(cne => cne.UpdatedAt);
+                entity.HasIndex(cne => new { cne.CreditNoteId, cne.AccountId, cne.EntryType });
+
+                // Composite index for common queries
+                entity.HasIndex(cne => new { cne.EntryType, cne.Amount });
             });
 
-            // Credit Note Credit Entry configuration
-            modelBuilder.Entity<CreditNoteCreditEntry>(entity =>
-            {
-                entity.HasOne(cce => cce.CreditNote)
-                      .WithMany(cn => cn.CreditAccounts)
-                      .HasForeignKey(cce => cce.CreditNoteId)
-                      .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(cce => cce.Account)
-                      .WithMany()
-                      .HasForeignKey(cce => cce.AccountId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                entity.Property(cce => cce.Credit)
-                      .HasPrecision(18, 2);
-
-                entity.HasIndex(cce => cce.AccountId);
-                entity.HasIndex(cce => cce.CreditNoteId);
-            });
-
-
-            // Debit Note configuration
             // Debit Note configuration
             modelBuilder.Entity<DebitNote>(entity =>
             {

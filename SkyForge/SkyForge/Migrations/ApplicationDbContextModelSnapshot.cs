@@ -746,8 +746,8 @@ namespace SkyForge.Migrations
 
                     b.Property<string>("BillNumber")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
@@ -756,12 +756,12 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid");
@@ -769,10 +769,18 @@ namespace SkyForge.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("nepali_date");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
@@ -782,11 +790,15 @@ namespace SkyForge.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BillNumber");
+
                     b.HasIndex("Date");
 
                     b.HasIndex("FiscalYearId");
 
                     b.HasIndex("IsActive");
+
+                    b.HasIndex("NepaliDate");
 
                     b.HasIndex("Status");
 
@@ -795,12 +807,16 @@ namespace SkyForge.Migrations
                     b.HasIndex("BillNumber", "CompanyId", "FiscalYearId")
                         .IsUnique();
 
+                    b.HasIndex("CompanyId", "FiscalYearId", "BillNumber");
+
                     b.HasIndex("CompanyId", "FiscalYearId", "Date");
 
-                    b.ToTable("CreditNotes");
+                    b.HasIndex("CompanyId", "Status", "IsActive");
+
+                    b.ToTable("CreditNotes", (string)null);
                 });
 
-            modelBuilder.Entity("SkyForge.Models.Retailer.CreditNoteModel.CreditNoteCreditEntry", b =>
+            modelBuilder.Entity("SkyForge.Models.Retailer.CreditNoteModel.CreditNoteEntry", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -809,33 +825,9 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<decimal>("Credit")
+                    b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<Guid>("CreditNoteId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("CreditNoteId");
-
-                    b.ToTable("CreditNoteCreditEntries");
-                });
-
-            modelBuilder.Entity("SkyForge.Models.Retailer.CreditNoteModel.CreditNoteDebitEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
@@ -843,17 +835,44 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("CreditNoteId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("Debit")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("EntryType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountId");
+                    b.HasIndex("AccountId")
+                        .HasDatabaseName("IX_CreditNoteEntries_AccountId");
 
-                    b.HasIndex("CreditNoteId");
+                    b.HasIndex("CreatedAt");
 
-                    b.ToTable("CreditNoteDebitEntries");
+                    b.HasIndex("LineNumber");
+
+                    b.HasIndex("UpdatedAt");
+
+                    b.HasIndex("CreditNoteId", "EntryType")
+                        .HasDatabaseName("IX_CreditNoteEntries_Note_Type");
+
+                    b.HasIndex("EntryType", "Amount");
+
+                    b.HasIndex("CreditNoteId", "AccountId", "EntryType");
+
+                    b.ToTable("CreditNoteEntries", (string)null);
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.DebitNoteModel.DebitNote", b =>
@@ -874,7 +893,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
@@ -1689,7 +1709,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
@@ -1786,7 +1807,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone");
@@ -2669,7 +2691,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone");
@@ -4936,7 +4959,7 @@ namespace SkyForge.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SkyForge.Models.Retailer.CreditNoteModel.CreditNoteCreditEntry", b =>
+            modelBuilder.Entity("SkyForge.Models.Retailer.CreditNoteModel.CreditNoteEntry", b =>
                 {
                     b.HasOne("SkyForge.Models.AccountModel.Account", "Account")
                         .WithMany()
@@ -4945,26 +4968,7 @@ namespace SkyForge.Migrations
                         .IsRequired();
 
                     b.HasOne("SkyForge.Models.Retailer.CreditNoteModel.CreditNote", "CreditNote")
-                        .WithMany("CreditAccounts")
-                        .HasForeignKey("CreditNoteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account");
-
-                    b.Navigation("CreditNote");
-                });
-
-            modelBuilder.Entity("SkyForge.Models.Retailer.CreditNoteModel.CreditNoteDebitEntry", b =>
-                {
-                    b.HasOne("SkyForge.Models.AccountModel.Account", "Account")
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SkyForge.Models.Retailer.CreditNoteModel.CreditNote", "CreditNote")
-                        .WithMany("DebitAccounts")
+                        .WithMany("CreditNoteEntries")
                         .HasForeignKey("CreditNoteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -6150,9 +6154,7 @@ namespace SkyForge.Migrations
 
             modelBuilder.Entity("SkyForge.Models.Retailer.CreditNoteModel.CreditNote", b =>
                 {
-                    b.Navigation("CreditAccounts");
-
-                    b.Navigation("DebitAccounts");
+                    b.Navigation("CreditNoteEntries");
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.DebitNoteModel.DebitNote", b =>
