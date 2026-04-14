@@ -142,43 +142,6 @@ const ItemsLedger = () => {
         }
     };
 
-    // useEffect(() => {
-    //     const fetchInitialData = async () => {
-    //         try {
-    //             const response = await api.get('/api/my-company');
-    //             if (response.data.success) {
-    //                 const { company: companyData, currentFiscalYear } = response.data;
-
-    //                 // Set company info
-    //                 const dateFormat = companyData.dateFormat || 'english';
-    //                 setCompany({
-    //                     dateFormat,
-    //                     isVatExempt: companyData.isVatExempt || false,
-    //                     vatEnabled: companyData.vatEnabled !== false,
-    //                     fiscalYear: currentFiscalYear || {}
-    //                 });
-
-    //                 // Set dates based on fiscal year
-    //                 if (currentFiscalYear?.startDate) {
-    //                     setData(prev => ({
-    //                         ...prev,
-    //                         fromDate: dateFormat === 'Nepali'
-    //                             ? new NepaliDate(currentFiscalYear.startDate).format('YYYY-MM-DD')
-    //                             : new Date(currentFiscalYear.startDate).toISOString().split('T')[0],
-    //                         toDate: dateFormat === 'Nepali' ? currentNepaliDate : currentEnglishDate,
-    //                         company: companyData,
-    //                         currentFiscalYear
-    //                     }));
-    //                 }
-    //             }
-    //         } catch (err) {
-    //             console.error('Error fetching initial data:', err);
-    //         }
-    //     };
-
-    //     fetchInitialData();
-    // }, []);
-
     useEffect(() => {
         const fetchInitialData = async () => {
             try {

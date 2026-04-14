@@ -26,8 +26,6 @@ namespace SkyForge.Dto.AccountDto
         [StringLength(100, ErrorMessage = "Contact person name cannot exceed 100 characters")]
         public string ContactPerson { get; set; } = string.Empty;
 
-        //[EmailAddress(ErrorMessage = "Invalid email format")]
-        //[StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
         //public string Email { get; set; } = string.Empty;
         [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
         [RegularExpression(@"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$", ErrorMessage = "Invalid email format")]

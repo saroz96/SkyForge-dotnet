@@ -88,7 +88,7 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
     public class StatementEntryDTO
     {
         public DateTime? Date { get; set; }
-        public DateTime? NepaliDate { get; set; } 
+        public DateTime? NepaliDate { get; set; }
         public string? Type { get; set; }
         public string? BillNumber { get; set; }
         public string? PaymentMode { get; set; }
@@ -100,6 +100,7 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public string? AccountType { get; set; }
         public string? PurchaseSalesType { get; set; }
         public string? PurchaseSalesReturnType { get; set; }
+        public string? PaymentReceiptType { get; set; }
         public string? JournalAccountType { get; set; }
         public string? DrCrNoteAccountType { get; set; }
         public string? InstType { get; set; }
@@ -115,6 +116,7 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public Guid? ReceiptAccountId { get; set; }
         public Guid? JournalBillId { get; set; }
         public Guid? DebitNoteId { get; set; }
+        public Guid? SalesBillId { get; set; }
     }
 
     public class PaymentAccountDTO
@@ -146,11 +148,12 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
     public class ItemwiseStatementDTO
     {
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; } 
+        public DateTime NepaliDate { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public string PaymentMode { get; set; } = string.Empty;
         public string? PartyBillNumber { get; set; }
+        public string? PartyName { get; set; }
         public List<ItemDetailDTO> Items { get; set; } = new();
         public decimal VatAmount { get; set; }
         public decimal TotalAmount { get; set; }
@@ -167,15 +170,23 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public decimal DiscountPercentagePerItem { get; set; }
         public decimal DiscountAmountPerItem { get; set; }
         public decimal NetPuPrice { get; set; }
+        public decimal VatPercentage { get; set; }
+        public decimal VatAmount { get; set; }
+        public decimal TaxableAmount { get; set; }
+        public decimal TotalAmount { get; set; }
     }
 
     public class ItemInfoDTO
     {
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
+        public int? Code { get; set; }
+        public string? Hscode { get; set; }
     }
 
     public class UnitInfoDTO
     {
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
     }
 

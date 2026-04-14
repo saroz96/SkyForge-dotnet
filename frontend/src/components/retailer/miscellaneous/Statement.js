@@ -11,6 +11,7 @@ import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
+import VirtualizedAccountList from '../../VirtualizedAccountList';
 
 const Statement = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
@@ -31,8 +32,17 @@ const Statement = () => {
     const { draftSave, setDraftSave } = usePageNotRefreshContext();
     const [showProductModal, setShowProductModal] = useState(false);
     const [showAccountModal, setShowAccountModal] = useState(false);
-    const [filteredAccounts, setFilteredAccounts] = useState([]);
+
+    // Account search states for virtualized list
+    const [accounts, setAccounts] = useState([]);
+    const [isAccountSearching, setIsAccountSearching] = useState(false);
+    const [accountSearchPage, setAccountSearchPage] = useState(1);
+    const [hasMoreAccountResults, setHasMoreAccountResults] = useState(false);
+    const [totalAccounts, setTotalAccounts] = useState(0);
     const [accountSearchQuery, setAccountSearchQuery] = useState('');
+    const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
+    const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
+    const accountSearchRef = useRef(null);
 
     const [company, setCompany] = useState({
         dateFormat: 'english',
@@ -61,7 +71,9 @@ const Statement = () => {
             currentCompanyName: '',
             companyDateFormat: 'english',
             nepaliDate: '',
-            user: null
+            user: null,
+            selectedAccountUniqueNumber: null,
+            selectedAccountName: null
         };
     });
 
@@ -111,7 +123,6 @@ const Statement = () => {
     const fromDateRef = useRef(null);
     const toDateRef = useRef(null);
     const searchInputRef = useRef(null);
-    const accountSearchRef = useRef(null);
     const paymentModeRef = useRef(null);
     const generateReportRef = useRef(null);
     const tableBodyRef = useRef(null);
@@ -137,6 +148,79 @@ const Statement = () => {
             return Promise.reject(error);
         }
     );
+
+    // Function to fetch accounts from backend with search and pagination
+    const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
+        try {
+            setIsAccountSearching(true);
+            const response = await api.get('/api/retailer/all/accounts/search', {
+                params: {
+                    search: searchTerm,
+                    page: page,
+                    limit: searchTerm.trim() ? 15 : 25,
+                }
+            });
+
+            if (response.data.success) {
+                if (page === 1) {
+                    setAccounts(response.data.accounts);
+                } else {
+                    setAccounts(prev => [...prev, ...response.data.accounts]);
+                }
+                setHasMoreAccountResults(response.data.pagination.hasNextPage);
+                setTotalAccounts(response.data.pagination.totalAccounts);
+                setAccountSearchPage(page);
+
+                if (searchTerm.trim() !== '') {
+                    setAccountLastSearchQuery(searchTerm);
+                    setAccountShouldShowLastSearchResults(true);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching accounts:', error);
+            setNotification({
+                show: true,
+                message: 'Error loading accounts',
+                type: 'error'
+            });
+        } finally {
+            setIsAccountSearching(false);
+        }
+    };
+
+    // Load more accounts for infinite scroll
+    const loadMoreAccounts = () => {
+        if (!isAccountSearching && hasMoreAccountResults) {
+            const searchTerm = accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery;
+            fetchAccountsFromBackend(searchTerm, accountSearchPage + 1);
+        }
+    };
+
+    // Handle account search input
+    const handleAccountSearch = (e) => {
+        const searchText = e.target.value;
+        setAccountSearchQuery(searchText);
+        setAccountSearchPage(1);
+
+        if (searchText.trim() !== '' && accountShouldShowLastSearchResults) {
+            setAccountShouldShowLastSearchResults(false);
+            setAccountLastSearchQuery('');
+        }
+
+        const timer = setTimeout(() => {
+            fetchAccountsFromBackend(searchText, 1);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    };
+
+    // Get focus target after modal closes
+    const getFocusTargetOnModalClose = () => {
+        if (fromDateRef.current) {
+            return 'fromDate';
+        }
+        return 'account';
+    };
 
     // Save data to draft context
     useEffect(() => {
@@ -170,6 +254,19 @@ const Statement = () => {
     useEffect(() => {
         localStorage.setItem('statementTableColumnWidths', JSON.stringify(columnWidths));
     }, [columnWidths]);
+
+    // Fetch accounts when modal opens
+    useEffect(() => {
+        if (showAccountModal) {
+            setAccountSearchQuery('');
+            setAccountSearchPage(1);
+            if (accountShouldShowLastSearchResults && accountLastSearchQuery.trim() !== '') {
+                fetchAccountsFromBackend(accountLastSearchQuery, 1);
+            } else {
+                fetchAccountsFromBackend('', 1);
+            }
+        }
+    }, [showAccountModal]);
 
     // Function to format date for display in input fields based on company date format
     const formatDateForInput = useCallback((dateString) => {
@@ -211,11 +308,6 @@ const Statement = () => {
                 if (response.data.success) {
                     const responseData = response.data.data;
 
-                    // Sort accounts alphabetically
-                    const sortedAccounts = (responseData.accounts || []).sort((a, b) =>
-                        a.name.localeCompare(b.name)
-                    );
-
                     // Set company date format
                     const dateFormat = responseData.company?.dateFormat?.toLowerCase() || 'english';
 
@@ -244,7 +336,6 @@ const Statement = () => {
 
                         setData(prev => ({
                             ...prev,
-                            accounts: sortedAccounts,
                             company: responseData.company,
                             currentFiscalYear: currentFiscalYear,
                             companyDateFormat: responseData.companyDateFormat,
@@ -257,7 +348,6 @@ const Statement = () => {
                     } else {
                         setData(prev => ({
                             ...prev,
-                            accounts: sortedAccounts,
                             company: responseData.company,
                             currentFiscalYear: responseData.currentFiscalYear,
                             companyDateFormat: responseData.companyDateFormat,
@@ -291,12 +381,12 @@ const Statement = () => {
                 setLoading(true);
                 const params = new URLSearchParams();
 
-                // Convert dates to backend format before sending
-                const backendFromDate = convertToBackendDate(data.fromDate);
-                const backendToDate = convertToBackendDate(data.toDate);
+                // IMPORTANT: Send the date format to backend
+                params.append('dateFormat', company.dateFormat);
 
-                if (backendFromDate) params.append('fromDate', backendFromDate);
-                if (backendToDate) params.append('toDate', backendToDate);
+                // Send dates as-is - backend will interpret based on dateFormat
+                if (data.fromDate) params.append('fromDate', data.fromDate);
+                if (data.toDate) params.append('toDate', data.toDate);
                 if (data.selectedCompany) params.append('account', data.selectedCompany);
                 if (data.paymentMode && data.paymentMode !== 'all') params.append('paymentMode', data.paymentMode);
                 if (viewMode === 'itemwise') params.append('includeItems', 'true');
@@ -306,12 +396,17 @@ const Statement = () => {
                 if (response.data.success) {
                     const responseData = response.data.data;
 
+                    const selectedAccount = accounts.find(a => a.id === responseData.selectedCompany);
+                    const formattedPartyName = selectedAccount && selectedAccount.uniqueNumber
+                        ? `${selectedAccount.uniqueNumber} ${selectedAccount.name}`.trim()
+                        : responseData.partyName || data.partyName;
+
+                    // Update state with the received data
                     setData(prev => ({
                         ...prev,
                         statement: responseData.statement || [],
                         itemwiseStatement: responseData.itemwiseStatement || [],
-                        accounts: responseData.accounts || prev.accounts,
-                        partyName: responseData.partyName || prev.partyName,
+                        partyName: formattedPartyName,
                         selectedCompany: responseData.selectedCompany || prev.selectedCompany,
                         totalDebit: responseData.totalDebit || 0,
                         totalCredit: responseData.totalCredit || 0,
@@ -350,7 +445,7 @@ const Statement = () => {
         };
 
         fetchStatementData();
-    }, [shouldFetch, viewMode]);
+    }, [shouldFetch, viewMode, company.dateFormat]);
 
     // Filter statement based on search query
     useEffect(() => {
@@ -365,16 +460,6 @@ const Statement = () => {
         setFilteredStatement(filtered);
         setSelectedRowIndex(0);
     }, [data.statement, searchQuery]);
-
-    // Filter accounts for modal
-    useEffect(() => {
-        const filtered = (data.accounts || []).filter(account =>
-            account.name.toLowerCase().includes(accountSearchQuery.toLowerCase()) ||
-            (account.uniqueNumber && account.uniqueNumber.toString().toLowerCase().includes(accountSearchQuery.toLowerCase()))
-        ).sort((a, b) => a.name.localeCompare(b.name));
-
-        setFilteredAccounts(filtered);
-    }, [data.accounts, accountSearchQuery]);
 
     // Handle keyboard navigation
     useEffect(() => {
@@ -439,10 +524,13 @@ const Statement = () => {
     ];
 
     const selectAccount = (account) => {
+        const formattedName = `${account.uniqueNumber || ''} ${account.name}`.trim();
         setData(prev => ({
             ...prev,
             selectedCompany: account.id,
-            partyName: account.name
+            partyName: formattedName,
+            selectedAccountUniqueNumber: account.uniqueNumber, // Store unique number separately
+            selectedAccountName: account.name // Store name separately
         }));
         setShowAccountModal(false);
         setAccountSearchQuery('');
@@ -502,13 +590,14 @@ const Statement = () => {
         const receiptAccountId = item.receiptAccountId || item.id;
         const journalBillId = item.journalBillId || item.id;
         const debitNoteId = item.debitNoteId || item.id;
+        const salesBillId = item.salesBillId || item.id;
 
         switch (item.type?.toLowerCase()) {
             case 'sale':
                 if (item.paymentMode === 'cash') {
-                    route = `/retailer/cash-sales/edit/${billId}`;
+                    route = `/retailer/cash-sales/edit/${salesBillId || billId}`;
                 } else if (item.paymentMode === 'credit') {
-                    route = `/retailer/credit-sales/edit/${billId}`;
+                    route = `/retailer/credit-sales/edit/${salesBillId || billId}`;
                 }
                 break;
             case 'purc':
@@ -561,14 +650,351 @@ const Statement = () => {
         }
     };
 
-    const handleExportExcel = async () => {
-        if (!data.statement || data.statement.length === 0) {
+    const handlePrint = () => {
+        // Determine which data to print based on view mode
+        let rowsToPrint;
+        if (viewMode === 'regular') {
+            // Use filteredStatement if available (has search filter), otherwise use data.statement
+            rowsToPrint = filteredStatement.length > 0 ? filteredStatement : data.statement;
+        } else {
+            rowsToPrint = data.itemwiseStatement;
+        }
+
+        if (!rowsToPrint || rowsToPrint.length === 0) {
             setNotification({
                 show: true,
-                message: 'No data available to export. Please generate a report first.',
+                message: 'No statement data to print. Please generate a report first.',
                 type: 'warning'
             });
             return;
+        }
+
+        const printWindow = window.open("", "_blank");
+
+        if (!printWindow) {
+            setNotification({
+                show: true,
+                message: 'Popup blocked. Please allow popups for this site.',
+                type: 'error'
+            });
+            return;
+        }
+
+        let tableContent = '';
+        if (viewMode === 'regular') {
+            tableContent = generateRegularPrintContent(rowsToPrint);
+        } else {
+            tableContent = generateItemwisePrintContent(rowsToPrint);
+        }
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Statement - ${viewMode === 'regular' ? 'Regular' : 'Itemwise'}</title>
+                    <style>
+                        @page { 
+                            size: A4 landscape; 
+                            margin: 10mm; 
+                        }
+                        body { 
+                            font-family: Arial, sans-serif; 
+                            font-size: 10px; 
+                            margin: 0;
+                            padding: 10mm;
+                        }
+                        table { 
+                            width: 100%; 
+                            border-collapse: collapse; 
+                            page-break-inside: auto;
+                        }
+                        tr { 
+                            page-break-inside: avoid; 
+                            page-break-after: auto; 
+                        }
+                        th, td { 
+                            border: 1px solid #000; 
+                            padding: 4px; 
+                            text-align: left; 
+                            white-space: nowrap;
+                        }
+                        th { 
+                            background-color: #f2f2f2 !important; 
+                            -webkit-print-color-adjust: exact; 
+                            print-color-adjust: exact;
+                        }
+                        .print-header { 
+                            text-align: center; 
+                            margin-bottom: 15px; 
+                        }
+                        .text-end { 
+                            text-align: right; 
+                        }
+                        .nowrap {
+                            white-space: nowrap;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${tableContent}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() { 
+                                window.print();
+                                setTimeout(function() {
+                                    window.close();
+                                }, 500);
+                            }, 200);
+                        };
+                    <\/script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const generateRegularPrintContent = (statementData) => {
+        let balance = data.openingBalance;
+        const statement = statementData;
+
+        // Calculate totals
+        let totalDebit = 0;
+        let totalCredit = 0;
+
+        let tableContent = `
+        <div class="print-header">
+            <h2 style="margin:0; padding:0;">${data.currentCompanyName || 'Company Name'}</h2>
+            <p style="margin:2px 0; font-size:8px;">
+                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
+                PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
+            </p>
+            <hr style="margin:5px 0;">
+            <h3 style="margin:5px 0; text-decoration:underline;">Statement of Account</h3>
+            <p style="margin:2px 0; font-size:9px;">
+                <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
+                <strong>From Date:</strong> ${data.fromDate} &nbsp;|&nbsp;
+                <strong>To Date:</strong> ${data.toDate} &nbsp;|&nbsp;
+                <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode} &nbsp;|&nbsp;
+                <strong>View Mode:</strong> Regular
+            </p>
+        </div>
+        <table cellspacing="0">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-vch-no">Vch No.</th>
+                    <th class="col-type">Type</th>
+                    <th class="col-pay-mode">Pay Mode</th>
+                    <th class="col-account">Account</th>
+                    <th class="col-debit text-end">Debit (Rs.)</th>
+                    <th class="col-credit text-end">Credit (Rs.)</th>
+                    <th class="col-balance text-end">Balance (Rs.)</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+        statement.forEach((item, index) => {
+            const formattedDate = company.dateFormat === 'nepali'
+                ? new NepaliDate(item.date).format('YYYY-MM-DD')
+                : new Date(item.date).toISOString().split('T')[0];
+
+            const debitAmount = parseFloat(item.debit) || 0;
+            const creditAmount = parseFloat(item.credit) || 0;
+
+            // Update running balance
+            balance = balance + debitAmount - creditAmount;
+
+            totalDebit += debitAmount;
+            totalCredit += creditAmount;
+
+            const rowClass = index % 2 === 0 ? 'even-row' : '';
+            const balanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
+
+            // Get the account name
+            let accountName = '';
+            if (item.type === 'Pymt') {
+                accountName = item.PaymentReceiptType || item.accountType || '';
+            } else if (item.type === 'Rcpt') {
+                accountName = item.PaymentReceiptType || item.accountType || '';
+            } else {
+                accountName = item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.journalAccountType || '';
+            }
+
+            tableContent += `
+            <tr class="${rowClass}">
+                <td class="col-date nowrap">${formattedDate}</td>
+                <td class="col-vch-no nowrap">${item.billNumber || ''}</td>
+                <td class="col-type nowrap">${item.type || ''}</td>
+                <td class="col-pay-mode nowrap">${item.paymentMode || ''}</td>
+                <td class="col-account" style="white-space: normal; word-wrap: break-word;">${accountName}</td>
+                <td class="col-debit text-end">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
+                <td class="col-credit text-end">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
+                <td class="col-balance text-end">${balanceText}</td>
+            </tr>
+        `;
+        });
+
+        const finalBalanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
+
+        tableContent += `
+            <tr class="footer-total">
+                <td colspan="5" class="text-end"><strong>TOTALS</strong></td>
+                <td class="text-end"><strong>${formatCurrencyForPrint(totalDebit)}</strong></td>
+                <td class="text-end"><strong>${formatCurrencyForPrint(totalCredit)}</strong></td>
+                <td class="text-end"><strong>${finalBalanceText}</strong></td>
+            </tr>
+            </tbody>
+        </table>
+        <div style="margin-top: 15px; font-size: 8px; text-align: center; border-top: 1px solid #ccc; padding-top: 5px;">
+            <p>Generated on: ${new Date().toLocaleString()} | Powered by SkyForge</p>
+        </div>
+    `;
+
+        return tableContent;
+    };
+
+    const generateItemwisePrintContent = (statementData) => {
+        const itemwiseData = statementData;
+
+        if (!itemwiseData || itemwiseData.length === 0) {
+            return '<div class="alert alert-warning">No itemwise statement data available</div>';
+        }
+
+        let tableContent = `
+            <div class="print-header">
+                <h2 style="margin:0; padding:0;">${data.currentCompanyName || 'Company Name'}</h2>
+                <p style="margin:2px 0; font-size:8px;">
+                    ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
+                    PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
+                </p>
+                <hr style="margin:5px 0;">
+                <h3 style="margin:5px 0; text-decoration:underline;">Itemwise Statement</h3>
+                <p style="margin:2px 0; font-size:9px;">
+                    <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
+                    <strong>From Date:</strong> ${data.fromDate} &nbsp;|&nbsp;
+                    <strong>To Date:</strong> ${data.toDate} &nbsp;|&nbsp;
+                    <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
+                </p>
+            </div>
+            <table cellspacing="0">
+                <thead>
+                    <tr>
+                        <th class="nowrap">Date</th>
+                        <th class="nowrap">Vch No.</th>
+                        <th class="nowrap">Type</th>
+                        <th class="nowrap">Pay Mode</th>
+                        <th class="nowrap">Item Name</th>
+                        <th class="nowrap text-end">Qty</th>
+                        <th class="nowrap">Unit</th>
+                        <th class="nowrap text-end">Rate (Rs.)</th>
+                        <th class="nowrap text-end">Discount (Rs.)</th>
+                        <th class="nowrap text-end">Taxable (Rs.)</th>
+                        <th class="nowrap text-end">VAT (Rs.)</th>
+                        <th class="nowrap text-end">Total (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        let grandTotalQty = 0;
+        let grandTotalAmount = 0;
+        let grandTotalVat = 0;
+        let grandTotalTaxable = 0;
+        let grandTotalDiscount = 0;
+
+        itemwiseData.forEach((bill) => {
+            if (bill.items && bill.items.length > 0) {
+                bill.items.forEach((item) => {
+                    const formattedDate = company.dateFormat === 'nepali'
+                        ? new NepaliDate(bill.date).format('YYYY-MM-DD')
+                        : new Date(bill.date).toISOString().split('T')[0];
+
+                    const quantity = item.quantity ? parseFloat(item.quantity) : 0;
+                    const rate = item.puPrice || item.price || 0;
+                    const discount = item.discountAmountPerItem || 0;
+                    const taxable = (item.taxableAmount || 0) * quantity;
+                    const vat = bill.vatAmount || 0;
+                    const total = bill.totalAmount || 0;
+
+                    grandTotalQty += quantity;
+                    grandTotalAmount += total;
+                    grandTotalVat += vat;
+                    grandTotalTaxable += taxable;
+                    grandTotalDiscount += discount;
+
+                    tableContent += `
+                        <tr>
+                            <td class="nowrap">${formattedDate}</td>
+                            <td class="nowrap">${bill.billNumber || ''}</td>
+                            <td class="nowrap">${bill.type || ''}</td>
+                            <td class="nowrap">${bill.paymentMode || ''}</td>
+                            <td class="nowrap" style="white-space: normal; word-wrap: break-word;">${item.item?.name || item.productName || 'N/A'}</td>
+                            <td class="text-end">${quantity.toFixed(2)}</td>
+                            <td class="nowrap">${item.unit?.name || ''}</td>
+                            <td class="text-end">${formatCurrencyForPrint(rate)}</td>
+                            <td class="text-end">${formatCurrencyForPrint(discount)}</td>
+                            <td class="text-end">${formatCurrencyForPrint(taxable)}</td>
+                            <td class="text-end">${formatCurrencyForPrint(vat)}</td>
+                            <td class="text-end">${formatCurrencyForPrint(total)}</td>
+                        </tr>
+                    `;
+                });
+            }
+        });
+
+        tableContent += `
+            <tr class="footer-total">
+                <td colspan="5" class="text-end"><strong>GRAND TOTALS</strong></td>
+                <td class="text-end"><strong>${grandTotalQty.toFixed(2)}</strong></td>
+                <td></td>
+                <td></td>
+                <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalDiscount)}</strong></td>
+                <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalTaxable)}</strong></td>
+                <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalVat)}</strong></td>
+                <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalAmount)}</strong></td>
+            </tr>
+            </tbody>
+        </table>
+        <div style="margin-top: 15px; font-size: 8px; text-align: center; border-top: 1px solid #ccc; padding-top: 5px;">
+            <p>Generated on: ${new Date().toLocaleString()} | Powered by SkyForge</p>
+        </div>
+    `;
+
+        return tableContent;
+    };
+
+    const formatCurrencyForPrint = (num) => {
+        const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
+        return number.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    };
+
+    const formatCurrencyForExport = (num) => {
+        const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
+        return number.toFixed(2);
+    };
+
+    const handleExportExcel = async () => {
+        if (viewMode === 'regular') {
+            if (!data.statement || data.statement.length === 0) {
+                setNotification({
+                    show: true,
+                    message: 'No data available to export. Please generate a report first.',
+                    type: 'warning'
+                });
+                return;
+            }
+        } else {
+            if (!data.itemwiseStatement || data.itemwiseStatement.length === 0) {
+                setNotification({
+                    show: true,
+                    message: 'No data available to export. Please generate a report first.',
+                    type: 'warning'
+                });
+                return;
+            }
         }
 
         setExporting(true);
@@ -582,77 +1008,141 @@ const Statement = () => {
             excelData.push(['Party Name:', data.partyName || 'N/A']);
             excelData.push(['From Date:', data.fromDate]);
             excelData.push(['To Date:', data.toDate]);
-            excelData.push(['Payment Mode:', data.paymentMode]);
+            excelData.push(['Payment Mode:', data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode]);
             excelData.push(['Export Date:', currentDate]);
             excelData.push([]);
 
-            excelData.push(['Opening Balance:', formatBalanceForExport(data.openingBalance)]);
-            excelData.push([]);
-
             if (viewMode === 'regular') {
+                const openingBalance = data.openingBalance || 0;
+                excelData.push([]);
+
                 const headers = [
                     'Date', 'Voucher No.', 'Voucher Type', 'Payment Mode',
-                    'Account', 'Party Bill No.', 'Instrument Type', 'Instrument No.',
-                    'Debit Amount', 'Credit Amount', 'Balance'
+                    'Account', 'Debit Amount', 'Credit Amount', 'Balance'
                 ];
                 excelData.push(headers);
 
-                let balance = data.openingBalance;
-                data.statement.forEach((item) => {
+                let balance = openingBalance;
+                let totalDebit = 0;
+                let totalCredit = 0;
+
+                const statementToExport = filteredStatement.length > 0 ? filteredStatement : data.statement;
+
+                statementToExport.forEach((item) => {
+                    const debitAmount = parseFloat(item.debit) || 0;
+                    const creditAmount = parseFloat(item.credit) || 0;
+
+                    balance = balance + debitAmount - creditAmount;
+                    totalDebit += debitAmount;
+                    totalCredit += creditAmount;
+
+                    const formattedDate = company.dateFormat === 'nepali'
+                        ? new NepaliDate(item.date).format('YYYY-MM-DD')
+                        : new Date(item.date).toISOString().split('T')[0];
+
+                    let accountName = '';
+                    if (item.type === 'Pymt') {
+                        accountName = item.PaymentReceiptType || item.accountType || '';
+                    } else if (item.type === 'Rcpt') {
+                        accountName = item.PaymentReceiptType || item.accountType || '';
+                    } else {
+                        accountName = item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.journalAccountType || '';
+                    }
+
+                    const balanceText = balance > 0 ? `${formatCurrencyForExport(Math.abs(balance))} Dr` : `${formatCurrencyForExport(Math.abs(balance))} Cr`;
+
                     const rowData = [
-                        formatDateForExport(item.date),
+                        formattedDate,
                         item.billNumber || '',
                         item.type || '',
                         item.paymentMode || '',
-                        item.accountType || item.purchaseSalesType || item.journalAccountType || 'Opening',
-                        item.partyBillNumber || '',
-                        (item.instType && item.instType !== 'NA') ? item.instType : '',
-                        (item.instNo && item.instType !== 'NA') ? item.instNo : '',
-                        formatCurrencyForExport(item.debit || 0),
-                        formatCurrencyForExport(item.credit || 0),
-                        formatBalanceForExport(balance)
+                        accountName,
+                        debitAmount > 0 ? formatCurrencyForExport(debitAmount) : '-',
+                        creditAmount > 0 ? formatCurrencyForExport(creditAmount) : '-',
+                        balanceText
                     ];
                     excelData.push(rowData);
-                    balance += (item.debit || 0) - (item.credit || 0);
                 });
 
                 excelData.push([]);
+                const finalBalanceText = balance > 0 ? `${formatCurrencyForExport(Math.abs(balance))} Dr` : `${formatCurrencyForExport(Math.abs(balance))} Cr`;
                 excelData.push([
-                    'TOTALS', '', '', '', '', '', '', '',
-                    formatCurrencyForExport(data.totalDebit),
-                    formatCurrencyForExport(data.totalCredit),
-                    formatBalanceForExport(balance)
+                    'TOTALS', '', '', '', '',
+                    formatCurrencyForExport(totalDebit),
+                    formatCurrencyForExport(totalCredit),
+                    finalBalanceText
                 ]);
             } else {
                 const headers = [
                     'Date', 'Voucher No.', 'Voucher Type', 'Payment Mode',
-                    'Item Name', 'Quantity', 'Unit', 'Rate', 'Discount',
-                    'Taxable Amount', 'VAT Amount', 'Total Amount'
+                    'Item Name', 'Quantity', 'Unit', 'Rate (Rs.)', 'Discount (Rs.)',
+                    'Taxable Amount (Rs.)', 'VAT Amount (Rs.)', 'Total Amount (Rs.)'
                 ];
                 excelData.push(headers);
 
+                let grandTotalQty = 0;
+                let grandTotalAmount = 0;
+                let grandTotalVat = 0;
+                let grandTotalTaxable = 0;
+                let grandTotalDiscount = 0;
+
                 data.itemwiseStatement.forEach((bill) => {
-                    bill.items.forEach((item) => {
-                        const rowData = [
-                            formatDateForExport(bill.date),
-                            bill.billNumber,
-                            bill.type,
-                            bill.paymentMode,
-                            item.item?.name || 'N/A',
-                            item.quantity ? parseFloat(item.quantity).toFixed(2) : '',
-                            item.unit?.name || '',
-                            formatCurrencyForExport(item.puPrice || item.price || 0),
-                            formatCurrencyForExport(item.discountAmountPerItem || 0),
-                            formatCurrencyForExport((item.netPrice || 0) * (item.quantity || 0)),
-                            formatCurrencyForExport(bill.vatAmount),
-                            formatCurrencyForExport(bill.totalAmount)
-                        ];
-                        excelData.push(rowData);
-                    });
+                    if (bill.items && bill.items.length > 0) {
+                        const formattedDate = company.dateFormat === 'nepali'
+                            ? new NepaliDate(bill.date).format('YYYY-MM-DD')
+                            : new Date(bill.date).toISOString().split('T')[0];
+
+                        bill.items.forEach((item) => {
+                            const quantity = item.quantity ? parseFloat(item.quantity) : 0;
+                            const rate = item.puPrice || item.price || 0;
+                            const discount = item.discountAmountPerItem || 0;
+                            const taxable = (item.netPrice || 0) * quantity;
+                            const vat = bill.vatAmount || 0;
+                            const total = bill.totalAmount || 0;
+
+                            grandTotalQty += quantity;
+                            grandTotalAmount += total;
+                            grandTotalVat += vat;
+                            grandTotalTaxable += taxable;
+                            grandTotalDiscount += discount;
+
+                            const rowData = [
+                                formattedDate,
+                                bill.billNumber,
+                                bill.type,
+                                bill.paymentMode,
+                                item.item?.name || item.productName || 'N/A',
+                                quantity.toFixed(2),
+                                item.unit?.name || '',
+                                formatCurrencyForExport(rate),
+                                formatCurrencyForExport(discount),
+                                formatCurrencyForExport(taxable),
+                                formatCurrencyForExport(vat),
+                                formatCurrencyForExport(total)
+                            ];
+                            excelData.push(rowData);
+                        });
+                    }
                 });
+
+                excelData.push([]);
+                excelData.push([
+                    'GRAND TOTALS', '', '', '', '',
+                    grandTotalQty.toFixed(2), '',
+                    '',
+                    formatCurrencyForExport(grandTotalDiscount),
+                    formatCurrencyForExport(grandTotalTaxable),
+                    formatCurrencyForExport(grandTotalVat),
+                    formatCurrencyForExport(grandTotalAmount)
+                ]);
             }
 
             const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+            ws['!cols'] = viewMode === 'regular'
+                ? [{ wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
+                : [{ wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 15 }];
+
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Statement Report');
 
@@ -676,26 +1166,6 @@ const Statement = () => {
         }
     };
 
-    const formatDateForExport = (dateString) => {
-        if (!dateString) return '';
-        try {
-            return new NepaliDate(dateString).format('YYYY-MM-DD');
-        } catch (error) {
-            return dateString;
-        }
-    };
-
-    const formatCurrencyForExport = (num) => {
-        const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
-        return number.toFixed(2);
-    };
-
-    const formatBalanceForExport = (amount) => {
-        const absAmount = Math.abs(amount);
-        const formatted = formatCurrencyForExport(absAmount);
-        return amount > 0 ? `${formatted} Dr` : `${formatted} Cr`;
-    };
-
     const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
         if (company.dateFormat === 'nepali') {
@@ -712,146 +1182,6 @@ const Statement = () => {
 
     const formatBalance = (amount) => {
         return amount > 0 ? `${formatCurrency(amount)} Dr` : `${formatCurrency(Math.abs(amount))} Cr`;
-    };
-
-    const handlePrint = () => {
-        const rowsToPrint = viewMode === 'regular'
-            ? document.querySelectorAll('.statement-row')
-            : document.querySelectorAll('.statement-row, .item-detail-row');
-
-        if (rowsToPrint.length === 0) {
-            alert("No statement to print");
-            return;
-        }
-
-        const printWindow = window.open("", "_blank");
-
-        let tableContent = '';
-        if (viewMode === 'regular') {
-            tableContent = generateRegularPrintContent();
-        } else {
-            tableContent = generateItemwisePrintContent();
-        }
-
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Statement - ${viewMode === 'regular' ? 'Regular' : 'Itemwise'}</title>
-                    <style>
-                        @page { margin: 10mm; }
-                        body { font-family: Arial, sans-serif; font-size: 10px; margin: 0; padding: 10mm; }
-                        table { width: 100%; border-collapse: collapse; }
-                        th, td { border: 1px solid #000; padding: 4px; text-align: left; }
-                        th { background-color: #f2f2f2; }
-                        .print-header { text-align: center; margin-bottom: 15px; }
-                        .text-end { text-align: right; }
-                    </style>
-                </head>
-                <body>${tableContent}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() { window.print(); }, 200);
-                    };
-                <\/script>
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
-    };
-
-    const generateRegularPrintContent = () => {
-        let balance = data.openingBalance;
-
-        let tableContent = `
-            <div class="print-header">
-                <h1>${data.currentCompanyName || 'Company Name'}</h1>
-                <p>${data.company?.address || ''} ${data.company?.city ? ', ' + data.company.city : ''}</p>
-                <hr>
-                <h2 style="text-align:center;">Statement</h2>
-                <p><strong>Party:</strong> ${data.partyName} | <strong>From:</strong> ${data.fromDate} | <strong>To:</strong> ${data.toDate}</p>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th><th>Vch No.</th><th>Type</th><th>Pay Mode</th>
-                        <th>Account</th><th class="text-end">Debit</th>
-                        <th class="text-end">Credit</th><th class="text-end">Balance</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
-        data.statement.forEach((item) => {
-            tableContent += `
-                <tr>
-                    <td>${formatDateForExport(item.date)}</td>
-                    <td>${item.billNumber || ''}</td>
-                    <td>${item.type || ''}</td>
-                    <td>${item.paymentMode || ''}</td>
-                    <td>${item.accountType || item.purchaseSalesType || item.journalAccountType || 'Opening'}</td>
-                    <td class="text-end">${formatCurrencyForExport(item.debit || 0)}</td>
-                    <td class="text-end">${formatCurrencyForExport(item.credit || 0)}</td>
-                    <td class="text-end">${formatBalanceForExport(balance)}</td>
-                </tr>
-            `;
-            balance += (item.debit || 0) - (item.credit || 0);
-        });
-
-        tableContent += `
-                <tr style="font-weight:bold; border-top:2px solid #000;">
-                    <td colspan="5">Totals</td>
-                    <td class="text-end">${formatCurrencyForExport(data.totalDebit)}</td>
-                    <td class="text-end">${formatCurrencyForExport(data.totalCredit)}</td>
-                    <td class="text-end">${formatBalanceForExport(balance)}</td>
-                </tr>
-                </tbody>
-            </table>
-        `;
-
-        return tableContent;
-    };
-
-    const generateItemwisePrintContent = () => {
-        let tableContent = `
-            <div class="print-header">
-                <h1>${data.currentCompanyName || 'Company Name'}</h1>
-                <p>${data.company?.address || ''} ${data.company?.city ? ', ' + data.company.city : ''}</p>
-                <hr>
-                <h2 style="text-align:center;">Itemwise Statement</h2>
-                <p><strong>Party:</strong> ${data.partyName} | <strong>From:</strong> ${data.fromDate} | <strong>To:</strong> ${data.toDate}</p>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th><th>Vch No.</th><th>Type</th><th>Pay Mode</th>
-                        <th>Item Name</th><th>Qty</th><th>Unit</th>
-                        <th>Rate</th><th>VAT</th><th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
-        data.itemwiseStatement.forEach((bill) => {
-            bill.items.forEach((item) => {
-                tableContent += `
-                    <tr>
-                        <td>${formatDateForExport(bill.date)}</td>
-                        <td>${bill.billNumber}</td>
-                        <td>${bill.type}</td>
-                        <td>${bill.paymentMode}</td>
-                        <td>${item.item?.name || 'N/A'}</td>
-                        <td class="text-end">${item.quantity ? parseFloat(item.quantity).toFixed(2) : ''}</td>
-                        <td>${item.unit?.name || ''}</td>
-                        <td class="text-end">${formatCurrencyForExport(item.puPrice || item.price || 0)}</td>
-                        <td class="text-end">${formatCurrencyForExport(bill.vatAmount)}</td>
-                        <td class="text-end">${formatCurrencyForExport(bill.totalAmount)}</td>
-                    </tr>
-                `;
-            });
-        });
-
-        tableContent += `</tbody></table>`;
-        return tableContent;
     };
 
     const resetColumnWidths = () => {
@@ -977,7 +1307,7 @@ const Statement = () => {
         );
     });
 
-    // Table Row Component - Keep using NepaliDate for table display
+    // Table Row Component
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
         const item = statement[index];
@@ -1003,7 +1333,9 @@ const Statement = () => {
                 onDoubleClick={() => handleRowDoubleClick(item)}
             >
                 <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.date}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{item.date ? new NepaliDate(item.date).format('YYYY-MM-DD') : ''}</span>
+                    <span style={{ fontSize: '0.75rem' }}>{item.date ? (company.dateFormat === 'nepali'
+                        ? new NepaliDate(item.date).format('YYYY-MM-DD')
+                        : new Date(item.date).toISOString().split('T')[0]) : ''}</span>
                 </div>
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ fontSize: '0.75rem' }}>{item.billNumber || ''}</span>
@@ -1014,9 +1346,9 @@ const Statement = () => {
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
                 </div>
-                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={item.accountType || item.purchaseSalesType || item.journalAccountType || 'Opening'}>
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.PaymentReceiptType || item.journalAccountType || 'Opening'}>
                     <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.accountType || item.purchaseSalesType || item.journalAccountType || 'Opening'}
+                        {item.accountType || item.purchaseSalesType || item.PaymentReceiptType || item.journalAccountType || 'Opening'}
                     </span>
                 </div>
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
@@ -1076,7 +1408,7 @@ const Statement = () => {
                         </div>
 
                         {/* From Date */}
-                        <div className="col-12 col-md-1">
+                        <div className="col-12 col-md-2">
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -1093,49 +1425,7 @@ const Statement = () => {
                                             setDateErrors(prev => ({ ...prev, fromDate: '' }));
                                         }
                                     }}
-                                    onKeyDown={(e) => {
-                                        const allowedKeys = [
-                                            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                            'Home', 'End'
-                                        ];
-
-                                        if (!allowedKeys.includes(e.key) &&
-                                            !/^\d$/.test(e.key) &&
-                                            e.key !== '/' &&
-                                            e.key !== '-' &&
-                                            !e.ctrlKey && !e.metaKey) {
-                                            e.preventDefault();
-                                        }
-
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const dateStr = e.target.value.trim();
-
-                                            if (!dateStr) {
-                                                const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-                                                const correctedDate = company.dateFormat === 'nepali'
-                                                    ? currentDate.format('YYYY-MM-DD')
-                                                    : currentDate.toISOString().split('T')[0];
-
-                                                setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
-                                                setNotification({
-                                                    show: true,
-                                                    message: 'Date required. Auto-corrected to current date.',
-                                                    type: 'warning',
-                                                    duration: 3000
-                                                });
-
-                                                handleKeyDown(e, 'toDate');
-                                            } else if (dateErrors.fromDate) {
-                                                e.target.focus();
-                                            } else {
-                                                handleKeyDown(e, 'toDate');
-                                            }
-                                        }
-                                    }}
+                                    onKeyDown={(e) => handleKeyDown(e, 'toDate')}
                                     onPaste={(e) => {
                                         e.preventDefault();
                                         const pastedData = e.clipboardData.getData('text');
@@ -1146,6 +1436,7 @@ const Statement = () => {
                                         }
                                     }}
                                     onBlur={(e) => {
+                                        // Date validation logic
                                         try {
                                             const dateStr = e.target.value.trim();
                                             if (!dateStr) {
@@ -1160,7 +1451,6 @@ const Statement = () => {
                                                     const correctedDate = currentDate.format('YYYY-MM-DD');
                                                     setData(prev => ({ ...prev, fromDate: correctedDate }));
                                                     setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
                                                     setNotification({
                                                         show: true,
                                                         message: 'Invalid date format. Auto-corrected to current date.',
@@ -1191,7 +1481,6 @@ const Statement = () => {
                                                     const correctedDate = currentDate.format('YYYY-MM-DD');
                                                     setData(prev => ({ ...prev, fromDate: correctedDate }));
                                                     setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
                                                     setNotification({
                                                         show: true,
                                                         message: 'Invalid Nepali date. Auto-corrected to current date.',
@@ -1212,7 +1501,6 @@ const Statement = () => {
                                                     const correctedDate = currentDate.toISOString().split('T')[0];
                                                     setData(prev => ({ ...prev, fromDate: correctedDate }));
                                                     setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
                                                     setNotification({
                                                         show: true,
                                                         message: 'Invalid date format. Auto-corrected to current date.',
@@ -1238,10 +1526,8 @@ const Statement = () => {
                                             const correctedDate = company.dateFormat === 'nepali'
                                                 ? currentDate.format('YYYY-MM-DD')
                                                 : currentDate.toISOString().split('T')[0];
-
                                             setData(prev => ({ ...prev, fromDate: correctedDate }));
                                             setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
                                             setNotification({
                                                 show: true,
                                                 message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
@@ -1283,7 +1569,7 @@ const Statement = () => {
                         </div>
 
                         {/* To Date */}
-                        <div className="col-12 col-md-1">
+                        <div className="col-12 col-md-2">
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -1300,49 +1586,7 @@ const Statement = () => {
                                             setDateErrors(prev => ({ ...prev, toDate: '' }));
                                         }
                                     }}
-                                    onKeyDown={(e) => {
-                                        const allowedKeys = [
-                                            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                            'Home', 'End'
-                                        ];
-
-                                        if (!allowedKeys.includes(e.key) &&
-                                            !/^\d$/.test(e.key) &&
-                                            e.key !== '/' &&
-                                            e.key !== '-' &&
-                                            !e.ctrlKey && !e.metaKey) {
-                                            e.preventDefault();
-                                        }
-
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const dateStr = e.target.value.trim();
-
-                                            if (!dateStr) {
-                                                const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-                                                const correctedDate = company.dateFormat === 'nepali'
-                                                    ? currentDate.format('YYYY-MM-DD')
-                                                    : currentDate.toISOString().split('T')[0];
-
-                                                setData(prev => ({ ...prev, toDate: correctedDate }));
-                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
-
-                                                setNotification({
-                                                    show: true,
-                                                    message: 'Date required. Auto-corrected to current date.',
-                                                    type: 'warning',
-                                                    duration: 3000
-                                                });
-
-                                                document.getElementById('generateReport').focus();
-                                            } else if (dateErrors.toDate) {
-                                                e.target.focus();
-                                            } else {
-                                                document.getElementById('generateReport').focus();
-                                            }
-                                        }
-                                    }}
+                                    onKeyDown={(e) => handleKeyDown(e, 'paymentMode')}
                                     onPaste={(e) => {
                                         e.preventDefault();
                                         const pastedData = e.clipboardData.getData('text');
@@ -1353,6 +1597,7 @@ const Statement = () => {
                                         }
                                     }}
                                     onBlur={(e) => {
+                                        // Similar validation as fromDate
                                         try {
                                             const dateStr = e.target.value.trim();
                                             if (!dateStr) {
@@ -1367,7 +1612,6 @@ const Statement = () => {
                                                     const correctedDate = currentDate.format('YYYY-MM-DD');
                                                     setData(prev => ({ ...prev, toDate: correctedDate }));
                                                     setDateErrors(prev => ({ ...prev, toDate: '' }));
-
                                                     setNotification({
                                                         show: true,
                                                         message: 'Invalid date format. Auto-corrected to current date.',
@@ -1398,7 +1642,6 @@ const Statement = () => {
                                                     const correctedDate = currentDate.format('YYYY-MM-DD');
                                                     setData(prev => ({ ...prev, toDate: correctedDate }));
                                                     setDateErrors(prev => ({ ...prev, toDate: '' }));
-
                                                     setNotification({
                                                         show: true,
                                                         message: 'Invalid Nepali date. Auto-corrected to current date.',
@@ -1419,7 +1662,6 @@ const Statement = () => {
                                                     const correctedDate = currentDate.toISOString().split('T')[0];
                                                     setData(prev => ({ ...prev, toDate: correctedDate }));
                                                     setDateErrors(prev => ({ ...prev, toDate: '' }));
-
                                                     setNotification({
                                                         show: true,
                                                         message: 'Invalid date format. Auto-corrected to current date.',
@@ -1445,10 +1687,8 @@ const Statement = () => {
                                             const correctedDate = company.dateFormat === 'nepali'
                                                 ? currentDate.format('YYYY-MM-DD')
                                                 : currentDate.toISOString().split('T')[0];
-
                                             setData(prev => ({ ...prev, toDate: correctedDate }));
                                             setDateErrors(prev => ({ ...prev, toDate: '' }));
-
                                             setNotification({
                                                 show: true,
                                                 message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
@@ -1497,6 +1737,7 @@ const Statement = () => {
                                     id="paymentMode"
                                     ref={paymentModeRef}
                                     value={data.paymentMode}
+                                    onKeyDown={(e) => handleKeyDown(e, 'viewMode')}
                                     onChange={handlePaymentModeChange}
                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', width: '100%' }}
                                 >
@@ -1528,6 +1769,7 @@ const Statement = () => {
                                     className="form-select form-select-sm"
                                     id="viewMode"
                                     value={viewMode}
+                                    onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
                                     onChange={handleViewModeChange}
                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', width: '100%' }}
                                 >
@@ -1559,7 +1801,7 @@ const Statement = () => {
                                     className="form-control form-control-sm"
                                     id="searchInput"
                                     ref={searchInputRef}
-                                    placeholder="Search..."
+                                    placeholder=""
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     disabled={data.statement.length === 0}
@@ -1598,7 +1840,7 @@ const Statement = () => {
                             <button
                                 className="btn btn-success btn-sm"
                                 onClick={handleExportExcel}
-                                disabled={data.statement.length === 0 || exporting}
+                                disabled={(viewMode === 'regular' && data.statement.length === 0) || (viewMode === 'itemwise' && data.itemwiseStatement.length === 0) || exporting}
                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
                             >
                                 {exporting ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="fas fa-file-excel me-1"></i>}
@@ -1607,7 +1849,7 @@ const Statement = () => {
                             <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={handlePrint}
-                                disabled={data.statement.length === 0}
+                                disabled={(viewMode === 'regular' && data.statement.length === 0) || (viewMode === 'itemwise' && data.itemwiseStatement.length === 0)}
                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
                             >
                                 <i className="fas fa-print me-1"></i>Print
@@ -1624,7 +1866,7 @@ const Statement = () => {
                     </div>
 
                     {/* Statement Table */}
-                    {data.statement.length === 0 ? (
+                    {data.statement.length === 0 && data.itemwiseStatement.length === 0 ? (
                         <div className="alert alert-info text-center py-3" style={{ fontSize: '0.875rem' }}>
                             <i className="fas fa-info-circle me-2"></i>
                             Please select account, date range and click "Generate Report" to view statement
@@ -1639,126 +1881,293 @@ const Statement = () => {
                                         </div>
                                         <p className="mt-2 small text-muted">Loading statement...</p>
                                     </div>
-                                ) : filteredStatement.length === 0 ? (
-                                    <div className="d-flex flex-column justify-content-center align-items-center h-100">
-                                        <i className="bi bi-search text-muted" style={{ fontSize: '1.5rem' }}></i>
-                                        <h6 className="mt-2 text-muted">No transactions found</h6>
-                                        <p className="text-muted small">{searchQuery ? 'Try a different search term' : 'No data for the selected criteria'}</p>
-                                    </div>
-                                ) : (
-                                    <AutoSizer>
-                                        {({ height, width }) => {
-                                            const totalWidth = columnWidths.date + columnWidths.voucherNo + columnWidths.voucherType +
-                                                columnWidths.payMode + columnWidths.account + columnWidths.debit +
-                                                columnWidths.credit + columnWidths.balance;
+                                ) : viewMode === 'regular' ? (
+                                    filteredStatement.length === 0 ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <i className="bi bi-search text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                            <h6 className="mt-2 text-muted">No transactions found</h6>
+                                            <p className="text-muted small">{searchQuery ? 'Try a different search term' : 'No data for the selected criteria'}</p>
+                                        </div>
+                                    ) : (
+                                        <AutoSizer>
+                                            {({ height, width }) => {
+                                                const totalWidth = columnWidths.date + columnWidths.voucherNo + columnWidths.voucherType +
+                                                    columnWidths.payMode + columnWidths.account + columnWidths.debit +
+                                                    columnWidths.credit + columnWidths.balance;
 
-                                            return (
-                                                <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
-                                                    <TableHeader />
-                                                    <List
-                                                        height={height - 28}
-                                                        itemCount={filteredStatement.length}
-                                                        itemSize={28}
-                                                        width={Math.max(width, totalWidth)}
-                                                        itemData={{
-                                                            statement: filteredStatement,
-                                                            selectedRowIndex,
-                                                            formatCurrency,
-                                                            formatBalance,
-                                                            handleRowClick,
-                                                            handleRowDoubleClick
-                                                        }}
-                                                    >
-                                                        {TableRow}
-                                                    </List>
-                                                </div>
-                                            );
-                                        }}
-                                    </AutoSizer>
+                                                return (
+                                                    <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
+                                                        <TableHeader />
+                                                        <List
+                                                            height={height - 28}
+                                                            itemCount={filteredStatement.length}
+                                                            itemSize={28}
+                                                            width={Math.max(width, totalWidth)}
+                                                            itemData={{
+                                                                statement: filteredStatement,
+                                                                selectedRowIndex,
+                                                                formatCurrency,
+                                                                formatBalance,
+                                                                handleRowClick,
+                                                                handleRowDoubleClick
+                                                            }}
+                                                        >
+                                                            {TableRow}
+                                                        </List>
+                                                    </div>
+                                                );
+                                            }}
+                                        </AutoSizer>
+                                    )
+                                ) : (
+                                    // Itemwise view - show the table
+                                    data.itemwiseStatement.length === 0 ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <i className="bi bi-box-seam text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                            <h6 className="mt-2 text-muted">No items found</h6>
+                                            <p className="text-muted small">No item transactions for the selected criteria</p>
+                                        </div>
+                                    ) : (
+                                        <div style={{ height: "100%", overflow: 'auto' }}>
+                                            <table className="table table-sm table-bordered table-hover mb-0" style={{ fontSize: '0.75rem', minWidth: '1200px' }}>
+                                                <thead className="bg-light sticky-top" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                                                    <tr>
+                                                        <th style={{ width: '8%' }}>Date</th>
+                                                        <th style={{ width: '10%' }}>Vch No.</th>
+                                                        <th style={{ width: '8%' }}>Type</th>
+                                                        <th style={{ width: '8%' }}>Pay Mode</th>
+                                                        <th style={{ width: '15%' }}>Item Name</th>
+                                                        <th style={{ width: '6%' }} className="text-end">Qty</th>
+                                                        <th style={{ width: '6%' }}>Unit</th>
+                                                        <th style={{ width: '8%' }} className="text-end">Rate (Rs.)</th>
+                                                        <th style={{ width: '8%' }} className="text-end">Discount (Rs.)</th>
+                                                        <th style={{ width: '8%' }} className="text-end">Taxable (Rs.)</th>
+                                                        <th style={{ width: '6%' }} className="text-end">VAT (Rs.)</th>
+                                                        <th style={{ width: '9%' }} className="text-end">Total (Rs.)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {/* {data.itemwiseStatement.map((bill, billIndex) => (
+                                                        bill.items && bill.items.map((item, itemIndex) => {
+                                                            const formattedDate = company.dateFormat === 'nepali'
+                                                                ? new NepaliDate(bill.date).format('YYYY-MM-DD')
+                                                                : new Date(bill.date).toISOString().split('T')[0];
+
+                                                            const quantity = item.quantity ? parseFloat(item.quantity) : 0;
+                                                            const rate = item.puPrice || item.price || 0;
+                                                            const discount = item.discountAmountPerItem || 0;
+                                                            const taxable = (item.taxableAmount || 0);
+                                                            const vat = bill.vatAmount || 0;
+                                                            const total = bill.totalAmount || 0;
+
+                                                            return (
+                                                                <tr key={`${bill.billNumber}-${itemIndex}`} style={{ backgroundColor: (billIndex + itemIndex) % 2 === 0 ? '#f8f9fa' : 'white' }}>
+                                                                    <td className="nowrap">{formattedDate}</td>
+                                                                    <td className="nowrap">{bill.billNumber || ''}</td>
+                                                                    <td className="nowrap">{bill.type || ''}</td>
+                                                                    <td className="nowrap">{bill.paymentMode || ''}</td>
+                                                                    <td style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>{item.item?.name || item.productName || 'N/A'}</td>
+                                                                    <td className="text-end">{quantity.toFixed(2)}</td>
+                                                                    <td>{item.unit?.name || ''}</td>
+                                                                    <td className="text-end">{formatCurrency(rate)}</td>
+                                                                    <td className="text-end">{formatCurrency(discount)}</td>
+                                                                    <td className="text-end">{formatCurrency(taxable)}</td>
+                                                                    <td className="text-end">{formatCurrency(vat)}</td>
+                                                                    <td className="text-end">{formatCurrency(total)}</td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    ))} */}
+
+                                                    {data.itemwiseStatement.map((bill, billIndex) => (
+                                                        bill.items && bill.items.map((item, itemIndex) => {
+                                                            const formattedDate = company.dateFormat === 'nepali'
+                                                                ? new NepaliDate(bill.date).format('YYYY-MM-DD')
+                                                                : new Date(bill.date).toISOString().split('T')[0];
+
+                                                            const quantity = item.quantity ? parseFloat(item.quantity) : 0;
+                                                            const rate = item.puPrice || item.price || 0;
+                                                            const discount = item.discountAmountPerItem || 0;
+                                                            // Use item.taxableAmount and item.vatAmount from backend
+                                                            const taxable = item.taxableAmount || 0;
+                                                            const vat = item.vatAmount || 0;
+                                                            const total = item.totalAmount || (taxable + vat);
+
+                                                            return (
+                                                                <tr key={`${bill.billNumber}-${itemIndex}`} style={{ backgroundColor: (billIndex + itemIndex) % 2 === 0 ? '#f8f9fa' : 'white' }}>
+                                                                    <td className="nowrap">{formattedDate}</td>
+                                                                    <td className="nowrap">{bill.billNumber || ''}</td>
+                                                                    <td className="nowrap">{bill.type || ''}</td>
+                                                                    <td className="nowrap">{bill.paymentMode || ''}</td>
+                                                                    <td style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>{item.item?.name || item.productName || 'N/A'}</td>
+                                                                    <td className="text-end">{quantity.toFixed(2)}</td>
+                                                                    <td>{item.unit?.name || ''}</td>
+                                                                    <td className="text-end">{formatCurrency(rate)}</td>
+                                                                    <td className="text-end">{formatCurrency(discount)}</td>
+                                                                    <td className="text-end">{formatCurrency(taxable)}</td>
+                                                                    <td className="text-end">{formatCurrency(vat)}</td>
+                                                                    <td className="text-end">{formatCurrency(total)}</td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    ))}
+                                                </tbody>
+                                                {(() => {
+                                                    let grandTotalQty = 0;
+                                                    let grandTotalAmount = 0;
+                                                    let grandTotalVat = 0;
+                                                    let grandTotalTaxable = 0;
+                                                    let grandTotalDiscount = 0;
+
+                                                    data.itemwiseStatement.forEach((bill) => {
+                                                        if (bill.items && bill.items.length > 0) {
+                                                            bill.items.forEach((item) => {
+                                                                const quantity = item.quantity ? parseFloat(item.quantity) : 0;
+                                                                const discount = item.discountAmountPerItem || 0;
+                                                                const taxable = (item.netPrice || 0) * quantity;
+                                                                const vat = bill.vatAmount || 0;
+                                                                const total = bill.totalAmount || 0;
+
+                                                                grandTotalQty += quantity;
+                                                                grandTotalAmount += total;
+                                                                grandTotalVat += vat;
+                                                                grandTotalTaxable += taxable;
+                                                                grandTotalDiscount += discount;
+                                                            });
+                                                        }
+                                                    });
+
+                                                    return (
+                                                        <tfoot>
+                                                            <tr style={{ fontWeight: 'bold', borderTop: '2px solid #dee2e6', backgroundColor: '#f8f9fa' }}>
+                                                                <td colSpan="5" className="text-end"><strong>Grand Totals:</strong></td>
+                                                                <td className="text-end"><strong>{grandTotalQty.toFixed(2)}</strong></td>
+                                                                <td></td>
+                                                                <td></td>
+                                                                <td className="text-end"><strong>{formatCurrency(grandTotalDiscount)}</strong></td>
+                                                                <td className="text-end"><strong>{formatCurrency(grandTotalTaxable)}</strong></td>
+                                                                <td className="text-end"><strong>{formatCurrency(grandTotalVat)}</strong></td>
+                                                                <td className="text-end"><strong>{formatCurrency(grandTotalAmount)}</strong></td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    );
+                                                })()}
+                                            </table>
+                                        </div>
+                                    )
                                 )}
                             </div>
 
-                            {/* Footer with totals */}
-                            <div className="d-flex bg-light border-top sticky-bottom" style={{ zIndex: 2, height: '28px', borderTop: '2px solid #dee2e6' }}>
-                                <div className="d-flex align-items-center px-1" style={{ width: `${columnWidths.date + columnWidths.voucherNo + columnWidths.voucherType + columnWidths.payMode + columnWidths.account}px`, flexShrink: 0, height: '100%' }}>
-                                    <strong style={{ fontSize: '0.75rem' }}>Totals:</strong>
+                            {/* Footer with totals - only for regular view */}
+                            {viewMode === 'regular' && filteredStatement.length > 0 && (
+                                <div className="d-flex bg-light border-top sticky-bottom" style={{ zIndex: 2, height: '28px', borderTop: '2px solid #dee2e6' }}>
+                                    <div className="d-flex align-items-center px-1" style={{ width: `${columnWidths.date + columnWidths.voucherNo + columnWidths.voucherType + columnWidths.payMode + columnWidths.account}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>Totals:</strong>
+                                    </div>
+                                    <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(data.totalDebit)}</strong>
+                                    </div>
+                                    <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(data.totalCredit)}</strong>
+                                    </div>
+                                    <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatBalance(filteredStatement.length > 0 ? filteredStatement[filteredStatement.length - 1].balance : 0)}</strong>
+                                    </div>
                                 </div>
-                                <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
-                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(data.totalDebit)}</strong>
-                                </div>
-                                <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
-                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(data.totalCredit)}</strong>
-                                </div>
-                                <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
-                                    <strong style={{ fontSize: '0.75rem' }}>{formatBalance(data.statement.length > 0 ? data.statement[data.statement.length - 1].balance : 0)}</strong>
-                                </div>
-                            </div>
+                            )}
                         </>
                     )}
                 </div>
             </div>
 
-            {/* Account Selection Modal */}
+            {/* Account Selection Modal with Virtualized List */}
             {showAccountModal && (
-                <div className="modal fade show" id="accountModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content" style={{ height: '500px' }}>
-                            <div className="modal-header py-2">
-                                <h5 className="modal-title">Select an Account</h5>
-                                <button type="button" className="btn-close" onClick={() => setShowAccountModal(false)}></button>
-                            </div>
-                            <div className="p-2 bg-white sticky-top">
-                                <input
-                                    type="text"
-                                    className="form-control form-control-sm"
-                                    placeholder="Search Account..."
-                                    autoFocus
-                                    autoComplete="off"
-                                    value={accountSearchQuery}
-                                    onChange={(e) => setAccountSearchQuery(e.target.value)}
-                                    ref={accountSearchRef}
-                                />
-                            </div>
-                            <div className="modal-body p-0">
-                                <div className="overflow-auto" style={{ height: 'calc(500px - 100px)' }}>
-                                    <ul className="list-group list-group-flush">
-                                        {filteredAccounts.length > 0 ? (
-                                            filteredAccounts.map((account, index) => (
-                                                <li
-                                                    key={account.id}
-                                                    className={`list-group-item list-group-item-action py-2 ${index === 0 ? 'active' : ''}`}
-                                                    onClick={() => selectAccount(account)}
-                                                    style={{ cursor: 'pointer' }}
-                                                    tabIndex={0}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') selectAccount(account);
-                                                        if (e.key === 'ArrowDown') {
-                                                            e.preventDefault();
-                                                            const next = e.target.nextElementSibling;
-                                                            if (next) next.focus();
-                                                        }
-                                                        if (e.key === 'ArrowUp') {
-                                                            e.preventDefault();
-                                                            const prev = e.target.previousElementSibling;
-                                                            if (prev) prev.focus();
-                                                        }
-                                                    }}
-                                                >
-                                                    <div className="d-flex justify-content-between small">
-                                                        <strong>{account.uniqueNumber || 'N/A'} - {account.name}</strong>
-                                                        <span>{account.address || 'N/A'} | PAN: {account.pan || 'N/A'}</span>
-                                                    </div>
-                                                </li>
-                                            ))
-                                        ) : (
-                                            <li className="list-group-item text-center text-muted">No accounts found</li>
-                                        )}
-                                    </ul>
+                <>
+                    <div className="modal-backdrop fade show" style={{ zIndex: 1040 }}></div>
+                    <div
+                        className="modal fade show"
+                        tabIndex="-1"
+                        style={{ display: 'block', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setShowAccountModal(false);
+                                const focusTargetId = getFocusTargetOnModalClose();
+                                setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+                            }
+                        }}
+                    >
+                        <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '70%' }}>
+                            <div className="modal-content" style={{ height: '500px' }}>
+                                <div className="modal-header py-1">
+                                    <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
+                                        Select Account
+                                    </h5>
+                                    <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
+                                        {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
+                                    </small>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        onClick={() => {
+                                            setShowAccountModal(false);
+                                            const focusTargetId = getFocusTargetOnModalClose();
+                                            setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+                                        }}
+                                    ></button>
+                                </div>
+                                <div className="p-2 bg-white sticky-top">
+                                    <input
+                                        type="text"
+                                        id="searchAccount"
+                                        className="form-control form-control-sm"
+                                        placeholder="Search Account..."
+                                        autoFocus
+                                        autoComplete='off'
+                                        value={accountSearchQuery}
+                                        onChange={handleAccountSearch}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item');
+                                                if (firstAccountItem) firstAccountItem.focus();
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const activeItem = document.querySelector('.account-item.active');
+                                                if (activeItem) {
+                                                    const accountId = activeItem.getAttribute('data-account-id');
+                                                    const account = accounts.find(a => a.id === accountId);
+                                                    if (account) selectAccount(account);
+                                                } else {
+                                                    setShowAccountModal(false);
+                                                    const focusTargetId = getFocusTargetOnModalClose();
+                                                    setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+                                                }
+                                            }
+                                        }}
+                                        ref={accountSearchRef}
+                                        style={{ height: '24px', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                    />
+                                </div>
+                                <div className="modal-body p-0">
+                                    <div style={{ height: 'calc(500px - 120px)' }}>
+                                        <VirtualizedAccountList
+                                            accounts={accounts}
+                                            onAccountClick={selectAccount}
+                                            searchRef={accountSearchRef}
+                                            hasMore={hasMoreAccountResults}
+                                            isSearching={isAccountSearching}
+                                            onLoadMore={loadMoreAccounts}
+                                            totalAccounts={totalAccounts}
+                                            page={accountSearchPage}
+                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             {/* Product Modal */}

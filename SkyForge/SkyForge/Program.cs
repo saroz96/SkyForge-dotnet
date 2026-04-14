@@ -36,6 +36,7 @@ using SkyForge.Services.Retailer.JournalVoucherServices;
 using SkyForge.Services.Retailer.DebitNoteServices;
 using SkyForge.Services.Retailer.CreditNoteServices;
 using SkyForge.Services.Retailer.StatementServices;
+using SkyForge.Services.Retailer.AgeingReportServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -167,6 +168,7 @@ builder.Services.AddScoped<IDebitNoteService, DebitNoteService>();
 builder.Services.AddScoped<ICreditNoteService, CreditNoteService>();
 
 builder.Services.AddScoped<IStatementService, StatementService>();
+builder.Services.AddScoped<IAgeingReportService, AgeingReportService>();
 
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();

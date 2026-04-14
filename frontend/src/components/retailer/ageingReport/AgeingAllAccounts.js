@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../Header';
 import Loader from '../../Loader';
 import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
+import NepaliDate from 'nepali-date-converter';
 
 const AgeingReportAllAccounts = () => {
+    const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    const currentEnglishDate = new Date().toISOString().split('T')[0];
+
     const [company, setCompany] = useState({
-        dateFormat: 'nepali',
+        dateFormat: 'english',
         vatEnabled: true,
         fiscalYear: {}
     });
+
     const [data, setData] = useState({
         report: [],
         receivableTotals: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 },
@@ -23,7 +28,8 @@ const AgeingReportAllAccounts = () => {
         currentCompanyName: ''
     });
 
-    const [loading, setLoading] = useState({ initial: true, table: false });
+    const [loading, setLoading] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
@@ -32,913 +38,499 @@ const AgeingReportAllAccounts = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'accountName', direction: 'ascending' });
     const [showTotals, setShowTotals] = useState(true);
     const [exporting, setExporting] = useState(false);
+    const [hasGenerated, setHasGenerated] = useState(false);
+    const [asOnDate, setAsOnDate] = useState('');
+    const [dateError, setDateError] = useState('');
 
-    const navigate = useNavigate();
     const [notification, setNotification] = useState({
         show: false,
         message: '',
-        type: 'success'
+        type: 'success',
+        duration: 3000
     });
+
+    const navigate = useNavigate();
     const searchInputRef = useRef(null);
+    const asOnDateRef = useRef(null);
+    const generateBtnRef = useRef(null);
     const abortControllerRef = useRef(null);
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
+    const api = useMemo(() => {
+        const instance = axios.create({
+            baseURL: process.env.REACT_APP_API_BASE_URL,
+            withCredentials: true,
+        });
+        instance.interceptors.request.use(
+            (config) => {
+                const token = localStorage.getItem('token');
+                if (token) config.headers.Authorization = `Bearer ${token}`;
+                return config;
+            },
+            (error) => Promise.reject(error)
+        );
+        return instance;
+    }, []);
+
+    const mapBuckets = useCallback((bucketData) => {
+        if (!bucketData) return { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 };
+        return {
+            '0-30': Number(bucketData.range0To30) || 0,
+            '30-60': Number(bucketData.range30To60) || 0,
+            '60-90': Number(bucketData.range60To90) || 0,
+            '90-120': Number(bucketData.range90To120) || 0,
+            'over-120': Number(bucketData.over120) || 0,
+            total: Number(bucketData.total) || 0
+        };
+    }, []);
+
+    useEffect(() => {
+        const fetchCompanyInfo = async () => {
+            try {
+                setInitialLoading(true);
+                const response = await api.get('/api/retailer/ageing-report/all-accounts');
+                if (response.data.success) {
+                    const responseData = response.data.data;
+                    const dateFormat = responseData.companyDateFormat || 'english';
+                    setCompany({
+                        dateFormat: dateFormat,
+                        vatEnabled: responseData.company?.vatEnabled !== false,
+                        fiscalYear: responseData.currentFiscalYear || {}
+                    });
+                    setAsOnDate(dateFormat === 'nepali' ? currentNepaliDate : currentEnglishDate);
+                }
+            } catch (err) {
+                console.error('Error fetching company info:', err);
+                setAsOnDate(currentEnglishDate);
+            } finally {
+                setInitialLoading(false);
+            }
+        };
+        fetchCompanyInfo();
+    }, []);
 
     const fetchAgeingData = useCallback(async () => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
+        if (abortControllerRef.current) abortControllerRef.current.abort();
         abortControllerRef.current = new AbortController();
 
         try {
-            setLoading(prev => ({ ...prev, initial: true }));
-
-            const response = await api.get('/api/retailer/ageing-report/all-accounts', {
-                signal: abortControllerRef.current.signal
-            });
+            setLoading(true);
+            setError(null);
+            const url = `/api/retailer/ageing-report/all-accounts${asOnDate ? `?asOnDate=${encodeURIComponent(asOnDate)}` : ''}`;
+            const response = await api.get(url, { signal: abortControllerRef.current.signal });
 
             if (response.data.success) {
-                setData(response.data.data);
-                setCompany(prev => ({
-                    ...prev,
-                    company: response.data.data.company,
-                    fiscalYear: response.data.data.currentFiscalYear
-                }));
-            } else {
-                setError('Failed to load ageing data');
+                const responseData = response.data.data;
+                setData({
+                    report: (responseData.report || []).map(account => ({
+                        accountName: account.accountName,
+                        buckets: mapBuckets(account.buckets),
+                        isReceivable: account.isReceivable,
+                        netBalance: Number(account.netBalance) || 0,
+                        openingBalance: Number(account.openingBalance) || 0
+                    })),
+                    receivableTotals: mapBuckets(responseData.receivableTotals),
+                    payableTotals: mapBuckets(responseData.payableTotals),
+                    netTotals: mapBuckets(responseData.netTotals),
+                    company: responseData.company,
+                    currentFiscalYear: responseData.currentFiscalYear,
+                    initialFiscalYear: responseData.initialFiscalYear,
+                    currentCompanyName: responseData.currentCompanyName || ''
+                });
+                if (responseData.companyDateFormat) {
+                    setCompany(prev => ({ ...prev, dateFormat: responseData.companyDateFormat }));
+                }
+                setHasGenerated(true);
+                setNotification({ show: true, message: 'Report generated successfully!', type: 'success', duration: 3000 });
             }
         } catch (err) {
-            if (err.name === 'AbortError' || err.name === 'CanceledError') {
-                return;
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                const errorMsg = err.response?.data?.error || 'Failed to load ageing report';
+                setError(errorMsg);
+                setNotification({ show: true, message: errorMsg, type: 'error', duration: 3000 });
             }
-            console.error('Error fetching ageing data:', err);
-            setError(err.response?.data?.error || 'Failed to load ageing report');
         } finally {
-            setLoading(prev => ({ ...prev, initial: false }));
+            setLoading(false);
         }
-    }, []);
+    }, [api, mapBuckets, asOnDate]);
 
-    useEffect(() => {
-        fetchAgeingData();
-
-        return () => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-        };
-    }, [fetchAgeingData]);
-
-    useEffect(() => {
-        if (searchInputRef.current) {
-            searchInputRef.current.focus();
-        }
-    }, []);
-
-    // const formatCurrency = (num) => {
-    //     const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
-    //     if (company.dateFormat === 'nepali') {
-    //         return number.toLocaleString('en-IN', {
-    //             minimumFractionDigits: 2,
-    //             maximumFractionDigits: 2
-    //         });
-    //     }
-    //     return number.toLocaleString('en-US', {
-    //         minimumFractionDigits: 2,
-    //         maximumFractionDigits: 2
-    //     });
-    // };
-
-    const formatCurrency = (num) => {
-        const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
-        const absoluteNumber = Math.abs(number); // Take absolute value to remove negative sign
-
+    const validateDate = (dateStr) => {
+        if (!dateStr) return false;
         if (company.dateFormat === 'nepali') {
-            return absoluteNumber.toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-        return absoluteNumber.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    };
-
-    const applyFilters = () => {
-        let filteredReport = data.report.filter(account => {
-            const typeMatches = typeFilter === 'all' ||
-                (typeFilter === 'receivable' && account.isReceivable) ||
-                (typeFilter === 'payable' && !account.isReceivable);
-
-            const searchMatches = searchQuery === '' ||
-                account.accountName.toLowerCase().includes(searchQuery.toLowerCase());
-
-            const hasNonZeroBalance = Math.abs(account.netBalance) > 0.01;
-
-            return typeMatches && searchMatches && hasNonZeroBalance;
-        });
-
-        filteredReport = filteredReport.sort((a, b) => {
-            let aAccountName = a.accountName.toLowerCase();
-            let bAccountName = b.accountName.toLowerCase();
-
-            if (aAccountName < bAccountName) return -1;
-            if (aAccountName > bAccountName) return 1;
-
-            if (sortConfig.key && sortConfig.key !== 'accountName') {
-                let aValue, bValue;
-
-                if (sortConfig.key === 'type') {
-                    aValue = a.isReceivable ? 'receivable' : 'payable';
-                    bValue = b.isReceivable ? 'receivable' : 'payable';
-                } else if (sortConfig.key === 'netBalance') {
-                    aValue = a.netBalance;
-                    bValue = b.netBalance;
-                } else {
-                    aValue = a.buckets[sortConfig.key];
-                    bValue = b.buckets[sortConfig.key];
-                }
-
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'ascending' ? -1 : 1;
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'ascending' ? 1 : -1;
-                }
-            }
-
-            return 0;
-        });
-
-        const filteredReceivableTotals = { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 };
-        const filteredPayableTotals = { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 };
-        const filteredNetTotals = { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 };
-
-        filteredReport.forEach(account => {
-            if (account.isReceivable) {
-                Object.keys(account.buckets).forEach(key => {
-                    if (key !== 'total') {
-                        filteredReceivableTotals[key] += account.buckets[key];
-                        filteredNetTotals[key] += account.buckets[key];
-                    }
-                });
-                filteredReceivableTotals.total += account.buckets.total;
-                filteredNetTotals.total += account.buckets.total;
-            } else {
-                Object.keys(account.buckets).forEach(key => {
-                    if (key !== 'total') {
-                        filteredPayableTotals[key] += Math.abs(account.buckets[key]);
-                        filteredNetTotals[key] -= Math.abs(account.buckets[key]);
-                    }
-                });
-                filteredPayableTotals.total += Math.abs(account.buckets.total);
-                filteredNetTotals.total -= Math.abs(account.buckets.total);
-            }
-        });
-
-        return {
-            filteredReport,
-            filteredReceivableTotals,
-            filteredPayableTotals,
-            filteredNetTotals
-        };
-    };
-
-    const sortItems = (key) => {
-        let direction = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-
-        setSortConfig({ key, direction });
-    };
-
-    const { filteredReport, filteredReceivableTotals, filteredPayableTotals, filteredNetTotals } = applyFilters();
-
-    const handleItemsPerPageChange = (e) => {
-        const value = e.target.value;
-        setItemsPerPage(value === 'all' ? 'all' : parseInt(value));
-        setCurrentPage(1);
-    };
-
-    const handlePageChange = (newPage) => {
-        if (itemsPerPage === 'all') return;
-
-        const totalPages = Math.ceil(filteredReport.length / itemsPerPage);
-        if (newPage >= 1 && newPage <= totalPages) {
-            setCurrentPage(newPage);
-            window.scrollTo(0, 0);
+            const match = dateStr.match(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/);
+            if (!match) return false;
+            const [year, month, day] = dateStr.replace(/-/g, '/').split('/').map(Number);
+            if (month < 1 || month > 12 || day < 1 || day > 32) return false;
+            try {
+                const nepaliDate = new NepaliDate(year, month - 1, day);
+                return nepaliDate.getYear() === year && nepaliDate.getMonth() + 1 === month && nepaliDate.getDate() === day;
+            } catch { return false; }
+        } else {
+            return /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(dateStr) && !isNaN(new Date(dateStr).getTime());
         }
     };
 
-    const currentPageItems = itemsPerPage === 'all'
-        ? filteredReport
-        : filteredReport.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-    const getSortIndicator = (key) => {
-        if (sortConfig.key === key) {
-            return sortConfig.direction === 'ascending' ? '↑' : '↓';
-        }
-        return '';
-    };
-
-    const handleKeyDown = (e, nextFieldId) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (nextFieldId) {
-                document.getElementById(nextFieldId)?.focus();
-            }
-        }
-    };
-
-    const exportToExcel = async (exportAll = false) => {
-        setExporting(true);
-        try {
-            const itemsToExport = exportAll ? filteredReport : currentPageItems;
-            const totalsToUse = exportAll ? {
-                filteredReceivableTotals,
-                filteredPayableTotals,
-                filteredNetTotals
-            } : {
-                filteredReceivableTotals: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 },
-                filteredPayableTotals: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 },
-                filteredNetTotals: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 }
-            };
-
-            if (!exportAll) {
-                itemsToExport.forEach(account => {
-                    if (account.isReceivable) {
-                        Object.keys(account.buckets).forEach(key => {
-                            if (key !== 'total') {
-                                totalsToUse.filteredReceivableTotals[key] += account.buckets[key];
-                                totalsToUse.filteredNetTotals[key] += account.buckets[key];
-                            }
-                        });
-                        totalsToUse.filteredReceivableTotals.total += account.buckets.total;
-                        totalsToUse.filteredNetTotals.total += account.buckets.total;
-                    } else {
-                        Object.keys(account.buckets).forEach(key => {
-                            if (key !== 'total') {
-                                totalsToUse.filteredPayableTotals[key] += Math.abs(account.buckets[key]);
-                                totalsToUse.filteredNetTotals[key] -= Math.abs(account.buckets[key]);
-                            }
-                        });
-                        totalsToUse.filteredPayableTotals.total += Math.abs(account.buckets.total);
-                        totalsToUse.filteredNetTotals.total -= Math.abs(account.buckets.total);
-                    }
-                });
-            }
-
-            const data = itemsToExport.map((account, index) => {
-                return {
-                    '#': exportAll ? index + 1 : ((currentPage - 1) * itemsPerPage) + index + 1,
-                    'Account Name': account.accountName,
-                    'Type': account.isReceivable ? 'Receivable' : 'Payable',
-                    '0-30 Days': formatCurrency(account.buckets['0-30']),
-                    '31-60 Days': formatCurrency(account.buckets['30-60']),
-                    '61-90 Days': formatCurrency(account.buckets['60-90']),
-                    '91-120 Days': formatCurrency(account.buckets['90-120']),
-                    'Over 120 Days': formatCurrency(account.buckets['over-120']),
-                    'Closing Balance': formatCurrency(account.netBalance)
-                };
-            });
-
-            // Add totals rows
-            data.push({});
-            data.push({
-                'Account Name': 'TOTAL RECEIVABLES',
-                '0-30 Days': formatCurrency(totalsToUse.filteredReceivableTotals['0-30']),
-                '31-60 Days': formatCurrency(totalsToUse.filteredReceivableTotals['30-60']),
-                '61-90 Days': formatCurrency(totalsToUse.filteredReceivableTotals['60-90']),
-                '91-120 Days': formatCurrency(totalsToUse.filteredReceivableTotals['90-120']),
-                'Over 120 Days': formatCurrency(totalsToUse.filteredReceivableTotals['over-120']),
-                'Closing Balance': formatCurrency(totalsToUse.filteredReceivableTotals.total)
-            });
-
-            data.push({
-                'Account Name': 'TOTAL PAYABLES',
-                '0-30 Days': formatCurrency(totalsToUse.filteredPayableTotals['0-30']),
-                '31-60 Days': formatCurrency(totalsToUse.filteredPayableTotals['30-60']),
-                '61-90 Days': formatCurrency(totalsToUse.filteredPayableTotals['60-90']),
-                '91-120 Days': formatCurrency(totalsToUse.filteredPayableTotals['90-120']),
-                'Over 120 Days': formatCurrency(totalsToUse.filteredPayableTotals['over-120']),
-                'Closing Balance': formatCurrency(totalsToUse.filteredPayableTotals.total)
-            });
-
-            data.push({
-                'Account Name': 'NET TOTAL',
-                '0-30 Days': formatCurrency(totalsToUse.filteredNetTotals['0-30']),
-                '31-60 Days': formatCurrency(totalsToUse.filteredNetTotals['30-60']),
-                '61-90 Days': formatCurrency(totalsToUse.filteredNetTotals['60-90']),
-                '91-120 Days': formatCurrency(totalsToUse.filteredNetTotals['90-120']),
-                'Over 120 Days': formatCurrency(totalsToUse.filteredNetTotals['over-120']),
-                'Closing Balance': formatCurrency(totalsToUse.filteredNetTotals.total)
-            });
-
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Ageing Report');
-
-            const date = new Date().toISOString().split('T')[0];
-            const fileName = `Ageing_Report_${date}.xlsx`;
-
-            XLSX.writeFile(wb, fileName);
-
-            // Show success message
-            setNotification({
-                show: true,
-                message: 'Excel file exported successfully!',
-                type: 'success'
-            });
-        } catch (err) {
-            console.error('Error exporting to Excel:', err);
-            alert('Failed to export data');
-        } finally {
-            setExporting(false);
-        }
-    };
-
-    const printReport = (printAll = false) => {
-        const itemsToPrint = printAll ? filteredReport : currentPageItems;
-        const totalsToUse = printAll ? {
-            filteredReceivableTotals,
-            filteredPayableTotals,
-            filteredNetTotals
-        } : {
-            filteredReceivableTotals: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 },
-            filteredPayableTotals: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 },
-            filteredNetTotals: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 }
-        };
-
-        if (!printAll) {
-            itemsToPrint.forEach(account => {
-                if (account.isReceivable) {
-                    Object.keys(account.buckets).forEach(key => {
-                        if (key !== 'total') {
-                            totalsToUse.filteredReceivableTotals[key] += account.buckets[key];
-                            totalsToUse.filteredNetTotals[key] += account.buckets[key];
-                        }
-                    });
-                    totalsToUse.filteredReceivableTotals.total += account.buckets.total;
-                    totalsToUse.filteredNetTotals.total += account.buckets.total;
-                } else {
-                    Object.keys(account.buckets).forEach(key => {
-                        if (key !== 'total') {
-                            totalsToUse.filteredPayableTotals[key] += Math.abs(account.buckets[key]);
-                            totalsToUse.filteredNetTotals[key] -= Math.abs(account.buckets[key]);
-                        }
-                    });
-                    totalsToUse.filteredPayableTotals.total += Math.abs(account.buckets.total);
-                    totalsToUse.filteredNetTotals.total -= Math.abs(account.buckets.total);
-                }
-            });
-        }
-
-        if (itemsToPrint.length === 0) {
-            alert("No data to print");
+    const handleGenerateReport = () => {
+        if (!asOnDate) {
+            setDateError('Please enter a date');
+            asOnDateRef.current?.focus();
             return;
         }
+        if (!validateDate(asOnDate)) {
+            setDateError('Invalid date format');
+            asOnDateRef.current?.focus();
+            return;
+        }
+        fetchAgeingData();
+    };
 
+    const formatCurrency = useCallback((num) => {
+        if (num === undefined || num === null) return '0.00';
+        const number = Math.abs(typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num));
+        if (isNaN(number)) return '0.00';
+        return number.toLocaleString(company.dateFormat === 'nepali' ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }, [company.dateFormat]);
+
+    const filteredAndSortedReport = useMemo(() => {
+        if (!data.report.length) return [];
+        let filtered = data.report.filter(account => {
+            const typeMatches = typeFilter === 'all' || (typeFilter === 'receivable' && account.isReceivable) || (typeFilter === 'payable' && !account.isReceivable);
+            const searchMatches = searchQuery === '' || account.accountName.toLowerCase().includes(searchQuery.toLowerCase());
+            return typeMatches && searchMatches && Math.abs(account.netBalance) > 0.01;
+        });
+        return [...filtered].sort((a, b) => {
+            if (sortConfig.key === 'accountName') {
+                return sortConfig.direction === 'ascending' ? a.accountName.localeCompare(b.accountName) : b.accountName.localeCompare(a.accountName);
+            }
+            let aVal = sortConfig.key === 'type' ? (a.isReceivable ? 'receivable' : 'payable') : (sortConfig.key === 'netBalance' ? a.netBalance : a.buckets[sortConfig.key] || 0);
+            let bVal = sortConfig.key === 'type' ? (b.isReceivable ? 'receivable' : 'payable') : (sortConfig.key === 'netBalance' ? b.netBalance : b.buckets[sortConfig.key] || 0);
+            return sortConfig.direction === 'ascending' ? (aVal < bVal ? -1 : 1) : (aVal > bVal ? -1 : 1);
+        });
+    }, [data.report, typeFilter, searchQuery, sortConfig]);
+
+    const filteredTotals = useMemo(() => {
+        const totals = { receivable: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 }, payable: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 }, net: { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 } };
+        filteredAndSortedReport.forEach(acc => {
+            Object.keys(acc.buckets).forEach(key => {
+                if (key !== 'total') {
+                    if (acc.isReceivable) {
+                        totals.receivable[key] += acc.buckets[key];
+                        totals.net[key] += acc.buckets[key];
+                    } else {
+                        const absVal = Math.abs(acc.buckets[key]);
+                        totals.payable[key] += absVal;
+                        totals.net[key] -= absVal;
+                    }
+                }
+            });
+            if (acc.isReceivable) {
+                totals.receivable.total += acc.buckets.total;
+                totals.net.total += acc.buckets.total;
+            } else {
+                totals.payable.total += Math.abs(acc.buckets.total);
+                totals.net.total -= Math.abs(acc.buckets.total);
+            }
+        });
+        return totals;
+    }, [filteredAndSortedReport]);
+
+    const currentPageItems = useMemo(() => {
+        if (itemsPerPage === 'all') return filteredAndSortedReport;
+        return filteredAndSortedReport.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    }, [filteredAndSortedReport, itemsPerPage, currentPage]);
+
+    const totalPages = Math.ceil(filteredAndSortedReport.length / (itemsPerPage === 'all' ? 1 : itemsPerPage));
+
+    useEffect(() => { setCurrentPage(1); }, [searchQuery, typeFilter, sortConfig]);
+
+    const sortItems = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' }));
+    const getSortIndicator = (key) => sortConfig.key === key ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : '';
+
+    const exportToExcel = async () => {
+        if (!hasGenerated || !filteredAndSortedReport.length) {
+            setNotification({ show: true, message: 'Please generate the report first', type: 'warning', duration: 3000 });
+            return;
+        }
+        setExporting(true);
+        try {
+            const excelData = filteredAndSortedReport.map((acc, i) => ({
+                '#': i + 1, 'Account Name': acc.accountName, 'Type': acc.isReceivable ? 'Receivable' : 'Payable',
+                '0-30 Days': formatCurrency(acc.buckets['0-30']), '31-60 Days': formatCurrency(acc.buckets['30-60']),
+                '61-90 Days': formatCurrency(acc.buckets['60-90']), '91-120 Days': formatCurrency(acc.buckets['90-120']),
+                'Over 120 Days': formatCurrency(acc.buckets['over-120']), 'Closing': formatCurrency(acc.netBalance)
+            }));
+            excelData.push({}, { 'Account Name': 'TOTAL RECEIVABLES', '0-30 Days': formatCurrency(filteredTotals.receivable['0-30']), '31-60 Days': formatCurrency(filteredTotals.receivable['30-60']), '61-90 Days': formatCurrency(filteredTotals.receivable['60-90']), '91-120 Days': formatCurrency(filteredTotals.receivable['90-120']), 'Over 120 Days': formatCurrency(filteredTotals.receivable['over-120']), 'Closing': formatCurrency(filteredTotals.receivable.total) });
+            excelData.push({ 'Account Name': 'TOTAL PAYABLES', '0-30 Days': formatCurrency(filteredTotals.payable['0-30']), '31-60 Days': formatCurrency(filteredTotals.payable['30-60']), '61-90 Days': formatCurrency(filteredTotals.payable['60-90']), '91-120 Days': formatCurrency(filteredTotals.payable['90-120']), 'Over 120 Days': formatCurrency(filteredTotals.payable['over-120']), 'Closing': formatCurrency(filteredTotals.payable.total) });
+            excelData.push({ 'Account Name': 'NET TOTAL', '0-30 Days': formatCurrency(filteredTotals.net['0-30']), '31-60 Days': formatCurrency(filteredTotals.net['30-60']), '61-90 Days': formatCurrency(filteredTotals.net['60-90']), '91-120 Days': formatCurrency(filteredTotals.net['90-120']), 'Over 120 Days': formatCurrency(filteredTotals.net['over-120']), 'Closing': formatCurrency(filteredTotals.net.total) });
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Ageing Report');
+            XLSX.writeFile(wb, `Ageing_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+            setNotification({ show: true, message: 'Excel file exported successfully!', type: 'success', duration: 3000 });
+        } catch (err) {
+            setNotification({ show: true, message: 'Failed to export data', type: 'error', duration: 3000 });
+        } finally { setExporting(false); }
+    };
+
+    const printReport = () => {
+        if (!hasGenerated || !filteredAndSortedReport.length) {
+            setNotification({ show: true, message: 'Please generate the report first', type: 'warning', duration: 3000 });
+            return;
+        }
         const printWindow = window.open('', '_blank');
-        const printDate = new Date().toLocaleDateString();
-        const fiscalYear = company.fiscalYear?.name || 'N/A';
-
-        const printContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Ageing Report</title>
-                <style>
-                    @page { 
-                        size: A4 landscape; 
-                        margin: 10mm; 
-                    }
-                    body { 
-                        font-family: Arial, sans-serif; 
-                        font-size: 10px; 
-                        margin: 0; 
-                        padding: 5mm; 
-                    }
-                    .print-header { text-align: center; margin-bottom: 20px; }
-                    .report-title {
-                        text-align: center;
-                        text-decoration: underline;
-                        margin-bottom: 10px;
-                    }
-                    table { 
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        page-break-inside: auto;
-                        font-size: 12px 
-                    }
-                    th, td { 
-                        border: 1px solid #000; 
-                        padding: 4px; 
-                        text-align: left; 
-                    }
-                    th { 
-                        background-color: #f2f2f2; 
-                    }
-                    .text-end { 
-                        text-align: right; 
-                    }
-                    .nowrap { 
-                        white-space: nowrap; 
-                    }
-                    .print-footer {
-                        margin-top: 10px;
-                        font-size: 9px;
-                        text-align: right;
-                    }
-                    .receivable-row { background-color: #e6f7ff; }
-                    .payable-row { background-color: #fff7e6; }
-                    .total-row { background-color: #e6e6e6; font-weight: bold; }
-                    .net-total { background-color: #f0f0f0; font-weight: bold; }
-                </style>
-            </head>
-            <body>
-                    <div class="print-header">
-            <h3>${data.currentCompanyName || 'Company Name'}</h3>
-                <p>
-                ${data.currentCompany?.address || ''}-${data.currentCompany?.ward || ''}, ${data.currentCompany?.city || ''}
-            </p>
-            <h2>Ageing Report</h2>
-            <hr>
-        </div>
-                
-                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                    <div>
-                        <strong>As on:</strong> ${printDate} |
-                        <strong>F.Y:</strong> ${fiscalYear}
-                    </div>
-                    <div>
-                        <strong>Report:</strong> ${printAll ? 'All Accounts' : 'Current Page'} |
-                        <strong>Total Accounts:</strong> ${itemsToPrint.length}
-                        ${searchQuery ? `<br><strong>Search Filter:</strong> "${searchQuery}"` : ''}
-                        ${typeFilter !== 'all' ? `<br><strong>Type Filter:</strong> ${typeFilter}` : ''}
-                    </div>
-                    <div>
-                        <strong>Printed:</strong> ${new Date().toLocaleString()}
-                    </div>
-                </div>
-                
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Account</th>
-                            <th>Type</th>
-                            <th class="text-end">0-30 Days</th>
-                            <th class="text-end">31-60 Days</th>
-                            <th class="text-end">61-90 Days</th>
-                            <th class="text-end">91-120 Days</th>
-                            <th class="text-end">Over 120 Days</th>
-                            <th class="text-end">Closing</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsToPrint.map((account, index) => `
-                            <tr class="${account.isReceivable ? 'receivable-row' : 'payable-row'}">
-                                <td>${index + 1}</td>
-                                <td>${account.accountName}</td>
-                                <td>${account.isReceivable ? 'Receivable' : 'Payable'}</td>
-                                <td class="text-end">${formatCurrency(account.buckets['0-30'])}</td>
-                                <td class="text-end">${formatCurrency(account.buckets['30-60'])}</td>
-                                <td class="text-end">${formatCurrency(account.buckets['60-90'])}</td>
-                                <td class="text-end">${formatCurrency(account.buckets['90-120'])}</td>
-                                <td class="text-end">${formatCurrency(account.buckets['over-120'])}</td>
-                                <td class="text-end">${formatCurrency(account.netBalance)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    ${showTotals && itemsToPrint.length > 0 ? `
-                    <tfoot>
-                        <tr class="total-row">
-                            <td colspan="3">Total Receivables</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredReceivableTotals['0-30'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredReceivableTotals['30-60'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredReceivableTotals['60-90'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredReceivableTotals['90-120'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredReceivableTotals['over-120'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredReceivableTotals.total)}</td>
-                        </tr>
-                        <tr class="total-row">
-                            <td colspan="3">Total Payables</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredPayableTotals['0-30'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredPayableTotals['30-60'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredPayableTotals['60-90'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredPayableTotals['90-120'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredPayableTotals['over-120'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredPayableTotals.total)}</td>
-                        </tr>
-                        <tr class="net-total">
-                            <td colspan="3">Net Total</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredNetTotals['0-30'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredNetTotals['30-60'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredNetTotals['60-90'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredNetTotals['90-120'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredNetTotals['over-120'])}</td>
-                            <td class="text-end">${formatCurrency(totalsToUse.filteredNetTotals.total)}</td>
-                        </tr>
-                    </tfoot>
-                    ` : ''}
-                </table>
-                
-                <div class="print-footer">
-                    Printed from ${data.currentCompanyName || 'Company Name'} | Page 1 of 1
-                </div>
-                
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        window.onafterprint = function() {
-                            window.close();
-                        };
-                    }
-                </script>
-            </body>
-            </html>
-        `;
-
-        printWindow.document.write(printContent);
+        printWindow.document.write(`
+            <!DOCTYPE html><html><head><title>Ageing Report</title>
+            <style>@page{margin:10mm}body{font-family:Arial;font-size:10px;margin:0;padding:5mm}
+            .print-header{text-align:center;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}
+            th,td{border:1px solid #000;padding:4px;text-align:left}th{background:#f2f2f2}.text-end{text-align:right}
+            .receivable-row{background:#e6f7ff}.payable-row{background:#fff7e6}.total-row{background:#e6e6e6;font-weight:bold}
+            .net-total{background:#f0f0f0;font-weight:bold}</style></head>
+            <body><div class="print-header"><h3>${data.currentCompanyName || 'Company Name'}</h3>
+            <p>${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}</p>
+            <h2>Ageing Report</h2><p><strong>As on Date:</strong> ${asOnDate} | <strong>F.Y:</strong> ${data.currentFiscalYear?.name || 'N/A'}</p><hr></div>
+            <table><thead><tr><th>#</th><th>Account</th><th>Type</th><th class="text-end">0-30</th><th class="text-end">31-60</th><th class="text-end">61-90</th><th class="text-end">91-120</th><th class="text-end">Over 120</th><th class="text-end">Closing</th></tr></thead>
+            <tbody>${filteredAndSortedReport.map((acc, i) => `<tr class="${acc.isReceivable ? 'receivable-row' : 'payable-row'}">
+                <td>${i + 1}</td><td>${acc.accountName}</td><td>${acc.isReceivable ? 'Receivable' : 'Payable'}</td>
+                <td class="text-end">${formatCurrency(acc.buckets['0-30'])}</td><td class="text-end">${formatCurrency(acc.buckets['30-60'])}</td>
+                <td class="text-end">${formatCurrency(acc.buckets['60-90'])}</td><td class="text-end">${formatCurrency(acc.buckets['90-120'])}</td>
+                <td class="text-end">${formatCurrency(acc.buckets['over-120'])}</td><td class="text-end">${formatCurrency(acc.netBalance)}</td></td>`).join('')}</tbody>
+            ${showTotals ? `<tfoot><tr class="total-row"><td colspan="3">Total Receivables</td><td class="text-end">${formatCurrency(filteredTotals.receivable['0-30'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.receivable['30-60'])}</td><td class="text-end">${formatCurrency(filteredTotals.receivable['60-90'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.receivable['90-120'])}</td><td class="text-end">${formatCurrency(filteredTotals.receivable['over-120'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.receivable.total)}</td></tr>
+            <tr class="total-row"><td colspan="3">Total Payables</td><td class="text-end">${formatCurrency(filteredTotals.payable['0-30'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.payable['30-60'])}</td><td class="text-end">${formatCurrency(filteredTotals.payable['60-90'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.payable['90-120'])}</td><td class="text-end">${formatCurrency(filteredTotals.payable['over-120'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.payable.total)}</td></tr>
+            <tr class="net-total"><td colspan="3">Net Total</td><td class="text-end">${formatCurrency(filteredTotals.net['0-30'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.net['30-60'])}</td><td class="text-end">${formatCurrency(filteredTotals.net['60-90'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.net['90-120'])}</td><td class="text-end">${formatCurrency(filteredTotals.net['over-120'])}</td>
+            <td class="text-end">${formatCurrency(filteredTotals.net.total)}</td></tr></tfoot>` : ''}
+            </table><div class="print-footer">Printed from ${data.currentCompanyName || 'Company Name'} | ${new Date().toLocaleString()}</div>
+            <script>window.onload=function(){window.print();window.onafterprint=function(){window.close()}}<\/script></body></html>
+        `);
         printWindow.document.close();
     };
 
-    if (loading.initial) return <Loader />;
+    const handlePageChange = useCallback((newPage) => {
+        if (itemsPerPage === 'all') return;
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [itemsPerPage, totalPages]);
 
-    const totalPages = Math.ceil(filteredReport.length / (itemsPerPage === 'all' ? 1 : itemsPerPage));
+
+    if (initialLoading) return <Loader />;
 
     return (
         <div className="container-fluid">
             <Header />
-            <div className="card shadow">
-                <div className="card-header bg-white py-2">
-                    <h5 className="mb-0 text-center text-primary">
-                        <i className="fas fa-file-invoice-dollar me-2"></i>Ageing Report
-                    </h5>
+            <div className="card mt-2 shadow-lg p-0 expanded-card ledger-card compact">
+                <div className="card-header bg-white py-1">
+                    <h1 className="h5 mb-0 text-center text-primary">Ageing Report</h1>
                 </div>
-
-                <div className="card-body p-3">
-                    {/* Search and Filter Section */}
-                    <div className="row mb-3 g-2">
-                        <div className="col-md-8">
-                            <div className="row g-2">
-                                <div className="col-md-6">
-                                    <div className="input-group input-group-sm">
-                                        <span className="input-group-text py-1">
-                                            <i className="fas fa-search small"></i>
-                                        </span>
-                                        <input
-                                            type="text"
-                                            className="form-control form-control-sm"
-                                            ref={searchInputRef}
-                                            placeholder="Search account name..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            autoComplete="off"
-                                            onKeyDown={(e) => handleKeyDown(e, 'typeFilter')}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="col-md-6">
-                                    <div className="d-flex align-items-center h-100 gap-2">
-                                        <select
-                                            id="typeFilter"
-                                            className="form-select form-select-sm"
-                                            value={typeFilter}
-                                            onChange={(e) => setTypeFilter(e.target.value)}
-                                            style={{ width: 'auto' }}
-                                        >
-                                            <option value="all">All Types</option>
-                                            <option value="receivable">Receivable Only</option>
-                                            <option value="payable">Payable Only</option>
-                                        </select>
-
-                                        <div className="form-check form-switch form-check-sm">
-                                            <input
-                                                className="form-check-input"
-                                                type="checkbox"
-                                                role="switch"
-                                                id="showTotals"
-                                                checked={showTotals}
-                                                onChange={() => setShowTotals(!showTotals)}
-                                            />
-                                            <label className="form-check-label small" htmlFor="showTotals">
-                                                Show Totals
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
+                <div className="card-body p-2 p-md-3">
+                    {/* All Controls in One Row - Slightly Increased Size */}
+                    <div className="row g-2 mb-3">
+                        <div className="col-md-2">
+                            <div className="position-relative">
+                                <input type="text" id="asOnDate" ref={asOnDateRef}
+                                    className={`form-control form-control-sm no-date-icon ${dateError ? 'is-invalid' : ''}`}
+                                    value={asOnDate}
+                                    onChange={(e) => { setAsOnDate(e.target.value.replace(/[^0-9/-]/g, '')); setDateError(''); }}
+                                    onBlur={() => asOnDate && !validateDate(asOnDate) && setDateError('Invalid date format')}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerateReport()}
+                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    autoFocus
+                                    autoComplete="off"
+                                    style={{ height: '30px', fontSize: '0.8rem', width: '100%', paddingTop: '0.75rem' }} />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    As on Date: <span className="text-danger">*</span>
+                                </label>
+                                {dateError && <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>{dateError}</div>}
                             </div>
                         </div>
-
-                        {/* Action Buttons and Display Options */}
-                        <div className="col-md-4">
-                            <div className="d-flex justify-content-end gap-1 align-items-center">
-                                <div className="me-2">
-                                    <select
-                                        className="form-select form-select-sm"
-                                        value={itemsPerPage}
-                                        onChange={handleItemsPerPageChange}
-                                        style={{ width: 'auto' }}
-                                    >
-                                        <option value="10">10 per page</option>
-                                        <option value="25">25 per page</option>
-                                        <option value="50">50 per page</option>
-                                        <option value="all">All accounts</option>
-                                    </select>
-                                </div>
-                                {/* Export Buttons */}
-                                <button
-                                    className="btn btn-outline-success btn-sm"
-                                    onClick={() => exportToExcel(false)}
-                                    disabled={currentPageItems.length === 0 || exporting}
-                                    title="Export current page to Excel"
-                                >
-                                    <i className="fas fa-file-excel me-1 small"></i>Export Page
-                                </button>
-                                <button
-                                    className="btn btn-success btn-sm"
-                                    onClick={() => exportToExcel(true)}
-                                    disabled={filteredReport.length === 0 || exporting}
-                                    title="Export all filtered accounts to Excel"
-                                >
-                                    <i className="fas fa-file-excel me-1 small"></i>Export All
-                                </button>
-                                <button
-                                    className="btn btn-outline-primary btn-sm"
-                                    onClick={() => printReport(false)}
-                                    disabled={currentPageItems.length === 0}
-                                >
-                                    <i className="fas fa-print me-1 small"></i>Print Page
-                                </button>
-                                <button
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => printReport(true)}
-                                    disabled={filteredReport.length === 0}
-                                >
-                                    <i className="fas fa-print me-1 small"></i>Print All
-                                </button>
+                        <div className="col-md-1">
+                            <button ref={generateBtnRef} className="btn btn-primary btn-sm w-100" onClick={handleGenerateReport} disabled={loading} style={{ height: '30px', fontSize: '0.75rem', padding: '0 6px' }}>
+                                {loading ? <span className="spinner-border spinner-border-sm" style={{ width: '14px', height: '14px' }} /> : <><i className="fas fa-chart-line me-1"></i>Generate</>}
+                            </button>
+                        </div>
+                        <div className="col-md-2">
+                            <div className="input-group input-group-sm">
+                                <span className="input-group-text" style={{ height: '30px', padding: '0 8px' }}><i className="fas fa-search small" style={{ fontSize: '11px' }}></i></span>
+                                <input type="text" className="form-control form-control-sm" ref={searchInputRef} placeholder="Search account..." value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)} disabled={!hasGenerated} autoComplete="off"
+                                    style={{ height: '30px', fontSize: '0.75rem' }} />
                             </div>
+                        </div>
+                        <div className="col-md-2">
+                            <select className="form-select form-select-sm" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} disabled={!hasGenerated}
+                                style={{ height: '30px', fontSize: '0.75rem', width: '100%', padding: '0 20px 0 8px' }}>
+                                <option value="all">All</option>
+                                <option value="receivable">Receivable</option>
+                                <option value="payable">Payable</option>
+                            </select>
+                        </div>
+                        <div className="col-md-1">
+                            <select className="form-select form-select-sm" value={itemsPerPage} onChange={(e) => { setItemsPerPage(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setCurrentPage(1); }}
+                                disabled={!hasGenerated} style={{ height: '30px', fontSize: '0.75rem', width: '100%', padding: '0 20px 0 8px' }}>
+                                <option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="all">All</option>
+                            </select>
+                        </div>
+                        <div className="col-md-1">
+                            <div className="form-check form-switch mt-2">
+                                <input className="form-check-input" type="checkbox" role="switch" id="showTotals" checked={showTotals}
+                                    onChange={() => setShowTotals(!showTotals)} disabled={!hasGenerated} style={{ marginTop: '2px' }} />
+                                <label className="form-check-label small" htmlFor="showTotals" style={{ fontSize: '0.75rem' }}>Totals</label>
+                            </div>
+                        </div>
+                        <div className="col-md-1">
+                            <button className="btn btn-outline-success btn-sm w-100" onClick={exportToExcel} disabled={!hasGenerated || !filteredAndSortedReport.length || exporting}
+                                style={{ height: '30px', fontSize: '0.7rem', padding: '0 4px' }}>
+                                <i className="fas fa-file-excel me-1"></i>{exporting ? '...' : 'Excel'}
+                            </button>
+                        </div>
+                        <div className="col-md-1">
+                            <button className="btn btn-outline-primary btn-sm w-100" onClick={printReport} disabled={!hasGenerated || !filteredAndSortedReport.length}
+                                style={{ height: '30px', fontSize: '0.7rem', padding: '0 4px' }}>
+                                <i className="fas fa-print me-1"></i>Print
+                            </button>
                         </div>
                     </div>
 
-                    {error && (
-                        <div className="alert alert-danger text-center py-1 mb-2 small">
-                            <i className="fas fa-exclamation-circle me-1"></i>
-                            {error}
-                            <button
-                                type="button"
-                                className="btn-close btn-sm ms-2"
-                                onClick={() => setError(null)}
-                                aria-label="Close"
-                            ></button>
-                        </div>
-                    )}
+                    {error && <div className="alert alert-danger text-center py-1 mb-2 small" style={{ fontSize: '0.75rem' }}>{error}<button type="button" className="btn-close btn-sm ms-2" style={{ fontSize: '10px' }} onClick={() => setError(null)}></button></div>}
 
-                    {/* Table */}
-                    <div className="table-responsive compact-table">
-                        <table className="table table-hover mb-0">
-                            <thead className="table-light">
-                                <tr>
-                                    <th width="30px" className="small">#</th>
-                                    <th
-                                        className="small sortable"
-                                        onClick={() => sortItems('accountName')}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        Account Name {getSortIndicator('accountName')}
-                                    </th>
-                                    <th
-                                        className="small sortable"
-                                        onClick={() => sortItems('type')}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        Type {getSortIndicator('type')}
-                                    </th>
-                                    <th
-                                        className="text-end small sortable"
-                                        onClick={() => sortItems('0-30')}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        0-30 Days {getSortIndicator('0-30')}
-                                    </th>
-                                    <th
-                                        className="text-end small sortable"
-                                        onClick={() => sortItems('30-60')}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        31-60 Days {getSortIndicator('30-60')}
-                                    </th>
-                                    <th
-                                        className="text-end small sortable"
-                                        onClick={() => sortItems('60-90')}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        61-90 Days {getSortIndicator('60-90')}
-                                    </th>
-                                    <th
-                                        className="text-end small sortable"
-                                        onClick={() => sortItems('90-120')}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        91-120 Days {getSortIndicator('90-120')}
-                                    </th>
-                                    <th
-                                        className="text-end small sortable"
-                                        onClick={() => sortItems('over-120')}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        Over 120 Days {getSortIndicator('over-120')}
-                                    </th>
-                                    <th
-                                        className="text-end small sortable"
-                                        onClick={() => sortItems('netBalance')}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        Closing {getSortIndicator('netBalance')}
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            {currentPageItems.length === 0 ? (
-                                <tbody>
-                                    <tr>
-                                        <td colSpan="9" className="text-center py-3 small">
-                                            <i className="fas fa-info-circle me-1"></i>
-                                            {searchQuery || typeFilter !== 'all'
-                                                ? 'No accounts match your search criteria'
-                                                : 'No accounts found'}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            ) : (
-                                <>
-                                    <tbody>
-                                        {currentPageItems.map((account, index) => (
-                                            <tr key={index} className={`compact-row ${account.isReceivable ? 'table-info' : 'table-warning'}`}>
-                                                <td className="small">{itemsPerPage === 'all' ? index + 1 : ((currentPage - 1) * itemsPerPage) + index + 1}</td>
-                                                <td className="small fw-bold">{account.accountName}</td>
-                                                <td className="small">
-                                                    <span className={`badge ${account.isReceivable ? 'bg-info' : 'bg-warning'}`}>
-                                                        {account.isReceivable ? 'Receivable' : 'Payable'}
-                                                    </span>
-                                                </td>
-                                                <td className="text-end small">{formatCurrency(account.buckets['0-30'])}</td>
-                                                <td className="text-end small">{formatCurrency(account.buckets['30-60'])}</td>
-                                                <td className="text-end small">{formatCurrency(account.buckets['60-90'])}</td>
-                                                <td className="text-end small">{formatCurrency(account.buckets['90-120'])}</td>
-                                                <td className="text-end small">{formatCurrency(account.buckets['over-120'])}</td>
-                                                <td className="text-end fw-bold small">{formatCurrency(account.netBalance)}</td>
+                    {hasGenerated && data.report.length > 0 ? (
+                        filteredAndSortedReport.length > 0 ? (
+                            <>
+                                <div className="table-responsive" style={{ maxHeight: '400px', overflow: 'auto' }}>
+                                    <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.75rem' }}>
+                                        <thead className="table-light" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                                            <tr>
+                                                <th style={{ padding: '6px 8px', textAlign: 'center', width: '50px' }}>S.N.</th>
+                                                <th className="sortable" onClick={() => sortItems('accountName')} style={{ cursor: 'pointer', padding: '6px 8px' }}>Account Name {getSortIndicator('accountName')}</th>
+                                                <th className="sortable" onClick={() => sortItems('type')} style={{ cursor: 'pointer', padding: '6px 8px' }}>Type {getSortIndicator('type')}</th>
+                                                <th className="text-end sortable" onClick={() => sortItems('0-30')} style={{ cursor: 'pointer', padding: '6px 8px' }}>0-30 Days {getSortIndicator('0-30')}</th>
+                                                <th className="text-end sortable" onClick={() => sortItems('30-60')} style={{ cursor: 'pointer', padding: '6px 8px' }}>31-60 Days {getSortIndicator('30-60')}</th>
+                                                <th className="text-end sortable" onClick={() => sortItems('60-90')} style={{ cursor: 'pointer', padding: '6px 8px' }}>61-90 Days {getSortIndicator('60-90')}</th>
+                                                <th className="text-end sortable" onClick={() => sortItems('90-120')} style={{ cursor: 'pointer', padding: '6px 8px' }}>91-120 Days {getSortIndicator('90-120')}</th>
+                                                <th className="text-end sortable" onClick={() => sortItems('over-120')} style={{ cursor: 'pointer', padding: '6px 8px' }}>Over 120 Days {getSortIndicator('over-120')}</th>
+                                                <th className="text-end sortable" onClick={() => sortItems('netBalance')} style={{ cursor: 'pointer', padding: '6px 8px' }}>Closing {getSortIndicator('netBalance')}</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                    {showTotals && (
-                                        <tfoot className="table-group-divider">
-                                            <tr className="fw-bold small table-secondary">
-                                                <td colSpan="3">Total Receivables</td>
-                                                <td className="text-end">{formatCurrency(filteredReceivableTotals['0-30'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredReceivableTotals['30-60'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredReceivableTotals['60-90'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredReceivableTotals['90-120'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredReceivableTotals['over-120'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredReceivableTotals.total)}</td>
-                                            </tr>
-                                            <tr className="fw-bold small table-secondary">
-                                                <td colSpan="3">Total Payables</td>
-                                                <td className="text-end">{formatCurrency(filteredPayableTotals['0-30'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredPayableTotals['30-60'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredPayableTotals['60-90'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredPayableTotals['90-120'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredPayableTotals['over-120'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredPayableTotals.total)}</td>
-                                            </tr>
-                                            <tr className="fw-bold small table-primary">
-                                                <td colSpan="3">Net Total</td>
-                                                <td className="text-end">{formatCurrency(filteredNetTotals['0-30'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredNetTotals['30-60'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredNetTotals['60-90'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredNetTotals['90-120'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredNetTotals['over-120'])}</td>
-                                                <td className="text-end">{formatCurrency(filteredNetTotals.total)}</td>
-                                            </tr>
-                                        </tfoot>
-                                    )}
-                                </>
-                            )}
-                        </table>
-                    </div>
+                                        </thead>
+                                        <tbody>
+                                            {currentPageItems.map((account, idx) => (
+                                                <tr key={idx} className={account.isReceivable ? 'table-info' : 'table-warning'}>
+                                                    <td style={{ padding: '4px 6px', textAlign: 'center' }}>{idx + 1}</td>
+                                                    <td className="fw-bold" style={{ padding: '4px 6px' }}>{account.accountName}</td>
+                                                    <td style={{ padding: '4px 6px' }}><span className={`badge ${account.isReceivable ? 'bg-info' : 'bg-warning'}`} style={{ fontSize: '0.65rem', padding: '3px 6px' }}>{account.isReceivable ? 'Receivable' : 'Payable'}</span></td>
+                                                    <td className="text-end" style={{ padding: '4px 6px' }}>{formatCurrency(account.buckets['0-30'])}</td>
+                                                    <td className="text-end" style={{ padding: '4px 6px' }}>{formatCurrency(account.buckets['30-60'])}</td>
+                                                    <td className="text-end" style={{ padding: '4px 6px' }}>{formatCurrency(account.buckets['60-90'])}</td>
+                                                    <td className="text-end" style={{ padding: '4px 6px' }}>{formatCurrency(account.buckets['90-120'])}</td>
+                                                    <td className="text-end" style={{ padding: '4px 6px' }}>{formatCurrency(account.buckets['over-120'])}</td>
+                                                    <td className="text-end fw-bold" style={{ padding: '4px 6px' }}>{formatCurrency(account.netBalance)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
 
-                    {/* Bottom Pagination - Only show if not displaying all items */}
-                    {itemsPerPage !== 'all' && totalPages > 1 && (
-                        <div className="row mt-2">
-                            <div className="col-12">
-                                <nav>
-                                    <ul className="pagination justify-content-center pagination-sm">
-                                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                            <button
-                                                className="page-link"
-                                                onClick={() => handlePageChange(currentPage - 1)}
-                                            >
-                                                Previous
-                                            </button>
-                                        </li>
+                                        {showTotals && currentPageItems.length > 0 && (
+                                            <tfoot className="table-group-divider">
+                                                {(() => {
+                                                    // Calculate totals for current page items only
+                                                    const pageReceivableTotals = { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 };
+                                                    const pagePayableTotals = { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 };
+                                                    const pageNetTotals = { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, 'over-120': 0, total: 0 };
 
-                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                            let pageNum;
-                                            if (totalPages <= 5) {
-                                                pageNum = i + 1;
-                                            } else if (currentPage <= 3) {
-                                                pageNum = i + 1;
-                                            } else if (currentPage >= totalPages - 2) {
-                                                pageNum = totalPages - 4 + i;
-                                            } else {
-                                                pageNum = currentPage - 2 + i;
-                                            }
+                                                    currentPageItems.forEach(acc => {
+                                                        Object.keys(acc.buckets).forEach(key => {
+                                                            if (key !== 'total') {
+                                                                if (acc.isReceivable) {
+                                                                    pageReceivableTotals[key] += acc.buckets[key];
+                                                                    pageNetTotals[key] += acc.buckets[key];
+                                                                } else {
+                                                                    const absVal = Math.abs(acc.buckets[key]);
+                                                                    pagePayableTotals[key] += absVal;
+                                                                    pageNetTotals[key] -= absVal;
+                                                                }
+                                                            }
+                                                        });
+                                                        if (acc.isReceivable) {
+                                                            pageReceivableTotals.total += acc.buckets.total;
+                                                            pageNetTotals.total += acc.buckets.total;
+                                                        } else {
+                                                            pagePayableTotals.total += Math.abs(acc.buckets.total);
+                                                            pageNetTotals.total -= Math.abs(acc.buckets.total);
+                                                        }
+                                                    });
 
-                                            return (
-                                                <li key={pageNum} className={`page-item ${currentPage === pageNum ? 'active' : ''}`}>
-                                                    <button
-                                                        className="page-link"
-                                                        onClick={() => handlePageChange(pageNum)}
-                                                    >
-                                                        {pageNum}
-                                                    </button>
-                                                </li>
-                                            );
-                                        })}
-
-                                        <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                            <button
-                                                className="page-link"
-                                                onClick={() => handlePageChange(currentPage + 1)}
-                                            >
-                                                Next
-                                            </button>
-                                        </li>
-                                    </ul>
-                                </nav>
-                                <div className="text-center text-muted small">
-                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredReport.length)} of {filteredReport.length} accounts
+                                                    return (
+                                                        <>
+                                                            <tr className="fw-bold table-secondary">
+                                                                <td colSpan="3" style={{ padding: '6px 8px' }}>Total Receivables</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageReceivableTotals['0-30'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageReceivableTotals['30-60'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageReceivableTotals['60-90'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageReceivableTotals['90-120'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageReceivableTotals['over-120'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageReceivableTotals.total)}</td>
+                                                            </tr>
+                                                            <tr className="fw-bold table-secondary">
+                                                                <td colSpan="3" style={{ padding: '6px 8px' }}>Total Payables</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pagePayableTotals['0-30'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pagePayableTotals['30-60'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pagePayableTotals['60-90'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pagePayableTotals['90-120'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pagePayableTotals['over-120'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pagePayableTotals.total)}</td>
+                                                            </tr>
+                                                            <tr className="fw-bold table-primary">
+                                                                <td colSpan="3" style={{ padding: '6px 8px' }}>Net Total</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageNetTotals['0-30'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageNetTotals['30-60'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageNetTotals['60-90'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageNetTotals['90-120'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageNetTotals['over-120'])}</td>
+                                                                <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(pageNetTotals.total)}</td>
+                                                            </tr>
+                                                        </>
+                                                    );
+                                                })()}
+                                            </tfoot>
+                                        )}
+                                    </table>
                                 </div>
+                                {itemsPerPage !== 'all' && totalPages > 1 && (
+                                    <div className="row mt-2"><div className="col-12">
+                                        <nav><ul className="pagination justify-content-center pagination-sm" style={{ marginBottom: '0' }}>
+                                            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}><button className="page-link" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => handlePageChange(currentPage - 1)}>Previous</button></li>
+                                            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                                                let p = totalPages <= 5 ? i + 1 : (currentPage <= 3 ? i + 1 : (currentPage >= totalPages - 2 ? totalPages - 4 + i : currentPage - 2 + i));
+                                                return <li key={p} className={`page-item ${currentPage === p ? 'active' : ''}`}><button className="page-link" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => handlePageChange(p)}>{p}</button></li>;
+                                            })}
+                                            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}><button className="page-link" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => handlePageChange(currentPage + 1)}>Next</button></li>
+                                        </ul></nav>
+                                        <div className="text-center text-muted small" style={{ fontSize: '0.7rem' }}>Showing {((currentPage - 1) * (itemsPerPage === 'all' ? 1 : itemsPerPage)) + 1} to {Math.min(currentPage * (itemsPerPage === 'all' ? filteredAndSortedReport.length : itemsPerPage), filteredAndSortedReport.length)} of {filteredAndSortedReport.length} accounts</div>
+                                    </div></div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="alert alert-warning text-center py-3" style={{ fontSize: '0.8rem' }}>
+                                <i className="fas fa-exclamation-triangle me-2"></i>No accounts match your search criteria.
                             </div>
+                        )
+                    ) : hasGenerated && data.report.length === 0 && !loading ? (
+                        <div className="alert alert-warning text-center py-3" style={{ fontSize: '0.8rem' }}>
+                            <i className="fas fa-exclamation-triangle me-2"></i>No accounts found for the selected date.
+                        </div>
+                    ) : !hasGenerated && !loading && (
+                        <div className="alert alert-info text-center py-3" style={{ fontSize: '0.8rem' }}>
+                            <i className="fas fa-info-circle me-2"></i>Please select an "As on Date" and click "Generate" to view the ageing report.
                         </div>
                     )}
                 </div>
             </div>
-
-            <style>
-                {`
-                    .compact-table .table {
-                        margin-bottom: 0;
-                        font-size: 0.8rem;
-                    }
-                    
-                    .compact-table th,
-                    .compact-table td {
-                        padding: 4px 6px;
-                    }
-                    
-                    .compact-row td {
-                        padding: 4px 6px !important;
-                        vertical-align: middle;
-                    }
-                    
-                    .badge {
-                        font-size: 0.65rem;
-                        padding: 2px 4px;
-                    }
-                    
-                    .form-check-label.small {
-                        font-size: 0.8rem;
-                    }
-                    
-                    .input-group-sm {
-                        height: 30px;
-                    }
-                    
-                    .btn-sm {
-                        padding: 0.25rem 0.5rem;
-                        font-size: 0.75rem;
-                    }
-                    
-                    .sortable:hover {
-                        background-color: #f8f9fa;
-                    }
-                `}
-            </style>
-
-            <NotificationToast
-                show={notification.show}
-                message={notification.message}
-                type={notification.type}
-                onClose={() => setNotification({ ...notification, show: false })}
-            />
+            <NotificationToast show={notification.show} message={notification.message} type={notification.type} duration={notification.duration} onClose={() => setNotification({ ...notification, show: false })} />
         </div>
     );
 };

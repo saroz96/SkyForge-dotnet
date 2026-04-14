@@ -1104,12 +1104,12 @@ const EditPurchase = () => {
 
         const lastData = lastPurchaseData || selectedItemForInsert.stockEntries?.[selectedItemForInsert.stockEntries.length - 1] || {};
 
-        const prevPuPrice = Math.round((lastData.puPrice * (lastData.wsUnit || 1)) * 100) / 100 || 0;
+        const prevPuPrice = Math.round((lastData.puPrice) * 100) / 100 || 0;
         const currentPuPrice = Math.round(selectedItemRate * 100) / 100;
         const ccPercentage = lastData.ccPercentage || 7.5;
         const marginPercentage = lastData.marginPercentage || 0;
         const currency = lastData.currency || 'NPR';
-        const latestMrp = Math.round((lastData.mrp * (lastData.wsUnit || 1)) * 100) / 100 || 0;
+        const latestMrp = Math.round(lastData.mrp * 100) / 100 || 0;
         const salesPrice = Math.round((lastData.price || currentPuPrice) * 100) / 100;
 
         const itemCcAmount = ((currentPuPrice * ccPercentage / 100) * (selectedItemBonus || 0));
@@ -1131,20 +1131,55 @@ const EditPurchase = () => {
     };
 
     // Function to open sales price modal from table row
+    // const openSalesPriceModal = (index) => {
+    //     setSelectedItemIndex(index);
+    //     const item = items[index];
+
+    //     const fullItem = headerSearchResults.find(i => i.id === item.itemId) || item;
+    //     const latestStockEntry = fullItem.stockEntries?.[fullItem.stockEntries.length - 1] || {};
+
+    //     const prevPuPrice = Math.round((latestStockEntry?.puPrice * (latestStockEntry?.wsUnit || 1)) * 100) / 100 || 0;
+    //     const currentPuPrice = Math.round(item.puPrice * 100) / 100;
+    //     const ccPercentage = latestStockEntry?.ccPercentage || 7.5;
+    //     const marginPercentage = latestStockEntry?.marginPercentage || 0;
+    //     const currency = latestStockEntry?.currency || 'NPR';
+    //     const latestMrp = Math.round((latestStockEntry?.mrp * (latestStockEntry?.wsUnit || 1)) * 100) / 100 || 0;
+    //     const salesPrice = Math.round((latestStockEntry?.price * (latestStockEntry?.wsUnit || 1)) * 100) / 100 || currentPuPrice;
+
+    //     const itemCcAmount = ((currentPuPrice * ccPercentage / 100) * (item.bonus || 0));
+
+    //     setSalesPriceData({
+    //         prevPuPrice: prevPuPrice,
+    //         puPrice: currentPuPrice,
+    //         ccPercentage: ccPercentage,
+    //         itemCcAmount: itemCcAmount,
+    //         marginPercentage: marginPercentage,
+    //         currency: currency,
+    //         mrp: latestMrp,
+    //         salesPrice: salesPrice,
+    //         isVatable: item.vatStatus === 'vatable'
+    //     });
+
+    //     setIsHeaderMode(false);
+    //     setShowSalesPriceModal(true);
+    // };
+
+
     const openSalesPriceModal = (index) => {
         setSelectedItemIndex(index);
         const item = items[index];
 
-        const fullItem = headerSearchResults.find(i => i.id === item.itemId) || item;
-        const latestStockEntry = fullItem.stockEntries?.[fullItem.stockEntries.length - 1] || {};
+        // Check if item has stockEntries (from the initial load)
+        // You may need to ensure that items have stockEntries when added
+        const latestStockEntry = item.stockEntries?.sort((a, b) => new Date(b.date) - new Date(a.date))[0] || {};
 
-        const prevPuPrice = Math.round((latestStockEntry?.puPrice * (latestStockEntry?.wsUnit || 1)) * 100) / 100 || 0;
+        const prevPuPrice = Math.round((latestStockEntry.puPrice) * 100) / 100 || 0;
         const currentPuPrice = Math.round(item.puPrice * 100) / 100;
         const ccPercentage = latestStockEntry?.ccPercentage || 7.5;
-        const marginPercentage = latestStockEntry?.marginPercentage || 0;
-        const currency = latestStockEntry?.currency || 'NPR';
-        const latestMrp = Math.round((latestStockEntry?.mrp * (latestStockEntry?.wsUnit || 1)) * 100) / 100 || 0;
-        const salesPrice = Math.round((latestStockEntry?.price * (latestStockEntry?.wsUnit || 1)) * 100) / 100 || currentPuPrice;
+        const marginPercentage = latestStockEntry.marginPercentage || item.marginPercentage || 0;
+        const currency = latestStockEntry.currency || item.currency || 'NPR';
+        const latestMrp = Math.round((latestStockEntry.mrp) * 100) / 100 || item.mrp || 0;
+        const salesPrice = Math.round((latestStockEntry.price) * 100) / 100 || item.price || currentPuPrice;
 
         const itemCcAmount = ((currentPuPrice * ccPercentage / 100) * (item.bonus || 0));
 
@@ -1157,10 +1192,8 @@ const EditPurchase = () => {
             currency: currency,
             mrp: latestMrp,
             salesPrice: salesPrice,
-            isVatable: item.vatStatus === 'vatable'
         });
 
-        setIsHeaderMode(false);
         setShowSalesPriceModal(true);
     };
 

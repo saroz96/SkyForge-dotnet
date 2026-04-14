@@ -1760,7 +1760,7 @@ const AddReceipt = () => {
         try {
             setIsAccountSearching(true);
 
-            const response = await api.get('/api/retailer/all/accounts/search', {
+            const response = await api.get('/api/retailer/all/accounts/search/except-cash/bank', {
                 params: {
                     search: searchTerm,
                     page: page,

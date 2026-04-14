@@ -22,7 +22,7 @@ namespace SkyForge.Models.Retailer.PaymentModel
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }
 
-   
+
         [Column("date")]
         public DateTime Date { get; set; }
 
@@ -107,6 +107,8 @@ namespace SkyForge.Models.Retailer.PaymentModel
         [ForeignKey("AccountGroup")]
         public Guid? AccountGroupId { get; set; }
         public virtual AccountGroup AccountGroup { get; set; } = null!;
+
+        public int LineNumber { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

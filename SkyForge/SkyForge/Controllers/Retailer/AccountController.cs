@@ -418,8 +418,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        [HttpGet("all/accounts/search")]
-        public async Task<IActionResult> SearchAllAccounts([FromQuery] AccountSearchDTO searchDto)
+        [HttpGet("all/accounts/search/except-cash/bank")]
+        public async Task<IActionResult> SearchAllAccountsExceptCashBank([FromQuery] AccountSearchDTO searchDto)
         {
             try
             {
@@ -629,6 +629,203 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
+        [HttpGet("all/accounts/search")]
+        public async Task<IActionResult> SearchAllAccounts([FromQuery] AccountSearchDTO searchDto)
+        {
+            try
+            {
+                _logger.LogInformation("=== SearchAllAccounts Started ===");
+
+                // 1. Extract user and company info from JWT claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                // 2. Validate required claims exist
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // 3. Check if company is selected
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // 4. Check if trade type is Retailer
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // 5. Get fiscal year
+                Guid fiscalYearIdGuid;
+                if (searchDto.FiscalYear.HasValue)
+                {
+                    fiscalYearIdGuid = searchDto.FiscalYear.Value;
+                }
+                else if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    // Use from claims
+                }
+                else
+                {
+                    // Get current active fiscal year
+                    var currentFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (currentFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No fiscal year found"
+                        });
+                    }
+                    fiscalYearIdGuid = currentFiscalYear.Id;
+                }
+
+                // 6. Build base query - INCLUDE ALL ACCOUNTS (removed group exclusions)
+                var baseQuery = _context.Accounts
+                    .Where(a => a.CompanyId == companyIdGuid &&
+                               a.IsActive &&
+                               (a.OriginalFiscalYearId == fiscalYearIdGuid ||
+                                _context.FiscalYears.Any(f => f.Id == fiscalYearIdGuid && f.Id > a.OriginalFiscalYearId)));
+
+                // 7. Apply search if provided
+                if (!string.IsNullOrWhiteSpace(searchDto.Search))
+                {
+                    var searchString = searchDto.Search.Trim();
+
+                    // Try to parse as number for numeric fields
+                    bool isNumeric = decimal.TryParse(searchString, out decimal numericValue);
+
+                    // Build search conditions
+                    var searchQuery = baseQuery.Where(a =>
+                        EF.Functions.ILike(a.Name, $"%{searchString}%") ||
+                        EF.Functions.ILike(a.Address ?? "", $"%{searchString}%") ||
+                        EF.Functions.ILike(a.Phone ?? "", $"%{searchString}%") ||
+                        EF.Functions.ILike(a.Email ?? "", $"%{searchString}%") ||
+                        EF.Functions.ILike(a.ContactPerson ?? "", $"%{searchString}%") ||
+                        EF.Functions.ILike(a.Pan ?? "", $"%{searchString}%"));
+
+                    // Add numeric search if applicable
+                    if (isNumeric)
+                    {
+                        searchQuery = searchQuery.Union(baseQuery.Where(a =>
+                            a.UniqueNumber == (int)numericValue));
+                    }
+
+                    baseQuery = searchQuery;
+                }
+
+                // 8. Get total count for pagination
+                var totalAccounts = await baseQuery.CountAsync();
+
+                // 9. Apply pagination
+                var page = searchDto.Page < 1 ? 1 : searchDto.Page;
+                var limit = searchDto.Limit < 1 ? 25 : searchDto.Limit;
+                var skip = (page - 1) * limit;
+
+                var accounts = await baseQuery
+                    .Include(a => a.AccountGroup)
+                    .OrderBy(a => a.Name)
+                    .Skip(skip)
+                    .Take(limit)
+                    .Select(a => new
+                    {
+                        a.Id,
+                        a.Name,
+                        a.UniqueNumber,
+                        a.Address,
+                        a.Pan,
+                        a.ContactPerson,
+                        a.Email,
+                        a.Phone,
+                        a.CreditLimit,
+                        a.CreatedAt,
+                        a.AccountGroupsId,
+                        AccountGroupName = a.AccountGroup != null ? a.AccountGroup.Name : ""
+                    })
+                    .ToListAsync();
+
+                // 10. Calculate balances for all accounts
+                var accountsWithBalances = new List<AccountSearchResultDTO>();
+
+                foreach (var account in accounts)
+                {
+                    var balanceData = await _accountBalanceService.CalculateAccountBalanceAsync(
+                        account.Id, companyIdGuid, fiscalYearIdGuid);
+
+                    accountsWithBalances.Add(new AccountSearchResultDTO
+                    {
+                        Id = account.Id,
+                        Name = account.Name,
+                        UniqueNumber = account.UniqueNumber,
+                        Address = account.Address ?? "",
+                        Pan = account.Pan,
+                        ContactPerson = account.ContactPerson ?? "",
+                        Email = account.Email,
+                        Phone = account.Phone,
+                        CreditLimit = account.CreditLimit,
+                        CreatedAt = account.CreatedAt,
+                        Balance = balanceData.Balance,
+                        BalanceType = balanceData.BalanceType,
+                        RawBalance = balanceData.RawBalance,
+                    });
+                }
+
+                // 11. Prepare pagination response
+                var pagination = new PaginationDTO
+                {
+                    CurrentPage = page,
+                    TotalPages = (int)Math.Ceiling(totalAccounts / (double)limit),
+                    TotalAccounts = totalAccounts,
+                    AccountsPerPage = limit,
+                    HasNextPage = (page * limit) < totalAccounts,
+                    HasPreviousPage = page > 1
+                };
+
+                // 12. Return response
+                var response = new AccountSearchResponseDTO
+                {
+                    Success = true,
+                    Accounts = accountsWithBalances,
+                    Pagination = pagination
+                };
+
+                _logger.LogInformation("Successfully fetched {Count} accounts for search: {Search} (including cash and bank accounts)",
+                    accountsWithBalances.Count, searchDto.Search ?? "all");
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SearchAllAccounts");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while searching accounts",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
         // GET: api/retailer/companies
         [HttpGet("companies")]
         public async Task<IActionResult> GetCompaniesData()
@@ -1126,23 +1323,34 @@ namespace SkyForge.Controllers.Retailer
                 // Set opening balance amount if needed
                 if (openingBalanceAmount != 0)
                 {
+                    var companyDateFormat = company.DateFormat?.ToString().ToLower() ?? "english";
+                    var isNepaliFormat = companyDateFormat == "nepali";
                     // Create OpeningBalance entity
                     newAccount.OpeningBalance = new OpeningBalance
                     {
                         Id = Guid.NewGuid(),
                         Amount = openingBalanceAmount,
+                        Type = openingBalanceType,
                         FiscalYearId = currentFiscalYear.Id,
-                        Date = currentFiscalYear.StartDate ?? DateTime.UtcNow
+                        Date = isNepaliFormat ? DateTime.MinValue : (currentFiscalYear.StartDate ?? DateTime.UtcNow),
+                        NepaliDate = isNepaliFormat && !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+        ? DateTime.Parse(currentFiscalYear.StartDateNepali)
+        : DateTime.MinValue
                     };
 
                     if (isInitialYear)
                     {
+
                         newAccount.InitialOpeningBalance = new InitialOpeningBalance
                         {
                             Id = Guid.NewGuid(),
                             Amount = openingBalanceAmount,
+                            Type = openingBalanceType,
                             InitialFiscalYearId = initialFiscalYear.Id,
-                            Date = initialFiscalYear.StartDate ?? DateTime.UtcNow
+                            Date = isNepaliFormat ? DateTime.MinValue : (initialFiscalYear.StartDate ?? DateTime.UtcNow),
+                            NepaliDate = isNepaliFormat && !string.IsNullOrEmpty(initialFiscalYear.StartDateNepali)
+            ? DateTime.Parse(initialFiscalYear.StartDateNepali)
+            : DateTime.MinValue
                         };
                     }
 

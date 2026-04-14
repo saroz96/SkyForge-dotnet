@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SkyForge.Data;
 using SkyForge.Services.Retailer.SalesBillServices;
-using SkyForge.Models.CompanyModel; // Add this for TradeType enum
+using SkyForge.Models.CompanyModel;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using SkyForge.Models.Shared;
 using SkyForge.Dto.RetailerDto.SalesBillDto;
+using SkyForge.Dto.RetailerDto;
 
 
 namespace SkyForge.Controllers.Retailer
@@ -3402,6 +3403,314 @@ namespace SkyForge.Controllers.Retailer
                 {
                     success = false,
                     error = "Internal server error while fetching sales bill for printing",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // GET: api/retailer/sales-vat-report
+        [HttpGet("sales-vat-report")]
+        public async Task<IActionResult> GetSalesVatReport([FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetSalesVatReport Started ===");
+
+                // Extract claims from JWT
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+                // Validate user
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Get company details
+                var company = await _context.Companies
+                    .Where(c => c.Id == companyIdGuid)
+                    .Select(c => new CompanyInfoDTO
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Address = c.Address,
+                        City = c.City,
+                        Phone = c.Phone,
+                        Pan = c.Pan,
+                        RenewalDate = c.RenewalDate,
+                        DateFormat = c.DateFormat.ToString(),
+                        VatEnabled = c.VatEnabled,
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (company == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Company not found"
+                    });
+                }
+
+                // Get fiscal year
+                var currentFiscalYear = await _context.FiscalYears
+                    .Where(f => f.Id == fiscalYearIdGuid && f.CompanyId == companyIdGuid)
+                    .Select(f => new FiscalYearDTO
+                    {
+                        Id = f.Id,
+                        Name = f.Name,
+                        StartDate = f.StartDate,
+                        EndDate = f.EndDate,
+                        StartDateNepali = f.StartDateNepali,
+                        EndDateNepali = f.EndDateNepali,
+                        IsActive = f.IsActive,
+                    })
+                    .FirstOrDefaultAsync();
+
+                string companyDateFormat = company.DateFormat?.ToLower() ?? "english";
+                string nepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+                // Get user info
+                var user = await _context.Users
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.Id == userIdGuid);
+
+                bool isAdmin = user?.IsAdmin ?? false;
+                string userRoleName = "User";
+
+                if (isAdmin)
+                {
+                    userRoleName = "Admin";
+                }
+                else if (user?.UserRoles != null)
+                {
+                    var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
+                    if (primaryRole?.Role != null)
+                    {
+                        userRoleName = primaryRole.Role.Name;
+                    }
+                }
+
+                bool isAdminOrSupervisor = isAdmin || userRoleName == "Supervisor";
+
+                // If no date range provided, return empty report
+                if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
+                {
+                    var emptyResponse = new SalesVatReportDTO
+                    {
+                        Company = company,
+                        CurrentFiscalYear = currentFiscalYear,
+                        SalesVatReport = new List<SalesVatEntryDTO>(),
+                        CompanyDateFormat = companyDateFormat,
+                        NepaliDate = nepaliDate,
+                        CurrentCompany = company,
+                        FromDate = fromDate ?? "",
+                        ToDate = toDate ?? "",
+                        CurrentCompanyName = company.Name,
+                        User = new UserInfoDTO
+                        {
+                            Id = user?.Id ?? userIdGuid,
+                            Name = user?.Name ?? "",
+                            Email = user?.Email ?? "",
+                            IsAdmin = isAdmin,
+                            Role = userRoleName,
+                            Preferences = new UserPreferencesDTO
+                            {
+                                Theme = user?.Preferences?.Theme.ToString() ?? "light"
+                            }
+                        },
+                        Theme = user?.Preferences?.Theme.ToString() ?? "light",
+                        IsAdminOrSupervisor = isAdminOrSupervisor
+                    };
+
+                    return Ok(new { success = true, data = emptyResponse });
+                }
+
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = companyDateFormat == "nepali";
+
+                // Parse dates
+                DateTime startDateTime;
+                DateTime endDateTime;
+
+                if (isNepaliFormat)
+                {
+                    if (!DateTime.TryParse(fromDate, out startDateTime))
+                    {
+                        startDateTime = DateTime.MinValue;
+                    }
+                    if (!DateTime.TryParse(toDate, out endDateTime))
+                    {
+                        endDateTime = DateTime.MaxValue;
+                    }
+                }
+                else
+                {
+                    if (!DateTime.TryParse(fromDate, out startDateTime))
+                    {
+                        startDateTime = DateTime.MinValue;
+                    }
+                    if (!DateTime.TryParse(toDate, out endDateTime))
+                    {
+                        endDateTime = DateTime.MaxValue;
+                    }
+                }
+
+                // Set end date to end of day
+                endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
+
+                // Build query for sales bills
+                var query = _context.SalesBills
+                    .Where(sb => sb.CompanyId == companyIdGuid &&
+                                sb.FiscalYearId == fiscalYearIdGuid);
+
+                // Apply date filter based on company's date format
+                if (isNepaliFormat)
+                {
+                    query = query.Where(sb => sb.nepaliDate >= startDateTime && sb.nepaliDate <= endDateTime);
+                }
+                else
+                {
+                    query = query.Where(sb => sb.Date >= startDateTime && sb.Date <= endDateTime);
+                }
+
+                // Include related data
+                var bills = await query
+                    .Include(sb => sb.Account)
+                    .OrderBy(sb => sb.Date)
+                    .ToListAsync();
+
+                // Build the sales VAT report
+                var salesVatReport = new List<SalesVatEntryDTO>();
+
+                foreach (var bill in bills)
+                {
+                    SalesVatEntryDTO entry;
+
+                    if (bill.Account != null)
+                    {
+                        // Credit sale with account
+                        entry = new SalesVatEntryDTO
+                        {
+                            BillNumber = bill.BillNumber,
+                            Date = bill.Date,
+                            NepaliDate = bill.nepaliDate,
+                            AccountName = bill.Account.Name ?? "N/A",
+                            PanNumber = bill.Account.Pan ?? "N/A",
+                            TotalAmount = bill.TotalAmount,
+                            DiscountAmount = bill.DiscountAmount,
+                            NonVatSales = bill.NonVatSales,
+                            TaxableAmount = bill.TaxableAmount,
+                            VatAmount = bill.VatAmount,
+                            IsCash = false
+                        };
+                    }
+                    else
+                    {
+                        // Cash sale
+                        entry = new SalesVatEntryDTO
+                        {
+                            BillNumber = bill.BillNumber,
+                            Date = bill.Date,
+                            NepaliDate = bill.nepaliDate, 
+                            AccountName = bill.CashAccount ?? "Cash Sale",
+                            PanNumber = bill.CashAccountPan ?? "N/A",
+                            TotalAmount = bill.TotalAmount,
+                            DiscountAmount = bill.DiscountAmount,
+                            NonVatSales = bill.NonVatSales,
+                            TaxableAmount = bill.TaxableAmount,
+                            VatAmount = bill.VatAmount,
+                            IsCash = true
+                        };
+                    }
+
+                    salesVatReport.Add(entry);
+                }
+
+                var response = new SalesVatReportDTO
+                {
+                    Company = company,
+                    CurrentFiscalYear = currentFiscalYear,
+                    SalesVatReport = salesVatReport,
+                    CompanyDateFormat = companyDateFormat,
+                    NepaliDate = nepaliDate,
+                    CurrentCompany = company,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    CurrentCompanyName = company.Name,
+                    User = new UserInfoDTO
+                    {
+                        Id = user?.Id ?? userIdGuid,
+                        Name = user?.Name ?? "",
+                        Email = user?.Email ?? "",
+                        IsAdmin = isAdmin,
+                        Role = userRoleName,
+                        Preferences = new UserPreferencesDTO
+                        {
+                            Theme = user?.Preferences?.Theme.ToString() ?? "light"
+                        }
+                    },
+                    Theme = user?.Preferences?.Theme.ToString() ?? "light",
+                    IsAdminOrSupervisor = isAdminOrSupervisor
+                };
+
+                _logger.LogInformation($"Successfully fetched sales VAT report with {salesVatReport.Count} entries");
+
+                return Ok(new { success = true, data = response });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetSalesVatReport");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching sales VAT report",
                     details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
                 });
             }

@@ -110,6 +110,7 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
         [Required]
         [MinLength(2, ErrorMessage = "At least 2 entries required (one debit and one credit)")]
         public List<PaymentEntryDTO> Entries { get; set; } = new List<PaymentEntryDTO>();
+
     }
 
     // DTO for individual payment entry
@@ -140,6 +141,7 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
 
         [StringLength(50)]
         public string? ReferenceNumber { get; set; }
+        public int LineNumber { get; set; }
     }
 
     // Response DTO
@@ -188,6 +190,39 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
         public UserPreferencesDTO UserPreferences { get; set; } = new();
         public PermissionsDTO Permissions { get; set; } = new();
         public string CurrentCompanyName { get; set; } = string.Empty;
+    }
+
+    public class CreatePaymentWithAccountsDTO
+    {
+        [Required]
+        public Guid AccountId { get; set; }  // The account being debited (money source)
+
+        [Required]
+        public Guid PaymentAccountId { get; set; }  // The payment account being credited (money destination)
+
+        [Required]
+        [Range(0.01, double.MaxValue)]
+        public decimal Amount { get; set; }
+
+        [Required]
+        public DateTime Date { get; set; }
+
+        [Required]
+        public DateTime NepaliDate { get; set; }
+
+        [StringLength(500)]
+        public string? Description { get; set; }
+
+        public PaymentInstrumentType? InstType { get; set; }
+
+        [StringLength(100)]
+        public string? BankAcc { get; set; }
+
+        [StringLength(100)]
+        public string? InstNo { get; set; }
+
+        [StringLength(100)]
+        public string? ReferenceNumber { get; set; }
     }
 
 }

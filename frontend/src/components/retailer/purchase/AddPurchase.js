@@ -1249,35 +1249,17 @@ const AddPurchase = () => {
         // const latestStockEntry = fullItem.stockEntries?.[fullItem.stockEntries.length - 1] || {};
         const lastData = lastPurchaseData || fullItem.stockEntries?.[fullItem.stockEntries.length - 1] || {};
 
-        // const prevPuPrice = Math.round((lastData?.puPrice * (lastData?.WSUnit || 1)) * 100) / 100 || 0;
-        // const currentPuPrice = Math.round(selectedItemRate * 100) / 100;
-        // const CCPercentage = lastData?.CCPercentage || 7.5;
-        // const marginPercentage = lastData?.marginPercentage || 0;
-        // const currency = lastData?.currency || 'NPR';
-        // const latestMrp = Math.round((lastData?.mrp * (lastData?.WSUnit || 1)) * 100) / 100 || 0;
-        // const salesPrice = Math.round((lastData?.price * (lastData?.WSUnit || 1)) * 100) / 100 || currentPuPrice;
-
-        // const itemCCAmount = ((currentPuPrice * CCPercentage / 100) * (selectedItemBonus || 0));
-        // Use the correct property names from your DTO
-        const prevPuPrice = Math.round((lastData.puPrice * (lastData.wsUnit || 1)) * 100) / 100 || 0;
+        const prevPuPrice = Math.round((lastData.puPrice) * 100) / 100 || 0;
         const currentPuPrice = Math.round(selectedItemRate * 100) / 100;
         const CCPercentage = lastData.ccPercentage || 7.5;
         const marginPercentage = lastData.marginPercentage || 0;
         const currency = lastData.currency || 'NPR';
-        const latestMrp = Math.round((lastData.mrp * (lastData.wsUnit || 1)) * 100) / 100 || 0;
+        const latestMrp = Math.round((lastData.mrp) * 100) / 100 || 0;
         const salesPrice = Math.round((lastData.price || currentPuPrice) * 100) / 100; // Use puPrice instead of price
 
         const itemCCAmount = ((currentPuPrice * CCPercentage / 100) * (selectedItemBonus || 0));
 
         setSalesPriceData({
-            // prevPuPrice: prevPuPrice,
-            // puPrice: currentPuPrice,
-            // CCPercentage: CCPercentage,
-            // itemCCAmount: itemCCAmount,
-            // marginPercentage: marginPercentage,
-            // currency: currency,
-            // mrp: latestMrp,
-            // salesPrice: salesPrice
             prevPuPrice: prevPuPrice,
             puPrice: currentPuPrice,
             CCPercentage: CCPercentage,
@@ -1291,20 +1273,52 @@ const AddPurchase = () => {
         setShowSalesPriceModal(true);
     };
 
+    // const openSalesPriceModal = (index) => {
+    //     setSelectedItemIndex(index);
+    //     const item = items[index];
+
+    //     const fullItem = headerSearchResults.find(i => i.id === item.itemId) || item;
+    //     const latestStockEntry = fullItem.stockEntries?.[fullItem.stockEntries.length - 1];
+
+    //     const prevPuPrice = Math.round((latestStockEntry?.puPrice * (latestStockEntry?.WSUnit || 1)) * 100) / 100 || 0;
+    //     const currentPuPrice = Math.round(item.puPrice * 100) / 100;
+    //     const CCPercentage = latestStockEntry?.CCPercentage || 7.5;
+    //     const marginPercentage = latestStockEntry?.marginPercentage || 0;
+    //     const currency = latestStockEntry?.currency || 'NPR';
+    //     const latestMrp = Math.round((latestStockEntry?.mrp * (latestStockEntry?.WSUnit || 1)) * 100) / 100 || 0;
+    //     const salesPrice = Math.round((latestStockEntry?.price * (latestStockEntry?.WSUnit || 1)) * 100) / 100 || currentPuPrice;
+
+    //     const itemCCAmount = ((currentPuPrice * CCPercentage / 100) * (item.bonus || 0));
+
+    //     setSalesPriceData({
+    //         prevPuPrice: prevPuPrice,
+    //         puPrice: currentPuPrice,
+    //         CCPercentage: CCPercentage,
+    //         itemCCAmount: itemCCAmount,
+    //         marginPercentage: marginPercentage,
+    //         currency: currency,
+    //         mrp: latestMrp,
+    //         salesPrice: salesPrice
+    //     });
+
+    //     setShowSalesPriceModal(true);
+    // };
+
     const openSalesPriceModal = (index) => {
         setSelectedItemIndex(index);
         const item = items[index];
 
-        const fullItem = headerSearchResults.find(i => i.id === item.itemId) || item;
-        const latestStockEntry = fullItem.stockEntries?.[fullItem.stockEntries.length - 1];
+        // Check if item has stockEntries (from the initial load)
+        // You may need to ensure that items have stockEntries when added
+        const latestStockEntry = item.stockEntries?.sort((a, b) => new Date(b.date) - new Date(a.date))[0] || {};
 
-        const prevPuPrice = Math.round((latestStockEntry?.puPrice * (latestStockEntry?.WSUnit || 1)) * 100) / 100 || 0;
+        const prevPuPrice = Math.round((latestStockEntry.puPrice) * 100) / 100 || 0;
         const currentPuPrice = Math.round(item.puPrice * 100) / 100;
-        const CCPercentage = latestStockEntry?.CCPercentage || 7.5;
-        const marginPercentage = latestStockEntry?.marginPercentage || 0;
-        const currency = latestStockEntry?.currency || 'NPR';
-        const latestMrp = Math.round((latestStockEntry?.mrp * (latestStockEntry?.WSUnit || 1)) * 100) / 100 || 0;
-        const salesPrice = Math.round((latestStockEntry?.price * (latestStockEntry?.WSUnit || 1)) * 100) / 100 || currentPuPrice;
+        const CCPercentage = latestStockEntry.ccPercentage || item.ccPercentage || 7.5;
+        const marginPercentage = latestStockEntry.marginPercentage || item.marginPercentage || 0;
+        const currency = latestStockEntry.currency || item.currency || 'NPR';
+        const latestMrp = Math.round((latestStockEntry.mrp) * 100) / 100 || item.mrp || 0;
+        const salesPrice = Math.round((latestStockEntry.price) * 100) / 100 || item.price || currentPuPrice;
 
         const itemCCAmount = ((currentPuPrice * CCPercentage / 100) * (item.bonus || 0));
 
@@ -1316,7 +1330,7 @@ const AddPurchase = () => {
             marginPercentage: marginPercentage,
             currency: currency,
             mrp: latestMrp,
-            salesPrice: salesPrice
+            salesPrice: salesPrice,
         });
 
         setShowSalesPriceModal(true);
@@ -1402,84 +1416,6 @@ const AddPurchase = () => {
         }
     };
 
-    // const resetForm = async () => {
-    //     try {
-    //         setIsLoading(true);
-
-    //         // Fetch the next bill number
-    //         const numberResponse = await api.get('/api/retailer/purchase/next-number');
-    //         const nextBillNum = numberResponse.data.data.nextPurchaseBillNumber;
-
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/purchase/entry-data');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: nextBillNum,
-    //             partyBillNumber: '',
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             CCAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setStores(data.stores || []);
-    //         setRacksByStore(data.racksByStore || {});
-    //         setNextBillNumber(nextBillNum);
-    //         setItems([]);
-    //         clearDraft();
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting form:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
     // Manual reset function - does NOT increment bill number
     const handleManualReset = async () => {
         try {
@@ -1559,80 +1495,7 @@ const AddPurchase = () => {
         }
     };
 
-    // Reset after save - increments bill number
-    // const resetAfterSave = async () => {
-    //     try {
-    //         // Get next bill number (this increments the counter)
-    //         const nextBillNum = await getNextBillNumber();
 
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/purchase/entry-data');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: nextBillNum, // This will be the next number (incremented)
-    //             partyBillNumber: '',
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             CCAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setStores(data.stores || []);
-    //         setRacksByStore(data.racksByStore || {});
-    //         setNextBillNumber(nextBillNum);
-    //         setItems([]);
-    //         clearDraft();
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting after save:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     }
-    // };
     // Reset after save - use current bill number (does NOT increment)
     const resetAfterSave = async () => {
         try {
@@ -1806,261 +1669,6 @@ const AddPurchase = () => {
         localStorage.setItem('printAfterSavePurchase', isChecked);
     };
 
-    // const printImmediately = async (billId) => {
-    //     try {
-    //         const response = await api.get(`/api/retailer/purchase/${billId}/print`);
-    //         const printData = response.data.data;
-
-    //         const tempDiv = document.createElement('div');
-    //         tempDiv.style.position = 'absolute';
-    //         tempDiv.style.left = '-9999px';
-    //         document.body.appendChild(tempDiv);
-
-    //         tempDiv.innerHTML = `
-    //             <div id="printableContent">
-    //                 <div class="print-invoice-container">
-    //                     <div class="print-invoice-header">
-    //                         <div class="print-company-name">${printData.companyName || 'Company Name'}</div>
-    //                         <div class="print-company-details">
-    //                             Address | Tel: | PAN:
-    //                         </div>
-    //                         <div class="print-invoice-title">PURCHASE INVOICE</div>
-    //                     </div>
-
-    //                     <div class="print-invoice-details">
-    //                         <div>
-    //                             <div><strong>Supplier:</strong> ${printData.accountName || 'N/A'}</div>
-    //                             <div><strong>Address:</strong> ${printData.accountAddress || 'N/A'}</div>
-    //                             <div><strong>PAN:</strong> ${printData.accountPan || 'N/A'}</div>
-    //                             <div><strong>Payment Mode:</strong> ${printData.paymentMode}</div>
-    //                         </div>
-    //                         <div>
-    //                             <div><strong>Invoice No:</strong> ${printData.billNumber}</div>
-    //                             <div><strong>Supplier Inv No:</strong> ${printData.partyBillNumber || 'N/A'}</div>
-    //                             <div><strong>Transaction Date:</strong> ${new Date(printData.transactionDate).toLocaleDateString()}</div>
-    //                             <div><strong>Inv. Issue Date:</strong> ${new Date(printData.date).toLocaleDateString()}</div>
-    //                         </div>
-    //                     </div>
-
-    //                     <table class="print-invoice-table">
-    //                         <thead>
-    //                             <tr>
-    //                                 <th>SN</th>
-    //                                 <th>Code</th>
-    //                                 <th>Description of Goods</th>
-    //                                 <th>Unit</th>
-    //                                 <th>Batch</th>
-    //                                 <th>Expiry</th>
-    //                                 <th>Qty</th>
-    //                                 <th>Free</th>
-    //                                 <th>Rate</th>
-    //                                 <th>Amount</th>
-    //                             </tr>
-    //                         </thead>
-    //                         <tbody>
-    //                             ${printData.items?.map((item, i) => `
-    //                                 <tr key="${i}">
-    //                                     <td>${i + 1}</td>
-    //                                     <td>${item.itemUniqueNumber || 'N/A'}</td>
-    //                                     <td>${item.itemName || 'N/A'}</td>
-    //                                     <td>${item.unitName || 'N/A'}</td>
-    //                                     <td>${item.batchNumber || 'N/A'}</td>
-    //                                     <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-    //                                     <td>${item.quantity || 0}</td>
-    //                                     <td>${item.bonus || 0}</td>
-    //                                     <td>${formatTo2Decimal(item.puPrice)}</td>
-    //                                     <td>${formatTo2Decimal(item.quantity * item.puPrice)}</td>
-    //                                 </tr>
-    //                             `).join('') || ''}
-    //                         </tbody>
-    //                         <tr>
-    //                             <td colSpan="10" style="border-bottom: 1px dashed #000"></td>
-    //                         </tr>
-    //                     </table>
-
-    //                     <table class="print-totals-table">
-    //                         <tbody>
-    //                             <tr>
-    //                                 <td><strong>Sub Total:</strong></td>
-    //                                 <td class="print-text-right">${formatTo2Decimal(printData.subTotal)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Discount (${printData.discountPercentage}%):</strong></td>
-    //                                 <td class="print-text-right">${formatTo2Decimal(printData.discountAmount)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>CC Charge:</strong></td>
-    //                                 <td class="print-text-right">${formatTo2Decimal(printData.totalCcAmount)}</td>
-    //                             </tr>
-    //                             ${!printData.isVatExempt && `
-    //                                 <tr>
-    //                                     <td><strong>Taxable Amount:</strong></td>
-    //                                     <td class="print-text-right">${formatTo2Decimal(printData.taxableAmount)}</td>
-    //                                 </tr>
-    //                                 <tr>
-    //                                     <td><strong>VAT (${printData.vatPercentage}%):</strong></td>
-    //                                     <td class="print-text-right">${formatTo2Decimal(printData.vatAmount)}</td>
-    //                                 </tr>
-    //                             `}
-    //                             <tr>
-    //                                 <td><strong>Round Off:</strong></td>
-    //                                 <td class="print-text-right">${formatTo2Decimal(printData.roundOffAmount)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Grand Total:</strong></td>
-    //                                 <td class="print-text-right">${formatTo2Decimal(printData.totalAmount)}</td>
-    //                             </tr>
-    //                         </tbody>
-    //                     </table>
-
-    //                     <div class="print-amount-in-words">
-    //                         <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.totalAmount)} Only.
-    //                     </div>
-
-    //                     <div class="print-signature-area">
-    //                         <div class="print-signature-box">Prepared By</div>
-    //                         <div class="print-signature-box">Checked By</div>
-    //                         <div class="print-signature-box">Approved By</div>
-    //                     </div>
-    //                 </div>
-    //             </div>
-    //         `;
-
-    //         const styles = `
-    //             @page {
-    //                 size: A4;
-    //                 margin: 5mm;
-    //             }
-    //             body {
-    //                 font-family: 'Arial Narrow', Arial, sans-serif;
-    //                 font-size: 9pt;
-    //                 line-height: 1.2;
-    //                 color: #000;
-    //                 background: white;
-    //                 margin: 0;
-    //                 padding: 0;
-    //             }
-    //             .print-invoice-container {
-    //                 width: 100%;
-    //                 max-width: 210mm;
-    //                 margin: 0 auto;
-    //                 padding: 2mm;
-    //             }
-    //             .print-invoice-header {
-    //                 text-align: center;
-    //                 margin-bottom: 3mm;
-    //                 border-bottom: 1px solid #000;
-    //                 padding-bottom: 2mm;
-    //             }
-    //             .print-invoice-title {
-    //                 font-size: 12pt;
-    //                 font-weight: bold;
-    //                 margin: 2mm 0;
-    //                 text-transform: uppercase;
-    //             }
-    //             .print-company-name {
-    //                 font-size: 16pt;
-    //                 font-weight: bold;
-    //             }
-    //             .print-company-details {
-    //                 font-size: 8pt;
-    //                 margin: 1mm 0;
-    //                 font-weight: bold;
-    //             }
-    //             .print-invoice-details {
-    //                 display: flex;
-    //                 justify-content: space-between;
-    //                 margin: 2mm 0;
-    //                 font-size: 8pt;
-    //             }
-    //             .print-invoice-table {
-    //                 width: 100%;
-    //                 border-collapse: collapse;
-    //                 margin: 3mm 0;
-    //                 font-size: 8pt;
-    //                 border: none;
-    //             }
-    //             .print-invoice-table thead {
-    //                 border-top: 1px solid #000;
-    //                 border-bottom: 1px solid #000;
-    //             }
-    //             .print-invoice-table th {
-    //                 background-color: transparent;
-    //                 border: none;
-    //                 padding: 1mm;
-    //                 text-align: left;
-    //                 font-weight: bold;
-    //             }
-    //             .print-invoice-table td {
-    //                 border: none;
-    //                 padding: 1mm;
-    //                 border-bottom: 1px solid #eee;
-    //             }
-    //             .print-text-right {
-    //                 text-align: right;
-    //             }
-    //             .print-amount-in-words {
-    //                 font-size: 8pt;
-    //                 margin: 2mm 0;
-    //                 padding: 1mm;
-    //                 border: 1px dashed #000;
-    //             }
-    //             .print-signature-area {
-    //                 display: flex;
-    //                 justify-content: space-between;
-    //                 margin-top: 5mm;
-    //                 font-size: 8pt;
-    //             }
-    //             .print-signature-box {
-    //                 text-align: center;
-    //                 width: 30%;
-    //                 border-top: 1px solid #000;
-    //                 padding-top: 1mm;
-    //                 font-weight: bold;
-    //             }
-    //             .print-totals-table {
-    //                 width: 60%;
-    //                 margin-left: auto;
-    //                 border-collapse: collapse;
-    //                 font-size: 8pt;
-    //             }
-    //             .print-totals-table td {
-    //                 padding: 1mm;
-    //             }
-    //         `;
-
-    //         const printWindow = window.open('', '_blank');
-    //         printWindow.document.write(`
-    //             <html>
-    //                 <head>
-    //                     <title>Purchase_Invoice_${printData.billNumber}</title>
-    //                     <style>${styles}</style>
-    //                 </head>
-    //                 <body>
-    //                     ${tempDiv.innerHTML}
-    //                     <script>
-    //                         window.onload = function() {
-    //                             setTimeout(function() {
-    //                                 window.print();
-    //                                 window.close();
-    //                             }, 200);
-    //                         };
-    //                     </script>
-    //                 </body>
-    //             </html>
-    //         `);
-    //         printWindow.document.close();
-
-    //         document.body.removeChild(tempDiv);
-    //     } catch (error) {
-    //         console.error('Error fetching print data:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Bill saved but failed to load print data',
-    //             type: 'warning'
-    //         });
-    //     }
-    // };
 
     const printImmediately = async (billId) => {
         try {
@@ -5144,7 +4752,7 @@ const AddPurchase = () => {
                                 </div>
 
                                 <div className="row g-2 mb-2">
-                                      <div className="col-12 col-md-6">
+                                    <div className="col-12 col-md-6">
                                         <div className="position-relative">
                                             <select
                                                 className="form-control form-control-sm"
@@ -5183,7 +4791,7 @@ const AddPurchase = () => {
                                             </label>
                                         </div>
                                     </div>
-                                     <div className="col-12 col-md-6">
+                                    <div className="col-12 col-md-6">
                                         <div className="position-relative">
                                             <input
                                                 type="number"
@@ -5241,7 +4849,7 @@ const AddPurchase = () => {
                                 </div>
 
                                 <div className="row g-2 mb-2">
-                                     <div className="col-12 col-md-6">
+                                    <div className="col-12 col-md-6">
                                         <div className="position-relative">
                                             <input
                                                 type="number"
@@ -5356,86 +4964,7 @@ const AddPurchase = () => {
                             </div>
 
                             {/* Last Purchase Information Section */}
-                            {lastPurchaseData && (
-                                <div className="row g-2 mb-3">
-                                    <div className="col-12">
-                                        <div className="card border-info">
-                                            <div className="card-header bg-info bg-opacity-10 py-1 px-2">
-                                                <h6 className="mb-0" style={{ fontSize: '0.8rem' }}>
-                                                    <i className="bi bi-clock-history me-1"></i>
-                                                    Last Purchase Details
-                                                </h6>
-                                            </div>
-                                            <div className="card-body py-2 px-2">
-                                                <div className="row g-2">
-                                                    <div className="col-6 col-md-3">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Bill No:</small>
-                                                        <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>
-                                                            {lastPurchaseData.billNumber || 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-6 col-md-3">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Date:</small>
-                                                        <span style={{ fontSize: '0.75rem' }}>
-                                                            {lastPurchaseData.date ? new Date(lastPurchaseData.date).toLocaleDateString() : 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-6 col-md-2">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Rate:</small>
-                                                        <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>
-                                                            Rs. {lastPurchaseData.puPrice?.toFixed(2) || '0.00'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-6 col-md-2">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>MRP:</small>
-                                                        <span style={{ fontSize: '0.75rem' }}>
-                                                            Rs. {lastPurchaseData.mrp?.toFixed(2) || '0.00'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-6 col-md-2">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Unit:</small>
-                                                        <span style={{ fontSize: '0.75rem' }}>
-                                                            {lastPurchaseData.unitName || 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="row g-2 mt-1">
-                                                    <div className="col-6 col-md-3">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Batch:</small>
-                                                        <span style={{ fontSize: '0.75rem' }}>
-                                                            {lastPurchaseData.batchNumber || 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-6 col-md-3">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Expiry:</small>
-                                                        <span style={{ fontSize: '0.75rem' }}>
-                                                            {lastPurchaseData.expiryDate || 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-6 col-md-2">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Qty:</small>
-                                                        <span style={{ fontSize: '0.75rem' }}>
-                                                            {lastPurchaseData.quantity || 0}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-6 col-md-2">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Bonus:</small>
-                                                        <span style={{ fontSize: '0.75rem' }}>
-                                                            {lastPurchaseData.bonus || 0}
-                                                        </span>
-                                                    </div>
-                                                    <div className="col-6 col-md-2">
-                                                        <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>CC %:</small>
-                                                        <span style={{ fontSize: '0.75rem' }}>
-                                                            {lastPurchaseData.ccPercentage?.toFixed(2) || '7.50'}%
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+
                             <div className="modal-footer py-1 px-3" style={{ backgroundColor: '#f8f9fa', borderTop: '1px solid #dee2e6' }}>
                                 <button
                                     type="button"

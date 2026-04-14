@@ -6,6 +6,7 @@ using SkyForge.Models.Retailer.ReceiptModel;
 using SkyForge.Services.BillNumberServices;
 using SkyForge.Models.Retailer.TransactionModel;
 using SkyForge.Dto.RetailerDto;
+using SkyForge.Models.AccountModel;
 
 namespace SkyForge.Services.Retailer.ReceiptServices
 {
@@ -206,7 +207,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
 
         // public async Task<Receipt> CreateReceiptAsync(CreateReceiptDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         // {
-        //     // Start a transaction
         //     var executionStrategy = _context.Database.CreateExecutionStrategy();
 
         //     return await executionStrategy.ExecuteAsync(async () =>
@@ -217,111 +217,139 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         //         {
         //             _logger.LogInformation("CreateReceiptAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
 
-        //             // Validation
-        //             if (dto.AccountId == Guid.Empty)
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
         //             {
-        //                 throw new ArgumentException("Account ID is required.");
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
         //             }
 
-        //             if (dto.ReceiptAccountId == Guid.Empty)
+        //             // Calculate totals and validate
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
         //             {
-        //                 throw new ArgumentException("Receipt account ID is required.");
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
         //             }
 
-        //             if (dto.Credit <= 0)
+        //             // Identify debit and credit entries
+        //             var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+        //             var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
+
+        //             if (debitEntry == null || creditEntry == null)
         //             {
-        //                 throw new ArgumentException("Credit amount must be greater than 0.");
+        //                 throw new ArgumentException("Both debit and credit entries are required");
         //             }
+
+        //             // Store accounts for setting navigation properties
+        //             var accountCache = new Dictionary<Guid, Account>();
+
+        //             // Verify debit account (Party account - money source)
+        //             var debitAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+        //             if (debitAccount == null)
+        //             {
+        //                 throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
+        //             }
+        //             accountCache[debitEntry.AccountId] = debitAccount;
+
+        //             // Verify credit account (Receipt account - money destination, e.g., Cash/Bank)
+        //             var creditAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+        //             if (creditAccount == null)
+        //             {
+        //                 throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
+        //             }
+        //             accountCache[creditEntry.AccountId] = creditAccount;
 
         //             // Get bill number
         //             var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "receipt");
 
-        //             // Verify accounts exist
-        //             var creditedAccount = await _context.Accounts
-        //                 .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
-
-        //             if (creditedAccount == null)
-        //             {
-        //                 throw new ArgumentException("Credited account not found.");
-        //             }
-
-        //             var debitAccount = await _context.Accounts
-        //                 .FirstOrDefaultAsync(a => a.Id == dto.ReceiptAccountId && a.CompanyId == companyId);
-
-        //             if (debitAccount == null)
-        //             {
-        //                 throw new ArgumentException("Receipt account not found.");
-        //             }
-
-        //             // Create receipt record
+        //             // Create receipt master record
         //             var receipt = new Receipt
         //             {
         //                 Id = Guid.NewGuid(),
         //                 BillNumber = billNumber,
-        //                 AccountId = dto.AccountId,
-        //                 Credit = dto.Credit,
-        //                 Debit = dto.Credit,
-        //                 ReceiptAccountId = dto.ReceiptAccountId,
-        //                 InstType = dto.InstType,
-        //                 InstNo = dto.InstNo ?? string.Empty,
-        //                 BankAcc = dto.BankAcc ?? string.Empty,
+        //                 TotalAmount = totalCredit,
+        //                 Date = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
         //                 Description = dto.Description,
         //                 UserId = userId,
         //                 CompanyId = companyId,
         //                 FiscalYearId = fiscalYearId,
-        //                 IsActive = true,
         //                 Status = ReceiptStatus.Active,
-        //                 Date = dto.Date,
-        //                 NepaliDate = dto.NepaliDate,
+        //                 IsActive = true,
         //                 CreatedAt = DateTime.UtcNow
         //             };
 
         //             await _context.Receipts.AddAsync(receipt);
 
-        //             // Create credit transaction (for the account being credited)
-        //             var creditTransaction = new Transaction
+        //             // Create receipt entries
+        //             var debitReceiptEntry = new ReceiptEntry
         //             {
         //                 Id = Guid.NewGuid(),
-        //                 AccountId = dto.AccountId,
-        //                 ReceiptAccountId = receipt.Id,
-        //                 Type = TransactionType.Rcpt,
-        //                 DrCrNoteAccountTypes = "Credit",
-        //                 BillNumber = billNumber,
-        //                 AccountTypeId = dto.ReceiptAccountId, // Store receipt account as string
-        //                 InstType = (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)dto.InstType,
-        //                 InstNo = dto.InstNo,
-        //                 BankAcc = dto.BankAcc,
-        //                 Credit = dto.Credit,
-        //                 Debit = 0,
-        //                 PaymentMode = PaymentMode.Receipt,
-        //                 PaymentReceiptType = "Receipt",
-        //                 Date = receipt.Date,
-        //                 nepaliDate = receipt.NepaliDate,
-        //                 IsActive = true,
-        //                 CompanyId = companyId,
-        //                 FiscalYearId = fiscalYearId,
+        //                 ReceiptId = receipt.Id,
+        //                 AccountId = debitEntry.AccountId,
+        //                 EntryType = "Debit",
+        //                 Amount = debitEntry.Amount,
+        //                 Description = debitEntry.Description,
+        //                 InstType = debitEntry.InstType,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 InstNo = debitEntry.InstNo,
+        //                 ReferenceNumber = debitEntry.ReferenceNumber,
         //                 CreatedAt = DateTime.UtcNow
         //             };
 
-        //             await _context.Transactions.AddAsync(creditTransaction);
+        //             var creditReceiptEntry = new ReceiptEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ReceiptId = receipt.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 EntryType = "Credit",
+        //                 Amount = creditEntry.Amount,
+        //                 Description = creditEntry.Description,
+        //                 InstType = creditEntry.InstType,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 InstNo = creditEntry.InstNo,
+        //                 ReferenceNumber = creditEntry.ReferenceNumber,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
 
-        //             // Create debit transaction (for the receipt account)
+        //             await _context.ReceiptEntries.AddRangeAsync(new[] { debitReceiptEntry, creditReceiptEntry });
+
+        //             // Create transactions with opposite account names in PaymentReceiptType
+        //             var transactions = new List<Transaction>();
+
+        //             // 1. DEBIT transaction (Money coming OUT from Party Account)
+        //             decimal previousDebitBalance = 0;
+        //             var lastDebitTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == debitEntry.AccountId && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastDebitTransaction != null)
+        //             {
+        //                 previousDebitBalance = lastDebitTransaction.Balance ?? 0;
+        //             }
+        //             decimal newDebitBalance = previousDebitBalance - debitEntry.Amount; // Decrease balance for debit in receipt
+
         //             var debitTransaction = new Transaction
         //             {
         //                 Id = Guid.NewGuid(),
-        //                 AccountId = dto.ReceiptAccountId,
         //                 ReceiptAccountId = receipt.Id,
+        //                 AccountId = debitEntry.AccountId,
         //                 Type = TransactionType.Rcpt,
         //                 DrCrNoteAccountTypes = "Debit",
+        //                 PaymentReceiptType = creditAccount.Name,  // Store the receipt account name (Cash/Bank account)
         //                 BillNumber = billNumber,
-        //                 AccountTypeId = dto.AccountId, // Store credited account as string
-        //                 InstType = (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)dto.InstType,
-        //                 InstNo = dto.InstNo,
-        //                 BankAcc = dto.BankAcc,
+        //                 InstType = debitEntry.InstType.HasValue
+        //                     ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+        //                     : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = debitEntry.InstNo,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 Debit = debitEntry.Amount,
         //                 Credit = 0,
-        //                 Debit = dto.Credit,
+        //                 Balance = newDebitBalance,
         //                 PaymentMode = PaymentMode.Receipt,
-        //                 PaymentReceiptType = "Payment",
         //                 Date = receipt.Date,
         //                 nepaliDate = receipt.NepaliDate,
         //                 IsActive = true,
@@ -329,17 +357,55 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         //                 FiscalYearId = fiscalYearId,
         //                 CreatedAt = DateTime.UtcNow
         //             };
+        //             transactions.Add(debitTransaction);
 
-        //             await _context.Transactions.AddAsync(debitTransaction);
+        //             // 2. CREDIT transaction (Money coming IN to Receipt Account - Cash/Bank)
+        //             decimal previousCreditBalance = 0;
+        //             var lastCreditTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == creditEntry.AccountId && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastCreditTransaction != null)
+        //             {
+        //                 previousCreditBalance = lastCreditTransaction.Balance ?? 0;
+        //             }
+        //             decimal newCreditBalance = previousCreditBalance + creditEntry.Amount; // Increase balance for credit in receipt
 
-        //             // Save all changes
+        //             var creditTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ReceiptAccountId = receipt.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 Type = TransactionType.Rcpt,
+        //                 DrCrNoteAccountTypes = "Credit",
+        //                 PaymentReceiptType = debitAccount.Name,  // Store the party account name (money source)
+        //                 BillNumber = billNumber,
+        //                 InstType = creditEntry.InstType.HasValue
+        //                     ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+        //                     : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = creditEntry.InstNo,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 Debit = 0,
+        //                 Credit = creditEntry.Amount,
+        //                 Balance = newCreditBalance,
+        //                 PaymentMode = PaymentMode.Receipt,
+        //                 Date = receipt.Date,
+        //                 nepaliDate = receipt.NepaliDate,
+        //                 IsActive = true,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             transactions.Add(creditTransaction);
+
+        //             await _context.Transactions.AddRangeAsync(transactions);
         //             await _context.SaveChangesAsync();
 
         //             // Commit transaction
         //             await transaction.CommitAsync();
 
-        //             _logger.LogInformation("Receipt created successfully. ID: {ReceiptId}, BillNumber: {BillNumber}",
-        //                 receipt.Id, receipt.BillNumber);
+        //             _logger.LogInformation("Receipt created successfully. ID: {ReceiptId}, BillNumber: {BillNumber}, Amount: {Amount}, From: {FromAccount}, To: {ToAccount}",
+        //                 receipt.Id, receipt.BillNumber, creditEntry.Amount, debitAccount.Name, creditAccount.Name);
 
         //             return receipt;
         //         }
@@ -351,6 +417,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         //         }
         //     });
         // }
+
         public async Task<Receipt> CreateReceiptAsync(CreateReceiptDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -378,17 +445,35 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
                     }
 
-                    // Verify all accounts exist and belong to company
-                    foreach (var entry in dto.Entries)
-                    {
-                        var account = await _context.Accounts
-                            .FirstOrDefaultAsync(a => a.Id == entry.AccountId && a.CompanyId == companyId);
+                    // Identify debit and credit entries
+                    var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+                    var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
 
-                        if (account == null)
-                        {
-                            throw new ArgumentException($"Account with ID {entry.AccountId} not found");
-                        }
+                    if (debitEntry == null || creditEntry == null)
+                    {
+                        throw new ArgumentException("Both debit and credit entries are required");
                     }
+
+                    // Store accounts for setting navigation properties
+                    var accountCache = new Dictionary<Guid, Account>();
+
+                    // Verify debit account (Party account - money source)
+                    var debitAccount = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+                    if (debitAccount == null)
+                    {
+                        throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
+                    }
+                    accountCache[debitEntry.AccountId] = debitAccount;
+
+                    // Verify credit account (Receipt account - money destination, e.g., Cash/Bank)
+                    var creditAccount = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+                    if (creditAccount == null)
+                    {
+                        throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
+                    }
+                    accountCache[creditEntry.AccountId] = creditAccount;
 
                     // Get bill number
                     var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "receipt");
@@ -398,7 +483,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     {
                         Id = Guid.NewGuid(),
                         BillNumber = billNumber,
-                        TotalAmount = totalCredit, // or totalCredit, they're equal
+                        TotalAmount = totalCredit,
                         Date = dto.Date,
                         NepaliDate = dto.NepaliDate,
                         Description = dto.Description,
@@ -412,57 +497,97 @@ namespace SkyForge.Services.Retailer.ReceiptServices
 
                     await _context.Receipts.AddAsync(receipt);
 
-                    // Create receipt entries and transactions
+                    // Create receipt entries
+                    var debitReceiptEntry = new ReceiptEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ReceiptId = receipt.Id,
+                        AccountId = debitEntry.AccountId,
+                        EntryType = "Debit",
+                        Amount = debitEntry.Amount,
+                        Description = debitEntry.Description,
+                        InstType = debitEntry.InstType,
+                        BankAcc = debitEntry.BankAcc,
+                        InstNo = debitEntry.InstNo,
+                        ReferenceNumber = debitEntry.ReferenceNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    var creditReceiptEntry = new ReceiptEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ReceiptId = receipt.Id,
+                        AccountId = creditEntry.AccountId,
+                        EntryType = "Credit",
+                        Amount = creditEntry.Amount,
+                        Description = creditEntry.Description,
+                        InstType = creditEntry.InstType,
+                        BankAcc = creditEntry.BankAcc,
+                        InstNo = creditEntry.InstNo,
+                        ReferenceNumber = creditEntry.ReferenceNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _context.ReceiptEntries.AddRangeAsync(new[] { debitReceiptEntry, creditReceiptEntry });
+
+                    // Create transactions with opposite account names in PaymentReceiptType
                     var transactions = new List<Transaction>();
 
-                    foreach (var entryDto in dto.Entries)
+                    // 1. DEBIT transaction (Money coming OUT from Party Account)
+                    var debitTransaction = new Transaction
                     {
-                        // Create receipt entry
-                        var receiptEntry = new ReceiptEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            ReceiptId = receipt.Id,
-                            AccountId = entryDto.AccountId,
-                            EntryType = entryDto.EntryType,
-                            Amount = entryDto.Amount,
-                            Description = entryDto.Description,
-                            InstType = entryDto.InstType,
-                            BankAcc = entryDto.BankAcc,
-                            InstNo = entryDto.InstNo,
-                            ReferenceNumber = entryDto.ReferenceNumber,
-                            CreatedAt = DateTime.UtcNow
-                        };
+                        Id = Guid.NewGuid(),
+                        ReceiptAccountId = receipt.Id,
+                        AccountId = debitEntry.AccountId,
+                        Type = TransactionType.Rcpt,
+                        DrCrNoteAccountTypes = "Debit",
+                        PaymentReceiptType = creditAccount.Name,  // Store the receipt account name (Cash/Bank account)
+                        BillNumber = billNumber,
+                        InstType = debitEntry.InstType.HasValue
+                            ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+                            : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
+                        InstNo = debitEntry.InstNo,
+                        BankAcc = debitEntry.BankAcc,
+                        TotalDebit = debitEntry.Amount,
+                        TotalCredit = 0,
+                        PaymentMode = PaymentMode.Receipt,
+                        Date = receipt.Date,
+                        nepaliDate = receipt.NepaliDate,
+                        IsActive = true,
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active
+                    };
+                    transactions.Add(debitTransaction);
 
-                        await _context.ReceiptEntries.AddAsync(receiptEntry);
-
-                        // Create corresponding transaction
-                        var receiptTransaction = new Transaction
-                        {
-                            Id = Guid.NewGuid(),
-                            ReceiptAccountId = receipt.Id,
-                            AccountId = entryDto.AccountId,
-                            Type = TransactionType.Rcpt,
-                            DrCrNoteAccountTypes = entryDto.EntryType,
-                            BillNumber = billNumber,
-                            InstType = entryDto.InstType.HasValue
-                                ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)entryDto.InstType.Value
-                                : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
-                            InstNo = entryDto.InstNo,
-                            BankAcc = entryDto.BankAcc,
-                            Debit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
-                            Credit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
-                            PaymentMode = PaymentMode.Receipt,
-                            PaymentReceiptType = entryDto.EntryType == "Debit" ? "Receipt" : "Payment",
-                            Date = receipt.Date,
-                            nepaliDate = receipt.NepaliDate,
-                            IsActive = true,
-                            CompanyId = companyId,
-                            FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow
-                        };
-
-                        transactions.Add(receiptTransaction);
-                    }
+                    // 2. CREDIT transaction (Money coming IN to Receipt Account - Cash/Bank)
+                    var creditTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        ReceiptAccountId = receipt.Id,
+                        AccountId = creditEntry.AccountId,
+                        Type = TransactionType.Rcpt,
+                        DrCrNoteAccountTypes = "Credit",
+                        PaymentReceiptType = debitAccount.Name,  // Store the party account name (money source)
+                        BillNumber = billNumber,
+                        InstType = creditEntry.InstType.HasValue
+                            ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+                            : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
+                        InstNo = creditEntry.InstNo,
+                        BankAcc = creditEntry.BankAcc,
+                        TotalDebit = 0,
+                        TotalCredit = creditEntry.Amount,
+                        PaymentMode = PaymentMode.Receipt,
+                        Date = receipt.Date,
+                        nepaliDate = receipt.NepaliDate,
+                        IsActive = true,
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active
+                    };
+                    transactions.Add(creditTransaction);
 
                     await _context.Transactions.AddRangeAsync(transactions);
                     await _context.SaveChangesAsync();
@@ -470,8 +595,8 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     // Commit transaction
                     await transaction.CommitAsync();
 
-                    _logger.LogInformation("Receipt created successfully. ID: {ReceiptId}, BillNumber: {BillNumber}, Total: {TotalAmount}",
-                        receipt.Id, receipt.BillNumber, receipt.TotalAmount);
+                    _logger.LogInformation("Receipt created successfully. ID: {ReceiptId}, BillNumber: {BillNumber}, Amount: {Amount}, From: {FromAccount}, To: {ToAccount}",
+                        receipt.Id, receipt.BillNumber, creditEntry.Amount, debitAccount.Name, creditAccount.Name);
 
                     return receipt;
                 }
@@ -693,247 +818,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
             }
         }
 
-
-
-
-
-
-        // public async Task<ReceiptEditDataDTO> GetReceiptEditDataAsync(Guid receiptId, Guid companyId, Guid fiscalYearId, Guid userId)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetReceiptEditDataAsync called for Receipt ID: {ReceiptId}, Company: {CompanyId}, FiscalYear: {FiscalYearId}",
-        //             receiptId, companyId, fiscalYearId);
-
-        //         // Get company information
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Address = c.Address,
-        //                 City = c.City,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 RenewalDate = c.RenewalDate,
-        //                 DateFormat = c.DateFormat.ToString(),
-        //                 VatEnabled = c.VatEnabled,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         // Determine if company uses Nepali date format
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
-        //             company.DateFormat, isNepaliFormat);
-
-        //         // Get fiscal year
-        //         var currentFiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive,
-        //                 DateFormat = f.DateFormat.ToString(),
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (currentFiscalYear == null)
-        //             throw new ArgumentException("Fiscal year not found");
-
-        //         // Get company date format
-        //         string companyDateFormat = company.DateFormat?.ToLower() ?? "english";
-
-        //         // Get today's date
-        //         var today = DateTime.UtcNow;
-        //         var nepaliDate = today.ToString("yyyy-MM-dd");
-
-        //         // Fetch receipt with all related data
-        //         var receipt = await _context.Receipts
-        //             .Include(r => r.Account)
-        //             .Include(r => r.ReceiptAccount)
-        //             .Include(r => r.User)
-        //             .FirstOrDefaultAsync(r => r.Id == receiptId &&
-        //                                      r.CompanyId == companyId &&
-        //                                      r.FiscalYearId == fiscalYearId);
-
-        //         if (receipt == null)
-        //             throw new ArgumentException("Receipt voucher not found or does not belong to the selected company/fiscal year");
-
-        //         // Get account groups to include/exclude
-        //         var groupsToInclude = await _context.AccountGroups
-        //             .Where(ag => ag.CompanyId == companyId &&
-        //                    (ag.Name == "Cash in Hand" || ag.Name == "Bank Accounts" || ag.Name == "Bank O/D Account"))
-        //             .Select(ag => ag.Id)
-        //             .ToListAsync();
-
-        //         // Get groups to exclude from regular accounts list
-        //         var groupsToExclude = groupsToInclude;
-
-        //         // Fetch cash accounts (Cash in Hand group)
-        //         var cashAccounts = await _context.Accounts
-        //             .Where(a => a.CompanyId == companyId &&
-        //                    a.IsActive &&
-        //                    a.OriginalFiscalYearId == fiscalYearId &&
-        //                    groupsToInclude.Contains(a.AccountGroupsId) &&
-        //                    _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId && ag.Name == "Cash in Hand"))
-        //             .Select(a => new AccountInfoDTO
-        //             {
-        //                 Id = a.Id,
-        //                 Name = a.Name,
-        //                 UniqueNumber = a.UniqueNumber,
-        //                 Address = a.Address,
-        //                 Phone = a.Phone,
-        //                 Pan = a.Pan,
-        //             })
-        //             .ToListAsync();
-
-        //         // Fetch bank accounts (Bank Accounts and Bank O/D Account groups)
-        //         var bankAccounts = await _context.Accounts
-        //             .Where(a => a.CompanyId == companyId &&
-        //                    a.IsActive &&
-        //                    a.OriginalFiscalYearId == fiscalYearId &&
-        //                    groupsToInclude.Contains(a.AccountGroupsId) &&
-        //                    _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId &&
-        //                        (ag.Name == "Bank Accounts" || ag.Name == "Bank O/D Account")))
-        //             .Select(a => new AccountInfoDTO
-        //             {
-        //                 Id = a.Id,
-        //                 Name = a.Name,
-        //                 UniqueNumber = a.UniqueNumber,
-        //                 Address = a.Address,
-        //                 Phone = a.Phone,
-        //                 Pan = a.Pan,
-        //             })
-        //             .ToListAsync();
-
-        //         // Combine cash and bank accounts for receipt accounts dropdown
-        //         var receiptAccounts = cashAccounts.Concat(bankAccounts).ToList();
-
-        //         // Fetch regular accounts (excluding cash and bank accounts)
-        //         var accounts = await _context.Accounts
-        //             .Where(a => a.CompanyId == companyId &&
-        //                    a.IsActive &&
-        //                    a.OriginalFiscalYearId == fiscalYearId &&
-        //                    !groupsToExclude.Contains(a.AccountGroupsId))
-        //             .Select(a => new AccountInfoDTO
-        //             {
-        //                 Id = a.Id,
-        //                 Name = a.Name,
-        //                 UniqueNumber = a.UniqueNumber,
-        //                 Address = a.Address,
-        //                 Phone = a.Phone,
-        //                 Pan = a.Pan,
-        //             })
-        //             .ToListAsync();
-
-        //         // Get user with roles
-        //         var user = await _context.Users
-        //             .Include(u => u.UserRoles)
-        //                 .ThenInclude(ur => ur.Role)
-        //             .FirstOrDefaultAsync(u => u.Id == userId);
-
-        //         bool isAdmin = user?.IsAdmin ?? false;
-        //         string userRole = "User";
-
-        //         if (isAdmin)
-        //         {
-        //             userRole = "Admin";
-        //         }
-        //         else if (user?.UserRoles != null)
-        //         {
-        //             var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
-        //             if (primaryRole?.Role != null)
-        //             {
-        //                 userRole = primaryRole.Role.Name;
-        //             }
-        //         }
-
-        //         bool isAdminOrSupervisor = isAdmin || userRole == "Supervisor";
-
-        //         // Create user info DTO
-        //         var userInfo = new UserEditInfoDTO
-        //         {
-        //             Id = user?.Id ?? userId,
-        //             Name = user?.Name ?? "Unknown",
-        //             Email = user?.Email ?? string.Empty,
-        //             IsAdmin = isAdmin,
-        //             Role = userRole,
-        //             Preferences = new UserPreferencesDTO
-        //             {
-        //                 Theme = user?.Preferences?.Theme.ToString() ?? "light"
-        //             }
-        //         };
-
-        //         // Map receipt to edit DTO
-        //         var receiptDto = MapToReceiptEditDTO(receipt, companyDateFormat);
-
-        //         // Create response
-        //         var response = new ReceiptEditDataDTO
-        //         {
-        //             Company = company,
-        //             Receipt = receiptDto,
-        //             Accounts = accounts,
-        //             CashAccounts = cashAccounts,
-        //             BankAccounts = bankAccounts,
-        //             ReceiptAccounts = receiptAccounts,
-        //             CurrentFiscalYear = currentFiscalYear,
-        //             NepaliDate = nepaliDate,
-        //             CompanyDateFormat = companyDateFormat,
-        //             CurrentCompanyName = company.Name,
-        //             CurrentDate = today,
-        //             User = userInfo,
-        //             IsAdminOrSupervisor = isAdminOrSupervisor
-        //         };
-
-        //         _logger.LogInformation("Successfully retrieved receipt edit data for Receipt ID: {ReceiptId}", receiptId);
-
-        //         return response;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting receipt edit data for Receipt ID: {ReceiptId}", receiptId);
-        //         throw;
-        //     }
-        // }
-
-        // private ReceiptEditDTO MapToReceiptEditDTO(Receipt receipt, string companyDateFormat)
-        // {
-        //     bool isNepaliFormat = companyDateFormat?.ToLower() == "nepali";
-
-        //     return new ReceiptEditDTO
-        //     {
-        //         Id = receipt.Id,
-        //         BillNumber = receipt.BillNumber,
-        //         Date = isNepaliFormat ? receipt.NepaliDate : receipt.Date,
-        //         NepaliDate = receipt.NepaliDate,
-        //         AccountId = receipt.AccountId ?? Guid.Empty,
-        //         AccountName = receipt.Account?.Name ?? string.Empty,
-        //         AccountPan = receipt.Account?.Pan ?? string.Empty,
-        //         AccountAddress = receipt.Account?.Address ?? string.Empty,
-        //         Credit = receipt.Credit,
-        //         ReceiptAccountId = receipt.ReceiptAccountId ?? Guid.Empty,
-        //         ReceiptAccountName = receipt.ReceiptAccount?.Name ?? string.Empty,
-        //         InstType = receipt.InstType.ToString(),
-        //         InstNo = receipt.InstNo,
-        //         BankAcc = receipt.BankAcc,
-        //         Description = receipt.Description,
-        //         UserName = receipt.User?.Name ?? string.Empty,
-        //         UserEmail = receipt.User?.Email ?? string.Empty,
-        //         Status = receipt.Status.ToString(),
-        //         CreatedAt = receipt.CreatedAt,
-        //         UpdatedAt = receipt.UpdatedAt
-        //     };
-        // }
 
         public async Task<ReceiptEditDataDTO> GetReceiptEditDataAsync(Guid receiptId, Guid companyId, Guid fiscalYearId, Guid userId)
         {
@@ -1187,9 +1071,9 @@ namespace SkyForge.Services.Retailer.ReceiptServices
             }).ToList();
         }
 
+
         // public async Task<Receipt> UpdateReceiptAsync(Guid id, UpdateReceiptDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         // {
-        //     // Use execution strategy for transaction handling
         //     var executionStrategy = _context.Database.CreateExecutionStrategy();
 
         //     return await executionStrategy.ExecuteAsync(async () =>
@@ -1200,51 +1084,49 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         //         {
         //             _logger.LogInformation("=== Starting UpdateReceiptAsync for Receipt ID: {ReceiptId} ===", id);
 
-        //             // Validate required fields
-        //             if (dto.AccountId == Guid.Empty)
-        //                 throw new ArgumentException("Account ID is required");
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
 
-        //             if (dto.ReceiptAccountId == Guid.Empty)
-        //                 throw new ArgumentException("Receipt account ID is required");
+        //             // Identify debit and credit entries
+        //             var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+        //             var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
 
-        //             if (dto.Credit <= 0)
-        //                 throw new ArgumentException("Credit amount must be greater than 0");
+        //             if (debitEntry == null || creditEntry == null)
+        //                 throw new ArgumentException("Both debit and credit entries are required");
 
-        //             // Get the existing receipt
+        //             if (debitEntry.Amount != creditEntry.Amount)
+        //                 throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
+
+        //             // Get existing receipt with entries
         //             var existingReceipt = await _context.Receipts
+        //                 .Include(r => r.ReceiptEntries)
         //                 .FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId);
 
         //             if (existingReceipt == null)
         //                 throw new ArgumentException("Receipt voucher not found");
 
-        //             // Get company to check date format
+        //             // Validate accounts exist
+        //             var debitAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+        //             if (debitAccount == null)
+        //                 throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
+
+        //             var creditAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+        //             if (creditAccount == null)
+        //                 throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
+
         //             var company = await _context.Companies.FindAsync(companyId);
         //             if (company == null)
         //                 throw new ArgumentException("Company not found");
 
         //             var fiscalYear = await _context.FiscalYears
         //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
-
         //             if (fiscalYear == null)
         //                 throw new ArgumentException("Fiscal year not found");
 
-        //             // Verify accounts exist and belong to company
-        //             var creditedAccount = await _context.Accounts
-        //                 .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
-
-        //             if (creditedAccount == null)
-        //                 throw new ArgumentException("Credited account not found.");
-
-        //             var debitAccount = await _context.Accounts
-        //                 .FirstOrDefaultAsync(a => a.Id == dto.ReceiptAccountId && a.CompanyId == companyId);
-
-        //             if (debitAccount == null)
-        //                 throw new ArgumentException("Receipt account not found.");
-
-        //             // Get payment mode
-        //             var paymentMode = ParsePaymentMode(dto.PaymentMode);
-
-        //             // STEP 1: Delete existing transactions for this receipt
+        //             // Delete existing transactions
         //             var existingTransactions = await _context.Transactions
         //                 .Where(t => t.ReceiptAccountId == id)
         //                 .ToListAsync();
@@ -1255,93 +1137,74 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         //                 _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
         //             }
 
-        //             // Save changes after deletions
+        //             // Delete existing entries
+        //             if (existingReceipt.ReceiptEntries.Any())
+        //             {
+        //                 _context.ReceiptEntries.RemoveRange(existingReceipt.ReceiptEntries);
+        //                 _logger.LogInformation("Deleted {Count} existing entries", existingReceipt.ReceiptEntries.Count);
+        //             }
+
         //             await _context.SaveChangesAsync();
 
-        //             // STEP 2: UPDATE RECEIPT PROPERTIES
-        //             existingReceipt.AccountId = dto.AccountId;
-        //             existingReceipt.ReceiptAccountId = dto.ReceiptAccountId;
-        //             existingReceipt.Credit = dto.Credit;
-        //             existingReceipt.Debit = 0; // Receipt always has debit 0
-        //             existingReceipt.InstType = dto.InstType;
-        //             existingReceipt.InstNo = dto.InstNo ?? string.Empty;
-        //             existingReceipt.BankAcc = dto.BankAcc ?? string.Empty;
+        //             // Update receipt properties
+        //             existingReceipt.TotalAmount = debitEntry.Amount;
         //             existingReceipt.Description = dto.Description;
         //             existingReceipt.NepaliDate = dto.NepaliDate;
         //             existingReceipt.Date = dto.Date;
         //             existingReceipt.UpdatedAt = DateTime.UtcNow;
 
-        //             // Update the receipt
         //             _context.Receipts.Update(existingReceipt);
         //             await _context.SaveChangesAsync();
 
-        //             // Get previous balances for accounts
-        //             decimal previousCreditBalance = 0;
-        //             var lastCreditTransaction = await _context.Transactions
-        //                 .Where(t => t.AccountId == dto.AccountId)
-        //                 .OrderByDescending(t => t.CreatedAt)
-        //                 .FirstOrDefaultAsync();
+        //             // Create new entries and transactions
+        //             var newEntries = new List<ReceiptEntry>();
+        //             var newTransactions = new List<Transaction>();
 
-        //             if (lastCreditTransaction != null)
-        //                 previousCreditBalance = lastCreditTransaction.Balance ?? 0;
-
-        //             decimal previousDebitBalance = 0;
-        //             var lastDebitTransaction = await _context.Transactions
-        //                 .Where(t => t.AccountId == dto.ReceiptAccountId)
-        //                 .OrderByDescending(t => t.CreatedAt)
-        //                 .FirstOrDefaultAsync();
-
-        //             if (lastDebitTransaction != null)
-        //                 previousDebitBalance = lastDebitTransaction.Balance ?? 0;
-
-        //             // STEP 3: CREATE NEW TRANSACTIONS
-
-        //             // Create credit transaction (for the account being credited)
-        //             var creditTransaction = new Transaction
+        //             // 1. Create DEBIT Receipt Entry and Transaction (Party Account - Money going OUT)
+        //             var debitReceiptEntry = new ReceiptEntry
         //             {
         //                 Id = Guid.NewGuid(),
-        //                 AccountId = dto.AccountId,
-        //                 ReceiptAccountId = existingReceipt.Id,
-        //                 Type = TransactionType.Rcpt,
-        //                 DrCrNoteAccountTypes = "Credit",
-        //                 BillNumber = existingReceipt.BillNumber,
-        //                 AccountTypeId = dto.ReceiptAccountId,
-        //                 InstType = (Models.Retailer.TransactionModel.InstrumentType)(int)dto.InstType,
-        //                 InstNo = dto.InstNo,
-        //                 BankAcc = dto.BankAcc,
-        //                 Credit = dto.Credit,
-        //                 Debit = 0,
-        //                 PaymentMode = PaymentMode.Receipt,
-        //                 PaymentReceiptType = "Receipt",
-        //                 Balance = previousCreditBalance + dto.Credit,
-        //                 Date = existingReceipt.Date,
-        //                 nepaliDate = existingReceipt.NepaliDate,
-        //                 IsActive = true,
-        //                 CompanyId = companyId,
-        //                 FiscalYearId = fiscalYearId,
+        //                 ReceiptId = existingReceipt.Id,
+        //                 AccountId = debitEntry.AccountId,
+        //                 EntryType = "Debit",
+        //                 Amount = debitEntry.Amount,
+        //                 Description = debitEntry.Description,
+        //                 InstType = debitEntry.InstType,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 InstNo = debitEntry.InstNo,
+        //                 ReferenceNumber = debitEntry.ReferenceNumber,
         //                 CreatedAt = DateTime.UtcNow
         //             };
+        //             newEntries.Add(debitReceiptEntry);
 
-        //             await _context.Transactions.AddAsync(creditTransaction);
+        //             // Calculate balance for debit account (Party Account - Money source)
+        //             decimal previousDebitBalance = 0;
+        //             var lastDebitTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == debitEntry.AccountId && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastDebitTransaction != null)
+        //                 previousDebitBalance = lastDebitTransaction.Balance ?? 0;
+        //             decimal newDebitBalance = previousDebitBalance - debitEntry.Amount; // Decrease balance for receipt debit
 
-        //             // Create debit transaction (for the receipt account)
         //             var debitTransaction = new Transaction
         //             {
         //                 Id = Guid.NewGuid(),
-        //                 AccountId = dto.ReceiptAccountId,
         //                 ReceiptAccountId = existingReceipt.Id,
+        //                 AccountId = debitEntry.AccountId,
         //                 Type = TransactionType.Rcpt,
         //                 DrCrNoteAccountTypes = "Debit",
+        //                 PaymentReceiptType = creditAccount.Name,  // Store the receipt account name (Credit account name - Cash/Bank)
         //                 BillNumber = existingReceipt.BillNumber,
-        //                 AccountTypeId = dto.AccountId,
-        //                 InstType = (Models.Retailer.TransactionModel.InstrumentType)(int)dto.InstType,
-        //                 InstNo = dto.InstNo,
-        //                 BankAcc = dto.BankAcc,
+        //                 InstType = debitEntry.InstType.HasValue
+        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = debitEntry.InstNo,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 Debit = debitEntry.Amount,
         //                 Credit = 0,
-        //                 Debit = dto.Credit,
+        //                 Balance = newDebitBalance,
         //                 PaymentMode = PaymentMode.Receipt,
-        //                 PaymentReceiptType = "Payment",
-        //                 Balance = previousDebitBalance - dto.Credit,
         //                 Date = existingReceipt.Date,
         //                 nepaliDate = existingReceipt.NepaliDate,
         //                 IsActive = true,
@@ -1349,19 +1212,82 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         //                 FiscalYearId = fiscalYearId,
         //                 CreatedAt = DateTime.UtcNow
         //             };
+        //             newTransactions.Add(debitTransaction);
 
-        //             await _context.Transactions.AddAsync(debitTransaction);
+        //             // 2. Create CREDIT Receipt Entry and Transaction (Receipt Account - Money coming IN to Cash/Bank)
+        //             var creditReceiptEntry = new ReceiptEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ReceiptId = existingReceipt.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 EntryType = "Credit",
+        //                 Amount = creditEntry.Amount,
+        //                 Description = creditEntry.Description,
+        //                 InstType = creditEntry.InstType,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 InstNo = creditEntry.InstNo,
+        //                 ReferenceNumber = creditEntry.ReferenceNumber,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             newEntries.Add(creditReceiptEntry);
 
-        //             // Save all changes
+        //             // Calculate balance for credit account (Receipt Account - Cash/Bank - Money destination)
+        //             decimal previousCreditBalance = 0;
+        //             var lastCreditTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == creditEntry.AccountId && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastCreditTransaction != null)
+        //                 previousCreditBalance = lastCreditTransaction.Balance ?? 0;
+        //             decimal newCreditBalance = previousCreditBalance + creditEntry.Amount; // Increase balance for receipt credit
+
+        //             var creditTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ReceiptAccountId = existingReceipt.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 Type = TransactionType.Rcpt,
+        //                 DrCrNoteAccountTypes = "Credit",
+        //                 PaymentReceiptType = debitAccount.Name,  // Store the party account name (Debit account name - money source)
+        //                 BillNumber = existingReceipt.BillNumber,
+        //                 InstType = creditEntry.InstType.HasValue
+        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = creditEntry.InstNo,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 Debit = 0,
+        //                 Credit = creditEntry.Amount,
+        //                 Balance = newCreditBalance,
+        //                 PaymentMode = PaymentMode.Receipt,
+        //                 Date = existingReceipt.Date,
+        //                 nepaliDate = existingReceipt.NepaliDate,
+        //                 IsActive = true,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             newTransactions.Add(creditTransaction);
+
+        //             // Add all new entries and transactions
+        //             await _context.ReceiptEntries.AddRangeAsync(newEntries);
+        //             await _context.Transactions.AddRangeAsync(newTransactions);
+
         //             var saveResult = await _context.SaveChangesAsync();
         //             _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
 
         //             await transaction.CommitAsync();
         //             _logger.LogInformation("Transaction committed successfully");
 
-        //             _logger.LogInformation("=== Successfully updated receipt: {ReceiptId} ===", id);
+        //             _logger.LogInformation("=== Successfully updated receipt: {ReceiptId} with {EntryCount} entries ===",
+        //                 id, newEntries.Count);
 
-        //             return existingReceipt;
+        //             // Return updated receipt with entries
+        //             var updatedReceipt = await _context.Receipts
+        //                 .Include(r => r.ReceiptEntries)
+        //                     .ThenInclude(e => e.Account)
+        //                 .FirstOrDefaultAsync(r => r.Id == id);
+
+        //             return updatedReceipt ?? existingReceipt;
         //         }
         //         catch (Exception ex)
         //         {
@@ -1371,9 +1297,9 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         //         }
         //     });
         // }
+
         public async Task<Receipt> UpdateReceiptAsync(Guid id, UpdateReceiptDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
-            // Use execution strategy for transaction handling
             var executionStrategy = _context.Database.CreateExecutionStrategy();
 
             return await executionStrategy.ExecuteAsync(async () =>
@@ -1388,14 +1314,17 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     if (dto.Entries == null || dto.Entries.Count < 2)
                         throw new ArgumentException("At least 2 entries required (one debit and one credit)");
 
-                    // Calculate totals and validate
-                    decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
-                    decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+                    // Identify debit and credit entries
+                    var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+                    var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
 
-                    if (totalDebit != totalCredit)
-                        throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+                    if (debitEntry == null || creditEntry == null)
+                        throw new ArgumentException("Both debit and credit entries are required");
 
-                    // Get the existing receipt with entries
+                    if (debitEntry.Amount != creditEntry.Amount)
+                        throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
+
+                    // Get existing receipt with entries
                     var existingReceipt = await _context.Receipts
                         .Include(r => r.ReceiptEntries)
                         .FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId);
@@ -1403,132 +1332,154 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     if (existingReceipt == null)
                         throw new ArgumentException("Receipt voucher not found");
 
-                    // Verify all accounts exist and belong to company
-                    foreach (var entryDto in dto.Entries)
-                    {
-                        var account = await _context.Accounts
-                            .FirstOrDefaultAsync(a => a.Id == entryDto.AccountId && a.CompanyId == companyId);
+                    // Validate accounts exist
+                    var debitAccount = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+                    if (debitAccount == null)
+                        throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
 
-                        if (account == null)
-                            throw new ArgumentException($"Account with ID {entryDto.AccountId} not found");
-                    }
+                    var creditAccount = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+                    if (creditAccount == null)
+                        throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
 
-                    // Get company to check date format
                     var company = await _context.Companies.FindAsync(companyId);
                     if (company == null)
                         throw new ArgumentException("Company not found");
 
                     var fiscalYear = await _context.FiscalYears
                         .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
-
                     if (fiscalYear == null)
                         throw new ArgumentException("Fiscal year not found");
 
-                    // STEP 1: Delete existing transactions for this receipt
+                    // Delete existing transactions AND their transaction items
                     var existingTransactions = await _context.Transactions
                         .Where(t => t.ReceiptAccountId == id)
+                        .Include(t => t.TransactionItems) // Include transaction items for cascade delete
                         .ToListAsync();
 
                     if (existingTransactions.Any())
                     {
+                        // TransactionItems will be deleted automatically due to Cascade delete
                         _context.Transactions.RemoveRange(existingTransactions);
-                        _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+                        _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
                     }
 
-                    // Delete existing entries - FIXED: Use ReceiptEntries, not Receipts
+                    // Delete existing entries
                     if (existingReceipt.ReceiptEntries.Any())
                     {
                         _context.ReceiptEntries.RemoveRange(existingReceipt.ReceiptEntries);
                         _logger.LogInformation("Deleted {Count} existing entries", existingReceipt.ReceiptEntries.Count);
                     }
 
-                    // Save changes after deletions
                     await _context.SaveChangesAsync();
 
-                    // STEP 2: UPDATE RECEIPT PROPERTIES
-                    existingReceipt.TotalAmount = totalDebit;
+                    // Update receipt properties
+                    existingReceipt.TotalAmount = debitEntry.Amount;
                     existingReceipt.Description = dto.Description;
                     existingReceipt.NepaliDate = dto.NepaliDate;
                     existingReceipt.Date = dto.Date;
                     existingReceipt.UpdatedAt = DateTime.UtcNow;
 
-                    // Update the receipt
                     _context.Receipts.Update(existingReceipt);
                     await _context.SaveChangesAsync();
 
-                    // STEP 3: CREATE NEW ENTRIES AND TRANSACTIONS
+                    // Create new entries and transactions
                     var newEntries = new List<ReceiptEntry>();
                     var newTransactions = new List<Transaction>();
 
-                    foreach (var entryDto in dto.Entries)
+                    // 1. Create DEBIT Receipt Entry and Transaction (Party Account - Money going OUT)
+                    var debitReceiptEntry = new ReceiptEntry
                     {
-                        // Create receipt entry
-                        var receiptEntry = new ReceiptEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            ReceiptId = existingReceipt.Id,
-                            AccountId = entryDto.AccountId,
-                            EntryType = entryDto.EntryType,
-                            Amount = entryDto.Amount,
-                            Description = entryDto.Description,
-                            InstType = entryDto.InstType,
-                            BankAcc = entryDto.BankAcc,
-                            InstNo = entryDto.InstNo,
-                            ReferenceNumber = entryDto.ReferenceNumber,
-                            CreatedAt = DateTime.UtcNow
-                        };
+                        Id = Guid.NewGuid(),
+                        ReceiptId = existingReceipt.Id,
+                        AccountId = debitEntry.AccountId,
+                        EntryType = "Debit",
+                        Amount = debitEntry.Amount,
+                        Description = debitEntry.Description,
+                        InstType = debitEntry.InstType,
+                        BankAcc = debitEntry.BankAcc,
+                        InstNo = debitEntry.InstNo,
+                        ReferenceNumber = debitEntry.ReferenceNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    newEntries.Add(debitReceiptEntry);
 
-                        newEntries.Add(receiptEntry);
+                    var debitTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        ReceiptAccountId = existingReceipt.Id,
+                        AccountId = debitEntry.AccountId,
+                        Type = TransactionType.Rcpt,
+                        DrCrNoteAccountTypes = "Debit",
+                        PaymentReceiptType = creditAccount.Name,  // Store the receipt account name (Credit account name - Cash/Bank)
+                        BillNumber = existingReceipt.BillNumber,
+                        InstType = debitEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+                            : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        InstNo = debitEntry.InstNo,
+                        BankAcc = debitEntry.BankAcc,
+                        TotalDebit = debitEntry.Amount,
+                        TotalCredit = 0,
+                        PaymentMode = PaymentMode.Receipt,
+                        Date = existingReceipt.Date,
+                        nepaliDate = existingReceipt.NepaliDate,
+                        IsActive = true,
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active
+                    };
+                    newTransactions.Add(debitTransaction);
 
-                        // Calculate balance for this transaction
-                        decimal previousBalance = 0;
-                        var lastTransaction = await _context.Transactions
-                            .Where(t => t.AccountId == entryDto.AccountId && t.CompanyId == companyId)
-                            .OrderByDescending(t => t.CreatedAt)
-                            .FirstOrDefaultAsync();
+                    // 2. Create CREDIT Receipt Entry and Transaction (Receipt Account - Money coming IN to Cash/Bank)
+                    var creditReceiptEntry = new ReceiptEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ReceiptId = existingReceipt.Id,
+                        AccountId = creditEntry.AccountId,
+                        EntryType = "Credit",
+                        Amount = creditEntry.Amount,
+                        Description = creditEntry.Description,
+                        InstType = creditEntry.InstType,
+                        BankAcc = creditEntry.BankAcc,
+                        InstNo = creditEntry.InstNo,
+                        ReferenceNumber = creditEntry.ReferenceNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    newEntries.Add(creditReceiptEntry);
 
-                        if (lastTransaction != null)
-                            previousBalance = lastTransaction.Balance ?? 0;
+                    var creditTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        ReceiptAccountId = existingReceipt.Id,
+                        AccountId = creditEntry.AccountId,
+                        Type = TransactionType.Rcpt,
+                        DrCrNoteAccountTypes = "Credit",
+                        PaymentReceiptType = debitAccount.Name,  // Store the party account name (Debit account name - money source)
+                        BillNumber = existingReceipt.BillNumber,
+                        InstType = creditEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+                            : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        InstNo = creditEntry.InstNo,
+                        BankAcc = creditEntry.BankAcc,
+                        TotalDebit = 0,
+                        TotalCredit = creditEntry.Amount,
+                        PaymentMode = PaymentMode.Receipt,
+                        Date = existingReceipt.Date,
+                        nepaliDate = existingReceipt.NepaliDate,
+                        IsActive = true,
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active
+                    };
+                    newTransactions.Add(creditTransaction);
 
-                        decimal newBalance = entryDto.EntryType == "Debit"
-                            ? previousBalance + entryDto.Amount
-                            : previousBalance - entryDto.Amount;
-
-                        // Create corresponding transaction
-                        var receiptTransaction = new Transaction
-                        {
-                            Id = Guid.NewGuid(),
-                            ReceiptAccountId = existingReceipt.Id,
-                            AccountId = entryDto.AccountId,
-                            Type = TransactionType.Rcpt,
-                            DrCrNoteAccountTypes = entryDto.EntryType,
-                            BillNumber = existingReceipt.BillNumber,
-                            InstType = entryDto.InstType.HasValue
-                                ? (Models.Retailer.TransactionModel.InstrumentType)(int)entryDto.InstType.Value
-                                : Models.Retailer.TransactionModel.InstrumentType.NA,
-                            InstNo = entryDto.InstNo,
-                            BankAcc = entryDto.BankAcc,
-                            Debit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
-                            Credit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
-                            PaymentMode = PaymentMode.Receipt,
-                            PaymentReceiptType = entryDto.EntryType == "Debit" ? "Receipt" : "Payment",
-                            Balance = newBalance,
-                            Date = existingReceipt.Date,
-                            nepaliDate = existingReceipt.NepaliDate,
-                            IsActive = true,
-                            CompanyId = companyId,
-                            FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow
-                        };
-
-                        newTransactions.Add(receiptTransaction);
-                    }
-
-                    // Add all new entries and transactions - FIXED: Use ReceiptEntries, not Receipts
+                    // Add all new entries and transactions
                     await _context.ReceiptEntries.AddRangeAsync(newEntries);
                     await _context.Transactions.AddRangeAsync(newTransactions);
 
-                    // Save all changes
                     var saveResult = await _context.SaveChangesAsync();
                     _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
 

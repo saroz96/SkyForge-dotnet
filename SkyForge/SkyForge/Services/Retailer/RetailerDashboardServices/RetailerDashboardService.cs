@@ -562,31 +562,8 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
 
                     foreach (var transaction in cashTransactions)
                     {
-                        cashBalance += (transaction.Debit - transaction.Credit);
+                        cashBalance += (transaction.TotalDebit - transaction.TotalCredit);
                     }
-
-                    // Also check if there are any payments/receipts directly linked to this account
-                    // var cashPayments = await _context.Payments
-                    //     .Where(p => p.PaymentAccountId == cashAccount.Id &&
-                    //                p.Date <= endDate &&
-                    //                p.Status == PaymentStatus.Active)
-                    //     .ToListAsync();
-
-                    // foreach (var payment in cashPayments)
-                    // {
-                    //     cashBalance -= payment.Debit; // Payments reduce cash
-                    // }
-
-                    // var cashReceipts = await _context.Receipts
-                    //     .Where(r => r.ReceiptAccountId == cashAccount.Id &&
-                    //                r.Date <= endDate &&
-                    //                r.Status == ReceiptStatus.Active)
-                    //     .ToListAsync();
-
-                    // foreach (var receipt in cashReceipts)
-                    // {
-                    //     cashBalance += receipt.Debit; // Receipts increase cash
-                    // }
                 }
                 catch (Exception ex)
                 {
@@ -643,7 +620,7 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
 
                         foreach (var transaction in transactions)
                         {
-                            accountBalance += (transaction.Debit - transaction.Credit);
+                            accountBalance += (transaction.TotalDebit - transaction.TotalCredit);
                         }
 
                         // Check for payments/receipts through this bank account
@@ -728,7 +705,7 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
 
                         foreach (var transaction in transactions)
                         {
-                            accountBalance += (transaction.Debit - transaction.Credit);
+                            accountBalance += (transaction.TotalDebit - transaction.TotalCredit);
                         }
 
                         balance += accountBalance;

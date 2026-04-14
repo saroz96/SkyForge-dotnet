@@ -310,7 +310,9 @@ namespace SkyForge.Services.AccountServices
                         Amount = 0,
                         Type = "Dr",
                         Date = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                        DateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null,
+                        NepaliDate = isNepaliDateFormat && !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
+            : DateTime.MinValue,
                         FiscalYearId = currentFiscalYear.Id
                     },
                     OpeningBalanceType = "Dr",
@@ -390,7 +392,9 @@ namespace SkyForge.Services.AccountServices
                         Amount = 0,
                         Type = "Dr",
                         Date = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                        DateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null,
+                        NepaliDate = isNepaliDateFormat && !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
+            : DateTime.MinValue,
                         FiscalYearId = currentFiscalYear.Id
                     },
                     OpeningBalanceType = "Dr",
@@ -589,7 +593,9 @@ namespace SkyForge.Services.AccountServices
                             Amount = 0,
                             Type = "Dr",
                             Date = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                            DateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null,
+                            NepaliDate = isNepaliDateFormat && !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
+            : DateTime.MinValue,
                             FiscalYearId = currentFiscalYear.Id
                         },
                         OpeningBalanceType = "Dr",

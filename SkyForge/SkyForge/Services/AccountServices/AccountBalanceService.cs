@@ -64,12 +64,13 @@ namespace SkyForge.Services.AccountServices
                                t.FiscalYearId == fiscalYearId &&
                                t.CompanyId == companyId &&
                                t.IsActive &&
-                               t.Status == TransactionStatus.Active)
+                               t.Status == TransactionStatus.Active &&
+                               t.PaymentMode != PaymentMode.Cash)
                     .ToListAsync();
 
                 // Calculate net debit/credit
-                decimal totalDebit = transactions.Sum(t => t.Debit);
-                decimal totalCredit = transactions.Sum(t => t.Credit);
+                decimal totalDebit = transactions.Sum(t => t.TotalDebit);
+                decimal totalCredit = transactions.Sum(t => t.TotalCredit);
 
                 // Calculate balance
                 decimal netTransactionBalance = totalDebit - totalCredit;
@@ -151,6 +152,7 @@ namespace SkyForge.Services.AccountServices
                                 t.FiscalYearId == fiscalYearId &&
                                 t.IsActive &&
                                 t.Status == TransactionStatus.Active &&
+                                t.PaymentMode != PaymentMode.Cash &&
                                 (t.AccountId == accountId ||
                                  t.PaymentAccountId == accountId ||
                                  t.ReceiptAccountId == accountId ||
@@ -167,7 +169,7 @@ namespace SkyForge.Services.AccountServices
                 foreach (var tx in allTransactions)
                 {
                     // Create a unique identifier for this transaction to avoid duplicates
-                    var txIdentifier = $"{tx.Date:yyyy-MM-dd}-{tx.Type}-{tx.BillNumber}-{tx.Debit}-{tx.Credit}";
+                    var txIdentifier = $"{tx.Date:yyyy-MM-dd}-{tx.Type}-{tx.BillNumber}-{tx.TotalDebit}-{tx.TotalCredit}";
 
                     if (!processedTransactions.Contains(txIdentifier))
                     {
@@ -179,27 +181,27 @@ namespace SkyForge.Services.AccountServices
                         if (tx.AccountId == accountId)
                         {
                             // Standard transaction - Account is directly affected
-                            amount = tx.Debit - tx.Credit;
+                            amount = tx.TotalDebit - tx.TotalCredit;
                         }
                         else if (tx.PaymentAccountId == accountId)
                         {
                             // Payment transaction - Payment account is credited (negative effect)
-                            amount = -tx.Debit;
+                            amount = -tx.TotalDebit;
                         }
                         else if (tx.ReceiptAccountId == accountId)
                         {
                             // Receipt transaction - Receipt account is debited (positive effect)
-                            amount = tx.Credit;
+                            amount = tx.TotalCredit;
                         }
                         else if (tx.DebitAccountId == accountId)
                         {
                             // Journal debit entry
-                            amount = tx.Debit;
+                            amount = tx.TotalDebit;
                         }
                         else if (tx.CreditAccountId == accountId)
                         {
                             // Journal credit entry
-                            amount = -tx.Credit;
+                            amount = -tx.TotalCredit;
                         }
 
                         balance += amount;

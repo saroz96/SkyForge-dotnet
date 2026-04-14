@@ -29,9 +29,8 @@ namespace SkyForge.Models.AccountModel
         // English Date
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        // Nepali Date (as string)
-        [MaxLength(20)]
-        public string? DateNepali { get; set; }
+        [Column("Nepali_Date")]
+        public DateTime? NepaliDate { get; set; }
 
 
         // Foreign Key to Account

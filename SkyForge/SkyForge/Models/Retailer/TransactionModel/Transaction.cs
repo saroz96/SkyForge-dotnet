@@ -83,29 +83,12 @@ namespace SkyForge.Models.Retailer.TransactionModel
         public Guid CompanyId { get; set; }
         public virtual Company Company { get; set; } = null!;
 
-        // Item references
-        [ForeignKey("Item")]
-        public Guid? ItemId { get; set; }
-        public virtual Item? Item { get; set; }
-
-        [ForeignKey("Unit")]
-        public Guid? UnitId { get; set; }
-        public virtual Unit? Unit { get; set; }
-
-        [ForeignKey("MainUnit")]
-        public Guid? MainUnitId { get; set; }
-        public virtual MainUnit? MainUnit { get; set; }
-
-        // Account references
+        // Account references (header level)
         [ForeignKey("Account")]
         public Guid? AccountId { get; set; }
         public virtual Account? Account { get; set; }
 
         // Bill references
-        [ForeignKey("SalesBill")]
-        public Guid? SalesBillId { get; set; }
-        public virtual SalesBill? SalesBill { get; set; }
-
         [ForeignKey("PurchaseBill")]
         public Guid? PurchaseBillId { get; set; }
         public virtual PurchaseBill? PurchaseBill { get; set; }
@@ -113,6 +96,14 @@ namespace SkyForge.Models.Retailer.TransactionModel
         [ForeignKey("PurchaseReturn")]
         public Guid? PurchaseReturnBillId { get; set; }
         public virtual PurchaseReturn? PurchaseReturn { get; set; }
+
+        [ForeignKey("SalesBill")]
+        public Guid? SalesBillId { get; set; }
+        public virtual SalesBill? SalesBill { get; set; }
+
+        [ForeignKey("SalesReturn")]
+        public Guid? SalesReturnBillId { get; set; }
+        public virtual SalesReturn? SalesReturn { get; set; }
 
         [ForeignKey("JournalVoucher")]
         public Guid? JournalBillId { get; set; }
@@ -126,10 +117,6 @@ namespace SkyForge.Models.Retailer.TransactionModel
         public Guid? CreditNoteId { get; set; }
         public virtual CreditNote? CreditNote { get; set; }
 
-        [ForeignKey("SalesReturn")]
-        public Guid? SalesReturnBillId { get; set; }
-        public virtual SalesReturn? SalesReturn { get; set; }
-
         [ForeignKey("Payment")]
         public Guid? PaymentAccountId { get; set; }
         public virtual Payment? Payment { get; set; }
@@ -138,70 +125,7 @@ namespace SkyForge.Models.Retailer.TransactionModel
         public Guid? ReceiptAccountId { get; set; }
         public virtual Receipt? Receipt { get; set; }
 
-        // Transaction details
-        public int? WSUnit { get; set; }
-
-        private decimal? _quantity;
-        public decimal? Quantity
-        {
-            get => _quantity;
-            set
-            {
-                if (value.HasValue)
-                {
-                    var wsUnit = WSUnit ?? 1;
-                    _quantity = wsUnit * value.Value;
-                }
-                else
-                {
-                    _quantity = null;
-                }
-            }
-        }
-
-        private decimal? _bonus;
-        public decimal? Bonus
-        {
-            get => _bonus;
-            set
-            {
-                if (value.HasValue)
-                {
-                    var wsUnit = WSUnit ?? 1;
-                    _bonus = wsUnit * value.Value;
-                }
-                else
-                {
-                    _bonus = null;
-                }
-            }
-        }
-
-        public decimal Price { get; set; } = 0;
-        public decimal NetPrice { get; set; } = 0;
-
-        private decimal? _puPrice;
-        public decimal? PuPrice
-        {
-            get => _puPrice;
-            set
-            {
-                if (value.HasValue)
-                {
-                    var wsUnit = WSUnit ?? 1;
-                    _puPrice = value.Value / wsUnit;
-                }
-                else
-                {
-                    _puPrice = null;
-                }
-            }
-        }
-
-        public decimal DiscountPercentagePerItem { get; set; } = 0;
-        public decimal DiscountAmountPerItem { get; set; } = 0;
-        public decimal NetPuPrice { get; set; } = 0;
-
+        // Transaction header details
         [Required]
         [Column(TypeName = "varchar(50)")]
         public TransactionType Type { get; set; }
@@ -215,62 +139,25 @@ namespace SkyForge.Models.Retailer.TransactionModel
         [MaxLength(100)]
         public string? PartyBillNumber { get; set; }
 
-        [MaxLength(100)]
-        public string? SalesBillNumber { get; set; }
+        // Header-level totals
+        [Precision(18, 2)]
+        public decimal TotalDebit { get; set; } = 0;
 
-        [ForeignKey("AccountType")]
-        public Guid? AccountTypeId { get; set; }
-        public virtual AccountModel.Account? AccountType { get; set; }
+        [Precision(18, 2)]
+        public decimal TotalCredit { get; set; } = 0;
 
-        [MaxLength(50)]
-        public string? PurchaseSalesType { get; set; }
+        // Header-level VAT summary
+        [Column("taxable_amount")]
+        [Precision(18, 2)]
+        public decimal? TaxableAmount { get; set; }
 
-        [MaxLength(50)]
-        public string? PurchaseSalesReturnType { get; set; }
+        public decimal? VatPercentage { get; set; }
 
-        [MaxLength(50)]
-        public string? PaymentReceiptType { get; set; }
-
-        // INCREASED from 50 to 2000 to handle multiple account names (20+ entries)
-        [MaxLength(2000)]
-        public string? JournalAccountType { get; set; }
-
-        // INCREASED from 10 to 50
-        [MaxLength(50)]
-        public string? JournalAccountDrCrType { get; set; }
-
-        // INCREASED from 50 to 500
-        [MaxLength(500)]
-        public string? DrCrNoteAccountType { get; set; }
-
-        // INCREASED from 50 to 2000 to handle multiple account names
-        [MaxLength(2000)]
-        public string? DrCrNoteAccountTypes { get; set; }
-
-        public decimal Debit { get; set; } = 0;
-
-        public decimal Credit { get; set; } = 0;
-
-        public decimal? Balance { get; set; }
+        [Precision(18, 2)]
+        public decimal? VatAmount { get; set; }
 
         [Column(TypeName = "varchar(50)")]
         public PaymentMode PaymentMode { get; set; } = PaymentMode.Cash;
-
-        [ForeignKey("PaymentAccount")]
-        public Guid? PaymentAccountId2 { get; set; }
-        public virtual AccountModel.Account? PaymentAccount { get; set; }
-
-        [ForeignKey("ReceiptAccount2")]
-        public Guid? ReceiptAccountId2 { get; set; }
-        public virtual AccountModel.Account? ReceiptAccount { get; set; }
-
-        [ForeignKey("DebitAccount")]
-        public Guid? DebitAccountId { get; set; }
-        public virtual AccountModel.Account? DebitAccount { get; set; }
-
-        [ForeignKey("CreditAccount")]
-        public Guid? CreditAccountId { get; set; }
-        public virtual AccountModel.Account? CreditAccount { get; set; }
 
         [Column(TypeName = "varchar(50)")]
         public InstrumentType InstType { get; set; } = InstrumentType.NA;
@@ -281,13 +168,51 @@ namespace SkyForge.Models.Retailer.TransactionModel
         [MaxLength(100)]
         public string? InstNo { get; set; }
 
+        // Party/Account details
+        [MaxLength(50)]
+        public string? PurchaseSalesType { get; set; }
+
+        [MaxLength(50)]
+        public string? PurchaseSalesReturnType { get; set; }
+
+        [MaxLength(50)]
+        public string? PaymentReceiptType { get; set; }
+
+        [MaxLength(2000)]
+        public string? JournalAccountType { get; set; }
+
+        [MaxLength(50)]
+        public string? JournalAccountDrCrType { get; set; }
+
+        [MaxLength(500)]
+        public string? DrCrNoteAccountType { get; set; }
+
+        [MaxLength(2000)]
+        public string? DrCrNoteAccountTypes { get; set; }
+
+        // Payment/Receipt accounts
+        [ForeignKey("PaymentAccount")]
+        public Guid? PaymentAccountId2 { get; set; }
+        public virtual Account? PaymentAccount { get; set; }
+
+        [ForeignKey("ReceiptAccount2")]
+        public Guid? ReceiptAccountId2 { get; set; }
+        public virtual Account? ReceiptAccount { get; set; }
+
+        [ForeignKey("DebitAccount")]
+        public Guid? DebitAccountId { get; set; }
+        public virtual Account? DebitAccount { get; set; }
+
+        [ForeignKey("CreditAccount")]
+        public Guid? CreditAccountId { get; set; }
+        public virtual Account? CreditAccount { get; set; }
+
         [Required]
         [ForeignKey("FiscalYear")]
         public Guid FiscalYearId { get; set; }
         public virtual FiscalYearModel.FiscalYear FiscalYear { get; set; } = null!;
 
         public DateTime Date { get; set; } = DateTime.UtcNow;
-
         public DateTime BillDate { get; set; } = DateTime.UtcNow;
 
         [Column("nepali_date")]
@@ -303,5 +228,8 @@ namespace SkyForge.Models.Retailer.TransactionModel
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
+
+        // Navigation property for transaction items
+        public virtual ICollection<TransactionItem> TransactionItems { get; set; } = new List<TransactionItem>();
     }
 }

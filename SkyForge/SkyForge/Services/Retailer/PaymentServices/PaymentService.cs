@@ -6,6 +6,7 @@ using SkyForge.Models.Retailer.PaymentModel;
 using SkyForge.Services.BillNumberServices;
 using SkyForge.Models.Retailer.TransactionModel;
 using SkyForge.Dto.RetailerDto;
+using SkyForge.Models.AccountModel;
 
 namespace SkyForge.Services.Retailer.PaymentServices
 {
@@ -199,6 +200,217 @@ namespace SkyForge.Services.Retailer.PaymentServices
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "payment");
         }
 
+
+        // public async Task<Payment> CreatePaymentAsync(CreatePaymentDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("CreatePaymentAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //             {
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+        //             }
+
+        //             // Identify which entry is debit and which is credit
+        //             var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+        //             var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
+
+        //             if (debitEntry == null || creditEntry == null)
+        //             {
+        //                 throw new ArgumentException("Both debit and credit entries are required");
+        //             }
+
+        //             if (debitEntry.Amount != creditEntry.Amount)
+        //             {
+        //                 throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
+        //             }
+
+        //             // Store accounts for setting navigation properties
+        //             var accountCache = new Dictionary<Guid, Account>();
+
+        //             // Debit account - Money going OUT (Party Account - Sundry Debtors/Creditors)
+        //             var debitAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+        //             if (debitAccount == null)
+        //             {
+        //                 throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
+        //             }
+        //             accountCache[debitEntry.AccountId] = debitAccount;
+
+        //             // Credit account - Money coming IN (Payment Account - Cash in Hand/Bank)
+        //             var creditAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+        //             if (creditAccount == null)
+        //             {
+        //                 throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
+        //             }
+        //             accountCache[creditEntry.AccountId] = creditAccount;
+
+        //             // Get bill number
+        //             var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "payment");
+
+        //             // Create payment master record
+        //             var payment = new Payment
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 BillNumber = billNumber,
+        //                 TotalAmount = debitEntry.Amount,
+        //                 Date = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 Description = dto.Description,
+        //                 UserId = userId,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 Status = PaymentStatus.Active,
+        //                 IsActive = true,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.Payments.AddAsync(payment);
+
+        //             var transactions = new List<Transaction>();
+
+        //             // 1. Create DEBIT transaction (Money going OUT to Party Account)
+        //             // This is for the Party Account (Sundry Debtors/Creditors)
+        //             decimal previousDebitBalance = 0;
+        //             var lastDebitTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == debitEntry.AccountId && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastDebitTransaction != null)
+        //             {
+        //                 previousDebitBalance = lastDebitTransaction.Balance ?? 0;
+        //             }
+        //             decimal newDebitBalance = previousDebitBalance + debitEntry.Amount;
+
+        //             var debitTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PaymentAccountId = payment.Id,
+        //                 AccountId = debitEntry.AccountId,
+        //                 Account = debitAccount,
+        //                 Type = TransactionType.Pymt,
+        //                 DrCrNoteAccountTypes = "Debit",
+        //                 PaymentReceiptType = creditAccount.Name,  // Store the payment account name
+        //                 BillNumber = billNumber,
+        //                 InstType = debitEntry.InstType.HasValue
+        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = debitEntry.InstNo,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 Debit = debitEntry.Amount,
+        //                 Credit = 0,
+        //                 Balance = newDebitBalance,
+        //                 PaymentMode = PaymentMode.Payment,
+        //                 Date = payment.Date,
+        //                 nepaliDate = payment.NepaliDate,
+        //                 IsActive = true,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             transactions.Add(debitTransaction);
+
+        //             // 2. Create CREDIT transaction (Money coming IN to Payment Account)
+        //             // This is for the Payment Account (Cash in Hand/Bank)
+        //             decimal previousCreditBalance = 0;
+        //             var lastCreditTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == creditEntry.AccountId && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastCreditTransaction != null)
+        //             {
+        //                 previousCreditBalance = lastCreditTransaction.Balance ?? 0;
+        //             }
+        //             decimal newCreditBalance = previousCreditBalance - creditEntry.Amount;
+
+        //             var creditTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PaymentAccountId = payment.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 Account = creditAccount,
+        //                 Type = TransactionType.Pymt,
+        //                 DrCrNoteAccountTypes = "Credit",
+        //                 PaymentReceiptType = debitAccount.Name,  // Store the party account name
+        //                 BillNumber = billNumber,
+        //                 InstType = creditEntry.InstType.HasValue
+        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = creditEntry.InstNo,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 Debit = 0,
+        //                 Credit = creditEntry.Amount,
+        //                 Balance = newCreditBalance,
+        //                 PaymentMode = PaymentMode.Payment,
+        //                 Date = payment.Date,
+        //                 nepaliDate = payment.NepaliDate,
+        //                 IsActive = true,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             transactions.Add(creditTransaction);
+
+        //             // Create payment entries
+        //             var debitPaymentEntry = new PaymentEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PaymentId = payment.Id,
+        //                 AccountId = debitEntry.AccountId,
+        //                 EntryType = "Debit",
+        //                 Amount = debitEntry.Amount,
+        //                 Description = debitEntry.Description,
+        //                 InstType = debitEntry.InstType,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 InstNo = debitEntry.InstNo,
+        //                 ReferenceNumber = debitEntry.ReferenceNumber,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+
+        //             var creditPaymentEntry = new PaymentEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PaymentId = payment.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 EntryType = "Credit",
+        //                 Amount = creditEntry.Amount,
+        //                 Description = creditEntry.Description,
+        //                 InstType = creditEntry.InstType,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 InstNo = creditEntry.InstNo,
+        //                 ReferenceNumber = creditEntry.ReferenceNumber,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.PaymentEntries.AddRangeAsync(new[] { debitPaymentEntry, creditPaymentEntry });
+        //             await _context.Transactions.AddRangeAsync(transactions);
+        //             await _context.SaveChangesAsync();
+
+        //             await transaction.CommitAsync();
+
+        //             _logger.LogInformation("Payment created successfully. ID: {PaymentId}, BillNumber: {BillNumber}, Amount: {Amount}, From: {FromAccount}, To: {ToAccount}",
+        //                 payment.Id, payment.BillNumber, debitEntry.Amount, debitAccount.Name, creditAccount.Name);
+
+        //             return payment;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error in CreatePaymentAsync for Company: {CompanyId}", companyId);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<Payment> CreatePaymentAsync(CreatePaymentDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -217,26 +429,40 @@ namespace SkyForge.Services.Retailer.PaymentServices
                         throw new ArgumentException("At least 2 entries required (one debit and one credit)");
                     }
 
-                    // Calculate totals and validate
-                    decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
-                    decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+                    // Identify which entry is debit and which is credit
+                    var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+                    var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
 
-                    if (totalDebit != totalCredit)
+                    if (debitEntry == null || creditEntry == null)
                     {
-                        throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+                        throw new ArgumentException("Both debit and credit entries are required");
                     }
 
-                    // Verify all accounts exist and belong to company
-                    foreach (var entry in dto.Entries)
+                    if (debitEntry.Amount != creditEntry.Amount)
                     {
-                        var account = await _context.Accounts
-                            .FirstOrDefaultAsync(a => a.Id == entry.AccountId && a.CompanyId == companyId);
-
-                        if (account == null)
-                        {
-                            throw new ArgumentException($"Account with ID {entry.AccountId} not found");
-                        }
+                        throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
                     }
+
+                    // Store accounts for setting navigation properties
+                    var accountCache = new Dictionary<Guid, Account>();
+
+                    // Debit account - Money going OUT (Party Account - Sundry Debtors/Creditors)
+                    var debitAccount = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+                    if (debitAccount == null)
+                    {
+                        throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
+                    }
+                    accountCache[debitEntry.AccountId] = debitAccount;
+
+                    // Credit account - Money coming IN (Payment Account - Cash in Hand/Bank)
+                    var creditAccount = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+                    if (creditAccount == null)
+                    {
+                        throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
+                    }
+                    accountCache[creditEntry.AccountId] = creditAccount;
 
                     // Get bill number
                     var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "payment");
@@ -246,7 +472,7 @@ namespace SkyForge.Services.Retailer.PaymentServices
                     {
                         Id = Guid.NewGuid(),
                         BillNumber = billNumber,
-                        TotalAmount = totalCredit,
+                        TotalAmount = debitEntry.Amount,
                         Date = dto.Date,
                         NepaliDate = dto.NepaliDate,
                         Description = dto.Description,
@@ -260,65 +486,107 @@ namespace SkyForge.Services.Retailer.PaymentServices
 
                     await _context.Payments.AddAsync(payment);
 
-                    // Create payment entries and transactions
                     var transactions = new List<Transaction>();
 
-                    foreach (var entryDto in dto.Entries)
+                    // 1. Create DEBIT transaction (Money going OUT to Party Account)
+                    // This is for the Party Account (Sundry Debtors/Creditors)
+                    var debitTransaction = new Transaction
                     {
-                        // Create payment entry
-                        var paymentEntry = new PaymentEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            PaymentId = payment.Id,
-                            AccountId = entryDto.AccountId,
-                            EntryType = entryDto.EntryType,
-                            Amount = entryDto.Amount,
-                            Description = entryDto.Description,
-                            InstType = entryDto.InstType,
-                            BankAcc = entryDto.BankAcc,
-                            InstNo = entryDto.InstNo,
-                            ReferenceNumber = entryDto.ReferenceNumber,
-                            CreatedAt = DateTime.UtcNow
-                        };
+                        Id = Guid.NewGuid(),
+                        PaymentAccountId = payment.Id,
+                        AccountId = debitEntry.AccountId,
+                        Account = debitAccount,
+                        Type = TransactionType.Pymt,
+                        DrCrNoteAccountTypes = "Debit",
+                        PaymentReceiptType = creditAccount.Name,  // Store the payment account name
+                        BillNumber = billNumber,
+                        InstType = debitEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+                            : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        InstNo = debitEntry.InstNo,
+                        BankAcc = debitEntry.BankAcc,
+                        TotalDebit = debitEntry.Amount,
+                        TotalCredit = 0,
+                        PaymentMode = PaymentMode.Payment,
+                        Date = payment.Date,
+                        nepaliDate = payment.NepaliDate,
+                        IsActive = true,
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active
+                    };
+                    transactions.Add(debitTransaction);
 
-                        await _context.PaymentEntries.AddAsync(paymentEntry);
+                    // 2. Create CREDIT transaction (Money coming IN to Payment Account)
+                    // This is for the Payment Account (Cash in Hand/Bank)
+                    var creditTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        PaymentAccountId = payment.Id,
+                        AccountId = creditEntry.AccountId,
+                        Account = creditAccount,
+                        Type = TransactionType.Pymt,
+                        DrCrNoteAccountTypes = "Credit",
+                        PaymentReceiptType = debitAccount.Name,  // Store the party account name
+                        BillNumber = billNumber,
+                        InstType = creditEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+                            : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        InstNo = creditEntry.InstNo,
+                        BankAcc = creditEntry.BankAcc,
+                        TotalDebit = 0,
+                        TotalCredit = creditEntry.Amount,
+                        PaymentMode = PaymentMode.Payment,
+                        Date = payment.Date,
+                        nepaliDate = payment.NepaliDate,
+                        IsActive = true,
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active
+                    };
+                    transactions.Add(creditTransaction);
 
-                        // Create corresponding transaction
-                        var paymentTransaction = new Transaction
-                        {
-                            Id = Guid.NewGuid(),
-                            PaymentAccountId = payment.Id,
-                            AccountId = entryDto.AccountId,
-                            Type = TransactionType.Pymt,
-                            DrCrNoteAccountTypes = entryDto.EntryType,
-                            BillNumber = billNumber,
-                            InstType = entryDto.InstType.HasValue
-                                ? (Models.Retailer.TransactionModel.InstrumentType)(int)entryDto.InstType.Value
-                                : Models.Retailer.TransactionModel.InstrumentType.NA,
-                            InstNo = entryDto.InstNo,
-                            BankAcc = entryDto.BankAcc,
-                            Debit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
-                            Credit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
-                            PaymentMode = PaymentMode.Payment,
-                            PaymentReceiptType = entryDto.EntryType == "Debit" ? "Payment" : "Receipt",
-                            Date = payment.Date,
-                            nepaliDate = payment.NepaliDate,
-                            IsActive = true,
-                            CompanyId = companyId,
-                            FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow
-                        };
+                    // Create payment entries
+                    var debitPaymentEntry = new PaymentEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        PaymentId = payment.Id,
+                        AccountId = debitEntry.AccountId,
+                        EntryType = "Debit",
+                        Amount = debitEntry.Amount,
+                        Description = debitEntry.Description,
+                        InstType = debitEntry.InstType,
+                        BankAcc = debitEntry.BankAcc,
+                        InstNo = debitEntry.InstNo,
+                        ReferenceNumber = debitEntry.ReferenceNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
 
-                        transactions.Add(paymentTransaction);
-                    }
+                    var creditPaymentEntry = new PaymentEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        PaymentId = payment.Id,
+                        AccountId = creditEntry.AccountId,
+                        EntryType = "Credit",
+                        Amount = creditEntry.Amount,
+                        Description = creditEntry.Description,
+                        InstType = creditEntry.InstType,
+                        BankAcc = creditEntry.BankAcc,
+                        InstNo = creditEntry.InstNo,
+                        ReferenceNumber = creditEntry.ReferenceNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
 
+                    await _context.PaymentEntries.AddRangeAsync(new[] { debitPaymentEntry, creditPaymentEntry });
                     await _context.Transactions.AddRangeAsync(transactions);
                     await _context.SaveChangesAsync();
 
                     await transaction.CommitAsync();
 
-                    _logger.LogInformation("Payment created successfully. ID: {PaymentId}, BillNumber: {BillNumber}, Total: {TotalAmount}",
-                        payment.Id, payment.BillNumber, payment.TotalAmount);
+                    _logger.LogInformation("Payment created successfully. ID: {PaymentId}, BillNumber: {BillNumber}, Amount: {Amount}, From: {FromAccount}, To: {ToAccount}",
+                        payment.Id, payment.BillNumber, debitEntry.Amount, debitAccount.Name, creditAccount.Name);
 
                     return payment;
                 }
@@ -762,6 +1030,229 @@ namespace SkyForge.Services.Retailer.PaymentServices
             }).ToList();
         }
 
+        // public async Task<Payment> UpdatePaymentAsync(Guid id, UpdatePaymentDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("=== Starting UpdatePaymentAsync for Payment ID: {PaymentId} ===", id);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+
+        //             // Identify debit and credit entries
+        //             var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+        //             var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
+
+        //             if (debitEntry == null || creditEntry == null)
+        //                 throw new ArgumentException("Both debit and credit entries are required");
+
+        //             if (debitEntry.Amount != creditEntry.Amount)
+        //                 throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
+
+        //             var existingPayment = await _context.Payments
+        //                 .Include(p => p.PaymentEntries)
+        //                 .FirstOrDefaultAsync(p => p.Id == id && p.CompanyId == companyId);
+
+        //             if (existingPayment == null)
+        //                 throw new ArgumentException("Payment voucher not found");
+
+        //             // Validate accounts exist
+        //             var debitAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+        //             if (debitAccount == null)
+        //                 throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
+
+        //             var creditAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+        //             if (creditAccount == null)
+        //                 throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
+
+        //             var company = await _context.Companies.FindAsync(companyId);
+        //             if (company == null)
+        //                 throw new ArgumentException("Company not found");
+
+        //             var fiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+        //             if (fiscalYear == null)
+        //                 throw new ArgumentException("Fiscal year not found");
+
+        //             // Delete existing transactions
+        //             var existingTransactions = await _context.Transactions
+        //                 .Where(t => t.PaymentAccountId == id)
+        //                 .ToListAsync();
+
+        //             if (existingTransactions.Any())
+        //             {
+        //                 _context.Transactions.RemoveRange(existingTransactions);
+        //                 _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+        //             }
+
+        //             // Delete existing entries
+        //             if (existingPayment.PaymentEntries.Any())
+        //             {
+        //                 _context.PaymentEntries.RemoveRange(existingPayment.PaymentEntries);
+        //                 _logger.LogInformation("Deleted {Count} existing entries", existingPayment.PaymentEntries.Count);
+        //             }
+
+        //             await _context.SaveChangesAsync();
+
+        //             // Update payment properties
+        //             existingPayment.TotalAmount = debitEntry.Amount;
+        //             existingPayment.Description = dto.Description;
+        //             existingPayment.NepaliDate = dto.NepaliDate;
+        //             existingPayment.Date = dto.Date;
+        //             existingPayment.UpdatedAt = DateTime.UtcNow;
+
+        //             _context.Payments.Update(existingPayment);
+        //             await _context.SaveChangesAsync();
+
+        //             // Create new entries and transactions
+        //             var newEntries = new List<PaymentEntry>();
+        //             var newTransactions = new List<Transaction>();
+
+        //             // 1. Create DEBIT Payment Entry and Transaction (Party Account - Money going OUT)
+        //             var debitPaymentEntry = new PaymentEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PaymentId = existingPayment.Id,
+        //                 AccountId = debitEntry.AccountId,
+        //                 EntryType = "Debit",
+        //                 Amount = debitEntry.Amount,
+        //                 Description = debitEntry.Description,
+        //                 InstType = debitEntry.InstType,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 InstNo = debitEntry.InstNo,
+        //                 ReferenceNumber = debitEntry.ReferenceNumber,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             newEntries.Add(debitPaymentEntry);
+
+        //             // Calculate balance for debit account (Party Account)
+        //             decimal previousDebitBalance = 0;
+        //             var lastDebitTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == debitEntry.AccountId && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastDebitTransaction != null)
+        //                 previousDebitBalance = lastDebitTransaction.Balance ?? 0;
+        //             decimal newDebitBalance = previousDebitBalance + debitEntry.Amount;
+
+        //             var debitTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PaymentAccountId = existingPayment.Id,
+        //                 AccountId = debitEntry.AccountId,
+        //                 Type = TransactionType.Pymt,
+        //                 DrCrNoteAccountTypes = "Debit",
+        //                 PaymentReceiptType = creditAccount.Name,  // Store the payment account name (Credit account name)
+        //                 BillNumber = existingPayment.BillNumber,
+        //                 InstType = debitEntry.InstType.HasValue
+        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = debitEntry.InstNo,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 Debit = debitEntry.Amount,
+        //                 Credit = 0,
+        //                 Balance = newDebitBalance,
+        //                 PaymentMode = PaymentMode.Payment,
+        //                 Date = existingPayment.Date,
+        //                 nepaliDate = existingPayment.NepaliDate,
+        //                 IsActive = true,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             newTransactions.Add(debitTransaction);
+
+        //             // 2. Create CREDIT Payment Entry and Transaction (Payment Account - Money coming IN)
+        //             var creditPaymentEntry = new PaymentEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PaymentId = existingPayment.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 EntryType = "Credit",
+        //                 Amount = creditEntry.Amount,
+        //                 Description = creditEntry.Description,
+        //                 InstType = creditEntry.InstType,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 InstNo = creditEntry.InstNo,
+        //                 ReferenceNumber = creditEntry.ReferenceNumber,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             newEntries.Add(creditPaymentEntry);
+
+        //             // Calculate balance for credit account (Payment Account - Cash/Bank)
+        //             decimal previousCreditBalance = 0;
+        //             var lastCreditTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == creditEntry.AccountId && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastCreditTransaction != null)
+        //                 previousCreditBalance = lastCreditTransaction.Balance ?? 0;
+        //             decimal newCreditBalance = previousCreditBalance - creditEntry.Amount;
+
+        //             var creditTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PaymentAccountId = existingPayment.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 Type = TransactionType.Pymt,
+        //                 DrCrNoteAccountTypes = "Credit",
+        //                 PaymentReceiptType = debitAccount.Name,  // Store the party account name (Debit account name)
+        //                 BillNumber = existingPayment.BillNumber,
+        //                 InstType = creditEntry.InstType.HasValue
+        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = creditEntry.InstNo,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 Debit = 0,
+        //                 Credit = creditEntry.Amount,
+        //                 Balance = newCreditBalance,
+        //                 PaymentMode = PaymentMode.Payment,
+        //                 Date = existingPayment.Date,
+        //                 nepaliDate = existingPayment.NepaliDate,
+        //                 IsActive = true,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             newTransactions.Add(creditTransaction);
+
+        //             await _context.PaymentEntries.AddRangeAsync(newEntries);
+        //             await _context.Transactions.AddRangeAsync(newTransactions);
+
+        //             var saveResult = await _context.SaveChangesAsync();
+        //             _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+
+        //             await transaction.CommitAsync();
+        //             _logger.LogInformation("Transaction committed successfully");
+
+        //             _logger.LogInformation("=== Successfully updated payment: {PaymentId} with {EntryCount} entries ===",
+        //                 id, newEntries.Count);
+
+        //             var updatedPayment = await _context.Payments
+        //                 .Include(p => p.PaymentEntries)
+        //                     .ThenInclude(e => e.Account)
+        //                 .FirstOrDefaultAsync(p => p.Id == id);
+
+        //             return updatedPayment ?? existingPayment;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error updating payment: {PaymentId}", id);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<Payment> UpdatePaymentAsync(Guid id, UpdatePaymentDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -778,11 +1269,15 @@ namespace SkyForge.Services.Retailer.PaymentServices
                     if (dto.Entries == null || dto.Entries.Count < 2)
                         throw new ArgumentException("At least 2 entries required (one debit and one credit)");
 
-                    decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
-                    decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+                    // Identify debit and credit entries
+                    var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+                    var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
 
-                    if (totalDebit != totalCredit)
-                        throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+                    if (debitEntry == null || creditEntry == null)
+                        throw new ArgumentException("Both debit and credit entries are required");
+
+                    if (debitEntry.Amount != creditEntry.Amount)
+                        throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
 
                     var existingPayment = await _context.Payments
                         .Include(p => p.PaymentEntries)
@@ -791,14 +1286,16 @@ namespace SkyForge.Services.Retailer.PaymentServices
                     if (existingPayment == null)
                         throw new ArgumentException("Payment voucher not found");
 
-                    foreach (var entryDto in dto.Entries)
-                    {
-                        var account = await _context.Accounts
-                            .FirstOrDefaultAsync(a => a.Id == entryDto.AccountId && a.CompanyId == companyId);
+                    // Validate accounts exist
+                    var debitAccount = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+                    if (debitAccount == null)
+                        throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
 
-                        if (account == null)
-                            throw new ArgumentException($"Account with ID {entryDto.AccountId} not found");
-                    }
+                    var creditAccount = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+                    if (creditAccount == null)
+                        throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
 
                     var company = await _context.Companies.FindAsync(companyId);
                     if (company == null)
@@ -806,19 +1303,20 @@ namespace SkyForge.Services.Retailer.PaymentServices
 
                     var fiscalYear = await _context.FiscalYears
                         .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
-
                     if (fiscalYear == null)
                         throw new ArgumentException("Fiscal year not found");
 
-                    // Delete existing transactions
+                    // Delete existing transactions AND their transaction items
                     var existingTransactions = await _context.Transactions
                         .Where(t => t.PaymentAccountId == id)
+                        .Include(t => t.TransactionItems) // Include transaction items for cascade delete
                         .ToListAsync();
 
                     if (existingTransactions.Any())
                     {
+                        // TransactionItems will be deleted automatically due to Cascade delete
                         _context.Transactions.RemoveRange(existingTransactions);
-                        _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+                        _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
                     }
 
                     // Delete existing entries
@@ -831,7 +1329,7 @@ namespace SkyForge.Services.Retailer.PaymentServices
                     await _context.SaveChangesAsync();
 
                     // Update payment properties
-                    existingPayment.TotalAmount = totalDebit;
+                    existingPayment.TotalAmount = debitEntry.Amount;
                     existingPayment.Description = dto.Description;
                     existingPayment.NepaliDate = dto.NepaliDate;
                     existingPayment.Date = dto.Date;
@@ -844,66 +1342,93 @@ namespace SkyForge.Services.Retailer.PaymentServices
                     var newEntries = new List<PaymentEntry>();
                     var newTransactions = new List<Transaction>();
 
-                    foreach (var entryDto in dto.Entries)
+                    // 1. Create DEBIT Payment Entry and Transaction (Party Account - Money going OUT)
+                    var debitPaymentEntry = new PaymentEntry
                     {
-                        var paymentEntry = new PaymentEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            PaymentId = existingPayment.Id,
-                            AccountId = entryDto.AccountId,
-                            EntryType = entryDto.EntryType,
-                            Amount = entryDto.Amount,
-                            Description = entryDto.Description,
-                            InstType = entryDto.InstType,
-                            BankAcc = entryDto.BankAcc,
-                            InstNo = entryDto.InstNo,
-                            ReferenceNumber = entryDto.ReferenceNumber,
-                            CreatedAt = DateTime.UtcNow
-                        };
+                        Id = Guid.NewGuid(),
+                        PaymentId = existingPayment.Id,
+                        AccountId = debitEntry.AccountId,
+                        EntryType = "Debit",
+                        Amount = debitEntry.Amount,
+                        Description = debitEntry.Description,
+                        InstType = debitEntry.InstType,
+                        BankAcc = debitEntry.BankAcc,
+                        InstNo = debitEntry.InstNo,
+                        ReferenceNumber = debitEntry.ReferenceNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    newEntries.Add(debitPaymentEntry);
 
-                        newEntries.Add(paymentEntry);
+                    var debitTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        PaymentAccountId = existingPayment.Id,
+                        AccountId = debitEntry.AccountId,
+                        Type = TransactionType.Pymt,
+                        DrCrNoteAccountTypes = "Debit",
+                        PaymentReceiptType = creditAccount.Name,  // Store the payment account name (Credit account name)
+                        BillNumber = existingPayment.BillNumber,
+                        InstType = debitEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+                            : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        InstNo = debitEntry.InstNo,
+                        BankAcc = debitEntry.BankAcc,
+                        TotalDebit = debitEntry.Amount,
+                        TotalCredit = 0,
+                        PaymentMode = PaymentMode.Payment,
+                        Date = existingPayment.Date,
+                        nepaliDate = existingPayment.NepaliDate,
+                        IsActive = true,
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active
+                    };
+                    newTransactions.Add(debitTransaction);
 
-                        decimal previousBalance = 0;
-                        var lastTransaction = await _context.Transactions
-                            .Where(t => t.AccountId == entryDto.AccountId && t.CompanyId == companyId)
-                            .OrderByDescending(t => t.CreatedAt)
-                            .FirstOrDefaultAsync();
+                    // 2. Create CREDIT Payment Entry and Transaction (Payment Account - Money coming IN)
+                    var creditPaymentEntry = new PaymentEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        PaymentId = existingPayment.Id,
+                        AccountId = creditEntry.AccountId,
+                        EntryType = "Credit",
+                        Amount = creditEntry.Amount,
+                        Description = creditEntry.Description,
+                        InstType = creditEntry.InstType,
+                        BankAcc = creditEntry.BankAcc,
+                        InstNo = creditEntry.InstNo,
+                        ReferenceNumber = creditEntry.ReferenceNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    newEntries.Add(creditPaymentEntry);
 
-                        if (lastTransaction != null)
-                            previousBalance = lastTransaction.Balance ?? 0;
-
-                        decimal newBalance = entryDto.EntryType == "Debit"
-                            ? previousBalance + entryDto.Amount
-                            : previousBalance - entryDto.Amount;
-
-                        var paymentTransaction = new Transaction
-                        {
-                            Id = Guid.NewGuid(),
-                            PaymentAccountId = existingPayment.Id,
-                            AccountId = entryDto.AccountId,
-                            Type = TransactionType.Pymt,
-                            DrCrNoteAccountTypes = entryDto.EntryType,
-                            BillNumber = existingPayment.BillNumber,
-                            InstType = entryDto.InstType.HasValue
-                                ? (Models.Retailer.TransactionModel.InstrumentType)(int)entryDto.InstType.Value
-                                : Models.Retailer.TransactionModel.InstrumentType.NA,
-                            InstNo = entryDto.InstNo,
-                            BankAcc = entryDto.BankAcc,
-                            Debit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
-                            Credit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
-                            PaymentMode = PaymentMode.Payment,
-                            PaymentReceiptType = entryDto.EntryType == "Debit" ? "Payment" : "Receipt",
-                            Balance = newBalance,
-                            Date = existingPayment.Date,
-                            nepaliDate = existingPayment.NepaliDate,
-                            IsActive = true,
-                            CompanyId = companyId,
-                            FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow
-                        };
-
-                        newTransactions.Add(paymentTransaction);
-                    }
+                    var creditTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        PaymentAccountId = existingPayment.Id,
+                        AccountId = creditEntry.AccountId,
+                        Type = TransactionType.Pymt,
+                        DrCrNoteAccountTypes = "Credit",
+                        PaymentReceiptType = debitAccount.Name,  // Store the party account name (Debit account name)
+                        BillNumber = existingPayment.BillNumber,
+                        InstType = creditEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+                            : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        InstNo = creditEntry.InstNo,
+                        BankAcc = creditEntry.BankAcc,
+                        TotalDebit = 0,
+                        TotalCredit = creditEntry.Amount,
+                        PaymentMode = PaymentMode.Payment,
+                        Date = existingPayment.Date,
+                        nepaliDate = existingPayment.NepaliDate,
+                        IsActive = true,
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active
+                    };
+                    newTransactions.Add(creditTransaction);
 
                     await _context.PaymentEntries.AddRangeAsync(newEntries);
                     await _context.Transactions.AddRangeAsync(newTransactions);
@@ -932,7 +1457,6 @@ namespace SkyForge.Services.Retailer.PaymentServices
                 }
             });
         }
-
         public async Task<PaymentsRegisterDataDTO> GetPaymentsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
             try
@@ -1263,15 +1787,11 @@ namespace SkyForge.Services.Retailer.PaymentServices
             bool isNepaliFormat = companyDateFormat?.ToLower() == "nepali";
 
             var entries = payment.PaymentEntries?.ToList() ?? new List<PaymentEntry>();
-            var debitTotal = entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
-            var creditTotal = entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
 
-            var debitAccountNames = entries.Where(e => e.EntryType == "Debit")
-                .Select(e => e.Account?.Name ?? string.Empty)
-                .ToList();
-            var creditAccountNames = entries.Where(e => e.EntryType == "Credit")
-                .Select(e => e.Account?.Name ?? string.Empty)
-                .ToList();
+            // Debit entry = Party Account (Sundry Debtors/Creditors) - Money going OUT
+            var debitEntry = entries.FirstOrDefault(e => e.EntryType == "Debit");
+            // Credit entry = Payment Account (Cash in Hand/Bank) - Money coming IN
+            var creditEntry = entries.FirstOrDefault(e => e.EntryType == "Credit");
 
             return new PaymentResponseItemDTO
             {
@@ -1279,22 +1799,62 @@ namespace SkyForge.Services.Retailer.PaymentServices
                 BillNumber = payment.BillNumber,
                 Date = isNepaliFormat ? payment.NepaliDate : payment.Date,
                 NepaliDate = payment.NepaliDate,
-                AccountId = entries.FirstOrDefault(e => e.EntryType == "Credit")?.AccountId ?? Guid.Empty,
-                AccountName = string.Join(", ", creditAccountNames),
-                // AccountUniqueNumber = entries.FirstOrDefault(e => e.EntryType == "Credit")?.Account?.UniqueNumber ?? string.Empty,
-                Debit = debitTotal,
-                Credit = creditTotal,
-                PaymentAccountId = entries.FirstOrDefault(e => e.EntryType == "Debit")?.AccountId ?? Guid.Empty,
-                PaymentAccountName = string.Join(", ", debitAccountNames),
-                InstType = entries.FirstOrDefault(e => e.EntryType == "Credit" && e.InstType.HasValue)?.InstType?.ToString() ?? "NA",
-                InstNo = entries.FirstOrDefault(e => e.EntryType == "Credit")?.InstNo,
-                BankAcc = entries.FirstOrDefault(e => e.EntryType == "Credit")?.BankAcc,
+                // Account column should show Party Account (Debit entry)
+                AccountId = debitEntry?.AccountId ?? Guid.Empty,
+                AccountName = debitEntry?.Account?.Name ?? string.Empty,
+                // Debit column should show the amount from Debit entry
+                Debit = debitEntry?.Amount ?? 0,
+                Credit = creditEntry?.Amount ?? 0,
+                // Payment Account column should show Payment Account (Credit entry)
+                PaymentAccountId = creditEntry?.AccountId ?? Guid.Empty,
+                PaymentAccountName = creditEntry?.Account?.Name ?? string.Empty,
+                InstType = creditEntry?.InstType?.ToString() ?? "NA",
+                InstNo = creditEntry?.InstNo,
+                BankAcc = creditEntry?.BankAcc,
                 Description = payment.Description,
                 UserName = payment.User?.Name ?? string.Empty,
                 Status = payment.Status.ToString(),
                 CreatedAt = payment.CreatedAt
             };
         }
+
+        // private PaymentResponseItemDTO MapToResponseItemDTO(Payment payment, string companyDateFormat)
+        // {
+        //     bool isNepaliFormat = companyDateFormat?.ToLower() == "nepali";
+
+        //     var entries = payment.PaymentEntries?.ToList() ?? new List<PaymentEntry>();
+        //     var debitTotal = entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //     var creditTotal = entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //     var debitAccountNames = entries.Where(e => e.EntryType == "Debit")
+        //         .Select(e => e.Account?.Name ?? string.Empty)
+        //         .ToList();
+        //     var creditAccountNames = entries.Where(e => e.EntryType == "Credit")
+        //         .Select(e => e.Account?.Name ?? string.Empty)
+        //         .ToList();
+
+        //     return new PaymentResponseItemDTO
+        //     {
+        //         Id = payment.Id,
+        //         BillNumber = payment.BillNumber,
+        //         Date = isNepaliFormat ? payment.NepaliDate : payment.Date,
+        //         NepaliDate = payment.NepaliDate,
+        //         AccountId = entries.FirstOrDefault(e => e.EntryType == "Credit")?.AccountId ?? Guid.Empty,
+        //         AccountName = string.Join(", ", creditAccountNames),
+        //         // AccountUniqueNumber = entries.FirstOrDefault(e => e.EntryType == "Credit")?.Account?.UniqueNumber ?? string.Empty,
+        //         Debit = debitTotal,
+        //         Credit = creditTotal,
+        //         PaymentAccountId = entries.FirstOrDefault(e => e.EntryType == "Debit")?.AccountId ?? Guid.Empty,
+        //         PaymentAccountName = string.Join(", ", debitAccountNames),
+        //         InstType = entries.FirstOrDefault(e => e.EntryType == "Credit" && e.InstType.HasValue)?.InstType?.ToString() ?? "NA",
+        //         InstNo = entries.FirstOrDefault(e => e.EntryType == "Credit")?.InstNo,
+        //         BankAcc = entries.FirstOrDefault(e => e.EntryType == "Credit")?.BankAcc,
+        //         Description = payment.Description,
+        //         UserName = payment.User?.Name ?? string.Empty,
+        //         Status = payment.Status.ToString(),
+        //         CreatedAt = payment.CreatedAt
+        //     };
+        // }
 
         // public async Task<PaymentPrintDTO> GetPaymentForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
         // {

@@ -1,4 +1,4 @@
-// Controllers/Retailer/StatementController.cs
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SkyForge.Data;
@@ -37,11 +37,13 @@ namespace SkyForge.Controllers.Retailer
             [FromQuery] DateTime? toDate,
             [FromQuery] string? paymentMode = "all",
             [FromQuery] bool includeItems = false,
-             [FromQuery] string? dateFormat = "english")
+            [FromQuery] string? dateFormat = "english")
         {
             try
             {
                 _logger.LogInformation("=== GetStatement Started ===");
+                _logger.LogInformation("DateFormat: {DateFormat}, FromDate: {FromDate}, ToDate: {ToDate}", 
+                    dateFormat, fromDate, toDate);
 
                 // Extract claims from JWT
                 var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -105,14 +107,15 @@ namespace SkyForge.Controllers.Retailer
                     fiscalYearIdGuid = activeFiscalYear.Id;
                 }
 
-                // Build request DTO
+                // Build request DTO with dateFormat
                 var request = new StatementRequestDTO
                 {
                     AccountId = account,
                     FromDate = fromDate,
                     ToDate = toDate,
                     PaymentMode = paymentMode,
-                    IncludeItems = includeItems
+                    IncludeItems = includeItems,
+                    DateFormat = dateFormat
                 };
 
                 // Get statement data from service
@@ -148,7 +151,5 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-   
-   
     }
 }

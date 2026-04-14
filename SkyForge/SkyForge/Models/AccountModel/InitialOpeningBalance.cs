@@ -1,11 +1,4 @@
-﻿//namespace SkyForge.Models.AccountModel
-//{
-//    public class InitialOpeningBalance
-//    {
-//    }
-//}
-
-using SkyForge.Models.FiscalYearModel;
+﻿using SkyForge.Models.FiscalYearModel;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -35,7 +28,9 @@ namespace SkyForge.Models.AccountModel
 
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        // Foreign Key to Account
+        [Column("Nepali_Date")]
+        public DateTime NepaliDate { get; set; }
+
         public Guid AccountId { get; set; }
 
         [ForeignKey("AccountId")]

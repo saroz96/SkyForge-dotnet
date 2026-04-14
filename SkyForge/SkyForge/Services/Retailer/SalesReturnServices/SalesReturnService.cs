@@ -395,6 +395,434 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
             }
         }
 
+        // public async Task<SalesReturn> CreateSalesReturnAsync(CreateSalesReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("CreateSalesReturnAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //         // Validate company and fiscal year
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears.FindAsync(fiscalYearId);
+        //         if (fiscalYear == null || fiscalYear.CompanyId != companyId)
+        //             throw new ArgumentException("Invalid fiscal year");
+
+        //         var defaultStore = await GetDefaultStoreAsync(companyId);
+        //         var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
+
+        //         // Get default accounts (LIKE PURCHASE RETURN)
+        //         var salesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);           // Sales account (like Purchase)
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);               // VAT account
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);  // Round off account
+        //         var cashAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);     // Cash account
+
+        //         // Parse payment mode
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+
+        //         // Get next return number
+        //         var returnNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "salesReturn");
+
+        //         // Validate account (party account - Sundry Debtors for credit sales)
+        //         var account = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
+        //         if (account == null)
+        //             throw new ArgumentException("Invalid account for this company");
+
+        //         // Parse VAT exemption
+        //         bool isVatExemptBool = dto.IsVatExempt == "true" || dto.IsVatExempt == "True" || dto.IsVatExempt == "1";
+        //         bool isVatAll = dto.IsVatExempt == "all";
+
+        //         // Validate items and track VAT status
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // Load all items at once (LIKE PURCHASE RETURN)
+        //         var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        //         var itemsDict = await _context.Items
+        //             .Include(i => i.StockEntries)
+        //             .Where(i => itemIds.Contains(i.Id))
+        //             .ToDictionaryAsync(i => i.Id);
+
+        //         // Get previous balance for party account (LIKE PURCHASE RETURN)
+        //         var previousTransaction = await _context.Transactions
+        //             .Where(t => t.AccountId == dto.AccountId)
+        //             .OrderByDescending(t => t.CreatedAt)
+        //             .FirstOrDefaultAsync();
+        //         decimal previousBalance = previousTransaction?.Balance ?? 0;
+
+        //         // Get previous cash balance if payment mode is cash
+        //         decimal previousCashBalance = 0;
+        //         if (paymentMode == PaymentMode.Cash && cashAccountId.HasValue)
+        //         {
+        //             var lastCashTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == cashAccountId.Value && t.CompanyId == companyId)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+        //             if (lastCashTransaction != null)
+        //                 previousCashBalance = lastCashTransaction.Balance ?? 0;
+        //         }
+
+        //         // Calculate total return amount
+        //         decimal totalReturnAmount = dto.TotalAmount ?? 0;
+        //         decimal salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //         // Determine if company uses Nepali date format
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Generate a unique ID for the stock entry
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // Create sales return bill FIRST (so it has an ID) - LIKE PURCHASE RETURN
+        //         var salesReturn = new SalesReturn
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             CompanyId = companyId,
+        //             UserId = userId,
+        //             BillNumber = returnNumber,
+        //             PurchaseSalesReturnType = "Sales Return",
+        //             Type = "SlRt",
+        //             OriginalSalesBillId = dto.OriginalSalesBillId,
+        //             OriginalSalesBillNumber = dto.OriginalSalesBillNumber,
+        //             AccountId = dto.AccountId,
+        //             CashAccount = dto.CashAccount,
+        //             CashAccountAddress = dto.CashAccountAddress,
+        //             CashAccountPan = dto.CashAccountPan,
+        //             CashAccountEmail = dto.CashAccountEmail,
+        //             CashAccountPhone = dto.CashAccountPhone,
+        //             UnitId = dto.UnitId,
+        //             SettingsId = dto.SettingsId,
+        //             FiscalYearId = fiscalYearId,
+        //             SubTotal = dto.SubTotal ?? 0,
+        //             NonVatSalesReturn = dto.NonVatSalesReturn ?? 0,
+        //             TaxableAmount = dto.TaxableAmount ?? 0,
+        //             DiscountPercentage = dto.DiscountPercentage ?? 0,
+        //             DiscountAmount = dto.DiscountAmount ?? 0,
+        //             VatPercentage = dto.VatPercentage,
+        //             VatAmount = dto.VatAmount ?? 0,
+        //             TotalAmount = totalReturnAmount,
+        //             IsVatExempt = isVatExemptBool,
+        //             IsVatAll = isVatAll ? "all" : null,
+        //             RoundOffAmount = dto.RoundOffAmount ?? 0,
+        //             PaymentMode = dto.PaymentMode,
+        //             Quantity = dto.Quantity,
+        //             Price = dto.Price,
+        //             nepaliDate = dto.NepaliDate,
+        //             Date = dto.Date,
+        //             transactionDateNepali = dto.TransactionDateNepali,
+        //             TransactionDate = dto.TransactionDate,
+        //             OriginalCopies = dto.OriginalCopies,
+        //             FirstPrinted = false,
+        //             PrintCount = 0,
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         await _context.SalesReturns.AddAsync(salesReturn);
+
+        //         var returnItems = new List<SalesReturnItem>();
+        //         var allTransactions = new List<Transaction>();
+
+        //         // PROCESS ITEMS IN MEMORY (LIKE PURCHASE RETURN)
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+
+        //             // Try to find a matching sales bill item to get original values
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;
+        //             decimal puPrice = itemDto.Price;
+        //             decimal mrp = itemDto.Price;
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate;
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 salesPrice = matchingSalesItem.Price;
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
+        //                     itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
+        //             }
+
+        //             // Calculate discount values
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // ADD STOCK ENTRY (ADDING stock back for returns - POSITIVE quantity)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 StoreId = itemDto.StoreId ?? defaultStore?.Id,
+        //                 RackId = itemDto.RackId ?? defaultRack?.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // CREATE SALES RETURN ITEM
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = salesReturn.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 VatStatus = item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+        //                 UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatExempt != "all")
+        //         {
+        //             if (isVatExemptBool && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot save VAT exempt bill with vatable items");
+
+        //             if (!isVatExemptBool && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot save bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Save items and stock entries
+        //         await _context.SaveChangesAsync();
+
+        //         // ============================================================
+        //         // CREATE ALL TRANSACTIONS (LIKE PURCHASE RETURN PATTERN)
+        //         // ============================================================
+
+        //         // 1. PARTY ACCOUNT TRANSACTION (DEBIT - Party's balance decreases)
+        //         // When returning goods on credit, the party's outstanding balance decreases
+        //         var partyTransaction = new Transaction
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             CompanyId = companyId,
+        //             AccountId = dto.AccountId,
+        //             SalesReturnBillId = salesReturn.Id,
+        //             BillNumber = salesReturn.BillNumber,
+        //             IsType = TransactionIsType.SlRt,
+        //             Type = TransactionType.SlRt,
+        //             PurchaseSalesReturnType = "Sales Return",
+        //             Debit = 0,                                    // Party account is CREDITED (like Purchase Return)
+        //             Credit = totalReturnAmount,                   // Decreasing party's balance
+        //             Balance = previousBalance - totalReturnAmount,
+        //             PaymentMode = paymentMode,
+        //             Date = salesReturn.TransactionDate,
+        //             BillDate = salesReturn.Date,
+        //             nepaliDate = dto.NepaliDate,
+        //             transactionDateNepali = dto.TransactionDateNepali,
+        //             FiscalYearId = fiscalYearId,
+        //             CreatedAt = DateTime.UtcNow,
+        //             Status = TransactionStatus.Active,
+        //             IsActive = true
+        //         };
+        //         allTransactions.Add(partyTransaction);
+        //         _logger.LogInformation("Created Party transaction: Credit {Amount}, New Balance: {Balance}",
+        //             totalReturnAmount, previousBalance - totalReturnAmount);
+
+        //         // 2. SALES ACCOUNT TRANSACTION (DEBIT - Reducing sales revenue)
+        //         // This is the counterpart to Purchase Return where Purchase account is CREDITED
+        //         if (salesAccountId.HasValue && salesReturnAmount > 0)
+        //         {
+        //             var salesTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = salesAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = salesReturnAmount,                // Sales account is DEBITED (reduces revenue)
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(salesTransaction);
+        //             _logger.LogInformation("Created Sales account transaction: Debit {Amount}", salesReturnAmount);
+        //         }
+
+        //         // 3. VAT TRANSACTION (DEBIT - Reducing VAT liability)
+        //         if (dto.VatAmount > 0 && vatAccountId.HasValue && !isVatExemptBool)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.VatAmount.Value,              // VAT account is DEBITED (reduces liability)
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(vatTransaction);
+        //             _logger.LogInformation("Created VAT transaction: Debit {Amount}", dto.VatAmount.Value);
+        //         }
+
+        //         // 4. ROUND-OFF TRANSACTION if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
+        //                 Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(roundOffTransaction);
+        //             _logger.LogInformation("Created Round-off transaction: Debit {Debit}, Credit {Credit}",
+        //                 roundOffTransaction.Debit, roundOffTransaction.Credit);
+        //         }
+
+        //         // 5. CASH TRANSACTION if payment mode is cash (CREDIT - Money going OUT)
+        //         if (paymentMode == PaymentMode.Cash && cashAccountId.HasValue && totalReturnAmount > 0)
+        //         {
+        //             var cashBalance = previousCashBalance - totalReturnAmount;
+
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,                                    // Cash account is CREDITED
+        //                 Credit = totalReturnAmount,                   // Money going OUT
+        //                 Balance = cashBalance,
+        //                 PaymentMode = PaymentMode.Cash,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(cashTransaction);
+        //             _logger.LogInformation("Created Cash transaction: Credit {Amount}, New Balance: {Balance}",
+        //                 totalReturnAmount, cashBalance);
+        //         }
+
+        //         // Add all transactions
+        //         await _context.Transactions.AddRangeAsync(allTransactions);
+
+        //         // Update sales return with items
+        //         salesReturn.Items = returnItems;
+
+        //         // SINGLE SAVE CHANGES CALL
+        //         await _context.SaveChangesAsync();
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("Sales return created successfully with ID: {ReturnId}, Number: {ReturnNumber}, Total Transactions: {TransactionCount}",
+        //             salesReturn.Id, salesReturn.BillNumber, allTransactions.Count);
+
+        //         return salesReturn;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, "Error creating sales return");
+        //         throw;
+        //     }
+        // }
+
         public async Task<SalesReturn> CreateSalesReturnAsync(CreateSalesReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -415,15 +843,18 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
 
                 // Get default accounts
-                var salesReturnAccountId = await GetDefaultAccountIdAsync("Sales Return", companyId);
+                var salesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);
                 var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
                 var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
                 var cashAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
 
+                // Parse payment mode
+                var paymentMode = ParsePaymentMode(dto.PaymentMode);
+
                 // Get next return number
                 var returnNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "salesReturn");
 
-                // Validate account
+                // Validate account (party account - Sundry Debtors for credit sales)
                 var account = await _context.Accounts
                     .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
                 if (account == null)
@@ -437,48 +868,16 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 bool hasVatableItems = false;
                 bool hasNonVatableItems = false;
 
-                // Group items by ItemId to validate
-                var itemsGrouped = dto.Items.GroupBy(i => i.ItemId);
+                // Load all items at once
+                var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+                var itemsDict = await _context.Items
+                    .Include(i => i.StockEntries)
+                    .Where(i => itemIds.Contains(i.Id))
+                    .ToDictionaryAsync(i => i.Id);
 
-                foreach (var itemGroup in itemsGrouped)
-                {
-                    var item = await _context.Items
-                        .Include(i => i.StockEntries)
-                        .FirstOrDefaultAsync(i => i.Id == itemGroup.Key && i.CompanyId == companyId);
-
-                    if (item == null)
-                        throw new ArgumentException($"Item with id {itemGroup.Key} not found");
-
-                    // Track VAT status
-                    if (item.VatStatus?.ToLower() == "vatable")
-                    {
-                        hasVatableItems = true;
-                    }
-                    else
-                    {
-                        hasNonVatableItems = true;
-                    }
-                }
-
-                // VAT validation
-                if (dto.IsVatExempt != "all")
-                {
-                    if (isVatExemptBool && hasVatableItems)
-                        throw new InvalidOperationException("Cannot save VAT exempt bill with vatable items");
-
-                    if (!isVatExemptBool && hasNonVatableItems)
-                        throw new InvalidOperationException("Cannot save bill with non-vatable items when VAT is applied");
-                }
-
-                // Get previous balance for account
-                decimal previousBalance = 0;
-                var lastTransaction = await _context.Transactions
-                    .Where(t => t.AccountId == dto.AccountId)
-                    .OrderByDescending(t => t.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-                if (lastTransaction != null)
-                    previousBalance = lastTransaction.Balance ?? 0;
+                // Calculate total return amount
+                decimal totalReturnAmount = dto.TotalAmount ?? 0;
+                decimal salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
 
                 // Determine if company uses Nepali date format
                 bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
@@ -486,7 +885,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // Generate a unique ID for the stock entry
                 var uniqueId = Guid.NewGuid().ToString();
 
-                // Create sales return with frontend-calculated values
+                // Create sales return bill FIRST (so it has an ID)
                 var salesReturn = new SalesReturn
                 {
                     Id = Guid.NewGuid(),
@@ -513,7 +912,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     DiscountAmount = dto.DiscountAmount ?? 0,
                     VatPercentage = dto.VatPercentage,
                     VatAmount = dto.VatAmount ?? 0,
-                    TotalAmount = dto.TotalAmount ?? 0,
+                    TotalAmount = totalReturnAmount,
                     IsVatExempt = isVatExemptBool,
                     IsVatAll = isVatAll ? "all" : null,
                     RoundOffAmount = dto.RoundOffAmount ?? 0,
@@ -531,84 +930,102 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                // Add sales return to context
                 await _context.SalesReturns.AddAsync(salesReturn);
+
+                // Track totals for header transactions
+                decimal totalPartyCredit = 0;
+                decimal totalSalesDebit = 0;
+                decimal totalVatDebit = 0;
+
+                // Store item calculations for transaction items
+                var itemCalculations = new List<SalesReturnItemCalculation>();
 
                 var returnItems = new List<SalesReturnItem>();
 
-                // Process each item to add stock back
+                // PROCESS ITEMS IN MEMORY
+                decimal overallDiscountPercentage = dto.DiscountPercentage ?? 0m;
+
                 foreach (var itemDto in dto.Items)
                 {
-                    var item = await _context.Items
-                        .Include(i => i.StockEntries)
-                        .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId);
+                    if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
+                        throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
 
-                    if (item == null)
-                        continue;
-
-                    // Try to find a sales bill item with the same price for this item
-                    // This gets the actual puPrice (cost price) and mrp from the sales bill item
-                    var matchingSalesItem = await _context.SalesBillItems
-                        .Include(sbi => sbi.SalesBill)
-                        .Where(sbi => sbi.ItemId == itemDto.ItemId
-                            && sbi.Price == itemDto.Price  // Match the sales price (SP)
-                            && sbi.SalesBill.CompanyId == companyId)
-                        .OrderByDescending(sbi => sbi.CreatedAt) // Get the most recent one
-                        .FirstOrDefaultAsync();
-
-                    decimal salesPrice = itemDto.Price;      // This is the selling price (SP) from frontend
-                    decimal puPrice = itemDto.Price;         // Default cost price (CP) to selling price if not found
-                    decimal mrp = itemDto.Price;             // Default MRP to selling price if not found
-                    decimal marginPercentage = itemDto.MarginPercentage;
-                    string batchNumber = itemDto.BatchNumber ?? "XXX"; // Default batch from frontend or "XXX"
-                    DateOnly? expiryDate = itemDto.ExpiryDate; // Default expiry from frontend
-
-                    if (matchingSalesItem != null)
+                    // Track VAT status
+                    if (item.VatStatus?.ToLower() == "vatable")
                     {
-                        // Found a sales bill with matching price - use its actual puPrice (cost price) and mrp
-                        salesPrice = matchingSalesItem.Price;                    // SP - Selling Price
-                        puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;  // CP - Cost Price (PuPrice)
-                        marginPercentage = matchingSalesItem.MarginPercentage;
-                        mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;          // MRP - Maximum Retail Price
-                        batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;      // Restore original batch number
-                        expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;         // Restore original expiry date
-
-                        _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}, Expiry={ExpiryDate} from SalesBill: {BillNumber}",
-             itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber, expiryDate, matchingSalesItem.SalesBill?.BillNumber);
+                        hasVatableItems = true;
                     }
                     else
                     {
-                        _logger.LogInformation("No matching sales found for item {ItemId} with price {Price}, using provided price for all values",
-                            itemDto.ItemId, itemDto.Price);
+                        hasNonVatableItems = true;
                     }
 
-                    // Calculate discount values based on selling price (SP)
-                    var itemTotal = salesPrice * itemDto.Quantity;
-                    var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
-                    var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+                    // Try to find a matching sales bill item to get original values
+                    var matchingSalesItem = await _context.SalesBillItems
+                        .Include(sbi => sbi.SalesBill)
+                        .Where(sbi => sbi.ItemId == itemDto.ItemId
+                            && sbi.Price == itemDto.Price
+                            && sbi.SalesBill.CompanyId == companyId)
+                        .OrderByDescending(sbi => sbi.CreatedAt)
+                        .FirstOrDefaultAsync();
 
-                    // Net price after discount (based on selling price)
-                    var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+                    decimal salesPrice = itemDto.Price;
+                    decimal puPrice = itemDto.Price;
+                    decimal mrp = itemDto.Price;
+                    decimal marginPercentage = itemDto.MarginPercentage;
+                    string batchNumber = itemDto.BatchNumber ?? "XXX";
+                    DateOnly? expiryDate = itemDto.ExpiryDate;
 
-                    // Net cost price after discount (based on puPrice/cost price)
-                    var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+                    if (matchingSalesItem != null)
+                    {
+                        salesPrice = matchingSalesItem.Price;
+                        puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+                        marginPercentage = matchingSalesItem.MarginPercentage;
+                        mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+                        batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+                        expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+                    }
 
-                    // Add stock entry with correct fields
+                    // Calculate values
+                    decimal totalSalesValueBeforeDiscount = salesPrice * itemDto.Quantity;
+                    decimal discountAmountForItem = (totalSalesValueBeforeDiscount * overallDiscountPercentage) / 100m;
+                    decimal itemValueAfterDiscount = totalSalesValueBeforeDiscount - discountAmountForItem;
+
+                    // Calculate item-wise VAT
+                    decimal itemTaxableAmount = 0m;
+                    decimal itemVatPercentage = dto.VatPercentage;
+                    decimal itemVatAmount = 0m;
+
+                    if (!isVatExemptBool && itemVatPercentage > 0 && item.VatStatus?.ToLower() == "vatable")
+                    {
+                        itemTaxableAmount = itemValueAfterDiscount;
+                        itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
+                    }
+
+                    // Update totals
+                    totalPartyCredit += itemValueAfterDiscount + itemVatAmount;  // Party gets CREDIT (reduction in receivable)
+                    totalSalesDebit += itemValueAfterDiscount;                   // Sales account gets DEBIT (reduction in revenue)
+                    totalVatDebit += itemVatAmount;                              // VAT account gets DEBIT (reduction in output VAT)
+
+                    var netPrice = salesPrice - (salesPrice * overallDiscountPercentage / 100);
+                    var netPuPrice = puPrice - (puPrice * overallDiscountPercentage / 100);
+
+                    // ADD STOCK ENTRY (ADDING stock back for returns - POSITIVE quantity)
                     var stockEntry = new StockEntry
                     {
                         Id = Guid.NewGuid(),
                         ItemId = item.Id,
                         Quantity = itemDto.Quantity,
-                        Price = salesPrice,           // SP - Selling Price
-                        PuPrice = puPrice,             // CP - Cost Price
+                        Price = salesPrice,
+                        PuPrice = puPrice,
                         MarginPercentage = marginPercentage,
-                        Mrp = mrp,                     // MRP - Maximum Retail Price
-                        NetPrice = netPrice,           // Net selling price after discount
-                        NetPuPrice = netPuPrice,       // Net cost price after discount
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
-                        BatchNumber = batchNumber,      // Use restored batch number
-                        ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)), // Use restored expiry or default
+                        Mrp = mrp,
+                        NetPrice = netPrice,
+                        NetPuPrice = netPuPrice,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
+                        BatchNumber = batchNumber,
+                        ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
                         Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
                         UniqueUuid = uniqueId,
                         SalesReturnBillId = salesReturn.Id,
@@ -621,7 +1038,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
 
                     _context.StockEntries.Add(stockEntry);
 
-                    // Create sales return item with correct fields
+                    // CREATE SALES RETURN ITEM
                     var returnItem = new SalesReturnItem
                     {
                         Id = Guid.NewGuid(),
@@ -629,16 +1046,16 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         ItemId = itemDto.ItemId,
                         UnitId = itemDto.UnitId,
                         Quantity = itemDto.Quantity,
-                        Price = salesPrice,            // SP - Selling Price
-                        PuPrice = puPrice,              // CP - Cost Price
+                        Price = salesPrice,
+                        PuPrice = puPrice,
                         MarginPercentage = marginPercentage,
-                        Mrp = mrp,                      // MRP - Maximum Retail Price
-                        NetPrice = netPrice,            // Net selling price after discount
-                        NetPuPrice = netPuPrice,        // Net cost price after discount
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
-                        BatchNumber = batchNumber,      // Use restored batch number
-                        ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)), // Use restored expiry or default
+                        Mrp = mrp,
+                        NetPrice = netPrice,
+                        NetPuPrice = netPuPrice,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
+                        BatchNumber = batchNumber,
+                        ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
                         VatStatus = item.VatStatus ?? "vatable",
                         UniqueUuid = uniqueId,
                         CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
@@ -648,32 +1065,63 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     _context.SalesReturnItems.Add(returnItem);
                     returnItems.Add(returnItem);
 
-                    // Create item-level transaction for party account with correct fields
+                    // Store calculation for transaction items
+                    itemCalculations.Add(new SalesReturnItemCalculation
+                    {
+                        ItemId = itemDto.ItemId,
+                        UnitId = itemDto.UnitId,
+                        WsUnit = 1,
+                        Quantity = itemDto.Quantity,
+                        Price = salesPrice,
+                        PuPrice = puPrice,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
+                        NetPuPrice = netPuPrice,
+                        TaxableAmount = itemTaxableAmount,
+                        VatPercentage = itemVatPercentage,
+                        VatAmount = itemVatAmount,
+                        ItemValueAfterDiscount = itemValueAfterDiscount
+                    });
+                }
+
+                // VAT validation
+                if (dto.IsVatExempt != "all")
+                {
+                    if (isVatExemptBool && hasVatableItems)
+                        throw new InvalidOperationException("Cannot save VAT exempt bill with vatable items");
+
+                    if (!isVatExemptBool && hasNonVatableItems)
+                        throw new InvalidOperationException("Cannot save bill with non-vatable items when VAT is applied");
+                }
+
+                // Save items and stock entries
+                await _context.SaveChangesAsync();
+
+                // ========== CREATE HEADER TRANSACTIONS WITH TRANSACTION ITEMS ==========
+
+                // 1. PARTY ACCOUNT TRANSACTION (Header - Credit to party - reduction in receivable)
+                if (dto.AccountId != Guid.Empty && totalPartyCredit > 0)
+                {
                     var partyTransaction = new Transaction
                     {
                         Id = Guid.NewGuid(),
                         CompanyId = companyId,
-                        ItemId = itemDto.ItemId,
-                        UnitId = itemDto.UnitId,
-                        WSUnit = 1,
-                        Quantity = itemDto.Quantity,
-                        Price = salesPrice,             // SP - Selling Price
-                        PuPrice = puPrice,               // CP - Cost Price
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
-                        NetPuPrice = netPuPrice,
                         AccountId = dto.AccountId,
                         SalesReturnBillId = salesReturn.Id,
                         BillNumber = salesReturn.BillNumber,
                         IsType = TransactionIsType.SlRt,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = 0,
-                        Credit = salesReturn.TotalAmount ?? 0,
-                        PaymentMode = ParsePaymentMode(dto.PaymentMode),
-                        Balance = previousBalance + (salesReturn.TotalAmount ?? 0),
-                        Date = salesReturn.Date,
+                        TotalDebit = 0,
+                        TotalCredit = dto.TotalAmount ?? 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = dto.VatAmount,
+                        PaymentMode = paymentMode,
+                        Date = salesReturn.TransactionDate,
                         BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -681,41 +1129,97 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(partyTransaction);
-                }
 
-                // 1. Sales Return Account transaction
-                if (salesReturnAccountId.HasValue)
-                {
-                    var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
-
-                    if (salesReturnAmount > 0)
+                    // Add Transaction Items for Party Transaction
+                    foreach (var calc in itemCalculations)
                     {
-                        var salesReturnTransaction = new Transaction
+                        var transactionItem = new TransactionItem
                         {
                             Id = Guid.NewGuid(),
-                            CompanyId = companyId,
-                            AccountId = salesReturnAccountId.Value,
-                            SalesReturnBillId = salesReturn.Id,
-                            BillNumber = salesReturn.BillNumber,
-                            Type = TransactionType.SlRt,
-                            PurchaseSalesReturnType = "Sales Return",
-                            Debit = salesReturnAmount,
-                            Credit = 0,
-                            PaymentMode = ParsePaymentMode(dto.PaymentMode),
-                            Date = salesReturn.TransactionDate,
-                            BillDate = salesReturn.Date,
-                            FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow,
-                            Status = TransactionStatus.Active,
-                            IsActive = true
+                            TransactionId = partyTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = 0,
+                            Credit = calc.ItemValueAfterDiscount + calc.VatAmount,
+                            CreatedAt = DateTime.UtcNow
                         };
-
-                        await _context.Transactions.AddAsync(salesReturnTransaction);
+                        await _context.TransactionItems.AddAsync(transactionItem);
                     }
+
+                    _logger.LogInformation("Created Party transaction: TotalCredit {Amount}", totalPartyCredit);
                 }
 
-                // 2. VAT transaction if applicable
-                if (dto.VatAmount > 0 && vatAccountId.HasValue && !isVatExemptBool)
+                // 2. SALES ACCOUNT TRANSACTION (Header - Debit to Sales account - reduction in revenue)
+                if (salesAccountId.HasValue && totalSalesDebit > 0)
+                {
+                    var salesTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        AccountId = salesAccountId.Value,
+                        SalesReturnBillId = salesReturn.Id,
+                        BillNumber = salesReturn.BillNumber,
+                        Type = TransactionType.SlRt,
+                        PurchaseSalesReturnType = "Sales Return",
+                        TotalDebit = totalSalesDebit,
+                        TotalCredit = 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = dto.VatAmount,
+                        PaymentMode = paymentMode,
+                        Date = salesReturn.TransactionDate,
+                        BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active,
+                        IsActive = true
+                    };
+
+                    await _context.Transactions.AddAsync(salesTransaction);
+
+                    // Add Transaction Items for Sales Transaction
+                    foreach (var calc in itemCalculations)
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = salesTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.ItemValueAfterDiscount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+
+                    _logger.LogInformation("Created Sales account transaction: TotalDebit {Amount}", totalSalesDebit);
+                }
+
+                // 3. VAT TRANSACTION (Header - Debit to VAT account - reduction in output VAT)
+                if (totalVatDebit > 0 && vatAccountId.HasValue && !isVatExemptBool)
                 {
                     var vatTransaction = new Transaction
                     {
@@ -727,11 +1231,16 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = dto.VatAmount.Value,
-                        Credit = 0,
-                        PaymentMode = ParsePaymentMode(dto.PaymentMode),
+                        TotalDebit = totalVatDebit,
+                        TotalCredit = 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = totalVatDebit,
+                        PaymentMode = paymentMode,
                         Date = salesReturn.TransactionDate,
                         BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -739,9 +1248,37 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(vatTransaction);
+
+                    // Add Transaction Items for VAT Transaction
+                    foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = vatTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.VatAmount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+
+                    _logger.LogInformation("Created VAT transaction: TotalDebit {Amount}", totalVatDebit);
                 }
 
-                // 3. Round-off transaction if applicable
+                // 4. ROUND-OFF TRANSACTION if applicable
                 if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
                 {
                     var roundOffTransaction = new Transaction
@@ -754,11 +1291,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
-                        Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
-                        PaymentMode = ParsePaymentMode(dto.PaymentMode),
+                        TotalDebit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+                        TotalCredit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+                        PaymentMode = paymentMode,
                         Date = salesReturn.TransactionDate,
                         BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -766,10 +1305,11 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(roundOffTransaction);
+                    _logger.LogInformation("Created Round-off transaction");
                 }
 
-                // 4. Cash transaction if payment mode is cash
-                if (dto.PaymentMode?.ToLower() == "cash" && cashAccountId.HasValue)
+                // 5. CASH TRANSACTION if payment mode is cash (Credit - Money going OUT)
+                if (paymentMode == PaymentMode.Cash && cashAccountId.HasValue && totalReturnAmount > 0)
                 {
                     var cashTransaction = new Transaction
                     {
@@ -780,11 +1320,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         BillNumber = salesReturn.BillNumber,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = 0,
-                        Credit = dto.TotalAmount ?? 0,
+                        TotalDebit = 0,
+                        TotalCredit = totalReturnAmount,
                         PaymentMode = PaymentMode.Cash,
                         Date = salesReturn.TransactionDate,
                         BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -792,12 +1334,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(cashTransaction);
+                    _logger.LogInformation("Created Cash transaction: TotalCredit {Amount}", totalReturnAmount);
                 }
 
                 // Update sales return with items
                 salesReturn.Items = returnItems;
 
-                // Save all changes
+                // SINGLE SAVE CHANGES CALL
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -812,6 +1355,24 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 _logger.LogError(ex, "Error creating sales return");
                 throw;
             }
+        }
+
+        // Helper class for sales return item calculations
+        private class SalesReturnItemCalculation
+        {
+            public Guid ItemId { get; set; }
+            public Guid UnitId { get; set; }
+            public int? WsUnit { get; set; }
+            public decimal Quantity { get; set; }
+            public decimal Price { get; set; }
+            public decimal? PuPrice { get; set; }
+            public decimal DiscountPercentagePerItem { get; set; }
+            public decimal DiscountAmountPerItem { get; set; }
+            public decimal? NetPuPrice { get; set; }
+            public decimal TaxableAmount { get; set; }
+            public decimal VatPercentage { get; set; }
+            public decimal VatAmount { get; set; }
+            public decimal ItemValueAfterDiscount { get; set; }
         }
 
         private async Task<Guid?> GetDefaultAccountIdAsync(string accountName, Guid companyId)
@@ -1092,9 +1653,161 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
         }
 
 
+        // public async Task<ChangeSalesReturnPartyResponseDTO> ChangeSalesReturnPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
+
+        //     // Start a database transaction to ensure data consistency
+        //     using var dbTransaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         // 1. Verify the new account exists, is active, and is a party account
+        //         var newAccount = await VerifyAndGetPartyAccountAsync(newAccountId, companyId);
+
+        //         // 2. Get the original sales return bill with account
+        //         var originalBill = await _context.SalesReturns
+        //             .Include(sr => sr.Account)
+        //             .Include(sr => sr.Items)
+        //             .FirstOrDefaultAsync(sr => sr.BillNumber == billNumber &&
+        //                                        sr.CompanyId == companyId &&
+        //                                        sr.FiscalYearId == fiscalYearId);
+
+        //         if (originalBill == null)
+        //         {
+        //             throw new Exception("Voucher not found");
+        //         }
+
+        //         // Check if party is actually changed
+        //         if (originalBill.AccountId == newAccountId)
+        //         {
+        //             throw new Exception("Selected party is same as current party");
+        //         }
+
+        //         var oldAccountId = originalBill.AccountId;
+        //         var oldAccountName = originalBill.Account?.Name ?? "Unknown";
+
+        //         // 3. Calculate amounts
+        //         var totalAmount = originalBill.TotalAmount;
+        //         var taxableAmount = originalBill.TaxableAmount;
+        //         var NonVatSalesReturn = originalBill.NonVatSalesReturn;
+        //         var vatAmount = originalBill.VatAmount;
+        //         var roundOffAmount = originalBill.RoundOffAmount;
+        //         var creditSalesAmount = taxableAmount + NonVatSalesReturn;
+
+        //         // 4. Get purchase account ID
+        //         var creditSalesReturnAccountId = await GetDefaultAccountIdAsync("Sales Return", companyId);
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+
+        //         // Parse payment mode
+        //         var paymentMode = ParsePaymentMode(originalBill.PaymentMode ?? "Credit");
+
+        //         // 5. Get all transactions linked to this sales return bill
+        //         var transactions = await _context.Transactions
+        //             .Where(t => t.SalesReturnBillId == originalBill.Id &&
+        //                        t.CompanyId == companyId &&
+        //                        t.FiscalYearId == fiscalYearId &&
+        //                        t.Status == TransactionStatus.Active)
+        //             .ToListAsync();
+
+        //         _logger.LogInformation($"Found {transactions.Count} transactions for bill {billNumber}");
+
+        //         // 6. Update purchase bill with new account
+        //         originalBill.AccountId = newAccountId;
+        //         originalBill.UpdatedAt = DateTime.UtcNow;
+        //         originalBill.PurchaseSalesReturnType = "Sales Return"; // Update purchase type with new party name
+
+        //         // 7. Process each transaction
+        //         foreach (var trans in transactions)
+        //         {
+        //             // Check if this is the main party transaction (old party)
+        //             // Party transaction is identified by having AccountId = oldAccountId AND Debit = 0, Credit = totalAmount
+        //             var isMainPartyTransaction = trans.AccountId == oldAccountId &&
+        //                                          trans.Debit == 0 &&
+        //                                          trans.Credit == totalAmount &&
+        //                                          trans.Type == TransactionType.SlRt;
+
+        //             if (isMainPartyTransaction)
+        //             {
+        //                 // Update to new party - Party account should be CREDIT side
+        //                 trans.AccountId = newAccountId;
+        //                 trans.PurchaseSalesReturnType = "Sales Return";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated main party transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
+        //             }
+        //             // Check if this is a purchase account transaction
+        //             else if (creditSalesReturnAccountId.HasValue && trans.AccountId == creditSalesReturnAccountId.Value)
+        //             {
+        //                 trans.PurchaseSalesReturnType = "Sales Return";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated credit sales account transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a VAT transaction
+        //             else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
+        //             {
+        //                 trans.PurchaseSalesReturnType = "Sales Return";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated VAT transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a RoundOff transaction
+        //             else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
+        //             {
+        //                 trans.PurchaseSalesReturnType = "Sales Return";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated RoundOff transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a cash transaction (if payment mode was cash)
+        //             else if (trans.PaymentMode == PaymentMode.Cash && trans.Debit == 0 && trans.Credit == totalAmount)
+        //             {
+        //                 trans.PurchaseSalesReturnType = "Sales Return";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated cash transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // For any other transactions linked to items (item-level party transactions)
+        //             else if (trans.ItemId.HasValue && trans.Type == TransactionType.Purc)
+        //             {
+        //                 // These are the item-level party transactions created in CreatesalesBillAsync
+        //                 trans.AccountId = newAccountId; // Update the account to new party
+        //                 trans.PurchaseSalesReturnType = "Sales Return";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated item-level party transaction {trans.Id} for item {trans.ItemId}");
+        //             }
+        //         }
+
+        //         // 8. Save changes
+        //         await _context.SaveChangesAsync();
+
+        //         // 9. Commit transaction
+        //         await dbTransaction.CommitAsync();
+
+        //         _logger.LogInformation($"Successfully changed party for bill: {billNumber} from {oldAccountName} to {newAccount.Name}");
+
+        //         return new ChangeSalesReturnPartyResponseDTO
+        //         {
+        //             BillNumber = billNumber,
+        //             AccountId = newAccountId,
+        //             AccountName = newAccount.Name,
+        //             Message = $"Party changed successfully from \"{oldAccountName}\" to \"{newAccount.Name}\""
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, $"Error changing party for bill: {billNumber}");
+        //         await dbTransaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
         public async Task<ChangeSalesReturnPartyResponseDTO> ChangeSalesReturnPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
         {
-            _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
+            _logger.LogInformation($"Changing party for sales return: {billNumber} to new account: {newAccountId}");
 
             // Start a database transaction to ensure data consistency
             using var dbTransaction = await _context.Database.BeginTransactionAsync();
@@ -1104,7 +1817,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // 1. Verify the new account exists, is active, and is a party account
                 var newAccount = await VerifyAndGetPartyAccountAsync(newAccountId, companyId);
 
-                // 2. Get the original sales return bill with account
+                // 2. Get the original sales return bill with account and items
                 var originalBill = await _context.SalesReturns
                     .Include(sr => sr.Account)
                     .Include(sr => sr.Items)
@@ -1127,68 +1840,88 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 var oldAccountName = originalBill.Account?.Name ?? "Unknown";
 
                 // 3. Calculate amounts
-                var totalAmount = originalBill.TotalAmount;
-                var taxableAmount = originalBill.TaxableAmount;
-                var NonVatSalesReturn = originalBill.NonVatSalesReturn;
-                var vatAmount = originalBill.VatAmount;
-                var roundOffAmount = originalBill.RoundOffAmount;
-                var creditSalesAmount = taxableAmount + NonVatSalesReturn;
+                var totalAmount = originalBill.TotalAmount ?? 0;
+                var taxableAmount = originalBill.TaxableAmount ?? 0;
+                var nonVatSalesReturn = originalBill.NonVatSalesReturn ?? 0;
+                var vatAmount = originalBill.VatAmount ?? 0;
+                var roundOffAmount = originalBill.RoundOffAmount ?? 0;
+                var salesReturnAmount = taxableAmount + nonVatSalesReturn;
 
-                // 4. Get purchase account ID
-                var creditSalesReturnAccountId = await GetDefaultAccountIdAsync("Sales Return", companyId);
+                // 4. Get default account IDs
+                var salesReturnAccountId = await GetDefaultAccountIdAsync("Sales Return", companyId);
                 var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
                 var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
 
                 // Parse payment mode
                 var paymentMode = ParsePaymentMode(originalBill.PaymentMode ?? "Credit");
 
-                // 5. Get all transactions linked to this sales return bill
+                // 5. Get all transactions linked to this sales return bill WITH their transaction items
                 var transactions = await _context.Transactions
                     .Where(t => t.SalesReturnBillId == originalBill.Id &&
                                t.CompanyId == companyId &&
                                t.FiscalYearId == fiscalYearId &&
                                t.Status == TransactionStatus.Active)
+                    .Include(t => t.TransactionItems) // Include transaction items
                     .ToListAsync();
 
                 _logger.LogInformation($"Found {transactions.Count} transactions for bill {billNumber}");
 
-                // 6. Update purchase bill with new account
+                // 6. Update sales return bill with new account
                 originalBill.AccountId = newAccountId;
                 originalBill.UpdatedAt = DateTime.UtcNow;
-                originalBill.PurchaseSalesReturnType = "Sales Return"; // Update purchase type with new party name
+                originalBill.PurchaseSalesReturnType = "Sales Return";
 
                 // 7. Process each transaction
                 foreach (var trans in transactions)
                 {
                     // Check if this is the main party transaction (old party)
-                    // Party transaction is identified by having AccountId = oldAccountId AND Debit = 0, Credit = totalAmount
+                    // Party transaction is identified by having AccountId = oldAccountId AND TotalDebit = 0, TotalCredit = totalAmount
                     var isMainPartyTransaction = trans.AccountId == oldAccountId &&
-                                                 trans.Debit == 0 &&
-                                                 trans.Credit == totalAmount &&
+                                                 trans.TotalDebit == 0 &&
+                                                 trans.TotalCredit == totalAmount &&
                                                  trans.Type == TransactionType.SlRt;
 
                     if (isMainPartyTransaction)
                     {
-                        // Update to new party - Party account should be CREDIT side
+                        // Update to new party - Party account should be CREDIT side (reduction in receivable)
                         trans.AccountId = newAccountId;
                         trans.PurchaseSalesReturnType = "Sales Return";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated main party transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
+
+                        // Update all transaction items under this transaction
+                        foreach (var transactionItem in trans.TransactionItems)
+                        {
+                            transactionItem.UpdatedAt = DateTime.UtcNow;
+                            _logger.LogInformation($"Updated transaction item {transactionItem.Id} under party transaction {trans.Id}");
+                        }
                     }
-                    // Check if this is a purchase account transaction
-                    else if (creditSalesReturnAccountId.HasValue && trans.AccountId == creditSalesReturnAccountId.Value)
+                    // Check if this is a sales return account transaction (Debit to Sales Return account)
+                    else if (salesReturnAccountId.HasValue && trans.AccountId == salesReturnAccountId.Value)
                     {
                         trans.PurchaseSalesReturnType = "Sales Return";
                         trans.UpdatedAt = DateTime.UtcNow;
 
-                        _logger.LogInformation($"Updated credit sales account transaction {trans.Id} with new party name: {newAccount.Name}");
+                        // Update transaction items if any
+                        foreach (var transactionItem in trans.TransactionItems)
+                        {
+                            transactionItem.UpdatedAt = DateTime.UtcNow;
+                        }
+
+                        _logger.LogInformation($"Updated sales return account transaction {trans.Id} with new party name: {newAccount.Name}");
                     }
-                    // Check if this is a VAT transaction
+                    // Check if this is a VAT transaction (Debit to VAT account)
                     else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
                     {
                         trans.PurchaseSalesReturnType = "Sales Return";
                         trans.UpdatedAt = DateTime.UtcNow;
+
+                        // Update transaction items (VAT items per product)
+                        foreach (var transactionItem in trans.TransactionItems)
+                        {
+                            transactionItem.UpdatedAt = DateTime.UtcNow;
+                        }
 
                         _logger.LogInformation($"Updated VAT transaction {trans.Id} with new party name: {newAccount.Name}");
                     }
@@ -1201,22 +1934,27 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         _logger.LogInformation($"Updated RoundOff transaction {trans.Id} with new party name: {newAccount.Name}");
                     }
                     // Check if this is a cash transaction (if payment mode was cash)
-                    else if (trans.PaymentMode == PaymentMode.Cash && trans.Debit == 0 && trans.Credit == totalAmount)
+                    else if (trans.PaymentMode == PaymentMode.Cash && trans.TotalDebit == 0 && trans.TotalCredit == totalAmount)
                     {
                         trans.PurchaseSalesReturnType = "Sales Return";
                         trans.UpdatedAt = DateTime.UtcNow;
 
                         _logger.LogInformation($"Updated cash transaction {trans.Id} with new party name: {newAccount.Name}");
                     }
-                    // For any other transactions linked to items (item-level party transactions)
-                    else if (trans.ItemId.HasValue && trans.Type == TransactionType.Purc)
+                    // For any other transactions that might have items
+                    else if (trans.TransactionItems.Any() && trans.Type == TransactionType.SlRt)
                     {
-                        // These are the item-level party transactions created in CreatesalesBillAsync
-                        trans.AccountId = newAccountId; // Update the account to new party
+                        // Update the transaction header
                         trans.PurchaseSalesReturnType = "Sales Return";
                         trans.UpdatedAt = DateTime.UtcNow;
 
-                        _logger.LogInformation($"Updated item-level party transaction {trans.Id} for item {trans.ItemId}");
+                        // Update all transaction items
+                        foreach (var transactionItem in trans.TransactionItems)
+                        {
+                            transactionItem.UpdatedAt = DateTime.UtcNow;
+                        }
+
+                        _logger.LogInformation($"Updated transaction {trans.Id} with {trans.TransactionItems.Count} items");
                     }
                 }
 
@@ -1243,7 +1981,6 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 throw;
             }
         }
-
         private async Task<Account> VerifyAndGetPartyAccountAsync(Guid accountId, Guid companyId)
         {
             var account = await _context.Accounts
@@ -1620,6 +2357,1031 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
             };
         }
 
+        // public async Task<SalesReturn> UpdateSalesReturnAsync(Guid id, UpdateSalesReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("=== Starting UpdateSalesReturnAsync for Bill ID: {BillId} ===", id);
+
+        //         // Validate required fields
+        //         if (dto.AccountId == null || dto.AccountId == Guid.Empty)
+        //             throw new ArgumentException("Account ID is required");
+
+        //         if (dto.Items == null || !dto.Items.Any())
+        //             throw new ArgumentException("At least one item is required");
+
+        //         if (string.IsNullOrEmpty(dto.PaymentMode))
+        //             throw new ArgumentException("Payment mode is required");
+
+        //         // Validate calculated amounts are provided
+        //         if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+        //             !dto.NonVatSalesReturn.HasValue || !dto.TotalAmount.HasValue)
+        //         {
+        //             throw new ArgumentException("SubTotal, TaxableAmount, NonVatSalesReturn, and TotalAmount are required");
+        //         }
+
+        //         // Get the existing sales return with ALL related data
+        //         var existingBill = await _context.SalesReturns
+        //             .Include(sr => sr.Items)
+        //             .Include(sr => sr.Account)
+        //             .FirstOrDefaultAsync(sr => sr.Id == id && sr.CompanyId == companyId);
+
+        //         if (existingBill == null)
+        //             throw new ArgumentException("Sales return bill not found");
+
+        //         // Get company to check date format and VAT enabled
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         if (fiscalYear == null)
+        //             throw new ArgumentException("Fiscal year not found");
+
+        //         // Validate account belongs to company
+        //         var account = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
+
+        //         if (account == null)
+        //             throw new ArgumentException("Invalid account for this company");
+
+        //         // CHECK IF STOCK IS USED (similar to purchase update)
+        //         await CheckIfStockIsUsedInReturnsAsync(existingBill, companyId);
+
+        //         // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
+        //         var existingStockEntries = await _context.StockEntries
+        //             .Where(se => se.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingStockEntries.Any())
+        //         {
+        //             _context.StockEntries.RemoveRange(existingStockEntries);
+        //             _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
+        //         }
+
+        //         // STEP 2: Delete all associated transactions
+        //         var existingTransactions = await _context.Transactions
+        //             .Where(t => t.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingTransactions.Any())
+        //         {
+        //             _context.Transactions.RemoveRange(existingTransactions);
+        //             _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+        //         }
+
+        //         // STEP 3: Delete existing items
+        //         if (existingBill.Items.Any())
+        //         {
+        //             _context.SalesReturnItems.RemoveRange(existingBill.Items);
+        //             existingBill.Items.Clear();
+        //             _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
+        //         }
+
+        //         // Save changes after deletions
+        //         await _context.SaveChangesAsync();
+        //         _logger.LogInformation("Saved deletions successfully");
+
+        //         // Get default accounts
+        //         var salesReturnAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Sales Return" && a.CompanyId == companyId);
+
+        //         var vatAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "VAT" && a.CompanyId == companyId);
+
+        //         var roundOffAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Rounded Off" && a.CompanyId == companyId);
+
+        //         var cashAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Cash in Hand" && a.CompanyId == companyId);
+
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+
+        //         // Get previous balance for account
+        //         decimal previousBalance = 0;
+        //         var lastTransaction = await _context.Transactions
+        //             .Where(t => t.AccountId == dto.AccountId)
+        //             .OrderByDescending(t => t.CreatedAt)
+        //             .FirstOrDefaultAsync();
+
+        //         if (lastTransaction != null)
+        //             previousBalance = lastTransaction.Balance ?? 0;
+
+        //         // Determine VAT exemption
+        //         bool isVatExempt = dto.IsVatExempt ?? false;
+        //         bool isVatAll = dto.IsVatAll == "all";
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Parse VAT exemption from string if needed
+        //         if (!string.IsNullOrEmpty(dto.IsVatAll))
+        //         {
+        //             if (dto.IsVatAll.ToLower() == "true" || dto.IsVatAll == "1")
+        //                 isVatExempt = true;
+        //             else if (dto.IsVatAll.ToLower() == "all")
+        //                 isVatAll = true;
+        //         }
+
+        //         // Track VAT status validation
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // STEP 4: UPDATE BILL PROPERTIES
+        //         existingBill.AccountId = dto.AccountId;
+        //         existingBill.OriginalSalesBillId = dto.OriginalSalesBillId;
+        //         existingBill.OriginalSalesBillNumber = dto.OriginalSalesBillNumber;
+        //         existingBill.PurchaseSalesReturnType = "Sales Return";
+        //         existingBill.OriginalCopies = dto.OriginalCopies ?? existingBill.OriginalCopies;
+        //         existingBill.FirstPrinted = dto.FirstPrinted ?? existingBill.FirstPrinted;
+        //         existingBill.CashAccount = dto.CashAccount;
+        //         existingBill.CashAccountAddress = dto.CashAccountAddress;
+        //         existingBill.CashAccountPan = dto.CashAccountPan;
+        //         existingBill.CashAccountEmail = dto.CashAccountEmail;
+        //         existingBill.CashAccountPhone = dto.CashAccountPhone;
+        //         existingBill.UnitId = dto.UnitId;
+        //         existingBill.SettingsId = dto.SettingsId;
+
+        //         // Financial fields
+        //         existingBill.SubTotal = dto.SubTotal;
+        //         existingBill.NonVatSalesReturn = dto.NonVatSalesReturn;
+        //         existingBill.TaxableAmount = dto.TaxableAmount;
+        //         existingBill.DiscountPercentage = dto.DiscountPercentage;
+        //         existingBill.DiscountAmount = dto.DiscountAmount;
+        //         existingBill.VatPercentage = isVatExempt ? 0 : (dto.VatPercentage ?? 13);
+        //         existingBill.VatAmount = dto.VatAmount;
+        //         existingBill.TotalAmount = dto.TotalAmount;
+        //         existingBill.IsVatExempt = isVatExempt;
+        //         existingBill.IsVatAll = isVatAll ? "all" : (isVatExempt ? "true" : "false");
+        //         existingBill.RoundOffAmount = dto.RoundOffAmount;
+        //         existingBill.PaymentMode = dto.PaymentMode;
+        //         existingBill.Quantity = dto.Quantity;
+        //         existingBill.Price = dto.Price;
+
+        //         existingBill.UpdatedAt = DateTime.UtcNow;
+
+        //         // Update the bill
+        //         _context.SalesReturns.Update(existingBill);
+        //         await _context.SaveChangesAsync();
+
+        //         // Generate a unique ID for all stock entries in this update
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // STEP 5: Process new items and create stock entries (removing stock from inventory)
+        //         var returnItems = new List<SalesReturnItem>();
+
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+
+        //             // Try to find a matching sales bill item to get original values
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;
+        //             decimal puPrice = itemDto.PuPrice ?? itemDto.Price;
+        //             decimal mrp = itemDto.Mrp ?? 0;
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate;
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 salesPrice = matchingSalesItem.Price;
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
+        //                      itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
+        //             }
+
+        //             // Calculate discount values
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // CREATE STOCK ENTRY (REMOVING STOCK FROM INVENTORY - NEGATIVE QUANTITY)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // CREATE NEW SALES RETURN ITEM
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = existingBill.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 Mrp = mrp,
+        //                 MarginPercentage = marginPercentage,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPrice = netPrice,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate,
+        //                 VatStatus = itemDto.VatStatus ?? item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UpdatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+
+        //             // CREATE ITEM-LEVEL PARTY TRANSACTION
+        //             var partyTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 WSUnit = 1,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPuPrice = netPuPrice,
+        //                 AccountId = dto.AccountId,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,
+        //                 Credit = itemTotal,
+        //                 PaymentMode = paymentMode,
+        //                 Balance = previousBalance + itemTotal,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(partyTransaction);
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatAll != "all")
+        //         {
+        //             if (isVatExempt && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot update VAT exempt bill with vatable items");
+
+        //             if (!isVatExempt && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot update bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Save items and stock entries
+        //         await _context.SaveChangesAsync();
+
+        //         // STEP 6: CREATE SUMMARY TRANSACTIONS
+
+        //         // 1. Sales Return Account transaction
+        //         if (salesReturnAccount != null)
+        //         {
+        //             var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //             if (salesReturnAmount > 0)
+        //             {
+        //                 var salesReturnTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CompanyId = companyId,
+        //                     AccountId = salesReturnAccount.Id,
+        //                     SalesReturnBillId = existingBill.Id,
+        //                     BillNumber = existingBill.BillNumber,
+        //                     Type = TransactionType.SlRt,
+        //                     PurchaseSalesReturnType = "Sales Return",
+        //                     Debit = salesReturnAmount,
+        //                     Credit = 0,
+        //                     PaymentMode = paymentMode,
+        //                     Date = existingBill.TransactionDate,
+        //                     BillDate = existingBill.Date,
+        //                     nepaliDate = dto.NepaliDate,
+        //                     transactionDateNepali = dto.TransactionDateNepali,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active,
+        //                     IsActive = true
+        //                 };
+
+        //                 await _context.Transactions.AddAsync(salesReturnTransaction);
+        //             }
+        //         }
+
+        //         // 2. VAT transaction if applicable
+        //         if (dto.VatAmount > 0 && vatAccount != null && !isVatExempt)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.VatAmount.Value,
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(vatTransaction);
+        //         }
+
+        //         // 3. Round-off transaction if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccount != null)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(roundOffTransaction);
+        //         }
+
+        //         // 4. Cash transaction if payment mode is cash
+        //         if (paymentMode == PaymentMode.Cash && cashAccount != null)
+        //         {
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,
+        //                 Credit = dto.TotalAmount ?? 0,
+        //                 PaymentMode = PaymentMode.Cash,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(cashTransaction);
+        //         }
+
+        //         // Update items collection
+        //         existingBill.Items = returnItems;
+
+        //         // Save all changes
+        //         var saveResult = await _context.SaveChangesAsync();
+        //         _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+
+        //         await transaction.CommitAsync();
+        //         _logger.LogInformation("Transaction committed successfully");
+
+        //         _logger.LogInformation("=== Successfully updated sales return bill: {BillId} ===", id);
+
+        //         return existingBill;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating sales return bill: {BillId}", id);
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
+
+        // public async Task<SalesReturn> UpdateSalesReturnAsync(Guid id, UpdateSalesReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("=== Starting UpdateSalesReturnAsync for Bill ID: {BillId} ===", id);
+
+        //         // Validate required fields
+        //         if (dto.AccountId == null || dto.AccountId == Guid.Empty)
+        //             throw new ArgumentException("Account ID is required");
+
+        //         if (dto.Items == null || !dto.Items.Any())
+        //             throw new ArgumentException("At least one item is required");
+
+        //         if (string.IsNullOrEmpty(dto.PaymentMode))
+        //             throw new ArgumentException("Payment mode is required");
+
+        //         // Validate calculated amounts are provided
+        //         if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+        //             !dto.NonVatSalesReturn.HasValue || !dto.TotalAmount.HasValue)
+        //         {
+        //             throw new ArgumentException("SubTotal, TaxableAmount, NonVatSalesReturn, and TotalAmount are required");
+        //         }
+
+        //         // Get the existing sales return with ALL related data
+        //         var existingBill = await _context.SalesReturns
+        //             .Include(sr => sr.Items)
+        //             .Include(sr => sr.Account)
+        //             .FirstOrDefaultAsync(sr => sr.Id == id && sr.CompanyId == companyId);
+
+        //         if (existingBill == null)
+        //             throw new ArgumentException("Sales return bill not found");
+
+        //         // Get company to check date format and VAT enabled
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         if (fiscalYear == null)
+        //             throw new ArgumentException("Fiscal year not found");
+
+        //         // Validate account belongs to company
+        //         var account = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
+
+        //         if (account == null)
+        //             throw new ArgumentException("Invalid account for this company");
+
+        //         // Get previous balance for party account
+        //         decimal previousBalance = 0;
+        //         var lastTransaction = await _context.Transactions
+        //             .Where(t => t.AccountId == dto.AccountId && t.CompanyId == companyId && t.SalesReturnBillId != id)
+        //             .OrderByDescending(t => t.CreatedAt)
+        //             .FirstOrDefaultAsync();
+
+        //         if (lastTransaction != null)
+        //             previousBalance = lastTransaction.Balance ?? 0;
+
+        //         // Get previous cash balance if payment mode is cash
+        //         decimal previousCashBalance = 0;
+        //         var cashAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Cash in Hand" && a.CompanyId == companyId);
+
+        //         if (cashAccount != null && dto.PaymentMode?.ToLower() == "cash")
+        //         {
+        //             var lastCashTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == cashAccount.Id && t.CompanyId == companyId && t.SalesReturnBillId != id)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             if (lastCashTransaction != null)
+        //                 previousCashBalance = lastCashTransaction.Balance ?? 0;
+        //         }
+
+        //         // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
+        //         var existingStockEntries = await _context.StockEntries
+        //             .Where(se => se.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingStockEntries.Any())
+        //         {
+        //             _context.StockEntries.RemoveRange(existingStockEntries);
+        //             _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
+        //         }
+
+        //         // STEP 2: Delete all associated transactions
+        //         var existingTransactions = await _context.Transactions
+        //             .Where(t => t.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingTransactions.Any())
+        //         {
+        //             _context.Transactions.RemoveRange(existingTransactions);
+        //             _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+        //         }
+
+        //         // STEP 3: Delete existing items
+        //         if (existingBill.Items.Any())
+        //         {
+        //             _context.SalesReturnItems.RemoveRange(existingBill.Items);
+        //             existingBill.Items.Clear();
+        //             _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
+        //         }
+
+        //         // Save changes after deletions
+        //         await _context.SaveChangesAsync();
+        //         _logger.LogInformation("Saved deletions successfully");
+
+        //         // Get default accounts
+        //         var salesAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Sales" && a.CompanyId == companyId);
+
+        //         var vatAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "VAT" && a.CompanyId == companyId);
+
+        //         var roundOffAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Rounded Off" && a.CompanyId == companyId);
+
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+
+        //         // Determine VAT exemption
+        //         bool isVatExempt = dto.IsVatExempt ?? false;
+        //         bool isVatAll = dto.IsVatAll == "all";
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Parse VAT exemption from string if needed
+        //         if (!string.IsNullOrEmpty(dto.IsVatAll))
+        //         {
+        //             if (dto.IsVatAll.ToLower() == "true" || dto.IsVatAll == "1")
+        //                 isVatExempt = true;
+        //             else if (dto.IsVatAll.ToLower() == "all")
+        //                 isVatAll = true;
+        //         }
+
+        //         // Track VAT status validation
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // Calculate total return amount
+        //         decimal totalReturnAmount = dto.TotalAmount ?? 0;
+        //         decimal salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //         // STEP 4: UPDATE BILL PROPERTIES
+        //         existingBill.AccountId = dto.AccountId;
+        //         existingBill.OriginalSalesBillId = dto.OriginalSalesBillId;
+        //         existingBill.OriginalSalesBillNumber = dto.OriginalSalesBillNumber;
+        //         existingBill.PurchaseSalesReturnType = "Sales Return";
+        //         existingBill.OriginalCopies = dto.OriginalCopies ?? existingBill.OriginalCopies;
+        //         existingBill.FirstPrinted = dto.FirstPrinted ?? existingBill.FirstPrinted;
+        //         existingBill.CashAccount = dto.CashAccount;
+        //         existingBill.CashAccountAddress = dto.CashAccountAddress;
+        //         existingBill.CashAccountPan = dto.CashAccountPan;
+        //         existingBill.CashAccountEmail = dto.CashAccountEmail;
+        //         existingBill.CashAccountPhone = dto.CashAccountPhone;
+        //         existingBill.UnitId = dto.UnitId;
+        //         existingBill.SettingsId = dto.SettingsId;
+
+        //         // Financial fields
+        //         existingBill.SubTotal = dto.SubTotal;
+        //         existingBill.NonVatSalesReturn = dto.NonVatSalesReturn;
+        //         existingBill.TaxableAmount = dto.TaxableAmount;
+        //         existingBill.DiscountPercentage = dto.DiscountPercentage;
+        //         existingBill.DiscountAmount = dto.DiscountAmount;
+        //         existingBill.VatPercentage = isVatExempt ? 0 : (dto.VatPercentage ?? 13);
+        //         existingBill.VatAmount = dto.VatAmount;
+        //         existingBill.TotalAmount = totalReturnAmount;
+        //         existingBill.IsVatExempt = isVatExempt;
+        //         existingBill.IsVatAll = isVatAll ? "all" : (isVatExempt ? "true" : "false");
+        //         existingBill.RoundOffAmount = dto.RoundOffAmount;
+        //         existingBill.PaymentMode = dto.PaymentMode;
+        //         existingBill.Quantity = dto.Quantity;
+        //         existingBill.Price = dto.Price;
+
+        //         // Dates
+        //         if (dto.NepaliDate != default)
+        //             existingBill.nepaliDate = dto.NepaliDate;
+        //         if (dto.Date != default)
+        //             existingBill.Date = dto.Date;
+        //         if (dto.TransactionDateNepali != default)
+        //             existingBill.transactionDateNepali = dto.TransactionDateNepali;
+        //         if (dto.TransactionDate != default)
+        //             existingBill.TransactionDate = dto.TransactionDate;
+
+        //         existingBill.UpdatedAt = DateTime.UtcNow;
+
+        //         // Update the bill
+        //         _context.SalesReturns.Update(existingBill);
+        //         await _context.SaveChangesAsync();
+
+        //         // Generate a unique ID for all stock entries in this update
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // STEP 5: Process new items and create stock entries (ADDING stock back for returns)
+        //         var returnItems = new List<SalesReturnItem>();
+        //         var allTransactions = new List<Transaction>();
+
+        //         // Load all items at once
+        //         var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        //         var itemsDict = await _context.Items
+        //             .Include(i => i.StockEntries)
+        //             .Where(i => itemIds.Contains(i.Id))
+        //             .ToDictionaryAsync(i => i.Id);
+
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+
+        //             // Try to find a matching sales bill item to get original values
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;
+        //             decimal puPrice = itemDto.PuPrice ?? itemDto.Price;
+        //             decimal mrp = itemDto.Mrp ?? 0;
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate;
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 salesPrice = matchingSalesItem.Price;
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
+        //                      itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
+        //             }
+
+        //             // Calculate discount values
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // CREATE STOCK ENTRY (ADDING STOCK BACK TO INVENTORY - POSITIVE QUANTITY)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // CREATE NEW SALES RETURN ITEM
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = existingBill.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 Mrp = mrp,
+        //                 MarginPercentage = marginPercentage,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPrice = netPrice,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate,
+        //                 VatStatus = itemDto.VatStatus ?? item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UpdatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatAll != "all")
+        //         {
+        //             if (isVatExempt && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot update VAT exempt bill with vatable items");
+
+        //             if (!isVatExempt && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot update bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Save items and stock entries
+        //         await _context.SaveChangesAsync();
+
+        //         // ============================================================
+        //         // CREATE ALL TRANSACTIONS (FOLLOWING PURCHASE RETURN PATTERN)
+        //         // ============================================================
+
+        //         // 1. PARTY ACCOUNT TRANSACTION (CREDIT - Party's balance decreases)
+        //         var partyTransaction = new Transaction
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             CompanyId = companyId,
+        //             AccountId = dto.AccountId,
+        //             SalesReturnBillId = existingBill.Id,
+        //             BillNumber = existingBill.BillNumber,
+        //             IsType = TransactionIsType.SlRt,
+        //             Type = TransactionType.SlRt,
+        //             PurchaseSalesReturnType = "Sales Return",
+        //             Debit = 0,                                    // Party account is CREDITED
+        //             Credit = totalReturnAmount,                   // Decreasing party's balance
+        //             Balance = previousBalance - totalReturnAmount,
+        //             PaymentMode = paymentMode,
+        //             Date = existingBill.TransactionDate,
+        //             BillDate = existingBill.Date,
+        //             nepaliDate = dto.NepaliDate,
+        //             transactionDateNepali = dto.TransactionDateNepali,
+        //             FiscalYearId = fiscalYearId,
+        //             CreatedAt = DateTime.UtcNow,
+        //             Status = TransactionStatus.Active,
+        //             IsActive = true
+        //         };
+        //         allTransactions.Add(partyTransaction);
+        //         _logger.LogInformation("Created Party transaction: Credit {Amount}, New Balance: {Balance}",
+        //             totalReturnAmount, previousBalance - totalReturnAmount);
+
+        //         // 2. SALES ACCOUNT TRANSACTION (DEBIT - Reducing sales revenue)
+        //         if (salesAccount != null && salesReturnAmount > 0)
+        //         {
+        //             var salesTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = salesAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = salesReturnAmount,                // Sales account is DEBITED
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(salesTransaction);
+        //             _logger.LogInformation("Created Sales account transaction: Debit {Amount}", salesReturnAmount);
+        //         }
+
+        //         // 3. VAT TRANSACTION (DEBIT - Reducing VAT liability)
+        //         if (dto.VatAmount > 0 && vatAccount != null && !isVatExempt)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.VatAmount.Value,              // VAT account is DEBITED
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(vatTransaction);
+        //             _logger.LogInformation("Created VAT transaction: Debit {Amount}", dto.VatAmount.Value);
+        //         }
+
+        //         // 4. ROUND-OFF TRANSACTION if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccount != null)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
+        //                 Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(roundOffTransaction);
+        //             _logger.LogInformation("Created Round-off transaction: Debit {Debit}, Credit {Credit}",
+        //                 roundOffTransaction.Debit, roundOffTransaction.Credit);
+        //         }
+
+        //         // 5. CASH TRANSACTION if payment mode is cash (CREDIT - Money going OUT)
+        //         if (paymentMode == PaymentMode.Cash && cashAccount != null && totalReturnAmount > 0)
+        //         {
+        //             var cashBalance = previousCashBalance - totalReturnAmount;
+
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,                                    // Cash account is CREDITED
+        //                 Credit = totalReturnAmount,                   // Money going OUT
+        //                 Balance = cashBalance,
+        //                 PaymentMode = PaymentMode.Cash,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(cashTransaction);
+        //             _logger.LogInformation("Created Cash transaction: Credit {Amount}, New Balance: {Balance}",
+        //                 totalReturnAmount, cashBalance);
+        //         }
+
+        //         // 6. ITEM-LEVEL TRANSACTIONS (CREDIT - Inventory value increases)
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items.FindAsync(itemDto.ItemId);
+        //             if (item == null) continue;
+
+        //             // Find matching sales item to get cost price
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal costPrice = matchingSalesItem?.PuPrice ?? itemDto.PuPrice ?? itemDto.Price;
+        //             decimal itemCostTotal = costPrice * itemDto.Quantity;
+
+        //             var itemTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = itemDto.Price,
+        //                 PuPrice = costPrice,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,
+        //                 Credit = itemCostTotal,                   // Inventory value increases
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(itemTransaction);
+        //             _logger.LogInformation("Created item-level transaction for {ItemName}: Credit {Amount}", item.Name, itemCostTotal);
+        //         }
+
+        //         // Add all transactions
+        //         await _context.Transactions.AddRangeAsync(allTransactions);
+
+        //         // Update items collection
+        //         existingBill.Items = returnItems;
+
+        //         // Save all changes
+        //         var saveResult = await _context.SaveChangesAsync();
+        //         _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected, {TransactionCount} transactions created.",
+        //             saveResult, allTransactions.Count);
+
+        //         await transaction.CommitAsync();
+        //         _logger.LogInformation("Transaction committed successfully");
+
+        //         _logger.LogInformation("=== Successfully updated sales return bill: {BillId} ===", id);
+
+        //         return existingBill;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating sales return bill: {BillId}", id);
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
         public async Task<SalesReturn> UpdateSalesReturnAsync(Guid id, UpdateSalesReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -1671,46 +3433,9 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 if (account == null)
                     throw new ArgumentException("Invalid account for this company");
 
-                // CHECK IF STOCK IS USED (similar to purchase update)
-                await CheckIfStockIsUsedInReturnsAsync(existingBill, companyId);
-
-                // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
-                var existingStockEntries = await _context.StockEntries
-                    .Where(se => se.SalesReturnBillId == id)
-                    .ToListAsync();
-
-                if (existingStockEntries.Any())
-                {
-                    _context.StockEntries.RemoveRange(existingStockEntries);
-                    _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
-                }
-
-                // STEP 2: Delete all associated transactions
-                var existingTransactions = await _context.Transactions
-                    .Where(t => t.SalesReturnBillId == id)
-                    .ToListAsync();
-
-                if (existingTransactions.Any())
-                {
-                    _context.Transactions.RemoveRange(existingTransactions);
-                    _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
-                }
-
-                // STEP 3: Delete existing items
-                if (existingBill.Items.Any())
-                {
-                    _context.SalesReturnItems.RemoveRange(existingBill.Items);
-                    existingBill.Items.Clear();
-                    _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
-                }
-
-                // Save changes after deletions
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Saved deletions successfully");
-
                 // Get default accounts
-                var salesReturnAccount = await _context.Accounts
-                    .FirstOrDefaultAsync(a => a.Name == "Sales Return" && a.CompanyId == companyId);
+                var salesAccount = await _context.Accounts
+                    .FirstOrDefaultAsync(a => a.Name == "Sales" && a.CompanyId == companyId);
 
                 var vatAccount = await _context.Accounts
                     .FirstOrDefaultAsync(a => a.Name == "VAT" && a.CompanyId == companyId);
@@ -1722,16 +3447,6 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     .FirstOrDefaultAsync(a => a.Name == "Cash in Hand" && a.CompanyId == companyId);
 
                 var paymentMode = ParsePaymentMode(dto.PaymentMode);
-
-                // Get previous balance for account
-                decimal previousBalance = 0;
-                var lastTransaction = await _context.Transactions
-                    .Where(t => t.AccountId == dto.AccountId)
-                    .OrderByDescending(t => t.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-                if (lastTransaction != null)
-                    previousBalance = lastTransaction.Balance ?? 0;
 
                 // Determine VAT exemption
                 bool isVatExempt = dto.IsVatExempt ?? false;
@@ -1750,6 +3465,46 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // Track VAT status validation
                 bool hasVatableItems = false;
                 bool hasNonVatableItems = false;
+
+                // Calculate total return amount
+                decimal totalReturnAmount = dto.TotalAmount ?? 0;
+                decimal salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+                // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
+                var existingStockEntries = await _context.StockEntries
+                    .Where(se => se.SalesReturnBillId == id)
+                    .ToListAsync();
+
+                if (existingStockEntries.Any())
+                {
+                    _context.StockEntries.RemoveRange(existingStockEntries);
+                    _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
+                }
+
+                // STEP 2: Delete all associated transactions AND their transaction items
+                var existingTransactions = await _context.Transactions
+                    .Where(t => t.SalesReturnBillId == id)
+                    .Include(t => t.TransactionItems)
+                    .ToListAsync();
+
+                if (existingTransactions.Any())
+                {
+                    // TransactionItems will be deleted automatically due to Cascade delete
+                    _context.Transactions.RemoveRange(existingTransactions);
+                    _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
+                }
+
+                // STEP 3: Delete existing items
+                if (existingBill.Items.Any())
+                {
+                    _context.SalesReturnItems.RemoveRange(existingBill.Items);
+                    existingBill.Items.Clear();
+                    _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
+                }
+
+                // Save changes after deletions
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Saved deletions successfully");
 
                 // STEP 4: UPDATE BILL PROPERTIES
                 existingBill.AccountId = dto.AccountId;
@@ -1774,13 +3529,23 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 existingBill.DiscountAmount = dto.DiscountAmount;
                 existingBill.VatPercentage = isVatExempt ? 0 : (dto.VatPercentage ?? 13);
                 existingBill.VatAmount = dto.VatAmount;
-                existingBill.TotalAmount = dto.TotalAmount;
+                existingBill.TotalAmount = totalReturnAmount;
                 existingBill.IsVatExempt = isVatExempt;
                 existingBill.IsVatAll = isVatAll ? "all" : (isVatExempt ? "true" : "false");
                 existingBill.RoundOffAmount = dto.RoundOffAmount;
                 existingBill.PaymentMode = dto.PaymentMode;
                 existingBill.Quantity = dto.Quantity;
                 existingBill.Price = dto.Price;
+
+                // Dates
+                if (dto.NepaliDate != default)
+                    existingBill.nepaliDate = dto.NepaliDate;
+                if (dto.Date != default)
+                    existingBill.Date = dto.Date;
+                if (dto.TransactionDateNepali != default)
+                    existingBill.transactionDateNepali = dto.TransactionDateNepali;
+                if (dto.TransactionDate != default)
+                    existingBill.TransactionDate = dto.TransactionDate;
 
                 existingBill.UpdatedAt = DateTime.UtcNow;
 
@@ -1791,16 +3556,28 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // Generate a unique ID for all stock entries in this update
                 var uniqueId = Guid.NewGuid().ToString();
 
-                // STEP 5: Process new items and create stock entries (removing stock from inventory)
+                // Track totals for header transactions
+                decimal totalPartyCredit = 0;
+                decimal totalSalesDebit = 0;
+                decimal totalVatDebit = 0;
+
+                // Store item calculations for transaction items
+                var itemCalculations = new List<SalesReturnItemCalculation>();
+
+                // STEP 5: Process new items and create stock entries (ADDING stock back for returns)
                 var returnItems = new List<SalesReturnItem>();
+                decimal overallDiscountPercentage = dto.DiscountPercentage ?? 0m;
+
+                // Load all items at once
+                var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+                var itemsDict = await _context.Items
+                    .Include(i => i.StockEntries)
+                    .Where(i => itemIds.Contains(i.Id))
+                    .ToDictionaryAsync(i => i.Id);
 
                 foreach (var itemDto in dto.Items)
                 {
-                    var item = await _context.Items
-                        .Include(i => i.StockEntries)
-                        .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
-
-                    if (item == null)
+                    if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
                         throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
 
                     // Track VAT status
@@ -1837,19 +3614,33 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
                         batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
                         expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
-
-                        _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
-                             itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
                     }
 
-                    // Calculate discount values
-                    var itemTotal = salesPrice * itemDto.Quantity;
-                    var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
-                    var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
-                    var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
-                    var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+                    // Calculate values
+                    decimal totalSalesValueBeforeDiscount = salesPrice * itemDto.Quantity;
+                    decimal discountAmountForItem = (totalSalesValueBeforeDiscount * overallDiscountPercentage) / 100m;
+                    decimal itemValueAfterDiscount = totalSalesValueBeforeDiscount - discountAmountForItem;
 
-                    // CREATE STOCK ENTRY (REMOVING STOCK FROM INVENTORY - NEGATIVE QUANTITY)
+                    // Calculate item-wise VAT
+                    decimal itemTaxableAmount = 0m;
+                    decimal itemVatPercentage = dto.VatPercentage ?? 0;
+                    decimal itemVatAmount = 0m;
+
+                    if (!isVatExempt && itemVatPercentage > 0 && item.VatStatus?.ToLower() == "vatable")
+                    {
+                        itemTaxableAmount = itemValueAfterDiscount;
+                        itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
+                    }
+
+                    // Update totals
+                    totalPartyCredit += itemValueAfterDiscount + itemVatAmount;  // Party gets CREDIT (reduction in receivable)
+                    totalSalesDebit += itemValueAfterDiscount;                   // Sales account gets DEBIT (reduction in revenue)
+                    totalVatDebit += itemVatAmount;                              // VAT account gets DEBIT (reduction in output VAT)
+
+                    var netPrice = salesPrice - (salesPrice * overallDiscountPercentage / 100);
+                    var netPuPrice = puPrice - (puPrice * overallDiscountPercentage / 100);
+
+                    // CREATE STOCK ENTRY (ADDING STOCK BACK TO INVENTORY - POSITIVE QUANTITY)
                     var stockEntry = new StockEntry
                     {
                         Id = Guid.NewGuid(),
@@ -1861,8 +3652,8 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         Mrp = mrp,
                         NetPrice = netPrice,
                         NetPuPrice = netPuPrice,
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
                         BatchNumber = batchNumber,
                         ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
                         Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
@@ -1888,8 +3679,8 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         NetPuPrice = netPuPrice,
                         Mrp = mrp,
                         MarginPercentage = marginPercentage,
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
                         NetPrice = netPrice,
                         BatchNumber = batchNumber,
                         ExpiryDate = expiryDate,
@@ -1902,39 +3693,23 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     _context.SalesReturnItems.Add(returnItem);
                     returnItems.Add(returnItem);
 
-                    // CREATE ITEM-LEVEL PARTY TRANSACTION
-                    var partyTransaction = new Transaction
+                    // Store calculation for transaction items
+                    itemCalculations.Add(new SalesReturnItemCalculation
                     {
-                        Id = Guid.NewGuid(),
-                        CompanyId = companyId,
                         ItemId = itemDto.ItemId,
                         UnitId = itemDto.UnitId,
-                        WSUnit = 1,
+                        WsUnit = 1,
                         Quantity = itemDto.Quantity,
                         Price = salesPrice,
                         PuPrice = puPrice,
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
                         NetPuPrice = netPuPrice,
-                        AccountId = dto.AccountId,
-                        SalesReturnBillId = existingBill.Id,
-                        BillNumber = existingBill.BillNumber,
-                        IsType = TransactionIsType.SlRt,
-                        Type = TransactionType.SlRt,
-                        PurchaseSalesReturnType = "Sales Return",
-                        Debit = 0,
-                        Credit = itemTotal,
-                        PaymentMode = paymentMode,
-                        Balance = previousBalance + itemTotal,
-                        Date = existingBill.TransactionDate,
-                        BillDate = existingBill.Date,
-                        FiscalYearId = fiscalYearId,
-                        CreatedAt = DateTime.UtcNow,
-                        Status = TransactionStatus.Active,
-                        IsActive = true
-                    };
-
-                    await _context.Transactions.AddAsync(partyTransaction);
+                        TaxableAmount = itemTaxableAmount,
+                        VatPercentage = itemVatPercentage,
+                        VatAmount = itemVatAmount,
+                        ItemValueAfterDiscount = itemValueAfterDiscount
+                    });
                 }
 
                 // VAT validation
@@ -1950,41 +3725,129 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // Save items and stock entries
                 await _context.SaveChangesAsync();
 
-                // STEP 6: CREATE SUMMARY TRANSACTIONS
+                // ========== CREATE HEADER TRANSACTIONS WITH TRANSACTION ITEMS ==========
 
-                // 1. Sales Return Account transaction
-                if (salesReturnAccount != null)
+                // 1. PARTY ACCOUNT TRANSACTION (Header - Credit to party - reduction in receivable)
+                if (dto.AccountId != Guid.Empty && totalPartyCredit > 0)
                 {
-                    var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
-
-                    if (salesReturnAmount > 0)
+                    var partyTransaction = new Transaction
                     {
-                        var salesReturnTransaction = new Transaction
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        AccountId = dto.AccountId,
+                        SalesReturnBillId = existingBill.Id,
+                        BillNumber = existingBill.BillNumber,
+                        IsType = TransactionIsType.SlRt,
+                        Type = TransactionType.SlRt,
+                        PurchaseSalesReturnType = "Sales Return",
+                        TotalDebit = 0,
+                        TotalCredit = totalPartyCredit,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = dto.VatAmount,
+                        PaymentMode = paymentMode,
+                        Date = existingBill.TransactionDate,
+                        BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active,
+                        IsActive = true
+                    };
+
+                    await _context.Transactions.AddAsync(partyTransaction);
+
+                    // Add Transaction Items for Party Transaction
+                    foreach (var calc in itemCalculations)
+                    {
+                        var transactionItem = new TransactionItem
                         {
                             Id = Guid.NewGuid(),
-                            CompanyId = companyId,
-                            AccountId = salesReturnAccount.Id,
-                            SalesReturnBillId = existingBill.Id,
-                            BillNumber = existingBill.BillNumber,
-                            Type = TransactionType.SlRt,
-                            PurchaseSalesReturnType = "Sales Return",
-                            Debit = salesReturnAmount,
-                            Credit = 0,
-                            PaymentMode = paymentMode,
-                            Date = existingBill.TransactionDate,
-                            BillDate = existingBill.Date,
-                            FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow,
-                            Status = TransactionStatus.Active,
-                            IsActive = true
+                            TransactionId = partyTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = 0,
+                            Credit = calc.ItemValueAfterDiscount + calc.VatAmount,
+                            CreatedAt = DateTime.UtcNow
                         };
-
-                        await _context.Transactions.AddAsync(salesReturnTransaction);
+                        await _context.TransactionItems.AddAsync(transactionItem);
                     }
+
+                    _logger.LogInformation("Created Party transaction: TotalCredit {Amount}", totalPartyCredit);
                 }
 
-                // 2. VAT transaction if applicable
-                if (dto.VatAmount > 0 && vatAccount != null && !isVatExempt)
+                // 2. SALES ACCOUNT TRANSACTION (Header - Debit to Sales account - reduction in revenue)
+                if (salesAccount != null && totalSalesDebit > 0)
+                {
+                    var salesTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        AccountId = salesAccount.Id,
+                        SalesReturnBillId = existingBill.Id,
+                        BillNumber = existingBill.BillNumber,
+                        Type = TransactionType.SlRt,
+                        PurchaseSalesReturnType = "Sales Return",
+                        TotalDebit = totalSalesDebit,
+                        TotalCredit = 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = dto.VatAmount,
+                        PaymentMode = paymentMode,
+                        Date = existingBill.TransactionDate,
+                        BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active,
+                        IsActive = true
+                    };
+
+                    await _context.Transactions.AddAsync(salesTransaction);
+
+                    // Add Transaction Items for Sales Transaction
+                    foreach (var calc in itemCalculations)
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = salesTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.ItemValueAfterDiscount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+
+                    _logger.LogInformation("Created Sales account transaction: TotalDebit {Amount}", totalSalesDebit);
+                }
+
+                // 3. VAT TRANSACTION (Header - Debit to VAT account - reduction in output VAT)
+                if (totalVatDebit > 0 && vatAccount != null && !isVatExempt)
                 {
                     var vatTransaction = new Transaction
                     {
@@ -1996,11 +3859,16 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = dto.VatAmount.Value,
-                        Credit = 0,
+                        TotalDebit = totalVatDebit,
+                        TotalCredit = 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = totalVatDebit,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
                         BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2008,9 +3876,37 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(vatTransaction);
+
+                    // Add Transaction Items for VAT Transaction
+                    foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = vatTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.VatAmount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+
+                    _logger.LogInformation("Created VAT transaction: TotalDebit {Amount}", totalVatDebit);
                 }
 
-                // 3. Round-off transaction if applicable
+                // 4. ROUND-OFF TRANSACTION if applicable
                 if (dto.RoundOffAmount != 0 && roundOffAccount != null)
                 {
                     var roundOffTransaction = new Transaction
@@ -2023,11 +3919,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
-                        Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+                        TotalDebit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+                        TotalCredit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
                         BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2035,10 +3933,11 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(roundOffTransaction);
+                    _logger.LogInformation("Created Round-off transaction");
                 }
 
-                // 4. Cash transaction if payment mode is cash
-                if (paymentMode == PaymentMode.Cash && cashAccount != null)
+                // 5. CASH TRANSACTION if payment mode is cash (Credit - Money going OUT)
+                if (paymentMode == PaymentMode.Cash && cashAccount != null && totalReturnAmount > 0)
                 {
                     var cashTransaction = new Transaction
                     {
@@ -2049,11 +3948,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         BillNumber = existingBill.BillNumber,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = 0,
-                        Credit = dto.TotalAmount ?? 0,
+                        TotalDebit = 0,
+                        TotalCredit = totalReturnAmount,
                         PaymentMode = PaymentMode.Cash,
                         Date = existingBill.TransactionDate,
                         BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2061,6 +3962,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(cashTransaction);
+                    _logger.LogInformation("Created Cash transaction: TotalCredit {Amount}", totalReturnAmount);
                 }
 
                 // Update items collection
@@ -2441,6 +4343,1272 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
             }
         }
 
+        // public async Task<SalesReturn> CreateCashSalesReturnAsync(CreateSalesReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("CreateCashSalesReturnAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //         // Validate company and fiscal year
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears.FindAsync(fiscalYearId);
+        //         if (fiscalYear == null || fiscalYear.CompanyId != companyId)
+        //             throw new ArgumentException("Invalid fiscal year");
+
+        //         var defaultStore = await GetDefaultStoreAsync(companyId);
+        //         var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
+
+        //         // Get default accounts
+        //         var salesReturnAccountId = await GetDefaultAccountIdAsync("Sales Return", companyId);
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+        //         var cashInHandAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
+
+        //         // Get next return number
+        //         var returnNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "salesReturn");
+
+        //         // Parse VAT exemption
+        //         bool isVatExemptBool = dto.IsVatExempt == "true" || dto.IsVatExempt == "True" || dto.IsVatExempt == "1";
+        //         bool isVatAll = dto.IsVatExempt == "all";
+
+        //         // Validate items and track VAT status
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // Group items by ItemId to check total stock per item
+        //         var itemsGrouped = dto.Items.GroupBy(i => i.ItemId);
+
+        //         foreach (var itemGroup in itemsGrouped)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemGroup.Key && i.CompanyId == companyId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item with id {itemGroup.Key} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatExempt != "all")
+        //         {
+        //             if (isVatExemptBool && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot save VAT exempt bill with vatable items");
+
+        //             if (!isVatExemptBool && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot save bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Determine if company uses Nepali date format
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Generate a unique ID for the stock entry
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // Create sales return with frontend-calculated values
+        //         var salesReturn = new SalesReturn
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             CompanyId = companyId,
+        //             UserId = userId,
+        //             BillNumber = returnNumber,
+        //             PurchaseSalesReturnType = "Sales Return",
+        //             Type = "SlRt",
+        //             OriginalSalesBillId = dto.OriginalSalesBillId,
+        //             OriginalSalesBillNumber = dto.OriginalSalesBillNumber,
+        //             AccountId = null, // No account for cash returns
+        //             CashAccount = dto.CashAccount,
+        //             CashAccountAddress = dto.CashAccountAddress,
+        //             CashAccountPan = dto.CashAccountPan,
+        //             CashAccountEmail = dto.CashAccountEmail,
+        //             CashAccountPhone = dto.CashAccountPhone,
+        //             UnitId = dto.UnitId,
+        //             SettingsId = dto.SettingsId,
+        //             FiscalYearId = fiscalYearId,
+        //             SubTotal = dto.SubTotal ?? 0,
+        //             NonVatSalesReturn = dto.NonVatSalesReturn ?? 0,
+        //             TaxableAmount = dto.TaxableAmount ?? 0,
+        //             DiscountPercentage = dto.DiscountPercentage ?? 0,
+        //             DiscountAmount = dto.DiscountAmount ?? 0,
+        //             VatPercentage = dto.VatPercentage,
+        //             VatAmount = dto.VatAmount ?? 0,
+        //             TotalAmount = dto.TotalAmount ?? 0,
+        //             IsVatExempt = isVatExemptBool,
+        //             IsVatAll = isVatAll ? "all" : null,
+        //             RoundOffAmount = dto.RoundOffAmount ?? 0,
+        //             PaymentMode = dto.PaymentMode,
+        //             nepaliDate = dto.NepaliDate,
+        //             Date = dto.Date,
+        //             transactionDateNepali = dto.TransactionDateNepali,
+        //             TransactionDate = dto.TransactionDate,
+        //             OriginalCopies = dto.OriginalCopies,
+        //             FirstPrinted = false,
+        //             PrintCount = 0,
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         // Add sales return to context
+        //         await _context.SalesReturns.AddAsync(salesReturn);
+
+        //         var returnItems = new List<SalesReturnItem>();
+
+        //         // Process each item to add stock back
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId);
+
+        //             if (item == null)
+        //                 continue;
+
+        //             // Try to find a sales bill item with the same price for this item
+        //             // This gets the actual puPrice (cost price) and mrp from the sales bill item
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price  // Match the sales price (SP)
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt) // Get the most recent one
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;      // This is the selling price (SP) from frontend
+        //             decimal puPrice = itemDto.Price;         // Default cost price (CP) to selling price if not found
+        //             decimal mrp = itemDto.Price;             // Default MRP to selling price if not found
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX"; // Default batch from frontend or "XXX"
+        //             DateOnly? expiryDate = itemDto.ExpiryDate; // Default expiry from frontend
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 // Found a sales bill with matching price - use its actual puPrice (cost price) and mrp
+        //                 salesPrice = matchingSalesItem.Price;                    // SP - Selling Price
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;  // CP - Cost Price (PuPrice)
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;          // MRP - Maximum Retail Price
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;      // Restore original batch number
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;         // Restore original expiry date
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}, Expiry={ExpiryDate} from SalesBill: {BillNumber}",
+        //                     itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber, expiryDate, matchingSalesItem.SalesBill?.BillNumber);
+        //             }
+        //             else
+        //             {
+        //                 _logger.LogInformation("No matching sales found for item {ItemId} with price {Price}, using provided price for all values",
+        //                     itemDto.ItemId, itemDto.Price);
+        //             }
+
+        //             // Calculate discount values based on selling price (SP)
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+
+        //             // Net price after discount (based on selling price)
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+
+        //             // Net cost price after discount (based on puPrice/cost price)
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // Add stock entry (ADDING stock back for returns)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity, // Positive quantity for return (adding back)
+        //                 Price = salesPrice,           // SP - Selling Price
+        //                 PuPrice = puPrice,             // CP - Cost Price
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,                     // MRP - Maximum Retail Price
+        //                 NetPrice = netPrice,           // Net selling price after discount
+        //                 NetPuPrice = netPuPrice,       // Net cost price after discount
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,      // Use restored batch number
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)), // Use restored expiry or default
+        //                 Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 StoreId = itemDto.StoreId ?? defaultStore?.Id,
+        //                 RackId = itemDto.RackId ?? defaultRack?.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // Update item's total stock (ADDING back)
+        //             // item.Stock = (item.Stock ?? 0) + itemDto.Quantity;
+
+        //             // Create sales return item with correct fields
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = salesReturn.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,            // SP - Selling Price
+        //                 PuPrice = puPrice,              // CP - Cost Price
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,                      // MRP - Maximum Retail Price
+        //                 NetPrice = netPrice,            // Net selling price after discount
+        //                 NetPuPrice = netPuPrice,        // Net cost price after discount
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,      // Use restored batch number
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)), // Use restored expiry or default
+        //                 VatStatus = item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+        //                 UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+
+        //             // Create item-level transaction for cash account
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 WSUnit = 1,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,             // SP - Selling Price
+        //                 PuPrice = puPrice,               // CP - Cost Price
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPuPrice = netPuPrice,
+        //                 // CashAccount = dto.CashAccount,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = salesReturn.TotalAmount ?? 0, // Debit for cash account
+        //                 Credit = 0,
+        //                 PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                 // Balance = previousBalance + (salesReturn.TotalAmount ?? 0), // Adding to cash balance
+        //                 Date = salesReturn.Date,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(cashTransaction);
+        //         }
+
+        //         // 1. Sales Return Account transaction
+        //         if (salesReturnAccountId.HasValue)
+        //         {
+        //             var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //             if (salesReturnAmount > 0)
+        //             {
+        //                 var salesReturnTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CompanyId = companyId,
+        //                     AccountId = salesReturnAccountId.Value,
+        //                     SalesReturnBillId = salesReturn.Id,
+        //                     BillNumber = salesReturn.BillNumber,
+        //                     Type = TransactionType.SlRt,
+        //                     PurchaseSalesReturnType = "Sales Return",
+        //                     Debit = 0, // Credit for Sales Return account
+        //                     Credit = salesReturnAmount,
+        //                     PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                     Date = salesReturn.TransactionDate,
+        //                     BillDate = salesReturn.Date,
+        //                     nepaliDate = dto.NepaliDate,
+        //                     transactionDateNepali = dto.TransactionDateNepali,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active,
+        //                     IsActive = true
+        //                 };
+
+        //                 await _context.Transactions.AddAsync(salesReturnTransaction);
+        //             }
+        //         }
+
+        //         // 2. VAT transaction if applicable
+        //         if (dto.VatAmount > 0 && vatAccountId.HasValue && !isVatExemptBool)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0, // Credit for VAT account
+        //                 Credit = dto.VatAmount.Value,
+        //                 PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(vatTransaction);
+        //         }
+
+        //         // 3. Round-off transaction if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+        //                 PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(roundOffTransaction);
+        //         }
+
+        //         // Update sales return with items
+        //         salesReturn.Items = returnItems;
+
+        //         // Save all changes
+        //         await _context.SaveChangesAsync();
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("Cash sales return created successfully with ID: {ReturnId}, Number: {ReturnNumber}",
+        //             salesReturn.Id, salesReturn.BillNumber);
+
+        //         return salesReturn;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, "Error creating cash sales return");
+        //         throw;
+        //     }
+        // }
+
+        // public async Task<SalesReturn> CreateCashSalesReturnAsync(CreateSalesReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("CreateCashSalesReturnAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //         // Validate company and fiscal year
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears.FindAsync(fiscalYearId);
+        //         if (fiscalYear == null || fiscalYear.CompanyId != companyId)
+        //             throw new ArgumentException("Invalid fiscal year");
+
+        //         var defaultStore = await GetDefaultStoreAsync(companyId);
+        //         var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
+
+        //         // Get default accounts
+        //         var salesReturnAccountId = await GetDefaultAccountIdAsync("Sales Return", companyId);
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+        //         var cashInHandAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
+
+        //         // Get next return number
+        //         var returnNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "salesReturn");
+
+        //         // Parse VAT exemption
+        //         bool isVatExemptBool = dto.IsVatExempt == "true" || dto.IsVatExempt == "True" || dto.IsVatExempt == "1";
+        //         bool isVatAll = dto.IsVatExempt == "all";
+
+        //         // Validate items and track VAT status
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // Group items by ItemId to check total stock per item
+        //         var itemsGrouped = dto.Items.GroupBy(i => i.ItemId);
+
+        //         foreach (var itemGroup in itemsGrouped)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemGroup.Key && i.CompanyId == companyId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item with id {itemGroup.Key} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatExempt != "all")
+        //         {
+        //             if (isVatExemptBool && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot save VAT exempt bill with vatable items");
+
+        //             if (!isVatExemptBool && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot save bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Determine if company uses Nepali date format
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Generate a unique ID for the stock entry
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // Get previous balance for cash account
+        //         decimal previousCashBalance = 0;
+        //         var lastCashTransaction = await _context.Transactions
+        //             .Where(t => t.AccountId == cashInHandAccountId && t.CompanyId == companyId)
+        //             .OrderByDescending(t => t.CreatedAt)
+        //             .FirstOrDefaultAsync();
+
+        //         if (lastCashTransaction != null)
+        //             previousCashBalance = lastCashTransaction.Balance ?? 0;
+
+        //         // Create sales return with frontend-calculated values
+        //         var salesReturn = new SalesReturn
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             CompanyId = companyId,
+        //             UserId = userId,
+        //             BillNumber = returnNumber,
+        //             PurchaseSalesReturnType = "Sales Return",
+        //             Type = "SlRt",
+        //             OriginalSalesBillId = dto.OriginalSalesBillId,
+        //             OriginalSalesBillNumber = dto.OriginalSalesBillNumber,
+        //             AccountId = null, // No account for cash returns
+        //             CashAccount = dto.CashAccount,
+        //             CashAccountAddress = dto.CashAccountAddress,
+        //             CashAccountPan = dto.CashAccountPan,
+        //             CashAccountEmail = dto.CashAccountEmail,
+        //             CashAccountPhone = dto.CashAccountPhone,
+        //             UnitId = dto.UnitId,
+        //             SettingsId = dto.SettingsId,
+        //             FiscalYearId = fiscalYearId,
+        //             SubTotal = dto.SubTotal ?? 0,
+        //             NonVatSalesReturn = dto.NonVatSalesReturn ?? 0,
+        //             TaxableAmount = dto.TaxableAmount ?? 0,
+        //             DiscountPercentage = dto.DiscountPercentage ?? 0,
+        //             DiscountAmount = dto.DiscountAmount ?? 0,
+        //             VatPercentage = dto.VatPercentage,
+        //             VatAmount = dto.VatAmount ?? 0,
+        //             TotalAmount = dto.TotalAmount ?? 0,
+        //             IsVatExempt = isVatExemptBool,
+        //             IsVatAll = isVatAll ? "all" : null,
+        //             RoundOffAmount = dto.RoundOffAmount ?? 0,
+        //             PaymentMode = dto.PaymentMode,
+        //             nepaliDate = dto.NepaliDate,
+        //             Date = dto.Date,
+        //             transactionDateNepali = dto.TransactionDateNepali,
+        //             TransactionDate = dto.TransactionDate,
+        //             OriginalCopies = dto.OriginalCopies,
+        //             FirstPrinted = false,
+        //             PrintCount = 0,
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         // Add sales return to context
+        //         await _context.SalesReturns.AddAsync(salesReturn);
+
+        //         var returnItems = new List<SalesReturnItem>();
+        //         var allTransactions = new List<Transaction>();
+
+        //         // Process each item to add stock back
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId);
+
+        //             if (item == null)
+        //                 continue;
+
+        //             // Try to find a sales bill item with the same price for this item
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;
+        //             decimal puPrice = itemDto.Price;
+        //             decimal mrp = itemDto.Price;
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate;
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 salesPrice = matchingSalesItem.Price;
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
+        //                     itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
+        //             }
+
+        //             // Calculate discount values
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // Add stock entry (ADDING stock back for returns)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 StoreId = itemDto.StoreId ?? defaultStore?.Id,
+        //                 RackId = itemDto.RackId ?? defaultRack?.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // Create sales return item
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = salesReturn.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 VatStatus = item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+        //                 UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+        //         }
+
+        //         // Calculate total return amount
+        //         decimal totalReturnAmount = (dto.TotalAmount ?? 0);
+
+        //         // 1. CASH IN HAND TRANSACTION (Money going OUT - Credit)
+        //         if (cashInHandAccountId.HasValue && totalReturnAmount > 0)
+        //         {
+        //             var cashBalance = previousCashBalance - totalReturnAmount; // Subtract because cash is going out
+
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashInHandAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,  // Cash account is credited (decreased)
+        //                 Credit = totalReturnAmount,
+        //                 Balance = cashBalance,
+        //                 PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(cashTransaction);
+        //             _logger.LogInformation("Created Cash in Hand transaction: Credit {Amount}, New Balance: {Balance}", totalReturnAmount, cashBalance);
+        //         }
+
+        //         // 2. SALES RETURN ACCOUNT TRANSACTION (Debit - Decreased liability/expense)
+        //         if (salesReturnAccountId.HasValue)
+        //         {
+        //             var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //             if (salesReturnAmount > 0)
+        //             {
+        //                 var salesReturnTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CompanyId = companyId,
+        //                     AccountId = salesReturnAccountId.Value,
+        //                     SalesReturnBillId = salesReturn.Id,
+        //                     BillNumber = salesReturn.BillNumber,
+        //                     Type = TransactionType.SlRt,
+        //                     PurchaseSalesReturnType = "Sales Return",
+        //                     Debit = salesReturnAmount,  // Sales Return account is debited
+        //                     Credit = 0,
+        //                     PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                     Date = salesReturn.TransactionDate,
+        //                     BillDate = salesReturn.Date,
+        //                     nepaliDate = dto.NepaliDate,
+        //                     transactionDateNepali = dto.TransactionDateNepali,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active,
+        //                     IsActive = true
+        //                 };
+
+        //                 allTransactions.Add(salesReturnTransaction);
+        //                 _logger.LogInformation("Created Sales Return transaction: Debit {Amount}", salesReturnAmount);
+        //             }
+        //         }
+
+        //         // 3. VAT TRANSACTION if applicable
+        //         if (dto.VatAmount > 0 && vatAccountId.HasValue && !isVatExemptBool)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.VatAmount.Value,  // VAT account is debited (reducing VAT liability)
+        //                 Credit = 0,
+        //                 PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(vatTransaction);
+        //             _logger.LogInformation("Created VAT transaction: Debit {Amount}", dto.VatAmount.Value);
+        //         }
+
+        //         // 4. ROUND-OFF TRANSACTION if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+        //                 PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(roundOffTransaction);
+        //             _logger.LogInformation("Created Round-off transaction: Debit {Debit}, Credit {Credit}",
+        //                 roundOffTransaction.Debit, roundOffTransaction.Credit);
+        //         }
+
+        //         // 5. ITEM-LEVEL TRANSACTIONS for each item (optional - for detailed tracking)
+        //         // These track the cost of goods returned
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items.FindAsync(itemDto.ItemId);
+        //             if (item == null) continue;
+
+        //             // Find the matching sales item to get cost price
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal costPrice = matchingSalesItem?.PuPrice ?? itemDto.Price;
+        //             decimal itemCostTotal = costPrice * itemDto.Quantity;
+
+        //             var itemTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = itemDto.Price,
+        //                 PuPrice = costPrice,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,
+        //                 Credit = itemCostTotal,  // Credit for inventory (stock increase)
+        //                 PaymentMode = ParsePaymentMode(dto.PaymentMode),
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(itemTransaction);
+        //             _logger.LogInformation("Created item-level transaction for {ItemName}: Credit {Amount}", item.Name, itemCostTotal);
+        //         }
+
+        //         // Add all transactions to database
+        //         await _context.Transactions.AddRangeAsync(allTransactions);
+
+        //         // Update sales return with items
+        //         salesReturn.Items = returnItems;
+
+        //         // Save all changes
+        //         await _context.SaveChangesAsync();
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("Cash sales return created successfully with ID: {ReturnId}, Number: {ReturnNumber}, Total Transactions: {TransactionCount}",
+        //             salesReturn.Id, salesReturn.BillNumber, allTransactions.Count);
+
+        //         return salesReturn;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, "Error creating cash sales return");
+        //         throw;
+        //     }
+        // }
+
+        // public async Task<SalesReturn> CreateCashSalesReturnAsync(CreateSalesReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("CreateCashSalesReturnAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //         // Validate company and fiscal year
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears.FindAsync(fiscalYearId);
+        //         if (fiscalYear == null || fiscalYear.CompanyId != companyId)
+        //             throw new ArgumentException("Invalid fiscal year");
+
+        //         var defaultStore = await GetDefaultStoreAsync(companyId);
+        //         var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
+
+        //         // Get default accounts
+        //         var salesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);           // Sales account (like Purchase)
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);               // VAT account
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);  // Round off account
+        //         var cashInHandAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId); // Cash account
+
+        //         // Parse payment mode
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+
+        //         // Get next return number
+        //         var returnNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "salesReturn");
+
+        //         // Parse VAT exemption
+        //         bool isVatExemptBool = dto.IsVatExempt == "true" || dto.IsVatExempt == "True" || dto.IsVatExempt == "1";
+        //         bool isVatAll = dto.IsVatExempt == "all";
+
+        //         // Load all items at once (LIKE PURCHASE RETURN)
+        //         var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        //         var itemsDict = await _context.Items
+        //             .Include(i => i.StockEntries)
+        //             .Where(i => itemIds.Contains(i.Id))
+        //             .ToDictionaryAsync(i => i.Id);
+
+        //         // Track VAT status validation
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // Validate items and track VAT status
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatExempt != "all")
+        //         {
+        //             if (isVatExemptBool && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot save VAT exempt bill with vatable items");
+
+        //             if (!isVatExemptBool && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot save bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Determine if company uses Nepali date format
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Generate a unique ID for the stock entry
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // Calculate total return amount
+        //         decimal totalReturnAmount = dto.TotalAmount ?? 0;
+        //         decimal salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //         // Get previous balance for cash account
+        //         decimal previousCashBalance = 0;
+        //         var lastCashTransaction = await _context.Transactions
+        //             .Where(t => t.AccountId == cashInHandAccountId && t.CompanyId == companyId)
+        //             .OrderByDescending(t => t.CreatedAt)
+        //             .FirstOrDefaultAsync();
+
+        //         if (lastCashTransaction != null)
+        //             previousCashBalance = lastCashTransaction.Balance ?? 0;
+
+        //         // Create sales return bill FIRST (so it has an ID) - LIKE PURCHASE RETURN
+        //         var salesReturn = new SalesReturn
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             CompanyId = companyId,
+        //             UserId = userId,
+        //             BillNumber = returnNumber,
+        //             PurchaseSalesReturnType = "Sales Return",
+        //             Type = "SlRt",
+        //             OriginalSalesBillId = dto.OriginalSalesBillId,
+        //             OriginalSalesBillNumber = dto.OriginalSalesBillNumber,
+        //             AccountId = null, // No account for cash returns
+        //             CashAccount = dto.CashAccount,
+        //             CashAccountAddress = dto.CashAccountAddress,
+        //             CashAccountPan = dto.CashAccountPan,
+        //             CashAccountEmail = dto.CashAccountEmail,
+        //             CashAccountPhone = dto.CashAccountPhone,
+        //             UnitId = dto.UnitId,
+        //             SettingsId = dto.SettingsId,
+        //             FiscalYearId = fiscalYearId,
+        //             SubTotal = dto.SubTotal ?? 0,
+        //             NonVatSalesReturn = dto.NonVatSalesReturn ?? 0,
+        //             TaxableAmount = dto.TaxableAmount ?? 0,
+        //             DiscountPercentage = dto.DiscountPercentage ?? 0,
+        //             DiscountAmount = dto.DiscountAmount ?? 0,
+        //             VatPercentage = dto.VatPercentage,
+        //             VatAmount = dto.VatAmount ?? 0,
+        //             TotalAmount = totalReturnAmount,
+        //             IsVatExempt = isVatExemptBool,
+        //             IsVatAll = isVatAll ? "all" : null,
+        //             RoundOffAmount = dto.RoundOffAmount ?? 0,
+        //             PaymentMode = dto.PaymentMode,
+        //             Quantity = dto.Quantity,
+        //             Price = dto.Price,
+        //             nepaliDate = dto.NepaliDate,
+        //             Date = dto.Date,
+        //             transactionDateNepali = dto.TransactionDateNepali,
+        //             TransactionDate = dto.TransactionDate,
+        //             OriginalCopies = dto.OriginalCopies,
+        //             FirstPrinted = false,
+        //             PrintCount = 0,
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         await _context.SalesReturns.AddAsync(salesReturn);
+
+        //         var returnItems = new List<SalesReturnItem>();
+        //         var allTransactions = new List<Transaction>();
+
+        //         // PROCESS ITEMS IN MEMORY (LIKE PURCHASE RETURN)
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Try to find a matching sales bill item to get original values
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;
+        //             decimal puPrice = itemDto.PuPrice ?? itemDto.Price;
+        //             decimal mrp = itemDto.Mrp ?? 0;
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate;
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 salesPrice = matchingSalesItem.Price;
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
+        //                     itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
+        //             }
+
+        //             // Calculate discount values
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // ADD STOCK ENTRY (ADDING stock back for returns - POSITIVE quantity)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 StoreId = itemDto.StoreId ?? defaultStore?.Id,
+        //                 RackId = itemDto.RackId ?? defaultRack?.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // CREATE SALES RETURN ITEM
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = salesReturn.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 VatStatus = item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
+        //                 UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+        //         }
+
+        //         // Save items and stock entries
+        //         await _context.SaveChangesAsync();
+
+        //         // ============================================================
+        //         // CREATE ALL TRANSACTIONS (FOLLOWING PURCHASE RETURN PATTERN)
+        //         // ============================================================
+
+        //         // 1. CASH IN HAND TRANSACTION (CREDIT - Money going OUT)
+        //         if (cashInHandAccountId.HasValue && totalReturnAmount > 0)
+        //         {
+        //             var cashBalance = previousCashBalance - totalReturnAmount; // Cash decreases
+
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashInHandAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,                                      // Cash account is CREDITED
+        //                 Credit = totalReturnAmount,                     // Money going OUT
+        //                 Balance = cashBalance,
+        //                 PaymentMode = paymentMode,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(cashTransaction);
+        //             _logger.LogInformation("Created Cash in Hand transaction: Credit {Amount}, New Balance: {Balance}",
+        //                 totalReturnAmount, cashBalance);
+        //         }
+
+        //         // 2. SALES ACCOUNT TRANSACTION (DEBIT - Reducing sales revenue)
+        //         if (salesAccountId.HasValue && salesReturnAmount > 0)
+        //         {
+        //             var salesTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = salesAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = salesReturnAmount,                     // Sales account is DEBITED
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(salesTransaction);
+        //             _logger.LogInformation("Created Sales account transaction: Debit {Amount}", salesReturnAmount);
+        //         }
+
+        //         // 3. VAT TRANSACTION (DEBIT - Reducing VAT liability)
+        //         if (dto.VatAmount > 0 && vatAccountId.HasValue && !isVatExemptBool)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.VatAmount.Value,                   // VAT account is DEBITED
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(vatTransaction);
+        //             _logger.LogInformation("Created VAT transaction: Debit {Amount}", dto.VatAmount.Value);
+        //         }
+
+        //         // 4. ROUND-OFF TRANSACTION if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccountId.Value,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
+        //                 Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(roundOffTransaction);
+        //             _logger.LogInformation("Created Round-off transaction: Debit {Debit}, Credit {Credit}",
+        //                 roundOffTransaction.Debit, roundOffTransaction.Credit);
+        //         }
+
+        //         // 5. ITEM-LEVEL TRANSACTIONS (CREDIT - Inventory value increases)
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items.FindAsync(itemDto.ItemId);
+        //             if (item == null) continue;
+
+        //             // Find matching sales item to get cost price
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal costPrice = matchingSalesItem?.PuPrice ?? itemDto.PuPrice ?? itemDto.Price;
+        //             decimal itemCostTotal = costPrice * itemDto.Quantity;
+
+        //             var itemTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = itemDto.Price,
+        //                 PuPrice = costPrice,
+        //                 SalesReturnBillId = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,
+        //                 Credit = itemCostTotal,                       // Inventory value increases
+        //                 PaymentMode = paymentMode,
+        //                 Date = salesReturn.TransactionDate,
+        //                 BillDate = salesReturn.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(itemTransaction);
+        //             _logger.LogInformation("Created item-level transaction for {ItemName}: Credit {Amount}", item.Name, itemCostTotal);
+        //         }
+
+        //         // Add all transactions to database
+        //         await _context.Transactions.AddRangeAsync(allTransactions);
+
+        //         // Update sales return with items
+        //         salesReturn.Items = returnItems;
+
+        //         // SINGLE SAVE CHANGES CALL
+        //         await _context.SaveChangesAsync();
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("Cash sales return created successfully with ID: {ReturnId}, Number: {ReturnNumber}, Total Transactions: {TransactionCount}",
+        //             salesReturn.Id, salesReturn.BillNumber, allTransactions.Count);
+
+        //         return salesReturn;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, "Error creating cash sales return");
+        //         throw;
+        //     }
+        // }
+
         public async Task<SalesReturn> CreateCashSalesReturnAsync(CreateSalesReturnDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -2461,10 +5629,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
 
                 // Get default accounts
-                var salesReturnAccountId = await GetDefaultAccountIdAsync("Sales Return", companyId);
+                var salesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);
                 var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
                 var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
                 var cashInHandAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
+
+                // Parse payment mode
+                var paymentMode = ParsePaymentMode(dto.PaymentMode);
 
                 // Get next return number
                 var returnNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "salesReturn");
@@ -2473,21 +5644,22 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 bool isVatExemptBool = dto.IsVatExempt == "true" || dto.IsVatExempt == "True" || dto.IsVatExempt == "1";
                 bool isVatAll = dto.IsVatExempt == "all";
 
-                // Validate items and track VAT status
+                // Load all items at once
+                var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+                var itemsDict = await _context.Items
+                    .Include(i => i.StockEntries)
+                    .Where(i => itemIds.Contains(i.Id))
+                    .ToDictionaryAsync(i => i.Id);
+
+                // Track VAT status validation
                 bool hasVatableItems = false;
                 bool hasNonVatableItems = false;
 
-                // Group items by ItemId to check total stock per item
-                var itemsGrouped = dto.Items.GroupBy(i => i.ItemId);
-
-                foreach (var itemGroup in itemsGrouped)
+                // Validate items and track VAT status
+                foreach (var itemDto in dto.Items)
                 {
-                    var item = await _context.Items
-                        .Include(i => i.StockEntries)
-                        .FirstOrDefaultAsync(i => i.Id == itemGroup.Key && i.CompanyId == companyId);
-
-                    if (item == null)
-                        throw new ArgumentException($"Item with id {itemGroup.Key} not found");
+                    if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
+                        throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
 
                     // Track VAT status
                     if (item.VatStatus?.ToLower() == "vatable")
@@ -2516,7 +5688,11 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // Generate a unique ID for the stock entry
                 var uniqueId = Guid.NewGuid().ToString();
 
-                // Create sales return with frontend-calculated values
+                // Calculate total return amount
+                decimal totalReturnAmount = dto.TotalAmount ?? 0;
+                decimal salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+                // Create sales return bill FIRST
                 var salesReturn = new SalesReturn
                 {
                     Id = Guid.NewGuid(),
@@ -2543,11 +5719,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     DiscountAmount = dto.DiscountAmount ?? 0,
                     VatPercentage = dto.VatPercentage,
                     VatAmount = dto.VatAmount ?? 0,
-                    TotalAmount = dto.TotalAmount ?? 0,
+                    TotalAmount = totalReturnAmount,
                     IsVatExempt = isVatExemptBool,
                     IsVatAll = isVatAll ? "all" : null,
                     RoundOffAmount = dto.RoundOffAmount ?? 0,
                     PaymentMode = dto.PaymentMode,
+                    Quantity = dto.Quantity,
+                    Price = dto.Price,
                     nepaliDate = dto.NepaliDate,
                     Date = dto.Date,
                     transactionDateNepali = dto.TransactionDateNepali,
@@ -2559,84 +5737,91 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                // Add sales return to context
                 await _context.SalesReturns.AddAsync(salesReturn);
 
-                var returnItems = new List<SalesReturnItem>();
+                // Track totals for header transactions
+                decimal totalCashCredit = 0;
+                decimal totalSalesDebit = 0;
+                decimal totalVatDebit = 0;
 
-                // Process each item to add stock back
+                // Store item calculations for transaction items
+                var itemCalculations = new List<SalesReturnItemCalculation>();
+
+                var returnItems = new List<SalesReturnItem>();
+                decimal overallDiscountPercentage = dto.DiscountPercentage ?? 0m;
+
+                // PROCESS ITEMS IN MEMORY
                 foreach (var itemDto in dto.Items)
                 {
-                    var item = await _context.Items
-                        .Include(i => i.StockEntries)
-                        .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId);
+                    if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
+                        throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
 
-                    if (item == null)
-                        continue;
-
-                    // Try to find a sales bill item with the same price for this item
-                    // This gets the actual puPrice (cost price) and mrp from the sales bill item
+                    // Try to find a matching sales bill item to get original values
                     var matchingSalesItem = await _context.SalesBillItems
                         .Include(sbi => sbi.SalesBill)
                         .Where(sbi => sbi.ItemId == itemDto.ItemId
-                            && sbi.Price == itemDto.Price  // Match the sales price (SP)
+                            && sbi.Price == itemDto.Price
                             && sbi.SalesBill.CompanyId == companyId)
-                        .OrderByDescending(sbi => sbi.CreatedAt) // Get the most recent one
+                        .OrderByDescending(sbi => sbi.CreatedAt)
                         .FirstOrDefaultAsync();
 
-                    decimal salesPrice = itemDto.Price;      // This is the selling price (SP) from frontend
-                    decimal puPrice = itemDto.Price;         // Default cost price (CP) to selling price if not found
-                    decimal mrp = itemDto.Price;             // Default MRP to selling price if not found
+                    decimal salesPrice = itemDto.Price;
+                    decimal puPrice = itemDto.PuPrice ?? itemDto.Price;
+                    decimal mrp = itemDto.Mrp ?? 0;
                     decimal marginPercentage = itemDto.MarginPercentage;
-                    string batchNumber = itemDto.BatchNumber ?? "XXX"; // Default batch from frontend or "XXX"
-                    DateOnly? expiryDate = itemDto.ExpiryDate; // Default expiry from frontend
+                    string batchNumber = itemDto.BatchNumber ?? "XXX";
+                    DateOnly? expiryDate = itemDto.ExpiryDate;
 
                     if (matchingSalesItem != null)
                     {
-                        // Found a sales bill with matching price - use its actual puPrice (cost price) and mrp
-                        salesPrice = matchingSalesItem.Price;                    // SP - Selling Price
-                        puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;  // CP - Cost Price (PuPrice)
+                        salesPrice = matchingSalesItem.Price;
+                        puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
                         marginPercentage = matchingSalesItem.MarginPercentage;
-                        mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;          // MRP - Maximum Retail Price
-                        batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;      // Restore original batch number
-                        expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;         // Restore original expiry date
-
-                        _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}, Expiry={ExpiryDate} from SalesBill: {BillNumber}",
-                            itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber, expiryDate, matchingSalesItem.SalesBill?.BillNumber);
+                        mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+                        batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+                        expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
                     }
-                    else
+
+                    // Calculate values
+                    decimal totalSalesValueBeforeDiscount = salesPrice * itemDto.Quantity;
+                    decimal discountAmountForItem = (totalSalesValueBeforeDiscount * overallDiscountPercentage) / 100m;
+                    decimal itemValueAfterDiscount = totalSalesValueBeforeDiscount - discountAmountForItem;
+
+                    // Calculate item-wise VAT
+                    decimal itemTaxableAmount = 0m;
+                    decimal itemVatPercentage = dto.VatPercentage;
+                    decimal itemVatAmount = 0m;
+
+                    if (!isVatExemptBool && itemVatPercentage > 0 && item.VatStatus?.ToLower() == "vatable")
                     {
-                        _logger.LogInformation("No matching sales found for item {ItemId} with price {Price}, using provided price for all values",
-                            itemDto.ItemId, itemDto.Price);
+                        itemTaxableAmount = itemValueAfterDiscount;
+                        itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
                     }
 
-                    // Calculate discount values based on selling price (SP)
-                    var itemTotal = salesPrice * itemDto.Quantity;
-                    var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
-                    var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+                    // Update totals
+                    totalCashCredit += itemValueAfterDiscount + itemVatAmount;   // Cash gets CREDIT (money going OUT)
+                    totalSalesDebit += itemValueAfterDiscount;                   // Sales account gets DEBIT (reduction in revenue)
+                    totalVatDebit += itemVatAmount;                              // VAT account gets DEBIT (reduction in output VAT)
 
-                    // Net price after discount (based on selling price)
-                    var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+                    var netPrice = salesPrice - (salesPrice * overallDiscountPercentage / 100);
+                    var netPuPrice = puPrice - (puPrice * overallDiscountPercentage / 100);
 
-                    // Net cost price after discount (based on puPrice/cost price)
-                    var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
-
-                    // Add stock entry (ADDING stock back for returns)
+                    // ADD STOCK ENTRY (ADDING stock back for returns - POSITIVE quantity)
                     var stockEntry = new StockEntry
                     {
                         Id = Guid.NewGuid(),
                         ItemId = item.Id,
-                        Quantity = itemDto.Quantity, // Positive quantity for return (adding back)
-                        Price = salesPrice,           // SP - Selling Price
-                        PuPrice = puPrice,             // CP - Cost Price
+                        Quantity = itemDto.Quantity,
+                        Price = salesPrice,
+                        PuPrice = puPrice,
                         MarginPercentage = marginPercentage,
-                        Mrp = mrp,                     // MRP - Maximum Retail Price
-                        NetPrice = netPrice,           // Net selling price after discount
-                        NetPuPrice = netPuPrice,       // Net cost price after discount
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
-                        BatchNumber = batchNumber,      // Use restored batch number
-                        ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)), // Use restored expiry or default
+                        Mrp = mrp,
+                        NetPrice = netPrice,
+                        NetPuPrice = netPuPrice,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
+                        BatchNumber = batchNumber,
+                        ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
                         Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
                         UniqueUuid = uniqueId,
                         SalesReturnBillId = salesReturn.Id,
@@ -2649,10 +5834,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
 
                     _context.StockEntries.Add(stockEntry);
 
-                    // Update item's total stock (ADDING back)
-                    // item.Stock = (item.Stock ?? 0) + itemDto.Quantity;
-
-                    // Create sales return item with correct fields
+                    // CREATE SALES RETURN ITEM
                     var returnItem = new SalesReturnItem
                     {
                         Id = Guid.NewGuid(),
@@ -2660,16 +5842,16 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         ItemId = itemDto.ItemId,
                         UnitId = itemDto.UnitId,
                         Quantity = itemDto.Quantity,
-                        Price = salesPrice,            // SP - Selling Price
-                        PuPrice = puPrice,              // CP - Cost Price
+                        Price = salesPrice,
+                        PuPrice = puPrice,
                         MarginPercentage = marginPercentage,
-                        Mrp = mrp,                      // MRP - Maximum Retail Price
-                        NetPrice = netPrice,            // Net selling price after discount
-                        NetPuPrice = netPuPrice,        // Net cost price after discount
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
-                        BatchNumber = batchNumber,      // Use restored batch number
-                        ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)), // Use restored expiry or default
+                        Mrp = mrp,
+                        NetPrice = netPrice,
+                        NetPuPrice = netPuPrice,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
+                        BatchNumber = batchNumber,
+                        ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
                         VatStatus = item.VatStatus ?? "vatable",
                         UniqueUuid = uniqueId,
                         CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
@@ -2679,32 +5861,53 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     _context.SalesReturnItems.Add(returnItem);
                     returnItems.Add(returnItem);
 
-                    // Create item-level transaction for cash account
+                    // Store calculation for transaction items
+                    itemCalculations.Add(new SalesReturnItemCalculation
+                    {
+                        ItemId = itemDto.ItemId,
+                        UnitId = itemDto.UnitId,
+                        WsUnit = 1,
+                        Quantity = itemDto.Quantity,
+                        Price = salesPrice,
+                        PuPrice = puPrice,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
+                        NetPuPrice = netPuPrice,
+                        TaxableAmount = itemTaxableAmount,
+                        VatPercentage = itemVatPercentage,
+                        VatAmount = itemVatAmount,
+                        ItemValueAfterDiscount = itemValueAfterDiscount
+                    });
+                }
+
+                // Save items and stock entries
+                await _context.SaveChangesAsync();
+
+                // ========== CREATE HEADER TRANSACTIONS WITH TRANSACTION ITEMS ==========
+
+                // 1. CASH IN HAND TRANSACTION (Header - Credit - Money going OUT)
+                if (cashInHandAccountId.HasValue && totalCashCredit > 0)
+                {
                     var cashTransaction = new Transaction
                     {
                         Id = Guid.NewGuid(),
                         CompanyId = companyId,
-                        ItemId = itemDto.ItemId,
-                        UnitId = itemDto.UnitId,
-                        WSUnit = 1,
-                        Quantity = itemDto.Quantity,
-                        Price = salesPrice,             // SP - Selling Price
-                        PuPrice = puPrice,               // CP - Cost Price
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
-                        NetPuPrice = netPuPrice,
-                        // CashAccount = dto.CashAccount,
+                        AccountId = cashInHandAccountId.Value,
                         SalesReturnBillId = salesReturn.Id,
                         BillNumber = salesReturn.BillNumber,
                         IsType = TransactionIsType.SlRt,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = salesReturn.TotalAmount ?? 0, // Debit for cash account
-                        Credit = 0,
-                        PaymentMode = ParsePaymentMode(dto.PaymentMode),
-                        // Balance = previousBalance + (salesReturn.TotalAmount ?? 0), // Adding to cash balance
-                        Date = salesReturn.Date,
+                        TotalDebit = 0,
+                        TotalCredit = totalCashCredit,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = dto.VatAmount,
+                        PaymentMode = paymentMode,
+                        Date = salesReturn.TransactionDate,
                         BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2712,41 +5915,97 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(cashTransaction);
-                }
 
-                // 1. Sales Return Account transaction
-                if (salesReturnAccountId.HasValue)
-                {
-                    var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
-
-                    if (salesReturnAmount > 0)
+                    // Add Transaction Items for Cash Transaction
+                    foreach (var calc in itemCalculations)
                     {
-                        var salesReturnTransaction = new Transaction
+                        var transactionItem = new TransactionItem
                         {
                             Id = Guid.NewGuid(),
-                            CompanyId = companyId,
-                            AccountId = salesReturnAccountId.Value,
-                            SalesReturnBillId = salesReturn.Id,
-                            BillNumber = salesReturn.BillNumber,
-                            Type = TransactionType.SlRt,
-                            PurchaseSalesReturnType = "Sales Return",
-                            Debit = 0, // Credit for Sales Return account
-                            Credit = salesReturnAmount,
-                            PaymentMode = ParsePaymentMode(dto.PaymentMode),
-                            Date = salesReturn.TransactionDate,
-                            BillDate = salesReturn.Date,
-                            FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow,
-                            Status = TransactionStatus.Active,
-                            IsActive = true
+                            TransactionId = cashTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = 0,
+                            Credit = calc.ItemValueAfterDiscount + calc.VatAmount,
+                            CreatedAt = DateTime.UtcNow
                         };
-
-                        await _context.Transactions.AddAsync(salesReturnTransaction);
+                        await _context.TransactionItems.AddAsync(transactionItem);
                     }
+
+                    _logger.LogInformation("Created Cash in Hand transaction: TotalCredit {Amount}", totalCashCredit);
                 }
 
-                // 2. VAT transaction if applicable
-                if (dto.VatAmount > 0 && vatAccountId.HasValue && !isVatExemptBool)
+                // 2. SALES ACCOUNT TRANSACTION (Header - Debit - Reducing sales revenue)
+                if (salesAccountId.HasValue && totalSalesDebit > 0)
+                {
+                    var salesTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        AccountId = salesAccountId.Value,
+                        SalesReturnBillId = salesReturn.Id,
+                        BillNumber = salesReturn.BillNumber,
+                        Type = TransactionType.SlRt,
+                        PurchaseSalesReturnType = "Sales Return",
+                        TotalDebit = totalSalesDebit,
+                        TotalCredit = 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = dto.VatAmount,
+                        PaymentMode = paymentMode,
+                        Date = salesReturn.TransactionDate,
+                        BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active,
+                        IsActive = true
+                    };
+
+                    await _context.Transactions.AddAsync(salesTransaction);
+
+                    // Add Transaction Items for Sales Transaction
+                    foreach (var calc in itemCalculations)
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = salesTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.ItemValueAfterDiscount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+
+                    _logger.LogInformation("Created Sales account transaction: TotalDebit {Amount}", totalSalesDebit);
+                }
+
+                // 3. VAT TRANSACTION (Header - Debit - Reducing VAT liability)
+                if (totalVatDebit > 0 && vatAccountId.HasValue && !isVatExemptBool)
                 {
                     var vatTransaction = new Transaction
                     {
@@ -2758,11 +6017,16 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = 0, // Credit for VAT account
-                        Credit = dto.VatAmount.Value,
-                        PaymentMode = ParsePaymentMode(dto.PaymentMode),
+                        TotalDebit = totalVatDebit,
+                        TotalCredit = 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = totalVatDebit,
+                        PaymentMode = paymentMode,
                         Date = salesReturn.TransactionDate,
                         BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2770,9 +6034,37 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(vatTransaction);
+
+                    // Add Transaction Items for VAT Transaction
+                    foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = vatTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.VatAmount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+
+                    _logger.LogInformation("Created VAT transaction: TotalDebit {Amount}", totalVatDebit);
                 }
 
-                // 3. Round-off transaction if applicable
+                // 4. ROUND-OFF TRANSACTION if applicable
                 if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
                 {
                     var roundOffTransaction = new Transaction
@@ -2785,11 +6077,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
-                        Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
-                        PaymentMode = ParsePaymentMode(dto.PaymentMode),
+                        TotalDebit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
+                        TotalCredit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+                        PaymentMode = paymentMode,
                         Date = salesReturn.TransactionDate,
                         BillDate = salesReturn.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2797,6 +6091,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(roundOffTransaction);
+                    _logger.LogInformation("Created Round-off transaction");
                 }
 
                 // Update sales return with items
@@ -3014,8 +6309,6 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 throw;
             }
         }
-
-
         public async Task<SalesReturnEditDataDTO> GetCashSalesReturnEditDataAsync(Guid billId, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             try
@@ -3234,6 +6527,1481 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
             }
         }
 
+        // public async Task<SalesReturn> UpdateCashSalesReturnAsync(Guid id, UpdateSalesReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("=== Starting UpdateCashSalesReturnAsync for Bill ID: {BillId} ===", id);
+
+        //         // Validate required fields
+        //         if (string.IsNullOrEmpty(dto.CashAccount))
+        //             throw new ArgumentException("Cash account is required");
+
+        //         if (dto.Items == null || !dto.Items.Any())
+        //             throw new ArgumentException("At least one item is required");
+
+        //         if (string.IsNullOrEmpty(dto.PaymentMode))
+        //             throw new ArgumentException("Payment mode is required");
+
+        //         // Validate calculated amounts are provided
+        //         if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+        //             !dto.NonVatSalesReturn.HasValue || !dto.TotalAmount.HasValue)
+        //         {
+        //             throw new ArgumentException("SubTotal, TaxableAmount, NonVatSalesReturn, and TotalAmount are required");
+        //         }
+
+        //         // Get the existing sales return with ALL related data
+        //         var existingBill = await _context.SalesReturns
+        //             .Include(sr => sr.Items)
+        //             .FirstOrDefaultAsync(sr => sr.Id == id && sr.CompanyId == companyId);
+
+        //         if (existingBill == null)
+        //             throw new ArgumentException("Cash sales return bill not found");
+
+        //         // Verify this is a cash sales return
+        //         if (string.IsNullOrEmpty(existingBill.CashAccount) || string.IsNullOrEmpty(existingBill.PaymentMode))
+        //         {
+        //             throw new ArgumentException("The specified sales return is not a cash sales return");
+        //         }
+
+        //         // Get company to check date format and VAT enabled
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         if (fiscalYear == null)
+        //             throw new ArgumentException("Fiscal year not found");
+
+        //         // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
+        //         var existingStockEntries = await _context.StockEntries
+        //             .Where(se => se.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingStockEntries.Any())
+        //         {
+        //             _context.StockEntries.RemoveRange(existingStockEntries);
+        //             _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
+        //         }
+
+        //         // STEP 2: Delete all associated transactions
+        //         var existingTransactions = await _context.Transactions
+        //             .Where(t => t.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingTransactions.Any())
+        //         {
+        //             _context.Transactions.RemoveRange(existingTransactions);
+        //             _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+        //         }
+
+        //         // STEP 3: Delete existing items
+        //         if (existingBill.Items.Any())
+        //         {
+        //             _context.SalesReturnItems.RemoveRange(existingBill.Items);
+        //             existingBill.Items.Clear();
+        //             _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
+        //         }
+
+        //         // Save changes after deletions
+        //         await _context.SaveChangesAsync();
+        //         _logger.LogInformation("Saved deletions successfully");
+
+        //         // Get default accounts for transactions
+        //         var salesReturnAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Sales Return" && a.CompanyId == companyId);
+
+        //         var vatAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "VAT" && a.CompanyId == companyId);
+
+        //         var roundOffAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Rounded Off" && a.CompanyId == companyId);
+
+        //         var cashAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Cash in Hand" && a.CompanyId == companyId);
+
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+
+        //         // Determine VAT exemption
+        //         bool isVatExempt = dto.IsVatExempt ?? false;
+        //         bool isVatAll = dto.IsVatAll == "all";
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Parse VAT exemption from string if needed
+        //         if (!string.IsNullOrEmpty(dto.IsVatAll))
+        //         {
+        //             if (dto.IsVatAll.ToLower() == "true" || dto.IsVatAll == "1")
+        //                 isVatExempt = true;
+        //             else if (dto.IsVatAll.ToLower() == "all")
+        //                 isVatAll = true;
+        //         }
+
+        //         // Track VAT status validation
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // STEP 4: UPDATE BILL PROPERTIES
+        //         existingBill.OriginalSalesBillId = dto.OriginalSalesBillId;
+        //         existingBill.OriginalSalesBillNumber = dto.OriginalSalesBillNumber;
+        //         existingBill.PurchaseSalesReturnType = "Sales Return";
+        //         existingBill.OriginalCopies = dto.OriginalCopies ?? existingBill.OriginalCopies;
+        //         existingBill.FirstPrinted = dto.FirstPrinted ?? existingBill.FirstPrinted;
+
+        //         // Cash account details (AccountId should remain null for cash returns)
+        //         existingBill.AccountId = null;
+        //         existingBill.CashAccount = dto.CashAccount ?? existingBill.CashAccount;
+        //         existingBill.CashAccountAddress = dto.CashAccountAddress ?? existingBill.CashAccountAddress;
+        //         existingBill.CashAccountPan = dto.CashAccountPan ?? existingBill.CashAccountPan;
+        //         existingBill.CashAccountEmail = dto.CashAccountEmail ?? existingBill.CashAccountEmail;
+        //         existingBill.CashAccountPhone = dto.CashAccountPhone ?? existingBill.CashAccountPhone;
+
+        //         existingBill.UnitId = dto.UnitId;
+        //         existingBill.SettingsId = dto.SettingsId;
+
+        //         // Financial fields
+        //         existingBill.SubTotal = dto.SubTotal;
+        //         existingBill.NonVatSalesReturn = dto.NonVatSalesReturn;
+        //         existingBill.TaxableAmount = dto.TaxableAmount;
+        //         existingBill.DiscountPercentage = dto.DiscountPercentage;
+        //         existingBill.DiscountAmount = dto.DiscountAmount;
+        //         existingBill.VatPercentage = isVatExempt ? 0 : (dto.VatPercentage ?? 13);
+        //         existingBill.VatAmount = dto.VatAmount;
+        //         existingBill.TotalAmount = dto.TotalAmount;
+        //         existingBill.IsVatExempt = isVatExempt;
+        //         existingBill.IsVatAll = isVatAll ? "all" : (isVatExempt ? "true" : "false");
+        //         existingBill.RoundOffAmount = dto.RoundOffAmount;
+        //         existingBill.PaymentMode = dto.PaymentMode;
+        //         existingBill.Quantity = dto.Quantity;
+        //         existingBill.Price = dto.Price;
+
+        //         // Dates
+        //         if (dto.NepaliDate != default)
+        //             existingBill.nepaliDate = dto.NepaliDate;
+        //         if (dto.Date != default)
+        //             existingBill.Date = dto.Date;
+        //         if (dto.TransactionDateNepali != default)
+        //             existingBill.transactionDateNepali = dto.TransactionDateNepali;
+        //         if (dto.TransactionDate != default)
+        //             existingBill.TransactionDate = dto.TransactionDate;
+
+        //         existingBill.UpdatedAt = DateTime.UtcNow;
+
+        //         // Update the bill
+        //         _context.SalesReturns.Update(existingBill);
+        //         await _context.SaveChangesAsync();
+
+        //         // Generate a unique ID for all stock entries in this update
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // STEP 5: Process new items and create stock entries (ADDING stock back to inventory - POSITIVE quantity)
+        //         var returnItems = new List<SalesReturnItem>();
+
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+
+        //             // Try to find a matching sales bill item to get original values
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;
+        //             decimal puPrice = itemDto.PuPrice ?? itemDto.Price;
+        //             decimal mrp = itemDto.Mrp ?? 0;
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate;
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 salesPrice = matchingSalesItem.Price;
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
+        //                      itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
+        //             }
+
+        //             // Calculate discount values
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // CREATE STOCK ENTRY (ADDING STOCK BACK TO INVENTORY - POSITIVE QUANTITY)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity, // Positive for adding stock back
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // CREATE NEW SALES RETURN ITEM
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = existingBill.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 Mrp = mrp,
+        //                 MarginPercentage = marginPercentage,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPrice = netPrice,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate,
+        //                 VatStatus = itemDto.VatStatus ?? item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UpdatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+
+        //             // For cash sales returns, we don't create party transactions (AccountId is null)
+        //             // So we skip the party transaction creation here
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatAll != "all")
+        //         {
+        //             if (isVatExempt && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot update VAT exempt bill with vatable items");
+
+        //             if (!isVatExempt && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot update bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Save items and stock entries
+        //         await _context.SaveChangesAsync();
+
+        //         // STEP 6: CREATE SUMMARY TRANSACTIONS
+
+        //         // 1. Sales Return Account transaction (Credit to Sales Return account)
+        //         if (salesReturnAccount != null)
+        //         {
+        //             var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //             if (salesReturnAmount > 0)
+        //             {
+        //                 var salesReturnTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CompanyId = companyId,
+        //                     AccountId = salesReturnAccount.Id,
+        //                     SalesReturnBillId = existingBill.Id,
+        //                     BillNumber = existingBill.BillNumber,
+        //                     Type = TransactionType.SlRt,
+        //                     PurchaseSalesReturnType = "Sales Return",
+        //                     Debit = 0,
+        //                     Credit = salesReturnAmount,
+        //                     PaymentMode = paymentMode,
+        //                     Date = existingBill.TransactionDate,
+        //                     BillDate = existingBill.Date,
+        //                     nepaliDate = dto.NepaliDate,
+        //                     transactionDateNepali = dto.TransactionDateNepali,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active,
+        //                     IsActive = true
+        //                 };
+
+        //                 await _context.Transactions.AddAsync(salesReturnTransaction);
+        //             }
+        //         }
+
+        //         // 2. VAT transaction if applicable (Debit to VAT account - since we're receiving VAT back)
+        //         if (dto.VatAmount > 0 && vatAccount != null && !isVatExempt)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.VatAmount.Value,
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(vatTransaction);
+        //         }
+
+        //         // 3. Round-off transaction if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccount != null)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(roundOffTransaction);
+        //         }
+
+        //         // 4. Cash transaction (Debit to Cash account - we're paying cash back to customer)
+        //         if (paymentMode == PaymentMode.Cash && cashAccount != null)
+        //         {
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.TotalAmount ?? 0,
+        //                 Credit = 0,
+        //                 PaymentMode = PaymentMode.Cash,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(cashTransaction);
+        //         }
+
+        //         // Update items collection
+        //         existingBill.Items = returnItems;
+
+        //         // Save all changes
+        //         var saveResult = await _context.SaveChangesAsync();
+        //         _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+
+        //         await transaction.CommitAsync();
+        //         _logger.LogInformation("Transaction committed successfully");
+
+        //         _logger.LogInformation("=== Successfully updated cash sales return bill: {BillId} ===", id);
+
+        //         return existingBill;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating cash sales return bill: {BillId}", id);
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
+        // public async Task<SalesReturn> UpdateCashSalesReturnAsync(Guid id, UpdateSalesReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("=== Starting UpdateCashSalesReturnAsync for Bill ID: {BillId} ===", id);
+
+        //         // Validate required fields
+        //         if (string.IsNullOrEmpty(dto.CashAccount))
+        //             throw new ArgumentException("Cash account is required");
+
+        //         if (dto.Items == null || !dto.Items.Any())
+        //             throw new ArgumentException("At least one item is required");
+
+        //         if (string.IsNullOrEmpty(dto.PaymentMode))
+        //             throw new ArgumentException("Payment mode is required");
+
+        //         // Validate calculated amounts are provided
+        //         if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+        //             !dto.NonVatSalesReturn.HasValue || !dto.TotalAmount.HasValue)
+        //         {
+        //             throw new ArgumentException("SubTotal, TaxableAmount, NonVatSalesReturn, and TotalAmount are required");
+        //         }
+
+        //         // Get the existing sales return with ALL related data
+        //         var existingBill = await _context.SalesReturns
+        //             .Include(sr => sr.Items)
+        //             .FirstOrDefaultAsync(sr => sr.Id == id && sr.CompanyId == companyId);
+
+        //         if (existingBill == null)
+        //             throw new ArgumentException("Cash sales return bill not found");
+
+        //         // Verify this is a cash sales return
+        //         if (string.IsNullOrEmpty(existingBill.CashAccount) || string.IsNullOrEmpty(existingBill.PaymentMode))
+        //         {
+        //             throw new ArgumentException("The specified sales return is not a cash sales return");
+        //         }
+
+        //         // Get company to check date format and VAT enabled
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         if (fiscalYear == null)
+        //             throw new ArgumentException("Fiscal year not found");
+
+        //         // Get previous cash balance for proper balance calculation
+        //         var cashAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Cash in Hand" && a.CompanyId == companyId);
+
+        //         decimal previousCashBalance = 0;
+        //         if (cashAccount != null)
+        //         {
+        //             var lastCashTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == cashAccount.Id && t.CompanyId == companyId && t.SalesReturnBillId != id)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             if (lastCashTransaction != null)
+        //                 previousCashBalance = lastCashTransaction.Balance ?? 0;
+        //         }
+
+        //         // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
+        //         var existingStockEntries = await _context.StockEntries
+        //             .Where(se => se.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingStockEntries.Any())
+        //         {
+        //             _context.StockEntries.RemoveRange(existingStockEntries);
+        //             _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
+        //         }
+
+        //         // STEP 2: Delete all associated transactions
+        //         var existingTransactions = await _context.Transactions
+        //             .Where(t => t.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingTransactions.Any())
+        //         {
+        //             _context.Transactions.RemoveRange(existingTransactions);
+        //             _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+        //         }
+
+        //         // STEP 3: Delete existing items
+        //         if (existingBill.Items.Any())
+        //         {
+        //             _context.SalesReturnItems.RemoveRange(existingBill.Items);
+        //             existingBill.Items.Clear();
+        //             _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
+        //         }
+
+        //         // Save changes after deletions
+        //         await _context.SaveChangesAsync();
+        //         _logger.LogInformation("Saved deletions successfully");
+
+        //         // Get default accounts for transactions
+        //         var salesReturnAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Sales Return" && a.CompanyId == companyId);
+
+        //         var vatAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "VAT" && a.CompanyId == companyId);
+
+        //         var roundOffAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Rounded Off" && a.CompanyId == companyId);
+
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+
+        //         // Determine VAT exemption
+        //         bool isVatExempt = dto.IsVatExempt ?? false;
+        //         bool isVatAll = dto.IsVatAll == "all";
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Parse VAT exemption from string if needed
+        //         if (!string.IsNullOrEmpty(dto.IsVatAll))
+        //         {
+        //             if (dto.IsVatAll.ToLower() == "true" || dto.IsVatAll == "1")
+        //                 isVatExempt = true;
+        //             else if (dto.IsVatAll.ToLower() == "all")
+        //                 isVatAll = true;
+        //         }
+
+        //         // Track VAT status validation
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // STEP 4: UPDATE BILL PROPERTIES
+        //         existingBill.OriginalSalesBillId = dto.OriginalSalesBillId;
+        //         existingBill.OriginalSalesBillNumber = dto.OriginalSalesBillNumber;
+        //         existingBill.PurchaseSalesReturnType = "Sales Return";
+        //         existingBill.OriginalCopies = dto.OriginalCopies ?? existingBill.OriginalCopies;
+        //         existingBill.FirstPrinted = dto.FirstPrinted ?? existingBill.FirstPrinted;
+
+        //         // Cash account details (AccountId should remain null for cash returns)
+        //         existingBill.AccountId = null;
+        //         existingBill.CashAccount = dto.CashAccount ?? existingBill.CashAccount;
+        //         existingBill.CashAccountAddress = dto.CashAccountAddress ?? existingBill.CashAccountAddress;
+        //         existingBill.CashAccountPan = dto.CashAccountPan ?? existingBill.CashAccountPan;
+        //         existingBill.CashAccountEmail = dto.CashAccountEmail ?? existingBill.CashAccountEmail;
+        //         existingBill.CashAccountPhone = dto.CashAccountPhone ?? existingBill.CashAccountPhone;
+
+        //         existingBill.UnitId = dto.UnitId;
+        //         existingBill.SettingsId = dto.SettingsId;
+
+        //         // Financial fields
+        //         existingBill.SubTotal = dto.SubTotal;
+        //         existingBill.NonVatSalesReturn = dto.NonVatSalesReturn;
+        //         existingBill.TaxableAmount = dto.TaxableAmount;
+        //         existingBill.DiscountPercentage = dto.DiscountPercentage;
+        //         existingBill.DiscountAmount = dto.DiscountAmount;
+        //         existingBill.VatPercentage = isVatExempt ? 0 : (dto.VatPercentage ?? 13);
+        //         existingBill.VatAmount = dto.VatAmount;
+        //         existingBill.TotalAmount = dto.TotalAmount;
+        //         existingBill.IsVatExempt = isVatExempt;
+        //         existingBill.IsVatAll = isVatAll ? "all" : (isVatExempt ? "true" : "false");
+        //         existingBill.RoundOffAmount = dto.RoundOffAmount;
+        //         existingBill.PaymentMode = dto.PaymentMode;
+        //         existingBill.Quantity = dto.Quantity;
+        //         existingBill.Price = dto.Price;
+
+        //         // Dates
+        //         if (dto.NepaliDate != default)
+        //             existingBill.nepaliDate = dto.NepaliDate;
+        //         if (dto.Date != default)
+        //             existingBill.Date = dto.Date;
+        //         if (dto.TransactionDateNepali != default)
+        //             existingBill.transactionDateNepali = dto.TransactionDateNepali;
+        //         if (dto.TransactionDate != default)
+        //             existingBill.TransactionDate = dto.TransactionDate;
+
+        //         existingBill.UpdatedAt = DateTime.UtcNow;
+
+        //         // Update the bill
+        //         _context.SalesReturns.Update(existingBill);
+        //         await _context.SaveChangesAsync();
+
+        //         // Generate a unique ID for all stock entries in this update
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // STEP 5: Process new items and create stock entries (ADDING stock back to inventory - POSITIVE quantity)
+        //         var returnItems = new List<SalesReturnItem>();
+
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+
+        //             // Try to find a matching sales bill item to get original values
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;
+        //             decimal puPrice = itemDto.PuPrice ?? itemDto.Price;
+        //             decimal mrp = itemDto.Mrp ?? 0;
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate;
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 salesPrice = matchingSalesItem.Price;
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
+        //                      itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
+        //             }
+
+        //             // Calculate discount values
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // CREATE STOCK ENTRY (ADDING STOCK BACK TO INVENTORY - POSITIVE QUANTITY)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity, // Positive for adding stock back
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // CREATE NEW SALES RETURN ITEM
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = existingBill.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 Mrp = mrp,
+        //                 MarginPercentage = marginPercentage,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPrice = netPrice,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate,
+        //                 VatStatus = itemDto.VatStatus ?? item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UpdatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatAll != "all")
+        //         {
+        //             if (isVatExempt && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot update VAT exempt bill with vatable items");
+
+        //             if (!isVatExempt && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot update bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Save items and stock entries
+        //         await _context.SaveChangesAsync();
+
+        //         // STEP 6: CREATE SUMMARY TRANSACTIONS
+
+        //         var allTransactions = new List<Transaction>();
+
+        //         // Calculate total return amount
+        //         decimal totalReturnAmount = dto.TotalAmount ?? 0;
+
+        //         // 1. CASH IN HAND TRANSACTION (CREDIT - Money going OUT to customer)
+        //         if (cashAccount != null && totalReturnAmount > 0)
+        //         {
+        //             var cashBalance = previousCashBalance - totalReturnAmount; // Subtract because cash is going out
+
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,                           // Cash account is CREDITED
+        //                 Credit = totalReturnAmount,          // Money going OUT
+        //                 Balance = cashBalance,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(cashTransaction);
+        //             _logger.LogInformation("Created Cash in Hand transaction: Credit {Amount}, New Balance: {Balance}", totalReturnAmount, cashBalance);
+        //         }
+
+        //         // 2. Sales Return Account transaction (CREDIT to Sales Return account)
+        //         if (salesReturnAccount != null)
+        //         {
+        //             var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //             if (salesReturnAmount > 0)
+        //             {
+        //                 var salesReturnTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CompanyId = companyId,
+        //                     AccountId = salesReturnAccount.Id,
+        //                     SalesReturnBillId = existingBill.Id,
+        //                     BillNumber = existingBill.BillNumber,
+        //                     Type = TransactionType.SlRt,
+        //                     PurchaseSalesReturnType = "Sales Return",
+        //                     Debit = 0,
+        //                     Credit = salesReturnAmount,
+        //                     PaymentMode = paymentMode,
+        //                     Date = existingBill.TransactionDate,
+        //                     BillDate = existingBill.Date,
+        //                     nepaliDate = dto.NepaliDate,
+        //                     transactionDateNepali = dto.TransactionDateNepali,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active,
+        //                     IsActive = true
+        //                 };
+
+        //                 allTransactions.Add(salesReturnTransaction);
+        //                 _logger.LogInformation("Created Sales Return transaction: Credit {Amount}", salesReturnAmount);
+        //             }
+        //         }
+
+        //         // 3. VAT transaction if applicable (DEBIT to VAT account - reducing VAT liability)
+        //         if (dto.VatAmount > 0 && vatAccount != null && !isVatExempt)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.VatAmount.Value,  // VAT account is DEBITED (reducing liability)
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(vatTransaction);
+        //             _logger.LogInformation("Created VAT transaction: Debit {Amount}", dto.VatAmount.Value);
+        //         }
+
+        //         // 4. Round-off transaction if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccount != null)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
+        //                 Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(roundOffTransaction);
+        //             _logger.LogInformation("Created Round-off transaction: Debit {Debit}, Credit {Credit}",
+        //                 roundOffTransaction.Debit, roundOffTransaction.Credit);
+        //         }
+
+        //         // 5. Item-level transactions (CREDIT for inventory - stock value increases)
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items.FindAsync(itemDto.ItemId);
+        //             if (item == null) continue;
+
+        //             // Find matching sales item to get cost price
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal costPrice = matchingSalesItem?.PuPrice ?? itemDto.PuPrice ?? itemDto.Price;
+        //             decimal itemCostTotal = costPrice * itemDto.Quantity;
+
+        //             var itemTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = itemDto.Price,
+        //                 PuPrice = costPrice,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,
+        //                 Credit = itemCostTotal,  // Inventory value increases (CREDIT)
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(itemTransaction);
+        //             _logger.LogInformation("Created item-level transaction for {ItemName}: Credit {Amount}", item.Name, itemCostTotal);
+        //         }
+
+        //         // Add all transactions
+        //         await _context.Transactions.AddRangeAsync(allTransactions);
+
+        //         // Update items collection
+        //         existingBill.Items = returnItems;
+
+        //         // Save all changes
+        //         var saveResult = await _context.SaveChangesAsync();
+        //         _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+        //         _logger.LogInformation("Total transactions created: {TransactionCount}", allTransactions.Count);
+
+        //         await transaction.CommitAsync();
+        //         _logger.LogInformation("Transaction committed successfully");
+
+        //         _logger.LogInformation("=== Successfully updated cash sales return bill: {BillId} ===", id);
+
+        //         return existingBill;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating cash sales return bill: {BillId}", id);
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
+        // public async Task<SalesReturn> UpdateCashSalesReturnAsync(Guid id, UpdateSalesReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("=== Starting UpdateCashSalesReturnAsync for Bill ID: {BillId} ===", id);
+
+        //         // Validate required fields
+        //         if (string.IsNullOrEmpty(dto.CashAccount))
+        //             throw new ArgumentException("Cash account is required");
+
+        //         if (dto.Items == null || !dto.Items.Any())
+        //             throw new ArgumentException("At least one item is required");
+
+        //         if (string.IsNullOrEmpty(dto.PaymentMode))
+        //             throw new ArgumentException("Payment mode is required");
+
+        //         // Validate calculated amounts are provided
+        //         if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+        //             !dto.NonVatSalesReturn.HasValue || !dto.TotalAmount.HasValue)
+        //         {
+        //             throw new ArgumentException("SubTotal, TaxableAmount, NonVatSalesReturn, and TotalAmount are required");
+        //         }
+
+        //         // Get the existing sales return with ALL related data
+        //         var existingBill = await _context.SalesReturns
+        //             .Include(sr => sr.Items)
+        //             .FirstOrDefaultAsync(sr => sr.Id == id && sr.CompanyId == companyId);
+
+        //         if (existingBill == null)
+        //             throw new ArgumentException("Cash sales return bill not found");
+
+        //         // Verify this is a cash sales return
+        //         if (string.IsNullOrEmpty(existingBill.CashAccount) || string.IsNullOrEmpty(existingBill.PaymentMode))
+        //         {
+        //             throw new ArgumentException("The specified sales return is not a cash sales return");
+        //         }
+
+        //         // Get company to check date format and VAT enabled
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         if (fiscalYear == null)
+        //             throw new ArgumentException("Fiscal year not found");
+
+        //         // Get default accounts (USE SALES ACCOUNT, NOT SALES RETURN ACCOUNT)
+        //         var salesAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Sales" && a.CompanyId == companyId);
+
+        //         var vatAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "VAT" && a.CompanyId == companyId);
+
+        //         var roundOffAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Rounded Off" && a.CompanyId == companyId);
+
+        //         var cashAccount = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Name == "Cash in Hand" && a.CompanyId == companyId);
+
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+
+        //         // Get previous cash balance for proper balance calculation
+        //         decimal previousCashBalance = 0;
+        //         if (cashAccount != null)
+        //         {
+        //             var lastCashTransaction = await _context.Transactions
+        //                 .Where(t => t.AccountId == cashAccount.Id && t.CompanyId == companyId && t.SalesReturnBillId != id)
+        //                 .OrderByDescending(t => t.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             if (lastCashTransaction != null)
+        //                 previousCashBalance = lastCashTransaction.Balance ?? 0;
+        //         }
+
+        //         // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
+        //         var existingStockEntries = await _context.StockEntries
+        //             .Where(se => se.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingStockEntries.Any())
+        //         {
+        //             _context.StockEntries.RemoveRange(existingStockEntries);
+        //             _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
+        //         }
+
+        //         // STEP 2: Delete all associated transactions
+        //         var existingTransactions = await _context.Transactions
+        //             .Where(t => t.SalesReturnBillId == id)
+        //             .ToListAsync();
+
+        //         if (existingTransactions.Any())
+        //         {
+        //             _context.Transactions.RemoveRange(existingTransactions);
+        //             _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+        //         }
+
+        //         // STEP 3: Delete existing items
+        //         if (existingBill.Items.Any())
+        //         {
+        //             _context.SalesReturnItems.RemoveRange(existingBill.Items);
+        //             existingBill.Items.Clear();
+        //             _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
+        //         }
+
+        //         // Save changes after deletions
+        //         await _context.SaveChangesAsync();
+        //         _logger.LogInformation("Saved deletions successfully");
+
+        //         // Determine VAT exemption
+        //         bool isVatExempt = dto.IsVatExempt ?? false;
+        //         bool isVatAll = dto.IsVatAll == "all";
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Parse VAT exemption from string if needed
+        //         if (!string.IsNullOrEmpty(dto.IsVatAll))
+        //         {
+        //             if (dto.IsVatAll.ToLower() == "true" || dto.IsVatAll == "1")
+        //                 isVatExempt = true;
+        //             else if (dto.IsVatAll.ToLower() == "all")
+        //                 isVatAll = true;
+        //         }
+
+        //         // Track VAT status validation
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         // Calculate total return amount
+        //         decimal totalReturnAmount = dto.TotalAmount ?? 0;
+        //         decimal salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+        //         // STEP 4: UPDATE BILL PROPERTIES
+        //         existingBill.OriginalSalesBillId = dto.OriginalSalesBillId;
+        //         existingBill.OriginalSalesBillNumber = dto.OriginalSalesBillNumber;
+        //         existingBill.PurchaseSalesReturnType = "Sales Return";
+        //         existingBill.OriginalCopies = dto.OriginalCopies ?? existingBill.OriginalCopies;
+        //         existingBill.FirstPrinted = dto.FirstPrinted ?? existingBill.FirstPrinted;
+
+        //         // Cash account details (AccountId should remain null for cash returns)
+        //         existingBill.AccountId = null;
+        //         existingBill.CashAccount = dto.CashAccount ?? existingBill.CashAccount;
+        //         existingBill.CashAccountAddress = dto.CashAccountAddress ?? existingBill.CashAccountAddress;
+        //         existingBill.CashAccountPan = dto.CashAccountPan ?? existingBill.CashAccountPan;
+        //         existingBill.CashAccountEmail = dto.CashAccountEmail ?? existingBill.CashAccountEmail;
+        //         existingBill.CashAccountPhone = dto.CashAccountPhone ?? existingBill.CashAccountPhone;
+
+        //         existingBill.UnitId = dto.UnitId;
+        //         existingBill.SettingsId = dto.SettingsId;
+
+        //         // Financial fields
+        //         existingBill.SubTotal = dto.SubTotal;
+        //         existingBill.NonVatSalesReturn = dto.NonVatSalesReturn;
+        //         existingBill.TaxableAmount = dto.TaxableAmount;
+        //         existingBill.DiscountPercentage = dto.DiscountPercentage;
+        //         existingBill.DiscountAmount = dto.DiscountAmount;
+        //         existingBill.VatPercentage = isVatExempt ? 0 : (dto.VatPercentage ?? 13);
+        //         existingBill.VatAmount = dto.VatAmount;
+        //         existingBill.TotalAmount = totalReturnAmount;
+        //         existingBill.IsVatExempt = isVatExempt;
+        //         existingBill.IsVatAll = isVatAll ? "all" : (isVatExempt ? "true" : "false");
+        //         existingBill.RoundOffAmount = dto.RoundOffAmount;
+        //         existingBill.PaymentMode = dto.PaymentMode;
+        //         existingBill.Quantity = dto.Quantity;
+        //         existingBill.Price = dto.Price;
+
+        //         // Dates
+        //         if (dto.NepaliDate != default)
+        //             existingBill.nepaliDate = dto.NepaliDate;
+        //         if (dto.Date != default)
+        //             existingBill.Date = dto.Date;
+        //         if (dto.TransactionDateNepali != default)
+        //             existingBill.transactionDateNepali = dto.TransactionDateNepali;
+        //         if (dto.TransactionDate != default)
+        //             existingBill.TransactionDate = dto.TransactionDate;
+
+        //         existingBill.UpdatedAt = DateTime.UtcNow;
+
+        //         // Update the bill
+        //         _context.SalesReturns.Update(existingBill);
+        //         await _context.SaveChangesAsync();
+
+        //         // Generate a unique ID for all stock entries in this update
+        //         var uniqueId = Guid.NewGuid().ToString();
+
+        //         // STEP 5: Process new items and create stock entries (ADDING stock back to inventory - POSITIVE quantity)
+        //         var returnItems = new List<SalesReturnItem>();
+
+        //         // Load all items at once
+        //         var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        //         var itemsDict = await _context.Items
+        //             .Include(i => i.StockEntries)
+        //             .Where(i => itemIds.Contains(i.Id))
+        //             .ToDictionaryAsync(i => i.Id);
+
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Track VAT status
+        //             if (item.VatStatus?.ToLower() == "vatable")
+        //             {
+        //                 hasVatableItems = true;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //             }
+
+        //             // Try to find a matching sales bill item to get original values
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal salesPrice = itemDto.Price;
+        //             decimal puPrice = itemDto.PuPrice ?? itemDto.Price;
+        //             decimal mrp = itemDto.Mrp ?? 0;
+        //             decimal marginPercentage = itemDto.MarginPercentage;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate;
+
+        //             if (matchingSalesItem != null)
+        //             {
+        //                 salesPrice = matchingSalesItem.Price;
+        //                 puPrice = matchingSalesItem.PuPrice ?? matchingSalesItem.Price;
+        //                 marginPercentage = matchingSalesItem.MarginPercentage;
+        //                 mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
+        //                 batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
+        //                 expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
+
+        //                 _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
+        //                      itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
+        //             }
+
+        //             // Calculate discount values
+        //             var itemTotal = salesPrice * itemDto.Quantity;
+        //             var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
+        //             var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
+        //             var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
+        //             var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+
+        //             // CREATE STOCK ENTRY (ADDING STOCK BACK TO INVENTORY - POSITIVE QUANTITY)
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 MarginPercentage = marginPercentage,
+        //                 Mrp = mrp,
+        //                 NetPrice = netPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                 Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UniqueUuid = uniqueId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             _context.StockEntries.Add(stockEntry);
+
+        //             // CREATE NEW SALES RETURN ITEM
+        //             var returnItem = new SalesReturnItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 SalesReturnId = existingBill.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = salesPrice,
+        //                 PuPrice = puPrice,
+        //                 NetPuPrice = netPuPrice,
+        //                 Mrp = mrp,
+        //                 MarginPercentage = marginPercentage,
+        //                 DiscountPercentagePerItem = discountPercentagePerItem,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPrice = netPrice,
+        //                 BatchNumber = batchNumber,
+        //                 ExpiryDate = expiryDate,
+        //                 VatStatus = itemDto.VatStatus ?? item.VatStatus ?? "vatable",
+        //                 UniqueUuid = uniqueId,
+        //                 CreatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
+        //                 UpdatedAt = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date
+        //             };
+
+        //             _context.SalesReturnItems.Add(returnItem);
+        //             returnItems.Add(returnItem);
+        //         }
+
+        //         // VAT validation
+        //         if (dto.IsVatAll != "all")
+        //         {
+        //             if (isVatExempt && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot update VAT exempt bill with vatable items");
+
+        //             if (!isVatExempt && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot update bill with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Save items and stock entries
+        //         await _context.SaveChangesAsync();
+
+        //         // ============================================================
+        //         // CREATE ALL TRANSACTIONS (USING SALES ACCOUNT, NOT SALES RETURN ACCOUNT)
+        //         // ============================================================
+
+        //         var allTransactions = new List<Transaction>();
+
+        //         // 1. CASH IN HAND TRANSACTION (CREDIT - Money going OUT to customer)
+        //         if (cashAccount != null && totalReturnAmount > 0)
+        //         {
+        //             var cashBalance = previousCashBalance - totalReturnAmount;
+
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,                           // Cash account is CREDITED
+        //                 Credit = totalReturnAmount,          // Money going OUT
+        //                 Balance = cashBalance,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(cashTransaction);
+        //             _logger.LogInformation("Created Cash in Hand transaction: Credit {Amount}, New Balance: {Balance}",
+        //                 totalReturnAmount, cashBalance);
+        //         }
+
+        //         // 2. SALES ACCOUNT TRANSACTION (DEBIT - Reducing sales revenue)
+        //         if (salesAccount != null && salesReturnAmount > 0)
+        //         {
+        //             var salesTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = salesAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = salesReturnAmount,           // Sales account is DEBITED
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+        //             allTransactions.Add(salesTransaction);
+        //             _logger.LogInformation("Created Sales account transaction: Debit {Amount}", salesReturnAmount);
+        //         }
+
+        //         // 3. VAT transaction if applicable (DEBIT to VAT account - reducing VAT liability)
+        //         if (dto.VatAmount > 0 && vatAccount != null && !isVatExempt)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.VatAmount.Value,        // VAT account is DEBITED
+        //                 Credit = 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(vatTransaction);
+        //             _logger.LogInformation("Created VAT transaction: Debit {Amount}", dto.VatAmount.Value);
+        //         }
+
+        //         // 4. Round-off transaction if applicable
+        //         if (dto.RoundOffAmount != 0 && roundOffAccount != null)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccount.Id,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
+        //                 Credit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(roundOffTransaction);
+        //             _logger.LogInformation("Created Round-off transaction: Debit {Debit}, Credit {Credit}",
+        //                 roundOffTransaction.Debit, roundOffTransaction.Credit);
+        //         }
+
+        //         // 5. Item-level transactions (CREDIT for inventory - stock value increases)
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items.FindAsync(itemDto.ItemId);
+        //             if (item == null) continue;
+
+        //             // Find matching sales item to get cost price
+        //             var matchingSalesItem = await _context.SalesBillItems
+        //                 .Include(sbi => sbi.SalesBill)
+        //                 .Where(sbi => sbi.ItemId == itemDto.ItemId
+        //                     && sbi.Price == itemDto.Price
+        //                     && sbi.SalesBill.CompanyId == companyId)
+        //                 .OrderByDescending(sbi => sbi.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal costPrice = matchingSalesItem?.PuPrice ?? itemDto.PuPrice ?? itemDto.Price;
+        //             decimal itemCostTotal = costPrice * itemDto.Quantity;
+
+        //             var itemTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = itemDto.Quantity,
+        //                 Price = itemDto.Price,
+        //                 PuPrice = costPrice,
+        //                 SalesReturnBillId = existingBill.Id,
+        //                 BillNumber = existingBill.BillNumber,
+        //                 IsType = TransactionIsType.SlRt,
+        //                 Type = TransactionType.SlRt,
+        //                 PurchaseSalesReturnType = "Sales Return",
+        //                 Debit = 0,
+        //                 Credit = itemCostTotal,              // Inventory value increases (CREDIT)
+        //                 PaymentMode = paymentMode,
+        //                 Date = existingBill.TransactionDate,
+        //                 BillDate = existingBill.Date,
+        //                 nepaliDate = dto.NepaliDate,
+        //                 transactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             allTransactions.Add(itemTransaction);
+        //             _logger.LogInformation("Created item-level transaction for {ItemName}: Credit {Amount}", item.Name, itemCostTotal);
+        //         }
+
+        //         // Add all transactions
+        //         await _context.Transactions.AddRangeAsync(allTransactions);
+
+        //         // Update items collection
+        //         existingBill.Items = returnItems;
+
+        //         // Save all changes
+        //         var saveResult = await _context.SaveChangesAsync();
+        //         _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+        //         _logger.LogInformation("Total transactions created: {TransactionCount}", allTransactions.Count);
+
+        //         await transaction.CommitAsync();
+        //         _logger.LogInformation("Transaction committed successfully");
+
+        //         _logger.LogInformation("=== Successfully updated cash sales return bill: {BillId} ===", id);
+
+        //         return existingBill;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating cash sales return bill: {BillId}", id);
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
         public async Task<SalesReturn> UpdateCashSalesReturnAsync(Guid id, UpdateSalesReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -3283,43 +8051,9 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 if (fiscalYear == null)
                     throw new ArgumentException("Fiscal year not found");
 
-                // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
-                var existingStockEntries = await _context.StockEntries
-                    .Where(se => se.SalesReturnBillId == id)
-                    .ToListAsync();
-
-                if (existingStockEntries.Any())
-                {
-                    _context.StockEntries.RemoveRange(existingStockEntries);
-                    _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
-                }
-
-                // STEP 2: Delete all associated transactions
-                var existingTransactions = await _context.Transactions
-                    .Where(t => t.SalesReturnBillId == id)
-                    .ToListAsync();
-
-                if (existingTransactions.Any())
-                {
-                    _context.Transactions.RemoveRange(existingTransactions);
-                    _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
-                }
-
-                // STEP 3: Delete existing items
-                if (existingBill.Items.Any())
-                {
-                    _context.SalesReturnItems.RemoveRange(existingBill.Items);
-                    existingBill.Items.Clear();
-                    _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
-                }
-
-                // Save changes after deletions
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Saved deletions successfully");
-
-                // Get default accounts for transactions
-                var salesReturnAccount = await _context.Accounts
-                    .FirstOrDefaultAsync(a => a.Name == "Sales Return" && a.CompanyId == companyId);
+                // Get default accounts
+                var salesAccount = await _context.Accounts
+                    .FirstOrDefaultAsync(a => a.Name == "Sales" && a.CompanyId == companyId);
 
                 var vatAccount = await _context.Accounts
                     .FirstOrDefaultAsync(a => a.Name == "VAT" && a.CompanyId == companyId);
@@ -3350,6 +8084,46 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 bool hasVatableItems = false;
                 bool hasNonVatableItems = false;
 
+                // Calculate total return amount
+                decimal totalReturnAmount = dto.TotalAmount ?? 0;
+                decimal salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
+
+                // STEP 1: RESTORE STOCK by removing all stock entries for this sales return
+                var existingStockEntries = await _context.StockEntries
+                    .Where(se => se.SalesReturnBillId == id)
+                    .ToListAsync();
+
+                if (existingStockEntries.Any())
+                {
+                    _context.StockEntries.RemoveRange(existingStockEntries);
+                    _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
+                }
+
+                // STEP 2: Delete all associated transactions AND their transaction items
+                var existingTransactions = await _context.Transactions
+                    .Where(t => t.SalesReturnBillId == id)
+                    .Include(t => t.TransactionItems)
+                    .ToListAsync();
+
+                if (existingTransactions.Any())
+                {
+                    // TransactionItems will be deleted automatically due to Cascade delete
+                    _context.Transactions.RemoveRange(existingTransactions);
+                    _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
+                }
+
+                // STEP 3: Delete existing items
+                if (existingBill.Items.Any())
+                {
+                    _context.SalesReturnItems.RemoveRange(existingBill.Items);
+                    existingBill.Items.Clear();
+                    _logger.LogInformation("Deleted {Count} existing items", existingBill.Items.Count);
+                }
+
+                // Save changes after deletions
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Saved deletions successfully");
+
                 // STEP 4: UPDATE BILL PROPERTIES
                 existingBill.OriginalSalesBillId = dto.OriginalSalesBillId;
                 existingBill.OriginalSalesBillNumber = dto.OriginalSalesBillNumber;
@@ -3376,7 +8150,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 existingBill.DiscountAmount = dto.DiscountAmount;
                 existingBill.VatPercentage = isVatExempt ? 0 : (dto.VatPercentage ?? 13);
                 existingBill.VatAmount = dto.VatAmount;
-                existingBill.TotalAmount = dto.TotalAmount;
+                existingBill.TotalAmount = totalReturnAmount;
                 existingBill.IsVatExempt = isVatExempt;
                 existingBill.IsVatAll = isVatAll ? "all" : (isVatExempt ? "true" : "false");
                 existingBill.RoundOffAmount = dto.RoundOffAmount;
@@ -3403,16 +8177,28 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // Generate a unique ID for all stock entries in this update
                 var uniqueId = Guid.NewGuid().ToString();
 
-                // STEP 5: Process new items and create stock entries (ADDING stock back to inventory - POSITIVE quantity)
+                // Track totals for header transactions
+                decimal totalCashCredit = 0;
+                decimal totalSalesDebit = 0;
+                decimal totalVatDebit = 0;
+
+                // Store item calculations for transaction items
+                var itemCalculations = new List<SalesReturnItemCalculation>();
+
+                // STEP 5: Process new items and create stock entries
                 var returnItems = new List<SalesReturnItem>();
+                decimal overallDiscountPercentage = dto.DiscountPercentage ?? 0m;
+
+                // Load all items at once
+                var itemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+                var itemsDict = await _context.Items
+                    .Include(i => i.StockEntries)
+                    .Where(i => itemIds.Contains(i.Id))
+                    .ToDictionaryAsync(i => i.Id);
 
                 foreach (var itemDto in dto.Items)
                 {
-                    var item = await _context.Items
-                        .Include(i => i.StockEntries)
-                        .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
-
-                    if (item == null)
+                    if (!itemsDict.TryGetValue(itemDto.ItemId, out var item))
                         throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
 
                     // Track VAT status
@@ -3449,32 +8235,46 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         mrp = matchingSalesItem.Mrp ?? matchingSalesItem.Price;
                         batchNumber = matchingSalesItem.BatchNumber ?? batchNumber;
                         expiryDate = matchingSalesItem.ExpiryDate ?? expiryDate;
-
-                        _logger.LogInformation("Found matching sales for item {ItemId}: SP={SalesPrice}, CP={PuPrice}, MRP={Mrp}, Batch={BatchNumber}",
-                             itemDto.ItemId, salesPrice, puPrice, mrp, batchNumber);
                     }
 
-                    // Calculate discount values
-                    var itemTotal = salesPrice * itemDto.Quantity;
-                    var discountPercentagePerItem = dto.DiscountPercentage ?? 0;
-                    var discountAmountPerItem = (itemTotal * discountPercentagePerItem) / 100;
-                    var netPrice = salesPrice - (salesPrice * discountPercentagePerItem / 100);
-                    var netPuPrice = puPrice - (puPrice * discountPercentagePerItem / 100);
+                    // Calculate values
+                    decimal totalSalesValueBeforeDiscount = salesPrice * itemDto.Quantity;
+                    decimal discountAmountForItem = (totalSalesValueBeforeDiscount * overallDiscountPercentage) / 100m;
+                    decimal itemValueAfterDiscount = totalSalesValueBeforeDiscount - discountAmountForItem;
+
+                    // Calculate item-wise VAT
+                    decimal itemTaxableAmount = 0m;
+                    decimal itemVatPercentage = dto.VatPercentage ?? 0;
+                    decimal itemVatAmount = 0m;
+
+                    if (!isVatExempt && itemVatPercentage > 0 && item.VatStatus?.ToLower() == "vatable")
+                    {
+                        itemTaxableAmount = itemValueAfterDiscount;
+                        itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
+                    }
+
+                    // Update totals
+                    totalCashCredit += itemValueAfterDiscount + itemVatAmount;   // Cash gets CREDIT (money going OUT)
+                    totalSalesDebit += itemValueAfterDiscount;                   // Sales account gets DEBIT (reduction in revenue)
+                    totalVatDebit += itemVatAmount;                              // VAT account gets DEBIT (reduction in output VAT)
+
+                    var netPrice = salesPrice - (salesPrice * overallDiscountPercentage / 100);
+                    var netPuPrice = puPrice - (puPrice * overallDiscountPercentage / 100);
 
                     // CREATE STOCK ENTRY (ADDING STOCK BACK TO INVENTORY - POSITIVE QUANTITY)
                     var stockEntry = new StockEntry
                     {
                         Id = Guid.NewGuid(),
                         ItemId = item.Id,
-                        Quantity = itemDto.Quantity, // Positive for adding stock back
+                        Quantity = itemDto.Quantity,
                         Price = salesPrice,
                         PuPrice = puPrice,
                         MarginPercentage = marginPercentage,
                         Mrp = mrp,
                         NetPrice = netPrice,
                         NetPuPrice = netPuPrice,
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
                         BatchNumber = batchNumber,
                         ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
                         Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
@@ -3486,11 +8286,6 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     _context.StockEntries.Add(stockEntry);
-
-                    // // UPDATE ITEM STOCK (Add back to inventory since customer is returning items)
-                    // item.StockQuantity += itemDto.Quantity;
-                    // _logger.LogInformation("Added stock for item {ItemId}: +{Quantity}, New stock: {NewStock}",
-                    //     item.Id, itemDto.Quantity, item.StockQuantity);
 
                     // CREATE NEW SALES RETURN ITEM
                     var returnItem = new SalesReturnItem
@@ -3505,8 +8300,8 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         NetPuPrice = netPuPrice,
                         Mrp = mrp,
                         MarginPercentage = marginPercentage,
-                        DiscountPercentagePerItem = discountPercentagePerItem,
-                        DiscountAmountPerItem = discountAmountPerItem,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
                         NetPrice = netPrice,
                         BatchNumber = batchNumber,
                         ExpiryDate = expiryDate,
@@ -3519,8 +8314,23 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     _context.SalesReturnItems.Add(returnItem);
                     returnItems.Add(returnItem);
 
-                    // For cash sales returns, we don't create party transactions (AccountId is null)
-                    // So we skip the party transaction creation here
+                    // Store calculation for transaction items
+                    itemCalculations.Add(new SalesReturnItemCalculation
+                    {
+                        ItemId = itemDto.ItemId,
+                        UnitId = itemDto.UnitId,
+                        WsUnit = 1,
+                        Quantity = itemDto.Quantity,
+                        Price = salesPrice,
+                        PuPrice = puPrice,
+                        DiscountPercentagePerItem = overallDiscountPercentage,
+                        DiscountAmountPerItem = discountAmountForItem,
+                        NetPuPrice = netPuPrice,
+                        TaxableAmount = itemTaxableAmount,
+                        VatPercentage = itemVatPercentage,
+                        VatAmount = itemVatAmount,
+                        ItemValueAfterDiscount = itemValueAfterDiscount
+                    });
                 }
 
                 // VAT validation
@@ -3536,41 +8346,129 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // Save items and stock entries
                 await _context.SaveChangesAsync();
 
-                // STEP 6: CREATE SUMMARY TRANSACTIONS
+                // ========== CREATE HEADER TRANSACTIONS WITH TRANSACTION ITEMS ==========
 
-                // 1. Sales Return Account transaction (Credit to Sales Return account)
-                if (salesReturnAccount != null)
+                // 1. CASH IN HAND TRANSACTION (Header - Credit - Money going OUT)
+                if (cashAccount != null && totalCashCredit > 0)
                 {
-                    var salesReturnAmount = (dto.TaxableAmount ?? 0) + (dto.NonVatSalesReturn ?? 0);
-
-                    if (salesReturnAmount > 0)
+                    var cashTransaction = new Transaction
                     {
-                        var salesReturnTransaction = new Transaction
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        AccountId = cashAccount.Id,
+                        SalesReturnBillId = existingBill.Id,
+                        BillNumber = existingBill.BillNumber,
+                        IsType = TransactionIsType.SlRt,
+                        Type = TransactionType.SlRt,
+                        PurchaseSalesReturnType = "Sales Return",
+                        TotalDebit = 0,
+                        TotalCredit = totalCashCredit,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = dto.VatAmount,
+                        PaymentMode = paymentMode,
+                        Date = existingBill.TransactionDate,
+                        BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active,
+                        IsActive = true
+                    };
+
+                    await _context.Transactions.AddAsync(cashTransaction);
+
+                    // Add Transaction Items for Cash Transaction
+                    foreach (var calc in itemCalculations)
+                    {
+                        var transactionItem = new TransactionItem
                         {
                             Id = Guid.NewGuid(),
-                            CompanyId = companyId,
-                            AccountId = salesReturnAccount.Id,
-                            SalesReturnBillId = existingBill.Id,
-                            BillNumber = existingBill.BillNumber,
-                            Type = TransactionType.SlRt,
-                            PurchaseSalesReturnType = "Sales Return",
+                            TransactionId = cashTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
                             Debit = 0,
-                            Credit = salesReturnAmount,
-                            PaymentMode = paymentMode,
-                            Date = existingBill.TransactionDate,
-                            BillDate = existingBill.Date,
-                            FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow,
-                            Status = TransactionStatus.Active,
-                            IsActive = true
+                            Credit = calc.ItemValueAfterDiscount + calc.VatAmount,
+                            CreatedAt = DateTime.UtcNow
                         };
-
-                        await _context.Transactions.AddAsync(salesReturnTransaction);
+                        await _context.TransactionItems.AddAsync(transactionItem);
                     }
+
+                    _logger.LogInformation("Created Cash in Hand transaction: TotalCredit {Amount}", totalCashCredit);
                 }
 
-                // 2. VAT transaction if applicable (Debit to VAT account - since we're receiving VAT back)
-                if (dto.VatAmount > 0 && vatAccount != null && !isVatExempt)
+                // 2. SALES ACCOUNT TRANSACTION (Header - Debit - Reducing sales revenue)
+                if (salesAccount != null && totalSalesDebit > 0)
+                {
+                    var salesTransaction = new Transaction
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        AccountId = salesAccount.Id,
+                        SalesReturnBillId = existingBill.Id,
+                        BillNumber = existingBill.BillNumber,
+                        Type = TransactionType.SlRt,
+                        PurchaseSalesReturnType = "Sales Return",
+                        TotalDebit = totalSalesDebit,
+                        TotalCredit = 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = dto.VatAmount,
+                        PaymentMode = paymentMode,
+                        Date = existingBill.TransactionDate,
+                        BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
+                        FiscalYearId = fiscalYearId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = TransactionStatus.Active,
+                        IsActive = true
+                    };
+
+                    await _context.Transactions.AddAsync(salesTransaction);
+
+                    // Add Transaction Items for Sales Transaction
+                    foreach (var calc in itemCalculations)
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = salesTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.ItemValueAfterDiscount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+
+                    _logger.LogInformation("Created Sales account transaction: TotalDebit {Amount}", totalSalesDebit);
+                }
+
+                // 3. VAT TRANSACTION (Header - Debit - Reducing VAT liability)
+                if (totalVatDebit > 0 && vatAccount != null && !isVatExempt)
                 {
                     var vatTransaction = new Transaction
                     {
@@ -3582,11 +8480,16 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = dto.VatAmount.Value,
-                        Credit = 0,
+                        TotalDebit = totalVatDebit,
+                        TotalCredit = 0,
+                        TaxableAmount = dto.TaxableAmount,
+                        VatPercentage = dto.VatPercentage,
+                        VatAmount = totalVatDebit,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
                         BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -3594,9 +8497,37 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(vatTransaction);
+
+                    // Add Transaction Items for VAT Transaction
+                    foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = vatTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice ?? 0,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.VatAmount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+
+                    _logger.LogInformation("Created VAT transaction: TotalDebit {Amount}", totalVatDebit);
                 }
 
-                // 3. Round-off transaction if applicable
+                // 4. ROUND-OFF TRANSACTION if applicable
                 if (dto.RoundOffAmount != 0 && roundOffAccount != null)
                 {
                     var roundOffTransaction = new Transaction
@@ -3609,11 +8540,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         IsType = TransactionIsType.RoundOff,
                         Type = TransactionType.SlRt,
                         PurchaseSalesReturnType = "Sales Return",
-                        Debit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
-                        Credit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+                        TotalDebit = dto.RoundOffAmount > 0 ? 0 : Math.Abs(dto.RoundOffAmount.Value),
+                        TotalCredit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
                         BillDate = existingBill.Date,
+                        nepaliDate = dto.NepaliDate,
+                        transactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -3621,32 +8554,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     };
 
                     await _context.Transactions.AddAsync(roundOffTransaction);
-                }
-
-                // 4. Cash transaction (Debit to Cash account - we're paying cash back to customer)
-                if (paymentMode == PaymentMode.Cash && cashAccount != null)
-                {
-                    var cashTransaction = new Transaction
-                    {
-                        Id = Guid.NewGuid(),
-                        CompanyId = companyId,
-                        AccountId = cashAccount.Id,
-                        SalesReturnBillId = existingBill.Id,
-                        BillNumber = existingBill.BillNumber,
-                        Type = TransactionType.SlRt,
-                        PurchaseSalesReturnType = "Sales Return",
-                        Debit = dto.TotalAmount ?? 0,
-                        Credit = 0,
-                        PaymentMode = PaymentMode.Cash,
-                        Date = existingBill.TransactionDate,
-                        BillDate = existingBill.Date,
-                        FiscalYearId = fiscalYearId,
-                        CreatedAt = DateTime.UtcNow,
-                        Status = TransactionStatus.Active,
-                        IsActive = true
-                    };
-
-                    await _context.Transactions.AddAsync(cashTransaction);
+                    _logger.LogInformation("Created Round-off transaction");
                 }
 
                 // Update items collection
@@ -3960,6 +8868,249 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
             }
         }
 
+        // public async Task<SalesReturnPrintDTO> GetSalesReturnForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("GetSalesReturnForPrintAsync called for Bill ID: {BillId}, Company: {CompanyId}", id, companyId);
+
+        //         // Get company details
+        //         var companyEntity = await _context.Companies
+        //             .Where(c => c.Id == companyId)
+        //             .FirstOrDefaultAsync();
+
+        //         if (companyEntity == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         // Parse renewal date
+        //         DateTime? renewalDate = null;
+        //         if (DateTime.TryParse(companyEntity.RenewalDate, out var parsedDate))
+        //         {
+        //             renewalDate = parsedDate;
+        //         }
+
+        //         // Create company DTO
+        //         var company = new CompanyPrintDTO
+        //         {
+        //             Id = companyEntity.Id,
+        //             RenewalDate = renewalDate,
+        //             DateFormat = companyEntity.DateFormat.ToString(),
+        //             FiscalYear = null
+        //         };
+
+        //         // Get fiscal year
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
+        //             .Select(f => new FiscalYearDTO
+        //             {
+        //                 Id = f.Id,
+        //                 Name = f.Name,
+        //                 StartDate = f.StartDate,
+        //                 EndDate = f.EndDate,
+        //                 StartDateNepali = f.StartDateNepali,
+        //                 EndDateNepali = f.EndDateNepali,
+        //                 IsActive = f.IsActive
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         // Get current company info for display
+        //         var currentCompany = await _context.Companies
+        //             .Where(c => c.Id == companyId)
+        //             .Select(c => new CompanyPrintInfoDTO
+        //             {
+        //                 Id = c.Id,
+        //                 Name = c.Name,
+        //                 Phone = c.Phone,
+        //                 Pan = c.Pan,
+        //                 Address = c.Address
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         // Get the sales return with all related data
+        //         var salesReturn = await _context.SalesReturns
+        //             .Include(sr => sr.Account)
+        //             .Include(sr => sr.User)
+        //             .Include(sr => sr.OriginalSalesBill)
+        //             .Include(sr => sr.Items)
+        //                 .ThenInclude(i => i.Item)
+        //                     .ThenInclude(it => it.Unit)
+        //             .FirstOrDefaultAsync(sr => sr.Id == id && sr.CompanyId == companyId);
+
+        //         if (salesReturn == null)
+        //             throw new ArgumentException("Sales return bill not found");
+
+        //         // Check and update first printed status
+        //         bool firstBill = !salesReturn.FirstPrinted;
+        //         if (firstBill)
+        //         {
+        //             salesReturn.FirstPrinted = true;
+        //             salesReturn.PrintCount += 1;
+        //             await _context.SaveChangesAsync();
+        //         }
+
+        //         // Calculate last balance for credit bills
+        //         decimal? finalBalance = null;
+        //         string balanceLabel = "";
+
+        //         if (salesReturn.PaymentMode?.ToLower() == "credit" && salesReturn.AccountId != null)
+        //         {
+        //             // Find the latest transaction for this sales return
+        //             var latestTransaction = await _context.Transactions
+        //                 .Where(t => t.CompanyId == companyId &&
+        //                            t.SalesReturnBillId == id)
+        //                 .OrderByDescending(t => t.Date)
+        //                 .FirstOrDefaultAsync();
+
+        //             decimal lastBalance = 0;
+
+        //             if (latestTransaction != null)
+        //             {
+        //                 lastBalance = Math.Abs(latestTransaction.Balance ?? 0);
+        //                 if (latestTransaction.Debit > 0)
+        //                     balanceLabel = "Dr";
+        //                 else if (latestTransaction.Credit > 0)
+        //                     balanceLabel = "Cr";
+        //             }
+
+        //             // Get opening balance from account
+        //             if (salesReturn.Account != null && salesReturn.Account.OpeningBalance != null)
+        //             {
+        //                 var openingBalance = salesReturn.Account.OpeningBalance;
+        //                 lastBalance += openingBalance.Type == "Dr" ? openingBalance.Amount : -openingBalance.Amount;
+        //                 balanceLabel = openingBalance.Type;
+        //             }
+
+        //             finalBalance = lastBalance;
+        //         }
+
+        //         // Get user with roles
+        //         var user = await _context.Users
+        //             .Include(u => u.UserRoles)
+        //                 .ThenInclude(ur => ur.Role)
+        //             .Include(u => u.Preferences)
+        //             .FirstOrDefaultAsync(u => u.Id == userId);
+
+        //         // Create user preferences DTO
+        //         var userPreferences = new UserPreferencesDTO
+        //         {
+        //             Theme = user?.Preferences?.Theme.ToString() ?? "Light"
+        //         };
+
+        //         // Determine if user is admin or supervisor
+        //         bool isAdminOrSupervisor = user?.IsAdmin == true ||
+        //                                   (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor" &&
+        //                                                              (ur.ExpiresAt == null || ur.ExpiresAt > DateTime.UtcNow)) ?? false);
+
+        //         // Get company date format
+        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
+
+        //         // Map to response DTO
+        //         var response = new SalesReturnPrintDTO
+        //         {
+        //             Company = company,
+        //             CurrentFiscalYear = currentFiscalYear,
+        //             Bill = new SalesReturnPrintBillDTO
+        //             {
+        //                 Id = salesReturn.Id,
+        //                 BillNumber = salesReturn.BillNumber,
+        //                 OriginalSalesBillId = salesReturn.OriginalSalesBillId,
+        //                 OriginalSalesBillNumber = salesReturn.OriginalSalesBillNumber,
+        //                 OriginalSalesBill = salesReturn.OriginalSalesBill != null ? new SalesBillPrintBillDTO
+        //                 {
+        //                     Id = salesReturn.OriginalSalesBill.Id,
+        //                     BillNumber = salesReturn.OriginalSalesBill.BillNumber,
+        //                     TotalAmount = salesReturn.OriginalSalesBill.TotalAmount,
+        //                 } : null,
+        //                 FirstPrinted = salesReturn.FirstPrinted,
+        //                 PrintCount = salesReturn.PrintCount,
+        //                 PaymentMode = salesReturn.PaymentMode,
+        //                 Date = isNepaliFormat ? salesReturn.nepaliDate : salesReturn.Date,
+        //                 TransactionDate = isNepaliFormat ? salesReturn.transactionDateNepali : salesReturn.TransactionDate,
+        //                 SubTotal = salesReturn.SubTotal ?? 0,
+        //                 NonVatSalesReturn = salesReturn.NonVatSalesReturn ?? 0,
+        //                 TaxableAmount = salesReturn.TaxableAmount ?? 0,
+        //                 DiscountPercentage = salesReturn.DiscountPercentage ?? 0,
+        //                 DiscountAmount = salesReturn.DiscountAmount ?? 0,
+        //                 VatPercentage = salesReturn.VatPercentage,
+        //                 VatAmount = salesReturn.VatAmount ?? 0,
+        //                 TotalAmount = salesReturn.TotalAmount ?? 0,
+        //                 IsVatExempt = salesReturn.IsVatExempt,
+        //                 RoundOffAmount = salesReturn.RoundOffAmount ?? 0,
+        //                 Account = salesReturn.Account != null ? new AccountPrintDTO
+        //                 {
+        //                     Id = salesReturn.Account.Id,
+        //                     Name = salesReturn.Account.Name,
+        //                     Pan = salesReturn.Account.Pan,
+        //                     Address = salesReturn.Account.Address,
+        //                     Email = salesReturn.Account.Email,
+        //                     Phone = salesReturn.Account.Phone,
+        //                 } : null,
+        //                 CashAccount = salesReturn.CashAccount,
+        //                 CashAccountAddress = salesReturn.CashAccountAddress,
+        //                 CashAccountPan = salesReturn.CashAccountPan,
+        //                 CashAccountEmail = salesReturn.CashAccountEmail,
+        //                 CashAccountPhone = salesReturn.CashAccountPhone,
+        //                 User = salesReturn.User != null ? new UserPrintDTO
+        //                 {
+        //                     Id = salesReturn.User.Id,
+        //                     Name = salesReturn.User.Name,
+        //                     IsAdmin = salesReturn.User.IsAdmin,
+        //                     Role = salesReturn.User.UserRoles?
+        //                         .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
+        //                 } : null,
+        //                 Items = salesReturn.Items.Select(i => new SalesReturnItemPrintDTO
+        //                 {
+        //                     Id = i.Id,
+        //                     ItemId = i.ItemId,
+        //                     ItemName = i.Item?.Name,
+        //                     Hscode = i.Item?.Hscode,
+        //                     UniqueNumber = i.Item?.UniqueNumber ?? 0,
+        //                     UnitId = i.UnitId,
+        //                     UnitName = i.Unit?.Name ?? i.Item?.Unit?.Name,
+        //                     Quantity = i.Quantity,
+        //                     Price = i.Price,
+        //                     PuPrice = i.PuPrice ?? 0,
+        //                     DiscountPercentagePerItem = i.DiscountPercentagePerItem,
+        //                     DiscountAmountPerItem = i.DiscountAmountPerItem,
+        //                     NetPuPrice = i.NetPuPrice,
+        //                     NetPrice = i.NetPrice ?? 0,
+        //                     BatchNumber = i.BatchNumber,
+        //                     ExpiryDate = i.ExpiryDate,
+        //                     VatStatus = i.VatStatus ?? "vatable"
+        //                 }).ToList()
+        //             },
+        //             CurrentCompanyName = currentCompany?.Name ?? string.Empty,
+        //             CurrentCompany = currentCompany ?? new CompanyPrintInfoDTO(),
+        //             FirstBill = firstBill,
+        //             LastBalance = finalBalance,
+        //             BalanceLabel = balanceLabel,
+        //             PaymentMode = salesReturn.PaymentMode ?? string.Empty,
+        //             NepaliDate = salesReturn.nepaliDate.ToString("yyyy-MM-dd"),
+        //             TransactionDateNepali = salesReturn.transactionDateNepali.ToString("yyyy-MM-dd"),
+        //             EnglishDate = salesReturn.Date,
+        //             CompanyDateFormat = company.DateFormat?.ToString()?.ToLower() ?? "english",
+        //             User = new UserPrintDTO
+        //             {
+        //                 Id = userId,
+        //                 Name = user?.Name ?? string.Empty,
+        //                 IsAdmin = user?.IsAdmin ?? false,
+        //                 Role = user?.UserRoles?
+        //                     .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ??
+        //                        (user?.IsAdmin == true ? "Admin" : "User"),
+        //                 Preferences = userPreferences
+        //             },
+        //             IsAdminOrSupervisor = isAdminOrSupervisor
+        //         };
+
+        //         return response;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error getting sales return for print: {BillId}", id);
+        //         throw;
+        //     }
+        // }
+
         public async Task<SalesReturnPrintDTO> GetSalesReturnForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
         {
             try
@@ -4031,6 +9182,53 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 if (salesReturn == null)
                     throw new ArgumentException("Sales return bill not found");
 
+                // Get the party transaction for this sales return (for credit returns)
+                Transaction? partyTransaction = null;
+                if (salesReturn.PaymentMode?.ToLower() == "credit" && salesReturn.AccountId != null)
+                {
+                    partyTransaction = await _context.Transactions
+                        .Where(t => t.CompanyId == companyId &&
+                                   t.SalesReturnBillId == id &&
+                                   t.Type == TransactionType.SlRt &&
+                                   t.TotalCredit > 0) // Party transaction has TotalCredit for sales return
+                        .Include(t => t.TransactionItems)
+                        .OrderByDescending(t => t.Date)
+                        .FirstOrDefaultAsync();
+                }
+
+                // For cash returns, get the cash transaction
+                Transaction? cashTransaction = null;
+                if (salesReturn.PaymentMode?.ToLower() == "cash")
+                {
+                    cashTransaction = await _context.Transactions
+                        .Where(t => t.CompanyId == companyId &&
+                                   t.SalesReturnBillId == id &&
+                                   t.Type == TransactionType.SlRt &&
+                                   t.TotalCredit > 0) // Cash transaction has TotalCredit (money going OUT)
+                        .Include(t => t.TransactionItems)
+                        .OrderByDescending(t => t.Date)
+                        .FirstOrDefaultAsync();
+                }
+
+                // Create a dictionary for quick lookup of item-wise VAT from TransactionItems
+                var itemVatDictionary = new Dictionary<Guid, (decimal? TaxableAmount, decimal? VatPercentage, decimal? VatAmount)>();
+
+                var relevantTransaction = partyTransaction ?? cashTransaction;
+                if (relevantTransaction?.TransactionItems != null)
+                {
+                    foreach (var ti in relevantTransaction.TransactionItems)
+                    {
+                        if (ti.ItemId.HasValue)
+                        {
+                            itemVatDictionary[ti.ItemId.Value] = (
+                                ti.TaxableAmount,
+                                ti.VatPercentage,
+                                ti.VatAmount
+                            );
+                        }
+                    }
+                }
+
                 // Check and update first printed status
                 bool firstBill = !salesReturn.FirstPrinted;
                 if (firstBill)
@@ -4046,22 +9244,20 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
 
                 if (salesReturn.PaymentMode?.ToLower() == "credit" && salesReturn.AccountId != null)
                 {
-                    // Find the latest transaction for this sales return
-                    var latestTransaction = await _context.Transactions
-                        .Where(t => t.CompanyId == companyId &&
-                                   t.SalesReturnBillId == id)
-                        .OrderByDescending(t => t.Date)
-                        .FirstOrDefaultAsync();
-
                     decimal lastBalance = 0;
 
-                    if (latestTransaction != null)
+                    if (partyTransaction != null)
                     {
-                        lastBalance = Math.Abs(latestTransaction.Balance ?? 0);
-                        if (latestTransaction.Debit > 0)
+                        // Use TotalCredit for party transaction (reduction in receivable)
+                        lastBalance = Math.Abs(partyTransaction.TotalCredit);
+
+                        // Determine if it's Debit or Credit balance
+                        if (partyTransaction.TotalDebit > partyTransaction.TotalCredit)
                             balanceLabel = "Dr";
-                        else if (latestTransaction.Credit > 0)
+                        else if (partyTransaction.TotalCredit > partyTransaction.TotalDebit)
                             balanceLabel = "Cr";
+                        else
+                            balanceLabel = "";
                     }
 
                     // Get opening balance from account
@@ -4096,7 +9292,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 // Get company date format
                 bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
 
-                // Map to response DTO
+                // Map to response DTO with item-wise VAT from TransactionItems
                 var response = new SalesReturnPrintDTO
                 {
                     Company = company,
@@ -4150,25 +9346,31 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                             Role = salesReturn.User.UserRoles?
                                 .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
                         } : null,
-                        Items = salesReturn.Items.Select(i => new SalesReturnItemPrintDTO
+                        Items = salesReturn.Items.Select(i =>
                         {
-                            Id = i.Id,
-                            ItemId = i.ItemId,
-                            ItemName = i.Item?.Name,
-                            Hscode = i.Item?.Hscode,
-                            UniqueNumber = i.Item?.UniqueNumber ?? 0,
-                            UnitId = i.UnitId,
-                            UnitName = i.Unit?.Name ?? i.Item?.Unit?.Name,
-                            Quantity = i.Quantity,
-                            Price = i.Price,
-                            PuPrice = i.PuPrice ?? 0,
-                            DiscountPercentagePerItem = i.DiscountPercentagePerItem,
-                            DiscountAmountPerItem = i.DiscountAmountPerItem,
-                            NetPuPrice = i.NetPuPrice,
-                            NetPrice = i.NetPrice ?? 0,
-                            BatchNumber = i.BatchNumber,
-                            ExpiryDate = i.ExpiryDate,
-                            VatStatus = i.VatStatus ?? "vatable"
+                            // Get item-wise VAT from dictionary if available
+                            itemVatDictionary.TryGetValue(i.ItemId, out var vatInfo);
+
+                            return new SalesReturnItemPrintDTO
+                            {
+                                Id = i.Id,
+                                ItemId = i.ItemId,
+                                ItemName = i.Item?.Name,
+                                Hscode = i.Item?.Hscode,
+                                UniqueNumber = i.Item?.UniqueNumber ?? 0,
+                                UnitId = i.UnitId,
+                                UnitName = i.Unit?.Name ?? i.Item?.Unit?.Name,
+                                Quantity = i.Quantity,
+                                Price = i.Price,
+                                PuPrice = i.PuPrice ?? 0,
+                                DiscountPercentagePerItem = i.DiscountPercentagePerItem,
+                                DiscountAmountPerItem = i.DiscountAmountPerItem,
+                                NetPuPrice = i.NetPuPrice,
+                                NetPrice = i.NetPrice ?? 0,
+                                BatchNumber = i.BatchNumber,
+                                ExpiryDate = i.ExpiryDate,
+                                VatStatus = i.VatStatus ?? "vatable",
+                            };
                         }).ToList()
                     },
                     CurrentCompanyName = currentCompany?.Name ?? string.Empty,

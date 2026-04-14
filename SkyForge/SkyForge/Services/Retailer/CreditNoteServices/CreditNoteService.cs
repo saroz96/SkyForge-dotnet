@@ -7,6 +7,7 @@ using SkyForge.Models.Retailer.TransactionModel;
 using SkyForge.Services.Retailer.DebitNoteServices;
 using SkyForge.Dto.RetailerDto.CreditNoteDto;
 using SkyForge.Models.Retailer.CreditNoteModel;
+using SkyForge.Models.AccountModel;
 
 
 namespace SkyForge.Services.Retailer.CreditNoteServices
@@ -166,6 +167,169 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "creditNote");
         }
 
+        // public async Task<CreditNote> CreateCreditNoteAsync(CreateCreditNoteDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("CreateCreditNoteAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //             {
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+        //             }
+
+        //             // Calculate totals and validate
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
+        //             {
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+        //             }
+
+        //             // Verify all accounts exist and belong to company
+        //             foreach (var entry in dto.Entries)
+        //             {
+        //                 var account = await _context.Accounts
+        //                     .FirstOrDefaultAsync(a => a.Id == entry.AccountId && a.CompanyId == companyId);
+
+        //                 if (account == null)
+        //                 {
+        //                     throw new ArgumentException($"Account with ID {entry.AccountId} not found");
+        //                 }
+        //             }
+
+        //             // Get bill number
+        //             var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "creditNote");
+
+        //             // Create Credit Note master record
+        //             var creditNote = new CreditNote
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 TotalAmount = totalCredit, // or totalDebit, they're equal
+        //                 BillNumber = billNumber,
+        //                 Date = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 Description = dto.Description,
+        //                 UserId = userId,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 Status = CreditNoteStatus.Active,
+        //                 IsActive = true,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.CreditNotes.AddAsync(creditNote);
+
+        //             // Create credit note entries and transactions
+        //             var transactions = new List<Transaction>();
+        //             int lineNumber = 1;
+
+        //             foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
+        //             {
+        //                 // Create credit note entry
+        //                 var creditNoteEntry = new CreditNoteEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CreditNoteId = creditNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     EntryType = entryDto.EntryType,
+        //                     Amount = entryDto.Amount,
+        //                     Description = entryDto.Description,
+        //                     LineNumber = lineNumber++,
+        //                     ReferenceNumber = entryDto.ReferenceNumber,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 await _context.CreditNoteEntries.AddAsync(creditNoteEntry);
+
+        //                 // Get previous balance for account
+        //                 decimal previousBalance = 0;
+        //                 var lastTransaction = await _context.Transactions
+        //                     .Where(t => t.AccountId == entryDto.AccountId && t.CompanyId == companyId)
+        //                     .OrderByDescending(t => t.CreatedAt)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (lastTransaction != null)
+        //                 {
+        //                     previousBalance = lastTransaction.Balance ?? 0;
+        //                 }
+
+        //                 // Calculate new balance
+        //                 // For Credit Note: Debit increases balance, Credit decreases balance
+        //                 decimal newBalance = entryDto.EntryType == "Debit"
+        //                     ? previousBalance + entryDto.Amount
+        //                     : previousBalance - entryDto.Amount;
+
+        //                 // Get opposite entry type names for DrCrNoteAccountType field
+        //                 var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
+        //                 var oppositeAccountNames = new List<string>();
+
+        //                 foreach (var oppositeEntry in oppositeEntries)
+        //                 {
+        //                     var account = await _context.Accounts.FindAsync(oppositeEntry.AccountId);
+        //                     if (account != null)
+        //                     {
+        //                         oppositeAccountNames.Add(account.Name);
+        //                     }
+        //                 }
+
+        //                 var oppositeAccountNamesStr = string.Join(", ", oppositeAccountNames);
+        //                 if (oppositeAccountNamesStr.Length > 500)
+        //                 {
+        //                     oppositeAccountNamesStr = oppositeAccountNamesStr.Substring(0, 497) + "...";
+        //                 }
+
+        //                 // Create transaction
+        //                 var transactionEntry = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CreditNoteId = creditNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     Type = TransactionType.CrNt, // Credit Note
+        //                     DrCrNoteAccountTypes = entryDto.EntryType, // "Debit" or "Credit"
+        //                     DrCrNoteAccountType = oppositeAccountNamesStr,
+        //                     Debit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+        //                     Credit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+        //                     PaymentMode = PaymentMode.CrNote, // Credit Note payment mode
+        //                     Balance = newBalance,
+        //                     Date = creditNote.Date,
+        //                     nepaliDate = creditNote.NepaliDate,
+        //                     IsActive = true,
+        //                     CompanyId = companyId,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 transactions.Add(transactionEntry);
+        //             }
+
+        //             await _context.Transactions.AddRangeAsync(transactions);
+
+        //             await _context.SaveChangesAsync();
+        //             await transaction.CommitAsync();
+
+        //             _logger.LogInformation("Credit Note created successfully. ID: {CreditNoteId}, BillNumber: {BillNumber}, Total: {TotalAmount}, Entries: {EntryCount}",
+        //                 creditNote.Id, creditNote.BillNumber, totalCredit, dto.Entries.Count);
+
+        //             return creditNote;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error in CreateCreditNoteAsync for Company: {CompanyId}", companyId);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<CreditNote> CreateCreditNoteAsync(CreateCreditNoteDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -193,7 +357,8 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                         throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
                     }
 
-                    // Verify all accounts exist and belong to company
+                    // Verify all accounts exist and belong to company - cache them
+                    var accountCache = new Dictionary<Guid, Account>();
                     foreach (var entry in dto.Entries)
                     {
                         var account = await _context.Accounts
@@ -203,6 +368,7 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                         {
                             throw new ArgumentException($"Account with ID {entry.AccountId} not found");
                         }
+                        accountCache[entry.AccountId] = account;
                     }
 
                     // Get bill number
@@ -212,7 +378,7 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                     var creditNote = new CreditNote
                     {
                         Id = Guid.NewGuid(),
-                        TotalAmount = totalCredit, // or totalDebit, they're equal
+                        TotalAmount = totalCredit,
                         BillNumber = billNumber,
                         Date = dto.Date,
                         NepaliDate = dto.NepaliDate,
@@ -249,32 +415,13 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
 
                         await _context.CreditNoteEntries.AddAsync(creditNoteEntry);
 
-                        // Get previous balance for account
-                        decimal previousBalance = 0;
-                        var lastTransaction = await _context.Transactions
-                            .Where(t => t.AccountId == entryDto.AccountId && t.CompanyId == companyId)
-                            .OrderByDescending(t => t.CreatedAt)
-                            .FirstOrDefaultAsync();
-
-                        if (lastTransaction != null)
-                        {
-                            previousBalance = lastTransaction.Balance ?? 0;
-                        }
-
-                        // Calculate new balance
-                        // For Credit Note: Debit increases balance, Credit decreases balance
-                        decimal newBalance = entryDto.EntryType == "Debit"
-                            ? previousBalance + entryDto.Amount
-                            : previousBalance - entryDto.Amount;
-
                         // Get opposite entry type names for DrCrNoteAccountType field
                         var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
                         var oppositeAccountNames = new List<string>();
 
                         foreach (var oppositeEntry in oppositeEntries)
                         {
-                            var account = await _context.Accounts.FindAsync(oppositeEntry.AccountId);
-                            if (account != null)
+                            if (accountCache.TryGetValue(oppositeEntry.AccountId, out var account))
                             {
                                 oppositeAccountNames.Add(account.Name);
                             }
@@ -286,7 +433,7 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                             oppositeAccountNamesStr = oppositeAccountNamesStr.Substring(0, 497) + "...";
                         }
 
-                        // Create transaction
+                        // Create transaction using TotalDebit/TotalCredit
                         var transactionEntry = new Transaction
                         {
                             Id = Guid.NewGuid(),
@@ -295,16 +442,16 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                             Type = TransactionType.CrNt, // Credit Note
                             DrCrNoteAccountTypes = entryDto.EntryType, // "Debit" or "Credit"
                             DrCrNoteAccountType = oppositeAccountNamesStr,
-                            Debit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
-                            Credit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
-                            PaymentMode = PaymentMode.CrNote, // Credit Note payment mode
-                            Balance = newBalance,
+                            TotalDebit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+                            TotalCredit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+                            PaymentMode = PaymentMode.CrNote,
                             Date = creditNote.Date,
                             nepaliDate = creditNote.NepaliDate,
                             IsActive = true,
                             CompanyId = companyId,
                             FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow,
+                            Status = TransactionStatus.Active
                         };
 
                         transactions.Add(transactionEntry);
@@ -695,6 +842,201 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
             }).ToList();
         }
 
+        // public async Task<CreditNote> UpdateCreditNoteAsync(Guid id, UpdateCreditNoteDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("=== Starting UpdateCreditNoteAsync for Credit Note ID: {CreditNoteId} ===", id);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+
+        //             // Find existing credit note
+        //             var existingCreditNote = await _context.CreditNotes
+        //                 .Include(c => c.CreditNoteEntries)
+        //                 .FirstOrDefaultAsync(c => c.Id == id && c.CompanyId == companyId);
+
+        //             if (existingCreditNote == null)
+        //                 throw new ArgumentException("Credit note not found");
+
+        //             // Check if credit note is canceled
+        //             if (existingCreditNote.Status == CreditNoteStatus.Canceled)
+        //                 throw new ArgumentException("Cannot update a canceled credit note");
+
+        //             // Validate all accounts exist
+        //             foreach (var entryDto in dto.Entries)
+        //             {
+        //                 var account = await _context.Accounts
+        //                     .FirstOrDefaultAsync(a => a.Id == entryDto.AccountId && a.CompanyId == companyId);
+
+        //                 if (account == null)
+        //                     throw new ArgumentException($"Account with ID {entryDto.AccountId} not found");
+        //             }
+
+        //             var company = await _context.Companies.FindAsync(companyId);
+        //             if (company == null)
+        //                 throw new ArgumentException("Company not found");
+
+        //             var fiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //             if (fiscalYear == null)
+        //                 throw new ArgumentException("Fiscal year not found");
+
+        //             // Delete existing transactions associated with this credit note
+        //             var existingTransactions = await _context.Transactions
+        //                 .Where(t => t.CreditNoteId == id)
+        //                 .ToListAsync();
+
+        //             if (existingTransactions.Any())
+        //             {
+        //                 _context.Transactions.RemoveRange(existingTransactions);
+        //                 _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+        //             }
+
+        //             // Delete existing credit note entries
+        //             if (existingCreditNote.CreditNoteEntries.Any())
+        //             {
+        //                 _context.CreditNoteEntries.RemoveRange(existingCreditNote.CreditNoteEntries);
+        //                 _logger.LogInformation("Deleted {Count} existing entries", existingCreditNote.CreditNoteEntries.Count);
+        //             }
+
+        //             await _context.SaveChangesAsync();
+
+        //             // Update credit note properties
+        //             existingCreditNote.TotalAmount = totalDebit;
+        //             existingCreditNote.Description = dto.Description;
+        //             existingCreditNote.NepaliDate = dto.NepaliDate;
+        //             existingCreditNote.Date = dto.Date;
+        //             existingCreditNote.UpdatedAt = DateTime.UtcNow;
+
+        //             _context.CreditNotes.Update(existingCreditNote);
+        //             await _context.SaveChangesAsync();
+
+        //             // Create new entries and transactions
+        //             var newEntries = new List<CreditNoteEntry>();
+        //             var newTransactions = new List<Transaction>();
+        //             int lineNumber = 1;
+
+        //             foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
+        //             {
+        //                 var creditNoteEntry = new CreditNoteEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CreditNoteId = existingCreditNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     EntryType = entryDto.EntryType,
+        //                     Amount = entryDto.Amount,
+        //                     Description = entryDto.Description,
+        //                     LineNumber = lineNumber++,
+        //                     ReferenceNumber = entryDto.ReferenceNumber,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 newEntries.Add(creditNoteEntry);
+
+        //                 // Get previous balance for account
+        //                 decimal previousBalance = 0;
+        //                 var lastTransaction = await _context.Transactions
+        //                     .Where(t => t.AccountId == entryDto.AccountId && t.CompanyId == companyId)
+        //                     .OrderByDescending(t => t.CreatedAt)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (lastTransaction != null)
+        //                     previousBalance = lastTransaction.Balance ?? 0;
+
+        //                 // Calculate new balance
+        //                 // For Credit Note: Debit increases balance, Credit decreases balance
+        //                 decimal newBalance = entryDto.EntryType == "Debit"
+        //                     ? previousBalance + entryDto.Amount
+        //                     : previousBalance - entryDto.Amount;
+
+        //                 // Get opposite entry type names for DrCrNoteAccountType field
+        //                 var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
+        //                 var oppositeAccountNames = new List<string>();
+
+        //                 foreach (var oppositeEntry in oppositeEntries)
+        //                 {
+        //                     var account = await _context.Accounts.FindAsync(oppositeEntry.AccountId);
+        //                     if (account != null)
+        //                     {
+        //                         oppositeAccountNames.Add(account.Name);
+        //                     }
+        //                 }
+
+        //                 var oppositeAccountNamesStr = string.Join(", ", oppositeAccountNames);
+
+        //                 // Truncate if too long (max 500 characters for SQL Server)
+        //                 if (oppositeAccountNamesStr.Length > 497)
+        //                     oppositeAccountNamesStr = oppositeAccountNamesStr.Substring(0, 494) + "...";
+
+        //                 // Create transaction
+        //                 var creditNoteTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CreditNoteId = existingCreditNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     Type = TransactionType.CrNt, // Credit Note
+        //                     DrCrNoteAccountTypes = entryDto.EntryType, // "Debit" or "Credit"
+        //                     DrCrNoteAccountType = oppositeAccountNamesStr,
+        //                     BillNumber = existingCreditNote.BillNumber,
+        //                     Debit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+        //                     Credit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+        //                     PaymentMode = PaymentMode.CrNote, // Credit Note payment mode
+        //                     Balance = newBalance,
+        //                     Date = existingCreditNote.Date,
+        //                     nepaliDate = existingCreditNote.NepaliDate,
+        //                     IsActive = true,
+        //                     CompanyId = companyId,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 newTransactions.Add(creditNoteTransaction);
+        //             }
+
+        //             await _context.CreditNoteEntries.AddRangeAsync(newEntries);
+        //             await _context.Transactions.AddRangeAsync(newTransactions);
+
+        //             var saveResult = await _context.SaveChangesAsync();
+        //             _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+
+        //             await transaction.CommitAsync();
+        //             _logger.LogInformation("Transaction committed successfully");
+
+        //             _logger.LogInformation("=== Successfully updated credit note: {CreditNoteId} with {EntryCount} entries ===",
+        //                 id, newEntries.Count);
+
+        //             // Return the updated credit note with entries
+        //             var updatedCreditNote = await _context.CreditNotes
+        //                 .Include(c => c.CreditNoteEntries)
+        //                     .ThenInclude(e => e.Account)
+        //                 .FirstOrDefaultAsync(c => c.Id == id);
+
+        //             return updatedCreditNote ?? existingCreditNote;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error updating credit note: {CreditNoteId}", id);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<CreditNote> UpdateCreditNoteAsync(Guid id, UpdateCreditNoteDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -729,7 +1071,8 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                     if (existingCreditNote.Status == CreditNoteStatus.Canceled)
                         throw new ArgumentException("Cannot update a canceled credit note");
 
-                    // Validate all accounts exist
+                    // Validate all accounts exist and cache them
+                    var accountCache = new Dictionary<Guid, Account>();
                     foreach (var entryDto in dto.Entries)
                     {
                         var account = await _context.Accounts
@@ -737,6 +1080,8 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
 
                         if (account == null)
                             throw new ArgumentException($"Account with ID {entryDto.AccountId} not found");
+
+                        accountCache[entryDto.AccountId] = account;
                     }
 
                     var company = await _context.Companies.FindAsync(companyId);
@@ -749,15 +1094,17 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                     if (fiscalYear == null)
                         throw new ArgumentException("Fiscal year not found");
 
-                    // Delete existing transactions associated with this credit note
+                    // Delete existing transactions AND their transaction items
                     var existingTransactions = await _context.Transactions
                         .Where(t => t.CreditNoteId == id)
+                        .Include(t => t.TransactionItems) // Include transaction items for cascade delete
                         .ToListAsync();
 
                     if (existingTransactions.Any())
                     {
+                        // TransactionItems will be deleted automatically due to Cascade delete
                         _context.Transactions.RemoveRange(existingTransactions);
-                        _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
+                        _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
                     }
 
                     // Delete existing credit note entries
@@ -801,30 +1148,13 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
 
                         newEntries.Add(creditNoteEntry);
 
-                        // Get previous balance for account
-                        decimal previousBalance = 0;
-                        var lastTransaction = await _context.Transactions
-                            .Where(t => t.AccountId == entryDto.AccountId && t.CompanyId == companyId)
-                            .OrderByDescending(t => t.CreatedAt)
-                            .FirstOrDefaultAsync();
-
-                        if (lastTransaction != null)
-                            previousBalance = lastTransaction.Balance ?? 0;
-
-                        // Calculate new balance
-                        // For Credit Note: Debit increases balance, Credit decreases balance
-                        decimal newBalance = entryDto.EntryType == "Debit"
-                            ? previousBalance + entryDto.Amount
-                            : previousBalance - entryDto.Amount;
-
                         // Get opposite entry type names for DrCrNoteAccountType field
                         var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
                         var oppositeAccountNames = new List<string>();
 
                         foreach (var oppositeEntry in oppositeEntries)
                         {
-                            var account = await _context.Accounts.FindAsync(oppositeEntry.AccountId);
-                            if (account != null)
+                            if (accountCache.TryGetValue(oppositeEntry.AccountId, out var account))
                             {
                                 oppositeAccountNames.Add(account.Name);
                             }
@@ -836,7 +1166,7 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                         if (oppositeAccountNamesStr.Length > 497)
                             oppositeAccountNamesStr = oppositeAccountNamesStr.Substring(0, 494) + "...";
 
-                        // Create transaction
+                        // Create transaction using TotalDebit/TotalCredit
                         var creditNoteTransaction = new Transaction
                         {
                             Id = Guid.NewGuid(),
@@ -846,16 +1176,16 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                             DrCrNoteAccountTypes = entryDto.EntryType, // "Debit" or "Credit"
                             DrCrNoteAccountType = oppositeAccountNamesStr,
                             BillNumber = existingCreditNote.BillNumber,
-                            Debit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
-                            Credit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
-                            PaymentMode = PaymentMode.CrNote, // Credit Note payment mode
-                            Balance = newBalance,
+                            TotalDebit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+                            TotalCredit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+                            PaymentMode = PaymentMode.CrNote,
                             Date = existingCreditNote.Date,
                             nepaliDate = existingCreditNote.NepaliDate,
                             IsActive = true,
                             CompanyId = companyId,
                             FiscalYearId = fiscalYearId,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow,
+                            Status = TransactionStatus.Active
                         };
 
                         newTransactions.Add(creditNoteTransaction);
@@ -1349,170 +1679,170 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
         //         throw;
         //     }
         // }
-    public async Task<CreditNotePrintDTO> GetCreditNoteForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
-{
-    try
-    {
-        _logger.LogInformation("GetCreditNoteForPrintAsync called for Credit Note ID: {CreditNoteId}", id);
-
-        var companyEntity = await _context.Companies
-            .FirstOrDefaultAsync(c => c.Id == companyId);
-
-        if (companyEntity == null)
-            throw new ArgumentException("Company not found");
-
-        // Determine if company uses Nepali date format
-        bool isNepaliFormat = companyEntity.DateFormat?.ToString().ToLower() == "nepali";
-
-        // Fetch credit note with entries and accounts
-        var creditNote = await _context.CreditNotes
-            .Include(c => c.CreditNoteEntries)
-                .ThenInclude(e => e.Account)
-            .Include(c => c.User)
-            .FirstOrDefaultAsync(c => c.Id == id && c.CompanyId == companyId);
-
-        if (creditNote == null)
-            throw new ArgumentException("Credit note not found");
-
-        var entries = creditNote.CreditNoteEntries.ToList();
-
-        // Get debit and credit entries from unified entries
-        var debitEntries = entries.Where(e => e.EntryType == "Debit")
-            .OrderBy(e => e.LineNumber)
-            .Select(e => new CreditNoteEntryPrintDTO
-            {
-                Id = e.Id,
-                AccountId = e.AccountId,
-                AccountName = e.Account?.Name ?? string.Empty,
-                EntryType = e.EntryType,
-                Amount = e.Amount,
-                Description = e.Description,
-                ReferenceNumber = e.ReferenceNumber,
-                LineNumber = e.LineNumber
-            }).ToList();
-
-        var creditEntries = entries.Where(e => e.EntryType == "Credit")
-            .OrderBy(e => e.LineNumber)
-            .Select(e => new CreditNoteEntryPrintDTO
-            {
-                Id = e.Id,
-                AccountId = e.AccountId,
-                AccountName = e.Account?.Name ?? string.Empty,
-                EntryType = e.EntryType,
-                Amount = e.Amount,
-                Description = e.Description,
-                ReferenceNumber = e.ReferenceNumber,
-                LineNumber = e.LineNumber
-            }).ToList();
-
-        // Get fiscal year
-        var currentFiscalYear = await _context.FiscalYears
-            .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-            .Select(f => new FiscalYearDTO
-            {
-                Id = f.Id,
-                Name = f.Name,
-                StartDate = f.StartDate,
-                EndDate = f.EndDate,
-                IsActive = f.IsActive,
-                StartDateNepali = f.StartDateNepali,
-                EndDateNepali = f.EndDateNepali
-            })
-            .FirstOrDefaultAsync();
-
-        // Get current company for print details
-        var currentCompany = new CompanyPrintInfoDTO
+        public async Task<CreditNotePrintDTO> GetCreditNoteForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
         {
-            Id = companyEntity.Id,
-            Name = companyEntity.Name,
-            Phone = companyEntity.Phone,
-            Pan = companyEntity.Pan,
-            Address = companyEntity.Address,
-        };
-
-        // Get user with roles
-        var user = await _context.Users
-            .Include(u => u.UserRoles)
-                .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.Id == userId);
-
-        bool isAdminOrSupervisor = user?.IsAdmin == true ||
-                                  (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor") ?? false);
-
-        string userRole = "User";
-        if (user?.IsAdmin == true)
-        {
-            userRole = "Admin";
-        }
-        else if (user?.UserRoles != null)
-        {
-            var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
-            if (primaryRole?.Role != null)
+            try
             {
-                userRole = primaryRole.Role.Name;
+                _logger.LogInformation("GetCreditNoteForPrintAsync called for Credit Note ID: {CreditNoteId}", id);
+
+                var companyEntity = await _context.Companies
+                    .FirstOrDefaultAsync(c => c.Id == companyId);
+
+                if (companyEntity == null)
+                    throw new ArgumentException("Company not found");
+
+                // Determine if company uses Nepali date format
+                bool isNepaliFormat = companyEntity.DateFormat?.ToString().ToLower() == "nepali";
+
+                // Fetch credit note with entries and accounts
+                var creditNote = await _context.CreditNotes
+                    .Include(c => c.CreditNoteEntries)
+                        .ThenInclude(e => e.Account)
+                    .Include(c => c.User)
+                    .FirstOrDefaultAsync(c => c.Id == id && c.CompanyId == companyId);
+
+                if (creditNote == null)
+                    throw new ArgumentException("Credit note not found");
+
+                var entries = creditNote.CreditNoteEntries.ToList();
+
+                // Get debit and credit entries from unified entries
+                var debitEntries = entries.Where(e => e.EntryType == "Debit")
+                    .OrderBy(e => e.LineNumber)
+                    .Select(e => new CreditNoteEntryPrintDTO
+                    {
+                        Id = e.Id,
+                        AccountId = e.AccountId,
+                        AccountName = e.Account?.Name ?? string.Empty,
+                        EntryType = e.EntryType,
+                        Amount = e.Amount,
+                        Description = e.Description,
+                        ReferenceNumber = e.ReferenceNumber,
+                        LineNumber = e.LineNumber
+                    }).ToList();
+
+                var creditEntries = entries.Where(e => e.EntryType == "Credit")
+                    .OrderBy(e => e.LineNumber)
+                    .Select(e => new CreditNoteEntryPrintDTO
+                    {
+                        Id = e.Id,
+                        AccountId = e.AccountId,
+                        AccountName = e.Account?.Name ?? string.Empty,
+                        EntryType = e.EntryType,
+                        Amount = e.Amount,
+                        Description = e.Description,
+                        ReferenceNumber = e.ReferenceNumber,
+                        LineNumber = e.LineNumber
+                    }).ToList();
+
+                // Get fiscal year
+                var currentFiscalYear = await _context.FiscalYears
+                    .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
+                    .Select(f => new FiscalYearDTO
+                    {
+                        Id = f.Id,
+                        Name = f.Name,
+                        StartDate = f.StartDate,
+                        EndDate = f.EndDate,
+                        IsActive = f.IsActive,
+                        StartDateNepali = f.StartDateNepali,
+                        EndDateNepali = f.EndDateNepali
+                    })
+                    .FirstOrDefaultAsync();
+
+                // Get current company for print details
+                var currentCompany = new CompanyPrintInfoDTO
+                {
+                    Id = companyEntity.Id,
+                    Name = companyEntity.Name,
+                    Phone = companyEntity.Phone,
+                    Pan = companyEntity.Pan,
+                    Address = companyEntity.Address,
+                };
+
+                // Get user with roles
+                var user = await _context.Users
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
+
+                bool isAdminOrSupervisor = user?.IsAdmin == true ||
+                                          (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor") ?? false);
+
+                string userRole = "User";
+                if (user?.IsAdmin == true)
+                {
+                    userRole = "Admin";
+                }
+                else if (user?.UserRoles != null)
+                {
+                    var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
+                    if (primaryRole?.Role != null)
+                    {
+                        userRole = primaryRole.Role.Name;
+                    }
+                }
+
+                var today = DateTime.UtcNow;
+                var nepaliDate = today.ToString("yyyy-MM-dd");
+
+                var response = new CreditNotePrintDTO
+                {
+                    Company = new CompanyPrintDTO
+                    {
+                        Id = companyEntity.Id,
+                        DateFormat = companyEntity.DateFormat.ToString(),
+                        FiscalYear = currentFiscalYear
+                    },
+                    CurrentFiscalYear = currentFiscalYear,
+                    CreditNote = new CreditNotePrintDataDTO
+                    {
+                        Id = creditNote.Id,
+                        BillNumber = creditNote.BillNumber,
+                        // FIX: Return the correct date based on company format
+                        Date = isNepaliFormat ? creditNote.NepaliDate : creditNote.Date,
+                        NepaliDate = creditNote.NepaliDate,
+                        TotalAmount = creditNote.TotalAmount,
+                        Description = creditNote.Description,
+                        Status = creditNote.Status.ToString(),
+                        CreatedAt = creditNote.CreatedAt,
+                        UpdatedAt = creditNote.UpdatedAt,
+                        User = creditNote.User != null ? new UserPrintDTO
+                        {
+                            Id = creditNote.User.Id,
+                            Name = creditNote.User.Name,
+                            IsAdmin = creditNote.User.IsAdmin,
+                            Role = creditNote.User.UserRoles?
+                                .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
+                        } : null
+                    },
+                    DebitEntries = debitEntries,
+                    CreditEntries = creditEntries,
+                    CurrentCompanyName = currentCompany.Name ?? string.Empty,
+                    CurrentCompany = currentCompany,
+                    NepaliDate = nepaliDate,
+                    EnglishDate = today,
+                    CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
+                    User = new UserPrintDTO
+                    {
+                        Id = userId,
+                        Name = user?.Name ?? string.Empty,
+                        IsAdmin = user?.IsAdmin ?? false,
+                        Role = userRole
+                    },
+                    IsAdminOrSupervisor = isAdminOrSupervisor
+                };
+
+                _logger.LogInformation("Successfully retrieved credit note print data for Credit Note ID: {CreditNoteId} with {DebitCount} debit and {CreditCount} credit entries",
+                    id, debitEntries.Count, creditEntries.Count);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting credit note for print: {CreditNoteId}", id);
+                throw;
             }
         }
-
-        var today = DateTime.UtcNow;
-        var nepaliDate = today.ToString("yyyy-MM-dd");
-
-        var response = new CreditNotePrintDTO
-        {
-            Company = new CompanyPrintDTO
-            {
-                Id = companyEntity.Id,
-                DateFormat = companyEntity.DateFormat.ToString(),
-                FiscalYear = currentFiscalYear
-            },
-            CurrentFiscalYear = currentFiscalYear,
-            CreditNote = new CreditNotePrintDataDTO
-            {
-                Id = creditNote.Id,
-                BillNumber = creditNote.BillNumber,
-                // FIX: Return the correct date based on company format
-                Date = isNepaliFormat ? creditNote.NepaliDate : creditNote.Date,
-                NepaliDate = creditNote.NepaliDate,
-                TotalAmount = creditNote.TotalAmount,
-                Description = creditNote.Description,
-                Status = creditNote.Status.ToString(),
-                CreatedAt = creditNote.CreatedAt,
-                UpdatedAt = creditNote.UpdatedAt,
-                User = creditNote.User != null ? new UserPrintDTO
-                {
-                    Id = creditNote.User.Id,
-                    Name = creditNote.User.Name,
-                    IsAdmin = creditNote.User.IsAdmin,
-                    Role = creditNote.User.UserRoles?
-                        .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
-                } : null
-            },
-            DebitEntries = debitEntries,
-            CreditEntries = creditEntries,
-            CurrentCompanyName = currentCompany.Name ?? string.Empty,
-            CurrentCompany = currentCompany,
-            NepaliDate = nepaliDate,
-            EnglishDate = today,
-            CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
-            User = new UserPrintDTO
-            {
-                Id = userId,
-                Name = user?.Name ?? string.Empty,
-                IsAdmin = user?.IsAdmin ?? false,
-                Role = userRole
-            },
-            IsAdminOrSupervisor = isAdminOrSupervisor
-        };
-
-        _logger.LogInformation("Successfully retrieved credit note print data for Credit Note ID: {CreditNoteId} with {DebitCount} debit and {CreditCount} credit entries",
-            id, debitEntries.Count, creditEntries.Count);
-
-        return response;
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error getting credit note for print: {CreditNoteId}", id);
-        throw;
-    }
-}
     }
 }
