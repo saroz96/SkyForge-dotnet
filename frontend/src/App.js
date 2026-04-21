@@ -137,10 +137,6 @@ function AppContent() {
   const { currentUser } = useAuth();
   const { showLoading, hideLoading, updateProgress } = useLoading();
 
-  // useEffect(() => {
-  //   setupInterceptors(showLoading, hideLoading);
-  // }, [showLoading, hideLoading]);
-
   useEffect(() => {
     // Pass all three functions to setupInterceptors
     setupInterceptors(showLoading, hideLoading, updateProgress);

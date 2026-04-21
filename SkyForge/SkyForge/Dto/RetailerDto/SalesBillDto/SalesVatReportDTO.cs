@@ -1,4 +1,3 @@
-// SalesVatReportDTO.cs
 namespace SkyForge.Dto.RetailerDto.SalesBillDto
 {
     public class SalesVatReportDTO

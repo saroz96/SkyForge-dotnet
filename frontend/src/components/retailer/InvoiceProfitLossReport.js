@@ -1,191 +1,328 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Loader from '../Loader';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import Header from './Header';
+import axios from 'axios';
 import NepaliDate from 'nepali-date-converter';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import { usePageNotRefreshContext } from './PageNotRefreshContext';
+import Loader from '../Loader';
+import Header from './Header';
+import ProductModal from './dashboard/modals/ProductModal';
 
 const InvoiceWiseProfitLossReport = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filteredResults, setFilteredResults] = useState([]);
+
+    const [dateErrors, setDateErrors] = useState({
+        fromDate: '',
+        toDate: ''
+    });
+
+    const [notification, setNotification] = useState({
+        show: false,
+        message: '',
+        type: 'success',
+        duration: 3000
+    });
+
+    const { draftSave, setDraftSave } = usePageNotRefreshContext();
+    const [showProductModal, setShowProductModal] = useState(false);
+
+    const [company, setCompany] = useState({
+        dateFormat: 'english',
+        vatEnabled: true,
+        fiscalYear: {}
+    });
+
+    const [data, setData] = useState(() => {
+        if (draftSave && draftSave.profitLossData) {
+            return draftSave.profitLossData;
+        }
+        return {
+            company: null,
+            currentFiscalYear: null,
+            results: [],
+            fromDate: '',
+            toDate: '',
+            billNumber: '',
+            currentCompanyName: '',
+            companyDateFormat: 'english',
+            summary: {
+                totalProfit: 0,
+                totalSales: 0,
+                totalCost: 0,
+                totalInvoices: 0
+            }
+        };
+    });
+
+    const [searchQuery, setSearchQuery] = useState(() => {
+        if (draftSave && draftSave.profitLossSearch) {
+            return draftSave.profitLossSearch.searchQuery || '';
+        }
+        return '';
+    });
+
+    const [selectedRowIndex, setSelectedRowIndex] = useState(() => {
+        if (draftSave && draftSave.profitLossSearch) {
+            return draftSave.profitLossSearch.selectedRowIndex || 0;
+        }
+        return 0;
+    });
+
+    // Column resizing state
+    const [columnWidths, setColumnWidths] = useState({
+        date: 90,
+        invNo: 100,
+        account: 180,
+        cost: 100,
+        sales: 100,
+        cpPercentage: 80,
+        spPercentage: 80,
+        profit: 100,
+        actions: 80
+    });
+
+    const [isResizing, setIsResizing] = useState(false);
+    const [resizingColumn, setResizingColumn] = useState(null);
+    const [startX, setStartX] = useState(0);
+    const [startWidth, setStartWidth] = useState(0);
+
+    // Expanded rows state for item details
+    const [expandedRows, setExpandedRows] = useState({});
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [results, setResults] = useState([]);
-    const [filters, setFilters] = useState({
-        fromDate: '',
-        toDate: '',
-        billNumber: ''
-    });
-    const [company, setCompany] = useState({
-        dateFormat: 'english',
-        fiscalYear: {}
-    });
-    const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
+    const [filteredResults, setFilteredResults] = useState([]);
+
+    const fromDateRef = useRef(null);
+    const toDateRef = useRef(null);
+    const billNumberRef = useRef(null);
+    const searchInputRef = useRef(null);
+    const generateReportRef = useRef(null);
+    const tableBodyRef = useRef(null);
     const [shouldFetch, setShouldFetch] = useState(false);
     const navigate = useNavigate();
-    const tableBodyRef = useRef(null);
 
+    // API instance with JWT token
     const api = axios.create({
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
     });
 
-    // Fetch company info only
-    useEffect(() => {
-        const fetchCompanyData = async () => {
-            try {
-                // Fetch company info
-                const companyResponse = await api.get('/api/my-company');
-                if (companyResponse.data.success) {
-                    const { company: companyData, currentFiscalYear } = companyResponse.data;
+    // Add authorization header to all requests
+    api.interceptors.request.use(
+        (config) => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        },
+        (error) => {
+            return Promise.reject(error);
+        }
+    );
 
-                    // Set company info
-                    const dateFormat = companyData.dateFormat || 'english';
+    // Fetch initial data - using existing endpoint that returns company info
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                const response = await api.get('/api/retailer/invoice-wise-profit-loss');
+                
+                if (response.data.success) {
+                    const responseData = response.data.data;
+                    const dateFormat = responseData.companyDateFormat?.toLowerCase() || 'english';
+                    
                     setCompany({
-                        dateFormat,
-                        fiscalYear: currentFiscalYear || {}
+                        dateFormat: dateFormat,
+                        vatEnabled: responseData.company?.vatEnabled || true,
+                        fiscalYear: responseData.currentFiscalYear || {}
                     });
 
-                    // Set default dates based on fiscal year
-                    let fromDate, toDate;
+                    const isNepaliFormat = dateFormat === 'nepali';
+                    const currentFiscalYear = responseData.currentFiscalYear;
+                    
+                    if (currentFiscalYear) {
+                        let fromDateFormatted = '';
+                        let toDateFormatted = '';
 
-                    if (dateFormat === 'nepali') {
-                        fromDate = currentFiscalYear?.startDate
-                            ? new NepaliDate(currentFiscalYear.startDate).format('YYYY-MM-DD')
-                            : currentNepaliDate;
-                        toDate = currentFiscalYear?.endDate
-                            ? new NepaliDate(currentFiscalYear.endDate).format('YYYY-MM-DD')
-                            : currentNepaliDate;
-                    } else {
-                        fromDate = currentFiscalYear?.startDate
-                            ? new Date(currentFiscalYear.startDate).toISOString().split('T')[0]
-                            : currentEnglishDate;
-                        toDate = currentFiscalYear?.endDate
-                            ? new Date(currentFiscalYear.endDate).toISOString().split('T')[0]
-                            : currentEnglishDate;
+                        if (isNepaliFormat) {
+                            fromDateFormatted = currentFiscalYear.startDateNepali || currentNepaliDate;
+                            toDateFormatted = currentNepaliDate;
+                        } else {
+                            fromDateFormatted = currentFiscalYear.startDate
+                                ? new Date(currentFiscalYear.startDate).toISOString().split('T')[0]
+                                : currentEnglishDate;
+                            toDateFormatted = currentFiscalYear.endDate
+                                ? new Date(currentFiscalYear.endDate).toISOString().split('T')[0]
+                                : currentEnglishDate;
+                        }
+
+                        setData(prev => ({
+                            ...prev,
+                            fromDate: fromDateFormatted,
+                            toDate: toDateFormatted,
+                            company: responseData.company,
+                            currentFiscalYear: currentFiscalYear,
+                            currentCompanyName: responseData.currentCompanyName || '',
+                            companyDateFormat: dateFormat
+                        }));
                     }
-
-                    setFilters(prev => ({
-                        ...prev,
-                        fromDate,
-                        toDate
-                    }));
                 }
             } catch (err) {
-                setError(err.response?.data?.error || 'Failed to fetch company data');
+                console.error('Error fetching initial data:', err);
+                setData(prev => ({
+                    ...prev,
+                    fromDate: currentEnglishDate,
+                    toDate: currentEnglishDate
+                }));
+                setNotification({
+                    show: true,
+                    message: 'Error loading company data, using default dates',
+                    type: 'warning'
+                });
             }
         };
 
-        fetchCompanyData();
+        fetchInitialData();
     }, []);
 
-    // Fetch report data only when shouldFetch is true
+    // Save data to draft context
     useEffect(() => {
-        const fetchReportData = async () => {
+        setDraftSave({
+            ...draftSave,
+            profitLossData: data,
+            profitLossSearch: {
+                searchQuery,
+                selectedRowIndex,
+                fromDate: data.fromDate,
+                toDate: data.toDate,
+                billNumber: data.billNumber
+            }
+        });
+    }, [data, searchQuery, selectedRowIndex]);
+
+    // Save/load column widths
+    useEffect(() => {
+        const savedWidths = localStorage.getItem('profitLossTableColumnWidths');
+        if (savedWidths) {
+            try {
+                setColumnWidths(JSON.parse(savedWidths));
+            } catch (e) {
+                console.error('Failed to load column widths:', e);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('profitLossTableColumnWidths', JSON.stringify(columnWidths));
+    }, [columnWidths]);
+
+    // Fetch data when generate report is clicked
+    useEffect(() => {
+        const fetchData = async () => {
             if (!shouldFetch) return;
 
             try {
                 setLoading(true);
-                const response = await api.get('/api/retailer/invoice-wise-profit-loss', { params: filters });
-                setResults(response.data.data.results || []);
-                setError(null);
-                setSelectedRowIndex(-1);
+                const params = new URLSearchParams();
+                if (data.fromDate) params.append('fromDate', data.fromDate);
+                if (data.toDate) params.append('toDate', data.toDate);
+                if (data.billNumber) params.append('billNumber', data.billNumber);
+
+                const response = await api.get(`/api/retailer/invoice-wise-profit-loss?${params.toString()}`);
+
+                if (response.data.success) {
+                    const responseData = response.data.data;
+                    setData(prev => ({
+                        ...prev,
+                        results: responseData.results || [],
+                        summary: responseData.summary || {
+                            totalProfit: 0,
+                            totalSales: 0,
+                            totalCost: 0,
+                            totalInvoices: 0
+                        },
+                        company: responseData.company || prev.company,
+                        currentFiscalYear: responseData.currentFiscalYear || prev.currentFiscalYear,
+                        currentCompanyName: responseData.currentCompanyName || prev.currentCompanyName,
+                        companyDateFormat: responseData.companyDateFormat || prev.companyDateFormat
+                    }));
+                    setExpandedRows({});
+                    setError(null);
+                } else {
+                    setError(response.data.error || 'Failed to fetch profit/loss data');
+                }
+
+                if (!draftSave?.profitLossSearch?.selectedRowIndex) {
+                    setSelectedRowIndex(0);
+                }
             } catch (err) {
-                setError(err.response?.data?.error || 'Failed to fetch report data');
+                console.error('Fetch error:', err);
+                setError(err.response?.data?.error || 'Failed to fetch profit/loss data');
             } finally {
                 setLoading(false);
                 setShouldFetch(false);
             }
         };
 
-        fetchReportData();
-    }, [shouldFetch, filters]);
+        fetchData();
+    }, [shouldFetch, data.fromDate, data.toDate, data.billNumber]);
 
     // Filter results based on search query
     useEffect(() => {
-        if (results.length === 0) {
-            setFilteredResults([]);
-            return;
-        }
-
-        const filtered = results.filter(bill => {
+        const filtered = data.results.filter(bill => {
             const matchesSearch =
                 bill.billNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (bill.accountDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                (bill.cashAccount?.toLowerCase().includes(searchQuery.toLowerCase()));
+                bill.accountName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                bill.cashAccount?.toLowerCase().includes(searchQuery.toLowerCase());
 
             return matchesSearch;
         });
 
         setFilteredResults(filtered);
-        setSelectedRowIndex(filtered.length > 0 ? 0 : -1); // Reset selection when filters change
-    }, [results, searchQuery]);
 
-    // Handle filter changes
-    const handleFilterChange = (e) => {
-        const { name, value } = e.target;
-        setFilters(prev => ({ ...prev, [name]: value }));
-    };
-
-    // Handle form submission
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!filters.fromDate || !filters.toDate) {
-            setError('Please select both from and to dates');
-            return;
+        if (!draftSave?.profitLossSearch?.selectedRowIndex) {
+            setSelectedRowIndex(0);
         }
-        setShouldFetch(true);
-        setSearchQuery(''); // Clear search when generating new results
-    };
+    }, [data.results, searchQuery]);
 
-    // Reset form
-    const resetForm = () => {
-        let fromDate, toDate;
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
 
-        if (company.dateFormat === 'nepali') {
-            fromDate = company.fiscalYear?.startDate
-                ? new NepaliDate(company.fiscalYear.startDate).format('YYYY-MM-DD')
-                : currentNepaliDate;
-            toDate = company.fiscalYear?.endDate
-                ? new NepaliDate(company.fiscalYear.endDate).format('YYYY-MM-DD')
-                : currentNepaliDate;
-        } else {
-            fromDate = company.fiscalYear?.startDate
-                ? new Date(company.fiscalYear.startDate).toISOString().split('T')[0]
-                : currentEnglishDate;
-            toDate = company.fiscalYear?.endDate
-                ? new Date(company.fiscalYear.endDate).toISOString().split('T')[0]
-                : currentEnglishDate;
+    // Calculate totals from filtered results
+    const totals = useMemo(() => {
+        if (filteredResults.length === 0) {
+            return { totalCost: 0, totalSales: 0, totalProfit: 0, cpPercentage: 0, spPercentage: 0 };
         }
 
-        setFilters({
-            fromDate,
-            toDate,
-            billNumber: ''
-        });
+        const totalCost = filteredResults.reduce((sum, bill) => sum + (bill.totalCost || 0), 0);
+        const totalSales = filteredResults.reduce((sum, bill) => sum + (bill.totalSales || 0), 0);
+        const totalProfit = filteredResults.reduce((sum, bill) => sum + (bill.totalProfit || 0), 0);
+        const cpPercentage = totalCost !== 0 ? (totalProfit / totalCost) * 100 : 0;
+        const spPercentage = totalSales !== 0 ? (totalProfit / totalSales) * 100 : 0;
 
-        // Don't fetch data automatically on reset
-        setResults([]);
-        setSearchQuery('');
-        setError(null);
-    };
+        return { totalCost, totalSales, totalProfit, cpPercentage, spPercentage };
+    }, [filteredResults]);
 
     // Handle keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (filteredResults.length === 0) return;
 
-            // Check if focus is inside an input element
             const activeElement = document.activeElement;
-            if (activeElement.tagName === 'INPUT') {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    moveToNextVisibleInput(activeElement);
-                }
+            if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT') {
                 return;
             }
 
@@ -200,16 +337,9 @@ const InvoiceWiseProfitLossReport = () => {
                     break;
                 case 'Enter':
                     if (selectedRowIndex >= 0 && selectedRowIndex < filteredResults.length) {
-                        toggleItemDetails(filteredResults[selectedRowIndex]._id);
+                        const bill = filteredResults[selectedRowIndex];
+                        toggleRowExpansion(bill.id);
                     }
-                    break;
-                case 'Home':
-                    e.preventDefault();
-                    setSelectedRowIndex(0);
-                    break;
-                case 'End':
-                    e.preventDefault();
-                    setSelectedRowIndex(filteredResults.length - 1);
                     break;
                 default:
                     break;
@@ -220,108 +350,102 @@ const InvoiceWiseProfitLossReport = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [filteredResults, selectedRowIndex]);
 
-    // Toggle item details manually instead of using Bootstrap collapse
-    const toggleItemDetails = (billId) => {
-        const detailsElement = document.getElementById(`details-${billId}`);
-        if (detailsElement) {
-            const isCollapsed = detailsElement.classList.contains('show');
-            if (isCollapsed) {
-                detailsElement.classList.remove('show');
-            } else {
-                detailsElement.classList.add('show');
-            }
+    const toggleRowExpansion = (id) => {
+        setExpandedRows(prev => ({
+            ...prev,
+            [id]: !prev[id]
+        }));
+    };
+
+    const handleDateChange = (e) => {
+        const { name, value } = e.target;
+        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+        if (sanitizedValue.length <= 10) {
+            setData(prev => ({ ...prev, [name]: sanitizedValue }));
+            setDateErrors(prev => ({ ...prev, [name]: '' }));
         }
     };
 
-    // Scroll to selected row
-    useEffect(() => {
-        if (tableBodyRef.current && filteredResults.length > 0 && selectedRowIndex >= 0) {
-            const rows = tableBodyRef.current.querySelectorAll('tr.data-row');
-            if (rows.length > selectedRowIndex) {
-                rows[selectedRowIndex].scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'nearest'
-                });
-            }
-        }
-    }, [selectedRowIndex, filteredResults]);
-
-    // Move to next visible input field
-    const moveToNextVisibleInput = (currentElement) => {
-        const formElements = Array.from(document.querySelectorAll('input, select, textarea, button'));
-        const currentIndex = formElements.indexOf(currentElement);
-
-        for (let i = currentIndex + 1; i < formElements.length; i++) {
-            if (formElements[i].offsetParent !== null) {
-                formElements[i].focus();
-                break;
-            }
-        }
+    const handleBillNumberChange = (e) => {
+        setData(prev => ({ ...prev, billNumber: e.target.value }));
     };
 
-    // Handle row click
-    const handleRowClick = (index) => {
-        setSelectedRowIndex(index);
+    const handleSearchChange = (e) => {
+        setSearchQuery(e.target.value);
     };
 
-    // Clear search
-    const clearSearch = () => {
+    const handleGenerateReport = () => {
+        if (!data.fromDate || !data.toDate) {
+            setError('Please select both from and to dates');
+            setNotification({
+                show: true,
+                message: 'Please select both from and to dates',
+                type: 'warning'
+            });
+            return;
+        }
+        setShouldFetch(true);
+    };
+
+    const handleReset = () => {
+        const isNepaliFormat = company.dateFormat === 'nepali';
+        let fromDateFormatted = '';
+        let toDateFormatted = '';
+
+        if (isNepaliFormat) {
+            fromDateFormatted = data.currentFiscalYear?.startDateNepali || currentNepaliDate;
+            toDateFormatted = currentNepaliDate;
+        } else {
+            fromDateFormatted = data.currentFiscalYear?.startDate
+                ? new Date(data.currentFiscalYear.startDate).toISOString().split('T')[0]
+                : currentEnglishDate;
+            toDateFormatted = data.currentFiscalYear?.endDate
+                ? new Date(data.currentFiscalYear.endDate).toISOString().split('T')[0]
+                : currentEnglishDate;
+        }
+
+        setData(prev => ({
+            ...prev,
+            fromDate: fromDateFormatted,
+            toDate: toDateFormatted,
+            billNumber: ''
+        }));
         setSearchQuery('');
-        setSelectedRowIndex(0);
+        setError(null);
+        setExpandedRows({});
     };
 
-    // Calculate totals
-    const calculateTotals = () => {
-        const totals = filteredResults.reduce((acc, bill) => {
-            return {
-                totalCost: acc.totalCost + bill.totalCost,
-                totalSales: acc.totalSales + bill.totalSales,
-                totalProfit: acc.totalProfit + bill.totalProfit
-            };
-        }, { totalCost: 0, totalSales: 0, totalProfit: 0 });
+    const formatDate = useCallback((dateString) => {
+        if (!dateString) return '';
+        try {
+            if (company.dateFormat === 'nepali') {
+                return new NepaliDate(dateString).format('YYYY-MM-DD');
+            }
+            return new Date(dateString).toISOString().split('T')[0];
+        } catch (error) {
+            return dateString;
+        }
+    }, [company.dateFormat]);
 
-        const cpPercentage = totals.totalCost !== 0
-            ? (totals.totalProfit / totals.totalCost * 100)
-            : 0;
-        const spPercentage = totals.totalSales !== 0
-            ? (totals.totalProfit / totals.totalSales * 100)
-            : 0;
-
-        return {
-            ...totals,
-            cpPercentage,
-            spPercentage
-        };
-    };
-
-    const totals = calculateTotals();
-
-    // Format currency based on company date format
-    const formatCurrency = (num) => {
+    const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
         if (company.dateFormat === 'nepali') {
-            // Indian grouping, two decimals, English digits
             return number.toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
         }
-        // English (US) grouping by default
         return number.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-    };
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }, [company.dateFormat]);
 
-    // Format date based on company date format
-    const formatDate = (dateString) => {
-        if (company.dateFormat === 'nepali') {
-            return new NepaliDate(dateString).format('YYYY-MM-DD');
-        }
-        return new Date(dateString).toLocaleDateString();
-    };
+    const formatPercentage = useCallback((value, total) => {
+        if (!total || total === 0) return '0.00';
+        return ((value / total) * 100).toFixed(2);
+    }, []);
 
-    // Handle key navigation in form fields
     const handleKeyDown = (e, nextFieldId) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -331,7 +455,6 @@ const InvoiceWiseProfitLossReport = () => {
                     nextField.focus();
                 }
             } else {
-                // If no nextFieldId provided, try to find the next focusable element
                 const focusableElements = Array.from(
                     document.querySelectorAll('input, select, button, [tabindex]:not([tabindex="-1"])')
                 ).filter(el => !el.disabled && el.offsetParent !== null);
@@ -345,459 +468,756 @@ const InvoiceWiseProfitLossReport = () => {
         }
     };
 
-    // Print function - opens in new window
     const handlePrint = () => {
         if (filteredResults.length === 0) {
-            alert('No data to print');
+            alert("No data to print");
             return;
         }
 
-        const printWindow = window.open('', '_blank', 'width=1000,height=600');
-        const printContent = document.querySelector('.print-section').innerHTML;
-        const companyName = document.querySelector('.card-header h1').textContent;
-        
-        const printDocument = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>${companyName}</title>
-                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        margin: 20px;
-                    }
-                    .print-header {
-                        text-align: center;
-                        margin-bottom: 20px;
-                        border-bottom: 2px solid #333;
-                        padding-bottom: 10px;
-                    }
-                    .print-header h2 {
-                        margin: 0;
-                        color: #0d6efd;
-                    }
-                    .print-info {
-                        display: flex;
-                        justify-content: space-between;
-                        margin-bottom: 15px;
-                    }
-                    .table {
-                        width: 100%;
-                        font-size: 12px;
-                        border-collapse: collapse;
-                    }
-                    .table th {
-                        background-color: #f8f9fa !important;
-                        padding: 8px;
-                        border: 1px solid #dee2e6;
-                    }
-                    .table td {
-                        padding: 6px;
-                        border: 1px solid #dee2e6;
-                    }
-                    .text-end {
-                        text-align: right;
-                    }
-                    .profit-positive {
-                        color: rgb(23, 214, 23);
-                        font-weight: bold;
-                    }
-                    .profit-negative {
-                        color: red;
-                        font-weight: bold;
-                    }
-                    .compact-cell {
-                        white-space: nowrap;
-                    }
-                    .table-footer {
-                        font-weight: bold;
-                        background-color: #f8f9fa;
-                    }
-                    .print-date {
-                        text-align: right;
-                        margin-bottom: 10px;
-                        font-size: 14px;
-                    }
-                    @media print {
-                        body {
-                            margin: 0;
-                            padding: 15px;
-                        }
-                        .no-print {
-                            display: none !important;
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="print-header">
-                    <h2>${companyName}</h2>
-                </div>
-                <div class="print-date">
-                    Printed on: ${new Date().toLocaleString()}
-                </div>
-                <div class="print-info">
-                    <div><strong>From Date:</strong> ${filters.fromDate}</div>
-                    <div><strong>To Date:</strong> ${filters.toDate}</div>
-                </div>
-                ${printContent
-                    .replace(/<div class="alert[^>]*>.*?<\/div>/g, '')
-                    .replace(/<button[^>]*>.*?<\/button>/g, '')
-                    .replace(/no-print/g, '')
-                    .replace(/<div class="d-flex[^>]*>.*?<\/div>/g, '')
-                }
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(function() {
-                            window.close();
-                        }, 500);
-                    }
-                </script>
-            </body>
-            </html>
+        const printWindow = window.open("", "_blank");
+        const printHeader = `
+        <div class="print-header">
+            <h1>${data.currentCompanyName || 'Company Name'}</h1>
+            <p>
+                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''},
+                PAN: ${data.company?.pan || ''}<br>
+            </p>
+            <hr>
+        </div>
         `;
 
-        printWindow.document.write(printDocument);
+        let tableContent = `
+        <style>
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            body { 
+                font-family: Arial, sans-serif; 
+                font-size: 10px; 
+                margin: 0;
+                padding: 10mm;
+            }
+            table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                page-break-inside: auto;
+            }
+            tr { 
+                page-break-inside: avoid; 
+                page-break-after: auto; 
+            }
+            th, td { 
+                border: 1px solid #000; 
+                padding: 4px; 
+                text-align: left; 
+                white-space: nowrap;
+            }
+            th { 
+                background-color: #f2f2f2 !important; 
+                -webkit-print-color-adjust: exact; 
+            }
+            .print-header { 
+                text-align: center; 
+                margin-bottom: 15px; 
+            }
+            .text-end {
+                text-align: right;
+            }
+            .profit-positive {
+                color: green;
+            }
+            .profit-negative {
+                color: red;
+            }
+        </style>
+        ${printHeader}
+        <h2 style="text-align:center;text-decoration:underline;">Invoice Wise Profit/Loss Report</h2>
+        <p style="text-align:center;"><strong>From Date:</strong> ${data.fromDate} | <strong>To Date:</strong> ${data.toDate}</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>S.N</th>
+                    <th>Date</th>
+                    <th>Inv No.</th>
+                    <th>Account</th>
+                    <th class="text-end">Cost</th>
+                    <th class="text-end">Sales</th>
+                    <th class="text-end">C.P(%)</th>
+                    <th class="text-end">S.P(%)</th>
+                    <th class="text-end">Profit</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+        filteredResults.forEach((bill, index) => {
+            tableContent += `
+            <tr>
+                <td class="text-center">${index + 1}</td>
+                <td class="nowrap">${formatDate(bill.date)}</td>
+                <td class="nowrap">${bill.billNumber || ''}</td>
+                <td>${bill.accountName || bill.cashAccount || 'N/A'}</td>
+                <td class="text-end">${formatCurrency(bill.totalCost)}</td>
+                <td class="text-end">${formatCurrency(bill.totalSales)}</td>
+                <td class="text-end">${formatPercentage(bill.totalProfit, bill.totalCost)}</td>
+                <td class="text-end">${formatPercentage(bill.totalProfit, bill.totalSales)}</td>
+                <td class="text-end ${bill.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    ${formatCurrency(bill.totalProfit)}
+                </td>
+            </tr>
+            `;
+        });
+
+        tableContent += `
+            <tr style="font-weight:bold; border-top: 2px solid #000;">
+                <td colspan="4">Grand Total</td>
+                <td class="text-end">${formatCurrency(totals.totalCost)}</td>
+                <td class="text-end">${formatCurrency(totals.totalSales)}</td>
+                <td class="text-end">${formatPercentage(totals.totalProfit, totals.totalCost)}</td>
+                <td class="text-end">${formatPercentage(totals.totalProfit, totals.totalSales)}</td>
+                <td class="text-end ${totals.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    ${formatCurrency(totals.totalProfit)}
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        `;
+
+        printWindow.document.write(`
+        <html>
+            <head>
+                <title>Invoice Wise Profit/Loss Report</title>
+            </head>
+            <body>
+                ${tableContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                        }, 200);
+                    };
+                <\/script>
+            </body>
+        </html>
+        `);
         printWindow.document.close();
     };
 
-    if (loading) return <Loader />;
+    // Reset column widths
+    const resetColumnWidths = () => {
+        setColumnWidths({
+            date: 90,
+            invNo: 100,
+            account: 180,
+            cost: 100,
+            sales: 100,
+            cpPercentage: 80,
+            spPercentage: 80,
+            profit: 100,
+            actions: 80
+        });
+    };
+
+    // Shallow equal function for memoization
+    function shallowEqual(objA, objB) {
+        if (objA === objB) return true;
+
+        if (typeof objA !== 'object' || objA === null ||
+            typeof objB !== 'object' || objB === null) {
+            return false;
+        }
+
+        const keysA = Object.keys(objA);
+        const keysB = Object.keys(objB);
+
+        if (keysA.length !== keysB.length) return false;
+
+        for (let i = 0; i < keysA.length; i++) {
+            if (!objB.hasOwnProperty(keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Resize Handle Component
+    const ResizeHandle = React.memo(({ onResizeStart, left, columnName }) => {
+        return (
+            <div
+                className="resize-handle"
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: `${left}px`,
+                    width: '5px',
+                    height: '100%',
+                    cursor: 'col-resize',
+                    backgroundColor: 'transparent',
+                    zIndex: 10,
+                    userSelect: 'none'
+                }}
+                onMouseDown={(e) => {
+                    e.preventDefault();
+                    onResizeStart(e, columnName);
+                }}
+            />
+        );
+    });
+
+    // Table Header Component
+    const TableHeader = React.memo(() => {
+        const totalWidth = columnWidths.date + columnWidths.invNo + columnWidths.account +
+            columnWidths.cost + columnWidths.sales + columnWidths.cpPercentage +
+            columnWidths.spPercentage + columnWidths.profit + columnWidths.actions;
+
+        const handleResizeStart = (e, columnName) => {
+            setIsResizing(true);
+            setResizingColumn(columnName);
+            setStartX(e.clientX);
+            setStartWidth(columnWidths[columnName]);
+            e.preventDefault();
+        };
+
+        return (
+            <div
+                className="d-flex bg-light border-bottom sticky-top"
+                style={{
+                    zIndex: 2,
+                    height: '28px',
+                    minWidth: `${totalWidth}px`,
+                    userSelect: isResizing ? 'none' : 'auto'
+                }}
+                onMouseMove={(e) => {
+                    if (isResizing && resizingColumn) {
+                        const diff = e.clientX - startX;
+                        const newWidth = Math.max(60, startWidth + diff);
+                        setColumnWidths(prev => ({
+                            ...prev,
+                            [resizingColumn]: newWidth
+                        }));
+                    }
+                }}
+                onMouseUp={() => {
+                    if (isResizing) {
+                        setIsResizing(false);
+                        setResizingColumn(null);
+                    }
+                }}
+                onMouseLeave={() => {
+                    if (isResizing) {
+                        setIsResizing(false);
+                        setResizingColumn(null);
+                    }
+                }}
+            >
+                <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.date}px`, flexShrink: 0, minWidth: '60px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Date</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.date - 2} columnName="date" />
+                </div>
+                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.invNo}px`, flexShrink: 0, minWidth: '60px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Inv No.</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.invNo - 3} columnName="invNo" />
+                </div>
+                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.account}px`, flexShrink: 0, minWidth: '100px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Account</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.account - 3} columnName="account" />
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.cost}px`, flexShrink: 0, minWidth: '80px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Cost</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.cost - 2} columnName="cost" />
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.sales}px`, flexShrink: 0, minWidth: '80px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Sales</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.sales - 2} columnName="sales" />
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.cpPercentage}px`, flexShrink: 0, minWidth: '70px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>C.P(%)</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.cpPercentage - 2} columnName="cpPercentage" />
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.spPercentage}px`, flexShrink: 0, minWidth: '70px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>S.P(%)</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.spPercentage - 2} columnName="spPercentage" />
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.profit}px`, flexShrink: 0, minWidth: '90px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Profit</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.profit - 2} columnName="profit" />
+                </div>
+                <div className="d-flex align-items-center justify-content-center px-1 position-relative" style={{ width: `${columnWidths.actions}px`, flexShrink: 0, minWidth: '70px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Actions</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.actions - 2} columnName="actions" />
+                </div>
+
+                {isResizing && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, cursor: 'col-resize' }} />
+                )}
+            </div>
+        );
+    });
+
+    // Modal for Item Details - Using a modal instead of expanding rows
+    const [showItemModal, setShowItemModal] = useState(false);
+    const [selectedBill, setSelectedBill] = useState(null);
+
+    const handleViewItems = (bill) => {
+        setSelectedBill(bill);
+        setShowItemModal(true);
+    };
+
+    // Table Row Component - Now using modal instead of inline expansion
+    const TableRow = React.memo(({ index, style, data: rowData }) => {
+        const { bills, selectedRowIndex, formatCurrency, formatDate, formatPercentage, handleRowClick, onViewItems } = rowData;
+        const bill = bills[index];
+
+        if (!bill) return null;
+
+        const isSelected = selectedRowIndex === index;
+
+        const getProfitClass = (profit) => {
+            if (profit > 0) return 'text-success';
+            if (profit < 0) return 'text-danger';
+            return '';
+        };
+
+        const getProfitIcon = (profit) => {
+            if (profit > 0) return <i className="fas fa-caret-up text-success ms-1"></i>;
+            if (profit < 0) return <i className="fas fa-caret-down text-danger ms-1"></i>;
+            return null;
+        };
+
+        return (
+            <div
+                style={{
+                    ...style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '28px',
+                    minHeight: '28px',
+                    padding: '0',
+                    borderBottom: '1px solid #dee2e6',
+                    cursor: 'pointer',
+                    backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
+                }}
+                onClick={() => handleRowClick(index)}
+            >
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.date}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{formatDate(bill.date)}</span>
+                </div>
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.invNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{bill.billNumber || ''}</span>
+                </div>
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={bill.accountName || bill.cashAccount || 'N/A'}>
+                    <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {bill.accountName || bill.cashAccount || 'N/A'}
+                    </span>
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.cost}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{formatCurrency(bill.totalCost)}</span>
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.sales}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{formatCurrency(bill.totalSales)}</span>
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.cpPercentage}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{formatPercentage(bill.totalProfit, bill.totalCost)}</span>
+                </div>
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.spPercentage}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{formatPercentage(bill.totalProfit, bill.totalSales)}</span>
+                </div>
+                <div className={`d-flex align-items-center justify-content-end px-1 border-end ${getProfitClass(bill.totalProfit)}`} style={{ width: `${columnWidths.profit}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
+                        {formatCurrency(bill.totalProfit)}
+                        {getProfitIcon(bill.totalProfit)}
+                    </span>
+                </div>
+                <div className="d-flex align-items-center justify-content-center px-1 gap-1" style={{ width: `${columnWidths.actions}px`, flexShrink: 0, height: '100%' }}>
+                    {bill.items && bill.items.length > 0 && (
+                        <button
+                            className="btn btn-sm btn-info py-0 px-1 d-flex align-items-center"
+                            onClick={(e) => { e.stopPropagation(); onViewItems(bill); }}
+                            style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold' }}
+                            title="View Items"
+                        >
+                            <i className="fas fa-eye me-1" style={{ fontSize: '0.6rem' }}></i>View
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }, (prevProps, nextProps) => {
+        if (prevProps.index !== nextProps.index) return false;
+        if (prevProps.style !== nextProps.style) return false;
+        
+        const prevBill = prevProps.data.bills[prevProps.index];
+        const nextBill = nextProps.data.bills[nextProps.index];
+        
+        return shallowEqual(prevBill, nextBill) && 
+               prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex;
+    });
+
+    if (loading && !data.results.length) return <Loader />;
 
     return (
         <div className="container-fluid">
             <Header />
-            <div className="card shadow">
-                <div className="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h1 className="h3 mb-0 text-center text-primary">Invoice Wise Profit/Loss Report</h1>
-                    <button className="btn btn-primary btn-sm no-print" onClick={handlePrint}>
-                        <i className="fas fa-print me-2"></i> Print Report
-                    </button>
+            <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+                <div className="card-header bg-white py-0">
+                    <h1 className="h4 mb-0 text-center text-primary">Invoice Wise Profit/Loss Report</h1>
                 </div>
 
-                {/* Filter Section */}
-                <div className="card-body no-print">
-                    <div className="row">
-                        <div className="col">
-                            <div className="row g-3">
-                                <div className="col">
-                                    <label htmlFor="fromDate" className="form-label">From Date</label>
-                                    <input
-                                        type={company.dateFormat === 'nepali' ? 'text' : 'date'}
-                                        name="fromDate"
-                                        id="fromDate"
-                                        className="form-control"
-                                        value={filters.fromDate}
-                                        onChange={handleFilterChange}
-                                        autoComplete="off"
-                                        onKeyDown={(e) => handleKeyDown(e, 'toDate')}
-                                    />
-                                </div>
-                                <div className="col">
-                                    <label htmlFor="toDate" className="form-label">To Date</label>
-                                    <input
-                                        type={company.dateFormat === 'nepali' ? 'text' : 'date'}
-                                        name="toDate"
-                                        id="toDate"
-                                        className="form-control"
-                                        value={filters.toDate}
-                                        onChange={handleFilterChange}
-                                        autoComplete="off"
-                                        onKeyDown={(e) => handleKeyDown(e, 'searchInput')}
-                                    />
-                                </div>
-                                <div className="col">
-                                    <label htmlFor="searchInput" className="form-label">Search</label>
-                                    <div className="input-group">
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            id="searchInput"
-                                            placeholder="Search invoices..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            autoComplete='off'
-                                            onKeyDown={(e) => handleKeyDown(e, 'filterButton')}
-                                        />
-                                        {searchQuery && (
-                                            <button
-                                                id="searchClearBtn"
-                                                className="btn btn-outline-secondary"
-                                                type="button"
-                                                onClick={clearSearch}
-                                                title="Clear search"
-                                            >
-                                                <i className="fas fa-times"></i>
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="col-md-2 d-flex align-items-end">
-                                    <button
-                                        type="button"
-                                        id="filterButton"
-                                        className="btn btn-primary w-100 me-2"
-                                        onClick={handleSubmit}
-                                    >
-                                        <i className="fas fa-filter me-2"></i>Generate
-                                    </button>
-                                </div>
-                                <div className="col-md-2 d-flex align-items-end">
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary w-100"
-                                        onClick={resetForm}
-                                    >
-                                        <i className="fas fa-sync me-2"></i>Reset
-                                    </button>
-                                </div>
+                <div className="card-body p-2 p-md-3">
+                    {/* Filter Row */}
+                    <div className="row g-2 mb-3">
+                        <div className="col-12 col-md-2">
+                            <div className="position-relative">
+                                <input
+                                    type="text"
+                                    name="fromDate"
+                                    id="fromDate"
+                                    ref={fromDateRef}
+                                    className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
+                                    value={data.fromDate}
+                                    onChange={handleDateChange}
+                                    onKeyDown={(e) => {
+                                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+                                        if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && e.key !== '/' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
+                                            e.preventDefault();
+                                        }
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            if (dateErrors.fromDate) {
+                                                e.target.focus();
+                                            } else {
+                                                document.getElementById('toDate')?.focus();
+                                            }
+                                        }
+                                    }}
+                                    onBlur={(e) => {
+                                        const dateStr = e.target.value.trim();
+                                        if (!dateStr) {
+                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
+                                            return;
+                                        }
+                                    }}
+                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    required
+                                    autoComplete="off"
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    From Date: <span className="text-danger">*</span>
+                                </label>
                             </div>
                         </div>
+
+                        <div className="col-12 col-md-2">
+                            <div className="position-relative">
+                                <input
+                                    type="text"
+                                    name="toDate"
+                                    id="toDate"
+                                    ref={toDateRef}
+                                    className={`form-control form-control-sm no-date-icon ${dateErrors.toDate ? 'is-invalid' : ''}`}
+                                    value={data.toDate}
+                                    onChange={handleDateChange}
+                                    onKeyDown={(e) => {
+                                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+                                        if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && e.key !== '/' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
+                                            e.preventDefault();
+                                        }
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            if (dateErrors.toDate) {
+                                                e.target.focus();
+                                            } else {
+                                                document.getElementById('billNumber')?.focus();
+                                            }
+                                        }
+                                    }}
+                                    onBlur={(e) => {}}
+                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    required
+                                    autoComplete="off"
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    To Date: <span className="text-danger">*</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="col-12 col-md-2">
+                            <div className="position-relative">
+                                <input
+                                    type="text"
+                                    name="billNumber"
+                                    id="billNumber"
+                                    ref={billNumberRef}
+                                    className="form-control form-control-sm"
+                                    value={data.billNumber}
+                                    onChange={handleBillNumberChange}
+                                    onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
+                                    placeholder="Bill Number"
+                                    autoComplete="off"
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    Bill No.
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="col-12 col-md-1">
+                            <button
+                                type="button"
+                                id="generateReport"
+                                ref={generateReportRef}
+                                className="btn btn-primary btn-sm w-100"
+                                onClick={handleGenerateReport}
+                                style={{ height: '30px', fontSize: '0.8rem', padding: '0 6px', fontWeight: '500' }}
+                            >
+                                <i className="fas fa-chart-line me-1"></i>Generate
+                            </button>
+                        </div>
+
+                        <div className="col-12 col-md-1">
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm w-100"
+                                onClick={handleReset}
+                                style={{ height: '30px', fontSize: '0.8rem', padding: '0 6px', fontWeight: '500' }}
+                            >
+                                <i className="fas fa-sync me-1"></i>Reset
+                            </button>
+                        </div>
+
+                        <div className="col-12 col-md-2">
+                            <div className="position-relative">
+                                <div className="input-group input-group-sm">
+                                    <input
+                                        type="text"
+                                        className="form-control form-control-sm"
+                                        id="searchInput"
+                                        ref={searchInputRef}
+                                        placeholder="Search..."
+                                        value={searchQuery}
+                                        onChange={handleSearchChange}
+                                        disabled={data.results.length === 0}
+                                        autoComplete="off"
+                                        style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                    />
+                                </div>
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    Search
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="col-12 col-md-auto d-flex align-items-end justify-content-end gap-2">
+                            <button
+                                className="btn btn-secondary btn-sm d-flex align-items-center"
+                                onClick={handlePrint}
+                                disabled={data.results.length === 0}
+                                style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}
+                            >
+                                <i className="fas fa-print me-1"></i>Print
+                            </button>
+                            <button
+                                className="btn btn-secondary btn-sm d-flex align-items-center"
+                                onClick={resetColumnWidths}
+                                title="Reset column widths"
+                                style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}
+                            >
+                                <i className="fas fa-redo me-1" style={{ fontSize: '0.6rem' }}></i>Reset
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                {/* Results Table */}
-                <div className="card-body print-section">
-                    {error && (
-                        <div className="alert alert-danger">{error}</div>
-                    )}
-
-                    {!error && results.length === 0 && !shouldFetch ? (
-                        <div className="alert alert-info text-center py-3">
+                    {/* Results Table */}
+                    {data.results.length === 0 && !shouldFetch ? (
+                        <div className="alert alert-info text-center py-3" style={{ fontSize: '0.875rem' }}>
                             <i className="fas fa-info-circle me-2"></i>
                             Please select date range and click "Generate" to view data
                         </div>
-                    ) : !error && results.length === 0 && shouldFetch ? (
-                        <Loader />
                     ) : (
                         <>
-                            {searchQuery && filteredResults.length === 0 && (
-                                <div className="alert alert-warning text-center py-2">
-                                    <i className="fas fa-exclamation-triangle me-2"></i>
-                                    No invoices found matching your search criteria
-                                </div>
-                            )}
-                            
+                            <div
+                                style={{
+                                    height: "450px",
+                                    border: '1px solid #dee2e6',
+                                    backgroundColor: '#fff',
+                                    position: 'relative'
+                                }}
+                                ref={tableBodyRef}
+                            >
+                                {loading ? (
+                                    <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span className="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p className="mt-2 small text-muted">Loading profit/loss data...</p>
+                                    </div>
+                                ) : filteredResults.length === 0 ? (
+                                    <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                        <i className="bi bi-search text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                        <h6 className="mt-2 text-muted">No invoices found</h6>
+                                        <p className="text-muted small">{searchQuery ? 'Try a different search term' : 'No data for the selected criteria'}</p>
+                                    </div>
+                                ) : (
+                                    <AutoSizer>
+                                        {({ height, width }) => {
+                                            const totalWidth = columnWidths.date + columnWidths.invNo + columnWidths.account +
+                                                columnWidths.cost + columnWidths.sales + columnWidths.cpPercentage +
+                                                columnWidths.spPercentage + columnWidths.profit + columnWidths.actions;
+
+                                            return (
+                                                <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
+                                                    <TableHeader />
+                                                    <List
+                                                        height={height - 28}
+                                                        itemCount={filteredResults.length}
+                                                        itemSize={28}
+                                                        width={Math.max(width, totalWidth)}
+                                                        itemData={{
+                                                            bills: filteredResults,
+                                                            selectedRowIndex,
+                                                            formatCurrency,
+                                                            formatDate,
+                                                            formatPercentage,
+                                                            handleRowClick: setSelectedRowIndex,
+                                                            onViewItems: handleViewItems
+                                                        }}
+                                                    >
+                                                        {TableRow}
+                                                    </List>
+                                                </div>
+                                            );
+                                        }}
+                                    </AutoSizer>
+                                )}
+                            </div>
+
+                            {/* Footer with totals */}
                             {filteredResults.length > 0 && (
-                                <div className="d-flex justify-content-between align-items-center mb-2 no-print">
-                                    <div>
-                                        Showing {filteredResults.length} of {results.length} invoices
-                                        {searchQuery && (
-                                            <span> matching "<strong>{searchQuery}</strong>"</span>
-                                        )}
+                                <div
+                                    className="d-flex bg-light border-top sticky-bottom"
+                                    style={{ zIndex: 2, height: '28px', borderTop: '2px solid #dee2e6' }}
+                                >
+                                    <div className="d-flex align-items-center px-1" style={{ width: `${columnWidths.date + columnWidths.invNo + columnWidths.account}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>Grand Total:</strong>
+                                    </div>
+
+                                    <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.cost}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.totalCost)}</strong>
+                                    </div>
+
+                                    <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.sales}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.totalSales)}</strong>
+                                    </div>
+
+                                    <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.cpPercentage}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatPercentage(totals.totalProfit, totals.totalCost)}</strong>
+                                    </div>
+
+                                    <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.spPercentage}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatPercentage(totals.totalProfit, totals.totalSales)}</strong>
+                                    </div>
+
+                                    <div className={`d-flex align-items-center justify-content-end px-1 border-start ${totals.totalProfit >= 0 ? 'text-success' : 'text-danger'}`} style={{ width: `${columnWidths.profit}px`, flexShrink: 0, height: '100%' }}>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.totalProfit)}</strong>
+                                    </div>
+
+                                    <div className="d-flex align-items-center px-1" style={{ width: `${columnWidths.actions}px`, flexShrink: 0, height: '100%' }}>
                                     </div>
                                 </div>
                             )}
-                            
-                            <div className="table-responsive">
-                                <table className="table table-hover table-striped">
-                                    <thead className="table-light">
-                                        <tr>
-                                            <th>S.N</th>
-                                            <th>Date</th>
-                                            <th>Invoice #</th>
-                                            <th>Account</th>
-                                            <th className="text-end">Cost</th>
-                                            <th className="text-end">Sales</th>
-                                            <th className="text-end">C.P(%)</th>
-                                            <th className="text-end">S.P(%)</th>
-                                            <th className="text-end">Profit</th>
-                                            <th className="no-print">Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody ref={tableBodyRef}>
-                                        {filteredResults.map((bill, index) => (
-                                            <React.Fragment key={bill._id}>
-                                                <tr
-                                                    className={`data-row ${selectedRowIndex === index ? 'highlighted-row' : ''}`}
-                                                    data-index={index}
-                                                    tabIndex={0}
-                                                    onClick={() => handleRowClick(index)}
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    <td>{index + 1}</td>
-                                                    <td className="compact-cell">{formatDate(bill.date)}</td>
-                                                    <td className="compact-cell">{bill.billNumber}</td>
-                                                    <td className="compact-cell">
-                                                        {bill.accountDetails && bill.accountDetails.name
-                                                            ? bill.accountDetails.name
-                                                            : (bill.cashAccount || 'N/A')}
-                                                    </td>
-                                                    <td className="compact-cell text-end">{formatCurrency(bill.totalCost)}</td>
-                                                    <td className="compact-cell text-end">{formatCurrency(bill.totalSales)}</td>
-                                                    <td className="compact-cell text-end">
-                                                        {bill.isReturn
-                                                            ? bill.totalCost === 0 ? '0.00' :
-                                                                (-Math.abs(bill.totalProfit) / Math.abs(bill.totalCost) * 100).toFixed(2)
-                                                            : bill.totalCost === 0 ? '0.00' :
-                                                                ((bill.totalProfit / bill.totalCost) * 100).toFixed(2)
-                                                        }
-                                                    </td>
-                                                    <td className="compact-cell text-end">
-                                                        {bill.isReturn
-                                                            ? bill.totalSales === 0 ? '0.00' :
-                                                                (-Math.abs(bill.totalProfit) / Math.abs(bill.totalSales) * 100).toFixed(2)
-                                                            : bill.totalSales === 0 ? '0.00' :
-                                                                ((bill.totalProfit / bill.totalSales) * 100).toFixed(2)
-                                                        }
-                                                    </td>
-                                                    <td className={`compact-cell text-end ${bill.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                                                        {formatCurrency(bill.totalProfit)}
-                                                    </td>
-                                                    <td className="no-print compact-cell">
-                                                        <button
-                                                            className="btn btn-sm btn-outline-primary view-items-btn"
-                                                            type="button"
-                                                            onClick={() => toggleItemDetails(bill._id)}
-                                                        >
-                                                            <i className="fas fa-eye me-1"></i>View Items
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                                {/* Item Details Row */}
-                                                <tr
-                                                    id={`details-${bill._id}`}
-                                                    className="collapse-details no-print"
-                                                    style={{ display: 'none' }}
-                                                >
-                                                    <td colSpan="10">
-                                                        <div className="accordion">
-                                                            <div className="accordion-item">
-                                                                <h2 className="accordion-header">
-                                                                    <button
-                                                                        className="accordion-button"
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            const itemsElement = document.getElementById(`items-${bill._id}`);
-                                                                            if (itemsElement) {
-                                                                                itemsElement.style.display =
-                                                                                    itemsElement.style.display === 'none' ? 'block' : 'none';
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        Item-wise Profit Details
-                                                                    </button>
-                                                                </h2>
-                                                                <div id={`items-${bill._id}`} className="accordion-body p-0" style={{ display: 'none' }}>
-                                                                    <table className="table table-sm">
-                                                                        <thead>
-                                                                            <tr>
-                                                                                <th>S.N</th>
-                                                                                <th>Item</th>
-                                                                                <th>Qty</th>
-                                                                                <th className="text-end">Cost Price</th>
-                                                                                <th className="text-end">Sale Price</th>
-                                                                                <th className="text-end">Profit/Unit</th>
-                                                                                <th className="text-end">Total Profit</th>
-                                                                            </tr>
-                                                                        </thead>
-                                                                        <tbody>
-                                                                            {bill.items && bill.items.map((item, itemIndex) => {
-                                                                                const profitPerUnit = item.price - (item.puPrice || 0);
-                                                                                const itemProfit = profitPerUnit * item.quantity;
-
-                                                                                return (
-                                                                                    <tr key={itemIndex}>
-                                                                                        <td>{itemIndex + 1}</td>
-                                                                                        <td className="compact-cell">{item.itemName || 'N/A'}</td>
-                                                                                        <td className="compact-cell">{item.quantity}</td>
-                                                                                        <td className="compact-cell text-end">{formatCurrency(item.puPrice)}</td>
-                                                                                        <td className="compact-cell text-end">{formatCurrency(item.price)}</td>
-                                                                                        <td className={`compact-cell text-end ${profitPerUnit >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                                                                                            {formatCurrency(profitPerUnit)}
-                                                                                        </td>
-                                                                                        <td className={`compact-cell text-end ${itemProfit >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                                                                                            {formatCurrency(itemProfit)}
-                                                                                        </td>
-                                                                                    </tr>
-                                                                                );
-                                                                            })}
-                                                                        </tbody>
-                                                                    </table>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            </React.Fragment>
-                                        ))}
-                                    </tbody>
-                                    {filteredResults.length > 0 && (
-                                        <tfoot className="table-group-divider">
-                                            <tr className="fw-bold">
-                                                <td colSpan="4">Grand Total</td>
-                                                <td className="text-end">{formatCurrency(totals.totalCost)}</td>
-                                                <td className="text-end">{formatCurrency(totals.totalSales)}</td>
-                                                <td className="text-end">{totals.cpPercentage.toFixed(2)}</td>
-                                                <td className="text-end">{totals.spPercentage.toFixed(2)}</td>
-                                                <td className={`text-end ${totals.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                                                    {formatCurrency(totals.totalProfit)}
-                                                </td>
-                                                <td className="no-print"></td>
-                                            </tr>
-                                        </tfoot>
-                                    )}
-                                </table>
-                            </div>
                         </>
                     )}
                 </div>
             </div>
 
-            <style>{`
-                .profit-positive {
-                    color: rgb(23, 214, 23);
-                    font-weight: bold;
-                }
+            {/* Item Details Modal */}
+            {showItemModal && selectedBill && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">
+                                    <i className="fas fa-box me-2"></i>
+                                    Item Details - Invoice: {selectedBill.billNumber}
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    onClick={() => setShowItemModal(false)}
+                                ></button>
+                            </div>
+                            <div className="modal-body p-0">
+                                <div className="table-responsive" style={{ maxHeight: '400px' }}>
+                                    <table className="table table-sm table-bordered mb-0">
+                                        <thead className="table-light">
+                                            <tr>
+                                                <th style={{ width: '5%' }}>S.N</th>
+                                                <th style={{ width: '30%' }}>Item Name</th>
+                                                <th style={{ width: '8%' }} className="text-end">Qty</th>
+                                                <th style={{ width: '12%' }} className="text-end">Cost Price</th>
+                                                <th style={{ width: '12%' }} className="text-end">Sale Price</th>
+                                                <th style={{ width: '12%' }} className="text-end">Profit/Unit</th>
+                                                <th style={{ width: '15%' }} className="text-end">Total Profit</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedBill.items.map((item, idx) => {
+                                                const profitPerUnit = item.price - (item.puPrice || 0);
+                                                const itemProfit = profitPerUnit * item.quantity;
+                                                return (
+                                                    <tr key={idx}>
+                                                        <td className="text-center">{idx + 1}</td>
+                                                        <td>{item.itemName || 'N/A'}</td>
+                                                        <td className="text-end">{item.quantity}</td>
+                                                        <td className="text-end">{formatCurrency(item.puPrice)}</td>
+                                                        <td className="text-end">{formatCurrency(item.price)}</td>
+                                                        <td className={`text-end ${profitPerUnit >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                            {formatCurrency(profitPerUnit)}
+                                                        </td>
+                                                        <td className={`text-end fw-bold ${itemProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                            {formatCurrency(itemProfit)}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot className="table-secondary">
+                                            <tr>
+                                                <td colSpan="4" className="text-end fw-bold">Total Profit:</td>
+                                                <td colSpan="3" className={`text-end fw-bold ${selectedBill.totalProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                    {formatCurrency(selectedBill.totalProfit)}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => setShowItemModal(false)}
+                                >
+                                    <i className="fas fa-times me-1"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                .profit-negative {
-                    color: red;
-                    font-weight: bold;
-                }
-
-                .table-hover tbody tr:hover {
-                    background-color: rgba(0, 0, 0, 0.05);
-                }
-
-                .accordion-button:not(.collapsed) {
-                    background-color: #c1d0d8;
-                }
-
-                .highlighted-row {
-                    background-color: #cdd8dd !important;
-                }
-
-                .compact-cell {
-                    white-space: nowrap;
-                }
-
-                .collapse-details.show {
-                    display: table-row !important;
-                }
-
-                /* Improved accordion styling */
-                .accordion-button:after {
-                    margin-left: 10px;
-                }
-
-                .accordion-header button {
-                    padding: 0.5rem 1rem;
-                }
-
-                /* Make the entire accordion header clickable */
-                .accordion-header {
-                    cursor: pointer;
-                }
-
-                /* Print-specific styles */
-                @media print {
-                    .no-print {
-                        display: none !important;
-                    }
-                }
-            `}</style>
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

@@ -1,10 +1,4 @@
-﻿//namespace SkyForge.Models.Retailer.Items
-//{
-//    public class ItemClosingStockByFiscalYear
-//    {
-//    }
-//}
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using SkyForge.Models.FiscalYearModel;
 
@@ -50,6 +44,12 @@ namespace SkyForge.Models.Retailer.Items
         [Column("sales_price")]
         [Precision(18, 2)]
         public decimal SalesPrice { get; set; } = 0;
+
+        [Column("date")]
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+
+        [Column("Nepali_Date")]
+        public DateTime? NepaliDate { get; set; }
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -9,7 +9,7 @@ import '../../../stylesheet/noDateIcon.css';
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
+import VirtualizedItemListForPurchaseReturn from '../../VirtualizedItemListForPurchaseReturn';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
@@ -65,7 +65,7 @@ const EditPurchase = () => {
     const [salesPriceData, setSalesPriceData] = useState({
         prevPuPrice: 0,
         puPrice: 0,
-        ccPercentage: 7.5,
+        ccPercentage: 0,
         itemCcAmount: 0,
         marginPercentage: 0,
         currency: 'NPR',
@@ -428,7 +428,7 @@ const EditPurchase = () => {
                     mrp: item.mrp || 0,
                     marginPercentage: item.marginPercentage || 0,
                     currency: item.currency || 'NPR',
-                    ccPercentage: item.ccPercentage || 7.5,
+                    ccPercentage: item.ccPercentage || 0,
                     itemCcAmount: item.itemCcAmount || 0,
                     amount: (item.quantity * item.puPrice).toFixed(2),
                     vatStatus: item.vatStatus,
@@ -1106,7 +1106,7 @@ const EditPurchase = () => {
 
         const prevPuPrice = Math.round((lastData.puPrice) * 100) / 100 || 0;
         const currentPuPrice = Math.round(selectedItemRate * 100) / 100;
-        const ccPercentage = lastData.ccPercentage || 7.5;
+        const ccPercentage = lastData.ccPercentage || 0;
         const marginPercentage = lastData.marginPercentage || 0;
         const currency = lastData.currency || 'NPR';
         const latestMrp = Math.round(lastData.mrp * 100) / 100 || 0;
@@ -1165,23 +1165,69 @@ const EditPurchase = () => {
     // };
 
 
+    // const openSalesPriceModal = (index) => {
+    //     setSelectedItemIndex(index);
+    //     const item = items[index];
+
+    //     // Check if item has stockEntries (from the initial load)
+    //     // You may need to ensure that items have stockEntries when added
+    //     const latestStockEntry = item.stockEntries?.sort((a, b) => new Date(b.date) - new Date(a.date))[0] || {};
+
+    //     const prevPuPrice = Math.round((latestStockEntry.puPrice) * 100) / 100 || 0;
+    //     const currentPuPrice = Math.round(item.puPrice * 100) / 100;
+    //     const ccPercentage = latestStockEntry?.ccPercentage || 0;
+    //     const marginPercentage = latestStockEntry.marginPercentage || item.marginPercentage || 0;
+    //     const currency = latestStockEntry.currency || item.currency || 'NPR';
+    //     const latestMrp = Math.round((latestStockEntry.mrp) * 100) / 100 || item.mrp || 0;
+    //     const salesPrice = Math.round((latestStockEntry.price) * 100) / 100 || item.price || currentPuPrice;
+
+    //     const itemCcAmount = ((currentPuPrice * ccPercentage / 100) * (item.bonus || 0));
+
+    //     setSalesPriceData({
+    //         prevPuPrice: prevPuPrice,
+    //         puPrice: currentPuPrice,
+    //         ccPercentage: ccPercentage,
+    //         itemCcAmount: itemCcAmount,
+    //         marginPercentage: marginPercentage,
+    //         currency: currency,
+    //         mrp: latestMrp,
+    //         salesPrice: salesPrice,
+    //     });
+
+    //     setShowSalesPriceModal(true);
+    // };
+
     const openSalesPriceModal = (index) => {
         setSelectedItemIndex(index);
         const item = items[index];
 
-        // Check if item has stockEntries (from the initial load)
-        // You may need to ensure that items have stockEntries when added
-        const latestStockEntry = item.stockEntries?.sort((a, b) => new Date(b.date) - new Date(a.date))[0] || {};
+        // First, try to get the full item data from headerSearchResults
+        const fullItem = headerSearchResults.find(i => i.id === item.itemId);
 
+        // If not found in headerSearchResults, try to get from existing item data
+        let latestStockEntry = {};
+
+        if (fullItem && fullItem.stockEntries && fullItem.stockEntries.length > 0) {
+            // Sort by date to get the latest
+            latestStockEntry = [...fullItem.stockEntries].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        } else if (item.stockEntries && item.stockEntries.length > 0) {
+            latestStockEntry = [...item.stockEntries].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        }
+
+        // Calculate values
         const prevPuPrice = Math.round((latestStockEntry.puPrice) * 100) / 100 || 0;
         const currentPuPrice = Math.round(item.puPrice * 100) / 100;
-        const ccPercentage = latestStockEntry?.ccPercentage || 7.5;
+
+        // IMPORTANT: Get ccPercentage from stock entry, then from item, then default to 0
+        const ccPercentage = latestStockEntry?.ccPercentage || item.ccPercentage || 0;
         const marginPercentage = latestStockEntry.marginPercentage || item.marginPercentage || 0;
         const currency = latestStockEntry.currency || item.currency || 'NPR';
         const latestMrp = Math.round((latestStockEntry.mrp) * 100) / 100 || item.mrp || 0;
         const salesPrice = Math.round((latestStockEntry.price) * 100) / 100 || item.price || currentPuPrice;
 
-        const itemCcAmount = ((currentPuPrice * ccPercentage / 100) * (item.bonus || 0));
+        // Calculate item CC amount
+        const bonus = item.bonus || 0;
+        const itemCcAmount = ((currentPuPrice * ccPercentage / 100) * bonus);
 
         setSalesPriceData({
             prevPuPrice: prevPuPrice,
@@ -1192,6 +1238,7 @@ const EditPurchase = () => {
             currency: currency,
             mrp: latestMrp,
             salesPrice: salesPrice,
+            isVatable: item.vatStatus === 'vatable'
         });
 
         setShowSalesPriceModal(true);
@@ -1270,13 +1317,15 @@ const EditPurchase = () => {
             setIsHeaderMode(false);
             setShowSalesPriceModal(false);
 
-            setTimeout(() => {
-                const searchInput = document.getElementById('headerItemSearch');
-                if (searchInput) {
-                    searchInput.focus();
-                    searchInput.select();
-                }
-            }, 50);
+            // setTimeout(() => {
+            //     const searchInput = document.getElementById('headerItemSearch');
+            //     if (searchInput) {
+            //         searchInput.focus();
+            //         searchInput.select();
+            //     }
+            // }, 50);
+
+            focusOnHeaderSearchInput();
         } else {
             if (selectedItemIndex === -1) return;
 
@@ -1298,13 +1347,15 @@ const EditPurchase = () => {
             }));
             setShowSalesPriceModal(false);
 
-            setTimeout(() => {
-                const puPriceInput = document.getElementById(`puPrice-${selectedItemIndex}`);
-                if (puPriceInput) {
-                    puPriceInput.focus();
-                    puPriceInput.select();
-                }
-            }, 100);
+            // setTimeout(() => {
+            //     const puPriceInput = document.getElementById(`puPrice-${selectedItemIndex}`);
+            //     if (puPriceInput) {
+            //         puPriceInput.focus();
+            //         puPriceInput.select();
+            //     }
+            // }, 100);
+
+            focusOnHeaderSearchInput();
         }
     };
 
@@ -1326,6 +1377,7 @@ const EditPurchase = () => {
             } else if (showSalesPriceModal && e.key === 'Escape') {
                 e.preventDefault();
                 setShowSalesPriceModal(false);
+                focusOnHeaderSearchInput();
             }
         };
 
@@ -1719,6 +1771,16 @@ const EditPurchase = () => {
         maximumFractionDigits: 2,
     });
 
+    const focusOnHeaderSearchInput = () => {
+        setTimeout(() => {
+            const searchInput = document.getElementById('headerItemSearch');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }, 100);
+    };
+
     if (isLoading) {
         return (
             <div className="container-fluid">
@@ -1736,7 +1798,7 @@ const EditPurchase = () => {
         <div className="container-fluid">
             <Header />
             <div className="card mt-2 shadow-lg p-2 animate__animated animate__fadeInUp expanded-card ledger-card compact">
-                <div className="card-header">
+                {/* <div className="card-header">
                     <div className="d-flex justify-content-between align-items-center">
                         <h2 className="card-title mb-0">
                             <i className="bi bi-file-text me-2"></i>
@@ -1748,6 +1810,46 @@ const EditPurchase = () => {
                             )}
                             {dateErrors.nepaliDate && (
                                 <span className="badge bg-danger">{dateErrors.nepaliDate}</span>
+                            )}
+                        </div>
+                    </div>
+                </div> */}
+                <div className="card-header">
+                    <div className="d-flex justify-content-between align-items-center flex-wrap">
+                        <h2 className="card-title mb-0">
+                            <i className="bi bi-file-text me-2"></i>
+                            Update Purchase Entry
+                        </h2>
+                        <div className="d-flex align-items-center gap-2">
+                            {/* Date Errors */}
+                            {dateErrors.transactionDateNepali && (
+                                <span className="badge bg-danger me-2">{dateErrors.transactionDateNepali}</span>
+                            )}
+                            {dateErrors.nepaliDate && (
+                                <span className="badge bg-danger">{dateErrors.nepaliDate}</span>
+                            )}
+
+                            {/* Duplicate Invoice Warning */}
+                            {duplicateInvoiceInfo.exists && (
+                                <span
+                                    className="badge bg-warning text-dark"
+                                    style={{
+                                        fontSize: '0.7rem',
+                                        padding: '0.35rem 0.65rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}
+                                    title={`This invoice was previously used by ${duplicateInvoiceInfo.partyName} on ${duplicateInvoiceInfo.date ? new Date(duplicateInvoiceInfo.date).toISOString().split('T')[0] : 'unknown date'}`}
+                                >
+                                    <i className="bi bi-exclamation-triangle-fill me-1" style={{ fontSize: '0.65rem' }}></i>
+                                    Warning: Invoice already used by {duplicateInvoiceInfo.partyName}
+                                    {duplicateInvoiceInfo.date && (
+                                        <span className="ms-1 opacity-75">
+                                            ({new Date(duplicateInvoiceInfo.date).toISOString().split('T')[0]})
+                                        </span>
+                                    )}
+                                </span>
                             )}
                         </div>
                     </div>
@@ -2099,11 +2201,6 @@ const EditPurchase = () => {
                                     >
                                         Party Inv. No: <span className="text-danger">*</span>
                                     </label>
-                                    {duplicateInvoiceInfo.exists && (
-                                        <div className="text-warning small mt-1" style={{ fontSize: '0.7rem' }}>
-                                            Warning: This invoice already used by {duplicateInvoiceInfo.partyName} on {new Date(duplicateInvoiceInfo.date).toISOString().split('T')[0]}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -3416,7 +3513,7 @@ const EditPurchase = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemListForPurchase
+                                            <VirtualizedItemListForPurchaseReturn
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);
@@ -3764,7 +3861,10 @@ const EditPurchase = () => {
                                 <button
                                     type="button"
                                     className="btn-close"
-                                    onClick={() => setShowSalesPriceModal(false)}
+                                    onClick={() => {
+                                        setShowSalesPriceModal(false);
+                                        focusOnHeaderSearchInput();
+                                    }}
                                     style={{ fontSize: '0.6rem', padding: '0.25rem' }}
                                 ></button>
                             </div>
@@ -3922,7 +4022,7 @@ const EditPurchase = () => {
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
                                                         e.preventDefault();
-                                                        document.getElementById('marginPercentage')?.focus();
+                                                        document.getElementById('currency')?.focus();
                                                     }
                                                 }}
                                                 style={{
@@ -3945,6 +4045,103 @@ const EditPurchase = () => {
                                                 }}
                                             >
                                                 CC Charge (Rs.)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="row g-2 mb-2">
+                                    <div className="col-12 col-md-6">
+                                        <div className="position-relative">
+                                            <select
+                                                className="form-control form-control-sm"
+                                                id="currency"
+                                                value={salesPriceData.currency}
+                                                onChange={(e) => setSalesPriceData({ ...salesPriceData, currency: e.target.value })}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        document.getElementById('mrp')?.focus();
+                                                    }
+                                                }}
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.25rem',
+                                                    width: '100%'
+                                                }}
+                                            >
+                                                <option value="NPR">NPR</option>
+                                                <option value="INR">INR</option>
+                                            </select>
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Currency
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div className="col-12 col-md-6">
+                                        <div className="position-relative">
+                                            <input
+                                                type="number"
+                                                className="form-control form-control-sm"
+                                                id="mrp"
+                                                step="any"
+                                                value={salesPriceData.mrp}
+                                                onFocus={(e) => {
+                                                    e.target.select();
+                                                }}
+                                                onChange={(e) => {
+                                                    const mrp = parseFloat(e.target.value) || 0;
+                                                    let salesPrice = salesPriceData.currency === 'INR' ? mrp * 1.6 : mrp;
+                                                    const item = isHeaderMode ? selectedItemForInsert : items[selectedItemIndex];
+                                                    if (item?.vatStatus === 'vatable') {
+                                                        salesPrice = salesPrice / 1.13;
+                                                    }
+                                                    const margin = ((salesPrice - salesPriceData.puPrice) / salesPriceData.puPrice) * 100;
+                                                    setSalesPriceData({
+                                                        ...salesPriceData,
+                                                        mrp: mrp,
+                                                        salesPrice: salesPrice,
+                                                        marginPercentage: margin
+                                                    });
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        document.getElementById('marginPercentage')?.focus();
+                                                    }
+                                                }}
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                MRP (Rs.)
                                             </label>
                                         </div>
                                     </div>
@@ -3986,103 +4183,6 @@ const EditPurchase = () => {
                                                             marginPercentage: margin,
                                                             salesPrice: parseFloat(salesPrice.toFixed(2))
                                                         });
-                                                        document.getElementById('currency')?.focus();
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Margin (%)
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div className="col-12 col-md-6">
-                                        <div className="position-relative">
-                                            <select
-                                                className="form-control form-control-sm"
-                                                id="currency"
-                                                value={salesPriceData.currency}
-                                                onChange={(e) => setSalesPriceData({ ...salesPriceData, currency: e.target.value })}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        document.getElementById('mrp')?.focus();
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.25rem',
-                                                    width: '100%'
-                                                }}
-                                            >
-                                                <option value="NPR">NPR</option>
-                                                <option value="INR">INR</option>
-                                            </select>
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Currency
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="row g-2 mb-2">
-                                    <div className="col-12 col-md-6">
-                                        <div className="position-relative">
-                                            <input
-                                                type="number"
-                                                className="form-control form-control-sm"
-                                                id="mrp"
-                                                step="any"
-                                                value={salesPriceData.mrp}
-                                                onFocus={(e) => {
-                                                    e.target.select();
-                                                }}
-                                                onChange={(e) => {
-                                                    const mrp = parseFloat(e.target.value) || 0;
-                                                    let salesPrice = salesPriceData.currency === 'INR' ? mrp * 1.6 : mrp;
-                                                    const item = isHeaderMode ? selectedItemForInsert : items[selectedItemIndex];
-                                                    if (item?.vatStatus === 'vatable') {
-                                                        salesPrice = salesPrice / 1.13;
-                                                    }
-                                                    const margin = ((salesPrice - salesPriceData.puPrice) / salesPriceData.puPrice) * 100;
-                                                    setSalesPriceData({
-                                                        ...salesPriceData,
-                                                        mrp: mrp,
-                                                        salesPrice: salesPrice,
-                                                        marginPercentage: margin
-                                                    });
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
                                                         document.getElementById('salesPrice')?.focus();
                                                     }
                                                 }}
@@ -4105,7 +4205,7 @@ const EditPurchase = () => {
                                                     fontWeight: '500'
                                                 }}
                                             >
-                                                MRP (Rs.)
+                                                Margin (%)
                                             </label>
                                         </div>
                                     </div>
@@ -4163,7 +4263,7 @@ const EditPurchase = () => {
                             </div>
 
                             {/* Last Purchase Information Section */}
-                            {lastPurchaseData && (
+                            {/* {lastPurchaseData && (
                                 <div className="row g-2 mb-3">
                                     <div className="col-12">
                                         <div className="card border-info">
@@ -4242,13 +4342,16 @@ const EditPurchase = () => {
                                         </div>
                                     </div>
                                 </div>
-                            )}
+                            )} */}
                             <div className="modal-footer py-1 px-3" style={{ backgroundColor: '#f8f9fa', borderTop: '1px solid #dee2e6' }}>
                                 <button
                                     type="button"
                                     className="btn btn-secondary btn-sm py-1 px-2"
                                     id='saveSalesPriceClose'
-                                    onClick={() => setShowSalesPriceModal(false)}
+                                    onClick={() => {
+                                        setShowSalesPriceModal(false);
+                                        focusOnHeaderSearchInput();
+                                    }}
                                     style={{
                                         fontSize: '0.8rem',
                                         lineHeight: '1.2',

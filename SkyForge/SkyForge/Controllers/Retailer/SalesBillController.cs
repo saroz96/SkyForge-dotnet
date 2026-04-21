@@ -3189,6 +3189,8 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+       
+       
         // GET: api/retailer/sales-register/entry-data
         [HttpGet("sales-register/entry-data")]
         public async Task<IActionResult> GetSalesRegisterEntryData()
@@ -3641,8 +3643,8 @@ namespace SkyForge.Controllers.Retailer
                             BillNumber = bill.BillNumber,
                             Date = bill.Date,
                             NepaliDate = bill.nepaliDate,
-                            AccountName = bill.Account.Name ?? "N/A",
-                            PanNumber = bill.Account.Pan ?? "N/A",
+                            AccountName = bill.Account.Name ?? "",
+                            PanNumber = bill.Account.Pan ?? "",
                             TotalAmount = bill.TotalAmount,
                             DiscountAmount = bill.DiscountAmount,
                             NonVatSales = bill.NonVatSales,
@@ -3660,7 +3662,7 @@ namespace SkyForge.Controllers.Retailer
                             Date = bill.Date,
                             NepaliDate = bill.nepaliDate, 
                             AccountName = bill.CashAccount ?? "Cash Sale",
-                            PanNumber = bill.CashAccountPan ?? "N/A",
+                            PanNumber = bill.CashAccountPan ?? "",
                             TotalAmount = bill.TotalAmount,
                             DiscountAmount = bill.DiscountAmount,
                             NonVatSales = bill.NonVatSales,

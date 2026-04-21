@@ -66,7 +66,6 @@ namespace SkyForge.Models.AccountModel
 
         public DateTime OpeningBalanceDate { get; set; } = DateTime.UtcNow;
 
-        // Nepali Opening Balance Date (as string)
         [MaxLength(20)]
         public string? OpeningBalanceDateNepali { get; set; }
 
@@ -94,6 +93,12 @@ namespace SkyForge.Models.AccountModel
         public bool IsDefaultAccount { get; set; } = false;
 
         public bool IsActive { get; set; } = true;
+
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+
+        [Column("Nepali_Date")]
+        public DateTime NepaliDate { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

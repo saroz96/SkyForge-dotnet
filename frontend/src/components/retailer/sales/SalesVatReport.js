@@ -55,7 +55,7 @@ const SalesVatReport = () => {
     const [columnWidths, setColumnWidths] = useState({
         date: 90,
         invoiceNo: 100,
-        buyerName: 150,
+        buyerName: 200,
         panNumber: 100,
         totalSales: 100,
         discount: 100,
@@ -399,7 +399,7 @@ const SalesVatReport = () => {
             const excelData = [];
             const currentDate = new Date().toISOString().split('T')[0];
 
-            excelData.push(['Company Name:', data.currentCompanyName || 'N/A']);
+            excelData.push(['Company Name:', data.currentCompanyName || '']);
             excelData.push(['Report Type:', 'Sales VAT Report']);
             excelData.push(['From Date:', data.fromDate]);
             excelData.push(['To Date:', data.toDate]);
@@ -486,27 +486,115 @@ const SalesVatReport = () => {
             return;
         }
 
-        let tableContent = `
+        const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Sales VAT Report - ${data.currentCompanyName || 'Company Name'}</title>
+            <style>
+                @page { 
+                    margin: 5mm;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body { 
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 9px;
+                    margin: 0;
+                    padding: 5mm;
+                }
+                .print-header { 
+                    text-align: center; 
+                    margin-bottom: 8px;
+                }
+                .print-header h2 {
+                    font-size: 14px;
+                    margin: 2px 0;
+                }
+                .print-header h3 {
+                    font-size: 12px;
+                    margin: 2px 0;
+                    text-decoration: underline;
+                }
+                .print-header p {
+                    font-size: 8px;
+                    margin: 2px 0;
+                }
+                .print-header hr {
+                    margin: 4px 0;
+                }
+                .report-info {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                    font-size: 8px;
+                }
+                table { 
+                    width: 100%;
+                    border-collapse: collapse;
+                    page-break-inside: auto;
+                    font-size: 8px;
+                }
+                tr { 
+                    page-break-inside: avoid;
+                    page-break-after: auto;
+                }
+                th, td { 
+                    border: 1px solid #000;
+                    padding: 3px 4px;
+                    text-align: left;
+                }
+                th { 
+                    background-color: #f2f2f2 !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                    font-weight: bold;
+                    font-size: 8px;
+                }
+                .text-end { 
+                    text-align: right;
+                }
+                .nowrap {
+                    white-space: nowrap;
+                }
+                .total-row {
+                    background-color: #e6e6e6;
+                    font-weight: bold;
+                }
+                .print-footer {
+                    margin-top: 8px;
+                    font-size: 7px;
+                    text-align: center;
+                    border-top: 1px solid #ccc;
+                    padding-top: 4px;
+                }
+            </style>
+        </head>
+        <body>
             <div class="print-header">
-                <h2 style="margin:0; padding:0;">${data.currentCompanyName || 'Company Name'}</h2>
-                <p style="margin:2px 0; font-size:8px;">
+                <h2>${data.currentCompanyName || 'Company Name'}</h2>
+                <p>
                     ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
                     PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
                 </p>
-                <hr style="margin:5px 0;">
-                <h3 style="margin:5px 0; text-decoration:underline;">Sales VAT Report</h3>
-                <p style="margin:2px 0; font-size:9px;">
-                    <strong>From Date:</strong> ${data.fromDate} &nbsp;|&nbsp;
-                    <strong>To Date:</strong> ${data.toDate}
-                </p>
+                <hr>
+                <h3>Sales VAT Report</h3>
+                <div class="report-info">
+                    <div><strong>From Date:</strong> ${data.fromDate}</div>
+                    <div><strong>To Date:</strong> ${data.toDate}</div>
+                    <div><strong>Printed:</strong> ${new Date().toLocaleString()}</div>
+                </div>
             </div>
             <table cellspacing="0">
                 <thead>
                     <tr>
-                        <th class="nowrap">Date</th>
-                        <th class="nowrap">Invoice No.</th>
-                        <th class="nowrap">Buyer's Name</th>
-                        <th class="nowrap">Buyer's PAN</th>
+                        <th>Date</th>
+                        <th>Invoice No.</th>
+                        <th>Buyer's Name</th>
+                        <th>Buyer's PAN</th>
                         <th class="text-end">Total Sales</th>
                         <th class="text-end">Discount</th>
                         <th class="text-end">Non-VAT Sales</th>
@@ -515,26 +603,19 @@ const SalesVatReport = () => {
                     </tr>
                 </thead>
                 <tbody>
-        `;
-
-        filteredReports.forEach((report, index) => {
-            const rowClass = index % 2 === 0 ? 'even-row' : '';
-            tableContent += `
-                <tr class="${rowClass}">
-                    <td class="nowrap">${formatDate(report.nepaliDate || report.date)}</td>
-                    <td class="nowrap">${report.billNumber}</td>
-                    <td class="nowrap">${report.accountName || 'Cash Sale'}</td>
-                    <td class="nowrap">${report.panNumber}</td>
-                    <td class="text-end">${formatCurrency(report.totalAmount)}</td>
-                    <td class="text-end">${formatCurrency(report.discountAmount)}</td>
-                    <td class="text-end">${formatCurrency(report.nonVatSales)}</td>
-                    <td class="text-end">${formatCurrency(report.taxableAmount)}</td>
-                    <td class="text-end">${formatCurrency(report.vatAmount)}</td>
-                </tr>
-            `;
-        });
-
-        tableContent += `
+                    ${filteredReports.map((report, index) => `
+                        <tr style="${index % 2 === 0 ? 'background-color: #f9f9f9;' : ''}">
+                            <td class="nowrap">${formatDate(report.nepaliDate || report.date)}</td>
+                            <td class="nowrap">${report.billNumber}</td>
+                            <td class="nowrap">${report.accountName || 'Cash Sale'}</td>
+                            <td class="nowrap">${report.panNumber}</td>
+                            <td class="text-end">${formatCurrency(report.totalAmount)}</td>
+                            <td class="text-end">${formatCurrency(report.discountAmount)}</td>
+                            <td class="text-end">${formatCurrency(report.nonVatSales)}</td>
+                            <td class="text-end">${formatCurrency(report.taxableAmount)}</td>
+                            <td class="text-end">${formatCurrency(report.vatAmount)}</td>
+                        </tr>
+                    `).join('')}
                 </tbody>
                 <tfoot>
                     <tr class="total-row">
@@ -547,76 +628,24 @@ const SalesVatReport = () => {
                     </tr>
                 </tfoot>
             </table>
-            <div style="margin-top: 15px; font-size: 8px; text-align: center; border-top: 1px solid #ccc; padding-top: 5px;">
-                <p>Generated on: ${new Date().toLocaleString()} | Powered by SkyForge</p>
+            <div class="print-footer">
+                Printed from ${data.currentCompanyName || 'Company Name'} | ${new Date().toLocaleString()}
             </div>
-        `;
+            <script>
+                window.onload = function() {
+                    setTimeout(function() { 
+                        window.print();
+                        setTimeout(function() {
+                            window.close();
+                        }, 500);
+                    }, 200);
+                };
+            <\/script>
+        </body>
+        </html>
+    `;
 
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Sales VAT Report - ${data.currentCompanyName || 'Company Name'}</title>
-                    <style>
-                        @page { 
-                            margin: 10mm; 
-                        }
-                        body { 
-                            font-family: Arial, sans-serif; 
-                            font-size: 10px; 
-                            margin: 0;
-                            padding: 10mm;
-                        }
-                        table { 
-                            width: 100%; 
-                            border-collapse: collapse; 
-                            page-break-inside: auto;
-                        }
-                        tr { 
-                            page-break-inside: avoid; 
-                            page-break-after: auto; 
-                        }
-                        th, td { 
-                            border: 1px solid #000; 
-                            padding: 4px; 
-                            text-align: left; 
-                            white-space: nowrap;
-                        }
-                        th { 
-                            background-color: #f2f2f2 !important; 
-                            -webkit-print-color-adjust: exact; 
-                            print-color-adjust: exact;
-                        }
-                        .print-header { 
-                            text-align: center; 
-                            margin-bottom: 15px; 
-                        }
-                        .text-end { 
-                            text-align: right; 
-                        }
-                        .nowrap {
-                            white-space: nowrap;
-                        }
-                        .total-row {
-                            background-color: #e6e6e6;
-                            font-weight: bold;
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${tableContent}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() { 
-                                window.print();
-                                setTimeout(function() {
-                                    window.close();
-                                }, 500);
-                            }, 200);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
+        printWindow.document.write(printContent);
         printWindow.document.close();
     };
 
@@ -624,7 +653,7 @@ const SalesVatReport = () => {
         setColumnWidths({
             date: 90,
             invoiceNo: 100,
-            buyerName: 150,
+            buyerName: 200,
             panNumber: 100,
             totalSales: 100,
             discount: 100,
@@ -836,6 +865,7 @@ const SalesVatReport = () => {
                                     id="fromDate"
                                     ref={fromDateRef}
                                     className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
+                                    autoFocus
                                     value={data.fromDate}
                                     onChange={(e) => {
                                         const value = e.target.value;
@@ -1699,7 +1729,7 @@ export default SalesVatReport;
 //             const excelData = [];
 //             const currentDate = new Date().toISOString().split('T')[0];
 
-//             excelData.push(['Company Name:', data.currentCompanyName || 'N/A']);
+//             excelData.push(['Company Name:', data.currentCompanyName || '']);
 //             excelData.push(['Report Type:', 'Sales VAT Report']);
 //             excelData.push(['From Date:', data.fromDate]);
 //             excelData.push(['To Date:', data.toDate]);

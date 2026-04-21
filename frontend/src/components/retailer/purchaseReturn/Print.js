@@ -821,6 +821,10 @@ const PurchaseReturnPrint = () => {
                                         <td><strong>Discount ({billData.bill.discountPercentage || 0}%):</strong></td>
                                         <td className="text-right">{formatTo2Decimal(billData.bill.discountAmount)}</td>
                                     </tr>
+                                    <tr>
+                                        <td><strong>CC Charge:</strong></td>
+                                        <td className="text-right">{formatTo2Decimal(billData.bill.totalCcAmount || 0)}</td>
+                                    </tr>
                                     {!billData.bill.isVatExempt && (
                                         <>
                                             <tr>

@@ -44,7 +44,8 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
 
         [Range(0, double.MaxValue)]
         public decimal? TaxableAmount { get; set; }
-
+        public decimal TotalCcAmount { get; set; }
+        
         [Range(0, 100)]
         public decimal? DiscountPercentage { get; set; }
 

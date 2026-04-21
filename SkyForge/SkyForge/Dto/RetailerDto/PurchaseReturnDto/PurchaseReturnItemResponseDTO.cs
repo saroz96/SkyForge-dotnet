@@ -23,6 +23,12 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public decimal DiscountPercentagePerItem { get; set; }
         public decimal DiscountAmountPerItem { get; set; }
         public decimal NetPuPrice { get; set; }
+        public decimal? CcPercentage { get; set; }      // ADD THIS
+        public decimal? ItemCcAmount { get; set; }       // ADD THIS
+
+        public decimal? MainUnitPuPrice { get; set; }  // ADD THIS
+        public decimal? BillQty { get; set; }          // ADD THIS
+        public decimal? ActualQty { get; set; }        // ADD THIS
 
         public decimal Mrp { get; set; }
         public decimal MarginPercentage { get; set; }

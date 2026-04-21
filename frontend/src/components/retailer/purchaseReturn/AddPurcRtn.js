@@ -10,7 +10,7 @@ import '../../../stylesheet/noDateIcon.css'
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
+import VirtualizedItemListForPurchaseReturn from '../../VirtualizedItemListForPurchaseReturn';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 
 const AddPurcRtn = () => {
@@ -80,7 +80,8 @@ const AddPurcRtn = () => {
     const [selectedItemRate, setSelectedItemRate] = useState(0);
     const [selectedItemBatchNumber, setSelectedItemBatchNumber] = useState('');
     const [selectedItemExpiryDate, setSelectedItemExpiryDate] = useState('');
-
+    const [manualCCAmount, setManualCCAmount] = useState(null);
+    const [isCCManuallyEdited, setIsCCManuallyEdited] = useState(false);
     // For header modal search
     const [isHeaderSearching, setIsHeaderSearching] = useState(false);
     const [headerSearchResults, setHeaderSearchResults] = useState([]);
@@ -117,6 +118,7 @@ const AddPurcRtn = () => {
         discountPercentage: 0,
         discountAmount: 0,
         roundOffAmount: 0,
+        CCAmount: 0,
         vatPercentage: 13,
         partyBillNumber: '',
         items: []
@@ -525,6 +527,8 @@ const AddPurcRtn = () => {
                     let latestPrice = 0;
                     let latestBatchNumber = '';
                     let latestExpiryDate = '';
+                    let latestCCPercentage = 0;  // ADD THIS
+                    let latestItemCCAmount = 0;   // ADD THIS
 
                     if (item.stockEntries && item.stockEntries.length > 0) {
                         const sortedEntries = item.stockEntries.sort((a, b) =>
@@ -533,6 +537,8 @@ const AddPurcRtn = () => {
                         latestPrice = sortedEntries[0].puPrice || 0;
                         latestBatchNumber = sortedEntries[0].batchNumber || '';
                         latestExpiryDate = sortedEntries[0].expiryDate || '';
+                        latestCCPercentage = sortedEntries[0].ccPercentage || 0;  // ADD THIS
+                        latestItemCCAmount = sortedEntries[0].itemCcAmount || 0;  // ADD THIS
                     }
 
                     if (response.data.items.length > 0) {
@@ -546,6 +552,8 @@ const AddPurcRtn = () => {
                         latestPrice,
                         latestBatchNumber,
                         latestExpiryDate,
+                        latestCCPercentage,      // ADD THIS
+                        latestItemCCAmount,
                         stock: item.currentStock || 0
                     };
                 });
@@ -817,6 +825,19 @@ const AddPurcRtn = () => {
             return;
         }
 
+        const returnQuantity = 0;
+        const billQty = (batchInfo.billQty && batchInfo.billQty > 0) ? batchInfo.billQty : returnQuantity || 1;
+        const mainUnitPuPrice = (batchInfo.mainUnitPuPrice && batchInfo.mainUnitPuPrice > 0) ? batchInfo.mainUnitPuPrice : batchInfo.puPrice || 0;
+        const ccPercentage = batchInfo.ccPercentage || 0;
+        const actualQty = (batchInfo.actualQty && batchInfo.actualQty > 0) ? batchInfo.actualQty : 1;
+
+        let calculatedCcAmount = 0;
+        if (ccPercentage > 0 && mainUnitPuPrice > 0 && actualQty > 0 && billQty > 0) {
+            // CORRECT FORMULA
+            calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+            calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+        }
+
         const newItem = {
             itemId: item.id, // Use itemId for ASP.NET
             uniqueNumber: item.uniqueNumber || 'N/A',
@@ -833,7 +854,12 @@ const AddPurcRtn = () => {
             netPuPrice: batchInfo.netPuPrice || 0,
             amount: 0,
             vatStatus: item.vatStatus,
-            uniqueUuid: batchInfo.uniqueUuid
+            uniqueUuid: batchInfo.uniqueUuid,
+            ccPercentage: ccPercentage,
+            mainUnitPuPrice: mainUnitPuPrice,
+            billQty: billQty,
+            actualQty: actualQty,
+            itemCcAmount: calculatedCcAmount  // This will be updated when quantity changes
         };
 
         const updatedItems = [...items, newItem];
@@ -940,6 +966,12 @@ const AddPurcRtn = () => {
 
         const isHeaderInsert = selectedItemForBatch === selectedItemForInsert;
 
+        // Get the full batch entry with all fields
+        const fullBatchEntry = selectedItemForBatch.stockEntries?.find(
+            entry => entry.batchNumber === batchInfo.batchNumber &&
+                entry.uniqueUuid === batchInfo.uniqueUuid
+        );
+
         if (isHeaderInsert) {
             const batchKey = `${selectedItemForBatch.id}-${batchInfo.batchNumber}-${batchInfo.uniqueUuid}`;
             const availableStock = stockValidation.batchStockMap.get(batchKey) || 0;
@@ -967,6 +999,12 @@ const AddPurcRtn = () => {
                 return;
             }
 
+            // Get CC values from the batch entry
+            const ccPercentage = fullBatchEntry?.ccPercentage || 0;
+            const mainUnitPuPrice = fullBatchEntry?.mainUnitPuPrice || batchInfo.puPrice || 0;
+            const billQty = (fullBatchEntry?.billQty && fullBatchEntry.billQty > 0) ? fullBatchEntry.billQty : 1;
+            const actualQty = (fullBatchEntry?.actualQty && fullBatchEntry.actualQty > 0) ? fullBatchEntry.actualQty : 1;
+
             setSelectedItemForInsert({
                 ...selectedItemForInsert,
                 batchInfo: {
@@ -975,13 +1013,17 @@ const AddPurcRtn = () => {
                     price: batchInfo.price,
                     uniqueUuid: batchInfo.uniqueUuid,
                     puPrice: batchInfo.puPrice,
-                    netPuPrice: batchInfo.netPuPrice
+                    netPuPrice: batchInfo.netPuPrice,
+                    ccPercentage: ccPercentage,
+                    mainUnitPuPrice: mainUnitPuPrice,
+                    billQty: billQty,
+                    actualQty: actualQty
                 }
             });
 
             setSelectedItemBatchNumber(batchInfo.batchNumber || '');
             setSelectedItemExpiryDate(batchInfo.expiryDate ? formatDateForInput(batchInfo.expiryDate) : '');
-            setSelectedItemRate(batchInfo.puPrice || 0);
+            setSelectedItemRate(batchInfo.netPuPrice || 0);
 
             // Close batch modal first
             setShowBatchModal(false);
@@ -1004,6 +1046,12 @@ const AddPurcRtn = () => {
             setShowBatchModal(false); // Close modal first
             setSelectedItemForBatch(null);
 
+            // Get CC values from the batch entry
+            const ccPercentage = fullBatchEntry?.ccPercentage || 0;
+            const mainUnitPuPrice = fullBatchEntry?.mainUnitPuPrice || batchInfo.puPrice || 0;
+            const billQty = fullBatchEntry?.billQty || 0;
+            const actualQty = fullBatchEntry?.actualQty || 0;
+
             // Then add item to bill
             addItemToBill(selectedItemForBatch, {
                 batchNumber: batchInfo.batchNumber,
@@ -1011,7 +1059,11 @@ const AddPurcRtn = () => {
                 price: batchInfo.price,
                 uniqueUuid: batchInfo.uniqueUuid,
                 puPrice: batchInfo.puPrice,
-                netPuPrice: batchInfo.netPuPrice
+                netPuPrice: batchInfo.netPuPrice,
+                ccPercentage: ccPercentage,
+                mainUnitPuPrice: mainUnitPuPrice,
+                billQty: billQty,
+                actualQty: actualQty
             });
         }
     };
@@ -1072,6 +1124,25 @@ const AddPurcRtn = () => {
             return;
         }
 
+        const billQty = (selectedItemForInsert.batchInfo?.billQty && selectedItemForInsert.batchInfo?.billQty > 0)
+            ? selectedItemForInsert.batchInfo?.billQty
+            : selectedItemQuantity;
+        const mainUnitPuPrice = (selectedItemForInsert.batchInfo?.mainUnitPuPrice && selectedItemForInsert.batchInfo?.mainUnitPuPrice > 0)
+            ? selectedItemForInsert.batchInfo?.mainUnitPuPrice
+            : selectedItemRate || 0;
+        const ccPercentage = selectedItemForInsert.batchInfo?.ccPercentage || 0;
+        const actualQty = (selectedItemForInsert.batchInfo?.actualQty && selectedItemForInsert.batchInfo?.actualQty > 0)
+            ? selectedItemForInsert.batchInfo?.actualQty
+            : 1;
+        const returnQuantity = selectedItemQuantity;
+
+        let calculatedCcAmount = 0;
+        if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0 && billQty > 0) {
+            // CORRECT FORMULA: (billQty × mainUnitPuPrice × ccPercentage × returnQuantity) / (100 × actualQty)
+            calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+            calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+        }
+
         const newItem = {
             itemId: selectedItemForInsert.id,
             uniqueNumber: selectedItemForInsert.uniqueNumber || 'N/A',
@@ -1084,11 +1155,16 @@ const AddPurcRtn = () => {
             unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
             unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
             price: selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100,
-            puPrice: selectedItemRate || selectedItemForInsert.batchInfo?.puPrice || 0,
+            puPrice: selectedItemRate || selectedItemForInsert.batchInfo?.netPuPrice || 0,
             netPuPrice: selectedItemForInsert.batchInfo?.netPuPrice || 0,
             amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.puPrice * 100) / 100),
             vatStatus: selectedItemForInsert.vatStatus,
-            uniqueUuid: uniqueUuid
+            uniqueUuid: uniqueUuid,
+            ccPercentage: ccPercentage,
+            mainUnitPuPrice: mainUnitPuPrice,
+            billQty: billQty,
+            actualQty: actualQty,
+            itemCcAmount: calculatedCcAmount
         };
 
         const updatedItems = [...items, newItem];
@@ -1129,6 +1205,34 @@ const AddPurcRtn = () => {
             if (field === 'quantity') {
                 const item = updatedItems[index];
                 const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+
+                const returnQuantity = parseFloat(value) || 0;
+                // FIX: Use proper defaults - if billQty/actualQty is 0, use returnQuantity as fallback
+                const billQty = (item.billQty && item.billQty > 0) ? item.billQty : returnQuantity;
+                const mainUnitPuPrice = (item.mainUnitPuPrice && item.mainUnitPuPrice > 0) ? item.mainUnitPuPrice : item.puPrice || 0;
+                const ccPercentage = item.ccPercentage || 0;
+                const actualQty = (item.actualQty && item.actualQty > 0) ? item.actualQty : 1;
+
+                let calculatedCcAmount = 0;
+                if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0) {
+                    // CORRECT FORMULA: (billQty × mainUnitPuPrice × ccPercentage × returnQuantity) / (100 × actualQty)
+                    calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+                    calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+                }
+
+                updatedItems[index].itemCcAmount = calculatedCcAmount;
+
+                // Log for debugging
+                console.log(`CC Calculation for ${item.name}:`, {
+                    returnQuantity,
+                    billQty,
+                    mainUnitPuPrice,
+                    ccPercentage,
+                    actualQty,
+                    totalCcForBatch: (billQty * mainUnitPuPrice * ccPercentage) / 100,
+                    calculatedCcAmount
+                });
+
 
                 if (stockValidation.batchStockMap.has(batchKey)) {
                     const isValid = validateQuantity(index, value, updatedItems);
@@ -1198,44 +1302,132 @@ const AddPurcRtn = () => {
         };
     }, []);
 
+    useEffect(() => {
+        if (isCCManuallyEdited) {
+            setManualCCAmount(null);
+            setIsCCManuallyEdited(false);
+        }
+    }, [items]);
+
+    // Add this function at the top of your AddPurcRtn component (after the useState declarations)
+    const calculateCcAmount = (batchEntry, returnQuantity) => {
+        // Get values from batch entry (stock entry)
+        const billQty = batchEntry.billQty || returnQuantity;
+        const mainUnitPuPrice = batchEntry.mainUnitPuPrice || batchEntry.puPrice || 0;
+        const ccPercentage = batchEntry.ccPercentage || 0;
+        const actualQty = batchEntry.actualQty || 1;
+
+        if (ccPercentage === 0 || mainUnitPuPrice === 0) {
+            return 0;
+        }
+
+        // Calculate total CC for the original batch
+        const totalCcForBatch = (billQty * mainUnitPuPrice * ccPercentage) / 100;
+
+        // Calculate proportional CC for returned quantity
+        const ccAmount = (totalCcForBatch * returnQuantity) / actualQty;
+
+        // Round to 2 decimal places
+        return Math.round(ccAmount * 100) / 100;
+    };
+
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
         let nonTaxableAmount = 0;
+        let totalCcAmount = 0;
+        let taxableCCAmount = 0;
+        let nonTaxableCCAmount = 0;
 
         itemsToCalculate.forEach(item => {
-            subTotal += parseFloat(item.amount) || 0;
+            const itemAmount = parseFloat(item.amount) || 0;
+            const itemCCAmount = parseFloat(item.itemCcAmount) || 0;
+
+            subTotal = preciseAdd(subTotal, itemAmount);
+            totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
 
             if (item.vatStatus === 'vatable') {
-                taxableAmount += parseFloat(item.amount) || 0;
+                taxableAmount = preciseAdd(taxableAmount, itemAmount);
+                taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
             } else {
-                nonTaxableAmount += parseFloat(item.amount) || 0;
+                nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
+                nonTaxableCCAmount = preciseAdd(nonTaxableCCAmount, itemCCAmount);
             }
         });
 
         const discountPercentage = parseFloat(formData.discountPercentage) || 0;
         const discountAmount = parseFloat(formData.discountAmount) || 0;
 
-        const discountForTaxable = (taxableAmount * discountPercentage) / 100;
-        const discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
+        let effectiveDiscount = 0;
+        let discountForTaxable = 0;
+        let discountForNonTaxable = 0;
 
-        const finalTaxableAmount = taxableAmount - discountForTaxable;
-        const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
+        if (discountAmount > 0) {
+            effectiveDiscount = discountAmount;
 
-        let vatAmount = 0;
-        if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-            vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
+            if (subTotal > 0) {
+                const taxableRatio = taxableAmount / subTotal;
+                const nonTaxableRatio = nonTaxableAmount / subTotal;
+
+                discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
+                discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
+            }
+        } else if (discountPercentage > 0) {
+            discountForTaxable = preciseMultiply(taxableAmount, discountPercentage / 100);
+            discountForNonTaxable = preciseMultiply(nonTaxableAmount, discountPercentage / 100);
+            effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
         }
 
-        const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-        const totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount + roundOffAmount;
+        // Determine the final CC amount to use
+        let finalCCAmount = totalCcAmount;
+
+        // If user manually edited, use their value instead of calculated
+        if (isCCManuallyEdited && manualCCAmount !== null) {
+            finalCCAmount = manualCCAmount;
+        }
+
+        // Calculate taxable amount BEFORE discount (this is the base for VAT)
+        // The taxable amount should include the CC charge
+        let totalTaxableBase = preciseAdd(taxableAmount, taxableCCAmount);
+        let totalNonTaxableBase = preciseAdd(nonTaxableAmount, nonTaxableCCAmount);
+
+        // If CC was manually edited, we need to adjust the taxable base
+        // Replace the calculated CC portion with manual value
+        if (isCCManuallyEdited && manualCCAmount !== null && manualCCAmount !== totalCcAmount) {
+            // Remove calculated CC and add manual CC to taxable base
+            totalTaxableBase = preciseSubtract(totalTaxableBase, totalCcAmount);
+            totalTaxableBase = preciseAdd(totalTaxableBase, manualCCAmount);
+        }
+
+        // Apply discounts
+        const finalTaxableAmount = preciseSubtract(totalTaxableBase, discountForTaxable);
+        const finalNonTaxableAmount = preciseSubtract(totalNonTaxableBase, discountForNonTaxable);
+
+        // Calculate VAT
+        let vatAmount = 0;
+        if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+            vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
+        }
+
+        // Calculate total before round off
+        let totalBeforeRoundOff = preciseAdd(
+            preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
+            vatAmount
+        );
+
+        let roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+        const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
 
         return {
-            subTotal,
-            taxableAmount: finalTaxableAmount,
-            nonTaxableAmount: finalNonTaxableAmount,
-            vatAmount,
-            totalAmount
+            subTotal: preciseRound(subTotal, 2),
+            taxableAmount: preciseRound(finalTaxableAmount, 2),
+            nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
+            vatAmount: preciseRound(vatAmount, 2),
+            totalAmount: preciseRound(totalAmount, 2),
+            totalCCAmount: preciseRound(finalCCAmount, 2),
+            discountAmount: preciseRound(effectiveDiscount, 2),
+            roundOffAmount: preciseRound(roundOffAmount, 2),
+            autoRoundOffAmount: preciseRound(roundOffAmount, 2)
         };
     };
 
@@ -1261,6 +1453,22 @@ const AddPurcRtn = () => {
             discountAmount: value,
             discountPercentage: discountPercentage.toFixed(2)
         });
+    };
+
+    const preciseAdd = (a, b) => {
+        return parseFloat((parseFloat(a) + parseFloat(b)).toFixed(10));
+    };
+
+    const preciseSubtract = (a, b) => {
+        return parseFloat((parseFloat(a) - parseFloat(b)).toFixed(10));
+    };
+
+    const preciseMultiply = (a, b) => {
+        return parseFloat((parseFloat(a) * parseFloat(b)).toFixed(10));
+    };
+
+    const preciseRound = (value, decimals = 2) => {
+        return parseFloat(value.toFixed(decimals));
     };
 
     const fetchLastTransactions = async (itemId, index) => {
@@ -1595,6 +1803,7 @@ const AddPurcRtn = () => {
                 subTotal: calculatedValues.subTotal,
                 taxableAmount: calculatedValues.taxableAmount,
                 nonVatPurchase: calculatedValues.nonTaxableAmount,
+                totalCcAmount: calculatedValues.totalCCAmount,
                 totalAmount: calculatedValues.totalAmount,
                 nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
                 date: formData.billDate,
@@ -1612,7 +1821,9 @@ const AddPurcRtn = () => {
                     puPrice: item.puPrice,
                     netPuPrice: item.netPuPrice,
                     vatStatus: item.vatStatus,
-                    uniqueUuid: item.uniqueUuid
+                    uniqueUuid: item.uniqueUuid,
+                    ccPercentage: item.ccPercentage || 0,  // ADD THIS
+                    itemCcAmount: item.itemCcAmount || 0   // ADD THIS
                 })),
                 print
             };
@@ -2077,7 +2288,7 @@ const AddPurcRtn = () => {
                 </div>
 
                 {itemsToShow.length > 0 ? (
-                    <VirtualizedItemListForPurchase
+                    <VirtualizedItemListForPurchaseReturn
                         items={itemsToShow}
                         onItemClick={(item) => showBatchModalForItem(item)}
                         searchRef={itemSearchRef}
@@ -3592,7 +3803,7 @@ const AddPurcRtn = () => {
 
                                     {company.vatEnabled && formData.isVatExempt !== 'true' && (
                                         <>
-                                            <tr id="taxableAmountRow">
+                                            {/* <tr id="taxableAmountRow">
                                                 <td style={{ padding: '1px' }}>
                                                     <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
                                                 </td>
@@ -3635,6 +3846,241 @@ const AddPurcRtn = () => {
                                                 <td style={{ padding: '1px' }}>
                                                     <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.vatAmount.toFixed(2)}</p>
                                                 </td>
+                                            </tr> */}
+                                            {/* <tr id="taxableAmountRow">
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <div className="position-relative">
+                                                        <input
+                                                            type="number"
+                                                            name="CCAmount"
+                                                            id="CCAmount"
+                                                            className="form-control form-control-sm"
+                                                            value={totals.totalCCAmount.toFixed(2)}
+                                                            readOnly
+                                                            onFocus={(e) => {
+                                                                e.target.select();
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    handleKeyDown(e, 'CCAmount');
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                height: '22px',
+                                                                fontSize: '0.875rem',
+                                                                paddingTop: '0.5rem',
+                                                                width: '100%',
+                                                                backgroundColor: '#f8f9fa'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </td>
+                                                {company.vatEnabled && formData.isVatExempt !== 'true' && (
+                                                    <>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.taxableAmount.toFixed(2)}</p>
+                                                        </td>
+                                                        <td className="d-none">
+                                                            <input
+                                                                type="number"
+                                                                name="vatPercentage"
+                                                                id="vatPercentage"
+                                                                className="form-control"
+                                                                value={formData.vatPercentage}
+                                                                readOnly
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT (13%):</label>
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.vatAmount.toFixed(2)}</p>
+                                                        </td>
+                                                    </>
+                                                )}
+                                                {company.vatEnabled && formData.isVatExempt === 'true' && (
+                                                    <>
+                                                        <td colSpan="4"></td>
+                                                    </>
+                                                )}
+                                            </tr> */}
+
+                                            {/* <tr id="taxableAmountRow">
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <div className="position-relative">
+                                                        <div className="input-group input-group-sm">
+                                                            <input
+                                                                type="number"
+                                                                name="CCAmount"
+                                                                id="CCAmount"
+                                                                className="form-control form-control-sm"
+                                                                value={isCCManuallyEdited ? manualCCAmount : totals.totalCCAmount.toFixed(2)}
+                                                                onChange={(e) => {
+                                                                    const newValue = parseFloat(e.target.value) || 0;
+                                                                    setManualCCAmount(newValue);
+                                                                    setIsCCManuallyEdited(true);
+                                                                }}
+                                                                onFocus={(e) => {
+                                                                    e.target.select();
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        handleKeyDown(e, 'CCAmount');
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    height: '22px',
+                                                                    fontSize: '0.875rem',
+                                                                    paddingTop: '0.5rem',
+                                                                    width: '100%'
+                                                                }}
+                                                            />
+                                                            {isCCManuallyEdited && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-outline-secondary btn-sm"
+                                                                    onClick={() => {
+                                                                        setManualCCAmount(null);
+                                                                        setIsCCManuallyEdited(false);
+                                                                    }}
+                                                                    title="Reset to calculated CC amount"
+                                                                    style={{
+                                                                        height: '22px',
+                                                                        fontSize: '0.75rem'
+                                                                    }}
+                                                                >
+                                                                    <i className="bi bi-arrow-repeat"></i>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                {company.vatEnabled && formData.isVatExempt !== 'true' && (
+                                                    <>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.taxableAmount.toFixed(2)}</p>
+                                                        </td>
+                                                        <td className="d-none">
+                                                            <input
+                                                                type="number"
+                                                                name="vatPercentage"
+                                                                id="vatPercentage"
+                                                                className="form-control"
+                                                                value={formData.vatPercentage}
+                                                                readOnly
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT (13%):</label>
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.vatAmount.toFixed(2)}</p>
+                                                        </td>
+                                                    </>
+                                                )}
+                                                {company.vatEnabled && formData.isVatExempt === 'true' && (
+                                                    <>
+                                                        <td colSpan="4"></td>
+                                                    </>
+                                                )}
+                                            </tr> */}
+
+                                            <tr id="taxableAmountRow">
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <div className="d-flex align-items-center gap-1" style={{ width: '100%' }}>
+                                                        <input
+                                                            type="number"
+                                                            name="CCAmount"
+                                                            id="CCAmount"
+                                                            className="form-control form-control-sm"
+                                                            value={isCCManuallyEdited ? manualCCAmount : totals.totalCCAmount.toFixed(2)}
+                                                            onChange={(e) => {
+                                                                const newValue = parseFloat(e.target.value) || 0;
+                                                                setManualCCAmount(newValue);
+                                                                setIsCCManuallyEdited(true);
+                                                            }}
+                                                            onFocus={(e) => {
+                                                                e.target.select();
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    handleKeyDown(e, 'CCAmount');
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                height: '22px',
+                                                                fontSize: '0.875rem',
+                                                                paddingTop: '0.5rem',
+                                                                width: isCCManuallyEdited ? '85%' : '100%'
+                                                            }}
+                                                        />
+                                                        {isCCManuallyEdited && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center"
+                                                                onClick={() => {
+                                                                    setManualCCAmount(null);
+                                                                    setIsCCManuallyEdited(false);
+                                                                }}
+                                                                title="Reset to calculated CC amount"
+                                                                style={{
+                                                                    height: '22px',
+                                                                    width: '28px',
+                                                                    fontSize: '0.7rem',
+                                                                    padding: '0'
+                                                                }}
+                                                            >
+                                                                <i className="bi bi-arrow-repeat" style={{ fontSize: '0.7rem' }}></i>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                {company.vatEnabled && formData.isVatExempt !== 'true' && (
+                                                    <>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.taxableAmount.toFixed(2)}</p>
+                                                        </td>
+                                                        <td className="d-none">
+                                                            <input
+                                                                type="number"
+                                                                name="vatPercentage"
+                                                                id="vatPercentage"
+                                                                className="form-control"
+                                                                value={formData.vatPercentage}
+                                                                readOnly
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT (13%):</label>
+                                                        </td>
+                                                        <td style={{ padding: '1px' }}>
+                                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.vatAmount.toFixed(2)}</p>
+                                                        </td>
+                                                    </>
+                                                )}
+                                                {company.vatEnabled && formData.isVatExempt === 'true' && (
+                                                    <>
+                                                        <td colSpan="4"></td>
+                                                    </>
+                                                )}
                                             </tr>
                                         </>
                                     )}
@@ -3670,7 +4116,7 @@ const AddPurcRtn = () => {
                                                         width: '100%'
                                                     }}
                                                 />
-                                                <label
+                                                {/* <label
                                                     className="position-absolute"
                                                     style={{
                                                         top: '-0.4rem',
@@ -3683,7 +4129,7 @@ const AddPurcRtn = () => {
                                                     }}
                                                 >
                                                     Rs.
-                                                </label>
+                                                </label> */}
                                             </div>
                                         </td>
                                         <td style={{ padding: '1px' }}>
@@ -4290,7 +4736,7 @@ const AddPurcRtn = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemListForPurchase
+                                            <VirtualizedItemListForPurchaseReturn
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);
@@ -4380,6 +4826,7 @@ const AddPurcRtn = () => {
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Stock</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>S.P</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>C.P</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>CC%</th>      {/* ADD THIS */}
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>%</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>MRP</th>
                                                 </tr>
@@ -4555,7 +5002,8 @@ const AddPurcRtn = () => {
                                                                     </span>
                                                                 </td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.price * 100) / 100}</td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.puPrice * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.netPuPrice * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.ccPercentage * 100) / 100 || 0}%</td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.marginPercentage * 100) / 100}</td>
                                                                 <td className="align-middle d-none" style={{ padding: '3px' }}>{entry.uniqueUuid}</td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.mrp * 100) / 100}</td>

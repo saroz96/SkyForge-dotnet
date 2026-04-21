@@ -823,7 +823,8 @@ const handleSubmit = async (e) => {
             openingBalance: {
                 amount: parseFloat(formData.openingBalance.amount) || 0,
                 type: formData.openingBalance.type || 'Dr'
-            }
+            },
+            isActive: true
         };
 
         // Validate required fields

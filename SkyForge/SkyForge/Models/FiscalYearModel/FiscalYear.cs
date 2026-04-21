@@ -24,7 +24,6 @@ namespace SkyForge.Models.FiscalYearModel
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 
-        // For Nepali dates (as strings)
         [MaxLength(20)]
         public string? StartDateNepali { get; set; }
 

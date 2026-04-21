@@ -106,6 +106,10 @@ namespace SkyForge.Models.Retailer.PurchaseReturnModel
         [Precision(18, 2)]
         public decimal? TotalAmount { get; set; }
 
+        [Column("total_cc_amount")]
+        [Precision(18, 2)]
+        public decimal TotalCcAmount { get; set; } = 0;
+
         [Column("is_vat_exempt")]
         public bool IsVatExempt { get; set; } = false;
 

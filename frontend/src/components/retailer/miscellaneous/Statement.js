@@ -693,7 +693,6 @@ const Statement = () => {
                     <title>Statement - ${viewMode === 'regular' ? 'Regular' : 'Itemwise'}</title>
                     <style>
                         @page { 
-                            size: A4 landscape; 
                             margin: 10mm; 
                         }
                         body { 
@@ -1308,6 +1307,63 @@ const Statement = () => {
     });
 
     // Table Row Component
+    // const TableRow = React.memo(({ index, style, data: rowData }) => {
+    //     const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
+    //     const item = statement[index];
+
+    //     if (!item) return null;
+
+    //     const isSelected = selectedRowIndex === index;
+
+    //     return (
+    //         <div
+    //             style={{
+    //                 ...style,
+    //                 display: 'flex',
+    //                 alignItems: 'center',
+    //                 height: '28px',
+    //                 minHeight: '28px',
+    //                 padding: '0',
+    //                 borderBottom: '1px solid #dee2e6',
+    //                 cursor: 'pointer',
+    //                 backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
+    //             }}
+    //             onClick={() => handleRowClick(index)}
+    //             onDoubleClick={() => handleRowDoubleClick(item)}
+    //         >
+    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.date}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.date ? (company.dateFormat === 'nepali'
+    //                     ? new NepaliDate(item.date).format('YYYY-MM-DD')
+    //                     : new Date(item.date).toISOString().split('T')[0]) : ''}</span>
+    //             </div>
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.billNumber || ''}</span>
+    //             </div>
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.type || ''}</span>
+    //             </div>
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
+    //             </div>
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.PaymentReceiptType || item.journalAccountType || 'Opening'}>
+    //                 <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+    //                     {item.accountType || item.purchaseSalesType || item.PaymentReceiptType || item.journalAccountType || 'Opening'}
+    //                 </span>
+    //             </div>
+    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.debit)}</span>
+    //             </div>
+    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.credit)}</span>
+    //             </div>
+    //             <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatBalance(item.balance)}</span>
+    //             </div>
+    //         </div>
+    //     );
+    // });
+
+    // Table Row Component - Update the account column display
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
         const item = statement[index];
@@ -1315,6 +1371,27 @@ const Statement = () => {
         if (!item) return null;
 
         const isSelected = selectedRowIndex === index;
+
+        // *** ADD THIS FUNCTION TO FORMAT ACCOUNT NAME WITH PARTY BILL NUMBER ***
+        const getFormattedAccountName = (item) => {
+            // For Purchase transactions
+            if (item.type === 'Purc') {
+                if (item.partyBillNumber) {
+                    return `Purchase ${item.partyBillNumber}`;
+                }
+                return item.accountType || item.purchaseSalesType || 'Purchase';
+            }
+            // For Purchase Return transactions
+            if (item.type === 'PrRt') {
+                if (item.partyBillNumber) {
+                    return `Purchase Return ${item.partyBillNumber}`;
+                }
+                return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
+            }
+            // For other transaction types
+            return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
+                item.PaymentReceiptType || item.journalAccountType || 'Opening';
+        };
 
         return (
             <div
@@ -1332,31 +1409,50 @@ const Statement = () => {
                 onClick={() => handleRowClick(index)}
                 onDoubleClick={() => handleRowDoubleClick(item)}
             >
+                {/* Date Column */}
                 <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.date}px`, flexShrink: 0, height: '100%' }}>
                     <span style={{ fontSize: '0.75rem' }}>{item.date ? (company.dateFormat === 'nepali'
                         ? new NepaliDate(item.date).format('YYYY-MM-DD')
                         : new Date(item.date).toISOString().split('T')[0]) : ''}</span>
                 </div>
+
+                {/* Voucher No Column */}
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ fontSize: '0.75rem' }}>{item.billNumber || ''}</span>
                 </div>
+
+                {/* Type Column */}
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ fontSize: '0.75rem' }}>{item.type || ''}</span>
                 </div>
+
+                {/* Pay Mode Column */}
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
                 </div>
-                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.PaymentReceiptType || item.journalAccountType || 'Opening'}>
+
+                {/* Account Column - MODIFIED HERE */}
+                <div
+                    className="d-flex align-items-center px-1 border-end"
+                    style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
+                    title={getFormattedAccountName(item)}
+                >
                     <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.accountType || item.purchaseSalesType || item.PaymentReceiptType || item.journalAccountType || 'Opening'}
+                        {getFormattedAccountName(item)}
                     </span>
                 </div>
+
+                {/* Debit Column */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
                     <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.debit)}</span>
                 </div>
+
+                {/* Credit Column */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
                     <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.credit)}</span>
                 </div>
+
+                {/* Balance Column */}
                 <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
                     <span style={{ fontSize: '0.75rem' }}>{formatBalance(item.balance)}</span>
                 </div>

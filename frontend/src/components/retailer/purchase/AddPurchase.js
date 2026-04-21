@@ -136,7 +136,7 @@ const AddPurchase = () => {
 
     const [salesPriceData, setSalesPriceData] = useState({
         puPrice: 0,
-        CCPercentage: 7.5,
+        CCPercentage: 0,
         itemCCAmount: 0,
         marginPercentage: 0,
         currency: 'NPR',
@@ -656,6 +656,17 @@ const AddPurchase = () => {
                 setSelectedItemWSUnit(lastData.wsUnit || 1);
                 setSelectedItemBatchNumber(lastData.batchNumber || 'XXX');
 
+                // STORE THE ACTUAL CC% FROM LAST PURCHASE DATA
+                const actualCcPercentage = lastData.ccPercentage || 0;
+
+                // Update salesPriceData with actual CC%
+                setSalesPriceData(prev => ({
+                    ...prev,
+                    CCPercentage: actualCcPercentage,
+                    puPrice: lastData.puPrice || 0,
+                    itemCCAmount: lastData.itemCcAmount || 0
+                }));
+
                 if (lastData.expiryDate) {
                     setSelectedItemExpiryDate(lastData.expiryDate);
                 }
@@ -674,6 +685,14 @@ const AddPurchase = () => {
                 setSelectedItemWSUnit(latestStockEntry.WSUnit || 1);
                 setSelectedItemBatchNumber(latestStockEntry.batchNumber || '');
 
+                const actualCcPercentage = latestStockEntry.ccPercentage || 0;
+                setSalesPriceData(prev => ({
+                    ...prev,
+                    CCPercentage: actualCcPercentage,
+                    puPrice: latestStockEntry.puPrice || 0,
+                    itemCCAmount: latestStockEntry.itemCcAmount || 0
+                }));
+
                 let expiryDate = '';
                 if (latestStockEntry.expiryDate) {
                     if (latestStockEntry.expiryDate instanceof Date) {
@@ -690,6 +709,12 @@ const AddPurchase = () => {
                     }
                 }
                 setSelectedItemExpiryDate(expiryDate);
+            } else {
+                // If no data found, set CC% to 0
+                setSalesPriceData(prev => ({
+                    ...prev,
+                    CCPercentage: 0
+                }));
             }
         }
 
@@ -1251,7 +1276,7 @@ const AddPurchase = () => {
 
         const prevPuPrice = Math.round((lastData.puPrice) * 100) / 100 || 0;
         const currentPuPrice = Math.round(selectedItemRate * 100) / 100;
-        const CCPercentage = lastData.ccPercentage || 7.5;
+        const CCPercentage = lastData.ccPercentage || 0;
         const marginPercentage = lastData.marginPercentage || 0;
         const currency = lastData.currency || 'NPR';
         const latestMrp = Math.round((lastData.mrp) * 100) / 100 || 0;
@@ -1314,7 +1339,7 @@ const AddPurchase = () => {
 
         const prevPuPrice = Math.round((latestStockEntry.puPrice) * 100) / 100 || 0;
         const currentPuPrice = Math.round(item.puPrice * 100) / 100;
-        const CCPercentage = latestStockEntry.ccPercentage || item.ccPercentage || 7.5;
+        const CCPercentage = latestStockEntry.ccPercentage || item.ccPercentage || 0;
         const marginPercentage = latestStockEntry.marginPercentage || item.marginPercentage || 0;
         const currency = latestStockEntry.currency || item.currency || 'NPR';
         const latestMrp = Math.round((latestStockEntry.mrp) * 100) / 100 || item.mrp || 0;
@@ -1388,13 +1413,15 @@ const AddPurchase = () => {
             setIsHeaderMode(false);
             setShowSalesPriceModal(false);
 
-            setTimeout(() => {
-                const searchInput = document.getElementById('headerItemSearch');
-                if (searchInput) {
-                    searchInput.focus();
-                    searchInput.select();
-                }
-            }, 50);
+            focusOnHeaderSearchInput()
+
+            // setTimeout(() => {
+            //     const searchInput = document.getElementById('headerItemSearch');
+            //     if (searchInput) {
+            //         searchInput.focus();
+            //         searchInput.select();
+            //     }
+            // }, 50);
 
         } else {
             // Handle regular mode (existing code)
@@ -1413,6 +1440,7 @@ const AddPurchase = () => {
 
             setItems(updatedItems);
             setShowSalesPriceModal(false);
+            focusOnHeaderSearchInput();
         }
     };
 
@@ -1880,18 +1908,6 @@ const AddPurchase = () => {
         }
     };
 
-    // const checkDuplicatePartyBillNumber = async (billNumber) => {
-    //     try {
-    //         if (!billNumber) return { exists: false, partyName: '', date: null };
-
-    //         const response = await api.get(`/api/retailer/purchase/check-invoice?partyBillNumber=${billNumber}`);
-    //         return response.data;
-    //     } catch (error) {
-    //         console.error('Error checking duplicate invoice:', error);
-    //         return { exists: false, partyName: '', date: null };
-    //     }
-    // };
-
     const checkDuplicatePartyBillNumber = async (billNumber) => {
         try {
             if (!billNumber) return { exists: false, partyName: '', date: null, dateString: '' };
@@ -1937,6 +1953,10 @@ const AddPurchase = () => {
                 e.preventDefault();
                 setShowAccountCreationModal(true);
                 setShowAccountModal(false);
+            } else if (showSalesPriceModal && e.key === 'Escape') {
+                e.preventDefault();
+                setShowSalesPriceModal(false);
+                focusOnHeaderSearchInput();
             }
         };
 
@@ -2098,6 +2118,15 @@ const AddPurchase = () => {
         );
     }, [showItemDropdown, searchResults, searchQuery, lastSearchQuery, shouldShowLastSearchResults]);
 
+    const focusOnHeaderSearchInput = () => {
+        setTimeout(() => {
+            const searchInput = document.getElementById('headerItemSearch');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }, 100);
+    };
 
     return (
         <div className="container-fluid">
@@ -2120,6 +2149,28 @@ const AddPurchase = () => {
                                 <span className="badge bg-danger">{dateErrors.nepaliDate}</span>
                             )}
                         </div>
+                        {/* Duplicate Invoice Warning */}
+                        {duplicateInvoiceInfo.exists && (
+                            <span
+                                className="badge bg-warning text-dark"
+                                style={{
+                                    fontSize: '0.7rem',
+                                    padding: '0.35rem 0.65rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}
+                                title={`This invoice was previously used by ${duplicateInvoiceInfo.partyName} on ${duplicateInvoiceInfo.date ? new Date(duplicateInvoiceInfo.date).toISOString().split('T')[0] : 'unknown date'}`}
+                            >
+                                <i className="bi bi-exclamation-triangle-fill me-1" style={{ fontSize: '0.65rem' }}></i>
+                                Warning: Invoice already used by {duplicateInvoiceInfo.partyName}
+                                {duplicateInvoiceInfo.date && (
+                                    <span className="ms-1 opacity-75">
+                                        ({new Date(duplicateInvoiceInfo.date).toISOString().split('T')[0]})
+                                    </span>
+                                )}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="card-body p-2 p-md-3">
@@ -2813,18 +2864,6 @@ const AddPurchase = () => {
                                     >
                                         Party Inv. No: <span className="text-danger">*</span>
                                     </label>
-                                    {/* {duplicateInvoiceInfo.exists && (
-                                        <div className="text-warning small mt-1" style={{ fontSize: '0.7rem' }}>
-                                            Warning: This invoice already used by {duplicateInvoiceInfo.partyName} on {new Date(duplicateInvoiceInfo.date).toISOString().split('T')[0]}
-                                        </div>
-                                    )} */}
-                                    {duplicateInvoiceInfo.exists && (
-                                        <div className="text-warning small mt-1" style={{ fontSize: '0.7rem' }}>
-                                            Warning: This invoice already used by {duplicateInvoiceInfo.partyName} on {
-                                                duplicateInvoiceInfo.dateString || new Date(duplicateInvoiceInfo.date).toLocaleDateString()
-                                            }
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -4565,7 +4604,10 @@ const AddPurchase = () => {
                                 <button
                                     type="button"
                                     className="btn-close"
-                                    onClick={() => setShowSalesPriceModal(false)}
+                                    onClick={() => {
+                                        setShowSalesPriceModal(false);
+                                        focusOnHeaderSearchInput();
+                                    }}
                                     style={{ fontSize: '0.6rem', padding: '0.25rem' }}
                                 ></button>
                             </div>
@@ -4970,7 +5012,10 @@ const AddPurchase = () => {
                                     type="button"
                                     className="btn btn-secondary btn-sm py-1 px-2"
                                     id='saveSalesPriceClose'
-                                    onClick={() => setShowSalesPriceModal(false)}
+                                    onClick={() => {
+                                        setShowSalesPriceModal(false);
+                                        focusOnHeaderSearchInput();
+                                    }}
                                     style={{
                                         fontSize: '0.8rem',
                                         lineHeight: '1.2',

@@ -36,509 +36,6 @@ namespace SkyForge.Controllers.Retailer
             _itemService = itemService; // Initialize the service
         }
 
-        // [HttpGet("items")]
-        // public async Task<IActionResult> GetItems()
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("=== GetItems Started ===");
-
-        //         // 1. Extract ALL required info from JWT claims
-        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        //         var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-        //         var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-        //         var isAdminClaim = User.FindFirst("isAdmin")?.Value;
-        //         var roleName = User.FindFirst(ClaimTypes.Role)?.Value;
-        //         var companyId = User.FindFirst("currentCompany")?.Value;
-        //         var companyName = User.FindFirst("currentCompanyName")?.Value;
-        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-        //         var fiscalYearId = User.FindFirst("currentFiscalYear")?.Value;
-
-        //         // 2. Parse boolean claims
-        //         bool isAdmin = bool.TryParse(isAdminClaim, out bool admin) && admin;
-
-        //         // 3. Validate required claims exist
-        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
-        //         {
-        //             _logger.LogError("Invalid or missing userId claim");
-        //             return Unauthorized(new
-        //             {
-        //                 success = false,
-        //                 error = "Invalid user token. Please login again.",
-        //                 redirectTo = "/login"
-        //             });
-        //         }
-
-        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
-        //         {
-        //             _logger.LogError("No company selected in JWT token");
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "No company selected. Please select a company first.",
-        //                 redirectTo = "/user-dashboard"
-        //             });
-        //         }
-
-        //         // 4. Validate trade type is Retailer
-        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
-        //         {
-        //             _logger.LogWarning($"Access denied: TradeType is {tradeTypeClaim}, not Retailer");
-        //             return StatusCode(403, new
-        //             {
-        //                 success = false,
-        //                 error = "Access denied for this trade type. This is a Retailer-only feature.",
-        //                 redirectTo = "/user-dashboard"
-        //             });
-        //         }
-
-        //         // 5. Get company details
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyIdGuid)
-        //             .Select(c => new
-        //             {
-        //                 c.Id,
-        //                 c.Name,
-        //                 c.RenewalDate,
-        //                 DateFormat = c.DateFormat,
-        //                 VatEnabled = c.VatEnabled
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //         {
-        //             _logger.LogError($"Company not found: {companyIdGuid}");
-        //             return NotFound(new
-        //             {
-        //                 success = false,
-        //                 error = "Company not found",
-        //                 redirectTo = "/user-dashboard"
-        //             });
-        //         }
-
-        //         // 6. Get current fiscal year (from JWT claim or database)
-        //         Models.FiscalYearModel.FiscalYear? currentFiscalYear = null;
-
-        //         // First try from JWT claim
-        //         if (!string.IsNullOrEmpty(fiscalYearId) && Guid.TryParse(fiscalYearId, out Guid fiscalYearIdGuid))
-        //         {
-        //             currentFiscalYear = await _context.FiscalYears
-        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearIdGuid && f.CompanyId == companyIdGuid);
-        //         }
-
-        //         // Fallback to active fiscal year for the company
-        //         if (currentFiscalYear == null)
-        //         {
-        //             currentFiscalYear = await _context.FiscalYears
-        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
-        //         }
-
-        //         // Fallback to any fiscal year
-        //         if (currentFiscalYear == null)
-        //         {
-        //             currentFiscalYear = await _context.FiscalYears
-        //                 .Where(f => f.CompanyId == companyIdGuid)
-        //                 .OrderByDescending(f => f.StartDate)
-        //                 .FirstOrDefaultAsync();
-        //         }
-
-        //         if (currentFiscalYear == null)
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "No fiscal year found for this company",
-        //                 redirectTo = "/fiscal-years"
-        //             });
-        //         }
-
-        //         // 7. Create scoped services for parallel operations to avoid DbContext concurrency issues
-        //         async Task<List<Item>> GetItemsAsync()
-        //         {
-        //             using var scope = _scopeFactory.CreateScope();
-        //             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        //             return await context.Items
-        //                 .Where(i => i.CompanyId == companyIdGuid && i.FiscalYearId == currentFiscalYear.Id)
-        //                 .Include(i => i.Category)
-        //                 .Include(i => i.ItemCompany)
-        //                 .Include(i => i.Unit)
-        //                 .Include(i => i.MainUnit)
-        //                 .Include(i => i.StockEntries)
-        //                 .Include(i => i.InitialOpeningStock)
-        //                     .ThenInclude(ios => ios!.InitialFiscalYear)
-        //                 .Include(i => i.ClosingStocksByFiscalYear)
-        //                     .ThenInclude(cs => cs.FiscalYear)
-        //                 .Include(i => i.OpeningStocksByFiscalYear)
-        //                     .ThenInclude(os => os.FiscalYear)
-        //                 .Include(i => i.ItemCompositions)
-        //                     .ThenInclude(ic => ic.Composition)
-        //                 .AsSplitQuery() // Use split query to avoid cartesian explosion
-        //                 .ToListAsync();
-        //         }
-
-        //         async Task<List<object>> GetCategoriesAsync()
-        //         {
-        //             using var scope = _scopeFactory.CreateScope();
-        //             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        //             return await context.Categories
-        //                 .Where(c => c.CompanyId == companyIdGuid)
-        //                 .Select(c => new { c.Id, c.Name })
-        //                 .ToListAsync<object>();
-        //         }
-
-        //         async Task<List<object>> GetItemsCompaniesAsync()
-        //         {
-        //             using var scope = _scopeFactory.CreateScope();
-        //             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        //             return await context.ItemCompanies
-        //                 .Where(ic => ic.CompanyId == companyIdGuid)
-        //                 .Select(ic => new { ic.Id, ic.Name })
-        //                 .ToListAsync<object>();
-        //         }
-
-        //         async Task<List<object>> GetUnitsAsync()
-        //         {
-        //             using var scope = _scopeFactory.CreateScope();
-        //             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        //             return await context.Units
-        //                 .Where(u => u.CompanyId == companyIdGuid)
-        //                 .Select(u => new { u.Id, u.Name })
-        //                 .ToListAsync<object>();
-        //         }
-
-        //         async Task<List<object>> GetMainUnitsAsync()
-        //         {
-        //             using var scope = _scopeFactory.CreateScope();
-        //             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        //             return await context.MainUnits
-        //                 .Where(u => u.CompanyId == companyIdGuid)
-        //                 .Select(u => new { u.Id, u.Name })
-        //                 .ToListAsync<object>();
-        //         }
-
-        //         async Task<List<object>> GetCompositionsAsync()
-        //         {
-        //             using var scope = _scopeFactory.CreateScope();
-        //             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        //             return await context.Compositions
-        //                 .Where(c => c.CompanyId == companyIdGuid)
-        //                 .Select(c => new { c.Id, c.Name, c.UniqueNumber })
-        //                 .ToListAsync<object>();
-        //         }
-
-        //         async Task<List<Guid>> GetTransactionsAsync(List<Guid> itemIds)
-        //         {
-        //             using var scope = _scopeFactory.CreateScope();
-        //             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        //             return await context.Transactions
-        //                 .Where(t => t.ItemId.HasValue && itemIds.Contains(t.ItemId.Value) && t.CompanyId == companyIdGuid)
-        //                 .Select(t => t.ItemId!.Value)
-        //                 .Distinct()
-        //                 .ToListAsync();
-        //         }
-
-        //         // 8. Execute main query first to get items and their IDs
-        //         var items = await GetItemsAsync();
-        //         var itemIds = items.Select(i => i.Id).ToList();
-
-        //         // 9. Execute parallel queries for related data
-        //         var categoriesTask = GetCategoriesAsync();
-        //         var itemsCompaniesTask = GetItemsCompaniesAsync();
-        //         var unitsTask = GetUnitsAsync();
-        //         var mainUnitsTask = GetMainUnitsAsync();
-        //         var compositionsTask = GetCompositionsAsync();
-        //         var transactionsTask = GetTransactionsAsync(itemIds);
-
-        //         // Wait for all parallel tasks
-        //         await Task.WhenAll(categoriesTask, itemsCompaniesTask, unitsTask, mainUnitsTask, compositionsTask, transactionsTask);
-
-        //         var categories = await categoriesTask;
-        //         var itemsCompanies = await itemsCompaniesTask;
-        //         var units = await unitsTask;
-        //         var mainUnits = await mainUnitsTask;
-        //         var compositions = await compositionsTask;
-        //         var transactions = await transactionsTask;
-
-        //         var transactionItemIds = new HashSet<Guid>(transactions);
-
-        //         // 10. Prepare items with flags and calculate current stock
-        //         var itemsWithFlags = items.Select(item =>
-        //         {
-        //             // Calculate current stock from stock entries
-        //             decimal currentStock = 0;
-
-        //             if (item.StockEntries != null && item.StockEntries.Any())
-        //             {
-        //                 currentStock = item.StockEntries.Sum(entry => entry.Quantity);
-        //             }
-        //             else
-        //             {
-        //                 currentStock = item.OpeningStock;
-        //             }
-
-        //             // Map to DTO
-        //             var itemDto = new ItemResponseDTO
-        //             {
-        //                 Id = item.Id,
-        //                 Name = item.Name,
-        //                 Hscode = item.Hscode,
-        //                 CategoryId = item.CategoryId,
-        //                 CategoryName = item.Category?.Name,
-        //                 ItemsCompanyId = item.ItemsCompanyId,
-        //                 ItemsCompanyName = item.ItemCompany?.Name,
-        //                 Price = item.Price,
-        //                 PuPrice = item.PuPrice,
-        //                 MainUnitPuPrice = item.MainUnitPuPrice,
-        //                 MainUnitId = item.MainUnitId,
-        //                 MainUnitName = item.MainUnit?.Name,
-        //                 WsUnit = item.WsUnit,
-        //                 UnitId = item.UnitId,
-        //                 UnitName = item.Unit?.Name,
-        //                 VatStatus = item.VatStatus,
-        //                 OpeningStock = item.OpeningStock,
-        //                 MinStock = item.MinStock,
-        //                 MaxStock = item.MaxStock,
-        //                 ReorderLevel = item.ReorderLevel,
-        //                 UniqueNumber = item.UniqueNumber,
-        //                 BarcodeNumber = item.BarcodeNumber,
-        //                 CompanyId = item.CompanyId,
-        //                 CompanyName = item.Company?.Name,
-        //                 FiscalYearId = item.FiscalYearId,
-        //                 FiscalYearName = item.FiscalYear?.Name,
-        //                 OriginalFiscalYearId = item.OriginalFiscalYearId,
-        //                 OriginalFiscalYearName = item.OriginalFiscalYear?.Name,
-        //                 Status = item.Status,
-        //                 CreatedAt = item.CreatedAt,
-        //                 Date = item.Date,
-        //                 UpdatedAt = item.UpdatedAt,
-        //                 TotalStock = currentStock,
-        //                 StockValue = currentStock * (item.Price ?? 0),
-        //                 ClosingStocksByFiscalYear = item.ClosingStocksByFiscalYear?.Select(cs => new ItemClosingStockByFiscalYearResponseDTO
-        //                 {
-        //                     Id = cs.Id,
-        //                     FiscalYearId = cs.FiscalYearId,
-        //                     FiscalYearName = cs.FiscalYear?.Name,
-        //                     ClosingStock = cs.ClosingStock,
-        //                     ClosingStockValue = cs.ClosingStockValue,
-        //                     PurchasePrice = cs.PurchasePrice,
-        //                     SalesPrice = cs.SalesPrice,
-        //                     CreatedAt = cs.CreatedAt,
-        //                     UpdatedAt = cs.UpdatedAt
-        //                 }).ToList() ?? new List<ItemClosingStockByFiscalYearResponseDTO>(),
-        //                 OpeningStocksByFiscalYear = item.OpeningStocksByFiscalYear?.Select(os => new ItemOpeningStockByFiscalYearResponseDTO
-        //                 {
-        //                     Id = os.Id,
-        //                     FiscalYearId = os.FiscalYearId,
-        //                     FiscalYearName = os.FiscalYear?.Name,
-        //                     OpeningStock = os.OpeningStock,
-        //                     OpeningStockValue = os.OpeningStockValue,
-        //                     PurchasePrice = os.PurchasePrice,
-        //                     SalesPrice = os.SalesPrice,
-        //                     CreatedAt = os.CreatedAt,
-        //                     UpdatedAt = os.UpdatedAt
-        //                 }).ToList() ?? new List<ItemOpeningStockByFiscalYearResponseDTO>()
-        //             };
-
-        //             // Add compositions from ItemCompositions
-        //             if (item.ItemCompositions != null && item.ItemCompositions.Any())
-        //             {
-        //                 itemDto.Compositions = item.ItemCompositions
-        //                     .Select(ic => ic.Composition)
-        //                     .Where(c => c != null)
-        //                     .Select(c => new CompositionDTO
-        //                     {
-        //                         Id = c!.Id,
-        //                         Name = c.Name
-        //                     }).ToList();
-        //             }
-
-        //             // Add initial opening stock if exists
-        //             if (item.InitialOpeningStock != null)
-        //             {
-        //                 itemDto.InitialOpeningStock = new InitialOpeningStockResponseDTO
-        //                 {
-        //                     InitialFiscalYearId = item.InitialOpeningStock.InitialFiscalYearId,
-        //                     InitialFiscalYearName = item.InitialOpeningStock.InitialFiscalYear?.Name,
-        //                     OpeningStock = item.InitialOpeningStock.OpeningStock,
-        //                     OpeningStockValue = item.InitialOpeningStock.OpeningStockValue,
-        //                     PurchasePrice = item.InitialOpeningStock.PurchasePrice,
-        //                     SalesPrice = item.InitialOpeningStock.SalesPrice,
-        //                     Date = item.InitialOpeningStock.Date,
-        //                     CreatedAt = item.InitialOpeningStock.CreatedAt,
-        //                     UpdatedAt = item.InitialOpeningStock.UpdatedAt
-        //                 };
-        //             }
-
-        //             // Add stock entries
-        //             if (item.StockEntries != null && item.StockEntries.Any())
-        //             {
-        //                 itemDto.StockEntries = item.StockEntries.Select(se => new StockEntryResponseDTO
-        //                 {
-        //                     Id = se.Id,
-        //                     ItemId = se.ItemId,
-        //                     ItemName = item.Name,
-        //                     Quantity = se.Quantity,
-        //                     Price = se.Price,
-        //                     NetPrice = se.NetPrice,
-        //                     PuPrice = se.PuPrice,
-        //                     NetPuPrice = se.NetPuPrice,
-        //                     MainUnitPuPrice = se.MainUnitPuPrice,
-        //                     Mrp = se.Mrp,
-        //                     BatchNumber = se.BatchNumber,
-        //                     ExpiryDate = se.ExpiryDate,
-        //                     ExpiryStatus = se.ExpiryStatus,
-        //                     DaysUntilExpiry = se.DaysUntilExpiry,
-        //                     Date = se.Date,
-        //                     CreatedAt = se.CreatedAt,
-        //                     UpdatedAt = se.UpdatedAt
-        //                 }).ToList();
-        //             }
-
-        //             return new
-        //             {
-        //                 Item = itemDto,
-        //                 HasTransactions = transactionItemIds.Contains(item.Id) ? "true" : "false",
-        //                 CurrentStock = currentStock,
-        //                 StockEntriesCount = item.StockEntries?.Count ?? 0
-        //             };
-        //         }).ToList();
-
-        //         // 11. Prepare user info
-        //         var userInfo = new
-        //         {
-        //             _id = userId,
-        //             name = userName ?? "User",
-        //             email = userEmail ?? "",
-        //             isAdmin = isAdmin,
-        //             role = roleName ?? "User",
-        //             preferences = new { theme = "light" }
-        //         };
-
-        //         // 12. Determine if user is admin or supervisor
-        //         bool isAdminOrSupervisor = isAdmin || (roleName == "Supervisor" || roleName == "Admin");
-
-        //         // 13. Prepare response
-        //         var responseData = new
-        //         {
-        //             success = true,
-        //             items = itemsWithFlags.Select(i => new
-        //             {
-        //                 _id = i.Item.Id,
-        //                 id = i.Item.Id,
-        //                 i.Item.Name,
-        //                 i.Item.Hscode,
-        //                 categoryId = i.Item.CategoryId,
-        //                 categoryName = i.Item.CategoryName,
-        //                 itemsCompanyId = i.Item.ItemsCompanyId,
-        //                 itemsCompanyName = i.Item.ItemsCompanyName,
-        //                 i.Item.Price,
-        //                 i.Item.PuPrice,
-        //                 i.Item.MainUnitPuPrice,
-        //                 mainUnitId = i.Item.MainUnitId,
-        //                 mainUnitName = i.Item.MainUnitName,
-        //                 compositions = i.Item.Compositions,
-        //                 wsUnit = i.Item.WsUnit,
-        //                 unitId = i.Item.UnitId,
-        //                 unitName = i.Item.UnitName,
-        //                 vatStatus = i.Item.VatStatus,
-        //                 openingStock = i.Item.OpeningStock,
-        //                 minStock = i.Item.MinStock,
-        //                 maxStock = i.Item.MaxStock,
-        //                 reorderLevel = i.Item.ReorderLevel,
-        //                 uniqueNumber = i.Item.UniqueNumber,
-        //                 barcodeNumber = i.Item.BarcodeNumber,
-        //                 companyId = i.Item.CompanyId,
-        //                 fiscalYearId = i.Item.FiscalYearId,
-        //                 i.Item.Status,
-        //                 createdAt = i.Item.CreatedAt,
-        //                 date = i.Item.Date,
-        //                 updatedAt = i.Item.UpdatedAt,
-        //                 totalStock = i.Item.TotalStock,
-        //                 stockValue = i.Item.StockValue,
-        //                 stockEntries = i.Item.StockEntries,
-        //                 closingStocksByFiscalYear = i.Item.ClosingStocksByFiscalYear,
-        //                 openingStocksByFiscalYear = i.Item.OpeningStocksByFiscalYear,
-        //                 initialOpeningStock = i.Item.InitialOpeningStock,
-        //                 // Additional properties for frontend
-        //                 hasTransactions = i.HasTransactions,
-        //                 currentStock = i.CurrentStock,
-        //                 stockEntriesCount = i.StockEntriesCount
-        //             }),
-        //             company = new
-        //             {
-        //                 renewalDate = company.RenewalDate,
-        //                 fiscalYear = currentFiscalYear.Id,
-        //                 dateFormat = company.DateFormat?.ToString()?.ToLower() ?? "english",
-        //                 vatEnabled = company.VatEnabled
-        //             },
-        //             currentFiscalYear = new
-        //             {
-        //                 _id = currentFiscalYear.Id,
-        //                 id = currentFiscalYear.Id,
-        //                 name = currentFiscalYear.Name,
-        //                 startDate = currentFiscalYear.StartDate,
-        //                 endDate = currentFiscalYear.EndDate,
-        //                 startDateNepali = currentFiscalYear.StartDateNepali,
-        //                 endDateNepali = currentFiscalYear.EndDateNepali,
-        //                 dateFormat = currentFiscalYear.DateFormat?.ToString()?.ToLower() ?? "english",
-        //                 isActive = currentFiscalYear.IsActive
-        //             },
-        //             currentCompany = new
-        //             {
-        //                 _id = company.Id,
-        //                 name = company.Name,
-        //                 dateFormat = company.DateFormat?.ToString()?.ToLower() ?? "english"
-        //             },
-        //             currentCompanyName = companyName ?? company.Name,
-        //             companyDateFormat = company.DateFormat?.ToString()?.ToLower() ?? "english",
-        //             vatEnabled = company.VatEnabled,
-        //             categories = categories,
-        //             itemsCompanies = itemsCompanies,
-        //             units = units,
-        //             mainUnits = mainUnits,
-        //             composition = compositions,
-        //             companyId = companyIdGuid.ToString(),
-        //             nepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"), // Use UTC
-        //             fiscalYear = currentFiscalYear.Id,
-        //             user = userInfo,
-        //             theme = "light",
-        //             isAdminOrSupervisor = isAdminOrSupervisor
-        //         };
-
-        //         // 14. Log debug info (optional)
-        //         if (itemsWithFlags.Count > 0)
-        //         {
-        //             _logger.LogInformation("Stock calculation debug - First 3 items:");
-        //             foreach (var item in itemsWithFlags.Take(3))
-        //             {
-        //                 _logger.LogInformation($"Item: {item.Item.Name}, CurrentStock: {item.CurrentStock}, " +
-        //                                       $"OpeningStock: {item.Item.OpeningStock}");
-        //             }
-        //         }
-
-        //         _logger.LogInformation($"Successfully fetched {itemsWithFlags.Count} items for company {company.Name}");
-
-        //         return Ok(responseData);
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error fetching items");
-        //         return StatusCode(500, new
-        //         {
-        //             success = false,
-        //             error = "Failed to fetch items",
-        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
-        //         });
-        //     }
-        // }
-
         [HttpGet("items")]
         public async Task<IActionResult> GetItems()
         {
@@ -896,6 +393,8 @@ namespace SkyForge.Controllers.Retailer
                             NetPrice = se.NetPrice,
                             PuPrice = se.PuPrice,
                             NetPuPrice = se.NetPuPrice,
+                            CcPercentage = se.CcPercentage,
+                            ItemCcAmount = se.ItemCcAmount,
                             MainUnitPuPrice = se.MainUnitPuPrice,
                             Mrp = se.Mrp,
                             BatchNumber = se.BatchNumber,
@@ -2435,10 +1934,14 @@ namespace SkyForge.Controllers.Retailer
                             ItemId = se.ItemId,
                             Date = se.Date,
                             Quantity = se.Quantity,
+                            BillQty = se.BillQty,
+                            ActualQty = se.ActualQty,
                             Price = se.Price,
                             NetPrice = se.NetPrice,
                             PuPrice = se.PuPrice,
                             NetPuPrice = se.NetPuPrice,
+                            CcPercentage = se.CcPercentage,
+                            ItemCcAmount = se.ItemCcAmount,
                             MainUnitPuPrice = se.MainUnitPuPrice,
                             MarginPercentage = se.MarginPercentage,
                             Mrp = se.Mrp,
@@ -2742,5 +2245,141 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
+
+
+        // PUT: api/retailer/items/{itemId}/batch
+        [HttpPut("items/{itemId}/batch")]
+        public async Task<IActionResult> UpdateBatchByNumber(Guid itemId, [FromBody] UpdateBatchByNumberDTO updateDto)
+        {
+            try
+            {
+                _logger.LogInformation("=== UpdateBatchByNumber Started for Item: {ItemId}, Old Batch: {OldBatchNumber} ===",
+                    itemId, updateDto?.OldBatchNumber);
+
+                // 1. Extract required info from JWT claims
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // 2. Validate required claims
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    _logger.LogError("No company selected in JWT token");
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first.",
+                        redirectTo = "/user-dashboard"
+                    });
+                }
+
+                // 3. Validate trade type is Retailer
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    _logger.LogWarning($"Access denied: TradeType is {tradeTypeClaim}, not Retailer");
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access denied for this trade type. This is a Retailer-only feature.",
+                        redirectTo = "/user-dashboard"
+                    });
+                }
+
+                // 4. Validate DTO
+                if (updateDto == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Request body is required"
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(updateDto.OldBatchNumber))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Old batch number is required"
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(updateDto.NewBatchNumber))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "New batch number is required"
+                    });
+                }
+
+                if (updateDto.Price <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Price must be greater than 0"
+                    });
+                }
+
+                if (updateDto.Mrp <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "MRP must be greater than 0"
+                    });
+                }
+
+                // 5. Update batch using service
+                var result = await _itemService.UpdateBatchByNumberAsync(itemId, updateDto.OldBatchNumber, updateDto, companyIdGuid);
+
+                if (!result)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = $"Item or batch '{updateDto.OldBatchNumber}' not found"
+                    });
+                }
+
+                // 6. Return success response
+                return Ok(new
+                {
+                    success = true,
+                    message = "Batch updated successfully",
+                    data = new
+                    {
+                        itemId = itemId,
+                        oldBatchNumber = updateDto.OldBatchNumber,
+                        newBatchNumber = updateDto.NewBatchNumber,
+                        expiryDate = updateDto.ExpiryDate,
+                        price = updateDto.Price,
+                        marginPercentage = updateDto.MarginPercentage,
+                        mrp = updateDto.Mrp
+                    }
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error in UpdateBatchByNumber");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in UpdateBatchByNumber for item {ItemId}", itemId);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while updating batch",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
     }
 }

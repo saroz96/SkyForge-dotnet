@@ -37,8 +37,8 @@ namespace SkyForge.Dto.AccountDto
         // Changed from int to Guid to match Account model
         [Required(ErrorMessage = "Account group is required")]
         public Guid AccountGroups { get; set; }
-
-        // Opening Balance as a nested object
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+        public DateTime NepaliDate { get; set; }
         public OpeningBalanceDTO OpeningBalance { get; set; } = new OpeningBalanceDTO();
 
     }
@@ -72,8 +72,10 @@ namespace SkyForge.Dto.AccountDto
 
         public Guid? AccountGroups { get; set; }  // Changed from int? to Guid?
         public bool IsActive { get; set; } = true;
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+        public DateTime NepaliDate { get; set; }
 
-        public OpeningBalanceDTO OpeningBalance { get; set; } = new OpeningBalanceDTO();
+        public OpeningBalanceDTO? OpeningBalance { get; set; }
     }
 
     public class AccountInfoDTO

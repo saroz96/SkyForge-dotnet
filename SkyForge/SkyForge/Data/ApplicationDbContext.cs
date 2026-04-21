@@ -1946,9 +1946,6 @@ namespace SkyForge.Data
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                // Calculate NetPuPrice based on WsUnit
-                entity.Property(e => e.NetPuPrice)
-                    .HasComputedColumnSql("CASE WHEN ws_unit IS NOT NULL AND ws_unit > 0 THEN net_price / ws_unit ELSE net_price END", stored: true);
             });
 
             // Add indexes for performance

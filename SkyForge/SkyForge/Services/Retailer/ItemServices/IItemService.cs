@@ -26,5 +26,7 @@ namespace SkyForge.Services.Retailer.ItemServices
         // You might also want to add these helper methods to the interface:
         Task<bool> CheckItemHasTransactionsAsync(Guid itemId);
         Task<Guid> GetCurrentFiscalYearIdAsync(Guid companyId);
+
+        Task<bool> UpdateBatchByNumberAsync(Guid itemId, string oldBatchNumber, UpdateBatchByNumberDTO updateDto, Guid companyId);
     }
 }

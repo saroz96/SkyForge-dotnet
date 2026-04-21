@@ -9,7 +9,7 @@ import '../../../stylesheet/noDateIcon.css';
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
+import VirtualizedItemListForPurchaseReturn from '../../VirtualizedItemListForPurchaseReturn';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
@@ -64,6 +64,8 @@ const EditPurcRtn = () => {
     const [headerSearchPage, setHeaderSearchPage] = useState(1);
     const [hasMoreHeaderSearchResults, setHasMoreHeaderSearchResults] = useState(false);
     const [totalHeaderSearchItems, setTotalHeaderSearchItems] = useState(0);
+    const [manualCCAmount, setManualCCAmount] = useState(null);
+    const [isCCManuallyEdited, setIsCCManuallyEdited] = useState(false);
 
     // Batch modal states
     const [showBatchModal, setShowBatchModal] = useState(false);
@@ -112,6 +114,7 @@ const EditPurcRtn = () => {
         billDate: new Date().toISOString().split('T')[0],
         billNumber: '',
         paymentMode: 'credit',
+        partyBillNumber: '',
         isVatExempt: 'all',
         discountPercentage: 0,
         discountAmount: 0,
@@ -219,6 +222,8 @@ const EditPurcRtn = () => {
                     let latestExpiryDate = '';
                     let latestWsUnit = 1;
                     let totalStock = 0;
+                    let latestCCPercentage = 0;      // ADD THIS
+                    let latestItemCCAmount = 0;       // ADD THIS
 
                     if (item.stockEntries && item.stockEntries.length > 0) {
                         totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
@@ -230,6 +235,8 @@ const EditPurcRtn = () => {
                         latestBatchNumber = sortedEntries[0].batchNumber || '';
                         latestExpiryDate = sortedEntries[0].expiryDate || '';
                         latestWsUnit = sortedEntries[0].wsUnit || 1;
+                        latestCCPercentage = sortedEntries[0].ccPercentage || 0;      // ADD THIS
+                        latestItemCCAmount = sortedEntries[0].itemCcAmount || 0;       // ADD THIS
                     }
 
                     return {
@@ -243,7 +250,9 @@ const EditPurcRtn = () => {
                         stock: totalStock,
                         unitName: item.unit?.name || item.unitName || '',
                         unitId: item.unit?.id || item.unitId,
-                        stockEntries: item.stockEntries || []
+                        stockEntries: item.stockEntries || [],
+                        latestCCPercentage,      // ADD THIS
+                        latestItemCCAmount        // ADD THIS
                     };
                 });
 
@@ -464,95 +473,7 @@ const EditPurcRtn = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    // Initial data loading
-    // useEffect(() => {
-    //     const fetchPurchaseReturnData = async () => {
-    //         try {
-    //             setIsLoading(true);
-
-    //             const response = await api.get(`/api/retailer/purchase-return/edit/${id}`);
-    //             const { data } = response.data;
-
-    //             setCompany({
-    //                 ...data.company,
-    //                 dateFormat: data.company.dateFormat || 'english',
-    //                 vatEnabled: data.company.vatEnabled || true
-    //             });
-
-    //             const purchaseReturn = data.purchaseReturn;
-    //             const dateFormat = data.company.dateFormat;
-
-    //             const accountDoc = data.accounts.find(acc => acc.id === purchaseReturn.accountId);
-    //             const accountNameWithNumber = accountDoc?.uniqueNumber
-    //                 ? `${accountDoc.uniqueNumber} ${purchaseReturn.accountName}`
-    //                 : purchaseReturn.accountName;
-
-    //             const itemsData = purchaseReturn.items.map(item => ({
-    //                 itemId: item.itemId,
-    //                 uniqueNumber: item.uniqueNumber,
-    //                 hscode: item.hscode,
-    //                 name: item.itemName,
-    //                 category: item.category?.name || 'No Category',
-    //                 wsUnit: item.wsUnit || 1,
-    //                 batchNumber: item.batchNumber || '',
-    //                 expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
-    //                 quantity: item.quantity || 0,
-    //                 unitId: item.unitId,
-    //                 unitName: item.unitName,
-    //                 price: item.price || 0,
-    //                 puPrice: item.puPrice || 0,
-    //                 amount: ((item.quantity || 0) * (item.puPrice || 0)).toFixed(2),
-    //                 vatStatus: item.vatStatus,
-    //                 uniqueUuid: item.uniqueUuid
-    //             }));
-
-    //             setFormData({
-    //                 accountId: purchaseReturn.accountId,
-    //                 accountName: accountNameWithNumber,
-    //                 accountAddress: purchaseReturn.accountAddress || '',
-    //                 accountPan: purchaseReturn.accountPan || '',
-    //                 transactionDateNepali: dateFormat === 'nepali' ?
-    //                     new Date(purchaseReturn.transactionDateNepali).toISOString().split('T')[0] : currentNepaliDate,
-    //                 transactionDateRoman: dateFormat !== 'nepali' ?
-    //                     new Date(purchaseReturn.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    //                 nepaliDate: dateFormat === 'nepali' ?
-    //                     new Date(purchaseReturn.nepaliDate).toISOString().split('T')[0] : currentNepaliDate,
-    //                 billDate: dateFormat !== 'nepali' ?
-    //                     new Date(purchaseReturn.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    //                 billNumber: purchaseReturn.billNumber,
-    //                 paymentMode: purchaseReturn.paymentMode || 'credit',
-    //                 isVatExempt: purchaseReturn.isVatExempt ? 'true' :
-    //                     (purchaseReturn.isVatAll === 'all' ? 'all' : 'false'),
-    //                 discountPercentage: purchaseReturn.discountPercentage || 0,
-    //                 discountAmount: purchaseReturn.discountAmount || 0,
-    //                 roundOffAmount: purchaseReturn.roundOffAmount || 0,
-    //                 vatPercentage: purchaseReturn.vatPercentage || 13,
-    //                 items: itemsData
-    //             });
-
-    //             setItems(itemsData);
-    //             setAccounts(data.accounts || []);
-
-    //             setIsInitialDataLoaded(true);
-    //         } catch (error) {
-    //             console.error('Error fetching purchase return data:', error);
-    //             setNotification({
-    //                 show: true,
-    //                 message: 'Failed to load purchase return data',
-    //                 type: 'error'
-    //             });
-    //             navigate('/retailer/purchase-return');
-    //         } finally {
-    //             setIsLoading(false);
-    //         }
-    //     };
-
-    //     if (id) {
-    //         fetchPurchaseReturnData();
-    //     }
-    // }, [id, navigate]);
-
-    // Initial data loading
+    // Initial data loading - UPDATED VERSION
     useEffect(() => {
         const fetchPurchaseReturnData = async () => {
             try {
@@ -570,55 +491,90 @@ const EditPurcRtn = () => {
                 const purchaseReturn = data.purchaseReturn;
                 const dateFormat = data.company.dateFormat?.toLowerCase() || 'english';
 
-                console.log("Purchase Return Data:", purchaseReturn); // Debug log
-                console.log("Date Format:", dateFormat);
-                console.log("nepaliDate:", purchaseReturn.nepaliDate);
-                console.log("Date:", purchaseReturn.Date);
-                console.log("transactionDateNepali:", purchaseReturn.transactionDateNepali);
-                console.log("TransactionDate:", purchaseReturn.TransactionDate);
+                console.log("Purchase Return Data:", purchaseReturn);
+                console.log("Items with CC data:", purchaseReturn.items.map(i => ({
+                    name: i.itemName,
+                    ccPercentage: i.ccPercentage,
+                    itemCcAmount: i.itemCcAmount,
+                    mainUnitPuPrice: i.mainUnitPuPrice,
+                    billQty: i.billQty,
+                    actualQty: i.actualQty,
+                    quantity: i.quantity,
+                    puPrice: i.puPrice
+                })));
 
                 const accountDoc = data.accounts.find(acc => acc.id === purchaseReturn.accountId);
                 const accountNameWithNumber = accountDoc?.uniqueNumber
                     ? `${accountDoc.uniqueNumber} ${purchaseReturn.accountName}`
                     : purchaseReturn.accountName;
 
-                const itemsData = purchaseReturn.items.map(item => ({
-                    itemId: item.itemId,
-                    uniqueNumber: item.uniqueNumber,
-                    hscode: item.hscode,
-                    name: item.itemName,
-                    category: item.category?.name || 'No Category',
-                    wsUnit: item.wsUnit || 1,
-                    batchNumber: item.batchNumber || '',
-                    expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
-                    quantity: item.quantity || 0,
-                    unitId: item.unitId,
-                    unitName: item.unitName,
-                    price: item.price || 0,
-                    puPrice: item.puPrice || 0,
-                    amount: ((item.quantity || 0) * (item.puPrice || 0)).toFixed(2),
-                    vatStatus: item.vatStatus,
-                    uniqueUuid: item.uniqueUuid
-                }));
+                // Process items - USE BACKEND VALUES DIRECTLY
+                const itemsData = purchaseReturn.items.map(item => {
+                    // IMPORTANT: Use the backend's itemCcAmount directly if available
+                    // Only calculate if backend didn't provide it
+                    let finalCcAmount = item.itemCcAmount || 0;
+
+                    // If backend didn't provide ccAmount but has ccPercentage, calculate it
+                    if (finalCcAmount === 0 && item.ccPercentage > 0 && item.puPrice > 0 && item.quantity > 0) {
+                        const billQty = item.billQty || item.quantity || 1;
+                        const mainUnitPuPrice = item.mainUnitPuPrice || item.puPrice || 0;
+                        const ccPercentage = item.ccPercentage || 0;
+                        const actualQty = item.actualQty || 1;
+                        const returnQuantity = item.quantity || 0;
+
+                        if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0 && billQty > 0) {
+                            finalCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+                            finalCcAmount = Math.round(finalCcAmount * 100) / 100;
+                        }
+                    }
+
+                    console.log(`Item ${item.itemName} CC Amount:`, {
+                        fromBackend: item.itemCcAmount,
+                        calculated: finalCcAmount,
+                        ccPercentage: item.ccPercentage,
+                        quantity: item.quantity,
+                        puPrice: item.puPrice,
+                        netPuPrice: item.netPuPrice || item.puPrice || 0,
+                    });
+
+                    return {
+                        itemId: item.itemId,
+                        uniqueNumber: item.uniqueNumber,
+                        hscode: item.hscode,
+                        name: item.itemName,
+                        category: item.category?.name || 'No Category',
+                        wsUnit: item.wsUnit || 1,
+                        batchNumber: item.batchNumber || '',
+                        expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
+                        quantity: item.quantity || 0,
+                        unitId: item.unitId,
+                        unitName: item.unitName,
+                        price: item.price || 0,
+                        puPrice: item.puPrice || 0,
+                        netPuPrice: item.netPuPrice || item.puPrice || 0,
+                        amount: ((item.quantity || 0) * (item.netPuPrice || 0)).toFixed(2),
+                        vatStatus: item.vatStatus,
+                        uniqueUuid: item.uniqueUuid,
+                        ccPercentage: item.ccPercentage || 0,
+                        mainUnitPuPrice: item.mainUnitPuPrice || item.puPrice || 0,
+                        billQty: item.billQty || item.quantity || 1,
+                        actualQty: item.actualQty || 1,
+                        itemCcAmount: finalCcAmount,
+                    };
+                });
 
                 // Helper function to format date properly
                 const formatDate = (dateValue) => {
                     if (!dateValue) return '';
-
-                    // If it's already a string in YYYY-MM-DD format
                     if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
                         return dateValue;
                     }
-
-                    // Convert to Date object and format
                     try {
                         const date = new Date(dateValue);
                         if (isNaN(date.getTime())) return '';
-
                         const year = date.getFullYear();
                         const month = String(date.getMonth() + 1).padStart(2, '0');
                         const day = String(date.getDate()).padStart(2, '0');
-
                         return `${year}-${month}-${day}`;
                     } catch (e) {
                         console.error('Date formatting error:', e);
@@ -631,13 +587,13 @@ const EditPurcRtn = () => {
                     accountName: accountNameWithNumber,
                     accountAddress: purchaseReturn.accountAddress || '',
                     accountPan: purchaseReturn.accountPan || '',
-                    // Always use the actual dates from the database
                     transactionDateNepali: formatDate(purchaseReturn.transactionDateNepali || purchaseReturn.TransactionDate),
                     transactionDateRoman: formatDate(purchaseReturn.TransactionDate || purchaseReturn.transactionDateNepali),
                     nepaliDate: formatDate(purchaseReturn.nepaliDate || purchaseReturn.Date),
                     billDate: formatDate(purchaseReturn.Date || purchaseReturn.nepaliDate),
                     billNumber: purchaseReturn.billNumber,
                     paymentMode: purchaseReturn.paymentMode || 'credit',
+                    partyBillNumber: purchaseReturn.partyBillNumber || '',
                     isVatExempt: purchaseReturn.isVatExempt ? 'true' :
                         (purchaseReturn.isVatAll === 'all' ? 'all' : 'false'),
                     discountPercentage: purchaseReturn.discountPercentage || 0,
@@ -818,6 +774,13 @@ const EditPurcRtn = () => {
 
         const isHeaderInsert = selectedItemForBatch === selectedItemForInsert;
 
+        // Get the full batch entry with all fields
+        const fullBatchEntry = selectedItemForBatch.stockEntries?.find(
+            entry => entry.batchNumber === batchInfo.batchNumber &&
+                entry.uniqueUuid === batchInfo.uniqueUuid
+        );
+
+
         if (isHeaderInsert) {
             const batchKey = `${selectedItemForBatch.id}-${batchInfo.batchNumber}-${batchInfo.uniqueUuid}`;
             const availableStock = stockValidation.batchStockMap.get(batchKey) || 0;
@@ -845,6 +808,12 @@ const EditPurcRtn = () => {
                 return;
             }
 
+            // Get CC values from the batch entry
+            const ccPercentage = fullBatchEntry?.ccPercentage || 0;
+            const mainUnitPuPrice = fullBatchEntry?.mainUnitPuPrice || batchInfo.puPrice || 0;
+            const billQty = (fullBatchEntry?.billQty && fullBatchEntry.billQty > 0) ? fullBatchEntry.billQty : 1;
+            const actualQty = (fullBatchEntry?.actualQty && fullBatchEntry.actualQty > 0) ? fullBatchEntry.actualQty : 1;
+
             setSelectedItemForInsert({
                 ...selectedItemForInsert,
                 batchInfo: {
@@ -853,13 +822,17 @@ const EditPurcRtn = () => {
                     price: batchInfo.price,
                     puPrice: batchInfo.puPrice,
                     netPuPrice: batchInfo.netPuPrice,
-                    uniqueUuid: batchInfo.uniqueUuid
+                    uniqueUuid: batchInfo.uniqueUuid,
+                    ccPercentage: ccPercentage,           // ADD THIS
+                    mainUnitPuPrice: mainUnitPuPrice,     // ADD THIS
+                    billQty: billQty,                     // ADD THIS
+                    actualQty: actualQty                  // ADD THIS
                 }
             });
 
             setSelectedItemBatchNumber(batchInfo.batchNumber || '');
             setSelectedItemExpiryDate(batchInfo.expiryDate ? formatDateForInput(batchInfo.expiryDate) : '');
-            setSelectedItemRate(batchInfo.puPrice || 0);
+            setSelectedItemRate(batchInfo.netPuPrice || 0);
 
             // Close batch modal first
             setShowBatchModal(false);
@@ -881,6 +854,12 @@ const EditPurcRtn = () => {
             setShowBatchModal(false);
             setSelectedItemForBatch(null);
 
+            // Get CC values from the batch entry
+            const ccPercentage = fullBatchEntry?.ccPercentage || 0;
+            const mainUnitPuPrice = fullBatchEntry?.mainUnitPuPrice || batchInfo.puPrice || 0;
+            const billQty = fullBatchEntry?.billQty || 0;
+            const actualQty = fullBatchEntry?.actualQty || 0;
+
             // Add item to bill
             addItemToBill(selectedItemForBatch, {
                 batchNumber: batchInfo.batchNumber,
@@ -888,7 +867,11 @@ const EditPurcRtn = () => {
                 price: batchInfo.price,
                 puPrice: batchInfo.puPrice,
                 netPuPrice: batchInfo.netPuPrice,
-                uniqueUuid: batchInfo.uniqueUuid
+                uniqueUuid: batchInfo.uniqueUuid,
+                ccPercentage: ccPercentage,           // ADD THIS
+                mainUnitPuPrice: mainUnitPuPrice,     // ADD THIS
+                billQty: billQty,                     // ADD THIS
+                actualQty: actualQty
             });
         }
     };
@@ -906,6 +889,19 @@ const EditPurcRtn = () => {
             return;
         }
 
+        const returnQuantity = 0;
+        const billQty = (batchInfo.billQty && batchInfo.billQty > 0) ? batchInfo.billQty : returnQuantity || 1;
+        const mainUnitPuPrice = (batchInfo.mainUnitPuPrice && batchInfo.mainUnitPuPrice > 0) ? batchInfo.mainUnitPuPrice : batchInfo.puPrice || 0;
+        const ccPercentage = batchInfo.ccPercentage || 0;
+        const actualQty = (batchInfo.actualQty && batchInfo.actualQty > 0) ? batchInfo.actualQty : 1;
+
+        let calculatedCcAmount = 0;
+        if (ccPercentage > 0 && mainUnitPuPrice > 0 && actualQty > 0 && billQty > 0) {
+            calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+            calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+        }
+
+
         const newItem = {
             itemId: item.id,
             uniqueNumber: item.uniqueNumber || 'N/A',
@@ -922,7 +918,12 @@ const EditPurcRtn = () => {
             netPuPrice: batchInfo.netPuPrice || 0,
             amount: 0,
             vatStatus: item.vatStatus,
-            uniqueUuid: batchInfo.uniqueUuid
+            uniqueUuid: batchInfo.uniqueUuid,
+            ccPercentage: ccPercentage,                    // ADD THIS
+            mainUnitPuPrice: mainUnitPuPrice,              // ADD THIS
+            billQty: billQty,                              // ADD THIS
+            actualQty: actualQty,                          // ADD THIS
+            itemCcAmount: calculatedCcAmount               // ADD THIS - will be updated when quantity changes
         };
 
         const updatedItems = [...items, newItem];
@@ -999,6 +1000,25 @@ const EditPurcRtn = () => {
             return;
         }
 
+        const billQty = (selectedItemForInsert.batchInfo?.billQty && selectedItemForInsert.batchInfo?.billQty > 0)
+            ? selectedItemForInsert.batchInfo?.billQty
+            : selectedItemQuantity;
+        const mainUnitPuPrice = (selectedItemForInsert.batchInfo?.mainUnitPuPrice && selectedItemForInsert.batchInfo?.mainUnitPuPrice > 0)
+            ? selectedItemForInsert.batchInfo?.mainUnitPuPrice
+            : selectedItemRate || 0;
+        const ccPercentage = selectedItemForInsert.batchInfo?.ccPercentage || 0;
+        const actualQty = (selectedItemForInsert.batchInfo?.actualQty && selectedItemForInsert.batchInfo?.actualQty > 0)
+            ? selectedItemForInsert.batchInfo?.actualQty
+            : 1;
+        const returnQuantity = selectedItemQuantity;
+
+        let calculatedCcAmount = 0;
+        if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0 && billQty > 0) {
+            calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+            calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+        }
+
+
         const newItem = {
             itemId: selectedItemForInsert.id,
             uniqueNumber: selectedItemForInsert.uniqueNumber || 'N/A',
@@ -1011,11 +1031,16 @@ const EditPurcRtn = () => {
             unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
             unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
             price: selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100,
-            puPrice: selectedItemForInsert.batchInfo?.puPrice || 0,
+            puPrice: selectedItemForInsert.batchInfo?.netPuPrice || 0,
             netPuPrice: selectedItemForInsert.batchInfo?.netPuPrice || 0,
-            amount: (selectedItemQuantity || 0) * selectedItemForInsert.batchInfo?.puPrice,
+            amount: (selectedItemQuantity || 0) * selectedItemForInsert.batchInfo?.netPuPrice,
             vatStatus: selectedItemForInsert.vatStatus,
-            uniqueUuid: uniqueUuid
+            uniqueUuid: uniqueUuid,
+            ccPercentage: ccPercentage,                    // ADD THIS
+            mainUnitPuPrice: mainUnitPuPrice,              // ADD THIS
+            billQty: billQty,                              // ADD THIS
+            actualQty: actualQty,                          // ADD THIS
+            itemCcAmount: calculatedCcAmount
         };
 
         const updatedItems = [...items, newItem];
@@ -1048,6 +1073,88 @@ const EditPurcRtn = () => {
         }, 0);
     };
 
+    // const updateItemField = (index, field, value) => {
+    //     const updatedItems = [...items];
+    //     updatedItems[index][field] = value;
+
+    //     if (field === 'quantity' || field === 'puPrice') {
+    //         if (field === 'quantity') {
+    //             const item = updatedItems[index];
+    //             const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+
+    //             const returnQuantity = parseFloat(value) || 0;
+    //             const billQty = (item.billQty && item.billQty > 0) ? item.billQty : returnQuantity;
+    //             const mainUnitPuPrice = (item.mainUnitPuPrice && item.mainUnitPuPrice > 0) ? item.mainUnitPuPrice : item.puPrice || 0;
+    //             const ccPercentage = item.ccPercentage || 0;
+    //             const actualQty = (item.actualQty && item.actualQty > 0) ? item.actualQty : 1;
+
+    //             let calculatedCcAmount = 0;
+    //             if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0 && billQty > 0) {
+    //                 calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+    //                 calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+    //             }
+
+    //             updatedItems[index].itemCcAmount = calculatedCcAmount;
+
+    //             // Log for debugging
+    //             console.log(`CC Calculation for ${item.name}:`, {
+    //                 returnQuantity,
+    //                 billQty,
+    //                 mainUnitPuPrice,
+    //                 ccPercentage,
+    //                 actualQty,
+    //                 calculatedCcAmount
+    //             });
+
+    //             if (stockValidation.batchStockMap.has(batchKey)) {
+    //                 const isValid = validateQuantity(index, value, updatedItems);
+    //                 const remainingStock = getRemainingStock(item, updatedItems);
+    //                 const availableStock = getAvailableStockForDisplay(item);
+
+    //                 if (!isValid) {
+    //                     setQuantityErrors(prev => ({
+    //                         ...prev,
+    //                         [index]: `Stock: ${availableStock} | Rem.: ${remainingStock}`
+    //                     }));
+    //                 } else {
+    //                     setQuantityErrors(prev => {
+    //                         const newErrors = { ...prev };
+    //                         delete newErrors[index];
+    //                         return newErrors;
+    //                     });
+    //                 }
+    //             }
+    //         }
+
+    //         // updatedItems[index].amount = (updatedItems[index].quantity * updatedItems[index].netPuPrice).toFixed(2);
+    //         updatedItems[index].amount = (updatedItems[index].quantity * (updatedItems[index].netPuPrice || updatedItems[index].puPrice)).toFixed(2);
+    //     }
+
+    //     setItems(updatedItems);
+    //     setFormData(prev => ({
+    //         ...prev,
+    //         items: updatedItems
+    //     }));
+
+    //     if (formData.discountPercentage || formData.discountAmount) {
+    //         const subTotal = calculateTotal(updatedItems).subTotal;
+
+    //         if (formData.discountPercentage) {
+    //             const discountAmount = (subTotal * formData.discountPercentage) / 100;
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 discountAmount: discountAmount.toFixed(2)
+    //             }));
+    //         } else if (formData.discountAmount) {
+    //             const discountPercentage = subTotal > 0 ? (formData.discountAmount / subTotal) * 100 : 0;
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 discountPercentage: discountPercentage.toFixed(2)
+    //             }));
+    //         }
+    //     }
+    // };
+
     const updateItemField = (index, field, value) => {
         const updatedItems = [...items];
         updatedItems[index][field] = value;
@@ -1056,6 +1163,33 @@ const EditPurcRtn = () => {
             if (field === 'quantity') {
                 const item = updatedItems[index];
                 const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+
+                const returnQuantity = parseFloat(value) || 0;
+                // IMPORTANT: Use proper defaults - if billQty/actualQty is 0, use returnQuantity as fallback
+                const billQty = (item.billQty && item.billQty > 0) ? item.billQty : returnQuantity || 1;
+                const mainUnitPuPrice = (item.mainUnitPuPrice && item.mainUnitPuPrice > 0) ? item.mainUnitPuPrice : item.puPrice || 0;
+                const ccPercentage = item.ccPercentage || 0;
+                const actualQty = (item.actualQty && item.actualQty > 0) ? item.actualQty : 1;
+
+                let calculatedCcAmount = 0;
+                // CORRECT FORMULA: (billQty × mainUnitPuPrice × ccPercentage × returnQuantity) / (100 × actualQty)
+                if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0 && billQty > 0) {
+                    calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+                    calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+                }
+
+                updatedItems[index].itemCcAmount = calculatedCcAmount;
+
+                // Log for debugging
+                console.log(`CC Calculation for ${item.name}:`, {
+                    returnQuantity,
+                    billQty,
+                    mainUnitPuPrice,
+                    ccPercentage,
+                    actualQty,
+                    totalCcForBatch: (billQty * mainUnitPuPrice * ccPercentage) / 100,
+                    calculatedCcAmount
+                });
 
                 if (stockValidation.batchStockMap.has(batchKey)) {
                     const isValid = validateQuantity(index, value, updatedItems);
@@ -1077,7 +1211,7 @@ const EditPurcRtn = () => {
                 }
             }
 
-            updatedItems[index].amount = (updatedItems[index].quantity * updatedItems[index].puPrice).toFixed(2);
+            updatedItems[index].amount = (updatedItems[index].quantity * (updatedItems[index].netPuPrice || updatedItems[index].puPrice)).toFixed(2);
         }
 
         setItems(updatedItems);
@@ -1165,19 +1299,107 @@ const EditPurcRtn = () => {
         return parseFloat(value.toFixed(decimals));
     };
 
+    // const calculateTotal = (itemsToCalculate = items) => {
+    //     let subTotal = 0;
+    //     let taxableAmount = 0;
+    //     let nonTaxableAmount = 0;
+
+    //     itemsToCalculate.forEach(item => {
+    //         const itemAmount = parseFloat(item.amount) || 0;
+    //         subTotal = preciseAdd(subTotal, itemAmount);
+
+    //         if (item.vatStatus === 'vatable') {
+    //             taxableAmount = preciseAdd(taxableAmount, itemAmount);
+    //         } else {
+    //             nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
+    //         }
+    //     });
+
+    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
+    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
+
+    //     let effectiveDiscount = 0;
+    //     let discountForTaxable = 0;
+    //     let discountForNonTaxable = 0;
+
+    //     if (discountAmount > 0) {
+    //         effectiveDiscount = discountAmount;
+
+    //         if (subTotal > 0) {
+    //             const taxableRatio = preciseDivide(taxableAmount, subTotal);
+    //             const nonTaxableRatio = preciseDivide(nonTaxableAmount, subTotal);
+
+    //             discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
+    //             discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
+    //         }
+    //     } else if (discountPercentage > 0) {
+    //         discountForTaxable = preciseMultiply(taxableAmount, preciseDivide(discountPercentage, 100));
+    //         discountForNonTaxable = preciseMultiply(nonTaxableAmount, preciseDivide(discountPercentage, 100));
+    //         effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
+    //     }
+
+    //     const finalTaxableAmount = preciseSubtract(taxableAmount, discountForTaxable);
+    //     const finalNonTaxableAmount = preciseSubtract(nonTaxableAmount, discountForNonTaxable);
+
+    //     let vatAmount = 0;
+    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+    //         vatAmount = preciseMultiply(finalTaxableAmount, preciseDivide(formData.vatPercentage, 100));
+    //     }
+
+    //     let totalBeforeRoundOff = preciseAdd(
+    //         preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
+    //         vatAmount
+    //     );
+
+    //     let roundOffAmount = 0;
+    //     let autoRoundOffAmount = 0;
+
+    //     if (roundOffPurchase) {
+    //         const roundedTotal = Math.round(totalBeforeRoundOff);
+    //         autoRoundOffAmount = preciseSubtract(roundedTotal, totalBeforeRoundOff);
+    //     }
+
+    //     if (roundOffPurchase && !manualRoundOffOverride) {
+    //         roundOffAmount = autoRoundOffAmount;
+    //     } else {
+    //         roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+    //     }
+
+    //     const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
+
+    //     return {
+    //         subTotal: preciseRound(subTotal, 2),
+    //         taxableAmount: preciseRound(finalTaxableAmount, 2),
+    //         nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
+    //         vatAmount: preciseRound(vatAmount, 2),
+    //         totalAmount: preciseRound(totalAmount, 2),
+    //         discountAmount: preciseRound(effectiveDiscount, 2),
+    //         roundOffAmount: preciseRound(roundOffAmount, 2),
+    //         autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
+    //     };
+    // };
+
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
         let nonTaxableAmount = 0;
+        let totalCcAmount = 0;
+        let taxableCCAmount = 0;
+        let nonTaxableCCAmount = 0;
 
         itemsToCalculate.forEach(item => {
             const itemAmount = parseFloat(item.amount) || 0;
+            const itemCCAmount = parseFloat(item.itemCcAmount) || 0;
+
             subTotal = preciseAdd(subTotal, itemAmount);
+            totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
 
             if (item.vatStatus === 'vatable') {
                 taxableAmount = preciseAdd(taxableAmount, itemAmount);
+                taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
             } else {
                 nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
+                nonTaxableCCAmount = preciseAdd(nonTaxableCCAmount, itemCCAmount);
             }
         });
 
@@ -1192,45 +1414,54 @@ const EditPurcRtn = () => {
             effectiveDiscount = discountAmount;
 
             if (subTotal > 0) {
-                const taxableRatio = preciseDivide(taxableAmount, subTotal);
-                const nonTaxableRatio = preciseDivide(nonTaxableAmount, subTotal);
+                const taxableRatio = taxableAmount / subTotal;
+                const nonTaxableRatio = nonTaxableAmount / subTotal;
 
                 discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
                 discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
             }
         } else if (discountPercentage > 0) {
-            discountForTaxable = preciseMultiply(taxableAmount, preciseDivide(discountPercentage, 100));
-            discountForNonTaxable = preciseMultiply(nonTaxableAmount, preciseDivide(discountPercentage, 100));
+            discountForTaxable = preciseMultiply(taxableAmount, discountPercentage / 100);
+            discountForNonTaxable = preciseMultiply(nonTaxableAmount, discountPercentage / 100);
             effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
         }
 
-        const finalTaxableAmount = preciseSubtract(taxableAmount, discountForTaxable);
-        const finalNonTaxableAmount = preciseSubtract(nonTaxableAmount, discountForNonTaxable);
+        // Determine the final CC amount to use
+        let finalCCAmount = totalCcAmount;
 
-        let vatAmount = 0;
-        if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-            vatAmount = preciseMultiply(finalTaxableAmount, preciseDivide(formData.vatPercentage, 100));
+        // If user manually edited, use their value instead of calculated
+        if (isCCManuallyEdited && manualCCAmount !== null) {
+            finalCCAmount = manualCCAmount;
         }
 
+        // Calculate taxable amount BEFORE discount (this is the base for VAT)
+        // The taxable amount should include the CC charge
+        let totalTaxableBase = preciseAdd(taxableAmount, taxableCCAmount);
+        let totalNonTaxableBase = preciseAdd(nonTaxableAmount, nonTaxableCCAmount);
+
+        // If CC was manually edited, we need to adjust the taxable base
+        if (isCCManuallyEdited && manualCCAmount !== null && manualCCAmount !== totalCcAmount) {
+            totalTaxableBase = preciseSubtract(totalTaxableBase, totalCcAmount);
+            totalTaxableBase = preciseAdd(totalTaxableBase, manualCCAmount);
+        }
+
+        // Apply discounts
+        const finalTaxableAmount = preciseSubtract(totalTaxableBase, discountForTaxable);
+        const finalNonTaxableAmount = preciseSubtract(totalNonTaxableBase, discountForNonTaxable);
+
+        // Calculate VAT
+        let vatAmount = 0;
+        if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+            vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
+        }
+
+        // Calculate total before round off
         let totalBeforeRoundOff = preciseAdd(
             preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
             vatAmount
         );
 
-        let roundOffAmount = 0;
-        let autoRoundOffAmount = 0;
-
-        if (roundOffPurchase) {
-            const roundedTotal = Math.round(totalBeforeRoundOff);
-            autoRoundOffAmount = preciseSubtract(roundedTotal, totalBeforeRoundOff);
-        }
-
-        if (roundOffPurchase && !manualRoundOffOverride) {
-            roundOffAmount = autoRoundOffAmount;
-        } else {
-            roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-        }
-
+        let roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
         const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
 
         return {
@@ -1239,9 +1470,10 @@ const EditPurcRtn = () => {
             nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
             vatAmount: preciseRound(vatAmount, 2),
             totalAmount: preciseRound(totalAmount, 2),
+            totalCCAmount: preciseRound(finalCCAmount, 2),
             discountAmount: preciseRound(effectiveDiscount, 2),
             roundOffAmount: preciseRound(roundOffAmount, 2),
-            autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
+            autoRoundOffAmount: preciseRound(roundOffAmount, 2)
         };
     };
 
@@ -1482,6 +1714,7 @@ const EditPurcRtn = () => {
                 accountId: formData.accountId,
                 partyBillNumber: '',
                 paymentMode: formData.paymentMode,
+                partyBillNumber: formData.partyBillNumber,
                 isVatExempt: formData.isVatExempt === 'true',
                 isVatAll: formData.isVatExempt,
                 discountPercentage: parseFloat(formData.discountPercentage) || 0,
@@ -1493,6 +1726,7 @@ const EditPurcRtn = () => {
                 taxableAmount: calculatedValues.taxableAmount,
                 nonVatPurchaseReturn: calculatedValues.nonTaxableAmount,
                 totalAmount: calculatedValues.totalAmount,
+                totalCcAmount: calculatedValues.totalCCAmount,
                 nepaliDate: formData.nepaliDate,
                 date: formData.billDate,
                 transactionDateNepali: formData.transactionDateNepali,
@@ -1505,10 +1739,13 @@ const EditPurcRtn = () => {
                     wsUnit: item.wsUnit || 1,
                     quantity: item.quantity,
                     puPrice: item.puPrice,
+                    netPuPrice: item.netPuPrice,
                     price: item.price,
                     unitId: item.unitId,
                     vatStatus: item.vatStatus,
-                    uniqueUuid: item.uniqueUuid
+                    uniqueUuid: item.uniqueUuid,
+                    ccPercentage: item.ccPercentage || 0,  // ADD THIS
+                    itemCcAmount: item.itemCcAmount || 0   // ADD THIS
                 }))
             };
 
@@ -1768,7 +2005,7 @@ const EditPurcRtn = () => {
                         <div className="row g-2 mb-3">
                             {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
-                                    <div className="col-12 col-md-6 col-lg-3">
+                                    <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
                                             <input
                                                 type="text"
@@ -1833,7 +2070,7 @@ const EditPurcRtn = () => {
                                         </div>
                                     </div>
 
-                                    <div className="col-12 col-md-6 col-lg-3">
+                                    <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
                                             <input
                                                 type="text"
@@ -1885,7 +2122,7 @@ const EditPurcRtn = () => {
                                 </>
                             ) : (
                                 <>
-                                    <div className="col-12 col-md-6 col-lg-3">
+                                    <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
                                             <input
                                                 type="date"
@@ -1930,7 +2167,7 @@ const EditPurcRtn = () => {
                                         </div>
                                     </div>
 
-                                    <div className="col-12 col-md-6 col-lg-3">
+                                    <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
                                             <input
                                                 type="date"
@@ -1969,7 +2206,7 @@ const EditPurcRtn = () => {
                                                     fontWeight: '500'
                                                 }}
                                             >
-                                                Return Date: <span className="text-danger">*</span>
+                                                Invoice Date: <span className="text-danger">*</span>
                                             </label>
                                         </div>
                                     </div>
@@ -2010,7 +2247,7 @@ const EditPurcRtn = () => {
                                             fontWeight: '500'
                                         }}
                                     >
-                                        Return No:
+                                        Inv. No:
                                     </label>
                                 </div>
                             </div>
@@ -2051,6 +2288,46 @@ const EditPurcRtn = () => {
                                         }}
                                     >
                                         Payment Mode:
+                                    </label>
+                                </div>
+                            </div>
+
+
+                            <div className="col-12 col-md-6 col-lg-2">
+                                <div className="position-relative">
+                                    <input
+                                        type="text"
+                                        id="partyBillNumber"
+                                        name="partyBillNumber"
+                                        className="form-control form-control-sm"
+                                        value={formData.partyBillNumber}
+                                        onChange={(e) => setFormData({ ...formData, partyBillNumber: e.target.value })}
+                                        required
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleKeyDown(e, 'partyBillNumber');
+                                            }
+                                        }}
+                                        style={{
+                                            height: '26px',
+                                            fontSize: '0.875rem',
+                                            paddingTop: '0.75rem',
+                                            width: '100%'
+                                        }}
+                                    />
+                                    <label
+                                        className="position-absolute"
+                                        style={{
+                                            top: '-0.5rem',
+                                            left: '0.75rem',
+                                            fontSize: '0.75rem',
+                                            backgroundColor: 'white',
+                                            padding: '0 0.25rem',
+                                            color: '#6c757d',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        Supp. Inv. No: <span className="text-danger">*</span>
                                     </label>
                                 </div>
                             </div>
@@ -2734,7 +3011,7 @@ const EditPurcRtn = () => {
                                                         name={`items[${index}][puPrice]`}
                                                         className="form-control form-control-sm"
                                                         id={`puPrice-${index}`}
-                                                        value={Math.round(item.puPrice * 100) / 100}
+                                                        value={Math.round((item.netPuPrice || item.puPrice) * 100) / 100}
                                                         onChange={(e) => updateItemField(index, 'puPrice', parseFloat(e.target.value))}
                                                         onFocus={(e) => {
                                                             e.target.select();
@@ -2888,7 +3165,7 @@ const EditPurcRtn = () => {
                                         </td>
                                     </tr>
 
-                                    <tr id="taxableAmountRow">
+                                    {/* <tr id="taxableAmountRow">
                                         {company.vatEnabled && formData.isVatExempt !== 'true' && (
                                             <>
                                                 <td style={{ padding: '1px' }}>
@@ -2915,6 +3192,90 @@ const EditPurcRtn = () => {
                                             <td colSpan="6" className="text-center text-muted">
                                                 VAT Exempt
                                             </td>
+                                        )}
+                                    </tr> */}
+
+                                    <tr id="taxableAmountRow">
+                                        <td style={{ padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
+                                        </td>
+                                        <td style={{ padding: '1px' }}>
+                                            <div className="d-flex align-items-center gap-1" style={{ width: '100%' }}>
+                                                <input
+                                                    type="number"
+                                                    name="CCAmount"
+                                                    id="CCAmount"
+                                                    className="form-control form-control-sm"
+                                                    value={isCCManuallyEdited ? manualCCAmount : totals.totalCCAmount.toFixed(2)}
+                                                    onChange={(e) => {
+                                                        const newValue = parseFloat(e.target.value) || 0;
+                                                        setManualCCAmount(newValue);
+                                                        setIsCCManuallyEdited(true);
+                                                    }}
+                                                    onFocus={(e) => {
+                                                        e.target.select();
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            handleKeyDown(e, 'CCAmount');
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '22px',
+                                                        fontSize: '0.875rem',
+                                                        paddingTop: '0.5rem',
+                                                        width: isCCManuallyEdited ? '85%' : '100%'
+                                                    }}
+                                                />
+                                                {isCCManuallyEdited && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center"
+                                                        onClick={() => {
+                                                            setManualCCAmount(null);
+                                                            setIsCCManuallyEdited(false);
+                                                        }}
+                                                        title="Reset to calculated CC amount"
+                                                        style={{
+                                                            height: '22px',
+                                                            width: '28px',
+                                                            fontSize: '0.7rem',
+                                                            padding: '0'
+                                                        }}
+                                                    >
+                                                        <i className="bi bi-arrow-repeat" style={{ fontSize: '0.7rem' }}></i>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                        {company.vatEnabled && formData.isVatExempt !== 'true' && (
+                                            <>
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.taxableAmount.toFixed(2)}</p>
+                                                </td>
+                                                <td className="d-none">
+                                                    <input
+                                                        type="number"
+                                                        name="vatPercentage"
+                                                        id="vatPercentage"
+                                                        className="form-control"
+                                                        value={formData.vatPercentage}
+                                                        readOnly
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT (13%):</label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.vatAmount.toFixed(2)}</p>
+                                                </td>
+                                            </>
+                                        )}
+                                        {company.vatEnabled && formData.isVatExempt === 'true' && (
+                                            <td colSpan="4"></td>
                                         )}
                                     </tr>
 
@@ -3265,7 +3626,7 @@ const EditPurcRtn = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemListForPurchase
+                                            <VirtualizedItemListForPurchaseReturn
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);
@@ -3355,6 +3716,7 @@ const EditPurcRtn = () => {
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Stock</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>S.P</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>C.P</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>CC%</th>      {/* ADD THIS */}
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>%</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>MRP</th>
                                                 </tr>
@@ -3530,7 +3892,8 @@ const EditPurcRtn = () => {
                                                                     </span>
                                                                 </td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.price * 100) / 100}</td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.puPrice * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.netPuPrice * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.ccPercentage * 100) / 100 || 0}%</td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.marginPercentage * 100) / 100}</td>
                                                                 <td className="align-middle d-none" style={{ padding: '3px' }}>{entry.uniqueUuid}</td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.mrp * 100) / 100}</td>

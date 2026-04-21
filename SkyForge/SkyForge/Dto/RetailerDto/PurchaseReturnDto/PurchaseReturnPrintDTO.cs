@@ -42,6 +42,9 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public decimal? TaxableAmount { get; set; }
         public decimal? DiscountPercentage { get; set; }
         public decimal? DiscountAmount { get; set; }
+
+        public decimal TotalCcAmount { get; set; } = 0;
+
         public decimal VatPercentage { get; set; }
         public decimal? VatAmount { get; set; }
         public decimal? TotalAmount { get; set; }

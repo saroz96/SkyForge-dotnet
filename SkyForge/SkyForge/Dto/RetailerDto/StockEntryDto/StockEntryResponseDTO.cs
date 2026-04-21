@@ -13,6 +13,9 @@ namespace SkyForge.Dto.RetailerDto.StockEntryDto
 
         public decimal? WsUnit { get; set; }
         public decimal Quantity { get; set; }
+        public decimal BillQty { get; set; }
+        public decimal ActualQty { get; set; }
+
         public decimal? Bonus { get; set; }
         public string BatchNumber { get; set; } = string.Empty;
         public DateOnly ExpiryDate { get; set; }
@@ -20,6 +23,7 @@ namespace SkyForge.Dto.RetailerDto.StockEntryDto
         public decimal Price { get; set; }
         public decimal NetPrice { get; set; }
         public decimal PuPrice { get; set; }
+        public decimal CcPercentage { get; set; }
         public decimal ItemCcAmount { get; set; }
         public decimal DiscountPercentagePerItem { get; set; }
         public decimal DiscountAmountPerItem { get; set; }

@@ -43,6 +43,15 @@ namespace SkyForge.Models.Retailer.PurchaseReturnModel
         [Precision(10, 3)]
         public decimal? Quantity { get; set; }
 
+        [Column("bill_quantity")]
+        [Precision(10, 3)]
+        public decimal BillQty { get; set; }
+
+        [Column("actual_quantity")]
+        [Precision(10, 3)]
+        public decimal ActualQty { get; set; }
+
+
         [Column("price")]
         [Precision(18, 2)]
         public decimal? Price { get; set; }
@@ -70,6 +79,18 @@ namespace SkyForge.Models.Retailer.PurchaseReturnModel
         [Column("margin_percentage")]
         [Precision(5, 2)]
         public decimal MarginPercentage { get; set; } = 0;
+
+        [Column("cc_percentage")]
+        [Precision(5, 2)]
+        public decimal CcPercentage { get; set; } = 0;
+
+        [Column("item_cc_amount")]
+        [Precision(18, 2)]
+        public decimal ItemCcAmount { get; set; } = 0;
+
+        [Column("main_unit_pu_price")]
+        [Precision(18, 2)]
+        public decimal MainUnitPuPrice { get; set; } = 0;
 
         [Column("currency")]
         [StringLength(10)]

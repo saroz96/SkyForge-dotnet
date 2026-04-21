@@ -547,6 +547,7 @@ const Header = () => {
                       </ul>
                     </li>
                   )}
+                {/*
                 {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' ||
                   finalUser?.isAdmin || finalUser?.menuPermissions?.get('storeRackSubHeader')) && (
                     <li className="menu-item dropdown">
@@ -567,6 +568,7 @@ const Header = () => {
                       </ul>
                     </li>
                   )}
+                    */}
                 {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' ||
                   finalUser?.isAdmin || finalUser?.menuPermissions?.get('stockStatus')) && (
                     <li className="menu-item">

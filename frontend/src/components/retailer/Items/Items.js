@@ -296,11 +296,11 @@ const processedFilteredItems = useMemo(() => {
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.name - 2} columnName="name" />
                 </div>
 
-                <div className="d-flex align-items-center px-2 border-end border-white position-relative"
+                {/* <div className="d-flex align-items-center px-2 border-end border-white position-relative"
                      style={{ width: `${columnWidths.company}px`, flexShrink: 0, minWidth: '100px' }}>
                     <strong style={{ fontSize: '0.8rem' }}>Company</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.company - 2} columnName="company" />
-                </div>
+                </div> */}
 
                 <div className="d-flex align-items-center px-2 border-end border-white position-relative"
                      style={{ width: `${columnWidths.category}px`, flexShrink: 0, minWidth: '100px' }}>
@@ -370,10 +370,10 @@ const processedFilteredItems = useMemo(() => {
                     </span>
                 </div>
 
-                <div className="px-2 border-end d-flex flex-column justify-content-center"
+                {/* <div className="px-2 border-end d-flex flex-column justify-content-center"
                      style={{ width: `${columnWidths.company}px`, flexShrink: 0, height: '100%' }}>
                     <span style={{ fontSize: '0.8rem' }}>{companyName}</span>
-                </div>
+                </div> */}
 
                 <div className="px-2 border-end d-flex flex-column justify-content-center"
                      style={{ width: `${columnWidths.category}px`, flexShrink: 0, height: '100%' }}>

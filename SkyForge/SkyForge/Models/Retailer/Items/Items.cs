@@ -163,6 +163,10 @@ namespace SkyForge.Models.Retailer.Items
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+        [Column("Nepali_Date")]
+        public DateTime? NepaliDate { get; set; }
+
+
         // Navigation properties
         public virtual ItemInitialOpeningStock? InitialOpeningStock { get; set; }
 

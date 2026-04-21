@@ -34,6 +34,15 @@ namespace SkyForge.Models.Retailer.Items
         [Precision(10, 3)]
         public decimal Quantity { get; set; }
 
+        [Column("bill_quantity")]
+        [Precision(10, 3)]
+        public decimal BillQty { get; set; }
+
+        [Column("actual_quantity")]
+        [Precision(10, 3)]
+        public decimal ActualQty { get; set; }
+
+
         [Column("bonus")]
         [Precision(10, 3)]
         public decimal? Bonus { get; set; } = 0;
@@ -56,6 +65,10 @@ namespace SkyForge.Models.Retailer.Items
         [Column("pu_price")]
         [Precision(18, 2)]
         public decimal PuPrice { get; set; } = 0;
+
+        [Column("cc_percentage")]
+        [Precision(5, 2)]
+        public decimal CcPercentage { get; set; } = 0;
 
         [Column("item_cc_amount")]
         [Precision(18, 2)]
@@ -139,6 +152,10 @@ namespace SkyForge.Models.Retailer.Items
 
         [Column("source_transfer_date")]
         public DateTime? SourceTransferDate { get; set; }
+        
+
+         [Column("Nepali_Date")]
+        public DateTime? NepaliDate { get; set; }
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

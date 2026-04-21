@@ -37,6 +37,11 @@ using SkyForge.Services.Retailer.DebitNoteServices;
 using SkyForge.Services.Retailer.CreditNoteServices;
 using SkyForge.Services.Retailer.StatementServices;
 using SkyForge.Services.Retailer.AgeingReportServices;
+using SkyForge.Services.Retailer.MonthlyVatSummaryServices;
+using SkyForge.Services.Retailer.PartySummaryServices;
+using SkyForge.Controllers.Retailer;
+using SkyForge.Services.Retailer.ProfitLossServices;
+using SkyForge.Services.Retailer.StockStatusServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -169,6 +174,11 @@ builder.Services.AddScoped<ICreditNoteService, CreditNoteService>();
 
 builder.Services.AddScoped<IStatementService, StatementService>();
 builder.Services.AddScoped<IAgeingReportService, AgeingReportService>();
+builder.Services.AddScoped<IMonthlyVatSummaryService, MonthlyVatSummaryService>();
+builder.Services.AddScoped<IPartySummaryService, PartySummaryService>();
+builder.Services.AddScoped<ProfitAnalysisController>();
+builder.Services.AddScoped<IProfitLossService, ProfitLossService>();
+builder.Services.AddScoped<IStockStatusService, StockStatusService>();
 
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();

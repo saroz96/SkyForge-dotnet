@@ -7,6 +7,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using SkyForge.Dto.RetailerDto.PurchaseReturnDto;
 using SkyForge.Models.Shared;
+using SkyForge.Dto.RetailerDto;
 
 
 namespace SkyForge.Controllers.Retailer
@@ -1548,5 +1549,208 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // GET: api/retailer/purchaseReturn-vat-report
+        [HttpGet("purchaseReturn-vat-report")]
+        public async Task<IActionResult> GetPurchaseReturnVatReport([FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetPurchaseReturnVatReport Started ===");
+
+                // Extract claims from JWT
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+                // Validate user
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // Handle fiscal year - get from claims first, then fallback
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Get company details
+                var company = await _context.Companies
+                    .Where(c => c.Id == companyIdGuid)
+                    .Select(c => new CompanyInfoDTO
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Address = c.Address,
+                        City = c.City,
+                        Phone = c.Phone,
+                        Pan = c.Pan,
+                        RenewalDate = c.RenewalDate,
+                        DateFormat = c.DateFormat.ToString(),
+                        VatEnabled = c.VatEnabled,
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (company == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Company not found"
+                    });
+                }
+
+                // Get fiscal year
+                var currentFiscalYear = await _context.FiscalYears
+                    .Where(f => f.Id == fiscalYearIdGuid && f.CompanyId == companyIdGuid)
+                    .Select(f => new FiscalYearDTO
+                    {
+                        Id = f.Id,
+                        Name = f.Name,
+                        StartDate = f.StartDate,
+                        EndDate = f.EndDate,
+                        StartDateNepali = f.StartDateNepali,
+                        EndDateNepali = f.EndDateNepali,
+                        IsActive = f.IsActive,
+                    })
+                    .FirstOrDefaultAsync();
+
+                string companyDateFormat = company.DateFormat?.ToLower() ?? "english";
+                string nepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+                // Get user info
+                var user = await _context.Users
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.Id == userIdGuid);
+
+                bool isAdmin = user?.IsAdmin ?? false;
+                string userRoleName = "User";
+
+                if (isAdmin)
+                {
+                    userRoleName = "Admin";
+                }
+                else if (user?.UserRoles != null)
+                {
+                    var primaryRole = user.UserRoles.FirstOrDefault(ur => ur.IsPrimary);
+                    if (primaryRole?.Role != null)
+                    {
+                        userRoleName = primaryRole.Role.Name;
+                    }
+                }
+
+                bool isAdminOrSupervisor = isAdmin || userRoleName == "Supervisor";
+
+                // If no date range provided, return empty report
+                if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
+                {
+                    var emptyResponse = new PurchaseReturnVatReportDTO
+                    {
+                        Company = company,
+                        CurrentFiscalYear = currentFiscalYear,
+                        PurchaseReturnVatReport = new List<PurchaseReturnVatEntryDTO>(),
+                        CompanyDateFormat = companyDateFormat,
+                        NepaliDate = nepaliDate,
+                        CurrentCompany = company,
+                        FromDate = fromDate ?? "",
+                        ToDate = toDate ?? "",
+                        CurrentCompanyName = company.Name,
+                        User = new UserInfoDTO
+                        {
+                            Id = user?.Id ?? userIdGuid,
+                            Name = user?.Name ?? "",
+                            Email = user?.Email ?? "",
+                            IsAdmin = isAdmin,
+                            Role = userRoleName,
+                            Preferences = new UserPreferencesDTO
+                            {
+                                Theme = user?.Preferences?.Theme.ToString() ?? "light"
+                            }
+                        },
+                        Theme = user?.Preferences?.Theme.ToString() ?? "light",
+                        IsAdminOrSupervisor = isAdminOrSupervisor
+                    };
+
+                    return Ok(new { success = true, data = emptyResponse });
+                }
+
+                // Get purchase return VAT report from service
+                var reportData = await _purchaseReturnService.GetPurchaseReturnVatReportAsync(
+                    companyIdGuid,
+                    fiscalYearIdGuid,
+                    fromDate,
+                    toDate);
+
+                // Add user info to response
+                reportData.User = new UserInfoDTO
+                {
+                    Id = user?.Id ?? userIdGuid,
+                    Name = user?.Name ?? "",
+                    Email = user?.Email ?? "",
+                    IsAdmin = isAdmin,
+                    Role = userRoleName,
+                    Preferences = new UserPreferencesDTO
+                    {
+                        Theme = user?.Preferences?.Theme.ToString() ?? "light"
+                    }
+                };
+                reportData.Theme = user?.Preferences?.Theme.ToString() ?? "light";
+                reportData.IsAdminOrSupervisor = isAdminOrSupervisor;
+
+                _logger.LogInformation($"Successfully fetched purchase return VAT report with {reportData.PurchaseReturnVatReport.Count} entries");
+
+                return Ok(new { success = true, data = reportData });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetPurchaseReturnVatReport");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching purchase return VAT report",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+   
     }
 }

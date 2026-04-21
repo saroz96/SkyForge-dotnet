@@ -22,5 +22,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         Task<PurchaseBill> UpdatePurchaseBillAsync(Guid id, UpdatePurchaseBillDTO dto, Guid companyId, Guid fiscalYearId, Guid userId);
         Task<PurchasePartyInfoDto?> GetPurchasePartyInfoAsync(string billNumber, Guid companyId, Guid fiscalYearId);
         Task<ChangePartyResponseDto> ChangePartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId);
+        Task<PurchaseVatReportDTO> GetPurchaseVatReportAsync(Guid companyId, Guid fiscalYearId, string? fromDate, string? toDate);
     }
 }

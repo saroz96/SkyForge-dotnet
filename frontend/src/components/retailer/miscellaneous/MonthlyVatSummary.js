@@ -1,1529 +1,336 @@
-// import React, { useState, useEffect } from 'react';
-// import axios from 'axios';
-// import { useNavigate } from 'react-router-dom';
-// import Header from '../Header';
-// import NepaliDate from 'nepali-date';
-// import { usePageNotRefreshContext } from '../PageNotRefreshContext';
-// import NotificationToast from '../../NotificationToast';
-// import Loader from '../../Loader';
-// import * as XLSX from 'xlsx';
-
-// const MonthlyVatSummary = () => {
-//     const { draftSave, setDraftSave } = usePageNotRefreshContext();
-//     const [company, setCompany] = useState({
-//         dateFormat: 'nepali',
-//         vatEnabled: true,
-//         fiscalYear: {}
-//     });
-//     const navigate = useNavigate();
-//     const [notification, setNotification] = useState({
-//         show: false,
-//         message: '',
-//         type: 'success'
-//     });
-//     const [formValues, setFormValues] = useState(draftSave?.formValues || {
-//         companyDateFormat: 'nepali',
-//         month: null,
-//         year: null,
-//         nepaliMonth: null,
-//         nepaliYear: null,
-//         periodType: 'monthly' // 'monthly' or 'yearly'
-//     });
-
-//     const [reportData, setReportData] = useState(draftSave?.reportData || {
-//         company: null,
-//         currentFiscalYear: null,
-//         totals: null,
-//         monthlyData: [], // Array for all months data when "All" is selected
-//         currentNepaliYear: new NepaliDate().getYear(),
-//         reportDateRange: '',
-//         currentCompanyName: ''
-//     });
-
-//     const [loading, setLoading] = useState(false);
-//     const [error, setError] = useState(null);
-//     const [exporting, setExporting] = useState(false);
-
-//     const api = axios.create({
-//         baseURL: process.env.REACT_APP_API_BASE_URL,
-//         withCredentials: true,
-//     });
-
-//     // Save draft data
-//     useEffect(() => {
-//         if (reportData.totals || formValues.month || formValues.year || formValues.nepaliMonth || formValues.nepaliYear) {
-//             setDraftSave({
-//                 ...draftSave,
-//                 monthlyVatReportData: {
-//                     ...formValues,
-//                     ...reportData
-//                 }
-//             });
-//         }
-//     }, [formValues, reportData]);
-
-//     const handleDateChange = (e) => {
-//         const { name, value } = e.target;
-//         setFormValues(prev => ({
-//             ...prev,
-//             [name]: value === '' ? null : value
-//         }));
-//     };
-
-//     const handlePeriodTypeChange = (e) => {
-//         const periodType = e.target.value;
-//         setFormValues(prev => ({
-//             ...prev,
-//             periodType,
-//             month: null,
-//             year: null,
-//             nepaliMonth: null,
-//             nepaliYear: null
-//         }));
-//         setReportData(prev => ({
-//             ...prev,
-//             totals: null,
-//             monthlyData: []
-//         }));
-//     };
-
-//     const handleGenerateReport = async (e) => {
-//         e.preventDefault();
-
-//         // Validation
-//         if (formValues.periodType === 'monthly') {
-//             if (formValues.companyDateFormat === 'nepali') {
-//                 if (!formValues.nepaliMonth || !formValues.nepaliYear) {
-//                     setNotification({
-//                         show: true,
-//                         message: `Please select both Nepali month and year`,
-//                         type: 'error'
-//                     });
-//                     return;
-//                 }
-//             } else {
-//                 if (!formValues.month || !formValues.year) {
-//                     setNotification({
-//                         show: true,
-//                         message: `Please select both month and year`,
-//                         type: 'error'
-//                     });
-//                     return;
-//                 }
-//             }
-//         } else { // yearly
-//             if (formValues.companyDateFormat === 'nepali') {
-//                 if (!formValues.nepaliYear) {
-//                     setNotification({
-//                         show: true,
-//                         message: `Please select Nepali year`,
-//                         type: 'error'
-//                     });
-//                     return;
-//                 }
-//             } else {
-//                 if (!formValues.year) {
-//                     setNotification({
-//                         show: true,
-//                         message: `Please select year`,
-//                         type: 'error'
-//                     });
-//                     return;
-//                 }
-//             }
-//         }
-
-//         try {
-//             setLoading(true);
-//             setError(null);
-
-//             const params = new URLSearchParams();
-//             params.append('periodType', formValues.periodType);
-
-//             if (formValues.periodType === 'monthly') {
-//                 if (formValues.companyDateFormat === 'english') {
-//                     params.append('month', formValues.month);
-//                     params.append('year', formValues.year);
-//                 } else {
-//                     params.append('nepaliMonth', formValues.nepaliMonth);
-//                     params.append('nepaliYear', formValues.nepaliYear);
-//                 }
-//             } else { // yearly
-//                 if (formValues.companyDateFormat === 'english') {
-//                     params.append('year', formValues.year);
-//                 } else {
-//                     params.append('nepaliYear', formValues.nepaliYear);
-//                 }
-//             }
-
-//             const response = await api.get('/api/retailer/monthly-vat-summary', { params });
-//             setReportData(prev => ({
-//                 ...prev,
-//                 ...response.data.data,
-//                 currentCompanyName: response.data.data.currentCompanyName || ''
-//             }));
-//         } catch (err) {
-//             setNotification({
-//                 show: true,
-//                 message: err.response?.data?.error || 'Failed to fetch monthly VAT report',
-//                 type: 'error'
-//             });
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     const formatCurrency = (num) => {
-//         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
-//         if (company.dateFormat === 'nepali') {
-//             return number.toLocaleString('en-IN', {
-//                 minimumFractionDigits: 2,
-//                 maximumFractionDigits: 2
-//             });
-//         }
-//         return number.toLocaleString('en-US', {
-//             minimumFractionDigits: 2,
-//             maximumFractionDigits: 2
-//         });
-//     };
-
-//     const getNetValueClass = (value) => {
-//         return value >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
-//     };
-
-//     // Get current Nepali fiscal year for placeholder
-//     const getCurrentNepaliFiscalYear = () => {
-//         const currentNepaliDate = new NepaliDate();
-//         const currentYear = currentNepaliDate.getYear();
-//         const currentMonth = currentNepaliDate.getMonth() + 1; // 1-12
-
-//         if (currentMonth >= 4) {
-//             return `${currentYear}/${currentYear + 1}`;
-//         } else {
-//             return `${currentYear - 1}/${currentYear}`;
-//         }
-//     };
-
-//     // Add this function to calculate totals for display
-//     const calculateDisplayTotals = () => {
-//         if (reportData.totals) {
-//             // Single month totals
-//             return {
-//                 purchaseTaxable: reportData.totals.purchase?.taxableAmount || 0,
-//                 purchaseNonVat: reportData.totals.purchase?.nonVatAmount || 0,
-//                 purchaseVat: reportData.totals.purchase?.vatAmount || 0,
-//                 purchaseTotal: (reportData.totals.purchase?.taxableAmount || 0) +
-//                     (reportData.totals.purchase?.nonVatAmount || 0) +
-//                     (reportData.totals.purchase?.vatAmount || 0),
-
-//                 purchaseReturnTaxable: reportData.totals.purchaseReturn?.taxableAmount || 0,
-//                 purchaseReturnNonVat: reportData.totals.purchaseReturn?.nonVatAmount || 0,
-//                 purchaseReturnVat: reportData.totals.purchaseReturn?.vatAmount || 0,
-//                 purchaseReturnTotal: (reportData.totals.purchaseReturn?.taxableAmount || 0) +
-//                     (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                     (reportData.totals.purchaseReturn?.vatAmount || 0),
-
-//                 netPurchaseTaxable: (reportData.totals.purchase?.taxableAmount || 0) -
-//                     (reportData.totals.purchaseReturn?.taxableAmount || 0),
-//                 netPurchaseNonVat: (reportData.totals.purchase?.nonVatAmount || 0) -
-//                     (reportData.totals.purchaseReturn?.nonVatAmount || 0),
-//                 netPurchaseTotal: ((reportData.totals.purchase?.taxableAmount || 0) +
-//                     (reportData.totals.purchase?.nonVatAmount || 0) +
-//                     (reportData.totals.purchase?.vatAmount || 0)) -
-//                     ((reportData.totals.purchaseReturn?.taxableAmount || 0) +
-//                         (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                         (reportData.totals.purchaseReturn?.vatAmount || 0)),
-
-//                 salesTaxable: reportData.totals.sales?.taxableAmount || 0,
-//                 salesNonVat: reportData.totals.sales?.nonVatAmount || 0,
-//                 salesVat: reportData.totals.sales?.vatAmount || 0,
-//                 salesTotal: (reportData.totals.sales?.taxableAmount || 0) +
-//                     (reportData.totals.sales?.nonVatAmount || 0) +
-//                     (reportData.totals.sales?.vatAmount || 0),
-
-//                 salesReturnTaxable: reportData.totals.salesReturn?.taxableAmount || 0,
-//                 salesReturnNonVat: reportData.totals.salesReturn?.nonVatAmount || 0,
-//                 salesReturnVat: reportData.totals.salesReturn?.vatAmount || 0,
-//                 salesReturnTotal: (reportData.totals.salesReturn?.taxableAmount || 0) +
-//                     (reportData.totals.salesReturn?.nonVatAmount || 0) +
-//                     (reportData.totals.salesReturn?.vatAmount || 0),
-
-//                 netSalesTaxable: (reportData.totals.sales?.taxableAmount || 0) -
-//                     (reportData.totals.salesReturn?.taxableAmount || 0),
-//                 netSalesNonVat: (reportData.totals.sales?.nonVatAmount || 0) -
-//                     (reportData.totals.salesReturn?.nonVatAmount || 0),
-//                 netSalesTotal: ((reportData.totals.sales?.taxableAmount || 0) +
-//                     (reportData.totals.sales?.nonVatAmount || 0) +
-//                     (reportData.totals.sales?.vatAmount || 0)) -
-//                     ((reportData.totals.salesReturn?.taxableAmount || 0) +
-//                         (reportData.totals.salesReturn?.nonVatAmount || 0) +
-//                         (reportData.totals.salesReturn?.vatAmount || 0)),
-
-//                 netPurchaseVat: reportData.totals.netPurchaseVat || 0,
-//                 netSalesVat: reportData.totals.netSalesVat || 0,
-//                 netVat: reportData.totals.netVat || 0
-//             };
-//         } else if (reportData.monthlyData && reportData.monthlyData.length > 0) {
-//             // Multiple months totals
-//             return calculateYearlyTotals();
-//         }
-//         return null;
-//     };
-
-//     // Excel Export Function - FIXED COLUMN MAPPING
-//     const handleExportExcel = async () => {
-//         // Check if there's any data to export
-//         const hasData = reportData.totals ||
-//             (reportData.monthlyData && reportData.monthlyData.length > 0);
-
-//         if (!hasData) {
-//             setNotification({
-//                 show: true,
-//                 message: 'No data to export. Please generate a report first.',
-//                 type: 'error'
-//             });
-//             return;
-//         }
-
-//         setExporting(true);
-//         try {
-//             let excelData = [];
-//             const currentDate = new Date().toISOString().split('T')[0];
-
-//             // Add company header information
-//             excelData.push(['Company Name:', reportData.currentCompanyName || 'N/A']);
-//             excelData.push(['Report Type:', 'Monthly VAT Summary']);
-//             excelData.push(['Date Range:', reportData.reportDateRange || 'N/A']);
-//             excelData.push(['Export Date:', currentDate]);
-//             excelData.push([]); // Empty row for spacing
-
-//             // Main table headers - using array format for proper alignment
-//             const headers = [
-//                 'Date Range',
-//                 'Purchase Taxable', 'Purchase Non-VAT', 'Purchase VAT', 'Purchase Total',
-//                 '',
-//                 'Purchase Return Taxable', 'Purchase Return Non-VAT', 'Purchase Return VAT', 'Purchase Return Total',
-//                 '',
-//                 'Net Purchase Taxable', 'Net Purchase Non-VAT', 'Net Purchase Total',
-//                 '',
-//                 'Sales Taxable', 'Sales Non-VAT', 'Sales VAT', 'Sales Total',
-//                 '',
-//                 'Sales Return Taxable', 'Sales Return Non-VAT', 'Sales Return VAT', 'Sales Return Total',
-//                 '',
-//                 'Net Sales Taxable', 'Net Sales Non-VAT', 'Net Sales Total',
-//                 '',
-//                 'Purchase VAT', 'Sales VAT', 'Net VAT Payable'
-//             ];
-
-//             // Add headers row
-//             excelData.push(headers);
-
-//             // Export data based on report type
-//             if (formValues.periodType === 'yearly' && reportData.monthlyData && reportData.monthlyData.length > 0) {
-//                 // Export all months data for yearly report
-//                 reportData.monthlyData.forEach((monthData) => {
-//                     const rowData = [
-//                         monthData.reportDateRange,
-//                         formatCurrency(monthData.totals.purchase?.taxableAmount || 0),
-//                         formatCurrency(monthData.totals.purchase?.nonVatAmount || 0),
-//                         formatCurrency(monthData.totals.purchase?.vatAmount || 0),
-//                         formatCurrency(
-//                             (monthData.totals.purchase?.taxableAmount || 0) +
-//                             (monthData.totals.purchase?.nonVatAmount || 0) +
-//                             (monthData.totals.purchase?.vatAmount || 0)
-//                         ),
-//                         '', // Spacer
-//                         formatCurrency(monthData.totals.purchaseReturn?.taxableAmount || 0),
-//                         formatCurrency(monthData.totals.purchaseReturn?.nonVatAmount || 0),
-//                         formatCurrency(monthData.totals.purchaseReturn?.vatAmount || 0),
-//                         formatCurrency(
-//                             (monthData.totals.purchaseReturn?.taxableAmount || 0) +
-//                             (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                             (monthData.totals.purchaseReturn?.vatAmount || 0)
-//                         ),
-//                         '', // Spacer
-//                         formatCurrency(
-//                             (monthData.totals.purchase?.taxableAmount || 0) -
-//                             (monthData.totals.purchaseReturn?.taxableAmount || 0)
-//                         ),
-//                         formatCurrency(
-//                             (monthData.totals.purchase?.nonVatAmount || 0) -
-//                             (monthData.totals.purchaseReturn?.nonVatAmount || 0)
-//                         ),
-//                         formatCurrency(
-//                             ((monthData.totals.purchase?.taxableAmount || 0) +
-//                                 (monthData.totals.purchase?.nonVatAmount || 0) +
-//                                 (monthData.totals.purchase?.vatAmount || 0)) -
-//                             ((monthData.totals.purchaseReturn?.taxableAmount || 0) +
-//                                 (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                                 (monthData.totals.purchaseReturn?.vatAmount || 0))
-//                         ),
-//                         '', // Spacer
-//                         formatCurrency(monthData.totals.sales?.taxableAmount || 0),
-//                         formatCurrency(monthData.totals.sales?.nonVatAmount || 0),
-//                         formatCurrency(monthData.totals.sales?.vatAmount || 0),
-//                         formatCurrency(
-//                             (monthData.totals.sales?.taxableAmount || 0) +
-//                             (monthData.totals.sales?.nonVatAmount || 0) +
-//                             (monthData.totals.sales?.vatAmount || 0)
-//                         ),
-//                         '', // Spacer
-//                         formatCurrency(monthData.totals.salesReturn?.taxableAmount || 0),
-//                         formatCurrency(monthData.totals.salesReturn?.nonVatAmount || 0),
-//                         formatCurrency(monthData.totals.salesReturn?.vatAmount || 0),
-//                         formatCurrency(
-//                             (monthData.totals.salesReturn?.taxableAmount || 0) +
-//                             (monthData.totals.salesReturn?.nonVatAmount || 0) +
-//                             (monthData.totals.salesReturn?.vatAmount || 0)
-//                         ),
-//                         '', // Spacer
-//                         formatCurrency(
-//                             (monthData.totals.sales?.taxableAmount || 0) -
-//                             (monthData.totals.salesReturn?.taxableAmount || 0)
-//                         ),
-//                         formatCurrency(
-//                             (monthData.totals.sales?.nonVatAmount || 0) -
-//                             (monthData.totals.salesReturn?.nonVatAmount || 0)
-//                         ),
-//                         formatCurrency(
-//                             ((monthData.totals.sales?.taxableAmount || 0) +
-//                                 (monthData.totals.sales?.nonVatAmount || 0) +
-//                                 (monthData.totals.sales?.vatAmount || 0)) -
-//                             ((monthData.totals.salesReturn?.taxableAmount || 0) +
-//                                 (monthData.totals.salesReturn?.nonVatAmount || 0) +
-//                                 (monthData.totals.salesReturn?.vatAmount || 0))
-//                         ),
-//                         '', // Spacer
-//                         formatCurrency(monthData.totals.netPurchaseVat || 0),
-//                         formatCurrency(monthData.totals.netSalesVat || 0),
-//                         formatCurrency(monthData.totals.netVat || 0)
-//                     ];
-//                     excelData.push(rowData);
-//                 });
-
-//                 // Add yearly totals
-//                 const yearlyTotals = calculateYearlyTotals();
-//                 if (yearlyTotals) {
-//                     excelData.push([]); // Empty row
-//                     const totalsRow = [
-//                         'YEARLY TOTALS',
-//                         formatCurrency(yearlyTotals.purchaseTaxable),
-//                         formatCurrency(yearlyTotals.purchaseNonVat),
-//                         formatCurrency(yearlyTotals.purchaseVat),
-//                         formatCurrency(yearlyTotals.purchaseTotal),
-//                         '', // Spacer
-//                         formatCurrency(yearlyTotals.purchaseReturnTaxable),
-//                         formatCurrency(yearlyTotals.purchaseReturnNonVat),
-//                         formatCurrency(yearlyTotals.purchaseReturnVat),
-//                         formatCurrency(yearlyTotals.purchaseReturnTotal),
-//                         '', // Spacer
-//                         formatCurrency(yearlyTotals.netPurchaseTaxable),
-//                         formatCurrency(yearlyTotals.netPurchaseNonVat),
-//                         formatCurrency(yearlyTotals.netPurchaseTotal),
-//                         '', // Spacer
-//                         formatCurrency(yearlyTotals.salesTaxable),
-//                         formatCurrency(yearlyTotals.salesNonVat),
-//                         formatCurrency(yearlyTotals.salesVat),
-//                         formatCurrency(yearlyTotals.salesTotal),
-//                         '', // Spacer
-//                         formatCurrency(yearlyTotals.salesReturnTaxable),
-//                         formatCurrency(yearlyTotals.salesReturnNonVat),
-//                         formatCurrency(yearlyTotals.salesReturnVat),
-//                         formatCurrency(yearlyTotals.salesReturnTotal),
-//                         '', // Spacer
-//                         formatCurrency(yearlyTotals.netSalesTaxable),
-//                         formatCurrency(yearlyTotals.netSalesNonVat),
-//                         formatCurrency(yearlyTotals.netSalesTotal),
-//                         '', // Spacer
-//                         formatCurrency(yearlyTotals.netPurchaseVat),
-//                         formatCurrency(yearlyTotals.netSalesVat),
-//                         formatCurrency(yearlyTotals.netVat)
-//                     ];
-//                     excelData.push(totalsRow);
-//                 }
-//             } else if (reportData.totals) {
-//                 // Export single month data
-//                 const rowData = [
-//                     reportData.reportDateRange,
-//                     formatCurrency(reportData.totals.purchase?.taxableAmount || 0),
-//                     formatCurrency(reportData.totals.purchase?.nonVatAmount || 0),
-//                     formatCurrency(reportData.totals.purchase?.vatAmount || 0),
-//                     formatCurrency(
-//                         (reportData.totals.purchase?.taxableAmount || 0) +
-//                         (reportData.totals.purchase?.nonVatAmount || 0) +
-//                         (reportData.totals.purchase?.vatAmount || 0)
-//                     ),
-//                     '', // Spacer
-//                     formatCurrency(reportData.totals.purchaseReturn?.taxableAmount || 0),
-//                     formatCurrency(reportData.totals.purchaseReturn?.nonVatAmount || 0),
-//                     formatCurrency(reportData.totals.purchaseReturn?.vatAmount || 0),
-//                     formatCurrency(
-//                         (reportData.totals.purchaseReturn?.taxableAmount || 0) +
-//                         (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                         (reportData.totals.purchaseReturn?.vatAmount || 0)
-//                     ),
-//                     '', // Spacer
-//                     formatCurrency(
-//                         (reportData.totals.purchase?.taxableAmount || 0) -
-//                         (reportData.totals.purchaseReturn?.taxableAmount || 0)
-//                     ),
-//                     formatCurrency(
-//                         (reportData.totals.purchase?.nonVatAmount || 0) -
-//                         (reportData.totals.purchaseReturn?.nonVatAmount || 0)
-//                     ),
-//                     formatCurrency(
-//                         ((reportData.totals.purchase?.taxableAmount || 0) +
-//                             (reportData.totals.purchase?.nonVatAmount || 0) +
-//                             (reportData.totals.purchase?.vatAmount || 0)) -
-//                         ((reportData.totals.purchaseReturn?.taxableAmount || 0) +
-//                             (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                             (reportData.totals.purchaseReturn?.vatAmount || 0))
-//                     ),
-//                     '', // Spacer
-//                     formatCurrency(reportData.totals.sales?.taxableAmount || 0),
-//                     formatCurrency(reportData.totals.sales?.nonVatAmount || 0),
-//                     formatCurrency(reportData.totals.sales?.vatAmount || 0),
-//                     formatCurrency(
-//                         (reportData.totals.sales?.taxableAmount || 0) +
-//                         (reportData.totals.sales?.nonVatAmount || 0) +
-//                         (reportData.totals.sales?.vatAmount || 0)
-//                     ),
-//                     '', // Spacer
-//                     formatCurrency(reportData.totals.salesReturn?.taxableAmount || 0),
-//                     formatCurrency(reportData.totals.salesReturn?.nonVatAmount || 0),
-//                     formatCurrency(reportData.totals.salesReturn?.vatAmount || 0),
-//                     formatCurrency(
-//                         (reportData.totals.salesReturn?.taxableAmount || 0) +
-//                         (reportData.totals.salesReturn?.nonVatAmount || 0) +
-//                         (reportData.totals.salesReturn?.vatAmount || 0)
-//                     ),
-//                     '', // Spacer
-//                     formatCurrency(
-//                         (reportData.totals.sales?.taxableAmount || 0) -
-//                         (reportData.totals.salesReturn?.taxableAmount || 0)
-//                     ),
-//                     formatCurrency(
-//                         (reportData.totals.sales?.nonVatAmount || 0) -
-//                         (reportData.totals.salesReturn?.nonVatAmount || 0)
-//                     ),
-//                     formatCurrency(
-//                         ((reportData.totals.sales?.taxableAmount || 0) +
-//                             (reportData.totals.sales?.nonVatAmount || 0) +
-//                             (reportData.totals.sales?.vatAmount || 0)) -
-//                         ((reportData.totals.salesReturn?.taxableAmount || 0) +
-//                             (reportData.totals.salesReturn?.nonVatAmount || 0) +
-//                             (reportData.totals.salesReturn?.vatAmount || 0))
-//                     ),
-//                     '', // Spacer
-//                     formatCurrency(reportData.totals.netPurchaseVat || 0),
-//                     formatCurrency(reportData.totals.netSalesVat || 0),
-//                     formatCurrency(reportData.totals.netVat || 0)
-//                 ];
-//                 excelData.push(rowData);
-//             }
-
-//             // Create worksheet using array format
-//             const ws = XLSX.utils.aoa_to_sheet(excelData);
-//             const wb = XLSX.utils.book_new();
-//             XLSX.utils.book_append_sheet(wb, ws, 'Monthly VAT Summary');
-
-//             // Set column widths for better formatting
-//             const colWidths = [
-//                 { wch: 20 }, // Date Range
-//                 { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, // Purchase columns
-//                 { wch: 5 },  // Spacer
-//                 { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, // Purchase Return columns
-//                 { wch: 5 },  // Spacer
-//                 { wch: 15 }, { wch: 15 }, { wch: 15 }, // Net Purchase columns
-//                 { wch: 5 },  // Spacer
-//                 { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, // Sales columns
-//                 { wch: 5 },  // Spacer
-//                 { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, // Sales Return columns
-//                 { wch: 5 },  // Spacer
-//                 { wch: 15 }, { wch: 15 }, { wch: 15 }, // Net Sales columns
-//                 { wch: 5 },  // Spacer
-//                 { wch: 15 }, { wch: 15 }, { wch: 15 }  // VAT columns
-//             ];
-//             ws['!cols'] = colWidths;
-
-//             // Generate filename
-//             const fileName = `Monthly_VAT_Summary_${reportData.reportDateRange || currentDate}.xlsx`;
-
-//             // Export to Excel
-//             XLSX.writeFile(wb, fileName);
-
-//             setNotification({
-//                 show: true,
-//                 message: 'Excel file exported successfully!',
-//                 type: 'success'
-//             });
-
-//         } catch (err) {
-//             console.error('Error exporting to Excel:', err);
-//             setNotification({
-//                 show: true,
-//                 message: 'Failed to export Excel file: ' + err.message,
-//                 type: 'error'
-//             });
-//         } finally {
-//             setExporting(false);
-//         }
-//     };
-
-//     // Helper function to calculate yearly totals
-//     const calculateYearlyTotals = () => {
-//         if (!reportData.monthlyData || reportData.monthlyData.length === 0) return null;
-
-//         const totals = {
-//             purchaseTaxable: 0,
-//             purchaseNonVat: 0,
-//             purchaseVat: 0,
-//             purchaseTotal: 0,
-//             purchaseReturnTaxable: 0,
-//             purchaseReturnNonVat: 0,
-//             purchaseReturnVat: 0,
-//             purchaseReturnTotal: 0,
-//             netPurchaseTaxable: 0,
-//             netPurchaseNonVat: 0,
-//             netPurchaseTotal: 0,
-//             salesTaxable: 0,
-//             salesNonVat: 0,
-//             salesVat: 0,
-//             salesTotal: 0,
-//             salesReturnTaxable: 0,
-//             salesReturnNonVat: 0,
-//             salesReturnVat: 0,
-//             salesReturnTotal: 0,
-//             netSalesTaxable: 0,
-//             netSalesNonVat: 0,
-//             netSalesTotal: 0,
-//             netPurchaseVat: 0,
-//             netSalesVat: 0,
-//             netVat: 0
-//         };
-
-//         reportData.monthlyData.forEach(monthData => {
-//             totals.purchaseTaxable += monthData.totals.purchase?.taxableAmount || 0;
-//             totals.purchaseNonVat += monthData.totals.purchase?.nonVatAmount || 0;
-//             totals.purchaseVat += monthData.totals.purchase?.vatAmount || 0;
-//             totals.purchaseTotal += (monthData.totals.purchase?.taxableAmount || 0) +
-//                 (monthData.totals.purchase?.nonVatAmount || 0) +
-//                 (monthData.totals.purchase?.vatAmount || 0);
-
-//             totals.purchaseReturnTaxable += monthData.totals.purchaseReturn?.taxableAmount || 0;
-//             totals.purchaseReturnNonVat += monthData.totals.purchaseReturn?.nonVatAmount || 0;
-//             totals.purchaseReturnVat += monthData.totals.purchaseReturn?.vatAmount || 0;
-//             totals.purchaseReturnTotal += (monthData.totals.purchaseReturn?.taxableAmount || 0) +
-//                 (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                 (monthData.totals.purchaseReturn?.vatAmount || 0);
-
-//             totals.netPurchaseTaxable += (monthData.totals.purchase?.taxableAmount || 0) -
-//                 (monthData.totals.purchaseReturn?.taxableAmount || 0);
-//             totals.netPurchaseNonVat += (monthData.totals.purchase?.nonVatAmount || 0) -
-//                 (monthData.totals.purchaseReturn?.nonVatAmount || 0);
-//             totals.netPurchaseTotal += ((monthData.totals.purchase?.taxableAmount || 0) +
-//                 (monthData.totals.purchase?.nonVatAmount || 0) +
-//                 (monthData.totals.purchase?.vatAmount || 0)) -
-//                 ((monthData.totals.purchaseReturn?.taxableAmount || 0) +
-//                     (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                     (monthData.totals.purchaseReturn?.vatAmount || 0));
-
-//             totals.salesTaxable += monthData.totals.sales?.taxableAmount || 0;
-//             totals.salesNonVat += monthData.totals.sales?.nonVatAmount || 0;
-//             totals.salesVat += monthData.totals.sales?.vatAmount || 0;
-//             totals.salesTotal += (monthData.totals.sales?.taxableAmount || 0) +
-//                 (monthData.totals.sales?.nonVatAmount || 0) +
-//                 (monthData.totals.sales?.vatAmount || 0);
-
-//             totals.salesReturnTaxable += monthData.totals.salesReturn?.taxableAmount || 0;
-//             totals.salesReturnNonVat += monthData.totals.salesReturn?.nonVatAmount || 0;
-//             totals.salesReturnVat += monthData.totals.salesReturn?.vatAmount || 0;
-//             totals.salesReturnTotal += (monthData.totals.salesReturn?.taxableAmount || 0) +
-//                 (monthData.totals.salesReturn?.nonVatAmount || 0) +
-//                 (monthData.totals.salesReturn?.vatAmount || 0);
-
-//             totals.netSalesTaxable += (monthData.totals.sales?.taxableAmount || 0) -
-//                 (monthData.totals.salesReturn?.taxableAmount || 0);
-//             totals.netSalesNonVat += (monthData.totals.sales?.nonVatAmount || 0) -
-//                 (monthData.totals.salesReturn?.nonVatAmount || 0);
-//             totals.netSalesTotal += ((monthData.totals.sales?.taxableAmount || 0) +
-//                 (monthData.totals.sales?.nonVatAmount || 0) +
-//                 (monthData.totals.sales?.vatAmount || 0)) -
-//                 ((monthData.totals.salesReturn?.taxableAmount || 0) +
-//                     (monthData.totals.salesReturn?.nonVatAmount || 0) +
-//                     (monthData.totals.salesReturn?.vatAmount || 0));
-
-//             totals.netPurchaseVat += monthData.totals.netPurchaseVat || 0;
-//             totals.netSalesVat += monthData.totals.netSalesVat || 0;
-//             totals.netVat += monthData.totals.netVat || 0;
-//         });
-
-//         return totals;
-//     };
-
-//     if (loading) return <Loader />;
-
-//     const handleKeyDown = (e, nextFieldId) => {
-//         if (e.key === 'Enter') {
-//             e.preventDefault();
-//             if (nextFieldId) {
-//                 document.getElementById(nextFieldId)?.focus();
-//             }
-//         }
-//     };
-
-//     const renderMonthlyTable = () => {
-//         if (!reportData.monthlyData || reportData.monthlyData.length === 0) {
-//             return null;
-//         }
-
-//         const displayTotals = calculateDisplayTotals();
-
-//         return (
-//             <div className="table-container mt-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-//                 <table className="table table-bordered table-hover" id="vatReportTable">
-//                     <thead>
-//                         <tr>
-//                             <th rowSpan="2" className="text-center align-middle bg-primary text-white">Date Range</th>
-//                             <th colSpan="4" className="text-center bg-primary text-white">Purchase</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="4" className="text-center bg-primary text-white">Purchase Return</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="3" className="text-center bg-primary text-white">Net Purchase</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="4" className="text-center bg-primary text-white">Sales</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="4" className="text-center bg-primary text-white">Sales Return</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="3" className="text-center bg-primary text-white">Net Sales</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="3" className="text-center bg-primary text-white">Net VAT</th>
-//                         </tr>
-//                         <tr>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Purc VAT</th>
-//                             <th>Sales VAT</th>
-//                             <th>Net Payable</th>
-//                         </tr>
-//                     </thead>
-//                     <tbody>
-//                         {reportData.monthlyData.map((monthData, index) => (
-//                             <tr key={index}>
-//                                 <td className="align-middle"><strong>{monthData.reportDateRange}</strong></td>
-//                                 <td>{formatCurrency(monthData.totals.purchase?.taxableAmount)}</td>
-//                                 <td>{formatCurrency(monthData.totals.purchase?.nonVatAmount)}</td>
-//                                 <td>{formatCurrency(monthData.totals.purchase?.vatAmount)}</td>
-//                                 <td className="fw-bold">
-//                                     {formatCurrency(
-//                                         (monthData.totals.purchase?.taxableAmount || 0) +
-//                                         (monthData.totals.purchase?.nonVatAmount || 0) +
-//                                         (monthData.totals.purchase?.vatAmount || 0)
-//                                     )}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(monthData.totals.purchaseReturn?.taxableAmount)}</td>
-//                                 <td>{formatCurrency(monthData.totals.purchaseReturn?.nonVatAmount)}</td>
-//                                 <td>{formatCurrency(monthData.totals.purchaseReturn?.vatAmount)}</td>
-//                                 <td className="fw-bold">
-//                                     {formatCurrency(
-//                                         (monthData.totals.purchaseReturn?.taxableAmount || 0) +
-//                                         (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                                         (monthData.totals.purchaseReturn?.vatAmount || 0)
-//                                     )}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td className={getNetValueClass(
-//                                     (monthData.totals.purchase?.taxableAmount || 0) -
-//                                     (monthData.totals.purchaseReturn?.taxableAmount || 0)
-//                                 )}>
-//                                     {formatCurrency(
-//                                         (monthData.totals.purchase?.taxableAmount || 0) -
-//                                         (monthData.totals.purchaseReturn?.taxableAmount || 0)
-//                                     )}
-//                                 </td>
-//                                 <td className={getNetValueClass(
-//                                     (monthData.totals.purchase?.nonVatAmount || 0) -
-//                                     (monthData.totals.purchaseReturn?.nonVatAmount || 0)
-//                                 )}>
-//                                     {formatCurrency(
-//                                         (monthData.totals.purchase?.nonVatAmount || 0) -
-//                                         (monthData.totals.purchaseReturn?.nonVatAmount || 0)
-//                                     )}
-//                                 </td>
-//                                 <td className={`fw-bold ${getNetValueClass(
-//                                     ((monthData.totals.purchase?.taxableAmount || 0) +
-//                                         (monthData.totals.purchase?.nonVatAmount || 0) +
-//                                         (monthData.totals.purchase?.vatAmount || 0)) -
-//                                     ((monthData.totals.purchaseReturn?.taxableAmount || 0) +
-//                                         (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                                         (monthData.totals.purchaseReturn?.vatAmount || 0))
-//                                 )}`}>
-//                                     {formatCurrency(
-//                                         ((monthData.totals.purchase?.taxableAmount || 0) +
-//                                             (monthData.totals.purchase?.nonVatAmount || 0) +
-//                                             (monthData.totals.purchase?.vatAmount || 0)) -
-//                                         ((monthData.totals.purchaseReturn?.taxableAmount || 0) +
-//                                             (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                                             (monthData.totals.purchaseReturn?.vatAmount || 0))
-//                                     )}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(monthData.totals.sales?.taxableAmount)}</td>
-//                                 <td>{formatCurrency(monthData.totals.sales?.nonVatAmount)}</td>
-//                                 <td>{formatCurrency(monthData.totals.sales?.vatAmount)}</td>
-//                                 <td className="fw-bold">
-//                                     {formatCurrency(
-//                                         (monthData.totals.sales?.taxableAmount || 0) +
-//                                         (monthData.totals.sales?.nonVatAmount || 0) +
-//                                         (monthData.totals.sales?.vatAmount || 0)
-//                                     )}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(monthData.totals.salesReturn?.taxableAmount)}</td>
-//                                 <td>{formatCurrency(monthData.totals.salesReturn?.nonVatAmount)}</td>
-//                                 <td>{formatCurrency(monthData.totals.salesReturn?.vatAmount)}</td>
-//                                 <td className="fw-bold">
-//                                     {formatCurrency(
-//                                         (monthData.totals.salesReturn?.taxableAmount || 0) +
-//                                         (monthData.totals.salesReturn?.nonVatAmount || 0) +
-//                                         (monthData.totals.salesReturn?.vatAmount || 0)
-//                                     )}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td className={getNetValueClass(
-//                                     (monthData.totals.sales?.taxableAmount || 0) -
-//                                     (monthData.totals.salesReturn?.taxableAmount || 0)
-//                                 )}>
-//                                     {formatCurrency(
-//                                         (monthData.totals.sales?.taxableAmount || 0) -
-//                                         (monthData.totals.salesReturn?.taxableAmount || 0)
-//                                     )}
-//                                 </td>
-//                                 <td className={getNetValueClass(
-//                                     (monthData.totals.sales?.nonVatAmount || 0) -
-//                                     (monthData.totals.salesReturn?.nonVatAmount || 0)
-//                                 )}>
-//                                     {formatCurrency(
-//                                         (monthData.totals.sales?.nonVatAmount || 0) -
-//                                         (monthData.totals.salesReturn?.nonVatAmount || 0)
-//                                     )}
-//                                 </td>
-//                                 <td className={`fw-bold ${getNetValueClass(
-//                                     ((monthData.totals.sales?.taxableAmount || 0) +
-//                                         (monthData.totals.sales?.nonVatAmount || 0) +
-//                                         (monthData.totals.sales?.vatAmount || 0)) -
-//                                     ((monthData.totals.salesReturn?.taxableAmount || 0) +
-//                                         (monthData.totals.salesReturn?.nonVatAmount || 0) +
-//                                         (monthData.totals.salesReturn?.vatAmount || 0))
-//                                 )}`}>
-//                                     {formatCurrency(
-//                                         ((monthData.totals.sales?.taxableAmount || 0) +
-//                                             (monthData.totals.sales?.nonVatAmount || 0) +
-//                                             (monthData.totals.sales?.vatAmount || 0)) -
-//                                         ((monthData.totals.salesReturn?.taxableAmount || 0) +
-//                                             (monthData.totals.salesReturn?.nonVatAmount || 0) +
-//                                             (monthData.totals.salesReturn?.vatAmount || 0))
-//                                     )}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(monthData.totals.netPurchaseVat)}</td>
-//                                 <td>{formatCurrency(monthData.totals.netSalesVat)}</td>
-//                                 <td className={`fw-bold ${monthData.totals.netVat >= 0 ? 'text-success' : 'text-danger'}`}>
-//                                     {formatCurrency(monthData.totals.netVat)}
-//                                 </td>
-//                             </tr>
-//                         ))}
-//                     </tbody>
-//                     {displayTotals && (
-//                         <tfoot className="table-group-divider">
-//                             <tr className="fw-bold table-secondary">
-//                                 <td>TOTAL</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseTaxable)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseNonVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseTotal)}</td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(displayTotals.purchaseReturnTaxable)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseReturnNonVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseReturnVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseReturnTotal)}</td>
-//                                 <td className="bg-light"></td>
-//                                 <td className={getNetValueClass(displayTotals.netPurchaseTaxable)}>
-//                                     {formatCurrency(displayTotals.netPurchaseTaxable)}
-//                                 </td>
-//                                 <td className={getNetValueClass(displayTotals.netPurchaseNonVat)}>
-//                                     {formatCurrency(displayTotals.netPurchaseNonVat)}
-//                                 </td>
-//                                 <td className={getNetValueClass(displayTotals.netPurchaseTotal)}>
-//                                     {formatCurrency(displayTotals.netPurchaseTotal)}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(displayTotals.salesTaxable)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesNonVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesTotal)}</td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(displayTotals.salesReturnTaxable)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesReturnNonVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesReturnVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesReturnTotal)}</td>
-//                                 <td className="bg-light"></td>
-//                                 <td className={getNetValueClass(displayTotals.netSalesTaxable)}>
-//                                     {formatCurrency(displayTotals.netSalesTaxable)}
-//                                 </td>
-//                                 <td className={getNetValueClass(displayTotals.netSalesNonVat)}>
-//                                     {formatCurrency(displayTotals.netSalesNonVat)}
-//                                 </td>
-//                                 <td className={getNetValueClass(displayTotals.netSalesTotal)}>
-//                                     {formatCurrency(displayTotals.netSalesTotal)}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(displayTotals.netPurchaseVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.netSalesVat)}</td>
-//                                 <td className={getNetValueClass(displayTotals.netVat)}>
-//                                     {formatCurrency(displayTotals.netVat)}
-//                                 </td>
-//                             </tr>
-//                         </tfoot>
-//                     )}
-//                 </table>
-//             </div>
-//         );
-//     };
-
-//     const renderSingleMonthTable = () => {
-//         if (!reportData.totals) {
-//             return null;
-//         }
-
-//         const displayTotals = calculateDisplayTotals();
-
-//         return (
-//             <div className="table-container mt-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-//                 <table className="table table-bordered table-hover" id="vatReportTable">
-//                     <thead>
-//                         <tr>
-//                             <th rowSpan="2" className="text-center align-middle bg-primary text-white">Date Range</th>
-//                             <th colSpan="4" className="text-center bg-primary text-white">Purchase</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="4" className="text-center bg-primary text-white">Purchase Return</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="3" className="text-center bg-primary text-white">Net Purchase</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="4" className="text-center bg-primary text-white">Sales</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="4" className="text-center bg-primary text-white">Sales Return</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="3" className="text-center bg-primary text-white">Net Sales</th>
-//                             <th className="bg-light" style={{ width: '10px' }}></th>
-//                             <th colSpan="3" className="text-center bg-primary text-white">Net VAT</th>
-//                         </tr>
-//                         <tr>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Taxable</th>
-//                             <th>Non-VAT</th>
-//                             <th>Total</th>
-//                             <th className="bg-light"></th>
-//                             <th>Purc VAT</th>
-//                             <th>Sales VAT</th>
-//                             <th>Net Payable</th>
-//                         </tr>
-//                     </thead>
-//                     <tbody>
-//                         <tr>
-//                             <td className="align-middle"><strong>{reportData.reportDateRange}</strong></td>
-//                             <td>{formatCurrency(reportData.totals.purchase?.taxableAmount)}</td>
-//                             <td>{formatCurrency(reportData.totals.purchase?.nonVatAmount)}</td>
-//                             <td>{formatCurrency(reportData.totals.purchase?.vatAmount)}</td>
-//                             <td className="fw-bold">
-//                                 {formatCurrency(
-//                                     (reportData.totals.purchase?.taxableAmount || 0) +
-//                                     (reportData.totals.purchase?.nonVatAmount || 0) +
-//                                     (reportData.totals.purchase?.vatAmount || 0)
-//                                 )}
-//                             </td>
-//                             <td className="bg-light"></td>
-//                             <td>{formatCurrency(reportData.totals.purchaseReturn?.taxableAmount)}</td>
-//                             <td>{formatCurrency(reportData.totals.purchaseReturn?.nonVatAmount)}</td>
-//                             <td>{formatCurrency(reportData.totals.purchaseReturn?.vatAmount)}</td>
-//                             <td className="fw-bold">
-//                                 {formatCurrency(
-//                                     (reportData.totals.purchaseReturn?.taxableAmount || 0) +
-//                                     (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                                     (reportData.totals.purchaseReturn?.vatAmount || 0)
-//                                 )}
-//                             </td>
-//                             <td className="bg-light"></td>
-//                             <td className={getNetValueClass(
-//                                 (reportData.totals.purchase?.taxableAmount || 0) -
-//                                 (reportData.totals.purchaseReturn?.taxableAmount || 0)
-//                             )}>
-//                                 {formatCurrency(
-//                                     (reportData.totals.purchase?.taxableAmount || 0) -
-//                                     (reportData.totals.purchaseReturn?.taxableAmount || 0)
-//                                 )}
-//                             </td>
-//                             <td className={getNetValueClass(
-//                                 (reportData.totals.purchase?.nonVatAmount || 0) -
-//                                 (reportData.totals.purchaseReturn?.nonVatAmount || 0)
-//                             )}>
-//                                 {formatCurrency(
-//                                     (reportData.totals.purchase?.nonVatAmount || 0) -
-//                                     (reportData.totals.purchaseReturn?.nonVatAmount || 0)
-//                                 )}
-//                             </td>
-//                             <td className={`fw-bold ${getNetValueClass(
-//                                 ((reportData.totals.purchase?.taxableAmount || 0) +
-//                                     (reportData.totals.purchase?.nonVatAmount || 0) +
-//                                     (reportData.totals.purchase?.vatAmount || 0)) -
-//                                 ((reportData.totals.purchaseReturn?.taxableAmount || 0) +
-//                                     (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                                     (reportData.totals.purchaseReturn?.vatAmount || 0))
-//                             )}`}>
-//                                 {formatCurrency(
-//                                     ((reportData.totals.purchase?.taxableAmount || 0) +
-//                                         (reportData.totals.purchase?.nonVatAmount || 0) +
-//                                         (reportData.totals.purchase?.vatAmount || 0)) -
-//                                     ((reportData.totals.purchaseReturn?.taxableAmount || 0) +
-//                                         (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-//                                         (reportData.totals.purchaseReturn?.vatAmount || 0))
-//                                 )}
-//                             </td>
-//                             <td className="bg-light"></td>
-//                             <td>{formatCurrency(reportData.totals.sales?.taxableAmount)}</td>
-//                             <td>{formatCurrency(reportData.totals.sales?.nonVatAmount)}</td>
-//                             <td>{formatCurrency(reportData.totals.sales?.vatAmount)}</td>
-//                             <td className="fw-bold">
-//                                 {formatCurrency(
-//                                     (reportData.totals.sales?.taxableAmount || 0) +
-//                                     (reportData.totals.sales?.nonVatAmount || 0) +
-//                                     (reportData.totals.sales?.vatAmount || 0)
-//                                 )}
-//                             </td>
-//                             <td className="bg-light"></td>
-//                             <td>{formatCurrency(reportData.totals.salesReturn?.taxableAmount)}</td>
-//                             <td>{formatCurrency(reportData.totals.salesReturn?.nonVatAmount)}</td>
-//                             <td>{formatCurrency(reportData.totals.salesReturn?.vatAmount)}</td>
-//                             <td className="fw-bold">
-//                                 {formatCurrency(
-//                                     (reportData.totals.salesReturn?.taxableAmount || 0) +
-//                                     (reportData.totals.salesReturn?.nonVatAmount || 0) +
-//                                     (reportData.totals.salesReturn?.vatAmount || 0)
-//                                 )}
-//                             </td>
-//                             <td className="bg-light"></td>
-//                             <td className={getNetValueClass(
-//                                 (reportData.totals.sales?.taxableAmount || 0) -
-//                                 (reportData.totals.salesReturn?.taxableAmount || 0)
-//                             )}>
-//                                 {formatCurrency(
-//                                     (reportData.totals.sales?.taxableAmount || 0) -
-//                                     (reportData.totals.salesReturn?.taxableAmount || 0)
-//                                 )}
-//                             </td>
-//                             <td className={getNetValueClass(
-//                                 (reportData.totals.sales?.nonVatAmount || 0) -
-//                                 (reportData.totals.salesReturn?.nonVatAmount || 0)
-//                             )}>
-//                                 {formatCurrency(
-//                                     (reportData.totals.sales?.nonVatAmount || 0) -
-//                                     (reportData.totals.salesReturn?.nonVatAmount || 0)
-//                                 )}
-//                             </td>
-//                             <td className={`fw-bold ${getNetValueClass(
-//                                 ((reportData.totals.sales?.taxableAmount || 0) +
-//                                     (reportData.totals.sales?.nonVatAmount || 0) +
-//                                     (reportData.totals.sales?.vatAmount || 0)) -
-//                                 ((reportData.totals.salesReturn?.taxableAmount || 0) +
-//                                     (reportData.totals.salesReturn?.nonVatAmount || 0) +
-//                                     (reportData.totals.salesReturn?.vatAmount || 0))
-//                             )}`}>
-//                                 {formatCurrency(
-//                                     ((reportData.totals.sales?.taxableAmount || 0) +
-//                                         (reportData.totals.sales?.nonVatAmount || 0) +
-//                                         (reportData.totals.sales?.vatAmount || 0)) -
-//                                     ((reportData.totals.salesReturn?.taxableAmount || 0) +
-//                                         (reportData.totals.salesReturn?.nonVatAmount || 0) +
-//                                         (reportData.totals.salesReturn?.vatAmount || 0))
-//                                 )}
-//                             </td>
-//                             <td className="bg-light"></td>
-//                             <td>{formatCurrency(reportData.totals.netPurchaseVat)}</td>
-//                             <td>{formatCurrency(reportData.totals.netSalesVat)}</td>
-//                             <td className={`fw-bold ${reportData.totals.netVat >= 0 ? 'text-success' : 'text-danger'}`}>
-//                                 {formatCurrency(reportData.totals.netVat)}
-//                             </td>
-//                         </tr>
-//                     </tbody>
-//                     {displayTotals && (
-//                         <tfoot className="table-group-divider">
-//                             <tr className="fw-bold table-secondary">
-//                                 <td>TOTAL</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseTaxable)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseNonVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseTotal)}</td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(displayTotals.purchaseReturnTaxable)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseReturnNonVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseReturnVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.purchaseReturnTotal)}</td>
-//                                 <td className="bg-light"></td>
-//                                 <td className={getNetValueClass(displayTotals.netPurchaseTaxable)}>
-//                                     {formatCurrency(displayTotals.netPurchaseTaxable)}
-//                                 </td>
-//                                 <td className={getNetValueClass(displayTotals.netPurchaseNonVat)}>
-//                                     {formatCurrency(displayTotals.netPurchaseNonVat)}
-//                                 </td>
-//                                 <td className={getNetValueClass(displayTotals.netPurchaseTotal)}>
-//                                     {formatCurrency(displayTotals.netPurchaseTotal)}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(displayTotals.salesTaxable)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesNonVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesTotal)}</td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(displayTotals.salesReturnTaxable)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesReturnNonVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesReturnVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.salesReturnTotal)}</td>
-//                                 <td className="bg-light"></td>
-//                                 <td className={getNetValueClass(displayTotals.netSalesTaxable)}>
-//                                     {formatCurrency(displayTotals.netSalesTaxable)}
-//                                 </td>
-//                                 <td className={getNetValueClass(displayTotals.netSalesNonVat)}>
-//                                     {formatCurrency(displayTotals.netSalesNonVat)}
-//                                 </td>
-//                                 <td className={getNetValueClass(displayTotals.netSalesTotal)}>
-//                                     {formatCurrency(displayTotals.netSalesTotal)}
-//                                 </td>
-//                                 <td className="bg-light"></td>
-//                                 <td>{formatCurrency(displayTotals.netPurchaseVat)}</td>
-//                                 <td>{formatCurrency(displayTotals.netSalesVat)}</td>
-//                                 <td className={getNetValueClass(displayTotals.netVat)}>
-//                                     {formatCurrency(displayTotals.netVat)}
-//                                 </td>
-//                             </tr>
-//                         </tfoot>
-//                     )}
-//                 </table>
-//             </div>
-//         );
-//     };
-//     return (
-//         <div className="container-fluid mt-4">
-//             <Header />
-//             <div className="card mt-4 p-4">
-//                 <div className="report-header bg-light p-4 rounded-3 shadow-sm mb-4">
-//                     <h2 className="text-center mb-4 text-decoration-underline">Monthly VAT Summary</h2>
-//                     <form onSubmit={handleGenerateReport}>
-//                         <div className="row g-3">
-//                             <div className="col-md-2">
-//                                 <label htmlFor="periodType" className="form-label fw-semibold">Period Type</label>
-//                                 <select
-//                                     name="periodType"
-//                                     id="periodType"
-//                                     className="form-select"
-//                                     value={formValues.periodType || 'monthly'}
-//                                     onChange={handlePeriodTypeChange}
-//                                 >
-//                                     <option value="monthly">Monthly</option>
-//                                     <option value="yearly">All Months (Yearly)</option>
-//                                 </select>
-//                             </div>
-
-//                             {formValues.periodType === 'monthly' ? (
-//                                 formValues.companyDateFormat === 'english' ? (
-//                                     <>
-//                                         <div className="col-md-2">
-//                                             <label htmlFor="month" className="form-label fw-semibold">Month</label>
-//                                             <select
-//                                                 name="month"
-//                                                 id="month"
-//                                                 className="form-select"
-//                                                 value={formValues.month || ''}
-//                                                 onChange={handleDateChange}
-//                                             >
-//                                                 <option value="">Select Month</option>
-//                                                 {["January", "February", "March", "April", "May", "June",
-//                                                     "July", "August", "September", "October", "November", "December"]
-//                                                     .map((monthName, index) => (
-//                                                         <option key={monthName} value={index + 1}>
-//                                                             {monthName}
-//                                                         </option>
-//                                                     ))}
-//                                             </select>
-//                                         </div>
-//                                         <div className="col-md-2">
-//                                             <label htmlFor="year" className="form-label fw-semibold">Year</label>
-//                                             <input
-//                                                 type="number"
-//                                                 name="year"
-//                                                 id="year"
-//                                                 className="form-control"
-//                                                 value={formValues.year || ''}
-//                                                 onKeyDown={handleKeyDown}
-//                                                 onChange={handleDateChange}
-//                                                 placeholder={`e.g. ${new Date().getFullYear()}`}
-//                                                 autoComplete='off'
-//                                             />
-//                                         </div>
-//                                     </>
-//                                 ) : (
-//                                     <>
-//                                         <div className="col-md-2">
-//                                             <label htmlFor="nepaliMonth" className="form-label fw-semibold">Month (Nepali)</label>
-//                                             <select
-//                                                 name="nepaliMonth"
-//                                                 id="nepaliMonth"
-//                                                 className="form-select"
-//                                                 value={formValues.nepaliMonth || ''}
-//                                                 onChange={handleDateChange}
-//                                                 autoFocus
-//                                                 onKeyDown={(e) => handleKeyDown(e, 'nepaliYear')}
-//                                             >
-//                                                 <option value="">Select Month</option>
-//                                                 {["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashoj",
-//                                                     "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"]
-//                                                     .map((monthName, index) => (
-//                                                         <option key={monthName} value={index + 1}>
-//                                                             {monthName}
-//                                                         </option>
-//                                                     ))}
-//                                             </select>
-//                                         </div>
-//                                         <div className="col-md-2">
-//                                             <label htmlFor="nepaliYear" className="form-label fw-semibold">Year (Nepali)</label>
-//                                             <input
-//                                                 type="text"
-//                                                 name="nepaliYear"
-//                                                 id="nepaliYear"
-//                                                 className="form-control"
-//                                                 value={formValues.nepaliYear || ''}
-//                                                 onChange={handleDateChange}
-//                                                 placeholder={`e.g. ${reportData.currentNepaliYear}`}
-//                                                 autoComplete='off'
-//                                                 onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
-//                                             />
-//                                         </div>
-//                                     </>
-//                                 )
-//                             ) : (
-//                                 formValues.companyDateFormat === 'english' ? (
-//                                     <div className="col-md-2">
-//                                         <label htmlFor="year" className="form-label fw-semibold">Year</label>
-//                                         <input
-//                                             type="number"
-//                                             name="year"
-//                                             id="year"
-//                                             className="form-control"
-//                                             value={formValues.year || ''}
-//                                             onChange={handleDateChange}
-//                                             placeholder={`e.g. ${new Date().getFullYear()}`}
-//                                             autoComplete='off'
-//                                         />
-//                                     </div>
-//                                 ) : (
-//                                     <div className="col-md-2">
-//                                         <label htmlFor="nepaliYear" className="form-label fw-semibold">Fiscal Year (Nepali)</label>
-//                                         <input
-//                                             type="text"
-//                                             name="nepaliYear"
-//                                             id="nepaliYear"
-//                                             className="form-control"
-//                                             value={formValues.nepaliYear || ''}
-//                                             onChange={handleDateChange}
-//                                             placeholder={`e.g. ${getCurrentNepaliFiscalYear()}`}
-//                                             autoComplete='off'
-//                                         />
-//                                     </div>
-//                                 )
-//                             )}
-
-//                             <div className="col-md-2 d-flex align-items-end">
-//                                 <button type="submit" className="btn btn-primary w-100"
-//                                     id="generateReport"
-//                                 >
-//                                     <i className="fas fa-search me-2"></i> Generate Report
-//                                 </button>
-//                             </div>
-//                             <div className="col-md-2 d-flex align-items-end">
-//                                 <button
-//                                     type="button"
-//                                     id="exportExcel"
-//                                     className="btn btn-success w-100"
-//                                     onClick={handleExportExcel}
-//                                     disabled={(!reportData.totals && (!reportData.monthlyData || reportData.monthlyData.length === 0)) || exporting}
-//                                 >
-//                                     {exporting ? (
-//                                         <>
-//                                             <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-//                                             Exporting...
-//                                         </>
-//                                     ) : (
-//                                         <>
-//                                             <i className="fas fa-file-excel me-2"></i> Export to Excel
-//                                         </>
-//                                     )}
-//                                 </button>
-//                             </div>
-//                         </div>
-//                     </form>
-//                 </div>
-
-//                 {reportData.totals ? (
-//                     renderSingleMonthTable()
-//                 ) : reportData.monthlyData && reportData.monthlyData.length > 0 ? (
-//                     renderMonthlyTable()
-//                 ) : (
-//                     <div className="alert alert-info text-center py-4">
-//                         <i className="fas fa-info-circle me-2"></i>
-//                         Select period type and date to generate the VAT report
-//                     </div>
-//                 )}
-//             </div>
-//             <NotificationToast
-//                 show={notification.show}
-//                 message={notification.message}
-//                 type={notification.type}
-//                 onClose={() => setNotification({ ...notification, show: false })}
-//             />
-//         </div>
-//     );
-// };
-
-// export default MonthlyVatSummary;
-
-
-//---------------------------------------------------------------------------------------
-
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import Header from '../Header';
-import NepaliDate from 'nepali-date';
-import { usePageNotRefreshContext } from '../PageNotRefreshContext';
-import NotificationToast from '../../NotificationToast';
+import NepaliDate from 'nepali-date-converter';
+import '../../../stylesheet/noDateIcon.css';
 import Loader from '../../Loader';
 import * as XLSX from 'xlsx';
+import NotificationToast from '../../NotificationToast';
 
 const MonthlyVatSummary = () => {
-    const { draftSave, setDraftSave } = usePageNotRefreshContext();
-    const [company, setCompany] = useState({
-        dateFormat: 'nepali',
-        vatEnabled: true,
-        fiscalYear: {}
-    });
-    const navigate = useNavigate();
+    const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    const currentEnglishDate = new Date().toISOString().split('T')[0];
+
     const [notification, setNotification] = useState({
         show: false,
         message: '',
-        type: 'success'
-    });
-    const [formValues, setFormValues] = useState(draftSave?.formValues || {
-        companyDateFormat: 'nepali',
-        month: null,
-        year: null,
-        nepaliMonth: null,
-        nepaliYear: null,
-        periodType: 'monthly' // 'monthly' or 'yearly'
+        type: 'success',
+        duration: 3000
     });
 
-    const [reportData, setReportData] = useState(draftSave?.reportData || {
+    const [company, setCompany] = useState({
+        dateFormat: 'english',
+        vatEnabled: true,
+        fiscalYear: {}
+    });
+
+    const [data, setData] = useState({
         company: null,
         currentFiscalYear: null,
         totals: null,
-        monthlyData: [], // Array for all months data when "All" is selected
+        monthlyData: [],
         currentNepaliYear: new NepaliDate().getYear(),
         reportDateRange: '',
-        currentCompanyName: ''
+        currentCompanyName: '',
+        companyDateFormat: 'english',
+        nepaliDate: '',
+        periodType: 'monthly',
+        month: '',
+        year: '',
+        nepaliMonth: '',
+        nepaliYear: ''
     });
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
     const [exporting, setExporting] = useState(false);
+    const [error, setError] = useState(null);
 
+    const monthRef = useRef(null);
+    const yearRef = useRef(null);
+    const nepaliMonthRef = useRef(null);
+    const nepaliYearRef = useRef(null);
+    const generateReportRef = useRef(null);
+    const [shouldFetch, setShouldFetch] = useState(false);
+    const navigate = useNavigate();
+
+    // API instance with JWT token
     const api = axios.create({
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
     });
 
-    // Save draft data
-    useEffect(() => {
-        if (reportData.totals || formValues.month || formValues.year || formValues.nepaliMonth || formValues.nepaliYear) {
-            setDraftSave({
-                ...draftSave,
-                monthlyVatReportData: {
-                    ...formValues,
-                    ...reportData
-                }
-            });
+    // Add authorization header to all requests
+    api.interceptors.request.use(
+        (config) => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        },
+        (error) => {
+            return Promise.reject(error);
         }
-    }, [formValues, reportData]);
+    );
+
+    // Helper function to get current default values based on period type and date format
+    const getDefaultValues = useCallback((periodType, dateFormat) => {
+        const currentNepaliDateObj = new NepaliDate();
+        const currentEnglishDateObj = new Date();
+
+        let month = '';
+        let year = '';
+        let nepaliMonth = '';
+        let nepaliYear = '';
+
+        if (periodType === 'monthly') {
+            if (dateFormat === 'english') {
+                month = (currentEnglishDateObj.getMonth() + 1).toString();
+                year = currentEnglishDateObj.getFullYear().toString();
+            } else {
+                nepaliMonth = (currentNepaliDateObj.getMonth() + 1).toString();
+                nepaliYear = currentNepaliDateObj.getYear().toString();
+            }
+        } else {
+            if (dateFormat === 'english') {
+                year = currentEnglishDateObj.getFullYear().toString();
+            } else {
+                const currentYear = currentNepaliDateObj.getYear();
+                const currentMonth = currentNepaliDateObj.getMonth() + 1;
+                if (currentMonth >= 4) {
+                    nepaliYear = `${currentYear}/${currentYear + 1}`;
+                } else {
+                    nepaliYear = `${currentYear - 1}/${currentYear}`;
+                }
+            }
+        }
+
+        return { month, year, nepaliMonth, nepaliYear };
+    }, []);
+
+    // Auto-fill values when period type or date format changes
+    useEffect(() => {
+        const defaultValues = getDefaultValues(data.periodType, company.dateFormat);
+        setData(prev => ({
+            ...prev,
+            month: defaultValues.month,
+            year: defaultValues.year,
+            nepaliMonth: defaultValues.nepaliMonth,
+            nepaliYear: defaultValues.nepaliYear,
+            totals: null,
+            monthlyData: []
+        }));
+    }, [data.periodType, company.dateFormat, getDefaultValues]);
+
+    // Fetch initial data
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                setLoading(true);
+                const response = await api.get('/api/retailer/monthly-vat-summary');
+
+                if (response.data.success) {
+                    const responseData = response.data.data;
+                    const dateFormat = responseData.company?.dateFormat?.toLowerCase() || 'english';
+
+                    setCompany({
+                        dateFormat: dateFormat,
+                        vatEnabled: responseData.company?.vatEnabled !== false,
+                        fiscalYear: responseData.currentFiscalYear || {}
+                    });
+
+                    const defaultValues = getDefaultValues('monthly', dateFormat);
+
+                    setData(prev => ({
+                        ...prev,
+                        company: responseData.company,
+                        currentFiscalYear: responseData.currentFiscalYear,
+                        companyDateFormat: responseData.companyDateFormat || dateFormat,
+                        nepaliDate: responseData.nepaliDate,
+                        currentCompanyName: responseData.currentCompanyName || '',
+                        currentNepaliYear: responseData.currentNepaliYear || new NepaliDate().getYear(),
+                        periodType: responseData.periodType || 'monthly',
+                        month: responseData.month || defaultValues.month,
+                        year: responseData.year || defaultValues.year,
+                        nepaliMonth: responseData.nepaliMonth || defaultValues.nepaliMonth,
+                        nepaliYear: responseData.nepaliYear || defaultValues.nepaliYear
+                    }));
+
+                }
+            } catch (err) {
+                console.error('Error fetching initial data:', err);
+                setNotification({
+                    show: true,
+                    message: err.response?.data?.error || 'Error loading data',
+                    type: 'error'
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchInitialData();
+    }, [getDefaultValues]);
+
+    // Fetch report data when generate is clicked
+    useEffect(() => {
+        const fetchReportData = async () => {
+            if (!shouldFetch) return;
+
+            try {
+                setLoading(true);
+                const params = new URLSearchParams();
+                params.append('periodType', data.periodType);
+
+                if (data.periodType === 'monthly') {
+                    if (company.dateFormat === 'english') {
+                        if (data.month) params.append('month', data.month);
+                        if (data.year) params.append('year', data.year);
+                    } else {
+                        if (data.nepaliMonth) params.append('nepaliMonth', data.nepaliMonth);
+                        if (data.nepaliYear) params.append('nepaliYear', data.nepaliYear);
+                    }
+                } else {
+                    if (company.dateFormat === 'english') {
+                        if (data.year) params.append('year', data.year);
+                    } else {
+                        if (data.nepaliYear) params.append('nepaliYear', data.nepaliYear);
+                    }
+                }
+
+                const response = await api.get(`/api/retailer/monthly-vat-summary?${params.toString()}`);
+
+                if (response.data.success) {
+                    const responseData = response.data.data;
+                    setData(prev => ({
+                        ...prev,
+                        totals: responseData.totals || null,
+                        monthlyData: responseData.monthlyData || [],
+                        reportDateRange: responseData.reportDateRange || '',
+                        company: responseData.company || prev.company,
+                        currentFiscalYear: responseData.currentFiscalYear || prev.currentFiscalYear,
+                        companyDateFormat: responseData.companyDateFormat || prev.companyDateFormat,
+                        nepaliDate: responseData.nepaliDate || prev.nepaliDate,
+                        currentCompanyName: responseData.currentCompanyName || prev.currentCompanyName,
+                        currentNepaliYear: responseData.currentNepaliYear || prev.currentNepaliYear
+                    }));
+                    setError(null);
+                } else {
+                    const errorMsg = response.data.error || 'Failed to fetch monthly VAT summary';
+                    setError(errorMsg);
+                    setNotification({
+                        show: true,
+                        message: errorMsg,
+                        type: 'error'
+                    });
+                }
+            } catch (err) {
+                console.error('Fetch error:', err);
+                const errorMsg = err.response?.data?.error || 'Failed to fetch monthly VAT summary';
+                setError(errorMsg);
+                setNotification({
+                    show: true,
+                    message: errorMsg,
+                    type: 'error'
+                });
+            } finally {
+                setLoading(false);
+                setShouldFetch(false);
+            }
+        };
+
+        fetchReportData();
+
+        return () => {
+            setShouldFetch(false);
+        };
+    }, [shouldFetch, data.periodType, data.month, data.year, data.nepaliMonth, data.nepaliYear, company.dateFormat]);
 
     const handleDateChange = (e) => {
         const { name, value } = e.target;
-        setFormValues(prev => ({
-            ...prev,
-            [name]: value === '' ? null : value
-        }));
+        setData(prev => ({ ...prev, [name]: value }));
     };
 
     const handlePeriodTypeChange = (e) => {
         const periodType = e.target.value;
-        setFormValues(prev => ({
+        setData(prev => ({
             ...prev,
             periodType,
-            month: null,
-            year: null,
-            nepaliMonth: null,
-            nepaliYear: null
-        }));
-        setReportData(prev => ({
-            ...prev,
             totals: null,
             monthlyData: []
         }));
+        // The useEffect will auto-fill the values
     };
 
-    const handleGenerateReport = async (e) => {
-        e.preventDefault();
-
+    const handleGenerateReport = () => {
         // Validation
-        if (formValues.periodType === 'monthly') {
-            if (formValues.companyDateFormat === 'nepali') {
-                if (!formValues.nepaliMonth || !formValues.nepaliYear) {
+        if (data.periodType === 'monthly') {
+            if (company.dateFormat === 'nepali') {
+                if (!data.nepaliMonth || !data.nepaliYear) {
                     setNotification({
                         show: true,
-                        message: `Please select both Nepali month and year`,
-                        type: 'error'
+                        message: 'Please select both Nepali month and year',
+                        type: 'warning'
                     });
                     return;
                 }
             } else {
-                if (!formValues.month || !formValues.year) {
+                if (!data.month || !data.year) {
                     setNotification({
                         show: true,
-                        message: `Please select both month and year`,
-                        type: 'error'
+                        message: 'Please select both month and year',
+                        type: 'warning'
                     });
                     return;
                 }
             }
-        } else { // yearly
-            if (formValues.companyDateFormat === 'nepali') {
-                if (!formValues.nepaliYear) {
+        } else {
+            if (company.dateFormat === 'nepali') {
+                if (!data.nepaliYear) {
                     setNotification({
                         show: true,
-                        message: `Please select Nepali year`,
-                        type: 'error'
+                        message: 'Please select Nepali fiscal year (format: YYYY/YYYY)',
+                        type: 'warning'
+                    });
+                    return;
+                }
+                const nepaliYearPattern = /^\d{4}\/\d{4}$/;
+                if (!nepaliYearPattern.test(data.nepaliYear)) {
+                    setNotification({
+                        show: true,
+                        message: 'Please enter Nepali fiscal year in format: YYYY/YYYY (e.g., 2081/2082)',
+                        type: 'warning'
                     });
                     return;
                 }
             } else {
-                if (!formValues.year) {
+                if (!data.year) {
                     setNotification({
                         show: true,
-                        message: `Please select year`,
-                        type: 'error'
+                        message: 'Please select year',
+                        type: 'warning'
                     });
                     return;
                 }
             }
         }
+        setShouldFetch(true);
+    };
 
-        try {
-            setLoading(true);
-            setError(null);
-
-            const params = new URLSearchParams();
-            params.append('periodType', formValues.periodType);
-
-            if (formValues.periodType === 'monthly') {
-                if (formValues.companyDateFormat === 'english') {
-                    params.append('month', formValues.month);
-                    params.append('year', formValues.year);
-                } else {
-                    params.append('nepaliMonth', formValues.nepaliMonth);
-                    params.append('nepaliYear', formValues.nepaliYear);
-                }
-            } else { // yearly
-                if (formValues.companyDateFormat === 'english') {
-                    params.append('year', formValues.year);
-                } else {
-                    params.append('nepaliYear', formValues.nepaliYear);
+    const handleKeyDown = (e, nextFieldId) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (nextFieldId) {
+                const nextField = document.getElementById(nextFieldId);
+                if (nextField) {
+                    nextField.focus();
                 }
             }
-
-            const response = await api.get('/api/retailer/monthly-vat-summary', { params });
-            setReportData(prev => ({
-                ...prev,
-                ...response.data.data,
-                currentCompanyName: response.data.data.currentCompanyName || ''
-            }));
-        } catch (err) {
-            setNotification({
-                show: true,
-                message: err.response?.data?.error || 'Failed to fetch monthly VAT report',
-                type: 'error'
-            });
-        } finally {
-            setLoading(false);
         }
     };
 
-    const formatCurrency = (num) => {
+    const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
         if (company.dateFormat === 'nepali') {
             return number.toLocaleString('en-IN', {
@@ -1535,18 +342,16 @@ const MonthlyVatSummary = () => {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
-    };
+    }, [company.dateFormat]);
 
     const getNetValueClass = (value) => {
         return value >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
     };
 
-    // Get current Nepali fiscal year for placeholder
     const getCurrentNepaliFiscalYear = () => {
         const currentNepaliDate = new NepaliDate();
         const currentYear = currentNepaliDate.getYear();
-        const currentMonth = currentNepaliDate.getMonth() + 1; // 1-12
-
+        const currentMonth = currentNepaliDate.getMonth() + 1;
         if (currentMonth >= 4) {
             return `${currentYear}/${currentYear + 1}`;
         } else {
@@ -1554,727 +359,138 @@ const MonthlyVatSummary = () => {
         }
     };
 
-    const handlePrint = () => {
-        const hasData = reportData.totals ||
-            (reportData.monthlyData && reportData.monthlyData.length > 0);
-
-        if (!hasData) {
-            setNotification({
-                show: true,
-                message: 'No data to print. Please generate a report first.',
-                type: 'error'
-            });
-            return;
-        }
-
-        const printWindow = window.open("", "_blank");
-        const currentDate = new Date().toISOString().split('T')[0];
-        // Add company header information
-        const printHeader = `
-    <div class="print-header">
-        <h2 style="margin: 0; font-size: 16px;">${reportData.currentCompanyName || 'Company Name'}</h2>
-    </div>
-    `;
-
-        let tableContent = `
-    <style>
-        @page {
-            size: A4 landscape;
-            margin: 5mm;
-        }
-        body { 
-            font-family: Arial, sans-serif; 
-            font-size: 7px; 
-            margin: 0;
-            padding: 0;
-            -webkit-print-color-adjust: exact;
-            color-adjust: exact;
-        }
-        .container {
-            width: 100%;
-            padding: 5mm;
-            transform: scale(0.95);
-            transform-origin: top left;
-        }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            page-break-inside: auto;
-            font-size: 7px;
-            table-layout: fixed;
-        }
-        tr { 
-            page-break-inside: avoid; 
-            page-break-after: auto; 
-            height: 20px;
-        }
-        th, td { 
-            border: 1px solid #000; 
-            padding: 3px 1px; 
-            text-align: center; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.1;
-            vertical-align: middle;
-        }
-        th { 
-            background-color: #f8f9fa !important; 
-            font-weight: bold;
-            color: #000;
-            padding: 4px 1px;
-        }
-        .print-header { 
-            text-align: center; 
-            margin-bottom: 8px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #000;
-        }
-        .report-title {
-            text-align: center;
-            font-size: 14px;
-            font-weight: bold;
-            margin: 6px 0;
-            text-decoration: underline;
-        }
-        .report-info {
-            text-align: center;
-            font-size: 9px;
-            margin: 4px 0 10px 0;
-            font-weight: bold;
-        }
-        .nowrap {
-            white-space: nowrap;
-        }
-        .text-success { color: #198754 !important; }
-        .text-danger { color: #dc3545 !important; }
-        .fw-bold { font-weight: bold !important; }
-        .text-center { text-align: center !important; }
-        .table-secondary { background-color: #e9ecef !important; }
-        .bg-light { background-color: #f8f9fa !important; }
-        .bg-primary { background-color: #007bff !important; color: white !important; }
-        
-        /* Optimized column widths to fit all columns */
-        .col-date { width: 100px; }
-        .col-number { width: 65px; }
-        .col-total { width: 70px; }
-        .col-spacer { width: 5px; }
-        .col-vat { width: 65px; }
-        
-        /* Compact amount styling */
-        .amount-cell {
-            font-family: 'Courier New', monospace;
-            font-size: 7px;
-            letter-spacing: -0.3px;
-        }
-        
-        /* Compact header styling */
-        .header-cell {
-            font-size: 6.5px;
-            line-height: 1.0;
-            padding: 3px 1px;
-        }
-        
-        /* Two-line headers for better fit */
-        .two-line {
-            line-height: 1.0;
-        }
-        .two-line br {
-            display: block;
-            content: "";
-            margin: 1px 0;
-        }
-    </style>
-    
-    <div class="container">
-        ${printHeader}
-        <div class="report-title">Monthly VAT Summary</div>
-        <div class="report-info">
-            <strong>Report Date Range:</strong> ${reportData.reportDateRange || 'N/A'} | 
-            <strong>Print Date:</strong> ${currentDate}
-        </div>
-        <table>
-            <colgroup>
-                <col class="col-date">
-                <!-- Purchase columns (4) -->
-                <col class="col-number"><col class="col-number"><col class="col-number"><col class="col-total">
-                <col class="col-spacer">
-                <!-- Purchase Return columns (4) -->
-                <col class="col-number"><col class="col-number"><col class="col-number"><col class="col-total">
-                <col class="col-spacer">
-                <!-- Net Purchase columns (3) -->
-                <col class="col-number"><col class="col-number"><col class="col-total">
-                <col class="col-spacer">
-                <!-- Sales columns (4) -->
-                <col class="col-number"><col class="col-number"><col class="col-number"><col class="col-total">
-                <col class="col-spacer">
-                <!-- Sales Return columns (4) -->
-                <col class="col-number"><col class="col-number"><col class="col-number"><col class="col-total">
-                <col class="col-spacer">
-                <!-- Net Sales columns (3) -->
-                <col class="col-number"><col class="col-number"><col class="col-total">
-                <col class="col-spacer">
-                <!-- Net VAT columns (3) -->
-                <col class="col-vat"><col class="col-vat"><col class="col-vat">
-            </colgroup>
-            <thead>
-                <tr>
-                    <th rowSpan="2" class="text-center align-middle bg-primary header-cell">Date Range</th>
-                    <th colSpan="4" class="text-center bg-primary header-cell">Purchase</th>
-                    <th class="bg-light col-spacer"></th>
-                    <th colSpan="4" class="text-center bg-primary header-cell">Purchase Return</th>
-                    <th class="bg-light col-spacer"></th>
-                    <th colSpan="3" class="text-center bg-primary header-cell">Net Purchase</th>
-                    <th class="bg-light col-spacer"></th>
-                    <th colSpan="4" class="text-center bg-primary header-cell">Sales</th>
-                    <th class="bg-light col-spacer"></th>
-                    <th colSpan="4" class="text-center bg-primary header-cell">Sales Return</th>
-                    <th class="bg-light col-spacer"></th>
-                    <th colSpan="3" class="text-center bg-primary header-cell">Net Sales</th>
-                    <th class="bg-light col-spacer"></th>
-                    <th colSpan="3" class="text-center bg-primary header-cell">Net VAT</th>
-                </tr>
-                <tr>
-                    <th class="header-cell two-line">Taxable<br>Amount</th>
-                    <th class="header-cell two-line">Non-VAT<br>Amount</th>
-                    <th class="header-cell two-line">VAT<br>Amount</th>
-                    <th class="header-cell two-line">Total<br>Amount</th>
-                    <th class="bg-light"></th>
-                    <th class="header-cell two-line">Taxable<br>Amount</th>
-                    <th class="header-cell two-line">Non-VAT<br>Amount</th>
-                    <th class="header-cell two-line">VAT<br>Amount</th>
-                    <th class="header-cell two-line">Total<br>Amount</th>
-                    <th class="bg-light"></th>
-                    <th class="header-cell two-line">Taxable<br>Amount</th>
-                    <th class="header-cell two-line">Non-VAT<br>Amount</th>
-                    <th class="header-cell two-line">Total<br>Amount</th>
-                    <th class="bg-light"></th>
-                    <th class="header-cell two-line">Taxable<br>Amount</th>
-                    <th class="header-cell two-line">Non-VAT<br>Amount</th>
-                    <th class="header-cell two-line">VAT<br>Amount</th>
-                    <th class="header-cell two-line">Total<br>Amount</th>
-                    <th class="bg-light"></th>
-                    <th class="header-cell two-line">Taxable<br>Amount</th>
-                    <th class="header-cell two-line">Non-VAT<br>Amount</th>
-                    <th class="header-cell two-line">VAT<br>Amount</th>
-                    <th class="header-cell two-line">Total<br>Amount</th>
-                    <th class="bg-light"></th>
-                    <th class="header-cell two-line">Taxable<br>Amount</th>
-                    <th class="header-cell two-line">Non-VAT<br>Amount</th>
-                    <th class="header-cell two-line">Total<br>Amount</th>
-                    <th class="bg-light"></th>
-                    <th class="header-cell two-line">Purchase<br>VAT</th>
-                    <th class="header-cell two-line">Sales<br>VAT</th>
-                    <th class="header-cell two-line">Net<br>Payable</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-        // Add data rows based on report type
-        if (formValues.periodType === 'yearly' && reportData.monthlyData && reportData.monthlyData.length > 0) {
-            // Print all months data for yearly report
-            reportData.monthlyData.forEach((monthData) => {
-                const netPurchaseTaxable = (monthData.totals.purchase?.taxableAmount || 0) - (monthData.totals.purchaseReturn?.taxableAmount || 0);
-                const netPurchaseNonVat = (monthData.totals.purchase?.nonVatAmount || 0) - (monthData.totals.purchaseReturn?.nonVatAmount || 0);
-                const netPurchaseTotal = ((monthData.totals.purchase?.taxableAmount || 0) + (monthData.totals.purchase?.nonVatAmount || 0) + (monthData.totals.purchase?.vatAmount || 0)) -
-                    ((monthData.totals.purchaseReturn?.taxableAmount || 0) + (monthData.totals.purchaseReturn?.nonVatAmount || 0) + (monthData.totals.purchaseReturn?.vatAmount || 0));
-
-                const netSalesTaxable = (monthData.totals.sales?.taxableAmount || 0) - (monthData.totals.salesReturn?.taxableAmount || 0);
-                const netSalesNonVat = (monthData.totals.sales?.nonVatAmount || 0) - (monthData.totals.salesReturn?.nonVatAmount || 0);
-                const netSalesTotal = ((monthData.totals.sales?.taxableAmount || 0) + (monthData.totals.sales?.nonVatAmount || 0) + (monthData.totals.sales?.vatAmount || 0)) -
-                    ((monthData.totals.salesReturn?.taxableAmount || 0) + (monthData.totals.salesReturn?.nonVatAmount || 0) + (monthData.totals.salesReturn?.vatAmount || 0));
-
-                tableContent += `
-            <tr>
-                <td class="nowrap"><strong>${monthData.reportDateRange}</strong></td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.purchase?.taxableAmount || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.purchase?.nonVatAmount || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.purchase?.vatAmount || 0)}</td>
-                <td class="fw-bold amount-cell">${formatCurrency((monthData.totals.purchase?.taxableAmount || 0) + (monthData.totals.purchase?.nonVatAmount || 0) + (monthData.totals.purchase?.vatAmount || 0))}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.purchaseReturn?.taxableAmount || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.purchaseReturn?.nonVatAmount || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.purchaseReturn?.vatAmount || 0)}</td>
-                <td class="fw-bold amount-cell">${formatCurrency((monthData.totals.purchaseReturn?.taxableAmount || 0) + (monthData.totals.purchaseReturn?.nonVatAmount || 0) + (monthData.totals.purchaseReturn?.vatAmount || 0))}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell ${netPurchaseTaxable >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(netPurchaseTaxable)}</td>
-                <td class="amount-cell ${netPurchaseNonVat >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(netPurchaseNonVat)}</td>
-                <td class="amount-cell ${netPurchaseTotal >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(netPurchaseTotal)}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.sales?.taxableAmount || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.sales?.nonVatAmount || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.sales?.vatAmount || 0)}</td>
-                <td class="fw-bold amount-cell">${formatCurrency((monthData.totals.sales?.taxableAmount || 0) + (monthData.totals.sales?.nonVatAmount || 0) + (monthData.totals.sales?.vatAmount || 0))}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.salesReturn?.taxableAmount || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.salesReturn?.nonVatAmount || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.salesReturn?.vatAmount || 0)}</td>
-                <td class="fw-bold amount-cell">${formatCurrency((monthData.totals.salesReturn?.taxableAmount || 0) + (monthData.totals.salesReturn?.nonVatAmount || 0) + (monthData.totals.salesReturn?.vatAmount || 0))}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell ${netSalesTaxable >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(netSalesTaxable)}</td>
-                <td class="amount-cell ${netSalesNonVat >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(netSalesNonVat)}</td>
-                <td class="amount-cell ${netSalesTotal >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(netSalesTotal)}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.netPurchaseVat || 0)}</td>
-                <td class="amount-cell">${formatCurrency(monthData.totals.netSalesVat || 0)}</td>
-                <td class="amount-cell ${(monthData.totals.netVat || 0) >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(monthData.totals.netVat || 0)}</td>
-            </tr>
-            `;
-            });
-
-            // Add yearly totals
-            const yearlyTotals = calculateYearlyTotals();
-            if (yearlyTotals) {
-                tableContent += `
-            <tr class="fw-bold table-secondary">
-                <td>TOTAL</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.purchaseTaxable)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.purchaseNonVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.purchaseVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.purchaseTotal)}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.purchaseReturnTaxable)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.purchaseReturnNonVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.purchaseReturnVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.purchaseReturnTotal)}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell ${yearlyTotals.netPurchaseTaxable >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(yearlyTotals.netPurchaseTaxable)}</td>
-                <td class="amount-cell ${yearlyTotals.netPurchaseNonVat >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(yearlyTotals.netPurchaseNonVat)}</td>
-                <td class="amount-cell ${yearlyTotals.netPurchaseTotal >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(yearlyTotals.netPurchaseTotal)}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.salesTaxable)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.salesNonVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.salesVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.salesTotal)}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.salesReturnTaxable)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.salesReturnNonVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.salesReturnVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.salesReturnTotal)}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell ${yearlyTotals.netSalesTaxable >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(yearlyTotals.netSalesTaxable)}</td>
-                <td class="amount-cell ${yearlyTotals.netSalesNonVat >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(yearlyTotals.netSalesNonVat)}</td>
-                <td class="amount-cell ${yearlyTotals.netSalesTotal >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(yearlyTotals.netSalesTotal)}</td>
-                <td class="bg-light"></td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.netPurchaseVat)}</td>
-                <td class="amount-cell">${formatCurrency(yearlyTotals.netSalesVat)}</td>
-                <td class="amount-cell ${yearlyTotals.netVat >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(yearlyTotals.netVat)}</td>
-            </tr>
-            `;
-            }
-        } else if (reportData.totals) {
-            // Print single month data
-            const displayTotals = calculateDisplayTotals();
-            tableContent += `
-        <tr>
-            <td class="nowrap"><strong>${reportData.reportDateRange}</strong></td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.purchase?.taxableAmount || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.purchase?.nonVatAmount || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.purchase?.vatAmount || 0)}</td>
-            <td class="fw-bold amount-cell">${formatCurrency((reportData.totals.purchase?.taxableAmount || 0) + (reportData.totals.purchase?.nonVatAmount || 0) + (reportData.totals.purchase?.vatAmount || 0))}</td>
-            <td class="bg-light"></td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.purchaseReturn?.taxableAmount || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.purchaseReturn?.nonVatAmount || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.purchaseReturn?.vatAmount || 0)}</td>
-            <td class="fw-bold amount-cell">${formatCurrency((reportData.totals.purchaseReturn?.taxableAmount || 0) + (reportData.totals.purchaseReturn?.nonVatAmount || 0) + (reportData.totals.purchaseReturn?.vatAmount || 0))}</td>
-            <td class="bg-light"></td>
-            <td class="amount-cell ${displayTotals.netPurchaseTaxable >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(displayTotals.netPurchaseTaxable)}</td>
-            <td class="amount-cell ${displayTotals.netPurchaseNonVat >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(displayTotals.netPurchaseNonVat)}</td>
-            <td class="amount-cell ${displayTotals.netPurchaseTotal >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(displayTotals.netPurchaseTotal)}</td>
-            <td class="bg-light"></td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.sales?.taxableAmount || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.sales?.nonVatAmount || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.sales?.vatAmount || 0)}</td>
-            <td class="fw-bold amount-cell">${formatCurrency((reportData.totals.sales?.taxableAmount || 0) + (reportData.totals.sales?.nonVatAmount || 0) + (reportData.totals.sales?.vatAmount || 0))}</td>
-            <td class="bg-light"></td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.salesReturn?.taxableAmount || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.salesReturn?.nonVatAmount || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.salesReturn?.vatAmount || 0)}</td>
-            <td class="fw-bold amount-cell">${formatCurrency((reportData.totals.salesReturn?.taxableAmount || 0) + (reportData.totals.salesReturn?.nonVatAmount || 0) + (reportData.totals.salesReturn?.vatAmount || 0))}</td>
-            <td class="bg-light"></td>
-            <td class="amount-cell ${displayTotals.netSalesTaxable >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(displayTotals.netSalesTaxable)}</td>
-            <td class="amount-cell ${displayTotals.netSalesNonVat >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(displayTotals.netSalesNonVat)}</td>
-            <td class="amount-cell ${displayTotals.netSalesTotal >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(displayTotals.netSalesTotal)}</td>
-            <td class="bg-light"></td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.netPurchaseVat || 0)}</td>
-            <td class="amount-cell">${formatCurrency(reportData.totals.netSalesVat || 0)}</td>
-            <td class="amount-cell ${(reportData.totals.netVat || 0) >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${formatCurrency(reportData.totals.netVat || 0)}</td>
-        </tr>
-        `;
-        }
-
-        tableContent += `
-            </tbody>
-        </table>
-    </div>
-    `;
-
-        printWindow.document.write(`
-    <html>
-        <head>
-            <title>Monthly VAT Summary</title>
-        </head>
-        <body>
-            ${tableContent}
-            <script>
-                window.onload = function() {
-                    window.print();
-                    // Removed window.close() to keep the print window open
-                };
-            <\/script>
-        </body>
-    </html>
-    `);
-        printWindow.document.close();
+    const formatCurrencyForExport = (num) => {
+        const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
+        return number.toFixed(2);
     };
 
-    // Add this function to calculate totals for display
-    const calculateDisplayTotals = () => {
-        if (reportData.totals) {
-            // Single month totals
-            return {
-                purchaseTaxable: reportData.totals.purchase?.taxableAmount || 0,
-                purchaseNonVat: reportData.totals.purchase?.nonVatAmount || 0,
-                purchaseVat: reportData.totals.purchase?.vatAmount || 0,
-                purchaseTotal: (reportData.totals.purchase?.taxableAmount || 0) +
-                    (reportData.totals.purchase?.nonVatAmount || 0) +
-                    (reportData.totals.purchase?.vatAmount || 0),
-
-                purchaseReturnTaxable: reportData.totals.purchaseReturn?.taxableAmount || 0,
-                purchaseReturnNonVat: reportData.totals.purchaseReturn?.nonVatAmount || 0,
-                purchaseReturnVat: reportData.totals.purchaseReturn?.vatAmount || 0,
-                purchaseReturnTotal: (reportData.totals.purchaseReturn?.taxableAmount || 0) +
-                    (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-                    (reportData.totals.purchaseReturn?.vatAmount || 0),
-
-                netPurchaseTaxable: (reportData.totals.purchase?.taxableAmount || 0) -
-                    (reportData.totals.purchaseReturn?.taxableAmount || 0),
-                netPurchaseNonVat: (reportData.totals.purchase?.nonVatAmount || 0) -
-                    (reportData.totals.purchaseReturn?.nonVatAmount || 0),
-                netPurchaseTotal: ((reportData.totals.purchase?.taxableAmount || 0) +
-                    (reportData.totals.purchase?.nonVatAmount || 0) +
-                    (reportData.totals.purchase?.vatAmount || 0)) -
-                    ((reportData.totals.purchaseReturn?.taxableAmount || 0) +
-                        (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-                        (reportData.totals.purchaseReturn?.vatAmount || 0)),
-
-                salesTaxable: reportData.totals.sales?.taxableAmount || 0,
-                salesNonVat: reportData.totals.sales?.nonVatAmount || 0,
-                salesVat: reportData.totals.sales?.vatAmount || 0,
-                salesTotal: (reportData.totals.sales?.taxableAmount || 0) +
-                    (reportData.totals.sales?.nonVatAmount || 0) +
-                    (reportData.totals.sales?.vatAmount || 0),
-
-                salesReturnTaxable: reportData.totals.salesReturn?.taxableAmount || 0,
-                salesReturnNonVat: reportData.totals.salesReturn?.nonVatAmount || 0,
-                salesReturnVat: reportData.totals.salesReturn?.vatAmount || 0,
-                salesReturnTotal: (reportData.totals.salesReturn?.taxableAmount || 0) +
-                    (reportData.totals.salesReturn?.nonVatAmount || 0) +
-                    (reportData.totals.salesReturn?.vatAmount || 0),
-
-                netSalesTaxable: (reportData.totals.sales?.taxableAmount || 0) -
-                    (reportData.totals.salesReturn?.taxableAmount || 0),
-                netSalesNonVat: (reportData.totals.sales?.nonVatAmount || 0) -
-                    (reportData.totals.salesReturn?.nonVatAmount || 0),
-                netSalesTotal: ((reportData.totals.sales?.taxableAmount || 0) +
-                    (reportData.totals.sales?.nonVatAmount || 0) +
-                    (reportData.totals.sales?.vatAmount || 0)) -
-                    ((reportData.totals.salesReturn?.taxableAmount || 0) +
-                        (reportData.totals.salesReturn?.nonVatAmount || 0) +
-                        (reportData.totals.salesReturn?.vatAmount || 0)),
-
-                netPurchaseVat: reportData.totals.netPurchaseVat || 0,
-                netSalesVat: reportData.totals.netSalesVat || 0,
-                netVat: reportData.totals.netVat || 0
-            };
-        } else if (reportData.monthlyData && reportData.monthlyData.length > 0) {
-            // Multiple months totals
-            return calculateYearlyTotals();
-        }
-        return null;
-    };
-
-    // Excel Export Function - FIXED COLUMN MAPPING
-    const handleExportExcel = async () => {
-        // Check if there's any data to export
-        const hasData = reportData.totals ||
-            (reportData.monthlyData && reportData.monthlyData.length > 0);
+    const exportToExcel = async () => {
+        const hasData = data.totals || (data.monthlyData && data.monthlyData.length > 0);
 
         if (!hasData) {
             setNotification({
                 show: true,
                 message: 'No data to export. Please generate a report first.',
-                type: 'error'
+                type: 'warning'
             });
             return;
         }
 
         setExporting(true);
         try {
-            let excelData = [];
+            const excelData = [];
             const currentDate = new Date().toISOString().split('T')[0];
 
-            // Add company header information
-            excelData.push(['Company Name:', reportData.currentCompanyName || 'N/A']);
+            excelData.push(['Company Name:', data.currentCompanyName || '']);
             excelData.push(['Report Type:', 'Monthly VAT Summary']);
-            excelData.push(['Date Range:', reportData.reportDateRange || 'N/A']);
+            excelData.push(['Report Period:', data.reportDateRange || '']);
             excelData.push(['Export Date:', currentDate]);
-            excelData.push([]); // Empty row for spacing
+            excelData.push([]);
 
-            // Main table headers - using array format for proper alignment
             const headers = [
                 'Date Range',
                 'Purchase Taxable', 'Purchase Non-VAT', 'Purchase VAT', 'Purchase Total',
-                '',
-                'Purchase Return Taxable', 'Purchase Return Non-VAT', 'Purchase Return VAT', 'Purchase Return Total',
-                '',
-                'Net Purchase Taxable', 'Net Purchase Non-VAT', 'Net Purchase Total',
-                '',
-                'Sales Taxable', 'Sales Non-VAT', 'Sales VAT', 'Sales Total',
-                '',
-                'Sales Return Taxable', 'Sales Return Non-VAT', 'Sales Return VAT', 'Sales Return Total',
-                '',
-                'Net Sales Taxable', 'Net Sales Non-VAT', 'Net Sales Total',
-                '',
-                'Purchase VAT', 'Sales VAT', 'Net VAT Payable'
+                '', 'Purchase Return Taxable', 'Purchase Return Non-VAT', 'Purchase Return VAT', 'Purchase Return Total',
+                '', 'Net Purchase Taxable', 'Net Purchase Non-VAT', 'Net Purchase Total',
+                '', 'Sales Taxable', 'Sales Non-VAT', 'Sales VAT', 'Sales Total',
+                '', 'Sales Return Taxable', 'Sales Return Non-VAT', 'Sales Return VAT', 'Sales Return Total',
+                '', 'Net Sales Taxable', 'Net Sales Non-VAT', 'Net Sales Total',
+                '', 'Purchase VAT', 'Sales VAT', 'Net VAT Payable'
             ];
-
-            // Add headers row
             excelData.push(headers);
 
-            // Export data based on report type
-            if (formValues.periodType === 'yearly' && reportData.monthlyData && reportData.monthlyData.length > 0) {
-                // Export all months data for yearly report
-                reportData.monthlyData.forEach((monthData) => {
+            if (data.periodType === 'yearly' && data.monthlyData && data.monthlyData.length > 0) {
+                data.monthlyData.forEach((monthData) => {
                     const rowData = [
                         monthData.reportDateRange,
-                        formatCurrency(monthData.totals.purchase?.taxableAmount || 0),
-                        formatCurrency(monthData.totals.purchase?.nonVatAmount || 0),
-                        formatCurrency(monthData.totals.purchase?.vatAmount || 0),
-                        formatCurrency(
-                            (monthData.totals.purchase?.taxableAmount || 0) +
-                            (monthData.totals.purchase?.nonVatAmount || 0) +
-                            (monthData.totals.purchase?.vatAmount || 0)
-                        ),
-                        '', // Spacer
-                        formatCurrency(monthData.totals.purchaseReturn?.taxableAmount || 0),
-                        formatCurrency(monthData.totals.purchaseReturn?.nonVatAmount || 0),
-                        formatCurrency(monthData.totals.purchaseReturn?.vatAmount || 0),
-                        formatCurrency(
-                            (monthData.totals.purchaseReturn?.taxableAmount || 0) +
-                            (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-                            (monthData.totals.purchaseReturn?.vatAmount || 0)
-                        ),
-                        '', // Spacer
-                        formatCurrency(
-                            (monthData.totals.purchase?.taxableAmount || 0) -
-                            (monthData.totals.purchaseReturn?.taxableAmount || 0)
-                        ),
-                        formatCurrency(
-                            (monthData.totals.purchase?.nonVatAmount || 0) -
-                            (monthData.totals.purchaseReturn?.nonVatAmount || 0)
-                        ),
-                        formatCurrency(
-                            ((monthData.totals.purchase?.taxableAmount || 0) +
-                                (monthData.totals.purchase?.nonVatAmount || 0) +
-                                (monthData.totals.purchase?.vatAmount || 0)) -
-                            ((monthData.totals.purchaseReturn?.taxableAmount || 0) +
-                                (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-                                (monthData.totals.purchaseReturn?.vatAmount || 0))
-                        ),
-                        '', // Spacer
-                        formatCurrency(monthData.totals.sales?.taxableAmount || 0),
-                        formatCurrency(monthData.totals.sales?.nonVatAmount || 0),
-                        formatCurrency(monthData.totals.sales?.vatAmount || 0),
-                        formatCurrency(
-                            (monthData.totals.sales?.taxableAmount || 0) +
-                            (monthData.totals.sales?.nonVatAmount || 0) +
-                            (monthData.totals.sales?.vatAmount || 0)
-                        ),
-                        '', // Spacer
-                        formatCurrency(monthData.totals.salesReturn?.taxableAmount || 0),
-                        formatCurrency(monthData.totals.salesReturn?.nonVatAmount || 0),
-                        formatCurrency(monthData.totals.salesReturn?.vatAmount || 0),
-                        formatCurrency(
-                            (monthData.totals.salesReturn?.taxableAmount || 0) +
-                            (monthData.totals.salesReturn?.nonVatAmount || 0) +
-                            (monthData.totals.salesReturn?.vatAmount || 0)
-                        ),
-                        '', // Spacer
-                        formatCurrency(
-                            (monthData.totals.sales?.taxableAmount || 0) -
-                            (monthData.totals.salesReturn?.taxableAmount || 0)
-                        ),
-                        formatCurrency(
-                            (monthData.totals.sales?.nonVatAmount || 0) -
-                            (monthData.totals.salesReturn?.nonVatAmount || 0)
-                        ),
-                        formatCurrency(
-                            ((monthData.totals.sales?.taxableAmount || 0) +
-                                (monthData.totals.sales?.nonVatAmount || 0) +
-                                (monthData.totals.sales?.vatAmount || 0)) -
-                            ((monthData.totals.salesReturn?.taxableAmount || 0) +
-                                (monthData.totals.salesReturn?.nonVatAmount || 0) +
-                                (monthData.totals.salesReturn?.vatAmount || 0))
-                        ),
-                        '', // Spacer
-                        formatCurrency(monthData.totals.netPurchaseVat || 0),
-                        formatCurrency(monthData.totals.netSalesVat || 0),
-                        formatCurrency(monthData.totals.netVat || 0)
+                        formatCurrencyForExport(monthData.totals?.purchase?.taxableAmount || 0),
+                        formatCurrencyForExport(monthData.totals?.purchase?.nonVatAmount || 0),
+                        formatCurrencyForExport(monthData.totals?.purchase?.vatAmount || 0),
+                        formatCurrencyForExport((monthData.totals?.purchase?.taxableAmount || 0) + (monthData.totals?.purchase?.nonVatAmount || 0) + (monthData.totals?.purchase?.vatAmount || 0)),
+                        '',
+                        formatCurrencyForExport(monthData.totals?.purchaseReturn?.taxableAmount || 0),
+                        formatCurrencyForExport(monthData.totals?.purchaseReturn?.nonVatAmount || 0),
+                        formatCurrencyForExport(monthData.totals?.purchaseReturn?.vatAmount || 0),
+                        formatCurrencyForExport((monthData.totals?.purchaseReturn?.taxableAmount || 0) + (monthData.totals?.purchaseReturn?.nonVatAmount || 0) + (monthData.totals?.purchaseReturn?.vatAmount || 0)),
+                        '',
+                        formatCurrencyForExport((monthData.totals?.purchase?.taxableAmount || 0) - (monthData.totals?.purchaseReturn?.taxableAmount || 0)),
+                        formatCurrencyForExport((monthData.totals?.purchase?.nonVatAmount || 0) - (monthData.totals?.purchaseReturn?.nonVatAmount || 0)),
+                        formatCurrencyForExport(((monthData.totals?.purchase?.taxableAmount || 0) + (monthData.totals?.purchase?.nonVatAmount || 0) + (monthData.totals?.purchase?.vatAmount || 0)) - ((monthData.totals?.purchaseReturn?.taxableAmount || 0) + (monthData.totals?.purchaseReturn?.nonVatAmount || 0) + (monthData.totals?.purchaseReturn?.vatAmount || 0))),
+                        '',
+                        formatCurrencyForExport(monthData.totals?.sales?.taxableAmount || 0),
+                        formatCurrencyForExport(monthData.totals?.sales?.nonVatAmount || 0),
+                        formatCurrencyForExport(monthData.totals?.sales?.vatAmount || 0),
+                        formatCurrencyForExport((monthData.totals?.sales?.taxableAmount || 0) + (monthData.totals?.sales?.nonVatAmount || 0) + (monthData.totals?.sales?.vatAmount || 0)),
+                        '',
+                        formatCurrencyForExport(monthData.totals?.salesReturn?.taxableAmount || 0),
+                        formatCurrencyForExport(monthData.totals?.salesReturn?.nonVatAmount || 0),
+                        formatCurrencyForExport(monthData.totals?.salesReturn?.vatAmount || 0),
+                        formatCurrencyForExport((monthData.totals?.salesReturn?.taxableAmount || 0) + (monthData.totals?.salesReturn?.nonVatAmount || 0) + (monthData.totals?.salesReturn?.vatAmount || 0)),
+                        '',
+                        formatCurrencyForExport((monthData.totals?.sales?.taxableAmount || 0) - (monthData.totals?.salesReturn?.taxableAmount || 0)),
+                        formatCurrencyForExport((monthData.totals?.sales?.nonVatAmount || 0) - (monthData.totals?.salesReturn?.nonVatAmount || 0)),
+                        formatCurrencyForExport(((monthData.totals?.sales?.taxableAmount || 0) + (monthData.totals?.sales?.nonVatAmount || 0) + (monthData.totals?.sales?.vatAmount || 0)) - ((monthData.totals?.salesReturn?.taxableAmount || 0) + (monthData.totals?.salesReturn?.nonVatAmount || 0) + (monthData.totals?.salesReturn?.vatAmount || 0))),
+                        '',
+                        formatCurrencyForExport(monthData.totals?.netPurchaseVat || 0),
+                        formatCurrencyForExport(monthData.totals?.netSalesVat || 0),
+                        formatCurrencyForExport(monthData.totals?.netVat || 0)
                     ];
                     excelData.push(rowData);
                 });
-
-                // Add yearly totals
-                const yearlyTotals = calculateYearlyTotals();
-                if (yearlyTotals) {
-                    excelData.push([]); // Empty row
-                    const totalsRow = [
-                        'YEARLY TOTALS',
-                        formatCurrency(yearlyTotals.purchaseTaxable),
-                        formatCurrency(yearlyTotals.purchaseNonVat),
-                        formatCurrency(yearlyTotals.purchaseVat),
-                        formatCurrency(yearlyTotals.purchaseTotal),
-                        '', // Spacer
-                        formatCurrency(yearlyTotals.purchaseReturnTaxable),
-                        formatCurrency(yearlyTotals.purchaseReturnNonVat),
-                        formatCurrency(yearlyTotals.purchaseReturnVat),
-                        formatCurrency(yearlyTotals.purchaseReturnTotal),
-                        '', // Spacer
-                        formatCurrency(yearlyTotals.netPurchaseTaxable),
-                        formatCurrency(yearlyTotals.netPurchaseNonVat),
-                        formatCurrency(yearlyTotals.netPurchaseTotal),
-                        '', // Spacer
-                        formatCurrency(yearlyTotals.salesTaxable),
-                        formatCurrency(yearlyTotals.salesNonVat),
-                        formatCurrency(yearlyTotals.salesVat),
-                        formatCurrency(yearlyTotals.salesTotal),
-                        '', // Spacer
-                        formatCurrency(yearlyTotals.salesReturnTaxable),
-                        formatCurrency(yearlyTotals.salesReturnNonVat),
-                        formatCurrency(yearlyTotals.salesReturnVat),
-                        formatCurrency(yearlyTotals.salesReturnTotal),
-                        '', // Spacer
-                        formatCurrency(yearlyTotals.netSalesTaxable),
-                        formatCurrency(yearlyTotals.netSalesNonVat),
-                        formatCurrency(yearlyTotals.netSalesTotal),
-                        '', // Spacer
-                        formatCurrency(yearlyTotals.netPurchaseVat),
-                        formatCurrency(yearlyTotals.netSalesVat),
-                        formatCurrency(yearlyTotals.netVat)
-                    ];
-                    excelData.push(totalsRow);
-                }
-            } else if (reportData.totals) {
-                // Export single month data
+            } else if (data.totals) {
                 const rowData = [
-                    reportData.reportDateRange,
-                    formatCurrency(reportData.totals.purchase?.taxableAmount || 0),
-                    formatCurrency(reportData.totals.purchase?.nonVatAmount || 0),
-                    formatCurrency(reportData.totals.purchase?.vatAmount || 0),
-                    formatCurrency(
-                        (reportData.totals.purchase?.taxableAmount || 0) +
-                        (reportData.totals.purchase?.nonVatAmount || 0) +
-                        (reportData.totals.purchase?.vatAmount || 0)
-                    ),
-                    '', // Spacer
-                    formatCurrency(reportData.totals.purchaseReturn?.taxableAmount || 0),
-                    formatCurrency(reportData.totals.purchaseReturn?.nonVatAmount || 0),
-                    formatCurrency(reportData.totals.purchaseReturn?.vatAmount || 0),
-                    formatCurrency(
-                        (reportData.totals.purchaseReturn?.taxableAmount || 0) +
-                        (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-                        (reportData.totals.purchaseReturn?.vatAmount || 0)
-                    ),
-                    '', // Spacer
-                    formatCurrency(
-                        (reportData.totals.purchase?.taxableAmount || 0) -
-                        (reportData.totals.purchaseReturn?.taxableAmount || 0)
-                    ),
-                    formatCurrency(
-                        (reportData.totals.purchase?.nonVatAmount || 0) -
-                        (reportData.totals.purchaseReturn?.nonVatAmount || 0)
-                    ),
-                    formatCurrency(
-                        ((reportData.totals.purchase?.taxableAmount || 0) +
-                            (reportData.totals.purchase?.nonVatAmount || 0) +
-                            (reportData.totals.purchase?.vatAmount || 0)) -
-                        ((reportData.totals.purchaseReturn?.taxableAmount || 0) +
-                            (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-                            (reportData.totals.purchaseReturn?.vatAmount || 0))
-                    ),
-                    '', // Spacer
-                    formatCurrency(reportData.totals.sales?.taxableAmount || 0),
-                    formatCurrency(reportData.totals.sales?.nonVatAmount || 0),
-                    formatCurrency(reportData.totals.sales?.vatAmount || 0),
-                    formatCurrency(
-                        (reportData.totals.sales?.taxableAmount || 0) +
-                        (reportData.totals.sales?.nonVatAmount || 0) +
-                        (reportData.totals.sales?.vatAmount || 0)
-                    ),
-                    '', // Spacer
-                    formatCurrency(reportData.totals.salesReturn?.taxableAmount || 0),
-                    formatCurrency(reportData.totals.salesReturn?.nonVatAmount || 0),
-                    formatCurrency(reportData.totals.salesReturn?.vatAmount || 0),
-                    formatCurrency(
-                        (reportData.totals.salesReturn?.taxableAmount || 0) +
-                        (reportData.totals.salesReturn?.nonVatAmount || 0) +
-                        (reportData.totals.salesReturn?.vatAmount || 0)
-                    ),
-                    '', // Spacer
-                    formatCurrency(
-                        (reportData.totals.sales?.taxableAmount || 0) -
-                        (reportData.totals.salesReturn?.taxableAmount || 0)
-                    ),
-                    formatCurrency(
-                        (reportData.totals.sales?.nonVatAmount || 0) -
-                        (reportData.totals.salesReturn?.nonVatAmount || 0)
-                    ),
-                    formatCurrency(
-                        ((reportData.totals.sales?.taxableAmount || 0) +
-                            (reportData.totals.sales?.nonVatAmount || 0) +
-                            (reportData.totals.sales?.vatAmount || 0)) -
-                        ((reportData.totals.salesReturn?.taxableAmount || 0) +
-                            (reportData.totals.salesReturn?.nonVatAmount || 0) +
-                            (reportData.totals.salesReturn?.vatAmount || 0))
-                    ),
-                    '', // Spacer
-                    formatCurrency(reportData.totals.netPurchaseVat || 0),
-                    formatCurrency(reportData.totals.netSalesVat || 0),
-                    formatCurrency(reportData.totals.netVat || 0)
+                    data.reportDateRange,
+                    formatCurrencyForExport(data.totals.purchase?.taxableAmount || 0),
+                    formatCurrencyForExport(data.totals.purchase?.nonVatAmount || 0),
+                    formatCurrencyForExport(data.totals.purchase?.vatAmount || 0),
+                    formatCurrencyForExport((data.totals.purchase?.taxableAmount || 0) + (data.totals.purchase?.nonVatAmount || 0) + (data.totals.purchase?.vatAmount || 0)),
+                    '',
+                    formatCurrencyForExport(data.totals.purchaseReturn?.taxableAmount || 0),
+                    formatCurrencyForExport(data.totals.purchaseReturn?.nonVatAmount || 0),
+                    formatCurrencyForExport(data.totals.purchaseReturn?.vatAmount || 0),
+                    formatCurrencyForExport((data.totals.purchaseReturn?.taxableAmount || 0) + (data.totals.purchaseReturn?.nonVatAmount || 0) + (data.totals.purchaseReturn?.vatAmount || 0)),
+                    '',
+                    formatCurrencyForExport((data.totals.purchase?.taxableAmount || 0) - (data.totals.purchaseReturn?.taxableAmount || 0)),
+                    formatCurrencyForExport((data.totals.purchase?.nonVatAmount || 0) - (data.totals.purchaseReturn?.nonVatAmount || 0)),
+                    formatCurrencyForExport(((data.totals.purchase?.taxableAmount || 0) + (data.totals.purchase?.nonVatAmount || 0) + (data.totals.purchase?.vatAmount || 0)) - ((data.totals.purchaseReturn?.taxableAmount || 0) + (data.totals.purchaseReturn?.nonVatAmount || 0) + (data.totals.purchaseReturn?.vatAmount || 0))),
+                    '',
+                    formatCurrencyForExport(data.totals.sales?.taxableAmount || 0),
+                    formatCurrencyForExport(data.totals.sales?.nonVatAmount || 0),
+                    formatCurrencyForExport(data.totals.sales?.vatAmount || 0),
+                    formatCurrencyForExport((data.totals.sales?.taxableAmount || 0) + (data.totals.sales?.nonVatAmount || 0) + (data.totals.sales?.vatAmount || 0)),
+                    '',
+                    formatCurrencyForExport(data.totals.salesReturn?.taxableAmount || 0),
+                    formatCurrencyForExport(data.totals.salesReturn?.nonVatAmount || 0),
+                    formatCurrencyForExport(data.totals.salesReturn?.vatAmount || 0),
+                    formatCurrencyForExport((data.totals.salesReturn?.taxableAmount || 0) + (data.totals.salesReturn?.nonVatAmount || 0) + (data.totals.salesReturn?.vatAmount || 0)),
+                    '',
+                    formatCurrencyForExport((data.totals.sales?.taxableAmount || 0) - (data.totals.salesReturn?.taxableAmount || 0)),
+                    formatCurrencyForExport((data.totals.sales?.nonVatAmount || 0) - (data.totals.salesReturn?.nonVatAmount || 0)),
+                    formatCurrencyForExport(((data.totals.sales?.taxableAmount || 0) + (data.totals.sales?.nonVatAmount || 0) + (data.totals.sales?.vatAmount || 0)) - ((data.totals.salesReturn?.taxableAmount || 0) + (data.totals.salesReturn?.nonVatAmount || 0) + (data.totals.salesReturn?.vatAmount || 0))),
+                    '',
+                    formatCurrencyForExport(data.totals.netPurchaseVat || 0),
+                    formatCurrencyForExport(data.totals.netSalesVat || 0),
+                    formatCurrencyForExport(data.totals.netVat || 0)
                 ];
                 excelData.push(rowData);
             }
 
-            // Create worksheet using array format
             const ws = XLSX.utils.aoa_to_sheet(excelData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Monthly VAT Summary');
 
-            // Set column widths for better formatting
             const colWidths = [
-                { wch: 20 }, // Date Range
-                { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, // Purchase columns
-                { wch: 5 },  // Spacer
-                { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, // Purchase Return columns
-                { wch: 5 },  // Spacer
-                { wch: 15 }, { wch: 15 }, { wch: 15 }, // Net Purchase columns
-                { wch: 5 },  // Spacer
-                { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, // Sales columns
-                { wch: 5 },  // Spacer
-                { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, // Sales Return columns
-                { wch: 5 },  // Spacer
-                { wch: 15 }, { wch: 15 }, { wch: 15 }, // Net Sales columns
-                { wch: 5 },  // Spacer
-                { wch: 15 }, { wch: 15 }, { wch: 15 }  // VAT columns
+                { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+                { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+                { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+                { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+                { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+                { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+                { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
             ];
             ws['!cols'] = colWidths;
 
-            // Generate filename
-            const fileName = `Monthly_VAT_Summary_${reportData.reportDateRange || currentDate}.xlsx`;
-
-            // Export to Excel
+            const fileName = `Monthly_VAT_Summary_${data.reportDateRange || currentDate}.xlsx`;
             XLSX.writeFile(wb, fileName);
 
             setNotification({
@@ -2282,7 +498,6 @@ const MonthlyVatSummary = () => {
                 message: 'Excel file exported successfully!',
                 type: 'success'
             });
-
         } catch (err) {
             console.error('Error exporting to Excel:', err);
             setNotification({
@@ -2295,780 +510,679 @@ const MonthlyVatSummary = () => {
         }
     };
 
-    // Helper function to calculate yearly totals
-    const calculateYearlyTotals = () => {
-        if (!reportData.monthlyData || reportData.monthlyData.length === 0) return null;
+    const handlePrint = () => {
+        const hasData = data.totals || (data.monthlyData && data.monthlyData.length > 0);
 
-        const totals = {
-            purchaseTaxable: 0,
-            purchaseNonVat: 0,
-            purchaseVat: 0,
-            purchaseTotal: 0,
-            purchaseReturnTaxable: 0,
-            purchaseReturnNonVat: 0,
-            purchaseReturnVat: 0,
-            purchaseReturnTotal: 0,
-            netPurchaseTaxable: 0,
-            netPurchaseNonVat: 0,
-            netPurchaseTotal: 0,
-            salesTaxable: 0,
-            salesNonVat: 0,
-            salesVat: 0,
-            salesTotal: 0,
-            salesReturnTaxable: 0,
-            salesReturnNonVat: 0,
-            salesReturnVat: 0,
-            salesReturnTotal: 0,
-            netSalesTaxable: 0,
-            netSalesNonVat: 0,
-            netSalesTotal: 0,
-            netPurchaseVat: 0,
-            netSalesVat: 0,
-            netVat: 0
-        };
-
-        reportData.monthlyData.forEach(monthData => {
-            totals.purchaseTaxable += monthData.totals.purchase?.taxableAmount || 0;
-            totals.purchaseNonVat += monthData.totals.purchase?.nonVatAmount || 0;
-            totals.purchaseVat += monthData.totals.purchase?.vatAmount || 0;
-            totals.purchaseTotal += (monthData.totals.purchase?.taxableAmount || 0) +
-                (monthData.totals.purchase?.nonVatAmount || 0) +
-                (monthData.totals.purchase?.vatAmount || 0);
-
-            totals.purchaseReturnTaxable += monthData.totals.purchaseReturn?.taxableAmount || 0;
-            totals.purchaseReturnNonVat += monthData.totals.purchaseReturn?.nonVatAmount || 0;
-            totals.purchaseReturnVat += monthData.totals.purchaseReturn?.vatAmount || 0;
-            totals.purchaseReturnTotal += (monthData.totals.purchaseReturn?.taxableAmount || 0) +
-                (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-                (monthData.totals.purchaseReturn?.vatAmount || 0);
-
-            totals.netPurchaseTaxable += (monthData.totals.purchase?.taxableAmount || 0) -
-                (monthData.totals.purchaseReturn?.taxableAmount || 0);
-            totals.netPurchaseNonVat += (monthData.totals.purchase?.nonVatAmount || 0) -
-                (monthData.totals.purchaseReturn?.nonVatAmount || 0);
-            totals.netPurchaseTotal += ((monthData.totals.purchase?.taxableAmount || 0) +
-                (monthData.totals.purchase?.nonVatAmount || 0) +
-                (monthData.totals.purchase?.vatAmount || 0)) -
-                ((monthData.totals.purchaseReturn?.taxableAmount || 0) +
-                    (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-                    (monthData.totals.purchaseReturn?.vatAmount || 0));
-
-            totals.salesTaxable += monthData.totals.sales?.taxableAmount || 0;
-            totals.salesNonVat += monthData.totals.sales?.nonVatAmount || 0;
-            totals.salesVat += monthData.totals.sales?.vatAmount || 0;
-            totals.salesTotal += (monthData.totals.sales?.taxableAmount || 0) +
-                (monthData.totals.sales?.nonVatAmount || 0) +
-                (monthData.totals.sales?.vatAmount || 0);
-
-            totals.salesReturnTaxable += monthData.totals.salesReturn?.taxableAmount || 0;
-            totals.salesReturnNonVat += monthData.totals.salesReturn?.nonVatAmount || 0;
-            totals.salesReturnVat += monthData.totals.salesReturn?.vatAmount || 0;
-            totals.salesReturnTotal += (monthData.totals.salesReturn?.taxableAmount || 0) +
-                (monthData.totals.salesReturn?.nonVatAmount || 0) +
-                (monthData.totals.salesReturn?.vatAmount || 0);
-
-            totals.netSalesTaxable += (monthData.totals.sales?.taxableAmount || 0) -
-                (monthData.totals.salesReturn?.taxableAmount || 0);
-            totals.netSalesNonVat += (monthData.totals.sales?.nonVatAmount || 0) -
-                (monthData.totals.salesReturn?.nonVatAmount || 0);
-            totals.netSalesTotal += ((monthData.totals.sales?.taxableAmount || 0) +
-                (monthData.totals.sales?.nonVatAmount || 0) +
-                (monthData.totals.sales?.vatAmount || 0)) -
-                ((monthData.totals.salesReturn?.taxableAmount || 0) +
-                    (monthData.totals.salesReturn?.nonVatAmount || 0) +
-                    (monthData.totals.salesReturn?.vatAmount || 0));
-
-            totals.netPurchaseVat += monthData.totals.netPurchaseVat || 0;
-            totals.netSalesVat += monthData.totals.netSalesVat || 0;
-            totals.netVat += monthData.totals.netVat || 0;
-        });
-
-        return totals;
-    };
-
-    if (loading) return <Loader />;
-
-    const handleKeyDown = (e, nextFieldId) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (nextFieldId) {
-                document.getElementById(nextFieldId)?.focus();
-            }
-        }
-    };
-
-    const renderMonthlyTable = () => {
-        if (!reportData.monthlyData || reportData.monthlyData.length === 0) {
-            return null;
+        if (!hasData) {
+            setNotification({
+                show: true,
+                message: 'No data to print. Please generate a report first.',
+                type: 'warning'
+            });
+            return;
         }
 
-        const displayTotals = calculateDisplayTotals();
+        const printWindow = window.open("", "_blank");
 
-        return (
-            <div className="table-container mt-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                <table className="table table-bordered table-hover" id="vatReportTable">
-                    <thead>
-                        <tr>
-                            <th rowSpan="2" className="text-center align-middle bg-primary text-white">Date Range</th>
-                            <th colSpan="4" className="text-center bg-primary text-white">Purchase</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="4" className="text-center bg-primary text-white">Purchase Return</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="3" className="text-center bg-primary text-white">Net Purchase</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="4" className="text-center bg-primary text-white">Sales</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="4" className="text-center bg-primary text-white">Sales Return</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="3" className="text-center bg-primary text-white">Net Sales</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="3" className="text-center bg-primary text-white">Net VAT</th>
-                        </tr>
-                        <tr>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Purc VAT</th>
-                            <th>Sales VAT</th>
-                            <th>Net Payable</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {reportData.monthlyData.map((monthData, index) => (
-                            <tr key={index}>
-                                <td className="align-middle"><strong>{monthData.reportDateRange}</strong></td>
-                                <td>{formatCurrency(monthData.totals.purchase?.taxableAmount)}</td>
-                                <td>{formatCurrency(monthData.totals.purchase?.nonVatAmount)}</td>
-                                <td>{formatCurrency(monthData.totals.purchase?.vatAmount)}</td>
-                                <td className="fw-bold">
-                                    {formatCurrency(
-                                        (monthData.totals.purchase?.taxableAmount || 0) +
-                                        (monthData.totals.purchase?.nonVatAmount || 0) +
-                                        (monthData.totals.purchase?.vatAmount || 0)
-                                    )}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(monthData.totals.purchaseReturn?.taxableAmount)}</td>
-                                <td>{formatCurrency(monthData.totals.purchaseReturn?.nonVatAmount)}</td>
-                                <td>{formatCurrency(monthData.totals.purchaseReturn?.vatAmount)}</td>
-                                <td className="fw-bold">
-                                    {formatCurrency(
-                                        (monthData.totals.purchaseReturn?.taxableAmount || 0) +
-                                        (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-                                        (monthData.totals.purchaseReturn?.vatAmount || 0)
-                                    )}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td className={getNetValueClass(
-                                    (monthData.totals.purchase?.taxableAmount || 0) -
-                                    (monthData.totals.purchaseReturn?.taxableAmount || 0)
-                                )}>
-                                    {formatCurrency(
-                                        (monthData.totals.purchase?.taxableAmount || 0) -
-                                        (monthData.totals.purchaseReturn?.taxableAmount || 0)
-                                    )}
-                                </td>
-                                <td className={getNetValueClass(
-                                    (monthData.totals.purchase?.nonVatAmount || 0) -
-                                    (monthData.totals.purchaseReturn?.nonVatAmount || 0)
-                                )}>
-                                    {formatCurrency(
-                                        (monthData.totals.purchase?.nonVatAmount || 0) -
-                                        (monthData.totals.purchaseReturn?.nonVatAmount || 0)
-                                    )}
-                                </td>
-                                <td className={`fw-bold ${getNetValueClass(
-                                    ((monthData.totals.purchase?.taxableAmount || 0) +
-                                        (monthData.totals.purchase?.nonVatAmount || 0) +
-                                        (monthData.totals.purchase?.vatAmount || 0)) -
-                                    ((monthData.totals.purchaseReturn?.taxableAmount || 0) +
-                                        (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-                                        (monthData.totals.purchaseReturn?.vatAmount || 0))
-                                )}`}>
-                                    {formatCurrency(
-                                        ((monthData.totals.purchase?.taxableAmount || 0) +
-                                            (monthData.totals.purchase?.nonVatAmount || 0) +
-                                            (monthData.totals.purchase?.vatAmount || 0)) -
-                                        ((monthData.totals.purchaseReturn?.taxableAmount || 0) +
-                                            (monthData.totals.purchaseReturn?.nonVatAmount || 0) +
-                                            (monthData.totals.purchaseReturn?.vatAmount || 0))
-                                    )}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(monthData.totals.sales?.taxableAmount)}</td>
-                                <td>{formatCurrency(monthData.totals.sales?.nonVatAmount)}</td>
-                                <td>{formatCurrency(monthData.totals.sales?.vatAmount)}</td>
-                                <td className="fw-bold">
-                                    {formatCurrency(
-                                        (monthData.totals.sales?.taxableAmount || 0) +
-                                        (monthData.totals.sales?.nonVatAmount || 0) +
-                                        (monthData.totals.sales?.vatAmount || 0)
-                                    )}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(monthData.totals.salesReturn?.taxableAmount)}</td>
-                                <td>{formatCurrency(monthData.totals.salesReturn?.nonVatAmount)}</td>
-                                <td>{formatCurrency(monthData.totals.salesReturn?.vatAmount)}</td>
-                                <td className="fw-bold">
-                                    {formatCurrency(
-                                        (monthData.totals.salesReturn?.taxableAmount || 0) +
-                                        (monthData.totals.salesReturn?.nonVatAmount || 0) +
-                                        (monthData.totals.salesReturn?.vatAmount || 0)
-                                    )}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td className={getNetValueClass(
-                                    (monthData.totals.sales?.taxableAmount || 0) -
-                                    (monthData.totals.salesReturn?.taxableAmount || 0)
-                                )}>
-                                    {formatCurrency(
-                                        (monthData.totals.sales?.taxableAmount || 0) -
-                                        (monthData.totals.salesReturn?.taxableAmount || 0)
-                                    )}
-                                </td>
-                                <td className={getNetValueClass(
-                                    (monthData.totals.sales?.nonVatAmount || 0) -
-                                    (monthData.totals.salesReturn?.nonVatAmount || 0)
-                                )}>
-                                    {formatCurrency(
-                                        (monthData.totals.sales?.nonVatAmount || 0) -
-                                        (monthData.totals.salesReturn?.nonVatAmount || 0)
-                                    )}
-                                </td>
-                                <td className={`fw-bold ${getNetValueClass(
-                                    ((monthData.totals.sales?.taxableAmount || 0) +
-                                        (monthData.totals.sales?.nonVatAmount || 0) +
-                                        (monthData.totals.sales?.vatAmount || 0)) -
-                                    ((monthData.totals.salesReturn?.taxableAmount || 0) +
-                                        (monthData.totals.salesReturn?.nonVatAmount || 0) +
-                                        (monthData.totals.salesReturn?.vatAmount || 0))
-                                )}`}>
-                                    {formatCurrency(
-                                        ((monthData.totals.sales?.taxableAmount || 0) +
-                                            (monthData.totals.sales?.nonVatAmount || 0) +
-                                            (monthData.totals.sales?.vatAmount || 0)) -
-                                        ((monthData.totals.salesReturn?.taxableAmount || 0) +
-                                            (monthData.totals.salesReturn?.nonVatAmount || 0) +
-                                            (monthData.totals.salesReturn?.vatAmount || 0))
-                                    )}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(monthData.totals.netPurchaseVat)}</td>
-                                <td>{formatCurrency(monthData.totals.netSalesVat)}</td>
-                                <td className={`fw-bold ${monthData.totals.netVat >= 0 ? 'text-success' : 'text-danger'}`}>
-                                    {formatCurrency(monthData.totals.netVat)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                    {displayTotals && (
-                        <tfoot className="table-group-divider">
-                            <tr className="fw-bold table-secondary">
-                                <td>TOTAL</td>
-                                <td>{formatCurrency(displayTotals.purchaseTaxable)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseNonVat)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseVat)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseTotal)}</td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(displayTotals.purchaseReturnTaxable)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseReturnNonVat)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseReturnVat)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseReturnTotal)}</td>
-                                <td className="bg-light"></td>
-                                <td className={getNetValueClass(displayTotals.netPurchaseTaxable)}>
-                                    {formatCurrency(displayTotals.netPurchaseTaxable)}
-                                </td>
-                                <td className={getNetValueClass(displayTotals.netPurchaseNonVat)}>
-                                    {formatCurrency(displayTotals.netPurchaseNonVat)}
-                                </td>
-                                <td className={getNetValueClass(displayTotals.netPurchaseTotal)}>
-                                    {formatCurrency(displayTotals.netPurchaseTotal)}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(displayTotals.salesTaxable)}</td>
-                                <td>{formatCurrency(displayTotals.salesNonVat)}</td>
-                                <td>{formatCurrency(displayTotals.salesVat)}</td>
-                                <td>{formatCurrency(displayTotals.salesTotal)}</td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(displayTotals.salesReturnTaxable)}</td>
-                                <td>{formatCurrency(displayTotals.salesReturnNonVat)}</td>
-                                <td>{formatCurrency(displayTotals.salesReturnVat)}</td>
-                                <td>{formatCurrency(displayTotals.salesReturnTotal)}</td>
-                                <td className="bg-light"></td>
-                                <td className={getNetValueClass(displayTotals.netSalesTaxable)}>
-                                    {formatCurrency(displayTotals.netSalesTaxable)}
-                                </td>
-                                <td className={getNetValueClass(displayTotals.netSalesNonVat)}>
-                                    {formatCurrency(displayTotals.netSalesNonVat)}
-                                </td>
-                                <td className={getNetValueClass(displayTotals.netSalesTotal)}>
-                                    {formatCurrency(displayTotals.netSalesTotal)}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(displayTotals.netPurchaseVat)}</td>
-                                <td>{formatCurrency(displayTotals.netSalesVat)}</td>
-                                <td className={getNetValueClass(displayTotals.netVat)}>
-                                    {formatCurrency(displayTotals.netVat)}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    )}
-                </table>
+        if (!printWindow) {
+            setNotification({
+                show: true,
+                message: 'Popup blocked. Please allow popups for this site.',
+                type: 'error'
+            });
+            return;
+        }
+
+        let tableRows = '';
+
+        if (data.periodType === 'yearly' && data.monthlyData && data.monthlyData.length > 0) {
+            data.monthlyData.forEach((monthData) => {
+                const netPurchaseTaxable = (monthData.totals?.purchase?.taxableAmount || 0) - (monthData.totals?.purchaseReturn?.taxableAmount || 0);
+                const netPurchaseNonVat = (monthData.totals?.purchase?.nonVatAmount || 0) - (monthData.totals?.purchaseReturn?.nonVatAmount || 0);
+                const netPurchaseTotal = ((monthData.totals?.purchase?.taxableAmount || 0) + (monthData.totals?.purchase?.nonVatAmount || 0) + (monthData.totals?.purchase?.vatAmount || 0)) -
+                    ((monthData.totals?.purchaseReturn?.taxableAmount || 0) + (monthData.totals?.purchaseReturn?.nonVatAmount || 0) + (monthData.totals?.purchaseReturn?.vatAmount || 0));
+
+                const netSalesTaxable = (monthData.totals?.sales?.taxableAmount || 0) - (monthData.totals?.salesReturn?.taxableAmount || 0);
+                const netSalesNonVat = (monthData.totals?.sales?.nonVatAmount || 0) - (monthData.totals?.salesReturn?.nonVatAmount || 0);
+                const netSalesTotal = ((monthData.totals?.sales?.taxableAmount || 0) + (monthData.totals?.sales?.nonVatAmount || 0) + (monthData.totals?.sales?.vatAmount || 0)) -
+                    ((monthData.totals?.salesReturn?.taxableAmount || 0) + (monthData.totals?.salesReturn?.nonVatAmount || 0) + (monthData.totals?.salesReturn?.vatAmount || 0));
+
+                tableRows += `
+                    <tr>
+                        <td class="nowrap"><strong>${monthData.reportDateRange}</strong></td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.purchase?.taxableAmount || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.purchase?.nonVatAmount || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.purchase?.vatAmount || 0)}</td>
+                        <td class="text-end fw-bold">${formatCurrency((monthData.totals?.purchase?.taxableAmount || 0) + (monthData.totals?.purchase?.nonVatAmount || 0) + (monthData.totals?.purchase?.vatAmount || 0))}</td>
+                        <td class="bg-light"></td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.purchaseReturn?.taxableAmount || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.purchaseReturn?.nonVatAmount || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.purchaseReturn?.vatAmount || 0)}</td>
+                        <td class="text-end fw-bold">${formatCurrency((monthData.totals?.purchaseReturn?.taxableAmount || 0) + (monthData.totals?.purchaseReturn?.nonVatAmount || 0) + (monthData.totals?.purchaseReturn?.vatAmount || 0))}</td>
+                        <td class="bg-light"></td>
+                        <td class="text-end ${getNetValueClass(netPurchaseTaxable)}">${formatCurrency(netPurchaseTaxable)}</td>
+                        <td class="text-end ${getNetValueClass(netPurchaseNonVat)}">${formatCurrency(netPurchaseNonVat)}</td>
+                        <td class="text-end ${getNetValueClass(netPurchaseTotal)}">${formatCurrency(netPurchaseTotal)}</td>
+                        <td class="bg-light"></td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.sales?.taxableAmount || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.sales?.nonVatAmount || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.sales?.vatAmount || 0)}</td>
+                        <td class="text-end fw-bold">${formatCurrency((monthData.totals?.sales?.taxableAmount || 0) + (monthData.totals?.sales?.nonVatAmount || 0) + (monthData.totals?.sales?.vatAmount || 0))}</td>
+                        <td class="bg-light"></td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.salesReturn?.taxableAmount || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.salesReturn?.nonVatAmount || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.salesReturn?.vatAmount || 0)}</td>
+                        <td class="text-end fw-bold">${formatCurrency((monthData.totals?.salesReturn?.taxableAmount || 0) + (monthData.totals?.salesReturn?.nonVatAmount || 0) + (monthData.totals?.salesReturn?.vatAmount || 0))}</td>
+                        <td class="bg-light"></td>
+                        <td class="text-end ${getNetValueClass(netSalesTaxable)}">${formatCurrency(netSalesTaxable)}</td>
+                        <td class="text-end ${getNetValueClass(netSalesNonVat)}">${formatCurrency(netSalesNonVat)}</td>
+                        <td class="text-end ${getNetValueClass(netSalesTotal)}">${formatCurrency(netSalesTotal)}</td>
+                        <td class="bg-light"></td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.netPurchaseVat || 0)}</td>
+                        <td class="text-end">${formatCurrency(monthData.totals?.netSalesVat || 0)}</td>
+                        <td class="text-end ${getNetValueClass(monthData.totals?.netVat || 0)}">${formatCurrency(monthData.totals?.netVat || 0)}</td>
+                    </tr>
+                `;
+            });
+        } else if (data.totals) {
+            const netPurchaseTaxable = (data.totals.purchase?.taxableAmount || 0) - (data.totals.purchaseReturn?.taxableAmount || 0);
+            const netPurchaseNonVat = (data.totals.purchase?.nonVatAmount || 0) - (data.totals.purchaseReturn?.nonVatAmount || 0);
+            const netPurchaseTotal = ((data.totals.purchase?.taxableAmount || 0) + (data.totals.purchase?.nonVatAmount || 0) + (data.totals.purchase?.vatAmount || 0)) -
+                ((data.totals.purchaseReturn?.taxableAmount || 0) + (data.totals.purchaseReturn?.nonVatAmount || 0) + (data.totals.purchaseReturn?.vatAmount || 0));
+
+            const netSalesTaxable = (data.totals.sales?.taxableAmount || 0) - (data.totals.salesReturn?.taxableAmount || 0);
+            const netSalesNonVat = (data.totals.sales?.nonVatAmount || 0) - (data.totals.salesReturn?.nonVatAmount || 0);
+            const netSalesTotal = ((data.totals.sales?.taxableAmount || 0) + (data.totals.sales?.nonVatAmount || 0) + (data.totals.sales?.vatAmount || 0)) -
+                ((data.totals.salesReturn?.taxableAmount || 0) + (data.totals.salesReturn?.nonVatAmount || 0) + (data.totals.salesReturn?.vatAmount || 0));
+
+            tableRows += `
+                <tr>
+                    <td class="nowrap"><strong>${data.reportDateRange}</strong></td>
+                    <td class="text-end">${formatCurrency(data.totals.purchase?.taxableAmount || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.purchase?.nonVatAmount || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.purchase?.vatAmount || 0)}</td>
+                    <td class="text-end fw-bold">${formatCurrency((data.totals.purchase?.taxableAmount || 0) + (data.totals.purchase?.nonVatAmount || 0) + (data.totals.purchase?.vatAmount || 0))}</td>
+                    <td class="bg-light"></td>
+                    <td class="text-end">${formatCurrency(data.totals.purchaseReturn?.taxableAmount || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.purchaseReturn?.nonVatAmount || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.purchaseReturn?.vatAmount || 0)}</td>
+                    <td class="text-end fw-bold">${formatCurrency((data.totals.purchaseReturn?.taxableAmount || 0) + (data.totals.purchaseReturn?.nonVatAmount || 0) + (data.totals.purchaseReturn?.vatAmount || 0))}</td>
+                    <td class="bg-light"></td>
+                    <td class="text-end ${getNetValueClass(netPurchaseTaxable)}">${formatCurrency(netPurchaseTaxable)}</td>
+                    <td class="text-end ${getNetValueClass(netPurchaseNonVat)}">${formatCurrency(netPurchaseNonVat)}</td>
+                    <td class="text-end ${getNetValueClass(netPurchaseTotal)}">${formatCurrency(netPurchaseTotal)}</td>
+                    <td class="bg-light"></td>
+                    <td class="text-end">${formatCurrency(data.totals.sales?.taxableAmount || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.sales?.nonVatAmount || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.sales?.vatAmount || 0)}</td>
+                    <td class="text-end fw-bold">${formatCurrency((data.totals.sales?.taxableAmount || 0) + (data.totals.sales?.nonVatAmount || 0) + (data.totals.sales?.vatAmount || 0))}</td>
+                    <td class="bg-light"></td>
+                    <td class="text-end">${formatCurrency(data.totals.salesReturn?.taxableAmount || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.salesReturn?.nonVatAmount || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.salesReturn?.vatAmount || 0)}</td>
+                    <td class="text-end fw-bold">${formatCurrency((data.totals.salesReturn?.taxableAmount || 0) + (data.totals.salesReturn?.nonVatAmount || 0) + (data.totals.salesReturn?.vatAmount || 0))}</td>
+                    <td class="bg-light"></td>
+                    <td class="text-end ${getNetValueClass(netSalesTaxable)}">${formatCurrency(netSalesTaxable)}</td>
+                    <td class="text-end ${getNetValueClass(netSalesNonVat)}">${formatCurrency(netSalesNonVat)}</td>
+                    <td class="text-end ${getNetValueClass(netSalesTotal)}">${formatCurrency(netSalesTotal)}</td>
+                    <td class="bg-light"></td>
+                    <td class="text-end">${formatCurrency(data.totals.netPurchaseVat || 0)}</td>
+                    <td class="text-end">${formatCurrency(data.totals.netSalesVat || 0)}</td>
+                    <td class="text-end ${getNetValueClass(data.totals.netVat || 0)}">${formatCurrency(data.totals.netVat || 0)}</td>
+                </tr>
+            `;
+        }
+
+        const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Monthly VAT Summary - ${data.currentCompanyName || 'Company Name'}</title>
+            <style>
+                @page { margin: 5mm; size: A4 landscape; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: Arial, Helvetica, sans-serif; font-size: 8px; margin: 0; padding: 5mm; }
+                .print-header { text-align: center; margin-bottom: 8px; }
+                .print-header h2 { font-size: 14px; margin: 2px 0; }
+                .print-header h3 { font-size: 12px; margin: 2px 0; text-decoration: underline; }
+                .print-header p { font-size: 8px; margin: 2px 0; }
+                .print-header hr { margin: 4px 0; }
+                .report-info { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 8px; }
+                table { width: 100%; border-collapse: collapse; page-break-inside: auto; font-size: 7px; }
+                tr { page-break-inside: avoid; page-break-after: auto; }
+                th, td { border: 1px solid #000; padding: 3px 4px; text-align: left; }
+                th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold; font-size: 7px; }
+                .text-end { text-align: right; }
+                .text-center { text-align: center; }
+                .nowrap { white-space: nowrap; }
+                .print-footer { margin-top: 8px; font-size: 7px; text-align: center; border-top: 1px solid #ccc; padding-top: 4px; }
+                .bg-primary { background-color: #007bff !important; color: white !important; }
+                .bg-light { background-color: #f8f9fa !important; }
+                .text-success { color: #28a745 !important; }
+                .text-danger { color: #dc3545 !important; }
+                .fw-bold { font-weight: bold !important; }
+            </style>
+        </head>
+        <body>
+            <div class="print-header">
+                <h2>${data.currentCompanyName || 'Company Name'}</h2>
+                <p>${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}</p>
+                <hr>
+                <h3>Monthly VAT Summary</h3>
+                <div class="report-info">
+                    <div><strong>Report Period:</strong> ${data.reportDateRange || 'N/A'}</div>
+                    <div><strong>Printed:</strong> ${new Date().toLocaleString()}</div>
+                </div>
             </div>
-        );
+            <table cellspacing="0">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="text-center align-middle">Date Range</th>
+                        <th colspan="4" class="text-center bg-primary">Purchase</th>
+                        <th class="bg-light"></th>
+                        <th colspan="4" class="text-center bg-primary">Purchase Return</th>
+                        <th class="bg-light"></th>
+                        <th colspan="3" class="text-center bg-primary">Net Purchase</th>
+                        <th class="bg-light"></th>
+                        <th colspan="4" class="text-center bg-primary">Sales</th>
+                        <th class="bg-light"></th>
+                        <th colspan="4" class="text-center bg-primary">Sales Return</th>
+                        <th class="bg-light"></th>
+                        <th colspan="3" class="text-center bg-primary">Net Sales</th>
+                        <th class="bg-light"></th>
+                        <th colspan="3" class="text-center bg-primary">Net VAT</th>
+                    </tr>
+                    <tr>
+                        <th>Taxable</th><th>Non-VAT</th><th>VAT</th><th>Total</th><th class="bg-light"></th>
+                        <th>Taxable</th><th>Non-VAT</th><th>VAT</th><th>Total</th><th class="bg-light"></th>
+                        <th>Taxable</th><th>Non-VAT</th><th>Total</th><th class="bg-light"></th>
+                        <th>Taxable</th><th>Non-VAT</th><th>VAT</th><th>Total</th><th class="bg-light"></th>
+                        <th>Taxable</th><th>Non-VAT</th><th>VAT</th><th>Total</th><th class="bg-light"></th>
+                        <th>Taxable</th><th>Non-VAT</th><th>Total</th><th class="bg-light"></th>
+                        <th>Purc VAT</th><th>Sales VAT</th><th>Net Payable</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+            <div class="print-footer">Printed from ${data.currentCompanyName || 'Company Name'} | ${new Date().toLocaleString()}</div>
+            <script>
+                window.onload = function() {
+                    setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 200);
+                };
+            <\/script>
+        </body>
+        </html>
+        `;
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
     };
 
-    const renderSingleMonthTable = () => {
-        if (!reportData.totals) {
-            return null;
-        }
-
-        const displayTotals = calculateDisplayTotals();
-
-        return (
-            <div className="table-container mt-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                <table className="table table-bordered table-hover" id="vatReportTable">
-                    <thead>
-                        <tr>
-                            <th rowSpan="2" className="text-center align-middle bg-primary text-white">Date Range</th>
-                            <th colSpan="4" className="text-center bg-primary text-white">Purchase</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="4" className="text-center bg-primary text-white">Purchase Return</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="3" className="text-center bg-primary text-white">Net Purchase</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="4" className="text-center bg-primary text-white">Sales</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="4" className="text-center bg-primary text-white">Sales Return</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="3" className="text-center bg-primary text-white">Net Sales</th>
-                            <th className="bg-light" style={{ width: '10px' }}></th>
-                            <th colSpan="3" className="text-center bg-primary text-white">Net VAT</th>
-                        </tr>
-                        <tr>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Taxable</th>
-                            <th>Non-VAT</th>
-                            <th>Total</th>
-                            <th className="bg-light"></th>
-                            <th>Purc VAT</th>
-                            <th>Sales VAT</th>
-                            <th>Net Payable</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td className="align-middle"><strong>{reportData.reportDateRange}</strong></td>
-                            <td>{formatCurrency(reportData.totals.purchase?.taxableAmount)}</td>
-                            <td>{formatCurrency(reportData.totals.purchase?.nonVatAmount)}</td>
-                            <td>{formatCurrency(reportData.totals.purchase?.vatAmount)}</td>
-                            <td className="fw-bold">
-                                {formatCurrency(
-                                    (reportData.totals.purchase?.taxableAmount || 0) +
-                                    (reportData.totals.purchase?.nonVatAmount || 0) +
-                                    (reportData.totals.purchase?.vatAmount || 0)
-                                )}
-                            </td>
-                            <td className="bg-light"></td>
-                            <td>{formatCurrency(reportData.totals.purchaseReturn?.taxableAmount)}</td>
-                            <td>{formatCurrency(reportData.totals.purchaseReturn?.nonVatAmount)}</td>
-                            <td>{formatCurrency(reportData.totals.purchaseReturn?.vatAmount)}</td>
-                            <td className="fw-bold">
-                                {formatCurrency(
-                                    (reportData.totals.purchaseReturn?.taxableAmount || 0) +
-                                    (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-                                    (reportData.totals.purchaseReturn?.vatAmount || 0)
-                                )}
-                            </td>
-                            <td className="bg-light"></td>
-                            <td className={getNetValueClass(
-                                (reportData.totals.purchase?.taxableAmount || 0) -
-                                (reportData.totals.purchaseReturn?.taxableAmount || 0)
-                            )}>
-                                {formatCurrency(
-                                    (reportData.totals.purchase?.taxableAmount || 0) -
-                                    (reportData.totals.purchaseReturn?.taxableAmount || 0)
-                                )}
-                            </td>
-                            <td className={getNetValueClass(
-                                (reportData.totals.purchase?.nonVatAmount || 0) -
-                                (reportData.totals.purchaseReturn?.nonVatAmount || 0)
-                            )}>
-                                {formatCurrency(
-                                    (reportData.totals.purchase?.nonVatAmount || 0) -
-                                    (reportData.totals.purchaseReturn?.nonVatAmount || 0)
-                                )}
-                            </td>
-                            <td className={`fw-bold ${getNetValueClass(
-                                ((reportData.totals.purchase?.taxableAmount || 0) +
-                                    (reportData.totals.purchase?.nonVatAmount || 0) +
-                                    (reportData.totals.purchase?.vatAmount || 0)) -
-                                ((reportData.totals.purchaseReturn?.taxableAmount || 0) +
-                                    (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-                                    (reportData.totals.purchaseReturn?.vatAmount || 0))
-                            )}`}>
-                                {formatCurrency(
-                                    ((reportData.totals.purchase?.taxableAmount || 0) +
-                                        (reportData.totals.purchase?.nonVatAmount || 0) +
-                                        (reportData.totals.purchase?.vatAmount || 0)) -
-                                    ((reportData.totals.purchaseReturn?.taxableAmount || 0) +
-                                        (reportData.totals.purchaseReturn?.nonVatAmount || 0) +
-                                        (reportData.totals.purchaseReturn?.vatAmount || 0))
-                                )}
-                            </td>
-                            <td className="bg-light"></td>
-                            <td>{formatCurrency(reportData.totals.sales?.taxableAmount)}</td>
-                            <td>{formatCurrency(reportData.totals.sales?.nonVatAmount)}</td>
-                            <td>{formatCurrency(reportData.totals.sales?.vatAmount)}</td>
-                            <td className="fw-bold">
-                                {formatCurrency(
-                                    (reportData.totals.sales?.taxableAmount || 0) +
-                                    (reportData.totals.sales?.nonVatAmount || 0) +
-                                    (reportData.totals.sales?.vatAmount || 0)
-                                )}
-                            </td>
-                            <td className="bg-light"></td>
-                            <td>{formatCurrency(reportData.totals.salesReturn?.taxableAmount)}</td>
-                            <td>{formatCurrency(reportData.totals.salesReturn?.nonVatAmount)}</td>
-                            <td>{formatCurrency(reportData.totals.salesReturn?.vatAmount)}</td>
-                            <td className="fw-bold">
-                                {formatCurrency(
-                                    (reportData.totals.salesReturn?.taxableAmount || 0) +
-                                    (reportData.totals.salesReturn?.nonVatAmount || 0) +
-                                    (reportData.totals.salesReturn?.vatAmount || 0)
-                                )}
-                            </td>
-                            <td className="bg-light"></td>
-                            <td className={getNetValueClass(
-                                (reportData.totals.sales?.taxableAmount || 0) -
-                                (reportData.totals.salesReturn?.taxableAmount || 0)
-                            )}>
-                                {formatCurrency(
-                                    (reportData.totals.sales?.taxableAmount || 0) -
-                                    (reportData.totals.salesReturn?.taxableAmount || 0)
-                                )}
-                            </td>
-                            <td className={getNetValueClass(
-                                (reportData.totals.sales?.nonVatAmount || 0) -
-                                (reportData.totals.salesReturn?.nonVatAmount || 0)
-                            )}>
-                                {formatCurrency(
-                                    (reportData.totals.sales?.nonVatAmount || 0) -
-                                    (reportData.totals.salesReturn?.nonVatAmount || 0)
-                                )}
-                            </td>
-                            <td className={`fw-bold ${getNetValueClass(
-                                ((reportData.totals.sales?.taxableAmount || 0) +
-                                    (reportData.totals.sales?.nonVatAmount || 0) +
-                                    (reportData.totals.sales?.vatAmount || 0)) -
-                                ((reportData.totals.salesReturn?.taxableAmount || 0) +
-                                    (reportData.totals.salesReturn?.nonVatAmount || 0) +
-                                    (reportData.totals.salesReturn?.vatAmount || 0))
-                            )}`}>
-                                {formatCurrency(
-                                    ((reportData.totals.sales?.taxableAmount || 0) +
-                                        (reportData.totals.sales?.nonVatAmount || 0) +
-                                        (reportData.totals.sales?.vatAmount || 0)) -
-                                    ((reportData.totals.salesReturn?.taxableAmount || 0) +
-                                        (reportData.totals.salesReturn?.nonVatAmount || 0) +
-                                        (reportData.totals.salesReturn?.vatAmount || 0))
-                                )}
-                            </td>
-                            <td className="bg-light"></td>
-                            <td>{formatCurrency(reportData.totals.netPurchaseVat)}</td>
-                            <td>{formatCurrency(reportData.totals.netSalesVat)}</td>
-                            <td className={`fw-bold ${reportData.totals.netVat >= 0 ? 'text-success' : 'text-danger'}`}>
-                                {formatCurrency(reportData.totals.netVat)}
-                            </td>
-                        </tr>
-                    </tbody>
-                    {displayTotals && (
-                        <tfoot className="table-group-divider">
-                            <tr className="fw-bold table-secondary">
-                                <td>TOTAL</td>
-                                <td>{formatCurrency(displayTotals.purchaseTaxable)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseNonVat)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseVat)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseTotal)}</td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(displayTotals.purchaseReturnTaxable)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseReturnNonVat)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseReturnVat)}</td>
-                                <td>{formatCurrency(displayTotals.purchaseReturnTotal)}</td>
-                                <td className="bg-light"></td>
-                                <td className={getNetValueClass(displayTotals.netPurchaseTaxable)}>
-                                    {formatCurrency(displayTotals.netPurchaseTaxable)}
-                                </td>
-                                <td className={getNetValueClass(displayTotals.netPurchaseNonVat)}>
-                                    {formatCurrency(displayTotals.netPurchaseNonVat)}
-                                </td>
-                                <td className={getNetValueClass(displayTotals.netPurchaseTotal)}>
-                                    {formatCurrency(displayTotals.netPurchaseTotal)}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(displayTotals.salesTaxable)}</td>
-                                <td>{formatCurrency(displayTotals.salesNonVat)}</td>
-                                <td>{formatCurrency(displayTotals.salesVat)}</td>
-                                <td>{formatCurrency(displayTotals.salesTotal)}</td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(displayTotals.salesReturnTaxable)}</td>
-                                <td>{formatCurrency(displayTotals.salesReturnNonVat)}</td>
-                                <td>{formatCurrency(displayTotals.salesReturnVat)}</td>
-                                <td>{formatCurrency(displayTotals.salesReturnTotal)}</td>
-                                <td className="bg-light"></td>
-                                <td className={getNetValueClass(displayTotals.netSalesTaxable)}>
-                                    {formatCurrency(displayTotals.netSalesTaxable)}
-                                </td>
-                                <td className={getNetValueClass(displayTotals.netSalesNonVat)}>
-                                    {formatCurrency(displayTotals.netSalesNonVat)}
-                                </td>
-                                <td className={getNetValueClass(displayTotals.netSalesTotal)}>
-                                    {formatCurrency(displayTotals.netSalesTotal)}
-                                </td>
-                                <td className="bg-light"></td>
-                                <td>{formatCurrency(displayTotals.netPurchaseVat)}</td>
-                                <td>{formatCurrency(displayTotals.netSalesVat)}</td>
-                                <td className={getNetValueClass(displayTotals.netVat)}>
-                                    {formatCurrency(displayTotals.netVat)}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    )}
-                </table>
-            </div>
-        );
-    };
+    if (loading && !data.totals && data.monthlyData.length === 0) return <Loader />;
 
     return (
-        <div className="container-fluid mt-4">
+        <div className="container-fluid">
             <Header />
-            <div className="card mt-4 p-4">
-                <div className="report-header bg-light p-4 rounded-3 shadow-sm mb-4">
-                    <h2 className="text-center mb-4 text-decoration-underline">Monthly VAT Summary</h2>
-                    <form onSubmit={handleGenerateReport}>
-                        <div className="row g-3">
-                            <div className="col-md-2">
-                                <label htmlFor="periodType" className="form-label fw-semibold">Period Type</label>
+            <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+                <div className="card-header bg-white py-0">
+                    <h1 className="h4 mb-0 text-center text-primary">Monthly VAT Summary</h1>
+                </div>
+
+                <div className="card-body p-2 p-md-3">
+                    {/* Filter Row */}
+                    <div className="row g-2 mb-3">
+                        {/* Period Type */}
+                        <div className="col-12 col-md-2">
+                            <div className="position-relative">
                                 <select
                                     name="periodType"
                                     id="periodType"
-                                    className="form-select"
-                                    value={formValues.periodType || 'monthly'}
+                                    className="form-select form-select-sm"
+                                    value={data.periodType}
                                     onChange={handlePeriodTypeChange}
+                                    style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
                                 >
                                     <option value="monthly">Monthly</option>
-                                    <option value="yearly">All Months (Yearly)</option>
+                                    <option value="yearly">Yearly (All Months)</option>
                                 </select>
+                                <label
+                                    className="position-absolute"
+                                    style={{
+                                        top: '-0.5rem',
+                                        left: '0.75rem',
+                                        fontSize: '0.75rem',
+                                        backgroundColor: 'white',
+                                        padding: '0 0.25rem',
+                                        color: '#6c757d',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    Period Type
+                                </label>
                             </div>
+                        </div>
 
-                            {formValues.periodType === 'monthly' ? (
-                                formValues.companyDateFormat === 'english' ? (
-                                    <>
-                                        <div className="col-md-2">
-                                            <label htmlFor="month" className="form-label fw-semibold">Month</label>
+                        {data.periodType === 'monthly' ? (
+                            company.dateFormat === 'english' ? (
+                                <>
+                                    <div className="col-12 col-md-2">
+                                        <div className="position-relative">
                                             <select
                                                 name="month"
                                                 id="month"
-                                                className="form-select"
-                                                value={formValues.month || ''}
+                                                ref={monthRef}
+                                                className="form-select form-select-sm"
+                                                value={data.month}
                                                 onChange={handleDateChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 'year')}
+                                                style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
                                             >
                                                 <option value="">Select Month</option>
                                                 {["January", "February", "March", "April", "May", "June",
                                                     "July", "August", "September", "October", "November", "December"]
                                                     .map((monthName, index) => (
-                                                        <option key={monthName} value={index + 1}>
-                                                            {monthName}
-                                                        </option>
+                                                        <option key={monthName} value={index + 1}>{monthName}</option>
                                                     ))}
                                             </select>
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Month
+                                            </label>
                                         </div>
-                                        <div className="col-md-2">
-                                            <label htmlFor="year" className="form-label fw-semibold">Year</label>
+                                    </div>
+                                    <div className="col-12 col-md-2">
+                                        <div className="position-relative">
                                             <input
                                                 type="number"
                                                 name="year"
                                                 id="year"
-                                                className="form-control"
-                                                value={formValues.year || ''}
-                                                onKeyDown={handleKeyDown}
+                                                ref={yearRef}
+                                                className="form-control form-control-sm"
+                                                value={data.year}
                                                 onChange={handleDateChange}
+                                                onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
                                                 placeholder={`e.g. ${new Date().getFullYear()}`}
-                                                autoComplete='off'
+                                                autoComplete="off"
+                                                style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
                                             />
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Year
+                                            </label>
                                         </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="col-md-2">
-                                            <label htmlFor="nepaliMonth" className="form-label fw-semibold">Month (Nepali)</label>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="col-12 col-md-2">
+                                        <div className="position-relative">
                                             <select
                                                 name="nepaliMonth"
                                                 id="nepaliMonth"
-                                                className="form-select"
-                                                value={formValues.nepaliMonth || ''}
+                                                ref={nepaliMonthRef}
+                                                className="form-select form-select-sm"
+                                                value={data.nepaliMonth}
                                                 onChange={handleDateChange}
-                                                autoFocus
                                                 onKeyDown={(e) => handleKeyDown(e, 'nepaliYear')}
+                                                style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
                                             >
                                                 <option value="">Select Month</option>
                                                 {["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashoj",
                                                     "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"]
                                                     .map((monthName, index) => (
-                                                        <option key={monthName} value={index + 1}>
-                                                            {monthName}
-                                                        </option>
+                                                        <option key={monthName} value={index + 1}>{monthName}</option>
                                                     ))}
                                             </select>
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Month (Nepali)
+                                            </label>
                                         </div>
-                                        <div className="col-md-2">
-                                            <label htmlFor="nepaliYear" className="form-label fw-semibold">Year (Nepali)</label>
+                                    </div>
+                                    <div className="col-12 col-md-2">
+                                        <div className="position-relative">
                                             <input
                                                 type="text"
                                                 name="nepaliYear"
                                                 id="nepaliYear"
-                                                className="form-control"
-                                                value={formValues.nepaliYear || ''}
+                                                ref={nepaliYearRef}
+                                                className="form-control form-control-sm"
+                                                value={data.nepaliYear}
                                                 onChange={handleDateChange}
-                                                placeholder={`e.g. ${reportData.currentNepaliYear}`}
-                                                autoComplete='off'
                                                 onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
+                                                placeholder={`e.g. ${data.currentNepaliYear}`}
+                                                autoComplete="off"
+                                                style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
                                             />
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Year (Nepali)
+                                            </label>
                                         </div>
-                                    </>
-                                )
-                            ) : (
-                                formValues.companyDateFormat === 'english' ? (
-                                    <div className="col-md-2">
-                                        <label htmlFor="year" className="form-label fw-semibold">Year</label>
+                                    </div>
+                                </>
+                            )
+                        ) : (
+                            company.dateFormat === 'english' ? (
+                                <div className="col-12 col-md-2">
+                                    <div className="position-relative">
                                         <input
                                             type="number"
                                             name="year"
                                             id="year"
-                                            className="form-control"
-                                            value={formValues.year || ''}
+                                            ref={yearRef}
+                                            className="form-control form-control-sm"
+                                            value={data.year}
                                             onChange={handleDateChange}
+                                            onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
                                             placeholder={`e.g. ${new Date().getFullYear()}`}
-                                            autoComplete='off'
+                                            autoComplete="off"
+                                            style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
                                         />
+                                        <label
+                                            className="position-absolute"
+                                            style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            Year
+                                        </label>
                                     </div>
-                                ) : (
-                                    <div className="col-md-2">
-                                        <label htmlFor="nepaliYear" className="form-label fw-semibold">Fiscal Year (Nepali)</label>
+                                </div>
+                            ) : (
+                                <div className="col-12 col-md-3">
+                                    <div className="position-relative">
                                         <input
                                             type="text"
                                             name="nepaliYear"
                                             id="nepaliYear"
-                                            className="form-control"
-                                            value={formValues.nepaliYear || ''}
+                                            ref={nepaliYearRef}
+                                            className="form-control form-control-sm"
+                                            value={data.nepaliYear}
                                             onChange={handleDateChange}
+                                            onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
                                             placeholder={`e.g. ${getCurrentNepaliFiscalYear()}`}
-                                            autoComplete='off'
+                                            autoComplete="off"
+                                            style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
                                         />
+                                        <label
+                                            className="position-absolute"
+                                            style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            Fiscal Year (Nepali)
+                                        </label>
                                     </div>
-                                )
-                            )}
+                                </div>
+                            )
+                        )}
 
-                            <div className="col-md-2 d-flex align-items-end">
-                                <button type="submit" className="btn btn-primary w-100"
-                                    id="generateReport"
-                                >
-                                    <i className="fas fa-search me-2"></i> Generate Report
-                                </button>
-                            </div>
-                            <div className="col-md-2 d-flex align-items-end">
-                                <button
-                                    type="button"
-                                    id="exportExcel"
-                                    className="btn btn-success w-100"
-                                    onClick={handleExportExcel}
-                                    disabled={(!reportData.totals && (!reportData.monthlyData || reportData.monthlyData.length === 0)) || exporting}
-                                >
-                                    {exporting ? (
-                                        <>
-                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                            Exporting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <i className="fas fa-file-excel me-2"></i> Export to Excel
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                            <div className="col-md-2 d-flex align-items-end">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary w-100"
-                                    onClick={handlePrint}
-                                    disabled={!reportData.totals && (!reportData.monthlyData || reportData.monthlyData.length === 0)}
-                                >
-                                    <i className="fas fa-print me-2"></i> Print
-                                </button>
-                            </div>
+                        {/* Generate Button */}
+                        <div className="col-12 col-md-1">
+                            <button
+                                type="button"
+                                id="generateReport"
+                                ref={generateReportRef}
+                                className="btn btn-primary btn-sm w-100"
+                                onClick={handleGenerateReport}
+                                style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
+                            >
+                                <i className="fas fa-chart-line me-1"></i>Generate
+                            </button>
                         </div>
-                    </form>
-                </div>
 
-                {reportData.totals ? (
-                    renderSingleMonthTable()
-                ) : reportData.monthlyData && reportData.monthlyData.length > 0 ? (
-                    renderMonthlyTable()
-                ) : (
-                    <div className="alert alert-info text-center py-4">
-                        <i className="fas fa-info-circle me-2"></i>
-                        Select period type and date to generate the VAT report
+                        {/* Action Buttons */}
+                        <div className="col-12 col-md-auto d-flex align-items-end justify-content-end gap-2">
+                            <button
+                                className="btn btn-success btn-sm"
+                                onClick={exportToExcel}
+                                disabled={(!data.totals && data.monthlyData.length === 0) || exporting}
+                                style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
+                            >
+                                {exporting ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="fas fa-file-excel me-1"></i>}
+                                Excel
+                            </button>
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={handlePrint}
+                                disabled={!data.totals && data.monthlyData.length === 0}
+                                style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
+                            >
+                                <i className="fas fa-print me-1"></i>Print
+                            </button>
+                        </div>
                     </div>
-                )}
+
+                    {error && (
+                        <div className="alert alert-danger text-center py-1 mb-2 small" style={{ fontSize: '0.75rem' }}>
+                            {error}
+                            <button type="button" className="btn-close btn-sm ms-2" style={{ fontSize: '10px' }} onClick={() => setError(null)}></button>
+                        </div>
+                    )}
+
+                    {!data.totals && data.monthlyData.length === 0 ? (
+                        <div className="alert alert-info text-center py-3" style={{ fontSize: '0.875rem' }}>
+                            <i className="fas fa-info-circle me-2"></i>
+                            Select period type and date to generate the VAT report
+                        </div>
+                    ) : (
+                        <div className="table-responsive" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                            <table className="table table-bordered table-hover table-sm" style={{ fontSize: '0.75rem' }}>
+                                <thead className="table-light sticky-top">
+                                    <tr>
+                                        <th rowSpan="2" className="text-center align-middle bg-primary text-white" style={{ padding: '4px', fontSize: '0.7rem' }}>Date Range</th>
+                                        <th colSpan="4" className="text-center bg-primary text-white" style={{ padding: '4px', fontSize: '0.7rem' }}>Purchase</th>
+                                        <th className="bg-light" style={{ width: '10px' }}></th>
+                                        <th colSpan="4" className="text-center bg-primary text-white" style={{ padding: '4px', fontSize: '0.7rem' }}>Purchase Return</th>
+                                        <th className="bg-light" style={{ width: '10px' }}></th>
+                                        <th colSpan="3" className="text-center bg-primary text-white" style={{ padding: '4px', fontSize: '0.7rem' }}>Net Purchase</th>
+                                        <th className="bg-light" style={{ width: '10px' }}></th>
+                                        <th colSpan="4" className="text-center bg-primary text-white" style={{ padding: '4px', fontSize: '0.7rem' }}>Sales</th>
+                                        <th className="bg-light" style={{ width: '10px' }}></th>
+                                        <th colSpan="4" className="text-center bg-primary text-white" style={{ padding: '4px', fontSize: '0.7rem' }}>Sales Return</th>
+                                        <th className="bg-light" style={{ width: '10px' }}></th>
+                                        <th colSpan="3" className="text-center bg-primary text-white" style={{ padding: '4px', fontSize: '0.7rem' }}>Net Sales</th>
+                                        <th className="bg-light" style={{ width: '10px' }}></th>
+                                        <th colSpan="3" className="text-center bg-primary text-white" style={{ padding: '4px', fontSize: '0.7rem' }}>Net VAT</th>
+                                    </tr>
+                                    <tr>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Taxable</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Non-VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Total</th>
+                                        <th className="bg-light"></th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Taxable</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Non-VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Total</th>
+                                        <th className="bg-light"></th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Taxable</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Non-VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Total</th>
+                                        <th className="bg-light"></th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Taxable</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Non-VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Total</th>
+                                        <th className="bg-light"></th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Taxable</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Non-VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Total</th>
+                                        <th className="bg-light"></th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Taxable</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Non-VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Total</th>
+                                        <th className="bg-light"></th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Purc VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Sales VAT</th>
+                                        <th style={{ padding: '4px', fontSize: '0.7rem' }}>Net Payable</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.periodType === 'yearly' && data.monthlyData && data.monthlyData.length > 0 ? (
+                                        data.monthlyData.map((monthData, idx) => {
+                                            const netPurchaseTaxable = (monthData.totals?.purchase?.taxableAmount || 0) - (monthData.totals?.purchaseReturn?.taxableAmount || 0);
+                                            const netPurchaseNonVat = (monthData.totals?.purchase?.nonVatAmount || 0) - (monthData.totals?.purchaseReturn?.nonVatAmount || 0);
+                                            const netPurchaseTotal = ((monthData.totals?.purchase?.taxableAmount || 0) + (monthData.totals?.purchase?.nonVatAmount || 0) + (monthData.totals?.purchase?.vatAmount || 0)) -
+                                                ((monthData.totals?.purchaseReturn?.taxableAmount || 0) + (monthData.totals?.purchaseReturn?.nonVatAmount || 0) + (monthData.totals?.purchaseReturn?.vatAmount || 0));
+
+                                            const netSalesTaxable = (monthData.totals?.sales?.taxableAmount || 0) - (monthData.totals?.salesReturn?.taxableAmount || 0);
+                                            const netSalesNonVat = (monthData.totals?.sales?.nonVatAmount || 0) - (monthData.totals?.salesReturn?.nonVatAmount || 0);
+                                            const netSalesTotal = ((monthData.totals?.sales?.taxableAmount || 0) + (monthData.totals?.sales?.nonVatAmount || 0) + (monthData.totals?.sales?.vatAmount || 0)) -
+                                                ((monthData.totals?.salesReturn?.taxableAmount || 0) + (monthData.totals?.salesReturn?.nonVatAmount || 0) + (monthData.totals?.salesReturn?.vatAmount || 0));
+
+                                            return (
+                                                <tr key={idx}>
+                                                    <td className="align-middle"><strong>{monthData.reportDateRange}</strong></td>
+                                                    <td>{formatCurrency(monthData.totals?.purchase?.taxableAmount)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.purchase?.nonVatAmount)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.purchase?.vatAmount)}</td>
+                                                    <td className="fw-bold">{formatCurrency((monthData.totals?.purchase?.taxableAmount || 0) + (monthData.totals?.purchase?.nonVatAmount || 0) + (monthData.totals?.purchase?.vatAmount || 0))}</td>
+                                                    <td className="bg-light"></td>
+                                                    <td>{formatCurrency(monthData.totals?.purchaseReturn?.taxableAmount)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.purchaseReturn?.nonVatAmount)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.purchaseReturn?.vatAmount)}</td>
+                                                    <td className="fw-bold">{formatCurrency((monthData.totals?.purchaseReturn?.taxableAmount || 0) + (monthData.totals?.purchaseReturn?.nonVatAmount || 0) + (monthData.totals?.purchaseReturn?.vatAmount || 0))}</td>
+                                                    <td className="bg-light"></td>
+                                                    <td className={getNetValueClass(netPurchaseTaxable)}>{formatCurrency(netPurchaseTaxable)}</td>
+                                                    <td className={getNetValueClass(netPurchaseNonVat)}>{formatCurrency(netPurchaseNonVat)}</td>
+                                                    <td className={getNetValueClass(netPurchaseTotal)}>{formatCurrency(netPurchaseTotal)}</td>
+                                                    <td className="bg-light"></td>
+                                                    <td>{formatCurrency(monthData.totals?.sales?.taxableAmount)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.sales?.nonVatAmount)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.sales?.vatAmount)}</td>
+                                                    <td className="fw-bold">{formatCurrency((monthData.totals?.sales?.taxableAmount || 0) + (monthData.totals?.sales?.nonVatAmount || 0) + (monthData.totals?.sales?.vatAmount || 0))}</td>
+                                                    <td className="bg-light"></td>
+                                                    <td>{formatCurrency(monthData.totals?.salesReturn?.taxableAmount)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.salesReturn?.nonVatAmount)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.salesReturn?.vatAmount)}</td>
+                                                    <td className="fw-bold">{formatCurrency((monthData.totals?.salesReturn?.taxableAmount || 0) + (monthData.totals?.salesReturn?.nonVatAmount || 0) + (monthData.totals?.salesReturn?.vatAmount || 0))}</td>
+                                                    <td className="bg-light"></td>
+                                                    <td className={getNetValueClass(netSalesTaxable)}>{formatCurrency(netSalesTaxable)}</td>
+                                                    <td className={getNetValueClass(netSalesNonVat)}>{formatCurrency(netSalesNonVat)}</td>
+                                                    <td className={getNetValueClass(netSalesTotal)}>{formatCurrency(netSalesTotal)}</td>
+                                                    <td className="bg-light"></td>
+                                                    <td>{formatCurrency(monthData.totals?.netPurchaseVat)}</td>
+                                                    <td>{formatCurrency(monthData.totals?.netSalesVat)}</td>
+                                                    <td className={getNetValueClass(monthData.totals?.netVat)}>{formatCurrency(monthData.totals?.netVat)}</td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : data.totals ? (
+                                        <tr>
+                                            <td className="align-middle"><strong>{data.reportDateRange}</strong></td>
+                                            <td>{formatCurrency(data.totals.purchase?.taxableAmount)}</td>
+                                            <td>{formatCurrency(data.totals.purchase?.nonVatAmount)}</td>
+                                            <td>{formatCurrency(data.totals.purchase?.vatAmount)}</td>
+                                            <td className="fw-bold">{formatCurrency((data.totals.purchase?.taxableAmount || 0) + (data.totals.purchase?.nonVatAmount || 0) + (data.totals.purchase?.vatAmount || 0))}</td>
+                                            <td className="bg-light"></td>
+                                            <td>{formatCurrency(data.totals.purchaseReturn?.taxableAmount)}</td>
+                                            <td>{formatCurrency(data.totals.purchaseReturn?.nonVatAmount)}</td>
+                                            <td>{formatCurrency(data.totals.purchaseReturn?.vatAmount)}</td>
+                                            <td className="fw-bold">{formatCurrency((data.totals.purchaseReturn?.taxableAmount || 0) + (data.totals.purchaseReturn?.nonVatAmount || 0) + (data.totals.purchaseReturn?.vatAmount || 0))}</td>
+                                            <td className="bg-light"></td>
+                                            <td className={getNetValueClass((data.totals.purchase?.taxableAmount || 0) - (data.totals.purchaseReturn?.taxableAmount || 0))}>
+                                                {formatCurrency((data.totals.purchase?.taxableAmount || 0) - (data.totals.purchaseReturn?.taxableAmount || 0))}
+                                            </td>
+                                            <td className={getNetValueClass((data.totals.purchase?.nonVatAmount || 0) - (data.totals.purchaseReturn?.nonVatAmount || 0))}>
+                                                {formatCurrency((data.totals.purchase?.nonVatAmount || 0) - (data.totals.purchaseReturn?.nonVatAmount || 0))}
+                                            </td>
+                                            <td className={getNetValueClass(((data.totals.purchase?.taxableAmount || 0) + (data.totals.purchase?.nonVatAmount || 0) + (data.totals.purchase?.vatAmount || 0)) -
+                                                ((data.totals.purchaseReturn?.taxableAmount || 0) + (data.totals.purchaseReturn?.nonVatAmount || 0) + (data.totals.purchaseReturn?.vatAmount || 0)))}>
+                                                {formatCurrency(((data.totals.purchase?.taxableAmount || 0) + (data.totals.purchase?.nonVatAmount || 0) + (data.totals.purchase?.vatAmount || 0)) -
+                                                    ((data.totals.purchaseReturn?.taxableAmount || 0) + (data.totals.purchaseReturn?.nonVatAmount || 0) + (data.totals.purchaseReturn?.vatAmount || 0)))}
+                                            </td>
+                                            <td className="bg-light"></td>
+                                            <td>{formatCurrency(data.totals.sales?.taxableAmount)}</td>
+                                            <td>{formatCurrency(data.totals.sales?.nonVatAmount)}</td>
+                                            <td>{formatCurrency(data.totals.sales?.vatAmount)}</td>
+                                            <td className="fw-bold">{formatCurrency((data.totals.sales?.taxableAmount || 0) + (data.totals.sales?.nonVatAmount || 0) + (data.totals.sales?.vatAmount || 0))}</td>
+                                            <td className="bg-light"></td>
+                                            <td>{formatCurrency(data.totals.salesReturn?.taxableAmount)}</td>
+                                            <td>{formatCurrency(data.totals.salesReturn?.nonVatAmount)}</td>
+                                            <td>{formatCurrency(data.totals.salesReturn?.vatAmount)}</td>
+                                            <td className="fw-bold">{formatCurrency((data.totals.salesReturn?.taxableAmount || 0) + (data.totals.salesReturn?.nonVatAmount || 0) + (data.totals.salesReturn?.vatAmount || 0))}</td>
+                                            <td className="bg-light"></td>
+                                            <td className={getNetValueClass((data.totals.sales?.taxableAmount || 0) - (data.totals.salesReturn?.taxableAmount || 0))}>
+                                                {formatCurrency((data.totals.sales?.taxableAmount || 0) - (data.totals.salesReturn?.taxableAmount || 0))}
+                                            </td>
+                                            <td className={getNetValueClass((data.totals.sales?.nonVatAmount || 0) - (data.totals.salesReturn?.nonVatAmount || 0))}>
+                                                {formatCurrency((data.totals.sales?.nonVatAmount || 0) - (data.totals.salesReturn?.nonVatAmount || 0))}
+                                            </td>
+                                            <td className={getNetValueClass(((data.totals.sales?.taxableAmount || 0) + (data.totals.sales?.nonVatAmount || 0) + (data.totals.sales?.vatAmount || 0)) -
+                                                ((data.totals.salesReturn?.taxableAmount || 0) + (data.totals.salesReturn?.nonVatAmount || 0) + (data.totals.salesReturn?.vatAmount || 0)))}>
+                                                {formatCurrency(((data.totals.sales?.taxableAmount || 0) + (data.totals.sales?.nonVatAmount || 0) + (data.totals.sales?.vatAmount || 0)) -
+                                                    ((data.totals.salesReturn?.taxableAmount || 0) + (data.totals.salesReturn?.nonVatAmount || 0) + (data.totals.salesReturn?.vatAmount || 0)))}
+                                            </td>
+                                            <td className="bg-light"></td>
+                                            <td>{formatCurrency(data.totals.netPurchaseVat)}</td>
+                                            <td>{formatCurrency(data.totals.netSalesVat)}</td>
+                                            <td className={getNetValueClass(data.totals.netVat)}>{formatCurrency(data.totals.netVat)}</td>
+                                        </tr>
+                                    ) : null}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
             </div>
+
             <NotificationToast
                 show={notification.show}
                 message={notification.message}

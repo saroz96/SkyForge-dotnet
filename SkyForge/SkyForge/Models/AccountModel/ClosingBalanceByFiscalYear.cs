@@ -19,6 +19,9 @@ namespace SkyForge.Models.AccountModel
 
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
+        [Column("Nepali_Date")]
+        public DateTime NepaliDate { get; set; }
+
         [Required(ErrorMessage = "Amount is required")]
         [Column(TypeName = "decimal(18,2)")]
         [Range(0, double.MaxValue, ErrorMessage = "Amount cannot be negative")]

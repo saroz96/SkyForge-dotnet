@@ -106,6 +106,9 @@ namespace SkyForge.Migrations
                     b.Property<decimal?>("CreditLimit")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<bool>("DefaultCashAccount")
                         .HasColumnType("boolean");
 
@@ -126,6 +129,10 @@ namespace SkyForge.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("Nepali_Date");
 
                     b.Property<DateTime>("OpeningBalanceDate")
                         .HasColumnType("timestamp without time zone");
@@ -193,6 +200,10 @@ namespace SkyForge.Migrations
 
                     b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("Nepali_Date");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -299,6 +310,10 @@ namespace SkyForge.Migrations
 
                     b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("Nepali_Date");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -1115,6 +1130,10 @@ namespace SkyForge.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
+                    b.Property<DateTime?>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("Nepali_Date");
+
                     b.Property<decimal>("OpeningStock")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(10, 3)
@@ -1252,6 +1271,10 @@ namespace SkyForge.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
                     b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid")
                         .HasColumnName("fiscal_year_id");
@@ -1259,6 +1282,10 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
+
+                    b.Property<DateTime?>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("Nepali_Date");
 
                     b.Property<decimal>("PurchasePrice")
                         .ValueGeneratedOnAdd()
@@ -1318,6 +1345,10 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
 
+                    b.Property<DateTime?>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("Nepali_Date");
+
                     b.Property<decimal>("OpeningStock")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(10, 3)
@@ -1376,6 +1407,10 @@ namespace SkyForge.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
                     b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid")
                         .HasColumnName("fiscal_year_id");
@@ -1383,6 +1418,10 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
+
+                    b.Property<DateTime?>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("Nepali_Date");
 
                     b.Property<decimal>("OpeningStock")
                         .ValueGeneratedOnAdd()
@@ -1436,6 +1475,11 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<decimal>("ActualQty")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)")
+                        .HasColumnName("actual_quantity");
+
                     b.Property<string>("BatchNumber")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1444,10 +1488,20 @@ namespace SkyForge.Migrations
                         .HasDefaultValue("XXX")
                         .HasColumnName("batch_number");
 
+                    b.Property<decimal>("BillQty")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)")
+                        .HasColumnName("bill_quantity");
+
                     b.Property<decimal?>("Bonus")
                         .HasPrecision(10, 3)
                         .HasColumnType("numeric(10,3)")
                         .HasColumnName("bonus");
+
+                    b.Property<decimal>("CcPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("cc_percentage");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -1534,6 +1588,10 @@ namespace SkyForge.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("mrp");
 
+                    b.Property<DateTime?>("NepaliDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("Nepali_Date");
+
                     b.Property<decimal>("NetPrice")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -1542,11 +1600,9 @@ namespace SkyForge.Migrations
                         .HasColumnName("net_price");
 
                     b.Property<decimal>("NetPuPrice")
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
-                        .HasColumnName("net_pu_price")
-                        .HasComputedColumnSql("CASE WHEN ws_unit IS NOT NULL AND ws_unit > 0 THEN net_price / ws_unit ELSE net_price END", true);
+                        .HasColumnName("net_pu_price");
 
                     b.Property<Guid?>("ParentItemId")
                         .HasColumnType("uuid");
@@ -2466,6 +2522,11 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_amount");
 
+                    b.Property<decimal>("TotalCcAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_cc_amount");
+
                     b.Property<DateTime>("TransactionDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
@@ -2541,6 +2602,11 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<decimal>("ActualQty")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)")
+                        .HasColumnName("actual_quantity");
+
                     b.Property<decimal?>("AltPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
@@ -2560,6 +2626,16 @@ namespace SkyForge.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("batch_number");
+
+                    b.Property<decimal>("BillQty")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)")
+                        .HasColumnName("bill_quantity");
+
+                    b.Property<decimal>("CcPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("cc_percentage");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -2586,9 +2662,19 @@ namespace SkyForge.Migrations
                         .HasColumnType("date")
                         .HasColumnName("expiry_date");
 
+                    b.Property<decimal>("ItemCcAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("item_cc_amount");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
+
+                    b.Property<decimal>("MainUnitPuPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("main_unit_pu_price");
 
                     b.Property<decimal>("MarginPercentage")
                         .ValueGeneratedOnAdd()

@@ -18,6 +18,10 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         [Range(0.001, double.MaxValue)]
         public decimal Quantity { get; set; }
 
+        public decimal CcPercentage { get; set; }  // ADD THIS
+        public decimal ItemCcAmount { get; set; }  // ADD THIS
+        public decimal MainUnitPuPrice { get; set; }  // ADD THIS (from original purchase)
+
         [Range(0, double.MaxValue)]
         public decimal Price { get; set; }
 
