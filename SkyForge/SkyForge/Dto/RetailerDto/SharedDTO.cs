@@ -43,6 +43,15 @@ namespace SkyForge.Dto.RetailerDto
         public bool IsAdmin { get; set; }
         public string Role { get; set; } = string.Empty;
         public UserPreferencesDTO Preferences { get; set; } = new();
+        public bool RoundOffSales { get; set; }
+        public bool RoundOffSalesReturn { get; set; }
+        public bool RoundOffPurchase { get; set; }
+         public bool RoundOffPurchaseReturn { get; set; }
+        public bool DisplayTransactions { get; set; }
+        public bool DisplayTransactionsForSalesReturn { get; set; }
+        public bool DisplayTransactionsForPurchase { get; set; }
+        public bool DisplayTransactionsForPurchaseReturn { get; set; }
+        public bool StoreManagement { get; set; }
     }
     public class UserPreferencesDTO
     {

@@ -1373,13 +1373,10 @@ namespace SkyForge.Data
             // Configure Settings entity
             modelBuilder.Entity<Settings>(entity =>
             {
-                // Ensure one-to-one relationship with Company
-                entity.HasIndex(e => e.CompanyId).IsUnique();
-
-                // Company relationship
+                // Change to one-to-many relationship
                 entity.HasOne(s => s.Company)
-                    .WithOne(c => c.Settings)
-                    .HasForeignKey<Settings>(s => s.CompanyId)
+                    .WithMany(c => c.Settings)
+                    .HasForeignKey(s => s.CompanyId)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 // User relationship
@@ -1394,7 +1391,7 @@ namespace SkyForge.Data
                     .HasForeignKey(s => s.FiscalYearId)
                     .OnDelete(DeleteBehavior.SetNull);
 
-                // Unique constraint for company, user, and fiscal year
+                // ✅ Keep this unique constraint - it's correct
                 entity.HasIndex(s => new { s.CompanyId, s.UserId, s.FiscalYearId })
                       .IsUnique();
 
@@ -1403,6 +1400,7 @@ namespace SkyForge.Data
                     .HasColumnType("jsonb")
                     .Metadata.SetValueComparer(stringComparer);
             });
+
             // AccountGroup configuration
             modelBuilder.Entity<AccountGroup>(entity =>
             {

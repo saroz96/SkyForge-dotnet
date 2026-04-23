@@ -21,6 +21,9 @@ const AddPurcRtn = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [showProductModal, setShowProductModal] = useState(false);
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    const [roundOffPurchaseReturn, setRoundOffPurchaseReturn] = useState(false);
+    const [manualRoundOffOverride, setManualRoundOffOverride] = useState(false);
+   
     const itemsTableRef = useRef(null);
     const [notification, setNotification] = useState({
         show: false,
@@ -279,6 +282,22 @@ const AddPurcRtn = () => {
             }, 100);
         }
     }, [items]);
+
+    useEffect(() => {
+        fetchRoundOffSetting();
+    }, []);
+
+    const fetchRoundOffSetting = async () => {
+        try {
+            const response = await api.get('/api/retailer/roundoff-purchase-return');
+            if (response.data.success) {
+                setRoundOffPurchaseReturn(response.data.data.settingsForPurchaseReturn?.roundOffPurchaseReturn || false);
+            }
+        } catch (error) {
+            console.error("Error fetching round-off setting:", error);
+            setRoundOffPurchaseReturn(false);
+        }
+    };
 
     useEffect(() => {
         // Update stock maps when search results change
@@ -1331,6 +1350,108 @@ const AddPurcRtn = () => {
         return Math.round(ccAmount * 100) / 100;
     };
 
+    // const calculateTotal = (itemsToCalculate = items) => {
+    //     let subTotal = 0;
+    //     let taxableAmount = 0;
+    //     let nonTaxableAmount = 0;
+    //     let totalCcAmount = 0;
+    //     let taxableCCAmount = 0;
+    //     let nonTaxableCCAmount = 0;
+
+    //     itemsToCalculate.forEach(item => {
+    //         const itemAmount = parseFloat(item.amount) || 0;
+    //         const itemCCAmount = parseFloat(item.itemCcAmount) || 0;
+
+    //         subTotal = preciseAdd(subTotal, itemAmount);
+    //         totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
+
+    //         if (item.vatStatus === 'vatable') {
+    //             taxableAmount = preciseAdd(taxableAmount, itemAmount);
+    //             taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
+    //         } else {
+    //             nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
+    //             nonTaxableCCAmount = preciseAdd(nonTaxableCCAmount, itemCCAmount);
+    //         }
+    //     });
+
+    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
+    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
+
+    //     let effectiveDiscount = 0;
+    //     let discountForTaxable = 0;
+    //     let discountForNonTaxable = 0;
+
+    //     if (discountAmount > 0) {
+    //         effectiveDiscount = discountAmount;
+
+    //         if (subTotal > 0) {
+    //             const taxableRatio = taxableAmount / subTotal;
+    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
+
+    //             discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
+    //             discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
+    //         }
+    //     } else if (discountPercentage > 0) {
+    //         discountForTaxable = preciseMultiply(taxableAmount, discountPercentage / 100);
+    //         discountForNonTaxable = preciseMultiply(nonTaxableAmount, discountPercentage / 100);
+    //         effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
+    //     }
+
+    //     // Determine the final CC amount to use
+    //     let finalCCAmount = totalCcAmount;
+
+    //     // If user manually edited, use their value instead of calculated
+    //     if (isCCManuallyEdited && manualCCAmount !== null) {
+    //         finalCCAmount = manualCCAmount;
+    //     }
+
+    //     // Calculate taxable amount BEFORE discount (this is the base for VAT)
+    //     // The taxable amount should include the CC charge
+    //     let totalTaxableBase = preciseAdd(taxableAmount, taxableCCAmount);
+    //     let totalNonTaxableBase = preciseAdd(nonTaxableAmount, nonTaxableCCAmount);
+
+    //     // If CC was manually edited, we need to adjust the taxable base
+    //     // Replace the calculated CC portion with manual value
+    //     if (isCCManuallyEdited && manualCCAmount !== null && manualCCAmount !== totalCcAmount) {
+    //         // Remove calculated CC and add manual CC to taxable base
+    //         totalTaxableBase = preciseSubtract(totalTaxableBase, totalCcAmount);
+    //         totalTaxableBase = preciseAdd(totalTaxableBase, manualCCAmount);
+    //     }
+
+    //     // Apply discounts
+    //     const finalTaxableAmount = preciseSubtract(totalTaxableBase, discountForTaxable);
+    //     const finalNonTaxableAmount = preciseSubtract(totalNonTaxableBase, discountForNonTaxable);
+
+    //     // Calculate VAT
+    //     let vatAmount = 0;
+    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+    //         vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
+    //     }
+
+    //     // Calculate total before round off
+    //     let totalBeforeRoundOff = preciseAdd(
+    //         preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
+    //         vatAmount
+    //     );
+
+    //     let roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+    //     const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
+
+    //     return {
+    //         subTotal: preciseRound(subTotal, 2),
+    //         taxableAmount: preciseRound(finalTaxableAmount, 2),
+    //         nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
+    //         vatAmount: preciseRound(vatAmount, 2),
+    //         totalAmount: preciseRound(totalAmount, 2),
+    //         totalCCAmount: preciseRound(finalCCAmount, 2),
+    //         discountAmount: preciseRound(effectiveDiscount, 2),
+    //         roundOffAmount: preciseRound(roundOffAmount, 2),
+    //         autoRoundOffAmount: preciseRound(roundOffAmount, 2)
+    //     };
+    // };
+
+
+
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
@@ -1378,44 +1499,42 @@ const AddPurcRtn = () => {
             effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
         }
 
-        // Determine the final CC amount to use
-        let finalCCAmount = totalCcAmount;
+        const finalTaxableAmount = preciseSubtract(
+            preciseAdd(taxableAmount, taxableCCAmount),
+            discountForTaxable
+        );
 
-        // If user manually edited, use their value instead of calculated
-        if (isCCManuallyEdited && manualCCAmount !== null) {
-            finalCCAmount = manualCCAmount;
-        }
+        const finalNonTaxableAmount = preciseSubtract(
+            preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
+            discountForNonTaxable
+        );
 
-        // Calculate taxable amount BEFORE discount (this is the base for VAT)
-        // The taxable amount should include the CC charge
-        let totalTaxableBase = preciseAdd(taxableAmount, taxableCCAmount);
-        let totalNonTaxableBase = preciseAdd(nonTaxableAmount, nonTaxableCCAmount);
-
-        // If CC was manually edited, we need to adjust the taxable base
-        // Replace the calculated CC portion with manual value
-        if (isCCManuallyEdited && manualCCAmount !== null && manualCCAmount !== totalCcAmount) {
-            // Remove calculated CC and add manual CC to taxable base
-            totalTaxableBase = preciseSubtract(totalTaxableBase, totalCcAmount);
-            totalTaxableBase = preciseAdd(totalTaxableBase, manualCCAmount);
-        }
-
-        // Apply discounts
-        const finalTaxableAmount = preciseSubtract(totalTaxableBase, discountForTaxable);
-        const finalNonTaxableAmount = preciseSubtract(totalNonTaxableBase, discountForNonTaxable);
-
-        // Calculate VAT
         let vatAmount = 0;
         if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
             vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
         }
 
-        // Calculate total before round off
         let totalBeforeRoundOff = preciseAdd(
             preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
             vatAmount
         );
 
-        let roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+        let roundOffAmount = 0;
+        let autoRoundOffAmount = 0;
+
+        // Calculate auto round-off if enabled
+        if (roundOffPurchaseReturn) {
+            const roundedTotal = Math.round(totalBeforeRoundOff);
+            autoRoundOffAmount = preciseSubtract(roundedTotal, totalBeforeRoundOff);
+        }
+
+        // Use auto or manual round-off
+        if (roundOffPurchaseReturn && !manualRoundOffOverride) {
+            roundOffAmount = autoRoundOffAmount;
+        } else {
+            roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+        }
+
         const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
 
         return {
@@ -1424,10 +1543,10 @@ const AddPurcRtn = () => {
             nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
             vatAmount: preciseRound(vatAmount, 2),
             totalAmount: preciseRound(totalAmount, 2),
-            totalCCAmount: preciseRound(finalCCAmount, 2),
+            totalCCAmount: preciseRound(totalCcAmount, 2),
             discountAmount: preciseRound(effectiveDiscount, 2),
             roundOffAmount: preciseRound(roundOffAmount, 2),
-            autoRoundOffAmount: preciseRound(roundOffAmount, 2)
+            autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
         };
     };
 
@@ -2119,6 +2238,15 @@ const AddPurcRtn = () => {
     };
 
     const totals = calculateTotal();
+
+    useEffect(() => {
+        if (roundOffPurchaseReturn && !manualRoundOffOverride) {
+            setFormData(prev => ({
+                ...prev,
+                roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+            }));
+        }
+    }, [roundOffPurchaseReturn, manualRoundOffOverride, totals.autoRoundOffAmount]);
 
     const handleKeyDown = (e, currentFieldId) => {
         if (e.key === 'Enter') {
@@ -4090,7 +4218,7 @@ const AddPurcRtn = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        <td style={{ padding: '1px' }}>
+                                        {/* <td style={{ padding: '1px' }}>
                                             <div className="position-relative">
                                                 <input
                                                     type="number"
@@ -4129,7 +4257,88 @@ const AddPurcRtn = () => {
                                                     }}
                                                 >
                                                     Rs.
-                                                </label> */}
+                                                </label>
+                                            </div>
+                                        </td> */}
+
+                                        <td style={{ padding: '1px', verticalAlign: 'middle' }}>
+                                            <div className="position-relative" style={{ minWidth: '150px' }}>
+                                                <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-control-sm"
+                                                        step="any"
+                                                        id="roundOffAmount"
+                                                        name="roundOffAmount"
+                                                        value={roundOffPurchaseReturn && !manualRoundOffOverride ? totals.autoRoundOffAmount.toFixed(2) : formData.roundOffAmount}
+                                                        onChange={(e) => {
+                                                            if (roundOffPurchaseReturn) {
+                                                                setManualRoundOffOverride(true);
+                                                            }
+                                                            setFormData({ ...formData, roundOffAmount: e.target.value });
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            e.target.select();
+                                                            if (roundOffPurchaseReturn && !manualRoundOffOverride) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                }));
+                                                            }
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            if (roundOffPurchaseReturn && parseFloat(e.target.value) === totals.autoRoundOffAmount) {
+                                                                setManualRoundOffOverride(false);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                document.getElementById('saveBill')?.focus();
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            height: '28px',
+                                                            fontSize: '0.875rem',
+                                                            width: 'auto',
+                                                            flex: '1'
+                                                        }}
+                                                    />
+                                                    {roundOffPurchaseReturn && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-outline-secondary btn-sm"
+                                                            onClick={() => {
+                                                                if (manualRoundOffOverride) {
+                                                                    setManualRoundOffOverride(false);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                    }));
+                                                                } else {
+                                                                    setManualRoundOffOverride(true);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            title={manualRoundOffOverride ? "Use auto round-off" : "Switch to manual input"}
+                                                            style={{
+                                                                height: '28px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 8px',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            {manualRoundOffOverride ? (
+                                                                <i className="bi bi-arrow-clockwise"></i>
+                                                            ) : (
+                                                                <i className="bi bi-pencil"></i>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td style={{ padding: '1px' }}>

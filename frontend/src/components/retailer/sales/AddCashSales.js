@@ -47,7 +47,8 @@ const AddCashSales = () => {
     const [headerLastSearchQuery, setHeaderLastSearchQuery] = useState('');
     const [headerShouldShowLastSearchResults, setHeaderShouldShowLastSearchResults] = useState(false);
     const [headerQuantityError, setHeaderQuantityError] = useState('');
-
+    const [roundOffSales, setRoundOffSales] = useState(false);
+    const [manualRoundOffOverride, setManualRoundOffOverride] = useState(false);
     const [isHeaderSearching, setIsHeaderSearching] = useState(false);
     const [headerSearchResults, setHeaderSearchResults] = useState([]);
     const [headerSearchPage, setHeaderSearchPage] = useState(1);
@@ -331,6 +332,22 @@ const AddCashSales = () => {
             return () => clearTimeout(timer);
         }
     }, [isInitialDataLoaded, company.dateFormat]);
+
+    useEffect(() => {
+        fetchRoundOffSetting();
+    }, []);
+
+    const fetchRoundOffSetting = async () => {
+        try {
+            const response = await api.get('/api/retailer/roundoff-sales');
+            if (response.data.success) {
+                setRoundOffSales(response.data.data.settings?.roundOffSales || false);
+            }
+        } catch (error) {
+            console.error("Error fetching round-off setting:", error);
+            setRoundOffSales(false);
+        }
+    };
 
     useEffect(() => {
         calculateTotal();
@@ -1117,26 +1134,86 @@ const AddCashSales = () => {
         }
     }, [items]);
 
+    // const calculateTotal = (itemsToCalculate = items) => {
+    //     let subTotal = 0;
+    //     let taxableAmount = 0;
+    //     let nonTaxableAmount = 0;
+
+    //     itemsToCalculate.forEach(item => {
+    //         subTotal += parseFloat(item.amount) || 0;
+
+    //         if (item.vatStatus === 'vatable') {
+    //             taxableAmount += parseFloat(item.amount) || 0;
+    //         } else {
+    //             nonTaxableAmount += parseFloat(item.amount) || 0;
+    //         }
+    //     });
+
+    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
+    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
+
+    //     const discountForTaxable = (taxableAmount * discountPercentage) / 100;
+    //     const discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
+
+    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
+    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
+
+    //     let vatAmount = 0;
+    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+    //         vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
+    //     }
+
+    //     const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+    //     const totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount + roundOffAmount;
+
+    //     return {
+    //         subTotal,
+    //         taxableAmount: finalTaxableAmount,
+    //         nonTaxableAmount: finalNonTaxableAmount,
+    //         vatAmount,
+    //         totalAmount,
+    //         discountAmount
+    //     };
+    // };
+
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
         let nonTaxableAmount = 0;
 
         itemsToCalculate.forEach(item => {
-            subTotal += parseFloat(item.amount) || 0;
+            const itemAmount = parseFloat(item.amount) || 0;
+            subTotal += itemAmount;
 
             if (item.vatStatus === 'vatable') {
-                taxableAmount += parseFloat(item.amount) || 0;
+                taxableAmount += itemAmount;
             } else {
-                nonTaxableAmount += parseFloat(item.amount) || 0;
+                nonTaxableAmount += itemAmount;
             }
         });
 
         const discountPercentage = parseFloat(formData.discountPercentage) || 0;
         const discountAmount = parseFloat(formData.discountAmount) || 0;
 
-        const discountForTaxable = (taxableAmount * discountPercentage) / 100;
-        const discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
+        let effectiveDiscount = 0;
+        let discountForTaxable = 0;
+        let discountForNonTaxable = 0;
+
+        if (discountAmount > 0) {
+            effectiveDiscount = discountAmount;
+
+            if (subTotal > 0) {
+                const taxableRatio = taxableAmount / subTotal;
+                const nonTaxableRatio = nonTaxableAmount / subTotal;
+
+                discountForTaxable = effectiveDiscount * taxableRatio;
+                discountForNonTaxable = effectiveDiscount * nonTaxableRatio;
+            }
+        } else if (discountPercentage > 0) {
+            discountForTaxable = (taxableAmount * discountPercentage) / 100;
+            discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
+            effectiveDiscount = discountForTaxable + discountForNonTaxable;
+        }
 
         const finalTaxableAmount = taxableAmount - discountForTaxable;
         const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
@@ -1146,16 +1223,38 @@ const AddCashSales = () => {
             vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
         }
 
-        const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-        const totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount + roundOffAmount;
+        // Calculate total before round off
+        let totalBeforeRoundOff = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
+
+        // Calculate auto round-off amount
+        let roundOffAmount = 0;
+        let autoRoundOffAmount = 0;
+
+        // Calculate auto round-off if enabled
+        if (roundOffSales) {
+            const roundedTotal = Math.round(totalBeforeRoundOff);
+            autoRoundOffAmount = roundedTotal - totalBeforeRoundOff;
+            autoRoundOffAmount = Math.round(autoRoundOffAmount * 100) / 100;
+        }
+
+        // Use auto or manual round-off
+        if (roundOffSales && !manualRoundOffOverride) {
+            roundOffAmount = autoRoundOffAmount;
+        } else {
+            roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+        }
+
+        const totalAmount = totalBeforeRoundOff + roundOffAmount;
 
         return {
-            subTotal,
-            taxableAmount: finalTaxableAmount,
-            nonTaxableAmount: finalNonTaxableAmount,
-            vatAmount,
-            totalAmount,
-            discountAmount
+            subTotal: Math.round(subTotal * 100) / 100,
+            taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
+            nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
+            vatAmount: Math.round(vatAmount * 100) / 100,
+            totalAmount: Math.round(totalAmount * 100) / 100,
+            discountAmount: Math.round(effectiveDiscount * 100) / 100,
+            roundOffAmount: Math.round(roundOffAmount * 100) / 100,
+            autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
         };
     };
 
@@ -1501,6 +1600,15 @@ const AddCashSales = () => {
         }
     };
     const totals = calculateTotal();
+
+    useEffect(() => {
+        if (roundOffSales && !manualRoundOffOverride) {
+            setFormData(prev => ({
+                ...prev,
+                roundOffAmount: totals.autoRoundOffAmount
+            }));
+        }
+    }, [roundOffSales, manualRoundOffOverride, totals.autoRoundOffAmount]);
 
     const printImmediately = async (billId) => {
         try {
@@ -3260,7 +3368,7 @@ const AddCashSales = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        <td style={{ padding: '1px' }}>
+                                        {/* <td style={{ padding: '1px' }}>
                                             <div className="position-relative">
                                                 <input
                                                     type="number"
@@ -3300,6 +3408,87 @@ const AddCashSales = () => {
                                                 >
                                                     Rs.
                                                 </label>
+                                            </div>
+                                        </td> */}
+                                        
+                                        <td style={{ padding: '1px', verticalAlign: 'middle' }}>
+                                            <div className="position-relative" style={{ minWidth: '150px' }}>
+                                                <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-control-sm"
+                                                        step="any"
+                                                        id="roundOffAmount"
+                                                        name="roundOffAmount"
+                                                        value={roundOffSales && !manualRoundOffOverride ? totals.autoRoundOffAmount.toFixed(2) : formData.roundOffAmount}
+                                                        onChange={(e) => {
+                                                            if (roundOffSales) {
+                                                                setManualRoundOffOverride(true);
+                                                            }
+                                                            setFormData({ ...formData, roundOffAmount: parseFloat(e.target.value) || 0 });
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            e.target.select();
+                                                            if (roundOffSales && !manualRoundOffOverride) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                }));
+                                                            }
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            if (roundOffSales && parseFloat(e.target.value) === totals.autoRoundOffAmount) {
+                                                                setManualRoundOffOverride(false);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                document.getElementById('saveBill')?.focus();
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            height: '28px',
+                                                            fontSize: '0.875rem',
+                                                            width: 'auto',
+                                                            flex: '1'
+                                                        }}
+                                                    />
+                                                    {roundOffSales && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-outline-secondary btn-sm"
+                                                            onClick={() => {
+                                                                if (manualRoundOffOverride) {
+                                                                    setManualRoundOffOverride(false);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                    }));
+                                                                } else {
+                                                                    setManualRoundOffOverride(true);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            title={manualRoundOffOverride ? "Use auto round-off" : "Switch to manual input"}
+                                                            style={{
+                                                                height: '28px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 8px',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            {manualRoundOffOverride ? (
+                                                                <i className="bi bi-arrow-clockwise"></i>
+                                                            ) : (
+                                                                <i className="bi bi-pencil"></i>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td style={{ padding: '1px' }}>

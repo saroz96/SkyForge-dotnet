@@ -43,9 +43,8 @@ namespace SkyForge.Models.Retailer.SettingsModel
 
         // FiscalYear relationship
         [ForeignKey("FiscalYear")]
-        public Guid? FiscalYearId { get; set; }
-        public virtual FiscalYear? FiscalYear { get; set; }
-
+        public Guid FiscalYearId { get; set; }  // Remove the ? to make it non-nullable
+        public virtual FiscalYear FiscalYear { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
     }

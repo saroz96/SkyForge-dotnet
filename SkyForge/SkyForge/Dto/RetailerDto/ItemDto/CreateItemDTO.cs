@@ -34,8 +34,21 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
 
         public List<Guid>? CompositionIds { get; set; }
 
+        // [Range(0, double.MaxValue)]
+        // public decimal WsUnit { get; set; } = 0;
+
+        private decimal _wsUnit = 1; // Default to 1
+
         [Range(0, double.MaxValue)]
-        public decimal WsUnit { get; set; } = 0;
+        public decimal WsUnit
+        {
+            get => _wsUnit;
+            set
+            {
+                // If value is 0 or less, set to 1 (default)
+                _wsUnit = value <= 0 ? 1 : value;
+            }
+        }
 
         [Required]
         public Guid UnitId { get; set; }

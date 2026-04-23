@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -61,6 +60,8 @@ const StockStatus = () => {
                 pages: 1,
                 total: 0
             },
+            fromDate: '',
+            toDate: '',
             searchQuery: '',
             currentPage: 1,
             itemsPerPage: 10,
@@ -76,11 +77,14 @@ const StockStatus = () => {
         };
     });
 
+    const [dateErrors, setDateErrors] = useState({
+        fromDate: '',
+        toDate: ''
+    });
+
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [asOnDate, setAsOnDate] = useState('');
-    const [dateError, setDateError] = useState('');
     const [hasGenerated, setHasGenerated] = useState(false);
     const [exporting, setExporting] = useState(false);
 
@@ -93,7 +97,8 @@ const StockStatus = () => {
 
     const navigate = useNavigate();
     const searchInputRef = useRef(null);
-    const asOnDateRef = useRef(null);
+    const fromDateRef = useRef(null);
+    const toDateRef = useRef(null);
     const generateBtnRef = useRef(null);
     const abortControllerRef = useRef(null);
 
@@ -106,21 +111,53 @@ const StockStatus = () => {
                 if (response.data.success) {
                     const responseData = response.data.data;
                     const dateFormat = responseData.company?.dateFormat?.toLowerCase() || 'english';
+                    const currentFiscalYear = responseData.currentFiscalYear;
+                    const isNepaliFormat = dateFormat === 'nepali';
+
                     setCompany({
                         dateFormat: dateFormat,
                         isVatExempt: responseData.company?.isVatExempt || false,
                         vatEnabled: responseData.company?.vatEnabled !== false,
-                        fiscalYear: responseData.currentFiscalYear || {},
+                        fiscalYear: currentFiscalYear || {},
                         currentCompanyName: responseData.company?.name || '',
                         address: responseData.company?.address || '',
                         city: responseData.company?.city || '',
                         pan: responseData.company?.pan || ''
                     });
-                    setAsOnDate(dateFormat === 'nepali' ? currentNepaliDate : currentEnglishDate);
+
+                    // Set default dates based on fiscal year
+                    const hasDraftDates = draftStockStatusSave?.stockStatusData?.fromDate && draftStockStatusSave?.stockStatusData?.toDate;
+
+                    if (!hasDraftDates && currentFiscalYear) {
+                        let fromDateFormatted = '';
+                        let toDateFormatted = '';
+
+                        if (isNepaliFormat) {
+                            fromDateFormatted = currentFiscalYear.startDateNepali || currentNepaliDate;
+                            toDateFormatted = currentNepaliDate;
+                        } else {
+                            fromDateFormatted = currentFiscalYear.startDate
+                                ? new Date(currentFiscalYear.startDate).toISOString().split('T')[0]
+                                : currentEnglishDate;
+                            toDateFormatted = currentFiscalYear.endDate
+                                ? new Date(currentFiscalYear.endDate).toISOString().split('T')[0]
+                                : currentEnglishDate;
+                        }
+
+                        setData(prev => ({
+                            ...prev,
+                            fromDate: fromDateFormatted,
+                            toDate: toDateFormatted
+                        }));
+                    }
                 }
             } catch (err) {
                 console.error('Error fetching company info:', err);
-                setAsOnDate(currentEnglishDate);
+                setData(prev => ({
+                    ...prev,
+                    fromDate: currentEnglishDate,
+                    toDate: currentEnglishDate
+                }));
             } finally {
                 setInitialLoading(false);
             }
@@ -147,14 +184,18 @@ const StockStatus = () => {
 
     // Fetch stock items
     const fetchStockItems = useCallback(async () => {
-        if (!asOnDate) {
-            setDateError('Please enter a date');
-            asOnDateRef.current?.focus();
+        if (!data.fromDate || !data.toDate) {
+            setDateErrors({ fromDate: 'Please enter from date', toDate: 'Please enter to date' });
             return;
         }
-        if (!validateDate(asOnDate)) {
-            setDateError('Invalid date format');
-            asOnDateRef.current?.focus();
+        if (!validateDate(data.fromDate)) {
+            setDateErrors(prev => ({ ...prev, fromDate: 'Invalid date format' }));
+            fromDateRef.current?.focus();
+            return;
+        }
+        if (!validateDate(data.toDate)) {
+            setDateErrors(prev => ({ ...prev, toDate: 'Invalid date format' }));
+            toDateRef.current?.focus();
             return;
         }
 
@@ -170,7 +211,8 @@ const StockStatus = () => {
             const params = new URLSearchParams();
             params.append('page', data.currentPage);
             params.append('limit', data.itemsPerPage === 'all' ? 10000 : data.itemsPerPage);
-            params.append('asOnDate', asOnDate);
+            params.append('fromDate', data.fromDate);
+            params.append('toDate', data.toDate);
             if (data.searchQuery) params.append('search', data.searchQuery);
             if (data.displayOptions.showPurchaseValue) params.append('showPurchaseValue', true);
             if (data.displayOptions.showSalesValue) params.append('showSalesValue', true);
@@ -202,20 +244,39 @@ const StockStatus = () => {
         } finally {
             setLoading(false);
         }
-    }, [data.currentPage, data.itemsPerPage, data.searchQuery, data.displayOptions.showPurchaseValue, data.displayOptions.showSalesValue, asOnDate]);
+    }, [data.currentPage, data.itemsPerPage, data.searchQuery, data.displayOptions.showPurchaseValue, data.displayOptions.showSalesValue, data.fromDate, data.toDate]);
 
     const handleGenerateReport = () => {
-        if (!asOnDate) {
-            setDateError('Please enter a date');
-            asOnDateRef.current?.focus();
+        if (!data.fromDate) {
+            setDateErrors(prev => ({ ...prev, fromDate: 'Please enter from date' }));
+            fromDateRef.current?.focus();
             return;
         }
-        if (!validateDate(asOnDate)) {
-            setDateError('Invalid date format');
-            asOnDateRef.current?.focus();
+        if (!data.toDate) {
+            setDateErrors(prev => ({ ...prev, toDate: 'Please enter to date' }));
+            toDateRef.current?.focus();
+            return;
+        }
+        if (!validateDate(data.fromDate)) {
+            setDateErrors(prev => ({ ...prev, fromDate: 'Invalid date format' }));
+            fromDateRef.current?.focus();
+            return;
+        }
+        if (!validateDate(data.toDate)) {
+            setDateErrors(prev => ({ ...prev, toDate: 'Invalid date format' }));
+            toDateRef.current?.focus();
             return;
         }
         fetchStockItems();
+    };
+
+    const handleDateChange = (e) => {
+        const { name, value } = e.target;
+        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+        if (sanitizedValue.length <= 10) {
+            setData(prev => ({ ...prev, [name]: sanitizedValue }));
+            setDateErrors(prev => ({ ...prev, [name]: '' }));
+        }
     };
 
     // Debounced search
@@ -383,6 +444,21 @@ const StockStatus = () => {
         }));
     };
 
+    // Handle key down for Enter key navigation
+    const handleKeyDown = (e, nextFieldId) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (nextFieldId) {
+                const nextField = document.getElementById(nextFieldId);
+                if (nextField) {
+                    nextField.focus();
+                }
+            } else {
+                handleGenerateReport();
+            }
+        }
+    };
+
     // Export to Excel
     const exportToExcel = async () => {
         if (!hasGenerated || !sortedItems.length) {
@@ -494,7 +570,7 @@ const StockStatus = () => {
                     <hr>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                    <div><strong>As on:</strong> ${asOnDate} | <strong>F.Y:</strong> ${fiscalYear}</div>
+                    <div><strong>From:</strong> ${data.fromDate} | <strong>To:</strong> ${data.toDate} | <strong>F.Y:</strong> ${fiscalYear}</div>
                     <div><strong>Total Items:</strong> ${sortedItems.length}${data.searchQuery ? ` | Search: "${data.searchQuery}"` : ''}</div>
                 </div>
                 <table>
@@ -591,24 +667,41 @@ const StockStatus = () => {
                     <div className="row g-2 mb-3">
                         <div className="col-md-2">
                             <div className="position-relative">
-                                <input type="text" id="asOnDate" ref={asOnDateRef}
-                                    className={`form-control form-control-sm no-date-icon ${dateError ? 'is-invalid' : ''}`}
-                                    value={asOnDate}
-                                    onChange={(e) => { setAsOnDate(e.target.value.replace(/[^0-9/-]/g, '')); setDateError(''); }}
-                                    onBlur={() => asOnDate && !validateDate(asOnDate) && setDateError('Invalid date format')}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerateReport()}
+                                <input type="text" id="fromDate" name="fromDate" ref={fromDateRef}
+                                    className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
+                                    value={data.fromDate}
+                                    onChange={handleDateChange}
+                                    onBlur={() => data.fromDate && !validateDate(data.fromDate) && setDateErrors(prev => ({ ...prev, fromDate: 'Invalid date format' }))}
+                                    onKeyDown={(e) => handleKeyDown(e, 'toDate')}
                                     placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    autoComplete="off"
                                     autoFocus
+                                    style={{ height: '30px', fontSize: '0.8rem', width: '100%', paddingTop: '0.75rem' }} />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    From Date: <span className="text-danger">*</span>
+                                </label>
+                                {dateErrors.fromDate && <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>{dateErrors.fromDate}</div>}
+                            </div>
+                        </div>
+                        <div className="col-md-2">
+                            <div className="position-relative">
+                                <input type="text" id="toDate" name="toDate" ref={toDateRef}
+                                    className={`form-control form-control-sm no-date-icon ${dateErrors.toDate ? 'is-invalid' : ''}`}
+                                    value={data.toDate}
+                                    onChange={handleDateChange}
+                                    onBlur={() => data.toDate && !validateDate(data.toDate) && setDateErrors(prev => ({ ...prev, toDate: 'Invalid date format' }))}
+                                    onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
+                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
                                     autoComplete="off"
                                     style={{ height: '30px', fontSize: '0.8rem', width: '100%', paddingTop: '0.75rem' }} />
                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                    As on Date: <span className="text-danger">*</span>
+                                    To Date: <span className="text-danger">*</span>
                                 </label>
-                                {dateError && <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>{dateError}</div>}
+                                {dateErrors.toDate && <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>{dateErrors.toDate}</div>}
                             </div>
                         </div>
                         <div className="col-md-1">
-                            <button ref={generateBtnRef} className="btn btn-primary btn-sm w-100" onClick={handleGenerateReport} disabled={loading} style={{ height: '30px', fontSize: '0.75rem', padding: '0 6px' }}>
+                            <button id="generateReport" ref={generateBtnRef} className="btn btn-primary btn-sm w-100" onClick={handleGenerateReport} disabled={loading} style={{ height: '30px', fontSize: '0.75rem', padding: '0 6px' }}>
                                 {loading ? <span className="spinner-border spinner-border-sm" style={{ width: '14px', height: '14px' }} /> : <><i className="fas fa-chart-line me-1"></i>Generate</>}
                             </button>
                         </div>
@@ -642,7 +735,7 @@ const StockStatus = () => {
                                 <option value="10">10</option>
                                 <option value="25">25</option>
                                 <option value="50">50</option>
-                                <option value="100">100</option>
+                                <option value="all">All</option>
                             </select>
                         </div>
                         <div className="col-md-1">
@@ -684,11 +777,11 @@ const StockStatus = () => {
                             {sortedItems.length === 0 ? (
                                 <div className="alert alert-info text-center py-3" style={{ fontSize: '0.8rem' }}>
                                     <i className="fas fa-info-circle me-2"></i>
-                                    {data.searchQuery ? 'No items match your search criteria' : 'No stock items found for the selected date'}
+                                    {data.searchQuery ? 'No items match your search criteria' : 'No stock items found for the selected date range'}
                                 </div>
                             ) : (
                                 <>
-                                    <div className="table-responsive" style={{ maxHeight: '500px', overflow: 'auto' }}>
+                                    <div className="table-responsive" style={{ maxHeight: '450px', overflow: 'auto' }}>
                                         <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.75rem' }}>
                                             <thead className="table-light" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                                                 <tr>
@@ -847,7 +940,7 @@ const StockStatus = () => {
                     {!hasGenerated && !loading && !initialLoading && (
                         <div className="alert alert-info text-center py-3" style={{ fontSize: '0.8rem' }}>
                             <i className="fas fa-info-circle me-2"></i>
-                            Please select an "As on Date" and click "Generate" to view stock status.
+                            Please select a date range and click "Generate" to view stock status.
                         </div>
                     )}
                 </div>

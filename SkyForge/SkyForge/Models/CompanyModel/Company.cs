@@ -64,7 +64,9 @@ namespace SkyForge.Models.CompanyModel
         // Many-to-many with Users (users who can access this company)
         public virtual ICollection<User> Users { get; set; } = new List<User>();
         public virtual ICollection<AccountGroup> AccountGroups { get; set; } = new List<AccountGroup>();
-        public virtual Settings Settings { get; set; } = null!;
+        // public virtual Settings Settings { get; set; } = null!;
+
+        public virtual ICollection<Settings> Settings { get; set; } = new List<Settings>();
 
         [Column(TypeName = "varchar(20)")]
         public DateFormatEnum? DateFormat { get; set; } = DateFormatEnum.English;

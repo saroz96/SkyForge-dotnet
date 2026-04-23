@@ -13,8 +13,6 @@ using SkyForge.Dto.RetailerDto.ItemDto;
 using SkyForge.Models.Retailer.StoreModel;
 using SkyForge.Models.RackModel;
 
-
-
 namespace SkyForge.Services.Retailer.SalesReturnServices
 {
     public class SalesReturnService : ISalesReturnService
@@ -598,12 +596,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         DiscountAmountPerItem = discountAmountForItem,
                         BatchNumber = batchNumber,
                         ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
-                        Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
                         UniqueUuid = uniqueId,
                         SalesReturnBillId = salesReturn.Id,
                         FiscalYearId = fiscalYearId,
                         StoreId = itemDto.StoreId ?? defaultStore?.Id,
                         RackId = itemDto.RackId ?? defaultRack?.Id,
+                        NepaliDate = dto.NepaliDate,
+                        Date = dto.Date,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -1223,159 +1222,6 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                 throw;
             }
         }
-
-
-        // public async Task<ChangeSalesReturnPartyResponseDTO> ChangeSalesReturnPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
-        // {
-        //     _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
-
-        //     // Start a database transaction to ensure data consistency
-        //     using var dbTransaction = await _context.Database.BeginTransactionAsync();
-
-        //     try
-        //     {
-        //         // 1. Verify the new account exists, is active, and is a party account
-        //         var newAccount = await VerifyAndGetPartyAccountAsync(newAccountId, companyId);
-
-        //         // 2. Get the original sales return bill with account
-        //         var originalBill = await _context.SalesReturns
-        //             .Include(sr => sr.Account)
-        //             .Include(sr => sr.Items)
-        //             .FirstOrDefaultAsync(sr => sr.BillNumber == billNumber &&
-        //                                        sr.CompanyId == companyId &&
-        //                                        sr.FiscalYearId == fiscalYearId);
-
-        //         if (originalBill == null)
-        //         {
-        //             throw new Exception("Voucher not found");
-        //         }
-
-        //         // Check if party is actually changed
-        //         if (originalBill.AccountId == newAccountId)
-        //         {
-        //             throw new Exception("Selected party is same as current party");
-        //         }
-
-        //         var oldAccountId = originalBill.AccountId;
-        //         var oldAccountName = originalBill.Account?.Name ?? "Unknown";
-
-        //         // 3. Calculate amounts
-        //         var totalAmount = originalBill.TotalAmount;
-        //         var taxableAmount = originalBill.TaxableAmount;
-        //         var NonVatSalesReturn = originalBill.NonVatSalesReturn;
-        //         var vatAmount = originalBill.VatAmount;
-        //         var roundOffAmount = originalBill.RoundOffAmount;
-        //         var creditSalesAmount = taxableAmount + NonVatSalesReturn;
-
-        //         // 4. Get purchase account ID
-        //         var creditSalesReturnAccountId = await GetDefaultAccountIdAsync("Sales Return", companyId);
-        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
-        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
-
-        //         // Parse payment mode
-        //         var paymentMode = ParsePaymentMode(originalBill.PaymentMode ?? "Credit");
-
-        //         // 5. Get all transactions linked to this sales return bill
-        //         var transactions = await _context.Transactions
-        //             .Where(t => t.SalesReturnBillId == originalBill.Id &&
-        //                        t.CompanyId == companyId &&
-        //                        t.FiscalYearId == fiscalYearId &&
-        //                        t.Status == TransactionStatus.Active)
-        //             .ToListAsync();
-
-        //         _logger.LogInformation($"Found {transactions.Count} transactions for bill {billNumber}");
-
-        //         // 6. Update purchase bill with new account
-        //         originalBill.AccountId = newAccountId;
-        //         originalBill.UpdatedAt = DateTime.UtcNow;
-        //         originalBill.PurchaseSalesReturnType = "Sales Return"; // Update purchase type with new party name
-
-        //         // 7. Process each transaction
-        //         foreach (var trans in transactions)
-        //         {
-        //             // Check if this is the main party transaction (old party)
-        //             // Party transaction is identified by having AccountId = oldAccountId AND Debit = 0, Credit = totalAmount
-        //             var isMainPartyTransaction = trans.AccountId == oldAccountId &&
-        //                                          trans.Debit == 0 &&
-        //                                          trans.Credit == totalAmount &&
-        //                                          trans.Type == TransactionType.SlRt;
-
-        //             if (isMainPartyTransaction)
-        //             {
-        //                 // Update to new party - Party account should be CREDIT side
-        //                 trans.AccountId = newAccountId;
-        //                 trans.PurchaseSalesReturnType = "Sales Return";
-        //                 trans.UpdatedAt = DateTime.UtcNow;
-
-        //                 _logger.LogInformation($"Updated main party transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
-        //             }
-        //             // Check if this is a purchase account transaction
-        //             else if (creditSalesReturnAccountId.HasValue && trans.AccountId == creditSalesReturnAccountId.Value)
-        //             {
-        //                 trans.PurchaseSalesReturnType = "Sales Return";
-        //                 trans.UpdatedAt = DateTime.UtcNow;
-
-        //                 _logger.LogInformation($"Updated credit sales account transaction {trans.Id} with new party name: {newAccount.Name}");
-        //             }
-        //             // Check if this is a VAT transaction
-        //             else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
-        //             {
-        //                 trans.PurchaseSalesReturnType = "Sales Return";
-        //                 trans.UpdatedAt = DateTime.UtcNow;
-
-        //                 _logger.LogInformation($"Updated VAT transaction {trans.Id} with new party name: {newAccount.Name}");
-        //             }
-        //             // Check if this is a RoundOff transaction
-        //             else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
-        //             {
-        //                 trans.PurchaseSalesReturnType = "Sales Return";
-        //                 trans.UpdatedAt = DateTime.UtcNow;
-
-        //                 _logger.LogInformation($"Updated RoundOff transaction {trans.Id} with new party name: {newAccount.Name}");
-        //             }
-        //             // Check if this is a cash transaction (if payment mode was cash)
-        //             else if (trans.PaymentMode == PaymentMode.Cash && trans.Debit == 0 && trans.Credit == totalAmount)
-        //             {
-        //                 trans.PurchaseSalesReturnType = "Sales Return";
-        //                 trans.UpdatedAt = DateTime.UtcNow;
-
-        //                 _logger.LogInformation($"Updated cash transaction {trans.Id} with new party name: {newAccount.Name}");
-        //             }
-        //             // For any other transactions linked to items (item-level party transactions)
-        //             else if (trans.ItemId.HasValue && trans.Type == TransactionType.Purc)
-        //             {
-        //                 // These are the item-level party transactions created in CreatesalesBillAsync
-        //                 trans.AccountId = newAccountId; // Update the account to new party
-        //                 trans.PurchaseSalesReturnType = "Sales Return";
-        //                 trans.UpdatedAt = DateTime.UtcNow;
-
-        //                 _logger.LogInformation($"Updated item-level party transaction {trans.Id} for item {trans.ItemId}");
-        //             }
-        //         }
-
-        //         // 8. Save changes
-        //         await _context.SaveChangesAsync();
-
-        //         // 9. Commit transaction
-        //         await dbTransaction.CommitAsync();
-
-        //         _logger.LogInformation($"Successfully changed party for bill: {billNumber} from {oldAccountName} to {newAccount.Name}");
-
-        //         return new ChangeSalesReturnPartyResponseDTO
-        //         {
-        //             BillNumber = billNumber,
-        //             AccountId = newAccountId,
-        //             AccountName = newAccount.Name,
-        //             Message = $"Party changed successfully from \"{oldAccountName}\" to \"{newAccount.Name}\""
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, $"Error changing party for bill: {billNumber}");
-        //         await dbTransaction.RollbackAsync();
-        //         throw;
-        //     }
-        // }
 
         public async Task<ChangeSalesReturnPartyResponseDTO> ChangeSalesReturnPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
         {
@@ -2203,10 +2049,11 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         DiscountAmountPerItem = discountAmountForItem,
                         BatchNumber = batchNumber,
                         ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
-                        Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
                         UniqueUuid = uniqueId,
                         FiscalYearId = fiscalYearId,
                         SalesReturnBillId = existingBill.Id,
+                        NepaliDate = dto.NepaliDate,
+                        Date = dto.Date,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -3103,12 +2950,13 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         DiscountAmountPerItem = discountAmountForItem,
                         BatchNumber = batchNumber,
                         ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
-                        Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
                         UniqueUuid = uniqueId,
                         SalesReturnBillId = salesReturn.Id,
                         FiscalYearId = fiscalYearId,
                         StoreId = itemDto.StoreId ?? defaultStore?.Id,
                         RackId = itemDto.RackId ?? defaultRack?.Id,
+                        NepaliDate = dto.NepaliDate,
+                        Date = dto.Date,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -4083,10 +3931,11 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                         DiscountAmountPerItem = discountAmountForItem,
                         BatchNumber = batchNumber,
                         ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
-                        Date = isNepaliFormat ? existingBill.nepaliDate : existingBill.Date,
                         UniqueUuid = uniqueId,
                         FiscalYearId = fiscalYearId,
                         SalesReturnBillId = existingBill.Id,
+                        NepaliDate = dto.NepaliDate,
+                        Date = dto.Date,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };

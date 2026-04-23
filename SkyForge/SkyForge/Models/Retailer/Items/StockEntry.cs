@@ -153,7 +153,6 @@ namespace SkyForge.Models.Retailer.Items
         [Column("source_transfer_date")]
         public DateTime? SourceTransferDate { get; set; }
         
-
          [Column("Nepali_Date")]
         public DateTime? NepaliDate { get; set; }
 

@@ -25,7 +25,8 @@ const EditCashSalesReturn = () => {
     const [accountSearchQuery, setAccountSearchQuery] = useState('');
     const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
     const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
-
+    const [roundOffSalesReturn, setRoundOffSalesReturn] = useState(false);
+    const [manualRoundOffOverride, setManualRoundOffOverride] = useState(false);
     // Item search states for header
     const [isHeaderSearching, setIsHeaderSearching] = useState(false);
     const [headerSearchQuery, setHeaderSearchQuery] = useState('');
@@ -127,6 +128,26 @@ const EditCashSalesReturn = () => {
             return Promise.reject(error);
         }
     );
+
+    useEffect(() => {
+        fetchRoundOffSetting();
+    }, []);
+
+    const fetchRoundOffSetting = async () => {
+        try {
+            const response = await api.get('/api/retailer/roundoff-sales-return');
+            if (response.data.success) {
+                // Access the nested settings from settingsForSalesReturn object
+                const settings = response.data.data?.settingsForSalesReturn;
+                if (settings) {
+                    setRoundOffSalesReturn(settings.roundOffSalesReturn || false);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching round-off setting:", error);
+            setRoundOffSalesReturn(false);
+        }
+    };
 
     // Fetch accounts from backend (cash accounts only)
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
@@ -752,6 +773,69 @@ const EditCashSalesReturn = () => {
         }
     }, [formData.items]);
 
+    // const calculateTotal = (itemsToCalculate = items) => {
+    //     let subTotal = 0;
+    //     let taxableAmount = 0;
+    //     let nonTaxableAmount = 0;
+
+    //     itemsToCalculate.forEach(item => {
+    //         const itemAmount = parseFloat(item.amount) || 0;
+    //         subTotal += itemAmount;
+
+    //         if (item.vatStatus === 'vatable') {
+    //             taxableAmount += itemAmount;
+    //         } else {
+    //             nonTaxableAmount += itemAmount;
+    //         }
+    //     });
+
+    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
+    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
+
+    //     let effectiveDiscount = 0;
+    //     let discountForTaxable = 0;
+    //     let discountForNonTaxable = 0;
+
+    //     if (discountAmount > 0) {
+    //         effectiveDiscount = discountAmount;
+
+    //         if (subTotal > 0) {
+    //             const taxableRatio = taxableAmount / subTotal;
+    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
+
+    //             discountForTaxable = effectiveDiscount * taxableRatio;
+    //             discountForNonTaxable = effectiveDiscount * nonTaxableRatio;
+    //         }
+    //     } else if (discountPercentage > 0) {
+    //         discountForTaxable = (taxableAmount * discountPercentage) / 100;
+    //         discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
+    //         effectiveDiscount = discountForTaxable + discountForNonTaxable;
+    //     }
+
+    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
+    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
+
+    //     let vatAmount = 0;
+    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+    //         vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
+    //     }
+
+    //     let totalBeforeRoundOff = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
+
+    //     const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+    //     const totalAmount = totalBeforeRoundOff + roundOffAmount;
+
+    //     return {
+    //         subTotal,
+    //         taxableAmount: finalTaxableAmount,
+    //         nonTaxableAmount: finalNonTaxableAmount,
+    //         vatAmount,
+    //         totalAmount,
+    //         discountAmount: effectiveDiscount,
+    //         roundOffAmount
+    //     };
+    // };
+
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
@@ -799,24 +883,50 @@ const EditCashSalesReturn = () => {
             vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
         }
 
+        // Calculate total before round off
         let totalBeforeRoundOff = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
 
-        const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+        // Calculate auto round-off amount
+        let roundOffAmount = 0;
+        let autoRoundOffAmount = 0;
+
+        // Calculate auto round-off if enabled
+        if (roundOffSalesReturn) {
+            const roundedTotal = Math.round(totalBeforeRoundOff);
+            autoRoundOffAmount = roundedTotal - totalBeforeRoundOff;
+            autoRoundOffAmount = Math.round(autoRoundOffAmount * 100) / 100;
+        }
+
+        // Use auto or manual round-off
+        if (roundOffSalesReturn && !manualRoundOffOverride) {
+            roundOffAmount = autoRoundOffAmount;
+        } else {
+            roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+        }
+
         const totalAmount = totalBeforeRoundOff + roundOffAmount;
 
         return {
-            subTotal,
-            taxableAmount: finalTaxableAmount,
-            nonTaxableAmount: finalNonTaxableAmount,
-            vatAmount,
-            totalAmount,
-            discountAmount: effectiveDiscount,
-            roundOffAmount
+            subTotal: Math.round(subTotal * 100) / 100,
+            taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
+            nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
+            vatAmount: Math.round(vatAmount * 100) / 100,
+            totalAmount: Math.round(totalAmount * 100) / 100,
+            discountAmount: Math.round(effectiveDiscount * 100) / 100,
+            roundOffAmount: Math.round(roundOffAmount * 100) / 100,
+            autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
         };
     };
-
     const totals = calculateTotal();
 
+    useEffect(() => {
+        if (roundOffSalesReturn && !manualRoundOffOverride) {
+            setFormData(prev => ({
+                ...prev,
+                roundOffAmount: totals.autoRoundOffAmount
+            }));
+        }
+    }, [roundOffSalesReturn, manualRoundOffOverride, totals.autoRoundOffAmount]);
     const handleDiscountPercentageChange = (e) => {
         const value = parseFloat(e.target.value) || 0;
         const validatedValue = Math.min(Math.max(value, 0), 100);
@@ -2733,7 +2843,7 @@ const EditCashSalesReturn = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        <td style={{ padding: '1px' }}>
+                                        {/* <td style={{ padding: '1px' }}>
                                             <div className="position-relative">
                                                 <input
                                                     type="number"
@@ -2759,6 +2869,86 @@ const EditCashSalesReturn = () => {
                                                         width: '100%'
                                                     }}
                                                 />
+                                            </div>
+                                        </td> */}
+                                        <td style={{ padding: '1px', verticalAlign: 'middle' }}>
+                                            <div className="position-relative" style={{ minWidth: '150px' }}>
+                                                <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-control-sm"
+                                                        step="any"
+                                                        id="roundOffAmount"
+                                                        name="roundOffAmount"
+                                                        value={roundOffSalesReturn && !manualRoundOffOverride ? totals.autoRoundOffAmount.toFixed(2) : formData.roundOffAmount}
+                                                        onChange={(e) => {
+                                                            if (roundOffSalesReturn) {
+                                                                setManualRoundOffOverride(true);
+                                                            }
+                                                            setFormData({ ...formData, roundOffAmount: parseFloat(e.target.value) || 0 });
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            e.target.select();
+                                                            if (roundOffSalesReturn && !manualRoundOffOverride) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                }));
+                                                            }
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            if (roundOffSalesReturn && parseFloat(e.target.value) === totals.autoRoundOffAmount) {
+                                                                setManualRoundOffOverride(false);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                document.getElementById('saveBill')?.focus();
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            height: '28px',
+                                                            fontSize: '0.875rem',
+                                                            width: 'auto',
+                                                            flex: '1'
+                                                        }}
+                                                    />
+                                                    {roundOffSalesReturn && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-outline-secondary btn-sm"
+                                                            onClick={() => {
+                                                                if (manualRoundOffOverride) {
+                                                                    setManualRoundOffOverride(false);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                    }));
+                                                                } else {
+                                                                    setManualRoundOffOverride(true);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            title={manualRoundOffOverride ? "Use auto round-off" : "Switch to manual input"}
+                                                            style={{
+                                                                height: '28px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 8px',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            {manualRoundOffOverride ? (
+                                                                <i className="bi bi-arrow-clockwise"></i>
+                                                            ) : (
+                                                                <i className="bi bi-pencil"></i>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td style={{ padding: '1px' }}>

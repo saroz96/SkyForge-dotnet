@@ -3848,7 +3848,7 @@ namespace SkyForge.Migrations
                     b.Property<bool>("DisplayTransactionsForSalesReturn")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid?>("FiscalYearId")
+                    b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid");
 
                     b.Property<bool>("RoundOffPurchase")
@@ -3877,9 +3877,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("jsonb");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CompanyId")
-                        .IsUnique();
 
                     b.HasIndex("FiscalYearId");
 
@@ -5892,15 +5889,16 @@ namespace SkyForge.Migrations
             modelBuilder.Entity("SkyForge.Models.Retailer.SettingsModel.Settings", b =>
                 {
                     b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
-                        .WithOne("Settings")
-                        .HasForeignKey("SkyForge.Models.Retailer.SettingsModel.Settings", "CompanyId")
+                        .WithMany("Settings")
+                        .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
                         .WithMany()
                         .HasForeignKey("FiscalYearId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .IsRequired();
 
                     b.HasOne("SkyForge.Models.UserModel.User", "User")
                         .WithMany()
@@ -6266,8 +6264,7 @@ namespace SkyForge.Migrations
 
                     b.Navigation("FiscalYears");
 
-                    b.Navigation("Settings")
-                        .IsRequired();
+                    b.Navigation("Settings");
                 });
 
             modelBuilder.Entity("SkyForge.Models.FiscalYearModel.FiscalYear", b =>

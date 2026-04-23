@@ -456,6 +456,8 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         DaysUntilExpiry = CalculateDaysUntilExpiry(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
                         StoreId = itemDto.StoreId ?? defaultStore?.Id,
                         RackId = itemDto.RackId ?? defaultRack?.Id,
+                        Date = dto.Date,
+                        NepaliDate = dto.NepaliDate,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -1974,7 +1976,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     {
                         Id = Guid.NewGuid(),
                         ItemId = itemDto.ItemId,
-                        Date = isNepaliFormat ? dto.NepaliDate : dto.Date,
                         WsUnit = wsUnit,
                         Quantity = netQuantity,
                         Bonus = bonus * wsUnit,
@@ -1996,6 +1997,8 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         PurchaseBillId = existingBill.Id,
                         ExpiryStatus = CalculateExpiryStatus(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
                         DaysUntilExpiry = CalculateDaysUntilExpiry(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+                        NepaliDate = dto.NepaliDate,
+                        Date = dto.Date,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };

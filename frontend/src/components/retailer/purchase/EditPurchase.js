@@ -3169,7 +3169,7 @@ const EditPurchase = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        <td style={{ padding: '1px' }}>
+                                        {/* <td style={{ padding: '1px' }}>
                                             <div className="position-relative">
                                                 <div className="input-group input-group-sm">
                                                     <input
@@ -3249,6 +3249,86 @@ const EditPurchase = () => {
                                                         {manualRoundOffOverride ? "Manual override active" : "Auto round-off enabled"}
                                                     </small>
                                                 )}
+                                            </div>
+                                        </td> */}
+                                        <td style={{ padding: '1px', verticalAlign: 'middle' }}>
+                                            <div className="position-relative" style={{ minWidth: '150px' }}>
+                                                <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-control-sm"
+                                                        step="any"
+                                                        id="roundOffAmount"
+                                                        name="roundOffAmount"
+                                                        value={roundOffPurchase && !manualRoundOffOverride ? totals.autoRoundOffAmount.toFixed(2) : formData.roundOffAmount}
+                                                        onChange={(e) => {
+                                                            if (roundOffPurchase) {
+                                                                setManualRoundOffOverride(true);
+                                                            }
+                                                            setFormData({ ...formData, roundOffAmount: e.target.value });
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            e.target.select();
+                                                            if (roundOffPurchase && !manualRoundOffOverride) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                }));
+                                                            }
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            if (roundOffPurchase && parseFloat(e.target.value) === totals.autoRoundOffAmount) {
+                                                                setManualRoundOffOverride(false);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                document.getElementById('saveBill')?.focus();
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            height: '28px',
+                                                            fontSize: '0.875rem',
+                                                            width: 'auto',
+                                                            flex: '1'
+                                                        }}
+                                                    />
+                                                    {roundOffPurchase && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-outline-secondary btn-sm"
+                                                            onClick={() => {
+                                                                if (manualRoundOffOverride) {
+                                                                    setManualRoundOffOverride(false);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                    }));
+                                                                } else {
+                                                                    setManualRoundOffOverride(true);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            title={manualRoundOffOverride ? "Use auto round-off" : "Switch to manual input"}
+                                                            style={{
+                                                                height: '28px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 8px',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            {manualRoundOffOverride ? (
+                                                                <i className="bi bi-arrow-clockwise"></i>
+                                                            ) : (
+                                                                <i className="bi bi-pencil"></i>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td style={{ padding: '1px' }}>
