@@ -25,7 +25,9 @@ const AddJournalVoucher = () => {
         type: 'success'
     });
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-
+    // Add near your other state declarations (around line 60-80)
+    const [useVoucherLastDateForJournal, setUseVoucherLastDateForJournal] = useState(false);
+    const [lastJournalDate, setLastJournalDate] = useState(null);
     // Header selection states
     const [headerDebitAccount, setHeaderDebitAccount] = useState(null);
     const [headerDebitAmount, setHeaderDebitAmount] = useState('');
@@ -156,23 +158,134 @@ const AddJournalVoucher = () => {
         };
     }, []);
 
+    // Fetch date preference setting from backend for Journal
+    const fetchDatePreference = async () => {
+        try {
+            console.log('=== fetchDatePreferenceForJournal CALLED ===');
+            const response = await api.get('/api/retailer/date-preference/journal');
+            console.log('Date preference response:', response.data);
+
+            if (response.data.success) {
+                const useVoucherDate = response.data.data.useVoucherLastDate;
+                console.log('useVoucherLastDateForJournal value from API:', useVoucherDate);
+                setUseVoucherLastDateForJournal(useVoucherDate);
+                return useVoucherDate;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error fetching date preference:', error);
+            return false;
+        }
+    };
+
+    // Fetch last journal date from backend
+    const fetchLastJournalDate = async () => {
+        try {
+            console.log('=== fetchLastJournalDate CALLED ===');
+
+            // Use the endpoint: /api/retailer/last-journal-date
+            const response = await api.get('/api/retailer/last-journal-date');
+            console.log('Last journal date response:', response.data);
+
+            if (response.data.success && response.data.data) {
+                const data = response.data.data;
+                const isNepaliFormat = companyDateFormat === 'nepali';
+
+                // Get the appropriate date based on company format
+                let lastDate = null;
+                if (isNepaliFormat) {
+                    // Use Nepali date field from response
+                    lastDate = data.nepaliDate;
+                    console.log('Using Nepali date field:', lastDate);
+                } else {
+                    // Use English date field from response
+                    lastDate = data.date;
+                    console.log('Using English date field:', lastDate);
+                }
+
+                if (lastDate) {
+                    // Format the date (it should already be in YYYY-MM-DD format from backend)
+                    let formattedDate = lastDate;
+                    if (typeof lastDate === 'string' && lastDate.includes('T')) {
+                        formattedDate = lastDate.split('T')[0];
+                    }
+                    console.log('Formatted last journal date:', formattedDate);
+                    setLastJournalDate(formattedDate);
+                    return formattedDate;
+                }
+            }
+
+            console.log('No last journal date found - returning null');
+            return null;
+        } catch (error) {
+            console.error('Error fetching last journal date:', error);
+            return null;
+        }
+    };
+
     useEffect(() => {
         const fetchJournalFormData = async () => {
             try {
                 setIsLoading(true);
+
+                // Get current bill number (does NOT increment)
                 const currentBillNum = await getCurrentBillNumber();
+
+                // Fetch form data
                 const response = await api.get('/api/retailer/journal');
                 const { data } = response;
 
-                setAccounts(data.data.accounts);
+                // Get company date format first
+                const isNepaliFormat = data.data.companyDateFormat === 'nepali';
                 setCompanyDateFormat(data.data.companyDateFormat);
+
+                // Fetch date preference (useVoucherLastDate setting from backend)
+                const useVoucherDate = await fetchDatePreference();
+
+                // Fetch last journal date if needed
+                let lastDate = null;
+                if (useVoucherDate) {
+                    lastDate = await fetchLastJournalDate();
+                }
+
+                let transactionDate = '';
+                let invoiceDate = '';
+
+                console.log('Setting dates - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+                // Set dates based on preference
+                if (useVoucherDate && lastDate) {
+                    // Use last voucher date
+                    if (isNepaliFormat) {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    } else {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    }
+                    console.log('Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+                } else {
+                    // Use current system date
+                    const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+                    if (isNepaliFormat) {
+                        transactionDate = currentNepaliDate;
+                        invoiceDate = currentNepaliDate;
+                    } else {
+                        const today = new Date().toISOString().split('T')[0];
+                        transactionDate = today;
+                        invoiceDate = today;
+                    }
+                    console.log('Using SYSTEM date:', { transactionDate, invoiceDate });
+                }
+
+                setAccounts(data.data.accounts);
                 setCurrentBillNumber(currentBillNum);
                 setNextBillNumber(currentBillNum);
 
-                const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+                // Set form data with the determined dates
                 setFormData({
-                    date: new Date().toISOString().split('T')[0],
-                    nepaliDate: currentNepaliDate,
+                    date: !isNepaliFormat ? invoiceDate : new Date().toISOString().split('T')[0],
+                    nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
                     description: '',
                     entries: []
                 });
@@ -187,6 +300,40 @@ const AddJournalVoucher = () => {
 
         fetchJournalFormData();
     }, []);
+
+
+
+    // useEffect(() => {
+    //     const fetchJournalFormData = async () => {
+    //         try {
+    //             setIsLoading(true);
+    //             const currentBillNum = await getCurrentBillNumber();
+    //             const response = await api.get('/api/retailer/journal');
+    //             const { data } = response;
+
+    //             setAccounts(data.data.accounts);
+    //             setCompanyDateFormat(data.data.companyDateFormat);
+    //             setCurrentBillNumber(currentBillNum);
+    //             setNextBillNumber(currentBillNum);
+
+    //             const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //             setFormData({
+    //                 date: new Date().toISOString().split('T')[0],
+    //                 nepaliDate: currentNepaliDate,
+    //                 description: '',
+    //                 entries: []
+    //             });
+
+    //             setIsInitialDataLoaded(true);
+    //             setIsLoading(false);
+    //         } catch (err) {
+    //             setError(err.response?.data?.message || 'Failed to load journal voucher form');
+    //             setIsLoading(false);
+    //         }
+    //     };
+
+    //     fetchJournalFormData();
+    // }, []);
 
     // Auto-scroll to bottom when new entries are added
     useEffect(() => {
@@ -576,16 +723,91 @@ const AddJournalVoucher = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    // const resetAfterSave = async () => {
+    //     try {
+    //         const currentBillNum = await getCurrentBillNumber();
+    //         setCurrentBillNumber(currentBillNum);
+    //         setNextBillNumber(currentBillNum);
+
+    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //         setFormData({
+    //             date: new Date().toISOString().split('T')[0],
+    //             nepaliDate: currentNepaliDate,
+    //             description: '',
+    //             entries: []
+    //         });
+
+    //         setHeaderDebitAccount(null);
+    //         setHeaderDebitAmount('');
+    //         setHeaderCreditAccount(null);
+    //         setHeaderCreditAmount('');
+
+    //         setTimeout(() => {
+    //             if (companyDateFormat === 'nepali') {
+    //                 document.getElementById('nepaliDate')?.focus();
+    //             } else {
+    //                 document.getElementById('date')?.focus();
+    //             }
+    //         }, 100);
+    //     } catch (err) {
+    //         console.error('Error resetting after save:', err);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error refreshing form data',
+    //             type: 'error'
+    //         });
+    //     }
+    // };
+
     const resetAfterSave = async () => {
         try {
+            // Get current bill number (this increments the counter)
             const currentBillNum = await getCurrentBillNumber();
             setCurrentBillNumber(currentBillNum);
             setNextBillNumber(currentBillNum);
 
-            const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+            const isNepaliFormat = companyDateFormat === 'nepali';
+
+            // Fetch current date preference (don't rely on state, fetch fresh)
+            const useVoucherDate = await fetchDatePreference();
+
+            // Fetch last journal date if needed
+            let lastDate = null;
+            if (useVoucherDate) {
+                lastDate = await fetchLastJournalDate();
+            }
+
+            let transactionDate = '';
+            let invoiceDate = '';
+
+            console.log('resetAfterSave - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+            // Set dates based on preference
+            if (useVoucherDate && lastDate) {
+                if (isNepaliFormat) {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                } else {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                }
+                console.log('resetAfterSave - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+            } else {
+                const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+                if (isNepaliFormat) {
+                    transactionDate = currentNepaliDate;
+                    invoiceDate = currentNepaliDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    transactionDate = today;
+                    invoiceDate = today;
+                }
+                console.log('resetAfterSave - Using SYSTEM date:', { transactionDate, invoiceDate });
+            }
+
             setFormData({
-                date: new Date().toISOString().split('T')[0],
-                nepaliDate: currentNepaliDate,
+                date: !isNepaliFormat ? invoiceDate : new Date().toISOString().split('T')[0],
+                nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
                 description: '',
                 entries: []
             });
@@ -1118,21 +1340,6 @@ const AddJournalVoucher = () => {
                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
                                             />
                                         </td>
-                                        {/* <td width="10%" style={{ padding: '2px', textAlign: 'center', backgroundColor: '#ffffff' }}>
-                                            <button
-                                                type="button"
-                                                id="insertButton"
-                                                className="btn btn-sm btn-success py-0 px-2"
-                                                onClick={insertEntry}
-                                                disabled={(!headerDebitAccount && !headerCreditAccount) ||
-                                                    (headerDebitAccount && !headerDebitAmount) ||
-                                                    (headerCreditAccount && !headerCreditAmount)}
-                                                style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#198754', borderColor: '#198754' }}
-                                            >
-                                                INSERT
-                                            </button>
-                                        </td> */}
-
                                         <td width="10%" style={{ padding: '2px', textAlign: 'center', backgroundColor: '#ffffff' }}>
                                             {isEditMode ? (
                                                 <div className="d-flex gap-1">

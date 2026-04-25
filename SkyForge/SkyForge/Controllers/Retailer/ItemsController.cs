@@ -1751,18 +1751,321 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // [HttpGet("items/search")]
+        // public async Task<IActionResult> SearchItems([FromQuery] DateTime? asOfDate = null)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== SearchItems Started ===");
+
+        //         // 1. Extract required info from JWT claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearId = User.FindFirst("currentFiscalYear")?.Value;
+
+        //         // 2. Get query parameters
+        //         var search = Request.Query["search"].FirstOrDefault() ?? "";
+        //         var page = int.TryParse(Request.Query["page"].FirstOrDefault(), out int pageNum) ? pageNum : 1;
+        //         var limit = int.TryParse(Request.Query["limit"].FirstOrDefault(), out int limitNum) ? limitNum : 25;
+        //         var vatStatus = Request.Query["vatStatus"].FirstOrDefault() ?? "all";
+
+        //         // 3. Validate required claims exist
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             _logger.LogError("Invalid or missing userId claim");
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again.",
+        //                 redirectTo = "/login"
+        //             });
+        //         }
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             _logger.LogError("No company selected in JWT token");
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first.",
+        //                 redirectTo = "/user-dashboard"
+        //             });
+        //         }
+
+        //         // 4. Validate trade type is Retailer
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             _logger.LogWarning($"Access denied: TradeType is {tradeTypeClaim}, not Retailer");
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access denied for this trade type. This is a Retailer-only feature.",
+        //                 redirectTo = "/user-dashboard"
+        //             });
+        //         }
+
+        //         // 5. Get current fiscal year
+        //         Models.FiscalYearModel.FiscalYear? currentFiscalYear = null;
+        //         if (!string.IsNullOrEmpty(fiscalYearId) && Guid.TryParse(fiscalYearId, out Guid fiscalYearIdGuid))
+        //         {
+        //             currentFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearIdGuid && f.CompanyId == companyIdGuid);
+        //         }
+
+        //         // Fallback to active fiscal year
+        //         if (currentFiscalYear == null)
+        //         {
+        //             currentFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //         }
+
+        //         // Fallback to any fiscal year
+        //         if (currentFiscalYear == null)
+        //         {
+        //             currentFiscalYear = await _context.FiscalYears
+        //                 .Where(f => f.CompanyId == companyIdGuid)
+        //                 .OrderByDescending(f => f.StartDate)
+        //                 .FirstOrDefaultAsync();
+        //         }
+
+        //         if (currentFiscalYear == null)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No fiscal year found for this company",
+        //                 redirectTo = "/fiscal-years"
+        //             });
+        //         }
+
+        //         // 6. Build the query
+        //         var query = _context.Items
+        //             .Where(i => i.CompanyId == companyIdGuid && i.FiscalYearId == currentFiscalYear.Id)
+        //             .AsQueryable();
+
+        //         // 7. Apply search filter
+        //         if (!string.IsNullOrEmpty(search) && search.Trim() != "")
+        //         {
+        //             var searchTerm = search.Trim().ToLower();
+
+        //             // Check if search term is a number (for uniqueNumber/hscode search)
+        //             if (int.TryParse(searchTerm, out int numSearch) && searchTerm.Length <= 10)
+        //             {
+        //                 // Convert to string for Hscode comparison (Hscode is string)
+        //                 string numSearchStr = numSearch.ToString();
+        //                 query = query.Where(i => i.UniqueNumber == numSearch || i.Hscode == numSearchStr);
+        //             }
+        //             else
+        //             {
+        //                 // Text search - split into words
+        //                 var words = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+        //                 if (words.Length == 1)
+        //                 {
+        //                     // Single word search
+        //                     var word = words[0];
+        //                     query = query.Where(i =>
+        //                         i.Name.ToLower().Contains(word) ||
+        //                         (i.Category != null && i.Category.Name.ToLower().Contains(word)) ||
+        //                         (i.ItemCompany != null && i.ItemCompany.Name.ToLower().Contains(word)));
+        //                 }
+        //                 else
+        //                 {
+        //                     // Multiple words - find items that contain ALL words in name
+        //                     foreach (var word in words)
+        //                     {
+        //                         query = query.Where(i => i.Name.ToLower().Contains(word));
+        //                     }
+        //                 }
+        //             }
+        //         }
+
+        //         // 8. Apply VAT status filter
+        //         if (vatStatus != "all")
+        //         {
+        //             if (vatStatus == "false") // vatable
+        //             {
+        //                 query = query.Where(i => i.VatStatus == "vatable");
+        //             }
+        //             else // vatExempt
+        //             {
+        //                 query = query.Where(i => i.VatStatus == "vatExempt");
+        //             }
+        //         }
+
+        //         // 9. Get total count
+        //         var totalItems = await query.CountAsync();
+
+        //         // 10. Calculate pagination
+        //         var skip = (page - 1) * limit;
+
+        //         // 11. Fetch items with related data
+        //         var items = await query
+        //             .Include(i => i.Category)
+        //             .Include(i => i.ItemCompany)
+        //             .Include(i => i.Unit)
+        //             .Include(i => i.MainUnit)
+        //             .Include(i => i.ItemCompositions)
+        //                 .ThenInclude(ic => ic.Composition)
+        //             .Include(i => i.StockEntries)
+        //             .OrderBy(i => i.Name)
+        //             .Skip(skip)
+        //             .Take(limit)
+        //             .ToListAsync();
+
+        //         // 12. Process items to calculate current stock
+        //         var itemsWithStock = items.Select(item =>
+        //         {
+        //             // Calculate current stock
+        //             decimal currentStock = 0;
+        //             if (item.StockEntries != null && item.StockEntries.Any())
+        //             {
+        //                 currentStock = item.StockEntries.Sum(entry => entry.Quantity);
+        //             }
+
+        //             // Prepare stock entries for response - Cast to object
+        //             object stockEntriesObj;
+        //             if (item.StockEntries != null && item.StockEntries.Any())
+        //             {
+        //                 stockEntriesObj = item.StockEntries.Select(se => new StockEntryResponseDTO
+        //                 {
+        //                     Id = se.Id,
+        //                     ItemId = se.ItemId,
+        //                     Date = se.Date,
+        //                     Quantity = se.Quantity,
+        //                     BillQty = se.BillQty,
+        //                     ActualQty = se.ActualQty,
+        //                     Price = se.Price,
+        //                     NetPrice = se.NetPrice,
+        //                     PuPrice = se.PuPrice,
+        //                     NetPuPrice = se.NetPuPrice,
+        //                     CcPercentage = se.CcPercentage,
+        //                     ItemCcAmount = se.ItemCcAmount,
+        //                     MainUnitPuPrice = se.MainUnitPuPrice,
+        //                     MarginPercentage = se.MarginPercentage,
+        //                     Mrp = se.Mrp,
+        //                     UniqueUuid = se.UniqueUuid,  // This will be serialized as "uniqueUuid" in JSON
+        //                     BatchNumber = se.BatchNumber,
+        //                     ExpiryDate = se.ExpiryDate,
+        //                     ExpiryStatus = se.ExpiryStatus,
+        //                     DaysUntilExpiry = se.DaysUntilExpiry,
+        //                     CreatedAt = se.CreatedAt,
+        //                     UpdatedAt = se.UpdatedAt
+        //                     // Add other properties as needed
+        //                 }).ToList();
+        //             }
+        //             else
+        //             {
+        //                 stockEntriesObj = new List<StockEntryResponseDTO>();
+        //             }
+        //             // Prepare compositions for response
+        //             object compositionsObj;
+        //             if (item.ItemCompositions != null && item.ItemCompositions.Any())
+        //             {
+        //                 compositionsObj = item.ItemCompositions.Select(ic => new
+        //                 {
+        //                     _id = ic.Composition?.Id ?? Guid.Empty,
+        //                     id = ic.Composition?.Id ?? Guid.Empty,
+        //                     name = ic.Composition?.Name ?? string.Empty,
+        //                     uniqueNumber = ic.Composition?.UniqueNumber ?? 0
+        //                 }).ToList();
+        //             }
+        //             else
+        //             {
+        //                 compositionsObj = new List<object>();
+        //             }
+
+        //             return new
+        //             {
+        //                 _id = item.Id,
+        //                 id = item.Id,
+        //                 Name = item.Name,
+        //                 Hscode = item.Hscode,
+        //                 categoryId = item.CategoryId,
+        //                 categoryName = item.Category?.Name,
+        //                 itemsCompanyId = item.ItemsCompanyId,
+        //                 itemsCompanyName = item.ItemCompany?.Name,
+        //                 Price = item.Price,
+        //                 PuPrice = item.PuPrice,
+        //                 MainUnitPuPrice = item.MainUnitPuPrice,
+        //                 mainUnitId = item.MainUnitId,
+        //                 mainUnitName = item.MainUnit?.Name,
+        //                 wsUnit = item.WsUnit,
+        //                 unitId = item.UnitId,
+        //                 unitName = item.Unit?.Name,
+        //                 vatStatus = item.VatStatus,
+        //                 openingStock = item.OpeningStock,
+        //                 minStock = item.MinStock,
+        //                 maxStock = item.MaxStock,
+        //                 reorderLevel = item.ReorderLevel,
+        //                 uniqueNumber = item.UniqueNumber,
+        //                 barcodeNumber = item.BarcodeNumber,
+        //                 companyId = item.CompanyId,
+        //                 fiscalYearId = item.FiscalYearId,
+        //                 Status = item.Status,
+        //                 createdAt = item.CreatedAt,
+        //                 date = item.Date,
+        //                 updatedAt = item.UpdatedAt,
+        //                 currentStock = currentStock,
+        //                 totalStock = currentStock,
+        //                 stockValue = currentStock * (item.Price ?? 0),
+        //                 stockEntries = stockEntriesObj,
+        //                 compositions = compositionsObj,
+        //                 hasTransactions = "false", // Default - you can update this if needed
+        //                 stockEntriesCount = item.StockEntries?.Count ?? 0
+        //             };
+        //         }).ToList();
+
+        //         // 13. Prepare pagination info
+        //         var paginationInfo = new
+        //         {
+        //             currentPage = page,
+        //             totalPages = (int)Math.Ceiling((double)totalItems / limit),
+        //             totalItems,
+        //             itemsPerPage = limit,
+        //             hasNextPage = (page * limit) < totalItems,
+        //             hasPreviousPage = page > 1
+        //         };
+
+        //         // 14. Prepare response
+        //         var response = new
+        //         {
+        //             success = true,
+        //             items = itemsWithStock,
+        //             pagination = paginationInfo
+        //         };
+
+        //         _logger.LogInformation($"Successfully searched items. Found {itemsWithStock.Count} items matching search criteria.");
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error searching items");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Failed to search items",
+        //             message = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         [HttpGet("items/search")]
-        public async Task<IActionResult> SearchItems()
+        public async Task<IActionResult> SearchItems([FromQuery] string? asOfNepaliDate = null, [FromQuery] DateTime? asOfEnglishDate = null)
         {
             try
             {
                 _logger.LogInformation("=== SearchItems Started ===");
+                _logger.LogInformation($"asOfNepaliDate parameter: {asOfNepaliDate}");
+                _logger.LogInformation($"asOfEnglishDate parameter: {asOfEnglishDate}");
 
                 // 1. Extract required info from JWT claims
                 var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var companyId = User.FindFirst("currentCompany")?.Value;
                 var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
                 var fiscalYearId = User.FindFirst("currentFiscalYear")?.Value;
+                var companyDateFormat = User.FindFirst("dateFormat")?.Value ?? "nepali";
 
                 // 2. Get query parameters
                 var search = Request.Query["search"].FirstOrDefault() ?? "";
@@ -1852,18 +2155,15 @@ namespace SkyForge.Controllers.Retailer
                     // Check if search term is a number (for uniqueNumber/hscode search)
                     if (int.TryParse(searchTerm, out int numSearch) && searchTerm.Length <= 10)
                     {
-                        // Convert to string for Hscode comparison (Hscode is string)
                         string numSearchStr = numSearch.ToString();
                         query = query.Where(i => i.UniqueNumber == numSearch || i.Hscode == numSearchStr);
                     }
                     else
                     {
-                        // Text search - split into words
                         var words = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
                         if (words.Length == 1)
                         {
-                            // Single word search
                             var word = words[0];
                             query = query.Where(i =>
                                 i.Name.ToLower().Contains(word) ||
@@ -1872,7 +2172,6 @@ namespace SkyForge.Controllers.Retailer
                         }
                         else
                         {
-                            // Multiple words - find items that contain ALL words in name
                             foreach (var word in words)
                             {
                                 query = query.Where(i => i.Name.ToLower().Contains(word));
@@ -1884,11 +2183,11 @@ namespace SkyForge.Controllers.Retailer
                 // 8. Apply VAT status filter
                 if (vatStatus != "all")
                 {
-                    if (vatStatus == "false") // vatable
+                    if (vatStatus == "false")
                     {
                         query = query.Where(i => i.VatStatus == "vatable");
                     }
-                    else // vatExempt
+                    else
                     {
                         query = query.Where(i => i.VatStatus == "vatExempt");
                     }
@@ -1914,25 +2213,67 @@ namespace SkyForge.Controllers.Retailer
                     .Take(limit)
                     .ToListAsync();
 
-                // 12. Process items to calculate current stock
+                // 12. Determine which date field to use based on company date format
+                bool useNepaliDate = companyDateFormat?.ToLower() == "nepali";
+
+                // Parse the asOf date based on the date format
+                DateTime? effectiveDate = null;
+                DateOnly? effectiveNepaliDate = null;
+
+                if (useNepaliDate && !string.IsNullOrEmpty(asOfNepaliDate))
+                {
+                    // Try to parse Nepali date string (format: YYYY-MM-DD)
+                    if (DateOnly.TryParse(asOfNepaliDate, out DateOnly nepaliDate))
+                    {
+                        effectiveNepaliDate = nepaliDate;
+                        _logger.LogDebug($"Using Nepali date filter: {effectiveNepaliDate}");
+                    }
+                }
+                else if (!useNepaliDate && asOfEnglishDate.HasValue)
+                {
+                    effectiveDate = asOfEnglishDate.Value.Date;
+                    _logger.LogDebug($"Using English date filter: {effectiveDate}");
+                }
+
+                // 13. Process items to calculate stock as of the given date
                 var itemsWithStock = items.Select(item =>
                 {
-                    // Calculate current stock
-                    decimal currentStock = 0;
-                    if (item.StockEntries != null && item.StockEntries.Any())
-                    {
-                        currentStock = item.StockEntries.Sum(entry => entry.Quantity);
-                    }
+                    // Filter stock entries based on date
+                    var filteredStockEntries = item.StockEntries?.AsEnumerable();
 
-                    // Prepare stock entries for response - Cast to object
-                    object stockEntriesObj;
-                    if (item.StockEntries != null && item.StockEntries.Any())
+                    decimal currentStock = 0;
+                    List<StockEntryResponseDTO> filteredEntriesList = new List<StockEntryResponseDTO>();
+
+                    if (filteredStockEntries != null && filteredStockEntries.Any())
                     {
-                        stockEntriesObj = item.StockEntries.Select(se => new StockEntryResponseDTO
+                        if (useNepaliDate && effectiveNepaliDate.HasValue)
+                        {
+                            // Filter by Nepali date (store as DateOnly in database)
+                            filteredStockEntries = filteredStockEntries
+                                .Where(se => se.NepaliDate.HasValue &&
+                                             DateOnly.FromDateTime(se.NepaliDate.Value) <= effectiveNepaliDate.Value);
+
+                            _logger.LogDebug($"Filtering stock entries by Nepali date <= {effectiveNepaliDate.Value}");
+                        }
+                        else if (!useNepaliDate && effectiveDate.HasValue)
+                        {
+                            // Filter by English date
+                            filteredStockEntries = filteredStockEntries
+                                .Where(se => se.Date.Date <= effectiveDate.Value);
+
+                            _logger.LogDebug($"Filtering stock entries by English date <= {effectiveDate.Value}");
+                        }
+
+                        // Sum quantities from filtered entries
+                        currentStock = filteredStockEntries.Sum(entry => entry.Quantity);
+
+                        // Create filtered stock entries for response
+                        filteredEntriesList = filteredStockEntries.Select(se => new StockEntryResponseDTO
                         {
                             Id = se.Id,
                             ItemId = se.ItemId,
                             Date = se.Date,
+                            NepaliDate = se.NepaliDate,
                             Quantity = se.Quantity,
                             BillQty = se.BillQty,
                             ActualQty = se.ActualQty,
@@ -1945,20 +2286,36 @@ namespace SkyForge.Controllers.Retailer
                             MainUnitPuPrice = se.MainUnitPuPrice,
                             MarginPercentage = se.MarginPercentage,
                             Mrp = se.Mrp,
-                            UniqueUuid = se.UniqueUuid,  // This will be serialized as "uniqueUuid" in JSON
+                            UniqueUuid = se.UniqueUuid,
                             BatchNumber = se.BatchNumber,
                             ExpiryDate = se.ExpiryDate,
                             ExpiryStatus = se.ExpiryStatus,
                             DaysUntilExpiry = se.DaysUntilExpiry,
                             CreatedAt = se.CreatedAt,
-                            UpdatedAt = se.UpdatedAt
-                            // Add other properties as needed
+                            UpdatedAt = se.UpdatedAt,
                         }).ToList();
                     }
-                    else
+
+                    // Get the latest stock entry (for price information) from filtered list
+                    StockEntry? latestStockEntry = null;
+                    if (filteredStockEntries != null && filteredStockEntries.Any())
                     {
-                        stockEntriesObj = new List<StockEntryResponseDTO>();
+                        if (useNepaliDate)
+                        {
+                            latestStockEntry = filteredStockEntries
+                                .OrderByDescending(se => se.NepaliDate)
+                                .ThenByDescending(se => se.CreatedAt)
+                                .FirstOrDefault();
+                        }
+                        else
+                        {
+                            latestStockEntry = filteredStockEntries
+                                .OrderByDescending(se => se.Date)
+                                .ThenByDescending(se => se.CreatedAt)
+                                .FirstOrDefault();
+                        }
                     }
+
                     // Prepare compositions for response
                     object compositionsObj;
                     if (item.ItemCompositions != null && item.ItemCompositions.Any())
@@ -2010,14 +2367,19 @@ namespace SkyForge.Controllers.Retailer
                         currentStock = currentStock,
                         totalStock = currentStock,
                         stockValue = currentStock * (item.Price ?? 0),
-                        stockEntries = stockEntriesObj,
+                        stockEntries = filteredEntriesList,
                         compositions = compositionsObj,
-                        hasTransactions = "false", // Default - you can update this if needed
-                        stockEntriesCount = item.StockEntries?.Count ?? 0
+                        hasTransactions = "false",
+                        stockEntriesCount = filteredEntriesList.Count,
+                        latestPrice = latestStockEntry?.PuPrice ?? 0,
+                        latestBatchNumber = latestStockEntry?.BatchNumber ?? "",
+                        latestExpiryDate = latestStockEntry?.ExpiryDate.ToString("yyyy-MM-dd") ?? "",
+                        latestWSUnit = latestStockEntry?.WsUnit ?? 1,
+                        latestCcPercentage = latestStockEntry?.CcPercentage ?? 0
                     };
                 }).ToList();
 
-                // 13. Prepare pagination info
+                // 14. Prepare pagination info
                 var paginationInfo = new
                 {
                     currentPage = page,
@@ -2028,15 +2390,21 @@ namespace SkyForge.Controllers.Retailer
                     hasPreviousPage = page > 1
                 };
 
-                // 14. Prepare response
+                // 15. Prepare response
                 var response = new
                 {
                     success = true,
                     items = itemsWithStock,
-                    pagination = paginationInfo
+                    pagination = paginationInfo,
+                    filterInfo = new
+                    {
+                        dateFormatUsed = useNepaliDate ? "nepali" : "english",
+                        asOfNepaliDate = effectiveNepaliDate?.ToString("yyyy-MM-dd"),
+                        asOfEnglishDate = effectiveDate?.ToString("yyyy-MM-dd")
+                    }
                 };
 
-                _logger.LogInformation($"Successfully searched items. Found {itemsWithStock.Count} items matching search criteria.");
+                _logger.LogInformation($"Successfully searched items. Found {itemsWithStock.Count} items. Filter: {(useNepaliDate ? "Nepali" : "English")} date = {(useNepaliDate ? effectiveNepaliDate?.ToString() : effectiveDate?.ToString())}");
                 return Ok(response);
             }
             catch (Exception ex)

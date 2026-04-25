@@ -255,4 +255,32 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 50;
     }
+
+    public class TransactionResponseDto
+    {
+        public Guid Id { get; set; }
+        public DateTime Date { get; set; }
+        public DateTime NepaliDate { get; set; }
+        public string? BillNumber { get; set; }
+        public string? Type { get; set; }
+        public string? PurchaseSalesType { get; set; }
+        public string? PaymentMode { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal? Bonus { get; set; }
+        public decimal Price { get; set; }
+        public decimal? PuPrice { get; set; }
+        public decimal Amount { get; set; }
+        public string? UnitName { get; set; }
+        public Guid? BillId { get; set; }
+        public string? PurchaseBillNumber { get; set; }
+
+        public Guid? PurchaseBillId { get; set; }  // For purchase transactions
+        public Guid? SalesBillId { get; set; }     // For sales transactions
+        public string? Unit { get; set; }
+    }
+    public class SalesTransactionsResponseDto
+    {
+        public List<TransactionResponseDto> Transactions { get; set; } = new List<TransactionResponseDto>();
+        public int Count { get; set; }
+    }
 }

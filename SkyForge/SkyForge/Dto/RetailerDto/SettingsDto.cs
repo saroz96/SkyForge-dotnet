@@ -236,4 +236,28 @@ namespace SkyForge.Dto.RetailerDto
         public DateTime? UpdatedAt { get; set; }
         public FiscalYearDTO FiscalYear { get; set; }
     }
+    public class UpdateDatePreferenceRequest
+    {
+        public bool UseVoucherLastDate { get; set; }
+    }
+
+    public class DatePreferenceResponseDTO
+    {
+        public bool UseVoucherLastDate { get; set; }
+        public Guid? SettingsId { get; set; }
+        public DateTime? LastUpdated { get; set; }
+    }
+
+    public class UpdateDatePreferenceRequestDTO
+    {
+        public bool UseVoucherLastDate { get; set; }
+    }
+
+    public class DatePreferenceApiResponseDTO
+    {
+        public bool Success { get; set; }
+        public DatePreferenceResponseDTO Data { get; set; }
+        public string Message { get; set; }
+    }
+
 }

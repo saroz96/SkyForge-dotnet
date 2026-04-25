@@ -195,6 +195,98 @@ const AddCashSalesReturn = () => {
     };
 
     // Fetch items from backend
+    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
+    //     try {
+    //         if (isHeaderModal) {
+    //             setIsHeaderSearching(true);
+    //         } else {
+    //             setIsSearching(true);
+    //         }
+
+    //         const response = await api.get('/api/retailer/items/search', {
+    //             params: {
+    //                 search: searchTerm,
+    //                 page: page,
+    //                 limit: searchTerm.trim() ? 15 : 25,
+    //                 vatStatus: formData.isVatExempt,
+    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
+    //             }
+    //         });
+
+    //         if (response.data.success) {
+    //             const itemsWithPrices = response.data.items.map(item => {
+    //                 // Get all stock entries for batch selection
+    //                 let stockEntries = [];
+    //                 if (item.stockEntries && item.stockEntries.length > 0) {
+    //                     // Sort by date (oldest first for FIFO)
+    //                     stockEntries = [...item.stockEntries].sort((a, b) =>
+    //                         new Date(a.date) - new Date(b.date)
+    //                     ).map(entry => ({
+    //                         ...entry,
+    //                         availableQuantity: entry.quantity || 0,
+    //                         displayPrice: entry.price || 0,
+    //                         purchasePrice: entry.purchasePrice || entry.price || 0
+    //                     }));
+    //                 }
+
+    //                 let latestPrice = 0;
+    //                 if (stockEntries.length > 0) {
+    //                     const sortedEntries = [...stockEntries].sort((a, b) =>
+    //                         new Date(b.date) - new Date(a.date)
+    //                     );
+    //                     latestPrice = sortedEntries[0].price || 0;
+    //                 }
+
+    //                 return {
+    //                     ...item,
+    //                     id: item.id,
+    //                     _id: item.id,
+    //                     stockEntries: stockEntries,
+    //                     latestPrice,
+    //                     latestBatchNumber: stockEntries.length > 0 ? stockEntries[0].batchNumber || '' : '',
+    //                     latestExpiryDate: stockEntries.length > 0 ? stockEntries[0].expiryDate || '' : '',
+    //                     stock: item.currentStock || 0,
+    //                     unitName: item.unit?.name || item.unitName || '',
+    //                     unitId: item.unit?.id || item.unitId
+    //                 };
+    //             });
+
+    //             if (isHeaderModal) {
+    //                 if (page === 1) {
+    //                     setHeaderSearchResults(itemsWithPrices);
+    //                 } else {
+    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
+    //                 }
+    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
+    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
+    //                 setHeaderSearchPage(page);
+    //             } else {
+    //                 if (page === 1) {
+    //                     setSearchResults(itemsWithPrices);
+    //                 } else {
+    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
+    //                 }
+    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
+    //                 setTotalSearchItems(response.data.pagination.totalItems);
+    //                 setSearchPage(page);
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching items:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error loading items',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         if (isHeaderModal) {
+    //             setIsHeaderSearching(false);
+    //         } else {
+    //             setIsSearching(false);
+    //         }
+    //     }
+    // };
+
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
             if (isHeaderModal) {
@@ -203,51 +295,59 @@ const AddCashSalesReturn = () => {
                 setIsSearching(true);
             }
 
-            const response = await api.get('/api/retailer/items/search', {
-                params: {
-                    search: searchTerm,
-                    page: page,
-                    limit: searchTerm.trim() ? 15 : 25,
-                    vatStatus: formData.isVatExempt,
-                    sortBy: searchTerm.trim() ? 'relevance' : 'name'
-                }
-            });
+            // Determine which date to send based on company format
+            const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+            let params = {
+                search: searchTerm,
+                page: page,
+                limit: 15,
+                vatStatus: formData.isVatExempt,
+                sortBy: searchTerm.trim() ? 'relevance' : 'name'
+            };
+
+            // Add date filter based on date format
+            if (isNepaliFormat && formData.transactionDateNepali) {
+                // Send Nepali date directly - no conversion needed
+                params.asOfNepaliDate = formData.transactionDateNepali;
+                console.log('Sending Nepali date filter for sales:', formData.transactionDateNepali);
+            } else if (!isNepaliFormat && formData.transactionDateRoman) {
+                // Send English date
+                params.asOfEnglishDate = formData.transactionDateRoman;
+                console.log('Sending English date filter for sales:', formData.transactionDateRoman);
+            }
+
+            const response = await api.get('/api/retailer/items/search', { params });
 
             if (response.data.success) {
                 const itemsWithPrices = response.data.items.map(item => {
-                    // Get all stock entries for batch selection
-                    let stockEntries = [];
-                    if (item.stockEntries && item.stockEntries.length > 0) {
-                        // Sort by date (oldest first for FIFO)
-                        stockEntries = [...item.stockEntries].sort((a, b) =>
-                            new Date(a.date) - new Date(b.date)
-                        ).map(entry => ({
-                            ...entry,
-                            availableQuantity: entry.quantity || 0,
-                            displayPrice: entry.price || 0,
-                            purchasePrice: entry.purchasePrice || entry.price || 0
-                        }));
-                    }
-
                     let latestPrice = 0;
-                    if (stockEntries.length > 0) {
-                        const sortedEntries = [...stockEntries].sort((a, b) =>
+                    let latestBatchNumber = '';
+                    let latestExpiryDate = '';
+
+                    // Calculate total stock from filtered stockEntries
+                    let totalStock = 0;
+                    if (item.stockEntries && item.stockEntries.length > 0) {
+                        // Calculate total stock by summing up all quantities from filtered stockEntries
+                        totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
+
+                        // For sales, we need the selling price (price field), not purchase price
+                        const sortedEntries = item.stockEntries.sort((a, b) =>
                             new Date(b.date) - new Date(a.date)
                         );
-                        latestPrice = sortedEntries[0].price || 0;
+                        latestPrice = sortedEntries[0]?.price || 0;
+                        latestBatchNumber = sortedEntries[0]?.batchNumber || '';
+                        latestExpiryDate = sortedEntries[0]?.expiryDate || '';
                     }
 
                     return {
                         ...item,
                         id: item.id,
                         _id: item.id,
-                        stockEntries: stockEntries,
                         latestPrice,
-                        latestBatchNumber: stockEntries.length > 0 ? stockEntries[0].batchNumber || '' : '',
-                        latestExpiryDate: stockEntries.length > 0 ? stockEntries[0].expiryDate || '' : '',
-                        stock: item.currentStock || 0,
-                        unitName: item.unit?.name || item.unitName || '',
-                        unitId: item.unit?.id || item.unitId
+                        latestBatchNumber,
+                        latestExpiryDate,
+                        stock: totalStock
                     };
                 });
 
@@ -286,6 +386,19 @@ const AddCashSalesReturn = () => {
             }
         }
     };
+    // Refetch items when transaction date changes
+    useEffect(() => {
+        // Only refetch if the header item modal is open or item dropdown is active
+        if (showHeaderItemModal) {
+            const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
+            fetchItemsFromBackend(searchTerm, 1, true);
+        }
+
+        if (showItemDropdown) {
+            fetchItemsFromBackend(searchQuery, 1, false);
+        }
+    }, [formData.transactionDateNepali, formData.transactionDateRoman]);
+
 
     // Function to get the current bill number (does NOT increment)
     const getCurrentBillNumber = async () => {

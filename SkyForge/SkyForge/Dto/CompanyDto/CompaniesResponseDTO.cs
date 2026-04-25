@@ -19,7 +19,7 @@ namespace SkyForge.Dto.CompanyDto
         public string DateFormat { get; set; }
         public bool VatEnabled { get; set; }
         public bool StoreManagement { get; set; }
-        public string RenewalDate { get; set; }
+        public string RenewalDate { get; set; } = string.Empty;
         public string FiscalYearStartDate { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
@@ -28,6 +28,8 @@ namespace SkyForge.Dto.CompanyDto
         public Guid OwnerId { get; set; }
         public string OwnerName { get; set; }
         public string OwnerEmail { get; set; }
+        public string DashboardPath { get; set; } = "/dashboard";
+
     }
 
     public class CompanyAttendanceSettingsDTO

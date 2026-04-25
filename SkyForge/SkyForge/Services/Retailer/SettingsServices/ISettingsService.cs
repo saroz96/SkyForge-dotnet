@@ -29,5 +29,34 @@ namespace SkyForge.Services.Retailer.SettingsServices
         Task<Settings> UpdateDisplayTransactionsForPurchaseAsync(Guid companyId, Guid userId, Guid fiscalYearId, bool displayTransactionsForPurchase);
         Task<DisplayPurchaseReturnTransactionsDataDTO> GetDisplayPurchaseReturnTransactionsAsync(Guid companyId, Guid userId, Guid fiscalYearId);
         Task<Settings> UpdateDisplayTransactionsForPurchaseReturnAsync(Guid companyId, Guid userId, Guid fiscalYearId, bool displayTransactionsForPurchaseReturn);
+
+        Task<Settings> UpdateDatePreferenceForPurchaseAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForPurchaseAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+
+        // Date preference methods for Sales
+        Task<Settings> UpdateDatePreferenceForSalesAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForSalesAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+
+        // Date preference methods for Sales Return
+        Task<Settings> UpdateDatePreferenceForSalesReturnAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForSalesReturnAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+
+        // Date preference methods for Purchase Return
+        Task<Settings> UpdateDatePreferenceForPurchaseReturnAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForPurchaseReturnAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+        Task<Settings> UpdateDatePreferenceForPaymentAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForPaymentAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+        Task<Settings> UpdateDatePreferenceForReceiptAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForReceiptAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+        Task<Settings> UpdateDatePreferenceForJournalAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForJournalAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+        Task<Settings> UpdateDatePreferenceForDebitNoteAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForDebitNoteAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+        Task<Settings> UpdateDatePreferenceForCreditNoteAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForCreditNoteAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+        Task<Settings> UpdateDatePreferenceForSalesQuotationAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForSalesQuotationAsync(Guid companyId, Guid fiscalYearId, Guid userId);
+        Task<Settings> UpdateDatePreferenceForStockAdjustmentAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate);
+        Task<DatePreferenceResponseDTO> GetDatePreferenceForStockAdjustmentAsync(Guid companyId, Guid fiscalYearId, Guid userId);
     }
 }

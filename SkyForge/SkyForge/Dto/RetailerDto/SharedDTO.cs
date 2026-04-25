@@ -11,7 +11,7 @@ namespace SkyForge.Dto.RetailerDto
         public string City { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string Pan { get; set; } = string.Empty;
-        public string? RenewalDate { get; set; }
+       public string RenewalDate { get; set; } = string.Empty;
         public string DateFormat { get; set; } = string.Empty; // Make sure this is string
         public bool VatEnabled { get; set; }
 

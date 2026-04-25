@@ -35,6 +35,19 @@ namespace SkyForge.Models.Retailer.SettingsModel
         public bool DisplayTransactionsForSalesReturn { get; set; } = false;
         public bool DisplayTransactionsForPurchaseReturn { get; set; } = false;
 
+        // Date settings
+        public bool UseVoucherLastDateForSales { get; set; } = false;  // false = System Date, true = Voucher Last Date
+        public bool UseVoucherLastDateForSalesReturn { get; set; } = false;
+        public bool UseVoucherLastDateForPurchase { get; set; } = false;
+        public bool UseVoucherLastDateForPurchaseReturn { get; set; } = false;
+        public bool UseVoucherLastDateForPayment { get; set; } = false;
+        public bool UseVoucherLastDateForReceipt { get; set; } = false;
+        public bool UseVoucherLastDateForJournal { get; set; } = false;
+        public bool UseVoucherLastDateForDebitNote { get; set; } = false;
+        public bool UseVoucherLastDateForCreditNote { get; set; } = false;
+        public bool UseVoucherLastDateForSalesQuotation { get; set; } = false;
+        public bool UseVoucherLastDateForStockAdjustment { get; set; } = false;
+
         public bool StoreManagement { get; set; } = false;
 
         // Value can be any JSON data

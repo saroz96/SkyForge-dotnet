@@ -779,32 +779,6 @@ namespace SkyForge.Controllers
                 });
             }
         }
-        /// <summary>
-        /// Helper method to map Company entity to CompanyResponseDTO
-        /// </summary>
-        public class CompaniesResponseDTO
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; } = string.Empty;
-            public string Address { get; set; } = string.Empty;
-            public string Country { get; set; } = string.Empty;
-            public string State { get; set; } = string.Empty;
-            public string City { get; set; } = string.Empty;
-            public string Pan { get; set; } = string.Empty;
-            public string Phone { get; set; } = string.Empty;
-            public int? Ward { get; set; }
-            public string Email { get; set; } = string.Empty;
-            public string TradeType { get; set; } = string.Empty;
-            public string DateFormat { get; set; } = string.Empty;
-            public bool VatEnabled { get; set; }
-            public string FiscalYearStartDate { get; set; } = string.Empty;
-            public DateTime CreatedAt { get; set; }
-            public DateTime? UpdatedAt { get; set; }
-            public Guid OwnerId { get; set; }
-            public string OwnerName { get; set; } = string.Empty;
-            public string OwnerEmail { get; set; } = string.Empty;
-            public string DashboardPath { get; set; } = "/dashboard";
-        }
 
         private CompaniesResponseDTO MapToCompanyResponseDTO(Company company)
         {
@@ -824,6 +798,7 @@ namespace SkyForge.Controllers
                 DateFormat = company.DateFormat.ToString(),
                 VatEnabled = company.VatEnabled,
                 FiscalYearStartDate = company.FiscalYearStartDate,
+                RenewalDate = company.RenewalDate,
                 CreatedAt = company.CreatedAt,
                 UpdatedAt = company.UpdatedAt,
                 OwnerId = company.OwnerId,

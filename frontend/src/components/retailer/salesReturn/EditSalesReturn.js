@@ -38,7 +38,9 @@ const EditSalesReturn = () => {
     const [accountSearchQuery, setAccountSearchQuery] = useState('');
     const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
     const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
-
+    const [highlightedRowIndex, setHighlightedRowIndex] = useState(-1);
+    const [currentViewingItemId, setCurrentViewingItemId] = useState(null);
+    const [transactionType, setTransactionType] = useState('sales'); // Default to sales for sales return
     // Item search states for header
     const [isHeaderSearching, setIsHeaderSearching] = useState(false);
     const [headerSearchQuery, setHeaderSearchQuery] = useState('');
@@ -210,19 +212,109 @@ const EditSalesReturn = () => {
     };
 
     // Fetch items from backend for header modal
+    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = true) => {
+    //     try {
+    //         setIsHeaderSearching(true);
+
+    //         const response = await api.get('/api/retailer/items/search', {
+    //             params: {
+    //                 search: searchTerm,
+    //                 page: page,
+    //                 limit: 15,
+    //                 vatStatus: formData.isVatExempt,
+    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
+    //             }
+    //         });
+
+    //         if (response.data.success) {
+    //             const itemsWithLatestPrice = response.data.items.map(item => {
+    //                 let stockEntries = [];
+    //                 if (item.stockEntries && item.stockEntries.length > 0) {
+    //                     stockEntries = [...item.stockEntries].sort((a, b) =>
+    //                         new Date(a.date) - new Date(b.date)
+    //                     ).map(entry => ({
+    //                         ...entry,
+    //                         availableQuantity: entry.quantity || 0,
+    //                         displayPrice: entry.price || 0,
+    //                         purchasePrice: entry.purchasePrice || entry.price || 0
+    //                     }));
+    //                 }
+
+    //                 let latestPrice = 0;
+    //                 let latestBatchNumber = '';
+    //                 let latestExpiryDate = '';
+    //                 let totalStock = 0;
+
+    //                 if (stockEntries.length > 0) {
+    //                     totalStock = stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
+    //                     const sortedEntries = stockEntries.sort((a, b) =>
+    //                         new Date(b.date) - new Date(a.date)
+    //                     );
+    //                     latestPrice = sortedEntries[0].price || 0;
+    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
+    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
+    //                 }
+
+    //                 return {
+    //                     ...item,
+    //                     id: item.id,
+    //                     _id: item.id,
+    //                     stockEntries: stockEntries,
+    //                     latestPrice,
+    //                     latestBatchNumber,
+    //                     latestExpiryDate,
+    //                     stock: totalStock,
+    //                     unitName: item.unit?.name || item.unitName || '',
+    //                     unitId: item.unit?.id || item.unitId
+    //                 };
+    //             });
+
+    //             if (page === 1) {
+    //                 setHeaderSearchResults(itemsWithLatestPrice);
+    //             } else {
+    //                 setHeaderSearchResults(prev => [...prev, ...itemsWithLatestPrice]);
+    //             }
+    //             setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
+    //             setTotalHeaderSearchItems(response.data.pagination.totalItems);
+    //             setHeaderSearchPage(page);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching items:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error loading items',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsHeaderSearching(false);
+    //     }
+    // };
+
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = true) => {
         try {
             setIsHeaderSearching(true);
 
-            const response = await api.get('/api/retailer/items/search', {
-                params: {
-                    search: searchTerm,
-                    page: page,
-                    limit: 15,
-                    vatStatus: formData.isVatExempt,
-                    sortBy: searchTerm.trim() ? 'relevance' : 'name'
-                }
-            });
+            // Determine which date to send based on company format
+            const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+            let params = {
+                search: searchTerm,
+                page: page,
+                limit: 15,
+                vatStatus: formData.isVatExempt,
+                sortBy: searchTerm.trim() ? 'relevance' : 'name'
+            };
+
+            // Add date filter based on the return bill's transaction date (not current date)
+            if (isNepaliFormat && formData.transactionDateNepali) {
+                params.asOfNepaliDate = formData.transactionDateNepali;
+                console.log('Sending Nepali date filter for edit sales return:', formData.transactionDateNepali);
+            } else if (!isNepaliFormat && formData.transactionDateRoman) {
+                params.asOfEnglishDate = formData.transactionDateRoman;
+                console.log('Sending English date filter for edit sales return:', formData.transactionDateRoman);
+            }
+
+            const response = await api.get('/api/retailer/items/search', { params });
 
             if (response.data.success) {
                 const itemsWithLatestPrice = response.data.items.map(item => {
@@ -287,6 +379,14 @@ const EditSalesReturn = () => {
             setIsHeaderSearching(false);
         }
     };
+
+    // Refetch items when transaction date changes during editing
+    useEffect(() => {
+        if (showHeaderItemModal && isInitialDataLoaded) {
+            const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
+            fetchItemsFromBackend(searchTerm, 1, true);
+        }
+    }, [formData.transactionDateNepali, formData.transactionDateRoman, isInitialDataLoaded]);
 
     // For header modal search
     const debouncedHeaderSearchQuery = useDebounce(headerSearchQuery, 500);
@@ -490,6 +590,102 @@ const EditSalesReturn = () => {
         calculateTotal();
     }, [formData.items, formData.discountPercentage, formData.discountAmount, formData.roundOffAmount]);
 
+    // Add this useEffect for transaction modal keyboard navigation
+    useEffect(() => {
+        if (!showTransactionModal) return;
+
+        const handleKeyDown = (e) => {
+            // Only handle arrow keys when transaction modal is open
+            if (!showTransactionModal) return;
+
+            // Check if Continue button is focused initially
+            const isContinueButtonFocused = document.activeElement === continueButtonRef.current;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (transactions.length === 0) return;
+
+                // If no row is highlighted and Continue button is focused, highlight first row
+                if (highlightedRowIndex === -1 && isContinueButtonFocused) {
+                    setHighlightedRowIndex(0);
+                    scrollToRow(0);
+                }
+                // Move to next row if not at the end
+                else if (highlightedRowIndex < transactions.length - 1) {
+                    setHighlightedRowIndex(prev => prev + 1);
+                    scrollToRow(highlightedRowIndex + 1);
+                }
+            }
+            else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (transactions.length === 0) return;
+
+                // If at first row, move highlight to -1 (no row highlighted) and focus Continue button
+                if (highlightedRowIndex === 0) {
+                    setHighlightedRowIndex(-1);
+                    continueButtonRef.current?.focus();
+                }
+                // Move to previous row
+                else if (highlightedRowIndex > 0) {
+                    setHighlightedRowIndex(prev => prev - 1);
+                    scrollToRow(highlightedRowIndex - 1);
+                }
+            }
+            else if (e.key === 'Enter') {
+                e.preventDefault();
+                // If a row is highlighted, trigger its click action
+                if (highlightedRowIndex >= 0 && transactions[highlightedRowIndex]) {
+                    const transaction = transactions[highlightedRowIndex];
+                    if (transactionType === 'purchase') {
+                        const billId = transaction.purchaseBillId || transaction.billId;
+                        if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                    } else {
+                        const billId = transaction.salesBillId || transaction.billId;
+                        if (billId) navigate(`/retailer/sales/${billId}/print`);
+                    }
+                }
+                // If no row highlighted and Continue button is focused, close modal
+                else if (document.activeElement === continueButtonRef.current) {
+                    handleTransactionModalClose();
+                }
+            }
+            else if (e.key === 'Escape') {
+                e.preventDefault();
+                handleTransactionModalClose();
+            }
+        };
+
+        const scrollToRow = (rowIndex) => {
+            setTimeout(() => {
+                const row = document.getElementById(`transaction-row-${rowIndex}`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    row.focus();
+                }
+            }, 50);
+        };
+
+        // Add event listener
+        document.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showTransactionModal, transactions, highlightedRowIndex, transactionType, navigate]);
+
+    // Reset highlighted row when modal closes
+    useEffect(() => {
+        if (!showTransactionModal) {
+            setHighlightedRowIndex(-1);
+        }
+    }, [showTransactionModal]);
+
+    // Reset highlighted row when transactions change
+    useEffect(() => {
+        setHighlightedRowIndex(-1);
+    }, [transactions]);
+
     const handleAccountSearch = (e) => {
         const searchText = e.target.value;
         setAccountSearchQuery(searchText);
@@ -587,13 +783,26 @@ const EditSalesReturn = () => {
             setShowHeaderItemModal(false);
 
             // Focus on batch number input in header row
-            setTimeout(() => {
-                const batchInput = document.getElementById('headerBatch');
-                if (batchInput) {
-                    batchInput.focus();
-                    batchInput.select();
-                }
-            }, 100);
+            // setTimeout(() => {
+            //     const batchInput = document.getElementById('headerBatch');
+            //     if (batchInput) {
+            //         batchInput.focus();
+            //         batchInput.select();
+            //     }
+            // }, 100);
+
+            if (transactionSettings.displayTransactionsForSalesReturn && formData.accountId) {
+                await fetchLastTransactions(item.id);
+            } else {
+                // Focus on batch number input in header row
+                setTimeout(() => {
+                    const batchInput = document.getElementById('headerBatch');
+                    if (batchInput) {
+                        batchInput.focus();
+                        batchInput.select();
+                    }
+                }, 100);
+            }
         }
     };
 
@@ -615,14 +824,18 @@ const EditSalesReturn = () => {
         setShowBatchSelectionModal(false);
         setSelectedItemForBatch(null);
 
-        // Focus on batch number input in header row
-        setTimeout(() => {
-            const batchInput = document.getElementById('headerBatch');
-            if (batchInput) {
-                batchInput.focus();
-                batchInput.select();
-            }
-        }, 100);
+        if (transactionSettings.displayTransactionsForSalesReturn && formData.accountId) {
+            fetchLastTransactions(selectedItemForBatch.id);
+        } else {
+            // Focus on batch number input in header row
+            setTimeout(() => {
+                const batchInput = document.getElementById('headerBatch');
+                if (batchInput) {
+                    batchInput.focus();
+                    batchInput.select();
+                }
+            }, 100);
+        }
     };
 
     const selectItemForInsert = async (item) => {
@@ -634,6 +847,112 @@ const EditSalesReturn = () => {
         today.setFullYear(today.getFullYear() + 2);
         return today.toISOString().split('T')[0];
     };
+
+    // const insertSelectedItem = () => {
+    //     if (!selectedItemForInsert) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please select an item first',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     if (!selectedItemBatchNumber.trim()) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Batch number is required before inserting item',
+    //             type: 'error'
+    //         });
+    //         setTimeout(() => {
+    //             const batchInput = document.querySelector('input[placeholder="Batch"]');
+    //             if (batchInput) {
+    //                 batchInput.focus();
+    //                 batchInput.select();
+    //             }
+    //         }, 100);
+    //         return;
+    //     }
+
+    //     if (!selectedItemExpiryDate.trim()) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Expiry date is required before inserting item',
+    //             type: 'error'
+    //         });
+    //         setTimeout(() => {
+    //             const expiryInput = document.getElementById('headerExpiryDate');
+    //             if (expiryInput) {
+    //                 expiryInput.focus();
+    //                 expiryInput.select();
+    //             }
+    //         }, 100);
+    //         return;
+    //     }
+
+    //     if (selectedItemQuantity <= 0) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Quantity must be greater than 0',
+    //             type: 'error'
+    //         });
+    //         setTimeout(() => {
+    //             const quantityInput = document.getElementById('headerQuantity');
+    //             if (quantityInput) {
+    //                 quantityInput.focus();
+    //                 quantityInput.select();
+    //             }
+    //         }, 100);
+    //         return;
+    //     }
+
+    //     const sortedStockEntries = selectedItemForInsert.stockEntries?.sort((a, b) => new Date(a.date) - new Date(b.date)) || [];
+    //     const latestStockEntry = sortedStockEntries[sortedStockEntries.length - 1] || sortedStockEntries[0] || {};
+
+    //     const unitId = selectedItemForInsert.unitId || selectedItemForInsert.unit?.id;
+    //     const unitName = selectedItemForInsert.unitName || selectedItemForInsert.unit?.name || '';
+
+    //     const newItem = {
+    //         itemId: selectedItemForInsert.id,
+    //         uniqueNumber: selectedItemForInsert.uniqueNumber || 'N/A',
+    //         hscode: selectedItemForInsert.hscode,
+    //         name: selectedItemForInsert.name,
+    //         category: selectedItemForInsert.category?.name || 'No Category',
+    //         batchNumber: selectedItemBatchNumber || latestStockEntry.batchNumber || '',
+    //         expiryDate: selectedItemExpiryDate || (latestStockEntry.expiryDate ? new Date(latestStockEntry.expiryDate).toISOString().split('T')[0] : ''),
+    //         quantity: selectedItemQuantity || 0,
+    //         unitId: unitId,
+    //         unitName: unitName,
+    //         price: selectedItemRate || latestStockEntry.price || 0,
+    //         amount: (selectedItemQuantity || 0) * (selectedItemRate || latestStockEntry.price || 0),
+    //         vatStatus: selectedItemForInsert.vatStatus,
+    //         uniqueUuid: selectedItemForInsert.uniqueUuid || latestStockEntry.uniqueUuid || '',
+    //         stockEntryId: selectedBatchEntry?.id || selectedBatchEntry?._id || null
+    //     };
+
+    //     const updatedItems = [...items, newItem];
+    //     setItems(updatedItems);
+    //     setFormData(prev => ({
+    //         ...prev,
+    //         items: updatedItems
+    //     }));
+
+    //     setSelectedItemForInsert(null);
+    //     setSelectedItemQuantity(0);
+    //     setSelectedItemRate(0);
+    //     setSelectedItemBatchNumber('');
+    //     setSelectedItemExpiryDate('');
+    //     setSelectedBatchEntry(null);
+    //     setHeaderSearchQuery('');
+
+    //     setTimeout(() => {
+    //         const searchInput = document.getElementById('headerItemSearch');
+    //         if (searchInput) {
+    //             searchInput.focus();
+    //             searchInput.select();
+    //         }
+    //     }, 50);
+    // };
 
     const insertSelectedItem = () => {
         if (!selectedItemForInsert) {
@@ -677,21 +996,15 @@ const EditSalesReturn = () => {
             return;
         }
 
-        if (selectedItemQuantity <= 0) {
-            setNotification({
-                show: true,
-                message: 'Quantity must be greater than 0',
-                type: 'error'
-            });
-            setTimeout(() => {
-                const quantityInput = document.getElementById('headerQuantity');
-                if (quantityInput) {
-                    quantityInput.focus();
-                    quantityInput.select();
-                }
-            }, 100);
-            return;
-        }
+        // Remove the quantity > 0 check - allow zero quantity
+        // if (selectedItemQuantity <= 0) {
+        //     setNotification({
+        //         show: true,
+        //         message: 'Quantity must be greater than 0',
+        //         type: 'error'
+        //     });
+        //     return;
+        // }
 
         const sortedStockEntries = selectedItemForInsert.stockEntries?.sort((a, b) => new Date(a.date) - new Date(b.date)) || [];
         const latestStockEntry = sortedStockEntries[sortedStockEntries.length - 1] || sortedStockEntries[0] || {};
@@ -707,7 +1020,7 @@ const EditSalesReturn = () => {
             category: selectedItemForInsert.category?.name || 'No Category',
             batchNumber: selectedItemBatchNumber || latestStockEntry.batchNumber || '',
             expiryDate: selectedItemExpiryDate || (latestStockEntry.expiryDate ? new Date(latestStockEntry.expiryDate).toISOString().split('T')[0] : ''),
-            quantity: selectedItemQuantity || 0,
+            quantity: selectedItemQuantity || 0,  // Will be 0 if not set
             unitId: unitId,
             unitName: unitName,
             price: selectedItemRate || latestStockEntry.price || 0,
@@ -995,6 +1308,52 @@ const EditSalesReturn = () => {
         });
     };
 
+    // const fetchLastTransactions = async (itemId, index) => {
+    //     if (!formData.accountId) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please select an account first',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     setSelectedItemIndex(index);
+    //     setIsLoadingTransactions(true);
+
+    //     try {
+    //         const cacheKey = `${itemId}-${formData.accountId}`;
+
+    //         if (transactionCache.has(cacheKey)) {
+    //             const cachedTransactions = transactionCache.get(cacheKey);
+    //             setTransactions(cachedTransactions);
+    //             setShowTransactionModal(true);
+    //             return;
+    //         }
+
+    //         const controller = new AbortController();
+    //         const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    //         const response = await api.get(`/api/retailer/transactions/${itemId}/${formData.accountId}/Sales`, {
+    //             signal: controller.signal
+    //         });
+
+    //         clearTimeout(timeoutId);
+
+    //         if (response.data.success) {
+    //             setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
+    //             setTransactions(response.data.data.transactions);
+    //             setShowTransactionModal(true);
+    //         }
+    //     } catch (error) {
+    //         if (error.name !== 'AbortError') {
+    //             console.error('Error fetching transactions:', error);
+    //         }
+    //     } finally {
+    //         setIsLoadingTransactions(false);
+    //     }
+    // };
+
     const fetchLastTransactions = async (itemId, index) => {
         if (!formData.accountId) {
             setNotification({
@@ -1006,6 +1365,7 @@ const EditSalesReturn = () => {
         }
 
         setSelectedItemIndex(index);
+        setCurrentViewingItemId(itemId);  // Add this line
         setIsLoadingTransactions(true);
 
         try {
@@ -1014,6 +1374,7 @@ const EditSalesReturn = () => {
             if (transactionCache.has(cacheKey)) {
                 const cachedTransactions = transactionCache.get(cacheKey);
                 setTransactions(cachedTransactions);
+                setTransactionType('sales');  // Set transaction type for sales return
                 setShowTransactionModal(true);
                 return;
             }
@@ -1030,6 +1391,7 @@ const EditSalesReturn = () => {
             if (response.data.success) {
                 setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
                 setTransactions(response.data.data.transactions);
+                setTransactionType('sales');  // Set transaction type
                 setShowTransactionModal(true);
             }
         } catch (error) {
@@ -1041,8 +1403,137 @@ const EditSalesReturn = () => {
         }
     };
 
+    const fetchSalesTransactions = async () => {
+        console.log('=== fetchSalesTransactions CALLED ===');
+
+        const itemId = currentViewingItemId;
+
+        if (!itemId) {
+            setNotification({
+                show: true,
+                message: 'No item selected. Please select an item first.',
+                type: 'error'
+            });
+            return;
+        }
+
+        if (!formData.accountId) {
+            setNotification({
+                show: true,
+                message: 'Please select an account first',
+                type: 'error'
+            });
+            return;
+        }
+
+        try {
+            setIsLoadingTransactions(true);
+            const cacheKey = `${itemId}-${formData.accountId}-sales`;
+
+            if (transactionCache.has(cacheKey)) {
+                const cachedTransactions = transactionCache.get(cacheKey);
+                setTransactions(cachedTransactions);
+                setTransactionType('sales');
+                setIsLoadingTransactions(false);
+                return;
+            }
+
+            const response = await api.get(`/api/retailer/transactions/${itemId}/${formData.accountId}/Sales`);
+
+            if (response.data.success) {
+                const transactionsData = response.data.data?.transactions || [];
+                setTransactionCache(prev => new Map(prev.set(cacheKey, transactionsData)));
+                setTransactions(transactionsData);
+                setTransactionType('sales');
+
+                if (transactionsData.length === 0) {
+                    setNotification({
+                        show: true,
+                        message: 'No sales transactions found for this item and account',
+                        type: 'info',
+                        duration: 3000
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching sales transactions:', error);
+            setNotification({
+                show: true,
+                message: 'Error fetching sales transactions',
+                type: 'error'
+            });
+        } finally {
+            setIsLoadingTransactions(false);
+        }
+    };
+
+    const fetchPurchaseTransactions = async () => {
+        console.log('=== fetchPurchaseTransactions CALLED ===');
+
+        const itemId = currentViewingItemId;
+
+        if (!itemId) {
+            setNotification({
+                show: true,
+                message: 'No item selected. Please select an item first.',
+                type: 'error'
+            });
+            return;
+        }
+
+        if (!formData.accountId) {
+            setNotification({
+                show: true,
+                message: 'Please select an account first',
+                type: 'error'
+            });
+            return;
+        }
+
+        try {
+            setIsLoadingTransactions(true);
+            const cacheKey = `${itemId}-${formData.accountId}-purchase`;
+
+            if (transactionCache.has(cacheKey)) {
+                const cachedTransactions = transactionCache.get(cacheKey);
+                setTransactions(cachedTransactions);
+                setTransactionType('purchase');
+                setIsLoadingTransactions(false);
+                return;
+            }
+
+            const response = await api.get(`/api/retailer/transactions/${itemId}/${formData.accountId}/Purchase`);
+
+            if (response.data.success) {
+                const transactionsData = response.data.data?.transactions || [];
+                setTransactionCache(prev => new Map(prev.set(cacheKey, transactionsData)));
+                setTransactions(transactionsData);
+                setTransactionType('purchase');
+
+                if (transactionsData.length === 0) {
+                    setNotification({
+                        show: true,
+                        message: 'No purchase transactions found for this item and account',
+                        type: 'info',
+                        duration: 3000
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching purchase transactions:', error);
+            setNotification({
+                show: true,
+                message: 'Error fetching purchase transactions',
+                type: 'error'
+            });
+        } finally {
+            setIsLoadingTransactions(false);
+        }
+    };
+
     const handleTransactionModalClose = () => {
         setShowTransactionModal(false);
+        setHighlightedRowIndex(-1);
 
         setTimeout(() => {
             const headerBatchInput = document.getElementById('headerBatch');
@@ -1087,181 +1578,6 @@ const EditSalesReturn = () => {
             document.removeEventListener('keydown', handleGlobalKeyDown);
         };
     }, [showTransactionModal, showAccountCreationModal, showAccountModal, showBatchSelectionModal]);
-
-    // const printImmediately = async (billId) => {
-    //     try {
-    //         const response = await api.get(`/api/retailer/sales-return/${billId}/print`);
-    //         const printData = response.data.data;
-
-    //         const tempDiv = document.createElement('div');
-    //         tempDiv.style.position = 'absolute';
-    //         tempDiv.style.left = '-9999px';
-    //         document.body.appendChild(tempDiv);
-
-    //         tempDiv.innerHTML = `
-    //             <div id="printableContent" class="print-version">
-    //                 <div class="print-invoice-container">
-    //                     <div class="print-invoice-header">
-    //                         <div class="print-company-name">${printData.currentCompanyName || ''}</div>
-    //                         <div class="print-company-details">
-    //                             ${printData.currentCompany?.address || ''} | Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || ''}
-    //                         </div>
-    //                         <div class="print-invoice-title">SALES RETURN</div>
-    //                     </div>
-
-    //                     <div class="print-invoice-details">
-    //                         <div>
-    //                             <div><strong>M/S:</strong> ${printData.bill.account?.name || printData.bill.cashAccount || 'N/A'}</div>
-    //                             <div><strong>Address:</strong> ${printData.bill.account?.address || printData.bill.cashAccountAddress || 'N/A'}</div>
-    //                             <div><strong>PAN:</strong> ${printData.bill.account?.pan || printData.bill.cashAccountPan || 'N/A'}</div>
-    //                             <div><strong>Email:</strong> ${printData.bill.account?.email || printData.bill.cashAccountEmail || 'N/A'}</div>
-    //                             <div><strong>Payment Mode:</strong> ${printData.bill.paymentMode || 'N/A'}</div>
-    //                         </div>
-    //                         <div>
-    //                             <div><strong>Return No:</strong> ${printData.bill.billNumber || 'N/A'}</div>
-    //                             <div><strong>Original Inv No:</strong> ${printData.bill.originalSalesBillNumber || 'N/A'}</div>
-    //                             <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
-    //                             <div><strong>Inv. Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
-    //                         </div>
-    //                     </div>
-
-    //                     <table class="print-invoice-table">
-    //                         <thead>
-    //                             <tr>
-    //                                 <th>SN</th>
-    //                                 <th>#</th>
-    //                                 <th>HSN</th>
-    //                                 <th>Description of Goods</th>
-    //                                 <th>Unit</th>
-    //                                 <th>Batch</th>
-    //                                 <th>Expiry</th>
-    //                                 <th>Qty</th>
-    //                                 <th>Price</th>
-    //                                 <th>Amount</th>
-    //                             </tr>
-    //                         </thead>
-    //                         <tbody>
-    //                             ${printData.bill.items?.map((item, i) => `
-    //                                 <tr key="${i}">
-    //                                     <td>${i + 1}</td>
-    //                                     <td>${item.item?.uniqueNumber || ''}</td>
-    //                                     <td>${item.item?.hscode || ''}</td>
-    //                                     <td>${item.item?.name || ''}</td>
-    //                                     <td>${item.item?.unit?.name || ''}</td>
-    //                                     <td>${item.batchNumber || ''}</td>
-    //                                     <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-    //                                     <td>${item.quantity || 0}</td>
-    //                                     <td>${(item.price || 0).toFixed(2)}</td>
-    //                                     <td>${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
-    //                                 </tr>
-    //                             `).join('') || ''}
-    //                         </tbody>
-    //                     </table>
-
-    //                     <table class="print-totals-table">
-    //                         <tbody>
-    //                             <tr>
-    //                                 <td><strong>Sub-Total:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.subTotal || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Discount:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.discountAmount || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Non-Taxable:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.nonVatSalesReturn || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Taxable Amount:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.taxableAmount || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             ${!printData.bill.isVatExempt ? `
-    //                                 <tr>
-    //                                     <td><strong>VAT (${printData.bill.vatPercentage}%):</strong></td>
-    //                                     <td class="print-text-right">${((printData.bill.taxableAmount || 0) * (printData.bill.vatPercentage || 0) / 100).toFixed(2)}</td>
-    //                                 </tr>
-    //                             ` : ''}
-    //                             <tr>
-    //                                 <td><strong>Round Off:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.roundOffAmount || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Grand Total:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.totalAmount || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                         </tbody>
-    //                     </table>
-
-    //                     <div class="print-amount-in-words">
-    //                         <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.bill.totalAmount || 0)} Only.
-    //                     </div>
-
-    //                     <div class="print-signature-area">
-    //                         <div class="print-signature-box">Received By</div>
-    //                         <div class="print-signature-box">Prepared By: ${printData.bill.user?.name || ''}</div>
-    //                         <div class="print-signature-box">For: ${printData.currentCompanyName || ''}</div>
-    //                     </div>
-    //                 </div>
-    //             </div>
-    //         `;
-
-    //         const styles = `
-    //             @media print {
-    //                 @page { size: A4; margin: 5mm; }
-    //                 body { font-family: 'Arial Narrow', Arial, sans-serif; font-size: 9pt; line-height: 1.2; color: #000; background: white; margin: 0; padding: 0; }
-    //                 .print-invoice-container { width: 100%; max-width: 210mm; margin: 0 auto; padding: 2mm; }
-    //                 .print-invoice-header { text-align: center; margin-bottom: 3mm; border-bottom: 1px dashed #000; padding-bottom: 2mm; }
-    //                 .print-invoice-title { font-size: 12pt; font-weight: bold; margin: 2mm 0; text-transform: uppercase; }
-    //                 .print-company-name { font-size: 16pt; font-weight: bold; }
-    //                 .print-company-details { font-size: 8pt; font-weight: bold; margin: 1mm 0; }
-    //                 .print-invoice-details { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
-    //                 .print-invoice-table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; border: none; }
-    //                 .print-invoice-table thead { border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
-    //                 .print-invoice-table th { background-color: transparent; border: none; padding: 1mm; text-align: left; font-weight: bold; }
-    //                 .print-invoice-table td { border: none; padding: 1mm; border-bottom: 1px solid #eee; }
-    //                 .print-text-right { text-align: right; }
-    //                 .print-amount-in-words { font-size: 8pt; margin: 2mm 0; padding: 1mm; border: 1px dashed #000; }
-    //                 .print-signature-area { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 8pt; }
-    //                 .print-signature-box { text-align: center; width: 30%; border-top: 1px dashed #000; padding-top: 1mm; font-weight: bold; }
-    //                 .print-totals-table { width: 60%; margin-left: auto; border-collapse: collapse; font-size: 8pt; }
-    //                 .print-totals-table td { padding: 1mm; }
-    //             }
-    //             @media screen { .print-version { display: none; } }
-    //         `;
-
-    //         const printWindow = window.open('', '_blank');
-    //         printWindow.document.write(`
-    //             <html>
-    //                 <head>
-    //                     <title>Sales_Return_${printData.bill.billNumber}</title>
-    //                     <style>${styles}</style>
-    //                 </head>
-    //                 <body>
-    //                     ${tempDiv.innerHTML}
-    //                     <script>
-    //                         window.onload = function() {
-    //                             setTimeout(function() {
-    //                                 window.print();
-    //                                 window.close();
-    //                             }, 200);
-    //                         };
-    //                     </script>
-    //                 </body>
-    //             </html>
-    //         `);
-    //         printWindow.document.close();
-
-    //         document.body.removeChild(tempDiv);
-    //     } catch (error) {
-    //         console.error('Error fetching print data:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Bill updated but failed to load print data',
-    //             type: 'warning'
-    //         });
-    //     }
-    // };
 
     const formatTo2Decimal = (num) => {
         if (num === null || num === undefined) return '0.00';
@@ -1686,6 +2002,64 @@ const EditSalesReturn = () => {
         fetchAccountsFromBackend('', 1);
     };
 
+    // const validateHeaderFields = () => {
+    //     if (!selectedItemBatchNumber.trim()) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Batch number is required before inserting item',
+    //             type: 'error'
+    //         });
+
+    //         setTimeout(() => {
+    //             const batchInput = document.querySelector('input[placeholder="Batch"]');
+    //             if (batchInput) {
+    //                 batchInput.focus();
+    //                 batchInput.select();
+    //             }
+    //         }, 100);
+
+    //         return false;
+    //     }
+
+    //     if (!selectedItemExpiryDate.trim()) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Expiry date is required before inserting item',
+    //             type: 'error'
+    //         });
+
+    //         setTimeout(() => {
+    //             const expiryInput = document.getElementById('headerExpiryDate');
+    //             if (expiryInput) {
+    //                 expiryInput.focus();
+    //                 expiryInput.select();
+    //             }
+    //         }, 100);
+
+    //         return false;
+    //     }
+
+    //     if (selectedItemQuantity <= 0) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Quantity must be greater than 0',
+    //             type: 'error'
+    //         });
+
+    //         setTimeout(() => {
+    //             const quantityInput = document.getElementById('headerQuantity');
+    //             if (quantityInput) {
+    //                 quantityInput.focus();
+    //                 quantityInput.select();
+    //             }
+    //         }, 100);
+
+    //         return false;
+    //     }
+
+    //     return true;
+    // };
+
     const validateHeaderFields = () => {
         if (!selectedItemBatchNumber.trim()) {
             setNotification({
@@ -1722,25 +2096,6 @@ const EditSalesReturn = () => {
 
             return false;
         }
-
-        if (selectedItemQuantity <= 0) {
-            setNotification({
-                show: true,
-                message: 'Quantity must be greater than 0',
-                type: 'error'
-            });
-
-            setTimeout(() => {
-                const quantityInput = document.getElementById('headerQuantity');
-                if (quantityInput) {
-                    quantityInput.focus();
-                    quantityInput.select();
-                }
-            }, 100);
-
-            return false;
-        }
-
         return true;
     };
 
@@ -3712,7 +4067,7 @@ const EditSalesReturn = () => {
             )}
 
             {/* Transaction Modal */}
-            {showTransactionModal && (
+            {/* {showTransactionModal && (
                 <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{ display: 'block' }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
                     <div className="modal-dialog modal-xl modal-dialog-centered">
                         <div className="modal-content">
@@ -3883,6 +4238,474 @@ const EditSalesReturn = () => {
                                 >
                                     Continue
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {/* {showTransactionModal && (
+                <div
+                    className="modal fade show"
+                    id="transactionModal"
+                    tabIndex="-1"
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.5)'
+                    }}
+                    role="dialog"
+                    aria-labelledby="transactionModalLabel"
+                    aria-modal="true"
+                >
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content shadow-sm border-0 rounded-2">
+                            <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
+                                <div className="d-flex align-items-center">
+                                    <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
+                                    <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
+                                        {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
+                                    </h6>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    style={{ fontSize: '0.5rem', padding: '0.5rem' }}
+                                    onClick={handleTransactionModalClose}
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+
+                            <div className="modal-body p-0">
+                                <div
+                                    className="table-responsive"
+                                    style={{ maxHeight: '220px', overflowY: 'auto' }}
+                                    id="transactionTableContainer"
+                                >
+                                    <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
+                                        <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
+                                            <tr>
+                                                <th className="py-1 px-1 text-center" style={{ width: '5%' }}>#</th>
+                                                <th className="py-1 px-1" style={{ width: '12%' }}>Date</th>
+                                                <th className="py-1 px-1" style={{ width: '12%' }}>Inv.No</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Type</th>
+                                                <th className="py-1 px-1" style={{ width: '10%' }}>A/c</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Pay</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Qty</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Free</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Unit</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '13%' }}>Rate</th>
+                                                <th className="py-1 px-1 text-center" style={{ width: '10%' }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {transactions.length > 0 ? (
+                                                transactions.map((transaction, index) => {
+                                                    // Format date based on company date format
+                                                    let formattedDate = '';
+                                                    if (company.dateFormat === 'nepali' || company.dateFormat === 'Nepali') {
+                                                        try {
+                                                            const dateObj = new Date(transaction.date);
+                                                            if (!isNaN(dateObj.getTime())) {
+                                                                const nepaliDate = new NepaliDate(dateObj);
+                                                                formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                            } else {
+                                                                formattedDate = transaction.date?.split('T')[0] || 'N/A';
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error formatting Nepali date:', error);
+                                                            formattedDate = transaction.date?.split('T')[0] || 'N/A';
+                                                        }
+                                                    } else {
+                                                        formattedDate = transaction.date?.split('T')[0] || 'N/A';
+                                                    }
+
+                                                    return (
+                                                        <tr
+                                                            key={index}
+                                                            id={`transaction-row-${index}`}
+                                                            className="transaction-row"
+                                                            data-index={index}
+                                                            style={{
+                                                                cursor: 'pointer',
+                                                                height: '28px',
+                                                                backgroundColor: highlightedRowIndex === index ? '#0d6efd' : 'transparent',
+                                                                color: highlightedRowIndex === index ? 'white' : 'inherit',
+                                                                transition: 'background-color 0.2s ease'
+                                                            }}
+                                                            onMouseEnter={(e) => {
+                                                                if (highlightedRowIndex !== index) {
+                                                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                                                                    e.currentTarget.style.color = 'inherit';
+                                                                }
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                if (highlightedRowIndex !== index) {
+                                                                    e.currentTarget.style.backgroundColor = '';
+                                                                    e.currentTarget.style.color = '';
+                                                                }
+                                                            }}
+                                                            onClick={() => {
+                                                                if (transactionType === 'purchase') {
+                                                                    const billId = transaction.purchaseBillId || transaction.billId;
+                                                                    if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                } else {
+                                                                    const billId = transaction.salesBillId || transaction.billId;
+                                                                    if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                }
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    if (transactionType === 'purchase') {
+                                                                        const billId = transaction.purchaseBillId || transaction.billId;
+                                                                        if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                    } else {
+                                                                        const billId = transaction.salesBillId || transaction.billId;
+                                                                        if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            tabIndex={-1}
+                                                        >
+                                                            <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
+                                                            <td className="py-1 px-1 text-nowrap">{formattedDate}</td>
+                                                            <td className="py-1 px-1 fw-semibold">{transaction.billNumber || 'N/A'}</td>
+                                                            <td className="py-1 px-1">
+                                                                <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
+                                                                    {transaction.type?.substring(0, 4) || 'N/A'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-1 px-1 text-muted">{transaction.purchaseSalesType?.substring(0, 8) || 'N/A'}</td>
+                                                            <td className="py-1 px-1">
+                                                                <span className={`badge ${transaction.paymentMode === 'Cash' ? 'bg-warning' : 'bg-primary'} bg-opacity-25 text-dark px-1 py-0`} style={{ fontSize: '0.6rem' }}>
+                                                                    {transaction.paymentMode?.substring(0, 6) || 'N/A'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-1 px-1 text-end fw-medium">{transaction.quantity || 0}</td>
+                                                            <td className="py-1 px-1 text-end text-secondary">{transaction.bonus || 0}</td>
+                                                            <td className="py-1 px-1">{transaction.unitName || transaction.unit || 'N/A'}</td>
+                                                            <td className="py-1 px-1 text-end fw-semibold">
+                                                                {transactionType === 'purchase'
+                                                                    ? (transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0)
+                                                                    : (transaction.price ? Math.round(transaction.price * 100) / 100 : 0)}
+                                                            </td>
+                                                            <td className="py-1 px-1 text-center">
+                                                                <button
+                                                                    className="btn btn-sm btn-outline-primary py-0 px-1"
+                                                                    style={{ fontSize: '0.6rem' }}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (transactionType === 'purchase') {
+                                                                            const billId = transaction.purchaseBillId || transaction.billId;
+                                                                            if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                        } else {
+                                                                            const billId = transaction.salesBillId || transaction.billId;
+                                                                            if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="11" className="text-center py-3">
+                                                        <div className="d-flex flex-column align-items-center">
+                                                            <i className="bi bi-inbox text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                                            <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>No transactions found</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {transactions.length > 7 && (
+                                    <div className="text-center py-1 bg-light border-top" style={{ fontSize: '0.6rem', color: '#6c757d' }}>
+                                        <i className="bi bi-arrow-down-short me-1"></i>Scroll for more ({transactions.length} total)<i className="bi bi-arrow-down-short ms-1"></i>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="modal-footer py-1 px-2 bg-light border-top">
+                                <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
+                                    <div>
+                                        {transactionType === 'purchase' && (
+                                            <button
+                                                id="showSalesTransactions"
+                                                className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                onClick={fetchSalesTransactions}
+                                                style={{ fontSize: '0.65rem', height: '24px' }}
+                                            >
+                                                <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
+                                                Show Sales Transaction
+                                            </button>
+                                        )}
+
+                                        {transactionType === 'sales' && (
+                                            <button
+                                                id="showPurchaseTransactions"
+                                                className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                onClick={fetchPurchaseTransactions}
+                                                style={{ fontSize: '0.65rem', height: '24px' }}
+                                            >
+                                                <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
+                                                Show Purchase Transaction
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <button
+                                        ref={continueButtonRef}
+                                        type="button"
+                                        className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
+                                        onClick={handleTransactionModalClose}
+                                        style={{ fontSize: '0.65rem', height: '24px' }}
+                                    >
+                                        <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
+                                        Continue
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {showTransactionModal && (
+                <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{
+                    display: 'block',
+                    backgroundColor: 'rgba(0,0,0,0.5)'
+                }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content shadow-sm border-0 rounded-2">
+                            {/* Modal Header */}
+                            <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
+                                <div className="d-flex align-items-center">
+                                    <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
+                                    <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
+                                        {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
+                                    </h6>
+                                </div>
+                                <button type="button" className="btn-close btn-close-white" style={{ fontSize: '0.5rem', padding: '0.5rem' }} onClick={handleTransactionModalClose} aria-label="Close"></button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="modal-body p-0">
+                                <div className="table-responsive" style={{ maxHeight: '220px', overflowY: 'auto' }} id="transactionTableContainer">
+                                    <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
+                                        <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
+                                            <tr>
+                                                <th className="py-1 px-1 text-center" style={{ width: '5%' }}>#</th>
+                                                <th className="py-1 px-1" style={{ width: '12%' }}>Date</th>
+                                                <th className="py-1 px-1" style={{ width: '12%' }}>Inv.No</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Type</th>
+                                                <th className="py-1 px-1" style={{ width: '10%' }}>A/c</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Pay</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Qty</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Free</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Unit</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '13%' }}>Rate</th>
+                                                <th className="py-1 px-1 text-center" style={{ width: '10%' }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {transactions.length > 0 ? (
+                                                transactions.map((transaction, index) => {
+                                                    // FIX: Use the correct date field based on company format
+                                                    let formattedDate = '';
+                                                    const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+                                                    if (isNepaliFormat) {
+                                                        // For Nepali format, use the NepaliDate field
+                                                        if (transaction.nepaliDate) {
+                                                            try {
+                                                                // If nepaliDate is a string, extract just the date part
+                                                                if (typeof transaction.nepaliDate === 'string') {
+                                                                    if (transaction.nepaliDate.includes('T')) {
+                                                                        formattedDate = transaction.nepaliDate.split('T')[0];
+                                                                    } else if (/^\d{4}-\d{2}-\d{2}$/.test(transaction.nepaliDate)) {
+                                                                        formattedDate = transaction.nepaliDate;
+                                                                    } else {
+                                                                        const dateObj = new Date(transaction.nepaliDate);
+                                                                        if (!isNaN(dateObj.getTime())) {
+                                                                            const nepaliDate = new NepaliDate(dateObj);
+                                                                            formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                                        }
+                                                                    }
+                                                                } else if (transaction.nepaliDate instanceof Date) {
+                                                                    const nepaliDate = new NepaliDate(transaction.nepaliDate);
+                                                                    formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                                }
+                                                            } catch (error) {
+                                                                console.error('Error formatting Nepali date:', error);
+                                                                // Fallback to using Date field
+                                                                const dateObj = new Date(transaction.date);
+                                                                if (!isNaN(dateObj.getTime())) {
+                                                                    const nepaliDate = new NepaliDate(dateObj);
+                                                                    formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                                }
+                                                            }
+                                                        } else if (transaction.date) {
+                                                            // Fallback to date field
+                                                            const dateObj = new Date(transaction.date);
+                                                            if (!isNaN(dateObj.getTime())) {
+                                                                const nepaliDate = new NepaliDate(dateObj);
+                                                                formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                            }
+                                                        }
+                                                    } else {
+                                                        // For English format, use the Date field
+                                                        if (transaction.date) {
+                                                            try {
+                                                                if (typeof transaction.date === 'string') {
+                                                                    if (transaction.date.includes('T')) {
+                                                                        formattedDate = transaction.date.split('T')[0];
+                                                                    } else if (/^\d{4}-\d{2}-\d{2}$/.test(transaction.date)) {
+                                                                        formattedDate = transaction.date;
+                                                                    } else {
+                                                                        const dateObj = new Date(transaction.date);
+                                                                        if (!isNaN(dateObj.getTime())) {
+                                                                            formattedDate = dateObj.toISOString().split('T')[0];
+                                                                        }
+                                                                    }
+                                                                } else if (transaction.date instanceof Date) {
+                                                                    formattedDate = transaction.date.toISOString().split('T')[0];
+                                                                }
+                                                            } catch (error) {
+                                                                console.error('Error formatting English date:', error);
+                                                                formattedDate = 'N/A';
+                                                            }
+                                                        }
+                                                    }
+
+                                                    return (
+                                                        <tr key={index} id={`transaction-row-${index}`} className="transaction-row" data-index={index}
+                                                            style={{
+                                                                cursor: 'pointer',
+                                                                height: '28px',
+                                                                backgroundColor: highlightedRowIndex === index ? '#0d6efd' : 'transparent',
+                                                                color: highlightedRowIndex === index ? 'white' : 'inherit',
+                                                                transition: 'background-color 0.2s ease'
+                                                            }}
+                                                            onMouseEnter={(e) => {
+                                                                if (highlightedRowIndex !== index) {
+                                                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                                                                    e.currentTarget.style.color = 'inherit';
+                                                                }
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                if (highlightedRowIndex !== index) {
+                                                                    e.currentTarget.style.backgroundColor = '';
+                                                                    e.currentTarget.style.color = '';
+                                                                }
+                                                            }}
+                                                            onClick={() => {
+                                                                if (transactionType === 'purchase') {
+                                                                    const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
+                                                                    if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                } else {
+                                                                    const billId = transaction.salesBillId || transaction.billId;
+                                                                    if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                }
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    if (transactionType === 'purchase') {
+                                                                        const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
+                                                                        if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                    } else {
+                                                                        const billId = transaction.salesBillId || transaction.billId;
+                                                                        if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            tabIndex={-1}>
+                                                            <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
+                                                            <td className="py-1 px-1 text-nowrap">{formattedDate || 'N/A'}</td>
+                                                            <td className="py-1 px-1 fw-semibold">{transaction.billNumber || transaction.purchaseBillNumber || 'N/A'}</td>
+                                                            <td className="py-1 px-1">
+                                                                <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
+                                                                    {transaction.type?.substring(0, 4) || 'N/A'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-1 px-1 text-muted">{transaction.purchaseSalesType?.substring(0, 8) || 'N/A'}</td>
+                                                            <td className="py-1 px-1">
+                                                                <span className={`badge ${transaction.paymentMode === 'Cash' ? 'bg-warning' : 'bg-primary'} bg-opacity-25 text-dark px-1 py-0`} style={{ fontSize: '0.6rem' }}>
+                                                                    {transaction.paymentMode?.substring(0, 6) || 'N/A'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-1 px-1 text-end fw-medium">{transaction.quantity || 0}</td>
+                                                            <td className="py-1 px-1 text-end text-secondary">{transaction.bonus || 0}</td>
+                                                            <td className="py-1 px-1">{transaction.unitName || transaction.unit || 'N/A'}</td>
+                                                            <td className="py-1 px-1 text-end fw-semibold">
+                                                                {transactionType === 'purchase'
+                                                                    ? (transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0)
+                                                                    : (transaction.price ? Math.round(transaction.price * 100) / 100 : 0)}
+                                                            </td>
+                                                            <td className="py-1 px-1 text-center">
+                                                                <button className="btn btn-sm btn-outline-primary py-0 px-1" style={{ fontSize: '0.6rem' }}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (transactionType === 'purchase') {
+                                                                            const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
+                                                                            if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                        } else {
+                                                                            const billId = transaction.salesBillId || transaction.billId;
+                                                                            if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                        }
+                                                                    }}>
+                                                                    <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="11" className="text-center py-3">
+                                                        <div className="d-flex flex-column align-items-center">
+                                                            <i className="bi bi-inbox text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                                            <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>No transactions found</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="modal-footer py-1 px-2 bg-light border-top">
+                                <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
+                                    <div>
+                                        {transactionType === 'purchase' && (
+                                            <button id="showSalesTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                onClick={fetchSalesTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                                <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
+                                                Show Sales Transaction
+                                            </button>
+                                        )}
+                                        {transactionType === 'sales' && (
+                                            <button id="showPurchaseTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                onClick={fetchPurchaseTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                                <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
+                                                Show Purchase Transaction
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button ref={continueButtonRef} type="button" className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
+                                        onClick={handleTransactionModalClose} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                        <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
+                                        Continue
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -10,6 +10,7 @@ namespace SkyForge.Dto.RetailerDto.StockEntryDto
         public string? ItemName { get; set; }
 
         public DateTime Date { get; set; }
+        public DateTime? NepaliDate { get; set; }
 
         public decimal? WsUnit { get; set; }
         public decimal Quantity { get; set; }

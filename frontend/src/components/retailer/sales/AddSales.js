@@ -43,13 +43,18 @@ const AddSales = () => {
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSaveSales') === 'true' || false
     );
-
+    // Add near your other state declarations (around line 100-120)
+    const [useVoucherLastDateForSales, setUseVoucherLastDateForSales] = useState(false);
+    const [lastSalesDate, setLastSalesDate] = useState(null);
     // Search states for items
     const [searchQuery, setSearchQuery] = useState('');
     const [lastSearchQuery, setLastSearchQuery] = useState('');
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
     const debouncedSearchQuery = useDebounce(searchQuery, 50);
-
+    // Add after existing state declarations (around line 70-80)
+    const [highlightedRowIndex, setHighlightedRowIndex] = useState(-1);
+    const [currentViewingItemId, setCurrentViewingItemId] = useState(null);
+    const [transactionType, setTransactionType] = useState('Sales'); // Change default to 'sales'
     // Search states for accounts
     const [isAccountSearching, setIsAccountSearching] = useState(false);
     const [accountSearchResults, setAccountSearchResults] = useState([]);
@@ -93,7 +98,6 @@ const AddSales = () => {
 
     const [transactionSettings, setTransactionSettings] = useState({
         displayTransactions: false,
-        displayTransactionsForSales: false,
         displayTransactionsForPurchase: false,
         displayTransactionsForSalesReturn: false,
         displayTransactionsForPurchaseReturn: false
@@ -187,26 +191,185 @@ const AddSales = () => {
         }
     };
 
+    // Fetch date preference setting from backend for Sales
+    const fetchDatePreference = async () => {
+        try {
+            console.log('=== fetchDatePreferenceForSales CALLED ===');
+            const response = await api.get('/api/retailer/date-preference/sales');
+            console.log('Date preference response:', response.data);
+
+            if (response.data.success) {
+                const useVoucherDate = response.data.data.useVoucherLastDate;
+                console.log('useVoucherLastDateForSales value from API:', useVoucherDate);
+                setUseVoucherLastDateForSales(useVoucherDate);
+                return useVoucherDate;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error fetching date preference:', error);
+            return false;
+        }
+    };
+
+    // Fetch last sales date from backend
+    const fetchLastSalesDate = async () => {
+        try {
+            console.log('=== fetchLastSalesDate CALLED ===');
+
+            // Use the endpoint you provided: /api/retailer/last-sales-date
+            const response = await api.get('/api/retailer/last-sales-date');
+            console.log('Last sales date response:', response.data);
+
+            if (response.data.success && response.data.data) {
+                const data = response.data.data;
+                const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+                // Get the appropriate date based on company format
+                let lastDate = null;
+                if (isNepaliFormat) {
+                    // Use Nepali date fields from response
+                    lastDate = data.transactionDateNepali || data.nepaliDate;
+                    console.log('Using Nepali date field:', lastDate);
+                } else {
+                    // Use English date fields from response
+                    lastDate = data.transactionDate || data.date;
+                    console.log('Using English date field:', lastDate);
+                }
+
+                if (lastDate) {
+                    // Format the date (it should already be in YYYY-MM-DD format from backend)
+                    let formattedDate = lastDate;
+                    if (typeof lastDate === 'string' && lastDate.includes('T')) {
+                        formattedDate = lastDate.split('T')[0];
+                    }
+                    console.log('Formatted last sales date:', formattedDate);
+                    setLastSalesDate(formattedDate);
+                    return formattedDate;
+                }
+            }
+
+            console.log('No last sales date found - returning null');
+            return null;
+        } catch (error) {
+            console.error('Error fetching last sales date:', error);
+            return null;
+        }
+    };
+
     // Initial data fetching
+    // useEffect(() => {
+    //     const fetchInitialData = async () => {
+    //         try {
+    //             setIsLoading(true);
+
+    //             // Fetch next bill number separately
+    //             const numberResponse = await api.get('/api/retailer/credit-sales/current-number');
+    //             const currentBillNum = await getCurrentBillNumber();
+
+    //             // Fetch company settings and initial data
+    //             const companyResponse = await api.get('/api/retailer/credit-sales');
+    //             const { data } = companyResponse.data;
+
+    //             // Set company settings
+    //             setCompany({
+    //                 ...data.company,
+    //                 dateFormat: data.company.dateFormat || 'nepali',
+    //                 vatEnabled: data.company.vatEnabled || true
+    //             });
+
+    //             // Set other data
+    //             setCategories(data.categories || []);
+    //             setUnits(data.units || []);
+    //             setCompanyGroups(data.companyGroups || []);
+
+    //             // Use the bill number from the separate endpoint
+    //             setNextBillNumber(currentBillNum);
+    //             const isNepaliFormat = data.company.dateFormat === 'nepali' ||
+    //                 data.company.dateFormat === 'Nepali';
+
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 billNumber: currentBillNum,
+    //                 transactionDateNepali: isNepaliFormat ? currentNepaliDate : '',
+    //                 nepaliDate: isNepaliFormat ? currentNepaliDate : '',
+    //                 transactionDateRoman: new Date().toISOString().split('T')[0],
+    //                 billDate: new Date().toISOString().split('T')[0]
+    //             }));
+
+    //             setIsInitialDataLoaded(true);
+    //         } catch (error) {
+    //             console.error('Error fetching initial data:', error);
+    //             setNotification({
+    //                 show: true,
+    //                 message: 'Error loading sales data',
+    //                 type: 'error'
+    //             });
+    //         } finally {
+    //             setIsLoading(false);
+    //         }
+    //     };
+    //     fetchInitialData();
+    // }, []);
+
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
                 setIsLoading(true);
 
                 // Fetch next bill number separately
-                const numberResponse = await api.get('/api/retailer/credit-sales/current-number');
                 const currentBillNum = await getCurrentBillNumber();
 
                 // Fetch company settings and initial data
                 const companyResponse = await api.get('/api/retailer/credit-sales');
                 const { data } = companyResponse.data;
 
-                // Set company settings
+                // Set company settings FIRST (needed for date format)
+                const isNepaliFormat = data.company.dateFormat === 'nepali' ||
+                    data.company.dateFormat === 'Nepali';
+
                 setCompany({
                     ...data.company,
                     dateFormat: data.company.dateFormat || 'nepali',
                     vatEnabled: data.company.vatEnabled || true
                 });
+
+                // Fetch date preference (useVoucherLastDate setting from backend)
+                const useVoucherDate = await fetchDatePreference();
+
+                // Fetch last sales date if needed
+                let lastDate = null;
+                if (useVoucherDate) {
+                    lastDate = await fetchLastSalesDate();
+                }
+
+                let transactionDate = '';
+                let invoiceDate = '';
+
+                console.log('Setting dates - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+                // Set dates based on preference
+                if (useVoucherDate && lastDate) {
+                    // Use last voucher date
+                    if (isNepaliFormat) {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    } else {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    }
+                    console.log('Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+                } else {
+                    // Use current system date
+                    if (isNepaliFormat) {
+                        transactionDate = currentNepaliDate;
+                        invoiceDate = currentNepaliDate;
+                    } else {
+                        const today = new Date().toISOString().split('T')[0];
+                        transactionDate = today;
+                        invoiceDate = today;
+                    }
+                    console.log('Using SYSTEM date:', { transactionDate, invoiceDate });
+                }
 
                 // Set other data
                 setCategories(data.categories || []);
@@ -215,16 +378,15 @@ const AddSales = () => {
 
                 // Use the bill number from the separate endpoint
                 setNextBillNumber(currentBillNum);
-                const isNepaliFormat = data.company.dateFormat === 'nepali' ||
-                    data.company.dateFormat === 'Nepali';
 
+                // Set form data with the determined dates
                 setFormData(prev => ({
                     ...prev,
                     billNumber: currentBillNum,
-                    transactionDateNepali: isNepaliFormat ? currentNepaliDate : '',
-                    nepaliDate: isNepaliFormat ? currentNepaliDate : '',
-                    transactionDateRoman: new Date().toISOString().split('T')[0],
-                    billDate: new Date().toISOString().split('T')[0]
+                    transactionDateNepali: isNepaliFormat ? transactionDate : '',
+                    nepaliDate: isNepaliFormat ? invoiceDate : '',
+                    transactionDateRoman: !isNepaliFormat ? transactionDate : '',
+                    billDate: !isNepaliFormat ? invoiceDate : ''
                 }));
 
                 setIsInitialDataLoaded(true);
@@ -271,6 +433,87 @@ const AddSales = () => {
         };
         fetchTransactionSettings();
     }, []);
+
+    // Add this after the fetchTransactionSettings useEffect
+    useEffect(() => {
+        if (!showTransactionModal) return;
+
+        const handleKeyDown = (e) => {
+            // Only handle arrow keys when transaction modal is open
+            if (!showTransactionModal) return;
+
+            // Check if Continue button is focused initially
+            const isContinueButtonFocused = document.activeElement === continueButtonRef.current;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (transactions.length === 0) return;
+
+                // If no row is highlighted and Continue button is focused, highlight first row
+                if (highlightedRowIndex === -1 && isContinueButtonFocused) {
+                    setHighlightedRowIndex(0);
+                    scrollToRow(0);
+                }
+                // Move to next row if not at the end
+                else if (highlightedRowIndex < transactions.length - 1) {
+                    setHighlightedRowIndex(prev => prev + 1);
+                    scrollToRow(highlightedRowIndex + 1);
+                }
+            }
+            else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (transactions.length === 0) return;
+
+                // If at first row, move highlight to -1 (no row highlighted) and focus Continue button
+                if (highlightedRowIndex === 0) {
+                    setHighlightedRowIndex(-1);
+                    continueButtonRef.current?.focus();
+                }
+                // Move to previous row
+                else if (highlightedRowIndex > 0) {
+                    setHighlightedRowIndex(prev => prev - 1);
+                    scrollToRow(highlightedRowIndex - 1);
+                }
+            }
+            else if (e.key === 'Enter') {
+                e.preventDefault();
+                // If a row is highlighted, trigger its click action
+                if (highlightedRowIndex >= 0 && transactions[highlightedRowIndex]) {
+                    const transaction = transactions[highlightedRowIndex];
+                    const billId = transaction.salesBillId || transaction.billId;
+                    if (billId) navigate(`/retailer/sales/${billId}/print`);
+                }
+                // If no row highlighted and Continue button is focused, close modal
+                else if (document.activeElement === continueButtonRef.current) {
+                    handleTransactionModalClose();
+                }
+            }
+            else if (e.key === 'Escape') {
+                e.preventDefault();
+                handleTransactionModalClose();
+            }
+        };
+
+        const scrollToRow = (rowIndex) => {
+            setTimeout(() => {
+                const row = document.getElementById(`transaction-row-${rowIndex}`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    row.focus();
+                }
+            }, 50);
+        };
+
+        // Add event listener
+        document.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showTransactionModal, transactions, highlightedRowIndex, navigate]);
+
+
 
     useEffect(() => {
         if (isInitialDataLoaded && transactionDateRef.current) {
@@ -516,6 +759,86 @@ const AddSales = () => {
         }
     };
 
+    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
+    //     try {
+    //         if (isHeaderModal) {
+    //             setIsHeaderSearching(true);
+    //         } else {
+    //             setIsSearching(true);
+    //         }
+
+    //         const response = await api.get('/api/retailer/items/search', {
+    //             params: {
+    //                 search: searchTerm,
+    //                 page: page,
+    //                 limit: 15,
+    //                 vatStatus: formData.isVatExempt,
+    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
+    //             }
+    //         });
+
+    //         if (response.data.success) {
+    //             const itemsWithPrices = response.data.items.map(item => {
+    //                 let latestPrice = 0;
+    //                 let latestBatchNumber = '';
+    //                 let latestExpiryDate = '';
+
+    //                 if (item.stockEntries && item.stockEntries.length > 0) {
+    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
+    //                         new Date(b.date) - new Date(a.date)  // Note: AddSalesOpen uses newest first
+    //                     );
+    //                     latestPrice = sortedEntries[0].price || 0;
+    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
+    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
+    //                 }
+
+    //                 return {
+    //                     ...item,
+    //                     id: item.id,
+    //                     _id: item.id,
+    //                     latestPrice,
+    //                     latestBatchNumber,
+    //                     latestExpiryDate,
+    //                     stock: item.currentStock || 0
+    //                 };
+    //             });
+
+    //             if (isHeaderModal) {
+    //                 if (page === 1) {
+    //                     setHeaderSearchResults(itemsWithPrices);
+    //                 } else {
+    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
+    //                 }
+    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
+    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
+    //                 setHeaderSearchPage(page);
+    //             } else {
+    //                 if (page === 1) {
+    //                     setSearchResults(itemsWithPrices);
+    //                 } else {
+    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
+    //                 }
+    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
+    //                 setTotalSearchItems(response.data.pagination.totalItems);
+    //                 setSearchPage(page);
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching items:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error loading items',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         if (isHeaderModal) {
+    //             setIsHeaderSearching(false);
+    //         } else {
+    //             setIsSearching(false);
+    //         }
+    //     }
+    // };
+
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
             if (isHeaderModal) {
@@ -524,15 +847,29 @@ const AddSales = () => {
                 setIsSearching(true);
             }
 
-            const response = await api.get('/api/retailer/items/search', {
-                params: {
-                    search: searchTerm,
-                    page: page,
-                    limit: 15,
-                    vatStatus: formData.isVatExempt,
-                    sortBy: searchTerm.trim() ? 'relevance' : 'name'
-                }
-            });
+            // Determine which date to send based on company format
+            const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+            let params = {
+                search: searchTerm,
+                page: page,
+                limit: 15,
+                vatStatus: formData.isVatExempt,
+                sortBy: searchTerm.trim() ? 'relevance' : 'name'
+            };
+
+            // Add date filter based on date format
+            if (isNepaliFormat && formData.transactionDateNepali) {
+                // Send Nepali date directly - no conversion needed
+                params.asOfNepaliDate = formData.transactionDateNepali;
+                console.log('Sending Nepali date filter for sales:', formData.transactionDateNepali);
+            } else if (!isNepaliFormat && formData.transactionDateRoman) {
+                // Send English date
+                params.asOfEnglishDate = formData.transactionDateRoman;
+                console.log('Sending English date filter for sales:', formData.transactionDateRoman);
+            }
+
+            const response = await api.get('/api/retailer/items/search', { params });
 
             if (response.data.success) {
                 const itemsWithPrices = response.data.items.map(item => {
@@ -540,19 +877,19 @@ const AddSales = () => {
                     let latestBatchNumber = '';
                     let latestExpiryDate = '';
 
+                    // Calculate total stock from filtered stockEntries
+                    let totalStock = 0;
                     if (item.stockEntries && item.stockEntries.length > 0) {
-                        // Sort by date for FIFO (oldest first)
-                        // const sortedEntries = item.stockEntries.sort((a, b) =>
-                        //     new Date(a.date) - new Date(b.date)
-                        // );
-                        // latestPrice = sortedEntries[0].price || 0;
+                        // Calculate total stock by summing up all quantities from filtered stockEntries
+                        totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
 
+                        // For sales, we need the selling price (price field), not purchase price
                         const sortedEntries = item.stockEntries.sort((a, b) =>
-                            new Date(b.date) - new Date(a.date)  // Note: AddSalesOpen uses newest first
+                            new Date(b.date) - new Date(a.date)
                         );
-                        latestPrice = sortedEntries[0].price || 0;
-                        latestBatchNumber = sortedEntries[0].batchNumber || '';
-                        latestExpiryDate = sortedEntries[0].expiryDate || '';
+                        latestPrice = sortedEntries[0]?.price || 0;
+                        latestBatchNumber = sortedEntries[0]?.batchNumber || '';
+                        latestExpiryDate = sortedEntries[0]?.expiryDate || '';
                     }
 
                     return {
@@ -562,7 +899,7 @@ const AddSales = () => {
                         latestPrice,
                         latestBatchNumber,
                         latestExpiryDate,
-                        stock: item.currentStock || 0
+                        stock: totalStock
                     };
                 });
 
@@ -601,6 +938,19 @@ const AddSales = () => {
             }
         }
     };
+
+    // Refetch items when transaction date changes
+    useEffect(() => {
+        // Only refetch if the header item modal is open or item dropdown is active
+        if (showHeaderItemModal) {
+            const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
+            fetchItemsFromBackend(searchTerm, 1, true);
+        }
+
+        if (showItemDropdown) {
+            fetchItemsFromBackend(searchQuery, 1, false);
+        }
+    }, [formData.transactionDateNepali, formData.transactionDateRoman]);
 
     const handleAccountCreationModalClose = () => {
         setShowAccountCreationModal(false);
@@ -854,8 +1204,10 @@ const AddSales = () => {
             itemSearchRef.current.value = '';
         }
 
+        setCurrentViewingItemId(item.id);
+
         // Transaction fetching logic for SALES
-        if (transactionSettings.displayTransactionsForSales && formData.accountId) {
+        if (transactionSettings.displayTransactions && formData.accountId) {
             const cacheKey = `${item.id}-${formData.accountId}`;
 
             if (transactionCache.has(cacheKey)) {
@@ -928,8 +1280,15 @@ const AddSales = () => {
         }
         setHeaderSearchQuery('');
 
+        console.log('selectItemForInsert called with item:', item.id);
+        console.log('currentViewingItemId set to:', item.id);
+        console.log('transactionSettings.displayTransactions:', transactionSettings.displayTransactions);
+        console.log('formData.accountId:', formData.accountId);
+
         setShowHeaderItemModal(false);
         setSelectedItemForInsert(item);
+        setCurrentViewingItemId(item.id);
+        setTransactionType('sales');
 
         // Use latestPrice which now includes last sales price for out-of-stock items
         setSelectedItemRate(item.latestPrice || 0);
@@ -968,7 +1327,7 @@ const AddSales = () => {
 
         let hasTransactions = false;
 
-        if (transactionSettings.displayTransactionsForSales && formData.accountId) {
+        if (transactionSettings.displayTransactions && formData.accountId) {
             const cacheKey = `${item.id}-${formData.accountId}`;
 
             if (transactionCache.has(cacheKey)) {
@@ -1411,6 +1770,7 @@ const AddSales = () => {
         }
 
         setSelectedItemIndex(index);
+        setCurrentViewingItemId(itemId);  // Add this line
         setLoadingItems(prev => new Set(prev).add(itemId));
         setIsLoadingTransactions(true);
 
@@ -1420,6 +1780,7 @@ const AddSales = () => {
             if (transactionCache.has(cacheKey)) {
                 const cachedTransactions = transactionCache.get(cacheKey);
                 setTransactions(cachedTransactions);
+                setTransactionType('sales');  // Set transaction type
                 setShowTransactionModal(true);
                 return;
             }
@@ -1436,6 +1797,7 @@ const AddSales = () => {
             if (response.data.success) {
                 setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
                 setTransactions(response.data.data.transactions);
+                setTransactionType('sales');  // Set transaction type
                 setShowTransactionModal(true);
             }
         } catch (error) {
@@ -1452,7 +1814,244 @@ const AddSales = () => {
         }
     };
 
-    // Manual reset function - does NOT increment bill number
+    const fetchSalesTransactions = async () => {
+        console.log('=== fetchSalesTransactions CALLED ===');
+
+        const itemId = currentViewingItemId;
+
+        if (!itemId) {
+            setNotification({
+                show: true,
+                message: 'No item selected. Please select an item first.',
+                type: 'error'
+            });
+            return;
+        }
+
+        if (!formData.accountId) {
+            setNotification({
+                show: true,
+                message: 'Please select an account first',
+                type: 'error'
+            });
+            return;
+        }
+
+        try {
+            setIsLoadingTransactions(true);
+            const cacheKey = `${itemId}-${formData.accountId}-sales`;
+
+            if (transactionCache.has(cacheKey)) {
+                const cachedTransactions = transactionCache.get(cacheKey);
+                setTransactions(cachedTransactions);
+                setTransactionType('sales');
+                setIsLoadingTransactions(false);
+                return;
+            }
+
+            // Use the correct endpoint for sales transactions
+            const response = await api.get(`/api/retailer/transactions/${itemId}/${formData.accountId}/Sales`, {
+                params: {  // Add params if needed
+                    itemId: itemId,
+                    accountId: formData.accountId
+                }
+            });
+
+            console.log('Sales transactions response:', response.data);
+
+            if (response.data.success) {
+                const transactionsData = response.data.data?.transactions || [];
+                setTransactionCache(prev => new Map(prev.set(cacheKey, transactionsData)));
+                setTransactions(transactionsData);
+                setTransactionType('sales');
+
+                if (transactionsData.length === 0) {
+                    setNotification({
+                        show: true,
+                        message: 'No sales transactions found for this item and account',
+                        type: 'info',
+                        duration: 3000
+                    });
+                }
+            } else {
+                console.log('API returned success false:', response.data.message);
+                setNotification({
+                    show: true,
+                    message: response.data.message || 'Failed to fetch sales transactions',
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching sales transactions:', error);
+            console.error('Error details:', error.response?.data);
+            setNotification({
+                show: true,
+                message: 'Error fetching sales transactions: ' + (error.response?.data?.message || error.message),
+                type: 'error'
+            });
+        } finally {
+            setIsLoadingTransactions(false);
+        }
+    };
+
+    const fetchPurchaseTransactions = async () => {
+        console.log('=== fetchPurchaseTransactions CALLED ===');
+
+        const itemId = currentViewingItemId;
+
+        if (!itemId) {
+            setNotification({
+                show: true,
+                message: 'No item selected. Please select an item first.',
+                type: 'error'
+            });
+            return;
+        }
+
+        if (!formData.accountId) {
+            setNotification({
+                show: true,
+                message: 'Please select an account first',
+                type: 'error'
+            });
+            return;
+        }
+
+        try {
+            setIsLoadingTransactions(true);
+            const cacheKey = `${itemId}-${formData.accountId}-purchase`;
+
+            if (transactionCache.has(cacheKey)) {
+                const cachedTransactions = transactionCache.get(cacheKey);
+                setTransactions(cachedTransactions);
+                setTransactionType('purchase');
+                setIsLoadingTransactions(false);
+                return;
+            }
+
+            // Use the correct endpoint for purchase transactions
+            const response = await api.get(`/api/retailer/transactions/${itemId}/${formData.accountId}/Purchase`, {
+                params: {
+                    itemId: itemId,
+                    accountId: formData.accountId
+                }
+            });
+
+            console.log('Purchase transactions response:', response.data);
+
+            if (response.data.success) {
+                const transactionsData = response.data.data?.transactions || [];
+                setTransactionCache(prev => new Map(prev.set(cacheKey, transactionsData)));
+                setTransactions(transactionsData);
+                setTransactionType('purchase');
+
+                if (transactionsData.length === 0) {
+                    setNotification({
+                        show: true,
+                        message: 'No purchase transactions found for this item and account',
+                        type: 'info',
+                        duration: 3000
+                    });
+                }
+            } else {
+                setNotification({
+                    show: true,
+                    message: response.data.message || 'Failed to fetch purchase transactions',
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching purchase transactions:', error);
+            setNotification({
+                show: true,
+                message: 'Error fetching purchase transactions: ' + (error.response?.data?.message || error.message),
+                type: 'error'
+            });
+        } finally {
+            setIsLoadingTransactions(false);
+        }
+    };
+
+    // const handleManualReset = async () => {
+    //     try {
+    //         setIsLoading(true);
+
+    //         // Get current bill number (does NOT increment)
+    //         const currentBillNum = await getCurrentBillNumber();
+
+    //         // Fetch other data
+    //         const response = await api.get('/api/retailer/credit-sales');
+    //         const { data } = response.data;
+
+    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //         const currentRomanDate = new Date().toISOString().split('T')[0];
+
+    //         setFormData({
+    //             accountId: '',
+    //             accountName: '',
+    //             accountAddress: '',
+    //             accountPan: '',
+    //             transactionDateNepali: currentNepaliDate,
+    //             transactionDateRoman: currentRomanDate,
+    //             nepaliDate: currentNepaliDate,
+    //             billDate: currentRomanDate,
+    //             billNumber: currentBillNum,
+    //             paymentMode: 'credit',
+    //             isVatExempt: 'all',
+    //             discountPercentage: 0,
+    //             discountAmount: 0,
+    //             roundOffAmount: 0,
+    //             vatPercentage: 13,
+    //             items: []
+    //         });
+
+    //         setAccountSearchQuery('');
+    //         setAccountSearchPage(1);
+    //         setAccountSearchResults([]);
+    //         setHasMoreAccountResults(false);
+    //         setTotalAccounts(0);
+
+    //         setCategories(data.categories || []);
+    //         setUnits(data.units || []);
+    //         setCompanyGroups(data.companyGroups || []);
+
+    //         fetchAccountsFromBackend('', 1);
+
+    //         setNextBillNumber(currentBillNum);
+    //         setItems([]);
+    //         clearSalesDraft();
+
+    //         setHeaderSearchQuery('');
+    //         setHeaderSearchResults([]);
+    //         setHeaderSearchPage(1);
+    //         setHasMoreHeaderSearchResults(false);
+    //         setTotalHeaderSearchItems(0);
+
+    //         setSearchQuery('');
+    //         setSearchResults([]);
+    //         setSearchPage(1);
+    //         setHasMoreSearchResults(false);
+    //         setTotalSearchItems(0);
+
+    //         setTimeout(() => {
+    //             if (transactionDateRef.current) {
+    //                 transactionDateRef.current.focus();
+    //             }
+    //         }, 100);
+    //     } catch (err) {
+    //         console.error('Error resetting form:', err);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error refreshing form data',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // };
+
+    // Reset after save - increments bill number
+
     const handleManualReset = async () => {
         try {
             setIsLoading(true);
@@ -1464,18 +2063,54 @@ const AddSales = () => {
             const response = await api.get('/api/retailer/credit-sales');
             const { data } = response.data;
 
-            const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-            const currentRomanDate = new Date().toISOString().split('T')[0];
+            const isNepaliFormat = data.company.dateFormat === 'nepali' ||
+                data.company.dateFormat === 'Nepali';
+
+            // Fetch current date preference (don't rely on state, fetch fresh)
+            const useVoucherDate = await fetchDatePreference();
+
+            // Fetch last sales date if needed
+            let lastDate = null;
+            if (useVoucherDate) {
+                lastDate = await fetchLastSalesDate();
+            }
+
+            let transactionDate = '';
+            let invoiceDate = '';
+
+            console.log('handleManualReset - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+            // Set dates based on preference
+            if (useVoucherDate && lastDate) {
+                if (isNepaliFormat) {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                } else {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                }
+                console.log('handleManualReset - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+            } else {
+                if (isNepaliFormat) {
+                    transactionDate = currentNepaliDate;
+                    invoiceDate = currentNepaliDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    transactionDate = today;
+                    invoiceDate = today;
+                }
+                console.log('handleManualReset - Using SYSTEM date:', { transactionDate, invoiceDate });
+            }
 
             setFormData({
                 accountId: '',
                 accountName: '',
                 accountAddress: '',
                 accountPan: '',
-                transactionDateNepali: currentNepaliDate,
-                transactionDateRoman: currentRomanDate,
-                nepaliDate: currentNepaliDate,
-                billDate: currentRomanDate,
+                transactionDateNepali: isNepaliFormat ? transactionDate : '',
+                transactionDateRoman: !isNepaliFormat ? transactionDate : '',
+                nepaliDate: isNepaliFormat ? invoiceDate : '',
+                billDate: !isNepaliFormat ? invoiceDate : '',
                 billNumber: currentBillNum,
                 paymentMode: 'credit',
                 isVatExempt: 'all',
@@ -1531,28 +2166,138 @@ const AddSales = () => {
         }
     };
 
-    // Reset after save - increments bill number
+    // const resetAfterSave = async () => {
+    //     try {
+    //         // Get next bill number (this increments the counter)
+    //         const currentBillNum = await getCurrentBillNumber();
+
+    //         // Fetch other data
+    //         const response = await api.get('/api/retailer/credit-sales');
+    //         const { data } = response.data;
+
+    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //         const currentRomanDate = new Date().toISOString().split('T')[0];
+
+    //         setFormData({
+    //             accountId: '',
+    //             accountName: '',
+    //             accountAddress: '',
+    //             accountPan: '',
+    //             transactionDateNepali: currentNepaliDate,
+    //             transactionDateRoman: currentRomanDate,
+    //             nepaliDate: currentNepaliDate,
+    //             billDate: currentRomanDate,
+    //             billNumber: currentBillNum,
+    //             paymentMode: 'credit',
+    //             isVatExempt: 'all',
+    //             discountPercentage: 0,
+    //             discountAmount: 0,
+    //             roundOffAmount: 0,
+    //             vatPercentage: 13,
+    //             items: []
+    //         });
+
+    //         setAccountSearchQuery('');
+    //         setAccountSearchPage(1);
+    //         setAccountSearchResults([]);
+    //         setHasMoreAccountResults(false);
+    //         setTotalAccounts(0);
+
+    //         setCategories(data.categories || []);
+    //         setUnits(data.units || []);
+    //         setCompanyGroups(data.companyGroups || []);
+
+    //         fetchAccountsFromBackend('', 1);
+
+    //         setNextBillNumber(currentBillNum);
+    //         setItems([]);
+    //         clearSalesDraft();
+
+    //         setHeaderSearchQuery('');
+    //         setHeaderSearchResults([]);
+    //         setHeaderSearchPage(1);
+    //         setHasMoreHeaderSearchResults(false);
+    //         setTotalHeaderSearchItems(0);
+
+    //         setSearchQuery('');
+    //         setSearchResults([]);
+    //         setSearchPage(1);
+    //         setHasMoreSearchResults(false);
+    //         setTotalSearchItems(0);
+
+    //         setTimeout(() => {
+    //             if (transactionDateRef.current) {
+    //                 transactionDateRef.current.focus();
+    //             }
+    //         }, 100);
+    //     } catch (err) {
+    //         console.error('Error resetting after save:', err);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error refreshing form data',
+    //             type: 'error'
+    //         });
+    //     }
+    // };
+
+    // Reset after save - respects date preferences
     const resetAfterSave = async () => {
         try {
-            // Get next bill number (this increments the counter)
+            // Get current bill number (does NOT increment - use current, not next)
             const currentBillNum = await getCurrentBillNumber();
 
             // Fetch other data
             const response = await api.get('/api/retailer/credit-sales');
             const { data } = response.data;
 
-            const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-            const currentRomanDate = new Date().toISOString().split('T')[0];
+            const isNepaliFormat = data.company.dateFormat === 'nepali' ||
+                data.company.dateFormat === 'Nepali';
+
+            // Fetch current date preference (don't rely on state, fetch fresh)
+            const useVoucherDate = await fetchDatePreference();
+
+            // Fetch last sales date if needed
+            let lastDate = null;
+            if (useVoucherDate) {
+                lastDate = await fetchLastSalesDate();
+            }
+
+            let transactionDate = '';
+            let invoiceDate = '';
+
+            console.log('resetAfterSave - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+            // Set dates based on preference
+            if (useVoucherDate && lastDate) {
+                if (isNepaliFormat) {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                } else {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                }
+                console.log('resetAfterSave - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+            } else {
+                if (isNepaliFormat) {
+                    transactionDate = currentNepaliDate;
+                    invoiceDate = currentNepaliDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    transactionDate = today;
+                    invoiceDate = today;
+                }
+                console.log('resetAfterSave - Using SYSTEM date:', { transactionDate, invoiceDate });
+            }
 
             setFormData({
                 accountId: '',
                 accountName: '',
                 accountAddress: '',
                 accountPan: '',
-                transactionDateNepali: currentNepaliDate,
-                transactionDateRoman: currentRomanDate,
-                nepaliDate: currentNepaliDate,
-                billDate: currentRomanDate,
+                transactionDateNepali: isNepaliFormat ? transactionDate : '',
+                transactionDateRoman: !isNepaliFormat ? transactionDate : '',
+                nepaliDate: isNepaliFormat ? invoiceDate : '',
+                billDate: !isNepaliFormat ? invoiceDate : '',
                 billNumber: currentBillNum,
                 paymentMode: 'credit',
                 isVatExempt: 'all',
@@ -1631,19 +2376,23 @@ const AddSales = () => {
         try {
             const calculatedValues = calculateTotal();
 
-            console.log('=== CALCULATED VALUES ===');
-            console.log('calculatedValues:', calculatedValues);
-            console.log('roundOffAmount from calculatedValues:', calculatedValues.roundOffAmount);
-            console.log('formData.roundOffAmount:', formData.roundOffAmount);
-            console.log('=========================');
+            const parseDate = (dateString) => {
+                if (!dateString) return new Date().toISOString();
 
+                // If it's already a valid date string in YYYY-MM-DD format
+                if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                    // Create date at UTC to avoid timezone issues
+                    const date = new Date(dateString);
+                    date.setUTCHours(0, 0, 0, 0);
+                    return date.toISOString();
+                }
+                return new Date(dateString).toISOString();
+            };
 
-            // Prepare data according to your CreateSalesBillDTO
             const billData = {
                 accountId: formData.accountId,
                 paymentMode: formData.paymentMode,
                 isVatExempt: formData.isVatExempt,
-                // isVatAll: formData.isVatExempt,
                 discountPercentage: formData.discountPercentage,
                 discountAmount: formData.discountAmount,
                 vatPercentage: formData.vatPercentage,
@@ -1653,10 +2402,14 @@ const AddSales = () => {
                 taxableAmount: calculatedValues.taxableAmount,
                 nonVatSales: calculatedValues.nonTaxableAmount,
                 totalAmount: calculatedValues.totalAmount,
-                nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
-                date: formData.billDate,
-                transactionDateNepali: new Date(formData.transactionDateNepali).toISOString().split('T')[0],
-                transactionDate: formData.transactionDateRoman,
+                // nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
+                // date: formData.billDate,
+                // transactionDateNepali: new Date(formData.transactionDateNepali).toISOString().split('T')[0],
+                // transactionDate: formData.transactionDateRoman,
+                nepaliDate: parseDate(formData.nepaliDate),
+                date: parseDate(formData.billDate),
+                transactionDateNepali: parseDate(formData.transactionDateNepali),
+                transactionDate: parseDate(formData.transactionDateRoman),
                 purchaseSalesType: "Sales",
                 originalCopies: 1,
                 items: items.map(item => ({
@@ -2168,9 +2921,6 @@ const AddSales = () => {
             </div>
         );
     }, [showItemDropdown, searchResults, searchQuery, lastSearchQuery, shouldShowLastSearchResults, addItemToBill]);
-
-    // The JSX remains exactly the same as your original code from here onwards
-    // I've kept all your JSX structure identical to maintain all UI features
 
     return (
         <div className="container-fluid">
@@ -3641,49 +4391,6 @@ const AddSales = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <div className="position-relative">
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-control-sm"
-                                                    step="any"
-                                                    id="roundOffAmount"
-                                                    name="roundOffAmount"
-                                                    value={formData.roundOffAmount}
-                                                    onChange={(e) => setFormData({ ...formData, roundOffAmount: e.target.value })}
-                                                    onFocus={(e) => {
-                                                        e.target.select();
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            document.getElementById('saveBill')?.focus();
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '22px',
-                                                        fontSize: '0.875rem',
-                                                        paddingTop: '0.5rem',
-                                                        width: '100%'
-                                                    }}
-                                                />
-                                                <label
-                                                    className="position-absolute"
-                                                    style={{
-                                                        top: '-0.4rem',
-                                                        left: '0.5rem',
-                                                        fontSize: '0.7rem',
-                                                        backgroundColor: 'white',
-                                                        padding: '0 0.25rem',
-                                                        color: '#6c757d',
-                                                        fontWeight: '500'
-                                                    }}
-                                                >
-                                                    Rs.
-                                                </label>
-                                            </div>
-                                        </td> */}
-
                                         <td style={{ padding: '1px', verticalAlign: 'middle' }}>
                                             <div className="position-relative" style={{ minWidth: '150px' }}>
                                                 <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
@@ -3984,189 +4691,236 @@ const AddSales = () => {
                 </div>
             )}
 
-            {/* Transaction Modal for Sales */}
             {showTransactionModal && (
-                <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{ display: 'block' }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content">
-                            <div className="modal-header py-1 px-3" style={{ minHeight: '40px' }}>
-                                <h6 className="modal-title mb-0" id="transactionModalLabel" style={{ fontSize: '1rem' }}>
-                                    Last Sales Transactions
-                                </h6>
-                                <button
-                                    type="button"
-                                    className="close p-0"
-                                    onClick={handleTransactionModalClose}
-                                    aria-label="Close"
-                                    style={{
-                                        margin: '0',
-                                        fontSize: '1.2rem',
-                                        lineHeight: '1',
-                                        background: 'none',
-                                        border: 'none'
-                                    }}
-                                >
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
+                <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{
+                    display: 'block',
+                    backgroundColor: 'rgba(0,0,0,0.5)'
+                }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content shadow-sm border-0 rounded-2">
+                            {/* Modal Header */}
+                            <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
+                                <div className="d-flex align-items-center">
+                                    <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
+                                    <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
+                                        {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
+                                    </h6>
+                                </div>
+                                <button type="button" className="btn-close btn-close-white" style={{ fontSize: '0.5rem', padding: '0.5rem' }} onClick={handleTransactionModalClose} aria-label="Close"></button>
                             </div>
 
+                            {/* Modal Body */}
                             <div className="modal-body p-0">
-                                <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                    <table className="table table-sm table-hover mb-0 small">
-                                        <thead>
-                                            <tr className="sticky-top bg-light" style={{ top: 0 }}>
-                                                <th style={{
-                                                    width: '5%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>#</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Date</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Inv. No.</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Type</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>A/c Type</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Pay.Mode</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap',
-                                                    textAlign: 'right'
-                                                }}>Qty.</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Unit</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap',
-                                                    textAlign: 'right'
-                                                }}>Rate</th>
+                                <div className="table-responsive" style={{ maxHeight: '220px', overflowY: 'auto' }} id="transactionTableContainer">
+                                    <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
+                                        <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
+                                            <tr>
+                                                <th className="py-1 px-1 text-center" style={{ width: '5%' }}>#</th>
+                                                <th className="py-1 px-1" style={{ width: '12%' }}>Date</th>
+                                                <th className="py-1 px-1" style={{ width: '12%' }}>Inv.No</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Type</th>
+                                                <th className="py-1 px-1" style={{ width: '10%' }}>A/c</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Pay</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Qty</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Free</th>
+                                                <th className="py-1 px-1" style={{ width: '8%' }}>Unit</th>
+                                                <th className="py-1 px-1 text-end" style={{ width: '13%' }}>Rate</th>
+                                                <th className="py-1 px-1 text-center" style={{ width: '10%' }}></th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {transactions.length > 0 ? (
-                                                transactions.map((transaction, index) => (
-                                                    <tr
-                                                        key={index}
-                                                        style={{
-                                                            cursor: 'pointer',
-                                                            height: '28px',
-                                                            fontSize: '0.8rem'
-                                                        }}
-                                                        onClick={() => {
-                                                            if (transaction.billId && transaction.billId.id) {
-                                                                navigate(`/retailer/sales/${transaction.billId.id}/print`);
-                                                            }
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                if (transaction.billId && transaction.billId.id) {
-                                                                    navigate(`/retailer/sales/${transaction.billId.id}/print`);
+                                                transactions.map((transaction, index) => {
+                                                    // FIX: Use the correct date field based on company format
+                                                    let formattedDate = '';
+                                                    const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+                                                    if (isNepaliFormat) {
+                                                        // For Nepali format, use the NepaliDate field
+                                                        if (transaction.nepaliDate) {
+                                                            try {
+                                                                // If nepaliDate is a string, extract just the date part
+                                                                if (typeof transaction.nepaliDate === 'string') {
+                                                                    if (transaction.nepaliDate.includes('T')) {
+                                                                        formattedDate = transaction.nepaliDate.split('T')[0];
+                                                                    } else if (/^\d{4}-\d{2}-\d{2}$/.test(transaction.nepaliDate)) {
+                                                                        formattedDate = transaction.nepaliDate;
+                                                                    } else {
+                                                                        const dateObj = new Date(transaction.nepaliDate);
+                                                                        if (!isNaN(dateObj.getTime())) {
+                                                                            const nepaliDate = new NepaliDate(dateObj);
+                                                                            formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                                        }
+                                                                    }
+                                                                } else if (transaction.nepaliDate instanceof Date) {
+                                                                    const nepaliDate = new NepaliDate(transaction.nepaliDate);
+                                                                    formattedDate = nepaliDate.format('YYYY-MM-DD');
                                                                 }
-                                                            } else if (e.key === 'Tab') {
-                                                                e.preventDefault();
-                                                                continueButtonRef.current?.focus();
+                                                            } catch (error) {
+                                                                console.error('Error formatting Nepali date:', error);
+                                                                // Fallback to using Date field
+                                                                const dateObj = new Date(transaction.date);
+                                                                if (!isNaN(dateObj.getTime())) {
+                                                                    const nepaliDate = new NepaliDate(dateObj);
+                                                                    formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                                }
                                                             }
-                                                        }}
-                                                        tabIndex={0}
-                                                    >
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{index + 1}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', whiteSpace: 'nowrap' }}>
-                                                            {new NepaliDate(transaction.date).format('YYYY-MM-DD')}
-                                                        </td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', fontWeight: '500' }}>
-                                                            {transaction.billNumber || 'N/A'}
-                                                        </td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.type || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.purchaseSalesType || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.paymentMode || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', textAlign: 'right' }}>{transaction.quantity || 0}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.unit?.name || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', textAlign: 'right', fontWeight: '500' }}>
-                                                            Rs.{transaction.price ? Math.round(transaction.price * 100) / 100 : 0}
-                                                        </td>
-                                                    </tr>
-                                                ))
+                                                        } else if (transaction.date) {
+                                                            // Fallback to date field
+                                                            const dateObj = new Date(transaction.date);
+                                                            if (!isNaN(dateObj.getTime())) {
+                                                                const nepaliDate = new NepaliDate(dateObj);
+                                                                formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                            }
+                                                        }
+                                                    } else {
+                                                        // For English format, use the Date field
+                                                        if (transaction.date) {
+                                                            try {
+                                                                if (typeof transaction.date === 'string') {
+                                                                    if (transaction.date.includes('T')) {
+                                                                        formattedDate = transaction.date.split('T')[0];
+                                                                    } else if (/^\d{4}-\d{2}-\d{2}$/.test(transaction.date)) {
+                                                                        formattedDate = transaction.date;
+                                                                    } else {
+                                                                        const dateObj = new Date(transaction.date);
+                                                                        if (!isNaN(dateObj.getTime())) {
+                                                                            formattedDate = dateObj.toISOString().split('T')[0];
+                                                                        }
+                                                                    }
+                                                                } else if (transaction.date instanceof Date) {
+                                                                    formattedDate = transaction.date.toISOString().split('T')[0];
+                                                                }
+                                                            } catch (error) {
+                                                                console.error('Error formatting English date:', error);
+                                                                formattedDate = 'N/A';
+                                                            }
+                                                        }
+                                                    }
+
+                                                    return (
+                                                        <tr key={index} id={`transaction-row-${index}`} className="transaction-row" data-index={index}
+                                                            style={{
+                                                                cursor: 'pointer',
+                                                                height: '28px',
+                                                                backgroundColor: highlightedRowIndex === index ? '#0d6efd' : 'transparent',
+                                                                color: highlightedRowIndex === index ? 'white' : 'inherit',
+                                                                transition: 'background-color 0.2s ease'
+                                                            }}
+                                                            onMouseEnter={(e) => {
+                                                                if (highlightedRowIndex !== index) {
+                                                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                                                                    e.currentTarget.style.color = 'inherit';
+                                                                }
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                if (highlightedRowIndex !== index) {
+                                                                    e.currentTarget.style.backgroundColor = '';
+                                                                    e.currentTarget.style.color = '';
+                                                                }
+                                                            }}
+                                                            onClick={() => {
+                                                                if (transactionType === 'purchase') {
+                                                                    const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
+                                                                    if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                } else {
+                                                                    const billId = transaction.salesBillId || transaction.billId;
+                                                                    if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                }
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    if (transactionType === 'purchase') {
+                                                                        const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
+                                                                        if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                    } else {
+                                                                        const billId = transaction.salesBillId || transaction.billId;
+                                                                        if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            tabIndex={-1}>
+                                                            <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
+                                                            <td className="py-1 px-1 text-nowrap">{formattedDate || 'N/A'}</td>
+                                                            <td className="py-1 px-1 fw-semibold">{transaction.billNumber || transaction.purchaseBillNumber || 'N/A'}</td>
+                                                            <td className="py-1 px-1">
+                                                                <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
+                                                                    {transaction.type?.substring(0, 4) || 'N/A'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-1 px-1 text-muted">{transaction.purchaseSalesType?.substring(0, 8) || 'N/A'}</td>
+                                                            <td className="py-1 px-1">
+                                                                <span className={`badge ${transaction.paymentMode === 'Cash' ? 'bg-warning' : 'bg-primary'} bg-opacity-25 text-dark px-1 py-0`} style={{ fontSize: '0.6rem' }}>
+                                                                    {transaction.paymentMode?.substring(0, 6) || 'N/A'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-1 px-1 text-end fw-medium">{transaction.quantity || 0}</td>
+                                                            <td className="py-1 px-1 text-end text-secondary">{transaction.bonus || 0}</td>
+                                                            <td className="py-1 px-1">{transaction.unitName || transaction.unit || 'N/A'}</td>
+                                                            <td className="py-1 px-1 text-end fw-semibold">
+                                                                {transactionType === 'purchase'
+                                                                    ? (transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0)
+                                                                    : (transaction.price ? Math.round(transaction.price * 100) / 100 : 0)}
+                                                            </td>
+                                                            <td className="py-1 px-1 text-center">
+                                                                <button className="btn btn-sm btn-outline-primary py-0 px-1" style={{ fontSize: '0.6rem' }}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (transactionType === 'purchase') {
+                                                                            const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
+                                                                            if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                        } else {
+                                                                            const billId = transaction.salesBillId || transaction.billId;
+                                                                            if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                        }
+                                                                    }}>
+                                                                    <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
                                             ) : (
-                                                <tr style={{ height: '28px' }}>
-                                                    <td colSpan="9" className="text-center text-muted align-middle" style={{ padding: '0.15rem 0.3rem' }}>
-                                                        No previous transactions found
+                                                <tr>
+                                                    <td colSpan="11" className="text-center py-3">
+                                                        <div className="d-flex flex-column align-items-center">
+                                                            <i className="bi bi-inbox text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                                            <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>No transactions found</p>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-
-                                {transactions.length > 5 && (
-                                    <div className="text-center py-1" style={{
-                                        fontSize: '0.7rem',
-                                        color: '#6c757d',
-                                        backgroundColor: '#f8f9fa',
-                                        borderTop: '1px solid #dee2e6'
-                                    }}>
-                                        Showing {transactions.length} transactions • Scroll to see more
-                                    </div>
-                                )}
                             </div>
 
-                            <div className="modal-footer py-1 px-3" style={{ minHeight: '45px' }}>
-                                <button
-                                    ref={continueButtonRef}
-                                    type="button"
-                                    className="btn btn-primary btn-sm py-1 px-3"
-                                    onClick={handleTransactionModalClose}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleTransactionModalClose();
-                                        } else if (e.key === 'Tab' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            const firstTransactionRow = document.querySelector('tbody tr');
-                                            if (firstTransactionRow) {
-                                                firstTransactionRow.focus();
-                                            }
-                                        }
-                                    }}
-                                    style={{
-                                        fontSize: '0.8rem',
-                                        lineHeight: '1.2',
-                                        minHeight: '28px'
-                                    }}
-                                >
-                                    Continue
-                                </button>
+                            {/* Modal Footer */}
+                            <div className="modal-footer py-1 px-2 bg-light border-top">
+                                <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
+                                    <div>
+                                        {transactionType === 'purchase' && (
+                                            <button id="showSalesTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                onClick={fetchSalesTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                                <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
+                                                Show Sales Transaction
+                                            </button>
+                                        )}
+                                        {transactionType === 'sales' && (
+                                            <button id="showPurchaseTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                onClick={fetchPurchaseTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                                <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
+                                                Show Purchase Transaction
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button ref={continueButtonRef} type="button" className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
+                                        onClick={handleTransactionModalClose} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                        <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
+                                        Continue
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

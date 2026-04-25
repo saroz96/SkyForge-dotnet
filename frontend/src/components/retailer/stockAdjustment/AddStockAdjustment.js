@@ -20,6 +20,8 @@ const AddStockAdjustment = () => {
     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    const [useVoucherLastDateForStockAdjustment, setUseVoucherLastDateForStockAdjustment] = useState(false);
+    const [lastStockAdjustmentDate, setLastStockAdjustmentDate] = useState(null);
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -144,6 +146,71 @@ const AddStockAdjustment = () => {
         };
     }, []);
 
+    // Fetch date preference setting from backend for Stock Adjustment
+    const fetchDatePreference = async () => {
+        try {
+            console.log('=== fetchDatePreferenceForStockAdjustment CALLED ===');
+            const response = await api.get('/api/retailer/date-preference/stock-adjustment');
+            console.log('Date preference response:', response.data);
+
+            if (response.data.success) {
+                const useVoucherDate = response.data.data.useVoucherLastDate;
+                console.log('useVoucherLastDateForStockAdjustment value from API:', useVoucherDate);
+                setUseVoucherLastDateForStockAdjustment(useVoucherDate);
+                return useVoucherDate;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error fetching date preference:', error);
+            return false;
+        }
+    };
+
+    // Fetch last stock adjustment date from backend
+    const fetchLastStockAdjustmentDate = async () => {
+        try {
+            console.log('=== fetchLastStockAdjustmentDate CALLED ===');
+
+            // Use the endpoint: /api/retailer/last-stock-adjustment-date
+            const response = await api.get('/api/retailer/last-stock-adjustment-date');
+            console.log('Last stock adjustment date response:', response.data);
+
+            if (response.data.success && response.data.data) {
+                const data = response.data.data;
+                const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+                // Get the appropriate date based on company format
+                let lastDate = null;
+                if (isNepaliFormat) {
+                    // Use Nepali date field from response
+                    lastDate = data.nepaliDate;
+                    console.log('Using Nepali date field:', lastDate);
+                } else {
+                    // Use English date field from response
+                    lastDate = data.date;
+                    console.log('Using English date field:', lastDate);
+                }
+
+                if (lastDate) {
+                    // Format the date (it should already be in YYYY-MM-DD format from backend)
+                    let formattedDate = lastDate;
+                    if (typeof lastDate === 'string' && lastDate.includes('T')) {
+                        formattedDate = lastDate.split('T')[0];
+                    }
+                    console.log('Formatted last stock adjustment date:', formattedDate);
+                    setLastStockAdjustmentDate(formattedDate);
+                    return formattedDate;
+                }
+            }
+
+            console.log('No last stock adjustment date found - returning null');
+            return null;
+        } catch (error) {
+            console.error('Error fetching last stock adjustment date:', error);
+            return null;
+        }
+    };
+
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -153,19 +220,66 @@ const AddStockAdjustment = () => {
                 const companyResponse = await api.get('/api/retailer/stock-adjustments');
                 const { data } = companyResponse.data;
 
+                // Set company settings FIRST (needed for date format)
+                const isNepaliFormat = data.company?.dateFormat === 'nepali' ||
+                    data.company?.dateFormat === 'Nepali';
+
+                setCompany({
+                    ...data.company,
+                    dateFormat: data.company?.dateFormat || 'english',
+                    vatEnabled: data.company?.vatEnabled || true
+                });
+
+                // Fetch date preference (useVoucherLastDate setting from backend)
+                const useVoucherDate = await fetchDatePreference();
+
+                // Fetch last stock adjustment date if needed
+                let lastDate = null;
+                if (useVoucherDate) {
+                    lastDate = await fetchLastStockAdjustmentDate();
+                }
+
+                let transactionDate = '';
+                let invoiceDate = '';
+
+                console.log('Setting dates - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+                // Set dates based on preference
+                if (useVoucherDate && lastDate) {
+                    // Use last voucher date
+                    if (isNepaliFormat) {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    } else {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    }
+                    console.log('Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+                } else {
+                    // Use current system date
+                    if (isNepaliFormat) {
+                        transactionDate = currentNepaliDate;
+                        invoiceDate = currentNepaliDate;
+                    } else {
+                        const today = new Date().toISOString().split('T')[0];
+                        transactionDate = today;
+                        invoiceDate = today;
+                    }
+                    console.log('Using SYSTEM date:', { transactionDate, invoiceDate });
+                }
+
                 // Fetch next bill number separately
                 const currentBillNum = await getCurrentBillNumber();
 
-                setCompany(data.company || {});
-
-                // Use the bill number from the separate endpoint
-                setNextBillNumber(currentBillNum);
-
+                // Set form data with the determined dates
                 setFormData(prev => ({
                     ...prev,
-                    billNumber: currentBillNum
+                    billNumber: currentBillNum,
+                    nepaliDate: isNepaliFormat ? transactionDate : '',
+                    billDate: !isNepaliFormat ? invoiceDate : ''
                 }));
 
+                setNextBillNumber(currentBillNum);
                 setIsInitialDataLoaded(true);
             } catch (error) {
                 console.error('Error fetching initial data:', error);
@@ -180,6 +294,43 @@ const AddStockAdjustment = () => {
         };
         fetchInitialData();
     }, []);
+
+    // useEffect(() => {
+    //     const fetchInitialData = async () => {
+    //         try {
+    //             setIsLoading(true);
+
+    //             // Fetch stock adjustment initial data (company, categories, etc.)
+    //             const companyResponse = await api.get('/api/retailer/stock-adjustments');
+    //             const { data } = companyResponse.data;
+
+    //             // Fetch next bill number separately
+    //             const currentBillNum = await getCurrentBillNumber();
+
+    //             setCompany(data.company || {});
+
+    //             // Use the bill number from the separate endpoint
+    //             setNextBillNumber(currentBillNum);
+
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 billNumber: currentBillNum
+    //             }));
+
+    //             setIsInitialDataLoaded(true);
+    //         } catch (error) {
+    //             console.error('Error fetching initial data:', error);
+    //             setNotification({
+    //                 show: true,
+    //                 message: 'Error loading stock adjustment data',
+    //                 type: 'error'
+    //             });
+    //         } finally {
+    //             setIsLoading(false);
+    //         }
+    //     };
+    //     fetchInitialData();
+    // }, []);
 
     useEffect(() => {
         if (isInitialDataLoaded && transactionDateRef.current) {
@@ -738,25 +889,126 @@ const AddStockAdjustment = () => {
     };
 
     // Manual reset function - does NOT increment bill number
+    // const handleManualReset = async () => {
+    //     try {
+    //         setIsLoading(true);
+
+    //         // Get current bill number (does NOT increment)
+    //         const currentBillNum = await getCurrentBillNumber();
+
+    //         // Fetch company settings if needed
+    //         const companyResponse = await api.get('/api/retailer/stock-adjustments');
+    //         const { data } = companyResponse.data;
+
+    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //         const currentRomanDate = new Date().toISOString().split('T')[0];
+
+    //         setFormData({
+    //             adjustmentType: 'xcess',
+    //             nepaliDate: currentNepaliDate,
+    //             billDate: currentRomanDate,
+    //             billNumber: currentBillNum, // Use from separate endpoint
+    //             isVatExempt: 'all',
+    //             note: '',
+    //             vatPercentage: 13,
+    //             items: []
+    //         });
+
+    //         setCompany(data.company || {});
+    //         setNextBillNumber(currentBillNum);
+    //         setItems([]);
+
+    //         setSelectedItemForInsert(null);
+    //         setSelectedItemQuantity(0);
+    //         setSelectedItemRate(0);
+    //         setHeaderSearchQuery('');
+    //         setHeaderLastSearchQuery('');
+    //         setHeaderShouldShowLastSearchResults(false);
+    //         setSelectedItemBatchNumber('');
+    //         setSelectedItemExpiryDate('');
+
+    //         setSearchQuery('');
+    //         setSearchResults([]);
+    //         setSearchPage(1);
+    //         setHasMoreSearchResults(false);
+    //         setTotalSearchItems(0);
+    //         setShowItemDropdown(false);
+
+    //         setTimeout(() => {
+    //             if (company.dateFormat === 'nepali' && nepaliDateRef.current) {
+    //                 nepaliDateRef.current.focus();
+    //             } else if (transactionDateRef.current) {
+    //                 transactionDateRef.current.focus();
+    //             }
+    //         }, 100);
+    //     } catch (err) {
+    //         console.error('Error resetting form:', err);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error refreshing form data',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // };
+
+    // Manual reset function - does NOT increment bill number
     const handleManualReset = async () => {
         try {
             setIsLoading(true);
 
-            // Get current bill number (does NOT increment)
-            const currentBillNum = await getCurrentBillNumber();
-
-            // Fetch company settings if needed
+            // Fetch company settings first to get date format
             const companyResponse = await api.get('/api/retailer/stock-adjustments');
             const { data } = companyResponse.data;
 
-            const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-            const currentRomanDate = new Date().toISOString().split('T')[0];
+            const isNepaliFormat = data.company?.dateFormat === 'nepali' ||
+                data.company?.dateFormat === 'Nepali';
+
+            // Fetch current date preference (don't rely on state, fetch fresh)
+            const useVoucherDate = await fetchDatePreference();
+
+            // Fetch last stock adjustment date if needed
+            let lastDate = null;
+            if (useVoucherDate) {
+                lastDate = await fetchLastStockAdjustmentDate();
+            }
+
+            let transactionDate = '';
+            let invoiceDate = '';
+
+            console.log('handleManualReset - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+            // Set dates based on preference
+            if (useVoucherDate && lastDate) {
+                if (isNepaliFormat) {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                } else {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                }
+                console.log('handleManualReset - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+            } else {
+                if (isNepaliFormat) {
+                    transactionDate = currentNepaliDate;
+                    invoiceDate = currentNepaliDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    transactionDate = today;
+                    invoiceDate = today;
+                }
+                console.log('handleManualReset - Using SYSTEM date:', { transactionDate, invoiceDate });
+            }
+
+            // Get current bill number (does NOT increment)
+            const currentBillNum = await getCurrentBillNumber();
 
             setFormData({
                 adjustmentType: 'xcess',
-                nepaliDate: currentNepaliDate,
-                billDate: currentRomanDate,
-                billNumber: currentBillNum, // Use from separate endpoint
+                nepaliDate: isNepaliFormat ? transactionDate : '',
+                billDate: !isNepaliFormat ? invoiceDate : '',
+                billNumber: currentBillNum,
                 isVatExempt: 'all',
                 note: '',
                 vatPercentage: 13,
@@ -775,6 +1027,7 @@ const AddStockAdjustment = () => {
             setHeaderShouldShowLastSearchResults(false);
             setSelectedItemBatchNumber('');
             setSelectedItemExpiryDate('');
+            setSelectedItemReason('');
 
             setSearchQuery('');
             setSearchResults([]);
@@ -803,22 +1056,119 @@ const AddStockAdjustment = () => {
     };
 
     // Reset after save - gets next bill number (increments)
+    // const resetAfterSave = async () => {
+    //     try {
+    //         // Get next bill number (this increments the counter)
+    //         const currentBillNum = await getCurrentBillNumber();
+
+    //         // Fetch company settings if needed
+    //         const companyResponse = await api.get('/api/retailer/stock-adjustments');
+    //         const { data } = companyResponse.data;
+
+    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //         const currentRomanDate = new Date().toISOString().split('T')[0];
+
+    //         setFormData({
+    //             adjustmentType: 'xcess',
+    //             nepaliDate: currentNepaliDate,
+    //             billDate: currentRomanDate,
+    //             billNumber: currentBillNum,
+    //             isVatExempt: 'all',
+    //             note: '',
+    //             vatPercentage: 13,
+    //             items: []
+    //         });
+
+    //         setCompany(data.company || {});
+    //         setNextBillNumber(currentBillNum);
+    //         setItems([]);
+
+    //         setSelectedItemForInsert(null);
+    //         setSelectedItemQuantity(0);
+    //         setSelectedItemRate(0);
+    //         setHeaderSearchQuery('');
+    //         setHeaderLastSearchQuery('');
+    //         setHeaderShouldShowLastSearchResults(false);
+    //         setSelectedItemBatchNumber('');
+    //         setSelectedItemExpiryDate('');
+
+    //         setSearchQuery('');
+    //         setSearchResults([]);
+    //         setSearchPage(1);
+    //         setHasMoreSearchResults(false);
+    //         setTotalSearchItems(0);
+    //         setShowItemDropdown(false);
+
+    //         setTimeout(() => {
+    //             if (company.dateFormat === 'nepali' && nepaliDateRef.current) {
+    //                 nepaliDateRef.current.focus();
+    //             } else if (transactionDateRef.current) {
+    //                 transactionDateRef.current.focus();
+    //             }
+    //         }, 100);
+    //     } catch (err) {
+    //         console.error('Error resetting after save:', err);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error refreshing form data',
+    //             type: 'error'
+    //         });
+    //     }
+    // };
+
+    // Reset after save - respects date preferences
     const resetAfterSave = async () => {
         try {
-            // Get next bill number (this increments the counter)
-            const currentBillNum = await getCurrentBillNumber();
-
-            // Fetch company settings if needed
+            // Fetch company settings first to get date format
             const companyResponse = await api.get('/api/retailer/stock-adjustments');
             const { data } = companyResponse.data;
 
-            const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-            const currentRomanDate = new Date().toISOString().split('T')[0];
+            const isNepaliFormat = data.company?.dateFormat === 'nepali' ||
+                data.company?.dateFormat === 'Nepali';
+
+            // Fetch current date preference (don't rely on state, fetch fresh)
+            const useVoucherDate = await fetchDatePreference();
+
+            // Fetch last stock adjustment date if needed
+            let lastDate = null;
+            if (useVoucherDate) {
+                lastDate = await fetchLastStockAdjustmentDate();
+            }
+
+            let transactionDate = '';
+            let invoiceDate = '';
+
+            console.log('resetAfterSave - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+            // Set dates based on preference
+            if (useVoucherDate && lastDate) {
+                if (isNepaliFormat) {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                } else {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                }
+                console.log('resetAfterSave - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+            } else {
+                if (isNepaliFormat) {
+                    transactionDate = currentNepaliDate;
+                    invoiceDate = currentNepaliDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    transactionDate = today;
+                    invoiceDate = today;
+                }
+                console.log('resetAfterSave - Using SYSTEM date:', { transactionDate, invoiceDate });
+            }
+
+            // Get current bill number (this increments the counter)
+            const currentBillNum = await getCurrentBillNumber();
 
             setFormData({
                 adjustmentType: 'xcess',
-                nepaliDate: currentNepaliDate,
-                billDate: currentRomanDate,
+                nepaliDate: isNepaliFormat ? transactionDate : '',
+                billDate: !isNepaliFormat ? invoiceDate : '',
                 billNumber: currentBillNum,
                 isVatExempt: 'all',
                 note: '',
@@ -838,6 +1188,7 @@ const AddStockAdjustment = () => {
             setHeaderShouldShowLastSearchResults(false);
             setSelectedItemBatchNumber('');
             setSelectedItemExpiryDate('');
+            setSelectedItemReason('');
 
             setSearchQuery('');
             setSearchResults([]);
@@ -1239,11 +1590,25 @@ const AddStockAdjustment = () => {
         try {
             const totals = calculateTotal();
 
-            // Prepare data according to CreateStockAdjustmentDTO
+            const parseDate = (dateString) => {
+                if (!dateString) return new Date().toISOString();
+
+                // If it's already a valid date string in YYYY-MM-DD format
+                if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                    // Create date at UTC to avoid timezone issues
+                    const date = new Date(dateString);
+                    date.setUTCHours(0, 0, 0, 0);
+                    return date.toISOString();
+                }
+                return new Date(dateString).toISOString();
+            };
+
             const adjustmentData = {
                 adjustmentType: formData.adjustmentType,
-                nepaliDate: formData.nepaliDate,
-                billDate: formData.billDate,
+                // nepaliDate: formData.nepaliDate,
+                // billDate: formData.billDate,
+                nepaliDate: parseDate(formData.nepaliDate),
+                billDate: parseDate(formData.billDate),
                 isVatExempt: formData.isVatExempt,
                 vatPercentage: parseFloat(formData.vatPercentage) || 13,
                 discountPercentage: 0, // Not used in stock adjustment
@@ -2365,194 +2730,6 @@ const AddStockAdjustment = () => {
                                         }}>
                                             Rs. {formatter.format(selectedItemQuantity * selectedItemRate)}
                                         </td>
-
-                                        {/* <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff', position: 'relative' }}>
-                                            <div className="position-relative" ref={activeReasonIndex === -1 ? reasonDropdownRef : null}>
-                                                <input
-                                                    type="text"
-                                                    className="form-control form-control-sm"
-                                                    placeholder="Reason"
-                                                    id='selectedItemReason'
-                                                    value={selectedItemReason}
-                                                    readOnly
-                                                    onClick={() => {
-                                                        setShowReasonDropdown(true);
-                                                        setActiveReasonIndex(-1);
-                                                    }}
-                                                    onFocus={() => {
-                                                        setShowReasonDropdown(true);
-                                                        setActiveReasonIndex(-1);
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' || e.key === ' ') {
-                                                            e.preventDefault();
-                                                            setShowReasonDropdown(true);
-                                                            setActiveReasonIndex(-1);
-
-                                                            // Focus the first reason item after dropdown opens
-                                                            setTimeout(() => {
-                                                                const firstReasonItem = document.querySelector('#reasonDropdown .dropdown-item');
-                                                                if (firstReasonItem) {
-                                                                    firstReasonItem.focus();
-                                                                }
-                                                            }, 50);
-                                                        } else if (e.key === 'Tab') {
-                                                            e.preventDefault();
-                                                            // Allow tab to insert button even without reason
-                                                            document.getElementById('insertButton')?.focus();
-                                                        } else if (e.key === 'Escape') {
-                                                            setShowReasonDropdown(false);
-                                                            setActiveReasonIndex(-1);
-                                                        } else if (e.key === 'ArrowDown' && !showReasonDropdown) {
-                                                            e.preventDefault();
-                                                            setShowReasonDropdown(true);
-                                                            setActiveReasonIndex(-1);
-                                                            setTimeout(() => {
-                                                                const firstReasonItem = document.querySelector('#reasonDropdown .dropdown-item');
-                                                                if (firstReasonItem) {
-                                                                    firstReasonItem.focus();
-                                                                }
-                                                            }, 50);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '20px',
-                                                        fontSize: '0.75rem',
-                                                        padding: '0 4px',
-                                                        backgroundColor: '#ffffff',
-                                                        cursor: 'pointer',
-                                                        borderColor: '#ced4da' // Normal border color (not required)
-                                                    }}
-                                                />
-                                                <small
-                                                    className="position-absolute"
-                                                    style={{
-                                                        right: '2px',
-                                                        top: '2px',
-                                                        fontSize: '0.6rem',
-                                                        color: '#6c757d',
-                                                        pointerEvents: 'none'
-                                                    }}
-                                                >
-                                                    ▼
-                                                </small>
-
-                                                {showReasonDropdown && activeReasonIndex === -1 && (
-                                                    <div
-                                                        id="reasonDropdown"
-                                                        className="dropdown-menu show"
-                                                        style={{
-                                                            position: 'absolute',
-                                                            top: '100%',
-                                                            left: 0,
-                                                            width: '180px',
-                                                            maxHeight: '200px',
-                                                            overflowY: 'auto',
-                                                            zIndex: 1050,
-                                                            padding: '4px 0',
-                                                            fontSize: '0.75rem',
-                                                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Escape') {
-                                                                e.preventDefault();
-                                                                setShowReasonDropdown(false);
-                                                                setActiveReasonIndex(-1);
-                                                                document.getElementById('selectedItemReason')?.focus();
-                                                            }
-                                                        }}
-                                                    >
-                                                        {getReasonOptions().map((reason, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                className="dropdown-item"
-                                                                tabIndex={0}
-                                                                data-index={idx}
-                                                                style={{
-                                                                    padding: '4px 8px',
-                                                                    cursor: 'pointer',
-                                                                    fontSize: '0.75rem',
-                                                                    backgroundColor: selectedItemReason === reason ? '#e7f3ff' : 'transparent',
-                                                                    outline: 'none'
-                                                                }}
-                                                                onClick={() => {
-                                                                    setSelectedItemReason(reason);
-                                                                    setShowReasonDropdown(false);
-                                                                    setActiveReasonIndex(-1);
-                                                                    // Focus on insert button after selection
-                                                                    setTimeout(() => {
-                                                                        document.getElementById('insertButton')?.focus();
-                                                                    }, 50);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault();
-                                                                        setSelectedItemReason(reason);
-                                                                        setShowReasonDropdown(false);
-                                                                        setActiveReasonIndex(-1);
-                                                                        // Focus on insert button after selection
-                                                                        setTimeout(() => {
-                                                                            document.getElementById('insertButton')?.focus();
-                                                                        }, 50);
-                                                                    } else if (e.key === 'ArrowDown') {
-                                                                        e.preventDefault();
-                                                                        const nextElement = e.currentTarget.nextElementSibling;
-                                                                        if (nextElement) {
-                                                                            nextElement.focus();
-                                                                        }
-                                                                    } else if (e.key === 'ArrowUp') {
-                                                                        e.preventDefault();
-                                                                        const prevElement = e.currentTarget.previousElementSibling;
-                                                                        if (prevElement) {
-                                                                            prevElement.focus();
-                                                                        } else {
-                                                                            // If first item, go back to reason input
-                                                                            document.getElementById('selectedItemReason')?.focus();
-                                                                        }
-                                                                    } else if (e.key === 'Escape') {
-                                                                        e.preventDefault();
-                                                                        setShowReasonDropdown(false);
-                                                                        setActiveReasonIndex(-1);
-                                                                        document.getElementById('selectedItemReason')?.focus();
-                                                                    }
-                                                                }}
-                                                                onMouseEnter={(e) => {
-                                                                    e.target.style.backgroundColor = '#0d6efd'; // Blue background on hover
-                                                                    e.target.style.color = 'white';
-                                                                }}
-                                                                onMouseLeave={(e) => {
-                                                                    e.target.style.backgroundColor = selectedItemReason === reason ? '#e7f3ff' : 'transparent';
-                                                                    e.target.style.color = 'inherit';
-                                                                }}
-                                                                onFocus={(e) => {
-                                                                    // Remove active class from all items
-                                                                    document.querySelectorAll('#reasonDropdown .dropdown-item').forEach(item => {
-                                                                        item.classList.remove('active');
-                                                                        item.style.backgroundColor = '';
-                                                                        item.style.color = '';
-                                                                    });
-                                                                    e.target.classList.add('active');
-                                                                    e.target.style.backgroundColor = '#0d6efd'; // Blue background on focus
-                                                                    e.target.style.color = 'white';
-                                                                }}
-                                                                onBlur={(e) => {
-                                                                    if (selectedItemReason !== reason) {
-                                                                        e.target.style.backgroundColor = 'transparent';
-                                                                        e.target.style.color = 'inherit';
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <i className={`bi ${formData.adjustmentType === 'xcess'
-                                                                    ? 'bi-plus-circle'
-                                                                    : 'bi-dash-circle'
-                                                                    } me-2`} style={{ fontSize: '0.7rem' }}></i>
-                                                                {reason}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td> */}
                                         <td width="10%" style={{
                                             padding: '2px',
                                             textAlign: 'center',
@@ -3081,116 +3258,6 @@ const AddStockAdjustment = () => {
                                 </tbody>
                             </table>
                         </div>
-
-                        {/* Description and Action Buttons */}
-                        {/* <div className="row g-2 mb-2">
-                            <div className="col-12 col-md-8">
-                                <div className="position-relative">
-                                    <input
-                                        type="text"
-                                        className="form-control form-control-sm"
-                                        id="note"
-                                        name="note"
-                                        value={formData.note}
-                                        onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                                        placeholder="add note"
-                                        autoComplete='off'
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                document.getElementById('saveBill')?.focus();
-                                            }
-                                        }}
-                                        style={{
-                                            height: '26px',
-                                            fontSize: '0.875rem',
-                                            paddingTop: '0.75rem',
-                                            width: '100%'
-                                        }}
-                                    />
-                                    <label
-                                        className="position-absolute"
-                                        style={{
-                                            top: '-0.5rem',
-                                            left: '0.75rem',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: 'white',
-                                            padding: '0 0.25rem',
-                                            color: '#6c757d',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        Description:
-                                    </label>
-                                </div>
-                            </div>
-                            <div className="col-12 col-md-4">
-                                <div className="d-flex justify-content-end gap-2">
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm d-flex align-items-center"
-                                        onClick={handleManualReset}
-                                        disabled={isSaving}
-                                        style={{
-                                            height: '26px',
-                                            padding: '0 12px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        <i className="bi bi-arrow-counterclockwise me-1" style={{ fontSize: '0.9rem' }}></i> Reset
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="btn btn-primary btn-sm d-flex align-items-center"
-                                        id="saveBill"
-                                        disabled={isSaving}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                handleSubmit(e);
-                                            }
-                                        }}
-                                        style={{
-                                            height: '26px',
-                                            padding: '0 16px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        {isSaving ? (
-                                            <>
-                                                <span
-                                                    className="spinner-border spinner-border-sm me-2"
-                                                    role="status"
-                                                    aria-hidden="true"
-                                                    style={{ width: '10px', height: '10px' }}
-                                                ></span>
-                                                Saving...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <i className="bi bi-save me-1" style={{ fontSize: '0.9rem' }}></i> Save
-                                            </>
-                                        )}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn btn-warning btn-sm d-flex align-items-center"
-                                        onClick={(e) => handleSubmit(e, true)}
-                                        disabled={isSaving}
-                                        style={{
-                                            height: '26px',
-                                            padding: '0 12px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        <i className="bi bi-printer me-1" style={{ fontSize: '0.9rem' }}></i> Print
-                                    </button>
-                                </div>
-                            </div>
-                        </div> */}
 
                         {/* Description and Action Buttons */}
                         <div className="row g-2 mb-2">

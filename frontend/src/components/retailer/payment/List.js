@@ -1554,7 +1554,7 @@ const PaymentsList = () => {
                                     whiteSpace: 'nowrap'
                                 }}
                             >
-                                <i className="fas fa-wallet me-1"></i>New Voucher
+                                <i className="fas fa-wallet me-1"></i>New Vch.
                             </button>
                             <button
                                 className="btn btn-secondary btn-sm d-flex align-items-center"

@@ -31,6 +31,110 @@ namespace SkyForge.Controllers.Retailer
             _receiptService = receiptService;
         }
 
+        // GET: api/retailer/last-receipt-date
+        [HttpGet("last-receipt-date")]
+        public async Task<IActionResult> GetLastReceiptDate()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetLastReceiptDate Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                    return Unauthorized(new { success = false, error = "Invalid user token" });
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "No company selected" });
+
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Get company to determine date format FIRST
+                var company = await _context.Companies.FindAsync(companyIdGuid);
+                bool isNepaliFormat = company?.DateFormat == DateFormatEnum.Nepali;
+
+                // Get the most recent purchase bill based on the company's date format
+                IQueryable<Receipt> query = _context.Receipts
+                    .Where(p => p.CompanyId == companyIdGuid && p.FiscalYearId == fiscalYearIdGuid);
+
+                IOrderedQueryable<Receipt> orderedQuery;
+
+                if (isNepaliFormat)
+                {
+                    // For Nepali format, order by nepaliDate descending (this is the Nepali date field)
+                    orderedQuery = query.OrderByDescending(p => p.NepaliDate)
+                                       .ThenByDescending(p => p.CreatedAt);
+                    _logger.LogInformation("Ordering by Nepali date (nepaliDate field)");
+                }
+                else
+                {
+                    // For English format, order by Date descending
+                    orderedQuery = query.OrderByDescending(p => p.Date)
+                                       .ThenByDescending(p => p.CreatedAt);
+                    _logger.LogInformation("Ordering by English date (Date field)");
+                }
+
+                var lastReceipt = await orderedQuery
+                    .Select(p => new { p.Date, p.NepaliDate, p.BillNumber })
+                    .FirstOrDefaultAsync();
+
+                if (lastReceipt == null)
+                {
+                    _logger.LogInformation("No receipt bills found");
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            date = (string)null,
+                            nepaliDate = (string)null,
+                            billNumber = (string)null
+                        }
+                    });
+                }
+
+                // Format dates as strings in YYYY-MM-DD format
+                string dateString = null;
+                string nepaliDateString = null;
+
+                if (lastReceipt.Date != null)
+                    dateString = lastReceipt.Date.ToString("yyyy-MM-dd");
+
+                if (lastReceipt.NepaliDate != null)
+                    nepaliDateString = lastReceipt.NepaliDate.ToString("yyyy-MM-dd");
+
+                _logger.LogInformation($"Last receipt date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastReceipt.BillNumber}, IsNepaliFormat={isNepaliFormat}");
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        date = dateString,
+                        nepaliDate = nepaliDateString,
+                        billNumber = lastReceipt.BillNumber,
+                        dateFormat = isNepaliFormat ? "nepali" : "english"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting last receipt date");
+                return StatusCode(500, new { success = false, error = "Internal Server Error" });
+            }
+        }
+
+
         // GET: api/retailer/receipts
         [HttpGet("receipts")]
         public async Task<IActionResult> GetReceiptFormData()
@@ -1952,6 +2056,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-   
+
     }
 }

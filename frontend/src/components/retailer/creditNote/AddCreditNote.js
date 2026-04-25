@@ -1,1026 +1,3 @@
-// import React, { useState, useEffect, useRef } from 'react';
-// import { useNavigate } from 'react-router-dom';
-// import axios from 'axios';
-// import NepaliDate from 'nepali-date-converter';
-// import NotificationToast from '../../NotificationToast';
-// import Header from '../Header';
-// import ProductModal from '../dashboard/modals/ProductModal';
-
-// const AddCreditNote = () => {
-//     const navigate = useNavigate();
-//     const accountSearchRef = useRef(null);
-//     const [printAfterSave, setPrintAfterSave] = useState(
-//         localStorage.getItem('printAfterSaveCreditNote') === 'true' || false
-//     );
-//     const [isSaving, setIsSaving] = useState(false);
-//     const [notification, setNotification] = useState({
-//         show: false,
-//         message: '',
-//         type: 'success'
-//     });
-//     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-
-//     const [formData, setFormData] = useState({
-//         billDate: new Date().toISOString().split('T')[0],
-//         nepaliDate: currentNepaliDate,
-//         description: '',
-//         entries: [
-//             {
-//                 id: Date.now() + Math.random(),
-//                 creditAccountId: '',
-//                 creditAccountName: '',
-//                 creditAmount: '',
-//                 debitAccountId: '',
-//                 debitAccountName: '',
-//                 debitAmount: ''
-//             }
-//         ]
-//     });
-
-//     const [accounts, setAccounts] = useState([]);
-//     const [nextBillNumber, setNextBillNumber] = useState('');
-//     const [companyDateFormat, setCompanyDateFormat] = useState('nepali');
-//     const [isLoading, setIsLoading] = useState(true);
-//     const [error, setError] = useState(null);
-//     const [showAccountModal, setShowAccountModal] = useState(false);
-//     const [filteredAccounts, setFilteredAccounts] = useState([]);
-//     const [currentRow, setCurrentRow] = useState({ type: '', index: -1, field: '' });
-//     const searchRef = useRef(null);
-//     const lastRowRef = useRef(null);
-//     const [showProductModal, setShowProductModal] = useState(false);
-
-//     const api = axios.create({
-//         baseURL: process.env.REACT_APP_API_BASE_URL,
-//         withCredentials: true,
-//     });
-
-//     useEffect(() => {
-//         // Add F9 key handler here
-//         const handleKeyDown = (e) => {
-//             if (e.key === 'F9') {
-//                 e.preventDefault();
-//                 setShowProductModal(prev => !prev);
-//             }
-//         };
-//         window.addEventListener('keydown', handleKeyDown);
-//         return () => {
-//             window.removeEventListener('keydown', handleKeyDown);
-//         };
-//     }, []);
-
-//     useEffect(() => {
-//         const fetchCreditNoteFormData = async () => {
-//             try {
-//                 const response = await api.get('/api/retailer/credit-note');
-//                 const { data } = response;
-
-//                 setAccounts(data.data.accounts);
-//                 setNextBillNumber(data.data.nextBillNumber);
-//                 setCompanyDateFormat(data.data.companyDateFormat);
-//                 setIsLoading(false);
-//             } catch (err) {
-//                 setError(err.response?.data?.message || 'Failed to load credit note form');
-//                 setIsLoading(false);
-//             }
-//         };
-
-//         fetchCreditNoteFormData();
-//     }, []);
-
-//     // Auto-add new row when user types in the last row
-//     useEffect(() => {
-//         if (lastRowRef.current) {
-//             lastRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-//         }
-//     }, [formData.entries]);
-
-//     const handleInputChange = (e) => {
-//         const { name, value } = e.target;
-//         setFormData(prev => ({ ...prev, [name]: value }));
-//     };
-
-//     const handleRowChange = (index, field, value) => {
-//         setFormData(prev => {
-//             const newEntries = [...prev.entries];
-//             newEntries[index] = { ...newEntries[index], [field]: value };
-
-//             // If this is the last row and user is entering data in the last amount field, add a new row
-//             if (index === newEntries.length - 1 && value !== '' &&
-//                 (field === 'debitAmount' || field === 'creditAmount')) {
-//                 newEntries.push({
-//                     id: Date.now() + Math.random(),
-//                     creditAccountId: '',
-//                     creditAccountName: '',
-//                     creditAmount: '',
-//                     debitAccountId: '',
-//                     debitAccountName: '',
-//                     debitAmount: ''
-//                 });
-//             }
-
-//             return { ...prev, entries: newEntries };
-//         });
-//     };
-
-//     const removeRow = (index) => {
-//         if (formData.entries.length <= 1) return;
-
-//         setFormData(prev => {
-//             const newEntries = [...prev.entries];
-//             newEntries.splice(index, 1);
-//             return { ...prev, entries: newEntries };
-//         });
-//     };
-
-//     const calculateTotal = (type) => {
-//         return formData.entries.reduce((total, entry) => {
-//             const amount = type === 'debit' ? entry.debitAmount : entry.creditAmount;
-//             return total + (parseFloat(amount) || 0);
-//         }, 0);
-//     };
-
-//     const openAccountModal = (type, index, field) => {
-//         setCurrentRow({ type, index, field });
-//         setShowAccountModal(true);
-//         setFilteredAccounts(accounts);
-//         setTimeout(() => searchRef.current?.focus(), 100);
-//     };
-
-//     const handleAccountSearch = (e) => {
-//         const searchText = e.target.value.toLowerCase();
-//         const filtered = accounts.filter(account =>
-//             account.name.toLowerCase().includes(searchText) ||
-//             (account.code && account.code.toString().toLowerCase().includes(searchText))
-//         );
-//         setFilteredAccounts(filtered);
-//     };
-
-//     const selectAccount = (account) => {
-//         const { type, index, field } = currentRow;
-//         const accountField = field === 'debit' ? 'debitAccount' : 'creditAccount';
-
-//         handleRowChange(index, `${accountField}Id`, account._id);
-//         handleRowChange(index, `${accountField}Name`, `${account.code} - ${account.name}`);
-//         setShowAccountModal(false);
-
-//         // Focus on the amount field of the selected account
-//         setTimeout(() => {
-//             document.getElementById(`${field}-amount-${index}`)?.focus();
-//         }, 100);
-//     };
-
-//     const resetForm = async () => {
-//         try {
-//             // Fetch fresh data from the backend
-//             const response = await api.get('/api/retailer/credit-note');
-//             const { data } = response;
-
-//             // Update the next bill number
-//             setNextBillNumber(data.data.nextBillNumber);
-
-//             // Reset form with fresh data
-//             const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-//             setFormData({
-//                 billDate: new Date().toISOString().split('T')[0],
-//                 nepaliDate: currentNepaliDate,
-//                 description: '',
-//                 entries: [
-//                     {
-//                         id: Date.now() + Math.random(),
-//                         creditAccountId: '',
-//                         creditAccountName: '',
-//                         creditAmount: '',
-//                         debitAccountId: '',
-//                         debitAccountName: '',
-//                         debitAmount: ''
-//                     }
-//                 ]
-//             });
-
-//             // Focus back to the date field
-//             setTimeout(() => {
-//                 if (companyDateFormat === 'nepali') {
-//                     document.getElementById('nepaliDate')?.focus();
-//                 } else {
-//                     document.getElementById('billDate')?.focus();
-//                 }
-//             }, 100);
-
-//         } catch (err) {
-//             console.error('Error resetting form:', err);
-//             setNotification({
-//                 show: true,
-//                 message: 'Error refreshing form data',
-//                 type: 'error'
-//             });
-//         }
-//     };
-
-//     const handleSubmit = async (print = false) => {
-//         // Filter out empty rows and validate
-//         const nonEmptyEntries = formData.entries.filter(entry =>
-//             (entry.debitAccountId && entry.debitAmount) ||
-//             (entry.creditAccountId && entry.creditAmount)
-//         );
-
-//         // Validate we have at least one debit and one credit entry
-//         const hasDebit = nonEmptyEntries.some(entry => entry.debitAccountId && entry.debitAmount);
-//         const hasCredit = nonEmptyEntries.some(entry => entry.creditAccountId && entry.creditAmount);
-
-//         if (!hasDebit || !hasCredit) {
-//             setNotification({
-//                 show: true,
-//                 message: 'At least one debit and one credit entry is required',
-//                 type: 'error'
-//             });
-//             return;
-//         }
-
-//         // Validate totals
-//         const totalDebit = calculateTotal('debit');
-//         const totalCredit = calculateTotal('credit');
-
-//         if (totalDebit !== totalCredit) {
-//             setNotification({
-//                 show: true,
-//                 message: 'Total debit and credit amounts must be equal',
-//                 type: 'error'
-//             });
-//             return;
-//         }
-
-//         setIsSaving(true);
-
-//         try {
-//             // Prepare debit and credit arrays for submission
-//             const debitAccounts = [];
-//             const creditAccounts = [];
-
-//             formData.entries.forEach(entry => {
-//                 if (entry.debitAccountId && entry.debitAmount) {
-//                     debitAccounts.push({
-//                         account: entry.debitAccountId,
-//                         debit: parseFloat(entry.debitAmount)
-//                     });
-//                 }
-
-//                 if (entry.creditAccountId && entry.creditAmount) {
-//                     creditAccounts.push({
-//                         account: entry.creditAccountId,
-//                         credit: parseFloat(entry.creditAmount)
-//                     });
-//                 }
-//             });
-
-//             const payload = {
-//                 billDate: formData.billDate,
-//                 nepaliDate: formData.nepaliDate,
-//                 description: formData.description,
-//                 debitAccounts,
-//                 creditAccounts,
-//                 print: print || printAfterSave
-//             };
-
-//             const response = await api.post('/api/retailer/credit-note', payload);
-
-//             setNotification({
-//                 show: true,
-//                 message: 'Credit note saved successfully!',
-//                 type: 'success'
-//             });
-
-//             await resetForm();
-
-//             // If print was requested, fetch print data and print immediately
-//             if ((print || printAfterSave) && response.data.data?.creditNote?._id) {
-//                 try {
-//                     const printResponse = await api.get(`/api/retailer/credit-note/${response.data.data.creditNote._id}/print`);
-//                     printCreditNoteImmediately(printResponse.data.data);
-//                 } catch (printError) {
-//                     console.error('Error fetching print data:', printError);
-//                     setNotification({
-//                         show: true,
-//                         message: 'Credit note saved but failed to load print data',
-//                         type: 'warning'
-//                     });
-//                 }
-//             }
-//         } catch (err) {
-//             setNotification({
-//                 show: true,
-//                 message: err.response?.data?.message || 'Failed to save credit note',
-//                 type: 'error'
-//             });
-//         } finally {
-//             setIsSaving(false);
-//         }
-//     };
-
-//     const handlePrintAfterSaveChange = (e) => {
-//         const isChecked = e.target.checked;
-//         setPrintAfterSave(isChecked);
-//         localStorage.setItem('printAfterSaveCreditNote', isChecked);
-//     };
-
-//     const handleKeyDown = (e, currentFieldId) => {
-//         if (e.key === 'Enter') {
-//             e.preventDefault();
-//             const form = e.target.form;
-//             const inputs = Array.from(form.querySelectorAll('input, select, textarea')).filter(
-//                 el => !el.hidden && !el.disabled && el.offsetParent !== null
-//             );
-//             const currentIndex = inputs.findIndex(input => input.id === currentFieldId);
-
-//             if (currentIndex > -1 && currentIndex < inputs.length - 1) {
-//                 inputs[currentIndex + 1].focus();
-//             }
-//         }
-//     };
-
-//     const printCreditNoteImmediately = (printData) => {
-//         // Create a temporary div to hold the print content
-//         const tempDiv = document.createElement('div');
-//         tempDiv.style.position = 'absolute';
-//         tempDiv.style.left = '-9999px';
-//         document.body.appendChild(tempDiv);
-
-//         // Create the printable content
-//         tempDiv.innerHTML = `
-//         <div id="printableContent">
-//             <div class="print-voucher-container">
-//                 <div class="print-voucher-header">
-//                     <div class="print-company-name">${printData.currentCompanyName}</div>
-//                     <div class="print-company-details">
-//                         ${printData.currentCompany.address}-${printData.currentCompany.ward}, ${printData.currentCompany.city}
-//                         <br />
-//                         Tel: ${printData.currentCompany.phone} | PAN: ${printData.currentCompany.pan || 'N/A'}
-//                     </div>
-//                     <div class="print-voucher-title">CREDIT NOTE</div>
-//                 </div>
-
-//                 <div class="print-voucher-details">
-//                     <div>
-//                         <div><strong>Vch. No:</strong> ${printData.creditNote.billNumber}</div>
-//                     </div>
-//                     <div>
-//                         <div><strong>Date:</strong> ${new Date(printData.creditNote.date).toLocaleDateString()}</div>
-//                     </div>
-//                 </div>
-
-//                 <table class="print-voucher-table">
-//                     <thead>
-//                         <tr>
-//                             <th>S.N</th>
-//                             <th>Particular</th>
-//                             <th>Debit Amount</th>
-//                             <th>Credit Amount</th>
-//                         </tr>
-//                     </thead>
-//                     <tbody>
-//                         ${printData.creditNote.debitAccounts.map((account, index) => `
-//                             <tr>
-//                                 <td>${index + 1}</td>
-//                                 <td>${account.account?.name || 'N/A'}</td>
-//                                 <td>${account.debit?.toFixed(2)}</td>
-//                                 <td>0.00</td>
-//                             </tr>
-//                         `).join('')}
-//                         ${printData.creditNote.creditAccounts.map((account, index) => `
-//                             <tr>
-//                                 <td>${printData.creditNote.debitAccounts.length + index + 1}</td>
-//                                 <td>${account.account?.name || 'N/A'}</td>
-//                                 <td>0.00</td>
-//                                 <td>${account.credit?.toFixed(2)}</td>
-//                             </tr>
-//                         `).join('')}
-//                     </tbody>
-//                     <tfoot>
-//                         <tr>
-//                             <th colSpan="2">Total</th>
-//                             <th>${printData.creditNote.debitAccounts.reduce((sum, acc) => sum + (acc.debit || 0), 0).toFixed(2)}</th>
-//                             <th>${printData.creditNote.creditAccounts.reduce((sum, acc) => sum + (acc.credit || 0), 0).toFixed(2)}</th>
-//                         </tr>
-//                     </tfoot>
-//                 </table>
-
-//                 <div style="margin-top: 3mm;">
-//                     <strong>Note:</strong> ${printData.creditNote.description || 'N/A'}
-//                 </div>
-
-//                 <div class="print-signature-area">
-//                     <div class="print-signature-box">
-//                         <div style="margin-bottom: 1mm;">
-//                             <strong>${printData.creditNote.user?.name || 'N/A'}</strong>
-//                         </div>
-//                         Prepared By
-//                     </div>
-//                     <div class="print-signature-box">
-//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
-//                         Checked By
-//                     </div>
-//                     <div class="print-signature-box">
-//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
-//                         Approved By
-//                     </div>
-//                 </div>
-//             </div>
-//         </div>
-//     `;
-
-//         // Add print styles
-//         const styles = `
-//         @page {
-//             size: A4;
-//             margin: 5mm;
-//         }
-//         body {
-//             font-family: 'Arial Narrow', Arial, sans-serif;
-//             font-size: 9pt;
-//             line-height: 1.2;
-//             color: #000;
-//             background: white;
-//             margin: 0;
-//             padding: 0;
-//         }
-//         .print-voucher-container {
-//             width: 100%;
-//             max-width: 210mm;
-//             margin: 0 auto;
-//             padding: 2mm;
-//         }
-//         .print-voucher-header {
-//             text-align: center;
-//             margin-bottom: 3mm;
-//             border-bottom: 1px dashed #000;
-//             padding-bottom: 2mm;
-//         }
-//         .print-voucher-title {
-//             font-size: 12pt;
-//             font-weight: bold;
-//             margin: 2mm 0;
-//             text-transform: uppercase;
-//             text-decoration: underline;
-//             letter-spacing: 1px;
-//         }
-//         .print-company-name {
-//             font-size: 16pt;
-//             font-weight: bold;
-//         }
-//         .print-company-details {
-//             font-size: 8pt;
-//             margin: 1mm 0;
-//         }
-//         .print-voucher-details {
-//             display: flex;
-//             justify-content: space-between;
-//             margin: 2mm 0;
-//             font-size: 8pt;
-//         }
-//         .print-voucher-table {
-//             width: 100%;
-//             border-collapse: collapse;
-//             margin: 3mm 0;
-//             font-size: 8pt;
-//         }
-//         .print-voucher-table thead {
-//             border-top: 1px dashed #000;
-//             border-bottom: 1px dashed #000;
-//         }
-//         .print-voucher-table th {
-//             background-color: transparent;
-//             border: 1px solid #000;
-//             padding: 1mm;
-//             text-align: left;
-//             font-weight: bold;
-//             background-color: #f0f0f0;
-//         }
-//         .print-voucher-table td {
-//             border: 1px solid #000;
-//             padding: 1mm;
-//         }
-//         .print-text-right {
-//             text-align: right;
-//         }
-//         .print-text-center {
-//             text-align: center;
-//         }
-//         .print-signature-area {
-//             display: flex;
-//             justify-content: space-between;
-//             margin-top: 5mm;
-//             font-size: 8pt;
-//         }
-//         .print-signature-box {
-//             text-align: center;
-//             width: 30%;
-//             border-top: 1px dashed #000;
-//             padding-top: 1mm;
-//             font-weight: bold;
-//         }
-//     `;
-
-//         // Create print window
-//         const printWindow = window.open('', '_blank');
-//         printWindow.document.write(`
-//         <html>
-//             <head>
-//                 <title>Credit_Note_${printData.creditNote.billNumber}</title>
-//                 <style>${styles}</style>
-//             </head>
-//             <body>
-//                 ${tempDiv.innerHTML}
-//                 <script>
-//                     window.onload = function() {
-//                         setTimeout(function() {
-//                             window.print();
-//                             window.close();
-//                         }, 200);
-//                     };
-//                 </script>
-//             </body>
-//         </html>
-//     `);
-//         printWindow.document.close();
-
-//         // Clean up
-//         document.body.removeChild(tempDiv);
-//     };
-
-//     if (isLoading) return <div className="text-center mt-5">Loading...</div>;
-//     if (error) return <div className="alert alert-danger mt-5">{error}</div>;
-
-//     return (
-//         <div className='Container-fluid'>
-//             <Header />
-//             <div className="container mt-4 wow-form">
-//                 <div className="card shadow-lg p-4 animate__animated animate__fadeInUp">
-//                     <div className="card-header bg-primary text-white">
-//                         <h5 className="card-title mb-0">Credit Note Entry</h5>
-//                     </div>
-//                     <div className="card-body">
-//                         <form id='creditNoteForm' onSubmit={(e) => {
-//                             e.preventDefault();
-//                             handleSubmit(false);
-//                         }}>
-//                             {/* Header Section */}
-//                             <div className="form-group row mb-3">
-//                                 {companyDateFormat === 'nepali' ? (
-//                                     <div className="col-md-3">
-//                                         <label htmlFor="nepaliDate">Date:</label>
-//                                         <input
-//                                             type="text"
-//                                             name="nepaliDate"
-//                                             id="nepaliDate"
-//                                             className="form-control"
-//                                             required
-//                                             autoComplete='off'
-//                                             value={formData.nepaliDate}
-//                                             onChange={handleInputChange}
-//                                             autoFocus
-//                                             onKeyDown={(e) => {
-//                                                 if (e.key === 'Enter') {
-//                                                     handleKeyDown(e, 'nepaliDate');
-//                                                 }
-//                                             }}
-//                                         />
-//                                     </div>
-//                                 ) : (
-//                                     <div className="col-md-3">
-//                                         <label htmlFor="billDate">Date:</label>
-//                                         <input
-//                                             type="date"
-//                                             name="billDate"
-//                                             id="billDate"
-//                                             className="form-control"
-//                                             value={formData.billDate}
-//                                             onChange={handleInputChange}
-//                                             autoFocus
-//                                             onKeyDown={(e) => {
-//                                                 if (e.key === 'Enter') {
-//                                                     handleKeyDown(e, 'billDate');
-//                                                 }
-//                                             }}
-//                                         />
-//                                     </div>
-//                                 )}
-
-//                                 <div className="col-md-3">
-//                                     <label htmlFor="billNumber">Vch. No:</label>
-//                                     <input
-//                                         type="text"
-//                                         name="billNumber"
-//                                         id="billNumber"
-//                                         className="form-control"
-//                                         value={nextBillNumber}
-//                                         onKeyDown={(e) => {
-//                                             if (e.key === 'Enter') {
-//                                                 handleKeyDown(e, 'billNumber');
-//                                             }
-//                                         }}
-//                                         readOnly
-//                                     />
-//                                 </div>
-
-//                                 <div className="col-md-6">
-//                                     <label htmlFor="description">Description:</label>
-//                                     <input
-//                                         type="text"
-//                                         name="description"
-//                                         id="description"
-//                                         className="form-control"
-//                                         placeholder="Enter description"
-//                                         value={formData.description}
-//                                         onChange={handleInputChange}
-//                                         onKeyDown={(e) => {
-//                                             if (e.key === 'Enter') {
-//                                                 handleKeyDown(e, 'description');
-//                                             }
-//                                         }}
-//                                         autoComplete='off'
-//                                     />
-//                                 </div>
-//                             </div>
-
-//                             {/* Credit Note Entries Table */}
-//                             <div className="mb-4">
-//                                 <div className="d-flex justify-content-between align-items-center mb-2">
-//                                     <h6 className="text-primary">Credit Note Entries</h6>
-//                                     <span className="badge bg-info">
-//                                         {formData.entries.filter(entry =>
-//                                             (entry.debitAccountId && entry.debitAmount) ||
-//                                             (entry.creditAccountId && entry.creditAmount)
-//                                         ).length} entries
-//                                     </span>
-//                                 </div>
-
-//                                 <div className="table-responsive">
-//                                     <table className="table table-sm">
-//                                         <thead>
-//                                             <tr>
-//                                                 <th width="30%">Credit Account</th>
-//                                                 <th width="15%">Credit Amount (Rs.)</th>
-//                                                 <th width="30%">Debit Account</th>
-//                                                 <th width="15%">Debit Amount (Rs.)</th>
-//                                                 <th width="10%"></th>
-//                                             </tr>
-//                                         </thead>
-//                                         <tbody>
-//                                             {formData.entries.map((entry, index) => (
-//                                                 <tr
-//                                                     key={entry.id}
-//                                                     ref={index === formData.entries.length - 1 ? lastRowRef : null}
-//                                                 >
-//                                                     {/* Credit Account */}
-//                                                     <td>
-//                                                         <input
-//                                                             type="text"
-//                                                             className="form-control form-control-sm"
-//                                                             placeholder="Select credit account"
-//                                                             value={entry.creditAccountName}
-//                                                             onFocus={() => openAccountModal('credit', index, 'credit')}
-//                                                             readOnly
-//                                                         />
-//                                                     </td>
-//                                                     <td>
-//                                                         <input
-//                                                             type="number"
-//                                                             id={`credit-amount-${index}`}
-//                                                             className="form-control form-control-sm"
-//                                                             placeholder="0.00"
-//                                                             value={entry.creditAmount}
-//                                                             onChange={(e) => handleRowChange(index, 'creditAmount', e.target.value)}
-//                                                             min="0"
-//                                                             step="0.01"
-//                                                             onKeyDown={(e) => {
-//                                                                 if (e.key === 'Enter') {
-//                                                                     handleKeyDown(e, `credit-amount-${index}`);
-//                                                                 }
-//                                                             }}
-//                                                         />
-//                                                     </td>
-
-//                                                     {/* Debit Account */}
-//                                                     <td>
-//                                                         <input
-//                                                             type="text"
-//                                                             className="form-control form-control-sm"
-//                                                             placeholder="Select debit account"
-//                                                             value={entry.debitAccountName}
-//                                                             onFocus={() => openAccountModal('debit', index, 'debit')}
-//                                                             readOnly
-//                                                         />
-//                                                     </td>
-//                                                     <td>
-//                                                         <input
-//                                                             type="number"
-//                                                             id={`debit-amount-${index}`}
-//                                                             className="form-control form-control-sm"
-//                                                             placeholder="0.00"
-//                                                             value={entry.debitAmount}
-//                                                             onChange={(e) => handleRowChange(index, 'debitAmount', e.target.value)}
-//                                                             min="0"
-//                                                             step="0.01"
-//                                                             onKeyDown={(e) => {
-//                                                                 if (e.key === 'Enter') {
-//                                                                     // If this is the last row's debit amount, focus on save button
-//                                                                     if (index === formData.entries.length - 1) {
-//                                                                         document.getElementById('saveBill')?.focus();
-//                                                                     } else {
-//                                                                         handleKeyDown(e, `debit-amount-${index}`);
-//                                                                     }
-//                                                                 }
-//                                                             }}
-//                                                         />
-//                                                     </td>
-//                                                     <td className="text-center">
-//                                                         {formData.entries.length > 1 && (
-//                                                             <button
-//                                                                 type="button"
-//                                                                 className="btn btn-sm btn-danger"
-//                                                                 onClick={() => removeRow(index)}
-//                                                                 title="Remove row"
-//                                                             >
-//                                                                 <i className="bi bi-trash"></i>
-//                                                             </button>
-//                                                         )}
-//                                                     </td>
-//                                                 </tr>
-//                                             ))}
-//                                         </tbody>
-//                                         <tfoot>
-//                                             <tr>
-//                                                 <th className="text-end" colSpan="1">Total Credit:</th>
-//                                                 <th className="text-primary">Rs. {calculateTotal('credit').toFixed(2)}</th>
-//                                                 <th className="text-end" colSpan="1">Total Debit:</th>
-//                                                 <th className="text-primary">Rs. {calculateTotal('debit').toFixed(2)}</th>
-//                                                 <th></th>
-//                                             </tr>
-//                                         </tfoot>
-//                                     </table>
-//                                 </div>
-//                             </div>
-
-//                             {/* Validation Messages */}
-//                             {calculateTotal('debit') !== calculateTotal('credit') && (
-//                                 <div className="alert alert-warning">
-//                                     <i className="fas fa-exclamation-triangle me-2"></i>
-//                                     Total debit and credit amounts must be equal
-//                                 </div>
-//                             )}
-
-//                             {/* Action Buttons */}
-//                             <div className="d-flex justify-content-end mt-4">
-//                                 {/* Add Print After Save Checkbox */}
-//                                 <div className="form-check me-3 align-self-center">
-//                                     <input
-//                                         className="form-check-input"
-//                                         type="checkbox"
-//                                         id="printAfterSave"
-//                                         checked={printAfterSave}
-//                                         onChange={handlePrintAfterSaveChange}
-//                                     />
-//                                     <label className="form-check-label" htmlFor="printAfterSave">
-//                                         Print after save
-//                                     </label>
-//                                 </div>
-
-//                                 <div className="d-flex justify-content-end gap-2">
-//                                     {/* Add Reset Button */}
-//                                     <button
-//                                         type="button"
-//                                         className="btn btn-secondary btn-sm"
-//                                         onClick={resetForm}
-//                                         disabled={isSaving}
-//                                     >
-//                                         <i className="bi bi-arrow-counterclockwise me-1"></i> Reset
-//                                     </button>
-
-//                                     <button
-//                                         type="submit"
-//                                         className="btn btn-primary btn-sm"
-//                                         id="saveBill"
-//                                         onClick={(e) => handleSubmit(e, printAfterSave)}
-//                                         disabled={isSaving}
-//                                     >
-//                                         {isSaving ? (
-//                                             <>
-//                                                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-//                                                 Saving...
-//                                             </>
-//                                         ) : (
-//                                             <>
-//                                                 <i className="bi bi-save me-1"></i> Save
-//                                             </>
-//                                         )}
-//                                     </button>
-//                                 </div>
-//                             </div>
-//                         </form>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* Account Modal */}
-//             {showAccountModal && (
-//                 <div className="modal fade show" id="accountModal" tabIndex="-1" style={{ display: 'block' }}>
-//                     <div className="modal-dialog modal-xl modal-dialog-centered">
-//                         <div className="modal-content" style={{ height: '400px' }}>
-//                             <div className="modal-header">
-//                                 <h5 className="modal-title" id="accountModalLabel">Select an Account</h5>
-//                                 <button type="button" className="btn-close" onClick={() => setShowAccountModal(false)}></button>
-//                             </div>
-//                             <div className="p-3 bg-white sticky-top">
-//                                 <input
-//                                     type="text"
-//                                     id="searchAccount"
-//                                     className="form-control form-control-sm"
-//                                     placeholder="Search Account"
-//                                     autoFocus
-//                                     autoComplete='off'
-//                                     onChange={handleAccountSearch}
-//                                     onKeyDown={(e) => {
-//                                         if (e.key === 'ArrowDown') {
-//                                             e.preventDefault();
-//                                             const firstAccountItem = document.querySelector('.account-item');
-//                                             if (firstAccountItem) {
-//                                                 firstAccountItem.focus();
-//                                             }
-//                                         } else if (e.key === 'Enter') {
-//                                             e.preventDefault();
-//                                             setShowAccountModal(false);
-//                                             setTimeout(() => {
-//                                                 const amountField = document.getElementById(`${currentRow.field}-amount-${currentRow.index}`);
-//                                                 if (amountField) {
-//                                                     amountField.focus();
-//                                                 }
-//                                             }, 100);
-//                                         }
-//                                     }}
-//                                     ref={accountSearchRef}
-//                                 />
-//                             </div>
-//                             <div className="modal-body p-0">
-//                                 <div className="overflow-auto" style={{ height: 'calc(400px - 120px)' }}>
-//                                     <ul id="accountList" className="list-group">
-//                                         {filteredAccounts.length > 0 ? (
-//                                             filteredAccounts
-//                                                 .sort((a, b) => a.name.localeCompare(b.name))
-//                                                 .map((account, index) => (
-//                                                     <li
-//                                                         key={account._id}
-//                                                         data-account-id={account._id}
-//                                                         className="list-group-item account-item py-2"
-//                                                         onClick={() => {
-//                                                             selectAccount(account);
-//                                                         }}
-//                                                         style={{ cursor: 'pointer' }}
-//                                                         tabIndex={0}
-//                                                         onKeyDown={(e) => {
-//                                                             if (e.key === 'ArrowDown') {
-//                                                                 e.preventDefault();
-//                                                                 const nextItem = e.target.nextElementSibling;
-//                                                                 if (nextItem) {
-//                                                                     e.target.classList.remove('active');
-//                                                                     nextItem.classList.add('active');
-//                                                                     nextItem.focus();
-//                                                                 }
-//                                                             } else if (e.key === 'ArrowUp') {
-//                                                                 e.preventDefault();
-//                                                                 const prevItem = e.target.previousElementSibling;
-//                                                                 if (prevItem) {
-//                                                                     e.target.classList.remove('active');
-//                                                                     prevItem.classList.add('active');
-//                                                                     prevItem.focus();
-//                                                                 } else {
-//                                                                     accountSearchRef.current.focus();
-//                                                                 }
-//                                                             } else if (e.key === 'Enter') {
-//                                                                 e.preventDefault();
-//                                                                 selectAccount(account);
-//                                                             } else if (e.key === 'Escape') {
-//                                                                 e.preventDefault();
-//                                                                 setShowAccountModal(false);
-//                                                             }
-//                                                         }}
-//                                                         onFocus={(e) => {
-//                                                             document.querySelectorAll('.account-item').forEach(item => {
-//                                                                 item.classList.remove('active');
-//                                                             });
-//                                                             e.target.classList.add('active');
-//                                                         }}
-//                                                         onMouseEnter={(e) => {
-//                                                             e.target.classList.add('hover');
-//                                                         }}
-//                                                         onMouseLeave={(e) => {
-//                                                             e.target.classList.remove('hover');
-//                                                         }}
-//                                                     >
-//                                                         <div className="d-flex justify-content-between small">
-//                                                             <strong>{account.code || 'N/A'} {account.name}</strong>
-//                                                             <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
-//                                                         </div>
-//                                                     </li>
-//                                                 ))
-//                                         ) : (
-//                                             accountSearchRef.current?.value ? (
-//                                                 <li className="list-group-item text-center text-muted small py-2">No accounts found</li>
-//                                             ) : (
-//                                                 accounts
-//                                                     .sort((a, b) => a.name.localeCompare(b.name))
-//                                                     .map((account) => (
-//                                                         <li
-//                                                             key={account._id}
-//                                                             data-account-id={account._id}
-//                                                             className="list-group-item account-item py-2"
-//                                                             onClick={() => {
-//                                                                 selectAccount(account);
-//                                                             }}
-//                                                             style={{ cursor: 'pointer' }}
-//                                                             tabIndex={0}
-//                                                             onKeyDown={(e) => {
-//                                                                 if (e.key === 'ArrowDown') {
-//                                                                     e.preventDefault();
-//                                                                     const nextItem = e.target.nextElementSibling;
-//                                                                     if (nextItem) {
-//                                                                         e.target.classList.remove('active');
-//                                                                         nextItem.classList.add('active');
-//                                                                         nextItem.focus();
-//                                                                     }
-//                                                                 } else if (e.key === 'ArrowUp') {
-//                                                                     e.preventDefault();
-//                                                                     const prevItem = e.target.previousElementSibling;
-//                                                                     if (prevItem) {
-//                                                                         e.target.classList.remove('active');
-//                                                                         prevItem.classList.add('active');
-//                                                                         prevItem.focus();
-//                                                                     } else {
-//                                                                         accountSearchRef.current.focus();
-//                                                                     }
-//                                                                 } else if (e.key === 'Enter') {
-//                                                                     e.preventDefault();
-//                                                                     selectAccount(account);
-//                                                                 } else if (e.key === 'Escape') {
-//                                                                     e.preventDefault();
-//                                                                     setShowAccountModal(false);
-//                                                                 }
-//                                                             }}
-//                                                             onFocus={(e) => {
-//                                                                 document.querySelectorAll('.account-item').forEach(item => {
-//                                                                     item.classList.remove('active');
-//                                                                 });
-//                                                                 e.target.classList.add('active');
-//                                                             }}
-//                                                             onMouseEnter={(e) => {
-//                                                                 e.target.classList.add('hover');
-//                                                             }}
-//                                                             onMouseLeave={(e) => {
-//                                                                 e.target.classList.remove('hover');
-//                                                             }}
-//                                                         >
-//                                                             <div className="d-flex justify-content-between small">
-//                                                                 <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
-//                                                                 <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
-//                                                             </div>
-//                                                         </li>
-//                                                     ))
-//                                             )
-//                                         )}
-//                                     </ul>
-//                                 </div>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             )}
-//             <NotificationToast
-//                 show={notification.show}
-//                 message={notification.message}
-//                 type={notification.type}
-//                 onClose={() => setNotification({ ...notification, show: false })}
-//             />
-
-//             {/* Product modal */}
-//             {showProductModal && (
-//                 <ProductModal onClose={() => setShowProductModal(false)} />
-//             )}
-
-//             <style jsx>{`
-//                 .hover-row:hover {
-//                     background-color: #f8f9fa;
-//                 }
-//                 .table th {
-//                     border-top: none;
-//                     border-bottom: 2px solid #dee2e6;
-//                 }
-//             `}</style>
-//         </div>
-//     );
-// };
-
-// export default AddCreditNote;
-
-//--------------------------------------------------------end
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -1046,7 +23,9 @@ const AddCreditNote = () => {
         type: 'success'
     });
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-
+    // Add near your other state declarations (around line 60-80)
+    const [useVoucherLastDateForCreditNote, setUseVoucherLastDateForCreditNote] = useState(false);
+    const [lastCreditNoteDate, setLastCreditNoteDate] = useState(null);
     // Header selection states
     const [headerDebitAccount, setHeaderDebitAccount] = useState(null);
     const [headerDebitAmount, setHeaderDebitAmount] = useState('');
@@ -1176,23 +155,134 @@ const AddCreditNote = () => {
         };
     }, []);
 
+    // Fetch date preference setting from backend for Credit Note
+    const fetchDatePreference = async () => {
+        try {
+            console.log('=== fetchDatePreferenceForCreditNote CALLED ===');
+            const response = await api.get('/api/retailer/date-preference/credit-note');
+            console.log('Date preference response:', response.data);
+
+            if (response.data.success) {
+                const useVoucherDate = response.data.data.useVoucherLastDate;
+                console.log('useVoucherLastDateForCreditNote value from API:', useVoucherDate);
+                setUseVoucherLastDateForCreditNote(useVoucherDate);
+                return useVoucherDate;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error fetching date preference:', error);
+            return false;
+        }
+    };
+
+    // Fetch last credit note date from backend
+    const fetchLastCreditNoteDate = async () => {
+        try {
+            console.log('=== fetchLastCreditNoteDate CALLED ===');
+
+            // Use the endpoint: /api/retailer/last-credit-note-date
+            const response = await api.get('/api/retailer/last-credit-note-date');
+            console.log('Last credit note date response:', response.data);
+
+            if (response.data.success && response.data.data) {
+                const data = response.data.data;
+                const isNepaliFormat = companyDateFormat === 'nepali';
+
+                // Get the appropriate date based on company format
+                let lastDate = null;
+                if (isNepaliFormat) {
+                    // Use Nepali date field from response
+                    lastDate = data.nepaliDate;
+                    console.log('Using Nepali date field:', lastDate);
+                } else {
+                    // Use English date field from response
+                    lastDate = data.date;
+                    console.log('Using English date field:', lastDate);
+                }
+
+                if (lastDate) {
+                    // Format the date (it should already be in YYYY-MM-DD format from backend)
+                    let formattedDate = lastDate;
+                    if (typeof lastDate === 'string' && lastDate.includes('T')) {
+                        formattedDate = lastDate.split('T')[0];
+                    }
+                    console.log('Formatted last credit note date:', formattedDate);
+                    setLastCreditNoteDate(formattedDate);
+                    return formattedDate;
+                }
+            }
+
+            console.log('No last credit note date found - returning null');
+            return null;
+        } catch (error) {
+            console.error('Error fetching last credit note date:', error);
+            return null;
+        }
+    };
+
     useEffect(() => {
         const fetchCreditNoteFormData = async () => {
             try {
                 setIsLoading(true);
+
+                // Get current bill number (does NOT increment)
                 const currentBillNum = await getCurrentBillNumber();
+
+                // Fetch form data
                 const response = await api.get('/api/retailer/credit-note');
                 const { data } = response;
 
-                setAccounts(data.data.accounts);
+                // Get company date format first
+                const isNepaliFormat = data.data.companyDateFormat === 'nepali';
                 setCompanyDateFormat(data.data.companyDateFormat);
+
+                // Fetch date preference (useVoucherLastDate setting from backend)
+                const useVoucherDate = await fetchDatePreference();
+
+                // Fetch last credit note date if needed
+                let lastDate = null;
+                if (useVoucherDate) {
+                    lastDate = await fetchLastCreditNoteDate();
+                }
+
+                let transactionDate = '';
+                let invoiceDate = '';
+
+                console.log('Setting dates - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+                // Set dates based on preference
+                if (useVoucherDate && lastDate) {
+                    // Use last voucher date
+                    if (isNepaliFormat) {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    } else {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    }
+                    console.log('Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+                } else {
+                    // Use current system date
+                    const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+                    if (isNepaliFormat) {
+                        transactionDate = currentNepaliDate;
+                        invoiceDate = currentNepaliDate;
+                    } else {
+                        const today = new Date().toISOString().split('T')[0];
+                        transactionDate = today;
+                        invoiceDate = today;
+                    }
+                    console.log('Using SYSTEM date:', { transactionDate, invoiceDate });
+                }
+
+                setAccounts(data.data.accounts);
                 setCurrentBillNumber(currentBillNum);
                 setNextBillNumber(currentBillNum);
 
-                const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+                // Set form data with the determined dates
                 setFormData({
-                    date: new Date().toISOString().split('T')[0],
-                    nepaliDate: currentNepaliDate,
+                    date: !isNepaliFormat ? invoiceDate : new Date().toISOString().split('T')[0],
+                    nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
                     description: '',
                     entries: []
                 });
@@ -1207,6 +297,40 @@ const AddCreditNote = () => {
 
         fetchCreditNoteFormData();
     }, []);
+
+
+
+    // useEffect(() => {
+    //     const fetchCreditNoteFormData = async () => {
+    //         try {
+    //             setIsLoading(true);
+    //             const currentBillNum = await getCurrentBillNumber();
+    //             const response = await api.get('/api/retailer/credit-note');
+    //             const { data } = response;
+
+    //             setAccounts(data.data.accounts);
+    //             setCompanyDateFormat(data.data.companyDateFormat);
+    //             setCurrentBillNumber(currentBillNum);
+    //             setNextBillNumber(currentBillNum);
+
+    //             const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //             setFormData({
+    //                 date: new Date().toISOString().split('T')[0],
+    //                 nepaliDate: currentNepaliDate,
+    //                 description: '',
+    //                 entries: []
+    //             });
+
+    //             setIsInitialDataLoaded(true);
+    //             setIsLoading(false);
+    //         } catch (err) {
+    //             setError(err.response?.data?.message || 'Failed to load credit note form');
+    //             setIsLoading(false);
+    //         }
+    //     };
+
+    //     fetchCreditNoteFormData();
+    // }, []);
 
     // Auto-scroll to bottom when new entries are added
     useEffect(() => {
@@ -1573,16 +697,91 @@ const AddCreditNote = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    // const resetAfterSave = async () => {
+    //     try {
+    //         const currentBillNum = await getCurrentBillNumber();
+    //         setCurrentBillNumber(currentBillNum);
+    //         setNextBillNumber(currentBillNum);
+
+    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //         setFormData({
+    //             date: new Date().toISOString().split('T')[0],
+    //             nepaliDate: currentNepaliDate,
+    //             description: '',
+    //             entries: []
+    //         });
+
+    //         setHeaderDebitAccount(null);
+    //         setHeaderDebitAmount('');
+    //         setHeaderCreditAccount(null);
+    //         setHeaderCreditAmount('');
+
+    //         setTimeout(() => {
+    //             if (companyDateFormat === 'nepali') {
+    //                 document.getElementById('nepaliDate')?.focus();
+    //             } else {
+    //                 document.getElementById('date')?.focus();
+    //             }
+    //         }, 100);
+    //     } catch (err) {
+    //         console.error('Error resetting after save:', err);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error refreshing form data',
+    //             type: 'error'
+    //         });
+    //     }
+    // };
+
     const resetAfterSave = async () => {
         try {
+            // Get current bill number (this increments the counter)
             const currentBillNum = await getCurrentBillNumber();
             setCurrentBillNumber(currentBillNum);
             setNextBillNumber(currentBillNum);
 
-            const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+            const isNepaliFormat = companyDateFormat === 'nepali';
+
+            // Fetch current date preference (don't rely on state, fetch fresh)
+            const useVoucherDate = await fetchDatePreference();
+
+            // Fetch last credit note date if needed
+            let lastDate = null;
+            if (useVoucherDate) {
+                lastDate = await fetchLastCreditNoteDate();
+            }
+
+            let transactionDate = '';
+            let invoiceDate = '';
+
+            console.log('resetAfterSave - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+            // Set dates based on preference
+            if (useVoucherDate && lastDate) {
+                if (isNepaliFormat) {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                } else {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                }
+                console.log('resetAfterSave - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+            } else {
+                const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+                if (isNepaliFormat) {
+                    transactionDate = currentNepaliDate;
+                    invoiceDate = currentNepaliDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    transactionDate = today;
+                    invoiceDate = today;
+                }
+                console.log('resetAfterSave - Using SYSTEM date:', { transactionDate, invoiceDate });
+            }
+
             setFormData({
-                date: new Date().toISOString().split('T')[0],
-                nepaliDate: currentNepaliDate,
+                date: !isNepaliFormat ? invoiceDate : new Date().toISOString().split('T')[0],
+                nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
                 description: '',
                 entries: []
             });

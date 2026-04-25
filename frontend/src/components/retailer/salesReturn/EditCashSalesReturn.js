@@ -192,19 +192,109 @@ const EditCashSalesReturn = () => {
     };
 
     // Fetch items from backend for header modal
+    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = true) => {
+    //     try {
+    //         setIsHeaderSearching(true);
+
+    //         const response = await api.get('/api/retailer/items/search', {
+    //             params: {
+    //                 search: searchTerm,
+    //                 page: page,
+    //                 limit: 15,
+    //                 vatStatus: formData.isVatExempt,
+    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
+    //             }
+    //         });
+
+    //         if (response.data.success) {
+    //             const itemsWithLatestPrice = response.data.items.map(item => {
+    //                 let stockEntries = [];
+    //                 if (item.stockEntries && item.stockEntries.length > 0) {
+    //                     stockEntries = [...item.stockEntries].sort((a, b) =>
+    //                         new Date(a.date) - new Date(b.date)
+    //                     ).map(entry => ({
+    //                         ...entry,
+    //                         availableQuantity: entry.quantity || 0,
+    //                         displayPrice: entry.price || 0,
+    //                         purchasePrice: entry.purchasePrice || entry.price || 0
+    //                     }));
+    //                 }
+
+    //                 let latestPrice = 0;
+    //                 let latestBatchNumber = '';
+    //                 let latestExpiryDate = '';
+    //                 let totalStock = 0;
+
+    //                 if (stockEntries.length > 0) {
+    //                     totalStock = stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
+    //                     const sortedEntries = stockEntries.sort((a, b) =>
+    //                         new Date(b.date) - new Date(a.date)
+    //                     );
+    //                     latestPrice = sortedEntries[0].price || 0;
+    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
+    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
+    //                 }
+
+    //                 return {
+    //                     ...item,
+    //                     id: item.id,
+    //                     _id: item.id,
+    //                     stockEntries: stockEntries,
+    //                     latestPrice,
+    //                     latestBatchNumber,
+    //                     latestExpiryDate,
+    //                     stock: totalStock,
+    //                     unitName: item.unit?.name || item.unitName || '',
+    //                     unitId: item.unit?.id || item.unitId
+    //                 };
+    //             });
+
+    //             if (page === 1) {
+    //                 setHeaderSearchResults(itemsWithLatestPrice);
+    //             } else {
+    //                 setHeaderSearchResults(prev => [...prev, ...itemsWithLatestPrice]);
+    //             }
+    //             setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
+    //             setTotalHeaderSearchItems(response.data.pagination.totalItems);
+    //             setHeaderSearchPage(page);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching items:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error loading items',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsHeaderSearching(false);
+    //     }
+    // };
+
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = true) => {
         try {
             setIsHeaderSearching(true);
 
-            const response = await api.get('/api/retailer/items/search', {
-                params: {
-                    search: searchTerm,
-                    page: page,
-                    limit: 15,
-                    vatStatus: formData.isVatExempt,
-                    sortBy: searchTerm.trim() ? 'relevance' : 'name'
-                }
-            });
+            // Determine which date to send based on company format
+            const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+            let params = {
+                search: searchTerm,
+                page: page,
+                limit: 15,
+                vatStatus: formData.isVatExempt,
+                sortBy: searchTerm.trim() ? 'relevance' : 'name'
+            };
+
+            // Add date filter based on the return bill's transaction date (not current date)
+            if (isNepaliFormat && formData.transactionDateNepali) {
+                params.asOfNepaliDate = formData.transactionDateNepali;
+                console.log('Sending Nepali date filter for edit cash sales return:', formData.transactionDateNepali);
+            } else if (!isNepaliFormat && formData.transactionDateRoman) {
+                params.asOfEnglishDate = formData.transactionDateRoman;
+                console.log('Sending English date filter for edit cash sales return:', formData.transactionDateRoman);
+            }
+
+            const response = await api.get('/api/retailer/items/search', { params });
 
             if (response.data.success) {
                 const itemsWithLatestPrice = response.data.items.map(item => {
@@ -269,6 +359,14 @@ const EditCashSalesReturn = () => {
             setIsHeaderSearching(false);
         }
     };
+
+    // Refetch items when transaction date changes during editing
+    useEffect(() => {
+        if (showHeaderItemModal && isInitialDataLoaded) {
+            const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
+            fetchItemsFromBackend(searchTerm, 1, true);
+        }
+    }, [formData.transactionDateNepali, formData.transactionDateRoman, isInitialDataLoaded]);
 
     // For header modal search
     const debouncedHeaderSearchQuery = useDebounce(headerSearchQuery, 500);

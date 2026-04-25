@@ -357,3 +357,42 @@ hr {
   border-left: 4px solid #ffc107;
 }
 
+/* Transaction Modal Row Highlighting */
+.transaction-row {
+    transition: all 0.2s ease !important;
+}
+
+.transaction-row td {
+    transition: all 0.2s ease;
+}
+
+/* Override Bootstrap table hover */
+.table-hover .transaction-row:hover {
+    background-color: #f8f9fa !important;
+    color: inherit !important;
+}
+
+.table-hover .transaction-row:hover td {
+    background-color: transparent !important;
+}
+
+/* Ensure highlighted row takes precedence */
+.transaction-row[style*="background-color: rgb(13, 110, 253)"] {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+.transaction-row[style*="background-color: rgb(13, 110, 253)"] td {
+    background-color: transparent !important;
+    color: white !important;
+}
+
+.transaction-row[style*="background-color: #0d6efd"] {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+.transaction-row[style*="background-color: #0d6efd"] td {
+    background-color: transparent !important;
+    color: white !important;
+}

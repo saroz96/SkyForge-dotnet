@@ -17,7 +17,9 @@ const AddPayment = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const [showProductModal, setShowProductModal] = useState(false);
     const transactionDateRef = useRef(null);
-
+    // Add near your other state declarations (around line 60-80)
+    const [useVoucherLastDateForPayment, setUseVoucherLastDateForPayment] = useState(false);
+    const [lastPaymentDate, setLastPaymentDate] = useState(null);
     const [company, setCompany] = useState({
         dateFormat: 'nepali',
         vatEnabled: true,
@@ -144,7 +146,71 @@ const AddPayment = () => {
         }
     };
 
-    // Fetch payment form data
+    // Fetch date preference setting from backend for Payment
+    const fetchDatePreference = async () => {
+        try {
+            console.log('=== fetchDatePreferenceForPayment CALLED ===');
+            const response = await api.get('/api/retailer/date-preference/payment');
+            console.log('Date preference response:', response.data);
+
+            if (response.data.success) {
+                const useVoucherDate = response.data.data.useVoucherLastDate;
+                console.log('useVoucherLastDateForPayment value from API:', useVoucherDate);
+                setUseVoucherLastDateForPayment(useVoucherDate);
+                return useVoucherDate;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error fetching date preference:', error);
+            return false;
+        }
+    };
+
+    // Fetch last payment date from backend
+    const fetchLastPaymentDate = async () => {
+        try {
+            console.log('=== fetchLastPaymentDate CALLED ===');
+
+            // Use the endpoint: /api/retailer/last-payment-date
+            const response = await api.get('/api/retailer/last-payment-date');
+            console.log('Last payment date response:', response.data);
+
+            if (response.data.success && response.data.data) {
+                const data = response.data.data;
+                const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+                // Get the appropriate date based on company format
+                let lastDate = null;
+                if (isNepaliFormat) {
+                    // Use Nepali date field from response
+                    lastDate = data.nepaliDate;
+                    console.log('Using Nepali date field:', lastDate);
+                } else {
+                    // Use English date field from response
+                    lastDate = data.date;
+                    console.log('Using English date field:', lastDate);
+                }
+
+                if (lastDate) {
+                    // Format the date (it should already be in YYYY-MM-DD format from backend)
+                    let formattedDate = lastDate;
+                    if (typeof lastDate === 'string' && lastDate.includes('T')) {
+                        formattedDate = lastDate.split('T')[0];
+                    }
+                    console.log('Formatted last payment date:', formattedDate);
+                    setLastPaymentDate(formattedDate);
+                    return formattedDate;
+                }
+            }
+
+            console.log('No last payment date found - returning null');
+            return null;
+        } catch (error) {
+            console.error('Error fetching last payment date:', error);
+            return null;
+        }
+    };
+
     useEffect(() => {
         const fetchPaymentFormData = async () => {
             try {
@@ -157,24 +223,68 @@ const AddPayment = () => {
                 const response = await api.get('/api/retailer/payments');
                 const { data } = response.data;
 
+                // Set company settings FIRST (needed for date format)
+                const isNepaliFormat = data.company.dateFormat === 'nepali' ||
+                    data.company.dateFormat === 'Nepali';
+
                 setCompany({
                     ...data.company,
-                    dateFormat: data.company.dateFormat || 'nepali'
+                    dateFormat: data.company.dateFormat || 'nepali',
+                    vatEnabled: data.company.vatEnabled || true
                 });
 
                 setCashAccounts(data.cashAccounts || []);
                 setBankAccounts(data.bankAccounts || []);
                 setCompanyDateFormat(data.companyDateFormat || 'nepali');
+
+                // Fetch date preference (useVoucherLastDate setting from backend)
+                const useVoucherDate = await fetchDatePreference();
+
+                // Fetch last payment date if needed
+                let lastDate = null;
+                if (useVoucherDate) {
+                    lastDate = await fetchLastPaymentDate();
+                }
+
+                let transactionDate = '';
+                let invoiceDate = '';
+
+                console.log('Setting dates - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+                // Set dates based on preference
+                if (useVoucherDate && lastDate) {
+                    // Use last voucher date
+                    if (isNepaliFormat) {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    } else {
+                        transactionDate = lastDate;
+                        invoiceDate = lastDate;
+                    }
+                    console.log('Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+                } else {
+                    // Use current system date
+                    if (isNepaliFormat) {
+                        transactionDate = currentNepaliDate;
+                        invoiceDate = currentNepaliDate;
+                    } else {
+                        const today = new Date().toISOString().split('T')[0];
+                        transactionDate = today;
+                        invoiceDate = today;
+                    }
+                    console.log('Using SYSTEM date:', { transactionDate, invoiceDate });
+                }
+
                 setCurrentBillNumber(currentBillNum);
                 setNextBillNumber(currentBillNum);
 
-                // Set initial form data
+                // Set initial form data with the determined dates
                 setFormData(prev => ({
                     ...prev,
                     paymentAccountId: data.cashAccounts[0]?.id || '',
                     amount: '',
-                    nepaliDate: currentNepaliDate,
-                    billDate: new Date().toISOString().split('T')[0],
+                    nepaliDate: isNepaliFormat ? transactionDate : '',
+                    billDate: !isNepaliFormat ? invoiceDate : '',
                 }));
 
                 setIsInitialDataLoaded(true);
@@ -188,6 +298,51 @@ const AddPayment = () => {
 
         fetchPaymentFormData();
     }, []);
+
+    // Fetch payment form data
+    // useEffect(() => {
+    //     const fetchPaymentFormData = async () => {
+    //         try {
+    //             setIsLoading(true);
+
+    //             // Get current bill number (does NOT increment)
+    //             const currentBillNum = await getCurrentBillNumber();
+
+    //             // Fetch form data
+    //             const response = await api.get('/api/retailer/payments');
+    //             const { data } = response.data;
+
+    //             setCompany({
+    //                 ...data.company,
+    //                 dateFormat: data.company.dateFormat || 'nepali'
+    //             });
+
+    //             setCashAccounts(data.cashAccounts || []);
+    //             setBankAccounts(data.bankAccounts || []);
+    //             setCompanyDateFormat(data.companyDateFormat || 'nepali');
+    //             setCurrentBillNumber(currentBillNum);
+    //             setNextBillNumber(currentBillNum);
+
+    //             // Set initial form data
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 paymentAccountId: data.cashAccounts[0]?.id || '',
+    //                 amount: '',
+    //                 nepaliDate: currentNepaliDate,
+    //                 billDate: new Date().toISOString().split('T')[0],
+    //             }));
+
+    //             setIsInitialDataLoaded(true);
+    //         } catch (err) {
+    //             console.error('Error fetching payment form data:', err);
+    //             setError(err.response?.data?.message || 'Failed to load payment form');
+    //         } finally {
+    //             setIsLoading(false);
+    //         }
+    //     };
+
+    //     fetchPaymentFormData();
+    // }, []);
 
     // Set focus on date input after initial load
     useEffect(() => {
@@ -281,6 +436,52 @@ const AddPayment = () => {
         setFormData(prev => ({ ...prev, paymentAccountId: selectedValue }));
     };
 
+    // const resetAfterSave = async () => {
+    //     try {
+    //         // Get current bill number (this increments the counter)
+    //         const currentBillNum = await getCurrentBillNumber();
+
+    //         // Fetch other data
+    //         const response = await api.get('/api/retailer/payments');
+    //         const { data } = response.data;
+
+    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    //         const currentRomanDate = new Date().toISOString().split('T')[0];
+
+    //         setFormData({
+    //             nepaliDate: currentNepaliDate,
+    //             billDate: currentRomanDate,
+    //             paymentAccountId: data.cashAccounts[0]?.id || '',
+    //             accountId: '',
+    //             amount: '',
+    //             instType: 0,
+    //             instNo: '',
+    //             description: '',
+    //         });
+
+    //         setCashAccounts(data.cashAccounts || []);
+    //         setBankAccounts(data.bankAccounts || []);
+    //         setCompanyDateFormat(data.companyDateFormat || 'nepali');
+    //         setCurrentBillNumber(currentBillNum);
+    //         setNextBillNumber(currentBillNum);
+    //         setShowBankDetails(false);
+    //         setSelectedAccountId('');
+
+    //         setTimeout(() => {
+    //             if (transactionDateRef.current) {
+    //                 transactionDateRef.current.focus();
+    //             }
+    //         }, 50);
+    //     } catch (err) {
+    //         console.error('Error resetting after save:', err);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error refreshing form data',
+    //             type: 'error'
+    //         });
+    //     }
+    // };
+
     const resetAfterSave = async () => {
         try {
             // Get current bill number (this increments the counter)
@@ -290,12 +491,48 @@ const AddPayment = () => {
             const response = await api.get('/api/retailer/payments');
             const { data } = response.data;
 
-            const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-            const currentRomanDate = new Date().toISOString().split('T')[0];
+            const isNepaliFormat = data.company.dateFormat === 'nepali' ||
+                data.company.dateFormat === 'Nepali';
+
+            // Fetch current date preference (don't rely on state, fetch fresh)
+            const useVoucherDate = await fetchDatePreference();
+
+            // Fetch last payment date if needed
+            let lastDate = null;
+            if (useVoucherDate) {
+                lastDate = await fetchLastPaymentDate();
+            }
+
+            let transactionDate = '';
+            let invoiceDate = '';
+
+            console.log('resetAfterSave - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+            // Set dates based on preference
+            if (useVoucherDate && lastDate) {
+                if (isNepaliFormat) {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                } else {
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
+                }
+                console.log('resetAfterSave - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+            } else {
+                if (isNepaliFormat) {
+                    transactionDate = currentNepaliDate;
+                    invoiceDate = currentNepaliDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    transactionDate = today;
+                    invoiceDate = today;
+                }
+                console.log('resetAfterSave - Using SYSTEM date:', { transactionDate, invoiceDate });
+            }
 
             setFormData({
-                nepaliDate: currentNepaliDate,
-                billDate: currentRomanDate,
+                nepaliDate: isNepaliFormat ? transactionDate : '',
+                billDate: !isNepaliFormat ? invoiceDate : '',
                 paymentAccountId: data.cashAccounts[0]?.id || '',
                 accountId: '',
                 amount: '',
@@ -345,12 +582,24 @@ const AddPayment = () => {
                 throw new Error('Party account is required');
             }
 
-            // Prepare payload with correct accounting entries
-            // Debit = Money going OUT (to Party Account)
-            // Credit = Money coming IN (to Payment Account)
+            const parseDate = (dateString) => {
+                if (!dateString) return new Date().toISOString();
+
+                // If it's already a valid date string in YYYY-MM-DD format
+                if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                    // Create date at UTC to avoid timezone issues
+                    const date = new Date(dateString);
+                    date.setUTCHours(0, 0, 0, 0);
+                    return date.toISOString();
+                }
+                return new Date(dateString).toISOString();
+            };
+
             const payload = {
-                nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
-                date: formData.billDate,
+                // nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
+                // date: formData.billDate,
+                nepaliDate: parseDate(formData.nepaliDate),
+                date: parseDate(formData.billDate),
                 description: formData.description || '',
                 entries: [
                     {

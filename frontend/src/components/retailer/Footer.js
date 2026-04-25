@@ -20,10 +20,27 @@ const Footer = ({ currentCompanyName, user, currentFiscalYear, company }) => {
   }, []);
 
   // Format renewal date if it exists
+  // const formatRenewalDate = () => {
+  //   if (!company?.renewalDate) return 'Demo Version';
+
+  //   const date = new Date(company.renewalDate);
+  //   return `Valid Upto: ${date.toLocaleDateString()}`;
+  // };
+
+  // In your Footer component, add this debug log
   const formatRenewalDate = () => {
+    console.log('Full company object:', company);
+    console.log('Renewal date value:', company?.renewalDate);
+    console.log('Renewal date type:', typeof company?.renewalDate);
+
     if (!company?.renewalDate) return 'Demo Version';
-    
+
     const date = new Date(company.renewalDate);
+    console.log('Parsed date:', date);
+    console.log('Is valid date:', !isNaN(date.getTime()));
+
+    if (isNaN(date.getTime())) return 'Invalid Date Format';
+
     return `Valid Upto: ${date.toLocaleDateString()}`;
   };
 

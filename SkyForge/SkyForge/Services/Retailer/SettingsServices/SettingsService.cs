@@ -1235,74 +1235,6 @@ namespace SkyForge.Services.Retailer.SettingsServices
             }
         }
 
-        // public async Task<Settings> UpdateDisplayTransactionsForSalesAsync(Guid companyId, Guid userId, Guid fiscalYearId, bool displayTransactions)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("UpdateDisplayTransactionsForSalesAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, DisplayTransactions: {DisplayTransactions}",
-        //             companyId, userId, fiscalYearId, displayTransactions);
-
-        //         // Validate inputs
-        //         if (companyId == Guid.Empty || userId == Guid.Empty)
-        //         {
-        //             throw new ArgumentException("Company ID and User ID are required");
-        //         }
-
-        //         // Find and update the settings (without fiscal year filter to match Node.js behavior)
-        //         var existingSettings = await _context.CompanySettings
-        //             .FirstOrDefaultAsync(s => s.CompanyId == companyId && s.UserId == userId);
-
-        //         Settings settings;
-
-        //         if (existingSettings == null)
-        //         {
-        //             // Create new settings if not exists
-        //             settings = new Settings
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 CompanyId = companyId,
-        //                 UserId = userId,
-        //                 FiscalYearId = fiscalYearId,
-        //                 RoundOffSales = false,
-        //                 RoundOffPurchase = false,
-        //                 RoundOffSalesReturn = false,
-        //                 RoundOffPurchaseReturn = false,
-        //                 DisplayTransactions = displayTransactions,
-        //                 DisplayTransactionsForPurchase = false,
-        //                 DisplayTransactionsForSalesReturn = false,
-        //                 DisplayTransactionsForPurchaseReturn = false,
-        //                 StoreManagement = false,
-        //                 Value = "{}",
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-
-        //             _context.CompanySettings.Add(settings);
-        //             _logger.LogInformation("Created new settings for company {CompanyId}, user {UserId}", companyId, userId);
-        //         }
-        //         else
-        //         {
-        //             // Update existing settings
-        //             existingSettings.DisplayTransactions = displayTransactions;
-        //             existingSettings.UpdatedAt = DateTime.UtcNow;
-        //             settings = existingSettings;
-
-        //             _context.CompanySettings.Update(existingSettings);
-        //             _logger.LogInformation("Updated display transactions setting for company {CompanyId}, user {UserId}", companyId, userId);
-        //         }
-
-        //         await _context.SaveChangesAsync();
-
-        //         _logger.LogInformation("Successfully updated displayTransactions setting for Company: {CompanyId}, User: {UserId}", companyId, userId);
-
-        //         return settings;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error in UpdateDisplayTransactionsForSalesAsync for Company: {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
-
         public async Task<Settings> UpdateDisplayTransactionsForSalesAsync(Guid companyId, Guid userId, Guid fiscalYearId, bool displayTransactions)
         {
             try
@@ -1900,5 +1832,875 @@ namespace SkyForge.Services.Retailer.SettingsServices
                 throw;
             }
         }
+
+        // public async Task<Settings> UpdateDatePreferenceForPurchaseAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("UpdateDatePreferenceForPurchaseAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+        //             companyId, userId, fiscalYearId, useVoucherLastDate);
+
+        //         var existingSettings = await _context.CompanySettings
+        //             .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+        //                                      s.UserId == userId &&
+        //                                      s.FiscalYearId == fiscalYearId);
+
+        //         Settings settings;
+
+        //         if (existingSettings == null)
+        //         {
+        //             settings = new Settings
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 UserId = userId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 UseVoucherLastDateForPurchase = useVoucherLastDate,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             _context.CompanySettings.Add(settings);
+        //         }
+        //         else
+        //         {
+        //             existingSettings.UseVoucherLastDateForPurchase = useVoucherLastDate;
+        //             existingSettings.UpdatedAt = DateTime.UtcNow;
+        //             settings = existingSettings;
+        //             _context.CompanySettings.Update(existingSettings);
+        //         }
+
+        //         await _context.SaveChangesAsync();
+        //         return settings;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating date preference for purchase");
+        //         throw;
+        //     }
+        // }
+
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForPurchaseAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForPurchaseAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForPurchase ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for purchase");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForPurchaseAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForPurchaseAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    // Create new settings with default values
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForPurchase = useVoucherLastDate,
+                        // Set other properties with default values
+                        RoundOffSales = false,
+                        RoundOffPurchase = false,
+                        RoundOffSalesReturn = false,
+                        RoundOffPurchaseReturn = false,
+                        DisplayTransactions = false,
+                        DisplayTransactionsForPurchase = false,
+                        DisplayTransactionsForSalesReturn = false,
+                        DisplayTransactionsForPurchaseReturn = false,
+                        StoreManagement = false,
+                        Value = "{}",
+                        UseVoucherLastDateForSales = false,
+                        UseVoucherLastDateForSalesReturn = false,
+                        UseVoucherLastDateForPurchaseReturn = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                    _logger.LogInformation("Created new settings with date preference for purchase");
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForPurchase = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                    _logger.LogInformation("Updated date preference for purchase");
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for purchase");
+                throw;
+            }
+        }
+
+        // Sales Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForSalesAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForSalesAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForSales ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for sales");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForSalesAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForSalesAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForSales = useVoucherLastDate,
+                        // Set other properties with default values
+                        RoundOffSales = false,
+                        RoundOffPurchase = false,
+                        RoundOffSalesReturn = false,
+                        RoundOffPurchaseReturn = false,
+                        DisplayTransactions = false,
+                        DisplayTransactionsForPurchase = false,
+                        DisplayTransactionsForSalesReturn = false,
+                        DisplayTransactionsForPurchaseReturn = false,
+                        StoreManagement = false,
+                        Value = "{}",
+                        UseVoucherLastDateForPurchase = false,
+                        UseVoucherLastDateForSalesReturn = false,
+                        UseVoucherLastDateForPurchaseReturn = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForSales = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for sales");
+                throw;
+            }
+        }
+
+        // Sales Return Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForSalesReturnAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForSalesReturnAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForSalesReturn ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for sales return");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForSalesReturnAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForSalesReturnAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForSalesReturn = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForSalesReturn = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for sales return");
+                throw;
+            }
+        }
+
+        // Purchase Return Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForPurchaseReturnAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForPurchaseReturnAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForPurchaseReturn ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for purchase return");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForPurchaseReturnAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForPurchaseReturnAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForPurchaseReturn = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForPurchaseReturn = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for purchase return");
+                throw;
+            }
+        }
+
+
+        // Payment Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForPaymentAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForPaymentAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForPayment ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for payment");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForPaymentAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForPaymentAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForPayment = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForPayment = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for payment");
+                throw;
+            }
+        }
+
+        // Receipt Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForReceiptAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForReceiptAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForReceipt ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for receipt");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForReceiptAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForReceiptAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForReceipt = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForReceipt = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for receipt");
+                throw;
+            }
+        }
+
+        // Journal Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForJournalAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForJournalAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForJournal ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for journal");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForJournalAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForJournalAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForJournal = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForJournal = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for journal");
+                throw;
+            }
+        }
+
+        // Debit Note Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForDebitNoteAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForDebitNoteAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForDebitNote ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for debit note");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForDebitNoteAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForDebitNoteAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForDebitNote = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForDebitNote = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for debit note");
+                throw;
+            }
+        }
+
+        // Credit Note Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForCreditNoteAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForCreditNoteAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForCreditNote ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for credit note");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForCreditNoteAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForCreditNoteAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForCreditNote = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForCreditNote = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for credit note");
+                throw;
+            }
+        }
+
+
+        // Sales Quotation Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForSalesQuotationAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForSalesQuotationAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForSalesQuotation ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for sales quotation");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForSalesQuotationAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForSalesQuotationAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForSalesQuotation = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForSalesQuotation = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for sales quotation");
+                throw;
+            }
+        }
+
+        // Stock Adjustment Date Preference Methods
+        public async Task<DatePreferenceResponseDTO> GetDatePreferenceForStockAdjustmentAsync(Guid companyId, Guid fiscalYearId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("GetDatePreferenceForStockAdjustmentAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}",
+                    companyId, userId, fiscalYearId);
+
+                var settings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                return new DatePreferenceResponseDTO
+                {
+                    UseVoucherLastDate = settings?.UseVoucherLastDateForStockAdjustment ?? false,
+                    SettingsId = settings?.Id,
+                    LastUpdated = settings?.UpdatedAt ?? settings?.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting date preference for stock adjustment");
+                throw;
+            }
+        }
+
+        public async Task<Settings> UpdateDatePreferenceForStockAdjustmentAsync(Guid companyId, Guid fiscalYearId, Guid userId, bool useVoucherLastDate)
+        {
+            try
+            {
+                _logger.LogInformation("UpdateDatePreferenceForStockAdjustmentAsync called for Company: {CompanyId}, User: {UserId}, FiscalYear: {FiscalYearId}, UseVoucherLastDate: {UseVoucherLastDate}",
+                    companyId, userId, fiscalYearId, useVoucherLastDate);
+
+                var existingSettings = await _context.CompanySettings
+                    .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                             s.UserId == userId &&
+                                             s.FiscalYearId == fiscalYearId);
+
+                Settings settings;
+
+                if (existingSettings == null)
+                {
+                    settings = new Settings
+                    {
+                        Id = Guid.NewGuid(),
+                        CompanyId = companyId,
+                        UserId = userId,
+                        FiscalYearId = fiscalYearId,
+                        UseVoucherLastDateForStockAdjustment = useVoucherLastDate,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.CompanySettings.Add(settings);
+                }
+                else
+                {
+                    existingSettings.UseVoucherLastDateForStockAdjustment = useVoucherLastDate;
+                    existingSettings.UpdatedAt = DateTime.UtcNow;
+                    settings = existingSettings;
+                    _context.CompanySettings.Update(existingSettings);
+                }
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating date preference for stock adjustment");
+                throw;
+            }
+        }
+
     }
 }

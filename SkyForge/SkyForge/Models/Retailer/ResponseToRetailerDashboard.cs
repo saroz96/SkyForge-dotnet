@@ -97,9 +97,7 @@ namespace SkyForge.Models.Retailer
 
         [JsonPropertyName("vatEnabled")]
         public bool VatEnabled { get; set; }
-
-        [JsonPropertyName("renewalDate")]
-        public DateTime? RenewalDate { get; set; }
+       public string RenewalDate { get; set; } = string.Empty;
     }
 
     public class FiscalYearInfo

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using SkyForge.Dto.RetailerDto.PurchaseReturnDto;
 using SkyForge.Models.Shared;
 using SkyForge.Dto.RetailerDto;
+using SkyForge.Models.Retailer.PurchaseReturnModel;
 
 
 namespace SkyForge.Controllers.Retailer
@@ -31,6 +32,120 @@ namespace SkyForge.Controllers.Retailer
             _purchaseReturnService = purchaseReturnService;
         }
 
+        // GET: api/retailer/purchase/last-purchase-date
+        [HttpGet("last-purchase-return-date")]
+        public async Task<IActionResult> GetLastPurchaseReturnDate()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetLastPurchaseReturnDate Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                    return Unauthorized(new { success = false, error = "Invalid user token" });
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "No company selected" });
+
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Get company to determine date format FIRST
+                var company = await _context.Companies.FindAsync(companyIdGuid);
+                bool isNepaliFormat = company?.DateFormat == DateFormatEnum.Nepali;
+
+                // Get the most recent purchase bill based on the company's date format
+                IQueryable<PurchaseReturn> query = _context.PurchaseReturns
+                    .Where(p => p.CompanyId == companyIdGuid && p.FiscalYearId == fiscalYearIdGuid);
+
+                IOrderedQueryable<PurchaseReturn> orderedQuery;
+
+                if (isNepaliFormat)
+                {
+                    // For Nepali format, order by nepaliDate descending (this is the Nepali date field)
+                    orderedQuery = query.OrderByDescending(p => p.nepaliDate)
+                                       .ThenByDescending(p => p.CreatedAt);
+                    _logger.LogInformation("Ordering by Nepali date (nepaliDate field)");
+                }
+                else
+                {
+                    // For English format, order by Date descending
+                    orderedQuery = query.OrderByDescending(p => p.Date)
+                                       .ThenByDescending(p => p.CreatedAt);
+                    _logger.LogInformation("Ordering by English date (Date field)");
+                }
+
+                var lastPurchaseReturn = await orderedQuery
+                    .Select(p => new { p.Date, p.nepaliDate, p.TransactionDate, p.transactionDateNepali, p.BillNumber })
+                    .FirstOrDefaultAsync();
+
+                if (lastPurchaseReturn == null)
+                {
+                    _logger.LogInformation("No purchase return found");
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            date = (string)null,
+                            nepaliDate = (string)null,
+                            transactionDate = (string)null,
+                            transactionDateNepali = (string)null,
+                            billNumber = (string)null
+                        }
+                    });
+                }
+
+                // Format dates as strings in YYYY-MM-DD format
+                string dateString = null;
+                string nepaliDateString = null;
+                string transactionDateString = null;
+                string transactionDateNepaliString = null;
+
+                if (lastPurchaseReturn.Date != null)
+                    dateString = lastPurchaseReturn.Date.ToString("yyyy-MM-dd");
+
+                if (lastPurchaseReturn.nepaliDate != null)
+                    nepaliDateString = lastPurchaseReturn.nepaliDate.ToString("yyyy-MM-dd");
+
+                if (lastPurchaseReturn.TransactionDate != null)
+                    transactionDateString = lastPurchaseReturn.TransactionDate.ToString("yyyy-MM-dd");
+
+                if (lastPurchaseReturn.transactionDateNepali != null)
+                    transactionDateNepaliString = lastPurchaseReturn.transactionDateNepali.ToString("yyyy-MM-dd");
+
+                _logger.LogInformation($"Last purchase date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastPurchaseReturn.BillNumber}, IsNepaliFormat={isNepaliFormat}");
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        date = dateString,
+                        nepaliDate = nepaliDateString,
+                        transactionDate = transactionDateString,
+                        transactionDateNepali = transactionDateNepaliString,
+                        billNumber = lastPurchaseReturn.BillNumber,
+                        dateFormat = isNepaliFormat ? "nepali" : "english"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting last purchase return date");
+                return StatusCode(500, new { success = false, error = "Internal Server Error" });
+            }
+        }
 
         // GET: api/retailer/purchase-return
         [HttpGet("purchase-return")]
@@ -1751,6 +1866,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-   
+
     }
 }

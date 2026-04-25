@@ -42,6 +42,7 @@ using SkyForge.Services.Retailer.PartySummaryServices;
 using SkyForge.Controllers.Retailer;
 using SkyForge.Services.Retailer.ProfitLossServices;
 using SkyForge.Services.Retailer.StockStatusServices;
+using SkyForge.Services.Retailer.TransactionServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -179,6 +180,7 @@ builder.Services.AddScoped<IPartySummaryService, PartySummaryService>();
 builder.Services.AddScoped<ProfitAnalysisController>();
 builder.Services.AddScoped<IProfitLossService, ProfitLossService>();
 builder.Services.AddScoped<IStockStatusService, StockStatusService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
 
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();

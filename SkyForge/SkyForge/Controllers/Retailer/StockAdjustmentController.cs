@@ -6,6 +6,8 @@ using SkyForge.Models.CompanyModel;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using SkyForge.Dto.RetailerDto.StockAdjustmentDto;
+using SkyForge.Models.Shared;
+using SkyForge.Models.Retailer.StockAdjustmentModel;
 
 namespace SkyForge.Controllers.Retailer
 {
@@ -27,6 +29,110 @@ namespace SkyForge.Controllers.Retailer
             _logger = logger;
             _stockAdjustmentService = stockAdjustmentService;
         }
+
+        // GET: api/retailer/last-sales-quotation-date
+        [HttpGet("last-stock-adjustment-date")]
+        public async Task<IActionResult> GetLastStockAdjustmentDate()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetLastStockAdjustmentDate Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                    return Unauthorized(new { success = false, error = "Invalid user token" });
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "No company selected" });
+
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Get company to determine date format FIRST
+                var company = await _context.Companies.FindAsync(companyIdGuid);
+                bool isNepaliFormat = company?.DateFormat == DateFormatEnum.Nepali;
+
+                // Get the most recent purchase bill based on the company's date format
+                IQueryable<StockAdjustment> query = _context.StockAdjustments
+                    .Where(p => p.CompanyId == companyIdGuid && p.FiscalYearId == fiscalYearIdGuid);
+
+                IOrderedQueryable<StockAdjustment> orderedQuery;
+
+                if (isNepaliFormat)
+                {
+                    // For Nepali format, order by nepaliDate descending (this is the Nepali date field)
+                    orderedQuery = query.OrderByDescending(p => p.NepaliDate)
+                                       .ThenByDescending(p => p.CreatedAt);
+                    _logger.LogInformation("Ordering by Nepali date (nepaliDate field)");
+                }
+                else
+                {
+                    // For English format, order by Date descending
+                    orderedQuery = query.OrderByDescending(p => p.Date)
+                                       .ThenByDescending(p => p.CreatedAt);
+                    _logger.LogInformation("Ordering by English date (Date field)");
+                }
+
+                var lastStockAdjustment = await orderedQuery
+                    .Select(p => new { p.Date, p.NepaliDate, p.BillNumber })
+                    .FirstOrDefaultAsync();
+
+                if (lastStockAdjustment == null)
+                {
+                    _logger.LogInformation("No stock adjustment found");
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            date = (string)null,
+                            nepaliDate = (string)null,
+                            billNumber = (string)null
+                        }
+                    });
+                }
+
+                // Format dates as strings in YYYY-MM-DD format
+                string dateString = null;
+                string nepaliDateString = null;
+
+                if (lastStockAdjustment.Date != null)
+                    dateString = lastStockAdjustment.Date.ToString("yyyy-MM-dd");
+
+                if (lastStockAdjustment.NepaliDate != null)
+                    nepaliDateString = lastStockAdjustment.NepaliDate.ToString("yyyy-MM-dd");
+
+                _logger.LogInformation($"Last purchase date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastStockAdjustment.BillNumber}, IsNepaliFormat={isNepaliFormat}");
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        date = dateString,
+                        nepaliDate = nepaliDateString,
+                        billNumber = lastStockAdjustment.BillNumber,
+                        dateFormat = isNepaliFormat ? "nepali" : "english"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting last sales quotation date");
+                return StatusCode(500, new { success = false, error = "Internal Server Error" });
+            }
+        }
+
 
         // GET: api/retailer/stock-adjustments/new
         [HttpGet("stock-adjustments")]

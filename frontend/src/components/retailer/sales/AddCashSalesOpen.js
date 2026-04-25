@@ -465,6 +465,91 @@ const AddCashSalesOpen = () => {
         }
     };
 
+    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
+    //     try {
+    //         if (isHeaderModal) {
+    //             setIsHeaderSearching(true);
+    //         } else {
+    //             setIsSearching(true);
+    //         }
+
+    //         const response = await api.get('/api/retailer/items/search', {
+    //             params: {
+    //                 search: searchTerm,
+    //                 page: page,
+    //                 limit: 15,
+    //                 vatStatus: formData.isVatExempt,
+    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
+    //             }
+    //         });
+
+    //         if (response.data.success) {
+    //             const itemsWithPrices = response.data.items.map(item => {
+    //                 let latestPrice = 0;
+    //                 let latestBatchNumber = '';
+    //                 let latestExpiryDate = '';
+
+    //                 if (item.stockEntries && item.stockEntries.length > 0) {
+    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
+    //                         new Date(b.date) - new Date(a.date)
+    //                     );
+    //                     latestPrice = sortedEntries[0].price || 0;
+    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
+    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
+    //                     item.stockEntries = item.stockEntries.map(entry => ({
+    //                         ...entry,
+    //                         mrp: entry.mrp || 0 // Ensure MRP is present
+    //                     }));
+    //                 }
+
+    //                 return {
+    //                     ...item,
+    //                     id: item.id,
+    //                     _id: item.id,
+    //                     latestPrice,
+    //                     latestBatchNumber,
+    //                     latestExpiryDate,
+    //                     stock: item.currentStock || 0,
+    //                     stockEntries: item.stockEntries || []
+    //                 };
+    //             });
+
+    //             if (isHeaderModal) {
+    //                 if (page === 1) {
+    //                     setHeaderSearchResults(itemsWithPrices);
+    //                 } else {
+    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
+    //                 }
+    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
+    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
+    //                 setHeaderSearchPage(page);
+    //             } else {
+    //                 if (page === 1) {
+    //                     setSearchResults(itemsWithPrices);
+    //                 } else {
+    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
+    //                 }
+    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
+    //                 setTotalSearchItems(response.data.pagination.totalItems);
+    //                 setSearchPage(page);
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching items:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error loading items',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         if (isHeaderModal) {
+    //             setIsHeaderSearching(false);
+    //         } else {
+    //             setIsSearching(false);
+    //         }
+    //     }
+    // };
+
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
             if (isHeaderModal) {
@@ -473,15 +558,29 @@ const AddCashSalesOpen = () => {
                 setIsSearching(true);
             }
 
-            const response = await api.get('/api/retailer/items/search', {
-                params: {
-                    search: searchTerm,
-                    page: page,
-                    limit: 15,
-                    vatStatus: formData.isVatExempt,
-                    sortBy: searchTerm.trim() ? 'relevance' : 'name'
-                }
-            });
+            // Determine which date to send based on company format
+            const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+            let params = {
+                search: searchTerm,
+                page: page,
+                limit: 15,
+                vatStatus: formData.isVatExempt,
+                sortBy: searchTerm.trim() ? 'relevance' : 'name'
+            };
+
+            // Add date filter based on date format
+            if (isNepaliFormat && formData.transactionDateNepali) {
+                // Send Nepali date directly - no conversion needed
+                params.asOfNepaliDate = formData.transactionDateNepali;
+                console.log('Sending Nepali date filter for sales:', formData.transactionDateNepali);
+            } else if (!isNepaliFormat && formData.transactionDateRoman) {
+                // Send English date
+                params.asOfEnglishDate = formData.transactionDateRoman;
+                console.log('Sending English date filter for sales:', formData.transactionDateRoman);
+            }
+
+            const response = await api.get('/api/retailer/items/search', { params });
 
             if (response.data.success) {
                 const itemsWithPrices = response.data.items.map(item => {
@@ -489,17 +588,19 @@ const AddCashSalesOpen = () => {
                     let latestBatchNumber = '';
                     let latestExpiryDate = '';
 
+                    // Calculate total stock from filtered stockEntries
+                    let totalStock = 0;
                     if (item.stockEntries && item.stockEntries.length > 0) {
+                        // Calculate total stock by summing up all quantities from filtered stockEntries
+                        totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
+
+                        // For sales, we need the selling price (price field), not purchase price
                         const sortedEntries = item.stockEntries.sort((a, b) =>
                             new Date(b.date) - new Date(a.date)
                         );
-                        latestPrice = sortedEntries[0].price || 0;
-                        latestBatchNumber = sortedEntries[0].batchNumber || '';
-                        latestExpiryDate = sortedEntries[0].expiryDate || '';
-                        item.stockEntries = item.stockEntries.map(entry => ({
-                            ...entry,
-                            mrp: entry.mrp || 0 // Ensure MRP is present
-                        }));
+                        latestPrice = sortedEntries[0]?.price || 0;
+                        latestBatchNumber = sortedEntries[0]?.batchNumber || '';
+                        latestExpiryDate = sortedEntries[0]?.expiryDate || '';
                     }
 
                     return {
@@ -509,8 +610,7 @@ const AddCashSalesOpen = () => {
                         latestPrice,
                         latestBatchNumber,
                         latestExpiryDate,
-                        stock: item.currentStock || 0,
-                        stockEntries: item.stockEntries || []
+                        stock: totalStock
                     };
                 });
 
@@ -549,6 +649,19 @@ const AddCashSalesOpen = () => {
             }
         }
     };
+    // Refetch items when transaction date changes
+    useEffect(() => {
+        // Only refetch if the header item modal is open or item dropdown is active
+        if (showHeaderItemModal) {
+            const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
+            fetchItemsFromBackend(searchTerm, 1, true);
+        }
+
+        if (showItemDropdown) {
+            fetchItemsFromBackend(searchQuery, 1, false);
+        }
+    }, [formData.transactionDateNepali, formData.transactionDateRoman]);
+
 
     const handleAccountCreated = async (newAccountData) => {
         try {

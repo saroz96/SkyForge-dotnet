@@ -5,6 +5,8 @@ using System.Security.Claims;
 using SkyForge.Services.Retailer.SalesQuotationServices;
 using SkyForge.Data;
 using SkyForge.Dto.RetailerDto.SalesQuotationDto;
+using SkyForge.Models.Shared;
+using SkyForge.Models.Retailer.SalesQuotationModel;
 
 namespace SkyForge.Controllers.RetailerControllers
 {
@@ -26,6 +28,122 @@ namespace SkyForge.Controllers.RetailerControllers
             _logger = logger;
             _salesQuotationService = salesQuotationService;
         }
+
+        // GET: api/retailer/last-sales-quotation-date
+        [HttpGet("last-sales-quotation-date")]
+        public async Task<IActionResult> GetLastSalesQuotationDate()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetLastSalesQuotationDate Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                    return Unauthorized(new { success = false, error = "Invalid user token" });
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "No company selected" });
+
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Get company to determine date format FIRST
+                var company = await _context.Companies.FindAsync(companyIdGuid);
+                bool isNepaliFormat = company?.DateFormat == DateFormatEnum.Nepali;
+
+                // Get the most recent purchase bill based on the company's date format
+                IQueryable<SalesQuotation> query = _context.SalesQuotations
+                    .Where(p => p.CompanyId == companyIdGuid && p.FiscalYearId == fiscalYearIdGuid);
+
+                IOrderedQueryable<SalesQuotation> orderedQuery;
+
+                if (isNepaliFormat)
+                {
+                    // For Nepali format, order by nepaliDate descending (this is the Nepali date field)
+                    orderedQuery = query.OrderByDescending(p => p.nepaliDate)
+                                       .ThenByDescending(p => p.CreatedAt);
+                    _logger.LogInformation("Ordering by Nepali date (nepaliDate field)");
+                }
+                else
+                {
+                    // For English format, order by Date descending
+                    orderedQuery = query.OrderByDescending(p => p.Date)
+                                       .ThenByDescending(p => p.CreatedAt);
+                    _logger.LogInformation("Ordering by English date (Date field)");
+                }
+
+                var lastSalesQuotation = await orderedQuery
+                    .Select(p => new { p.Date, p.nepaliDate, p.TransactionDate, p.transactionDateNepali, p.BillNumber })
+                    .FirstOrDefaultAsync();
+
+                if (lastSalesQuotation == null)
+                {
+                    _logger.LogInformation("No purchase bills found");
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            date = (string)null,
+                            nepaliDate = (string)null,
+                            transactionDate = (string)null,
+                            transactionDateNepali = (string)null,
+                            billNumber = (string)null
+                        }
+                    });
+                }
+
+                // Format dates as strings in YYYY-MM-DD format
+                string dateString = null;
+                string nepaliDateString = null;
+                string transactionDateString = null;
+                string transactionDateNepaliString = null;
+
+                if (lastSalesQuotation.Date != null)
+                    dateString = lastSalesQuotation.Date.ToString("yyyy-MM-dd");
+
+                if (lastSalesQuotation.nepaliDate != null)
+                    nepaliDateString = lastSalesQuotation.nepaliDate.ToString("yyyy-MM-dd");
+
+                if (lastSalesQuotation.TransactionDate != null)
+                    transactionDateString = lastSalesQuotation.TransactionDate.ToString("yyyy-MM-dd");
+
+                if (lastSalesQuotation.transactionDateNepali != null)
+                    transactionDateNepaliString = lastSalesQuotation.transactionDateNepali.ToString("yyyy-MM-dd");
+
+                _logger.LogInformation($"Last purchase date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastSalesQuotation.BillNumber}, IsNepaliFormat={isNepaliFormat}");
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        date = dateString,
+                        nepaliDate = nepaliDateString,
+                        transactionDate = transactionDateString,
+                        transactionDateNepali = transactionDateNepaliString,
+                        billNumber = lastSalesQuotation.BillNumber,
+                        dateFormat = isNepaliFormat ? "nepali" : "english"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting last sales quotation date");
+                return StatusCode(500, new { success = false, error = "Internal Server Error" });
+            }
+        }
+
 
         // GET: api/retailer/sales-quotation
         [HttpGet("sales-quotation")]

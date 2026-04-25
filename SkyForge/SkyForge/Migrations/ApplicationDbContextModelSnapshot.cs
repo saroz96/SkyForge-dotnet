@@ -3869,6 +3869,39 @@ namespace SkyForge.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<bool>("UseVoucherLastDateForCreditNote")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForDebitNote")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForJournal")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForPayment")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForPurchase")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForPurchaseReturn")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForReceipt")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForSales")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForSalesQuotation")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForSalesReturn")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("UseVoucherLastDateForStockAdjustment")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
