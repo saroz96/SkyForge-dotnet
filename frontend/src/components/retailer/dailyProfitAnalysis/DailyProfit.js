@@ -435,7 +435,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Header from '../Header';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import '../../../stylesheet/noDateIcon.css';
 
 const DailyProfit = () => {

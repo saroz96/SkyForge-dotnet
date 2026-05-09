@@ -6,7 +6,6 @@ using SkyForge.Data;
 using SkyForge.Models;
 using SkyForge.Models.CompanyModel;
 using SkyForge.Models.UserModel;
-using SkyForge.Services;
 using SkyForge.Services.AccountGroupServices;
 using SkyForge.Services.AccountServices;
 using SkyForge.Services.CategoryServices;
@@ -43,6 +42,8 @@ using SkyForge.Controllers.Retailer;
 using SkyForge.Services.Retailer.ProfitLossServices;
 using SkyForge.Services.Retailer.StockStatusServices;
 using SkyForge.Services.Retailer.TransactionServices;
+using SkyForge.Models.RoleModel;
+using SkyForge.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -182,6 +183,8 @@ builder.Services.AddScoped<IProfitLossService, ProfitLossService>();
 builder.Services.AddScoped<IStockStatusService, StockStatusService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 
+builder.Services.AddScoped<IFiscalYearTransferService, FiscalYearTransferService>();
+
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();
 
@@ -244,25 +247,113 @@ await SeedInitialDataAsync(app.Services);
 
 app.Run();
 
+// async Task SeedInitialDataAsync(IServiceProvider serviceProvider)
+// {
+//     using var scope = serviceProvider.CreateScope();
+//     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+
+//     var adminUser = await userService.GetUserByEmailAsync("admin@example.com");
+//     if (adminUser == null)
+//     {
+//         var admin = new User
+//         {
+//             Name = "Administrator",
+//             Email = "admin@example.com",
+//             IsAdmin = true,
+//             IsEmailVerified = true,
+//             CreatedAt = DateTime.UtcNow,
+//             UpdatedAt = DateTime.UtcNow
+//         };
+
+//         await userService.CreateUserAsync(admin, "Admin@123");
+//         Console.WriteLine("Default admin user created");
+//     }
+// }
+
+
 async Task SeedInitialDataAsync(IServiceProvider serviceProvider)
 {
     using var scope = serviceProvider.CreateScope();
     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+    // First, check if the Administrator role exists, if not create it
+    var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "Administrator");
+
+    if (adminRole == null)
+    {
+        // Create the Administrator role
+        adminRole = new Role
+        {
+            Id = Guid.NewGuid(),
+            Name = "Administrator",
+            Description = "Full system access with all permissions",
+            Type = RoleType.System,
+            PermissionLevel = 100,
+            IsSystemRole = true,
+            IsAssignable = true,
+            IsActive = true,
+            DefaultPermissions = new Dictionary<string, bool>
+            {
+                { "AllPermissions", true }  // Admin gets all permissions
+            },
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await context.Roles.AddAsync(adminRole);
+        await context.SaveChangesAsync();
+        Console.WriteLine("Administrator role created");
+    }
+
+    // Check if admin user exists
     var adminUser = await userService.GetUserByEmailAsync("admin@example.com");
+
     if (adminUser == null)
     {
+        // Create the admin user
         var admin = new User
         {
+            Id = Guid.NewGuid(),
             Name = "Administrator",
             Email = "admin@example.com",
             IsAdmin = true,
             IsEmailVerified = true,
+            IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         await userService.CreateUserAsync(admin, "Admin@123");
+        adminUser = admin; // Get the created user object
+
         Console.WriteLine("Default admin user created");
     }
+
+    // Check if the admin user already has the Administrator role assigned
+    var existingUserRole = await context.UserRoles
+        .FirstOrDefaultAsync(ur => ur.UserId == adminUser.Id && ur.RoleId == adminRole.Id);
+
+    if (existingUserRole == null)
+    {
+        // Assign the Administrator role to the admin user
+        var userRole = new UserRole
+        {
+            Id = Guid.NewGuid(),
+            UserId = adminUser.Id,
+            RoleId = adminRole.Id,
+            IsPrimary = true,  // Set as primary role
+            AssignedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            CustomPermissions = new Dictionary<string, bool>
+            {
+                { "AllPermissions", true }
+            }
+        };
+
+        await context.UserRoles.AddAsync(userRole);
+        await context.SaveChangesAsync();
+
+        Console.WriteLine("Administrator role assigned to admin user");
+    }
 }
+

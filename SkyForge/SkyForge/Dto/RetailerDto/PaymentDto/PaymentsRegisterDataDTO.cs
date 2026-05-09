@@ -13,7 +13,7 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
         public string? ToDate { get; set; }
         public string CurrentCompanyName { get; set; } = string.Empty;
         public string CompanyDateFormat { get; set; } = "english";
-        public string NepaliDate { get; set; } = string.Empty;
+        public string? NepaliDate { get; set; }
         public UserPreferencesDTO? UserPreferences { get; set; }
         public bool IsAdminOrSupervisor { get; set; }
     }
@@ -23,7 +23,7 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public Guid AccountId { get; set; }
         public string AccountName { get; set; } = string.Empty;
         public string AccountUniqueNumber { get; set; } = string.Empty;

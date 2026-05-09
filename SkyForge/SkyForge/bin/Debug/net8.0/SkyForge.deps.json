@@ -12,6 +12,7 @@
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "8.0.0",
           "Microsoft.EntityFrameworkCore.Design": "8.0.0",
           "Microsoft.EntityFrameworkCore.Tools": "8.0.0",
+          "NepDate": "2.0.6",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "8.0.0",
           "Swashbuckle.AspNetCore": "6.6.2"
         },
@@ -495,6 +496,14 @@
           }
         }
       },
+      "NepDate/2.0.6": {
+        "runtime": {
+          "lib/net8.0/NepDate.dll": {
+            "assemblyVersion": "2.0.6.0",
+            "fileVersion": "2.0.6.0"
+          }
+        }
+      },
       "Npgsql/8.0.0": {
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
@@ -935,6 +944,13 @@
       "sha512": "sha512-KZYeKBET/2Z0gY1WlTAK7+RHTl7GSbtvTLDXEZZojUdAPqpQNDL6tHv7VUpqfX5VEOh+uRGKaZXkuD253nEOBQ==",
       "path": "mono.texttemplating/2.2.1",
       "hashPath": "mono.texttemplating.2.2.1.nupkg.sha512"
+    },
+    "NepDate/2.0.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-DWEHJClEoH541aNWH3qlD7fEWl/mOIj6AozRxLxqX+/GXFLfycX/N3bj3InGi2f2Y8d/lbegC1G1dnlBcroOlg==",
+      "path": "nepdate/2.0.6",
+      "hashPath": "nepdate.2.0.6.nupkg.sha512"
     },
     "Npgsql/8.0.0": {
       "type": "package",

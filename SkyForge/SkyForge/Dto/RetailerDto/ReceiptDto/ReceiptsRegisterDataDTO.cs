@@ -23,7 +23,7 @@ namespace SkyForge.Dto.RetailerDto.ReceiptDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public Guid AccountId { get; set; }
         public string AccountName { get; set; } = string.Empty;
         public string AccountUniqueNumber { get; set; } = string.Empty;
@@ -53,22 +53,4 @@ namespace SkyForge.Dto.RetailerDto.ReceiptDto
         public PermissionsDTO Permissions { get; set; } = new();
         public string CurrentCompanyName { get; set; } = string.Empty;
     }
-
-    // public class DateInfoDTO
-    // {
-    //     public string NepaliDate { get; set; } = string.Empty;
-    //     public string TransactionDateNepali { get; set; } = string.Empty;
-    //     public string CompanyDateFormat { get; set; } = "english";
-    // }
-
-    // public class UserPreferencesDTO
-    // {
-    //     public string Theme { get; set; } = "light";
-    // }
-
-    // public class PermissionsDTO
-    // {
-    //     public bool IsAdminOrSupervisor { get; set; }
-    //     public bool StoreManagementEnabled { get; set; }
-    // }
 }

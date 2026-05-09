@@ -36,9 +36,10 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
 
         public DateTime Date { get; set; }
 
-        public DateTime EnglishDate { get; set; }
-
         public DateTime TransactionDate { get; set; }
+
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         public decimal? SubTotal { get; set; }
         public decimal? NonVatPurchase { get; set; }

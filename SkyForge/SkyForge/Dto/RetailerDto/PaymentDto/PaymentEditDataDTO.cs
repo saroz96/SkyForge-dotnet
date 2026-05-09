@@ -26,7 +26,7 @@ namespace SkyForge.Dto.RetailerDto.PaymentDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public Guid AccountId { get; set; }
         public string AccountName { get; set; } = string.Empty;
         // public decimal Debit { get; set; }

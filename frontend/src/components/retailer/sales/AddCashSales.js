@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
@@ -12,6 +14,212 @@ import VirtualizedItemList from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import AccountCreationModal from './AccountCreationModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
+
+// Date conversion utilities using nepali-datetime
+const convertBsToAd = (bsDate) => {
+    if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+
+    try {
+        const nepaliDate = new NepaliDate(bsDate);
+        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
+            console.error('Invalid NepaliDate object or missing getDateObject method');
+            return null;
+        }
+
+        const jsDate = nepaliDate.getDateObject();
+        if (!jsDate || isNaN(jsDate.getTime())) {
+            console.error('Invalid AD date generated from BS date:', bsDate);
+            return null;
+        }
+
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
+        return null;
+    }
+};
+
+const convertAdToBs = (adDate) => {
+    if (!adDate) return null;
+
+    try {
+        let date;
+        if (typeof adDate === 'string') {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+                date = new Date(adDate + 'T00:00:00');
+            } else {
+                date = new Date(adDate);
+            }
+        } else if (adDate instanceof Date) {
+            date = adDate;
+        } else {
+            return null;
+        }
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid AD date:', adDate);
+            return null;
+        }
+
+        const nepaliDate = new NepaliDate(date);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            console.error('Invalid NepaliDate object');
+            return null;
+        }
+
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth();
+        const day = nepaliDate.getDate();
+
+        if (!year || !month === undefined || !day) {
+            console.error('Invalid BS components generated');
+            return null;
+        }
+
+        return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
+        return null;
+    }
+};
+
+const isValidNepaliDate = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    try {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 32) return false;
+
+        const nepaliDate = new NepaliDate(dateStr);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            return false;
+        }
+
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch (error) {
+        console.warn('Invalid Nepali date:', dateStr, error.message);
+        return false;
+    }
+};
+
+const getCurrentNepaliDate = () => {
+    try {
+        const now = new NepaliDate();
+        if (!now || typeof now.getYear !== 'function') {
+            return '2080-01-01';
+        }
+        const year = now.getYear();
+        const month = now.getMonth() + 1;
+        const day = now.getDate();
+
+        if (!year || !month || !day) {
+            return '2080-01-01';
+        }
+
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error getting current Nepali date:', error);
+        return '2080-01-01';
+    }
+};
+
+// Helper function to format AD date to YYYY-MM-DD
+const formatAdDate = (date) => {
+    if (!date) return null;
+
+    try {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return null;
+
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error formatting AD date:', error);
+        return null;
+    }
+};
+
+// Get Nepali month days for validation
+const getNepaliMonthDays = (year, month) => {
+    const monthDays = {
+        1: 31,  // Baisakh
+        2: 31,  // Jestha
+        3: 32,  // Ashad
+        4: 32,  // Shrawan
+        5: 31,  // Bhadra
+        6: 31,  // Ashwin
+        7: 30,  // Kartik
+        8: 30,  // Mangsir
+        9: 30,  // Poush
+        10: 30, // Magh
+        11: 30, // Falgun
+        12: 30  // Chaitra
+    };
+
+    if (month === 3) {
+        const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
+        return ashad31Years.includes(year) ? 31 : 32;
+    }
+
+    if (month === 11) {
+        const isLeapYear = (year + 1) % 4 === 0;
+        return isLeapYear ? 30 : 29;
+    }
+
+    return monthDays[month] || 30;
+};
+
+// Enhanced validation with month day limits
+const isValidNepaliDateEnhanced = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    const [year, month, day] = dateStr.split('-').map(Number);
+
+    if (year < 1970 || year > 2100) return false;
+    if (month < 1 || month > 12) return false;
+
+    const maxDays = getNepaliMonthDays(year, month);
+    if (day < 1 || day > maxDays) return false;
+
+    try {
+        const nepaliDate = new NepaliDate(dateStr);
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch {
+        return false;
+    }
+};
+
+// Safe date parser for forms
+const safeParseNepaliDate = (dateStr) => {
+    if (!dateStr) return null;
+
+    let corrected = dateStr;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (year && month && day) {
+        const maxDays = getNepaliMonthDays(year, month);
+        if (day > maxDays) {
+            corrected = `${year}-${String(month).padStart(2, '0')}-${String(maxDays).padStart(2, '0')}`;
+            console.log(`Corrected date: ${dateStr} -> ${corrected}`);
+        }
+    }
+    return corrected;
+};
 
 const AddCashSales = () => {
     const navigate = useNavigate();
@@ -270,119 +478,127 @@ const AddCashSales = () => {
     //     }
     // };
 
-        const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-            try {
-                if (isHeaderModal) {
-                    setIsHeaderSearching(true);
-                } else {
-                    setIsSearching(true);
+    const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
+        try {
+            if (isHeaderModal) {
+                setIsHeaderSearching(true);
+            } else {
+                setIsSearching(true);
+            }
+
+            // Determine which date to send based on company format
+            const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+            let params = {
+                search: searchTerm,
+                page: page,
+                limit: 15,
+                vatStatus: formData.isVatExempt,
+                sortBy: searchTerm.trim() ? 'relevance' : 'name'
+            };
+
+            // Add date filter based on date format
+            if (formData.transactionDateRoman) {
+                // Send AD date directly
+                params.asOfDate = formData.transactionDateRoman;
+                console.log('Sales - Sending AD date filter:', formData.transactionDateRoman);
+            } else if (formData.transactionDateNepali) {
+                // Convert BS to AD if needed
+                const adDate = convertBsToAd(formData.transactionDateNepali);
+                if (adDate) {
+                    params.asOfDate = adDate;
+                    console.log('Sales - Converted BS to AD for filter:', formData.transactionDateNepali, '->', adDate);
                 }
-    
-                // Determine which date to send based on company format
-                const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
-    
-                let params = {
-                    search: searchTerm,
-                    page: page,
-                    limit: 15,
-                    vatStatus: formData.isVatExempt,
-                    sortBy: searchTerm.trim() ? 'relevance' : 'name'
-                };
-    
-                // Add date filter based on date format
-                if (isNepaliFormat && formData.transactionDateNepali) {
-                    // Send Nepali date directly - no conversion needed
-                    params.asOfNepaliDate = formData.transactionDateNepali;
-                    console.log('Sending Nepali date filter for sales:', formData.transactionDateNepali);
-                } else if (!isNepaliFormat && formData.transactionDateRoman) {
-                    // Send English date
-                    params.asOfEnglishDate = formData.transactionDateRoman;
-                    console.log('Sending English date filter for sales:', formData.transactionDateRoman);
-                }
-    
-                const response = await api.get('/api/retailer/items/search', { params });
-    
-                if (response.data.success) {
-                    const itemsWithPrices = response.data.items.map(item => {
-                        let latestPrice = 0;
-                        let latestBatchNumber = '';
-                        let latestExpiryDate = '';
-    
-                        // Calculate total stock from filtered stockEntries
-                        let totalStock = 0;
-                        if (item.stockEntries && item.stockEntries.length > 0) {
-                            // Calculate total stock by summing up all quantities from filtered stockEntries
-                            totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
-    
-                            // For sales, we need the selling price (price field), not purchase price
-                            const sortedEntries = item.stockEntries.sort((a, b) =>
-                                new Date(b.date) - new Date(a.date)
-                            );
-                            latestPrice = sortedEntries[0]?.price || 0;
-                            latestBatchNumber = sortedEntries[0]?.batchNumber || '';
-                            latestExpiryDate = sortedEntries[0]?.expiryDate || '';
-                        }
-    
-                        return {
-                            ...item,
-                            id: item.id,
-                            _id: item.id,
-                            latestPrice,
-                            latestBatchNumber,
-                            latestExpiryDate,
-                            stock: totalStock
-                        };
-                    });
-    
-                    if (isHeaderModal) {
-                        if (page === 1) {
-                            setHeaderSearchResults(itemsWithPrices);
-                        } else {
-                            setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-                        }
-                        setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-                        setTotalHeaderSearchItems(response.data.pagination.totalItems);
-                        setHeaderSearchPage(page);
-                    } else {
-                        if (page === 1) {
-                            setSearchResults(itemsWithPrices);
-                        } else {
-                            setSearchResults(prev => [...prev, ...itemsWithPrices]);
-                        }
-                        setHasMoreSearchResults(response.data.pagination.hasNextPage);
-                        setTotalSearchItems(response.data.pagination.totalItems);
-                        setSearchPage(page);
+            } else {
+                // Fallback to current date if no date is set
+                const today = new Date().toISOString().split('T')[0];
+                params.asOfDate = today;
+                console.log('Sales - No date set, using current date:', today);
+            }
+
+            const response = await api.get('/api/retailer/items/search', { params });
+
+            if (response.data.success) {
+                const itemsWithPrices = response.data.items.map(item => {
+                    let latestPrice = 0;
+                    let latestBatchNumber = '';
+                    let latestExpiryDate = '';
+
+                    // Calculate total stock from filtered stockEntries
+                    let totalStock = 0;
+                    if (item.stockEntries && item.stockEntries.length > 0) {
+                        // Calculate total stock by summing up all quantities from filtered stockEntries
+                        totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
+
+                        // For sales, we need the selling price (price field), not purchase price
+                        const sortedEntries = item.stockEntries.sort((a, b) =>
+                            new Date(b.date) - new Date(a.date)
+                        );
+                        latestPrice = sortedEntries[0]?.price || 0;
+                        latestBatchNumber = sortedEntries[0]?.batchNumber || '';
+                        latestExpiryDate = sortedEntries[0]?.expiryDate || '';
                     }
-                }
-            } catch (error) {
-                console.error('Error fetching items:', error);
-                setNotification({
-                    show: true,
-                    message: 'Error loading items',
-                    type: 'error'
+
+                    return {
+                        ...item,
+                        id: item.id,
+                        _id: item.id,
+                        latestPrice,
+                        latestBatchNumber,
+                        latestExpiryDate,
+                        stock: totalStock
+                    };
                 });
-            } finally {
+
                 if (isHeaderModal) {
-                    setIsHeaderSearching(false);
+                    if (page === 1) {
+                        setHeaderSearchResults(itemsWithPrices);
+                    } else {
+                        setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
+                    }
+                    setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
+                    setTotalHeaderSearchItems(response.data.pagination.totalItems);
+                    setHeaderSearchPage(page);
                 } else {
-                    setIsSearching(false);
+                    if (page === 1) {
+                        setSearchResults(itemsWithPrices);
+                    } else {
+                        setSearchResults(prev => [...prev, ...itemsWithPrices]);
+                    }
+                    setHasMoreSearchResults(response.data.pagination.hasNextPage);
+                    setTotalSearchItems(response.data.pagination.totalItems);
+                    setSearchPage(page);
                 }
             }
-        };
-    
-        // Refetch items when transaction date changes
-        useEffect(() => {
-            // Only refetch if the header item modal is open or item dropdown is active
-            if (showHeaderItemModal) {
-                const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
-                fetchItemsFromBackend(searchTerm, 1, true);
+        } catch (error) {
+            console.error('Error fetching items:', error);
+            setNotification({
+                show: true,
+                message: 'Error loading items',
+                type: 'error'
+            });
+        } finally {
+            if (isHeaderModal) {
+                setIsHeaderSearching(false);
+            } else {
+                setIsSearching(false);
             }
-    
-            if (showItemDropdown) {
-                fetchItemsFromBackend(searchQuery, 1, false);
-            }
-        }, [formData.transactionDateNepali, formData.transactionDateRoman]);
-    
+        }
+    };
+
+    // Refetch items when transaction date changes
+    useEffect(() => {
+        // Only refetch if the header item modal is open or item dropdown is active
+        if (showHeaderItemModal) {
+            const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
+            fetchItemsFromBackend(searchTerm, 1, true);
+        }
+
+        if (showItemDropdown) {
+            fetchItemsFromBackend(searchQuery, 1, false);
+        }
+    }, [formData.transactionDateNepali, formData.transactionDateRoman]);
+
 
     // For header modal search
     const debouncedHeaderSearchQuery = useDebounce(headerSearchQuery, 500);
@@ -398,6 +614,46 @@ const AddCashSales = () => {
         };
     }, []);
 
+    // useEffect(() => {
+    //     const fetchInitialData = async () => {
+    //         try {
+    //             setIsLoading(true);
+
+    //             // Fetch current bill number (does NOT increment)
+    //             const currentBillNum = await getCurrentBillNumber();
+
+    //             const response = await api.get('/api/retailer/cash-sales');
+    //             const { data } = response.data;
+
+    //             setCompany({
+    //                 ...data.company,
+    //                 dateFormat: data.company.dateFormat || 'nepali',
+    //                 vatEnabled: data.company.vatEnabled || true
+    //             });
+
+    //             setNextBillNumber(currentBillNum);
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 billNumber: currentBillNum
+    //             }));
+
+    //             // Fetch initial accounts with pagination
+    //             fetchAccountsFromBackend('', 1);
+    //             setIsInitialDataLoaded(true);
+    //         } catch (error) {
+    //             console.error('Error fetching initial data:', error);
+    //             setNotification({
+    //                 show: true,
+    //                 message: 'Error loading cash sales data',
+    //                 type: 'error'
+    //             });
+    //         } finally {
+    //             setIsLoading(false);
+    //         }
+    //     };
+    //     fetchInitialData();
+    // }, []);
+
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -409,6 +665,9 @@ const AddCashSales = () => {
                 const response = await api.get('/api/retailer/cash-sales');
                 const { data } = response.data;
 
+                const isNepaliFormat = data.company.dateFormat === 'nepali' ||
+                    data.company.dateFormat === 'Nepali';
+
                 setCompany({
                     ...data.company,
                     dateFormat: data.company.dateFormat || 'nepali',
@@ -416,10 +675,20 @@ const AddCashSales = () => {
                 });
 
                 setNextBillNumber(currentBillNum);
-                setFormData(prev => ({
-                    ...prev,
-                    billNumber: currentBillNum
-                }));
+
+                // Determine dates based on preference if needed
+                // For cash sales, we might want to use current date by default
+                const transactionDate = isNepaliFormat ? currentNepaliDate : new Date().toISOString().split('T')[0];
+                const invoiceDate = isNepaliFormat ? currentNepaliDate : new Date().toISOString().split('T')[0];
+
+                setFormData({
+                    ...formData,
+                    billNumber: currentBillNum,
+                    transactionDateNepali: isNepaliFormat ? transactionDate : '',
+                    transactionDateRoman: !isNepaliFormat ? transactionDate : (isNepaliFormat ? convertBsToAd(transactionDate) : ''),
+                    nepaliDate: isNepaliFormat ? invoiceDate : '',
+                    billDate: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : '')
+                });
 
                 // Fetch initial accounts with pagination
                 fetchAccountsFromBackend('', 1);
@@ -752,6 +1021,28 @@ const AddCashSales = () => {
                     block: 'start'
                 });
             }, 100);
+        }
+    };
+
+    const formatDateForInput = (date) => {
+        if (!date) return '';
+
+        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return date;
+        }
+
+        try {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return '';
+
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+
+            return `${year}-${month}-${day}`;
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return '';
         }
     };
 
@@ -1754,8 +2045,8 @@ const AddCashSales = () => {
                         </div>
                         <div>
                             <div><strong>Invoice No:</strong> ${printData.bill.billNumber || ''}</div>
-                            <div><strong>Trans. Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
-                            <div><strong>Invoice Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
+                            <div><strong>Trans. Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.transactionDateNepali, 'Nepali') : formatDateForInput(printData.bill.transactionDate)}(${new Date(printData.bill.transactionDate).toLocaleDateString()})</div>
+                            <div><strong>Invoice Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.nepaliDate, 'Nepali') : formatDateForInput(printData.bill.date)}(${new Date(printData.bill.date).toLocaleDateString()})</div>
                             <div><strong>Mode of Payment:</strong> ${printData.bill.paymentMode || ''}</div>
                         </div>
                     </div>
@@ -2219,8 +2510,10 @@ const AddCashSales = () => {
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
                         <div className="row g-2 mb-3">
+
                             {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
+                                    {/* Nepali Transaction Date */}
                                     <div className="col-12 col-md-6 col-lg-3">
                                         <div className="position-relative">
                                             <input
@@ -2234,9 +2527,27 @@ const AddCashSales = () => {
                                                 onChange={(e) => {
                                                     const value = e.target.value;
                                                     const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
                                                     if (sanitizedValue.length <= 10) {
-                                                        setFormData({ ...formData, transactionDateNepali: sanitizedValue });
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: sanitizedValue
+                                                        }));
                                                         setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
+                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                            console.log('Converting BS to AD:', sanitizedValue);
+                                                            const adDate = convertBsToAd(sanitizedValue);
+                                                            console.log('Converted AD date:', adDate);
+                                                            if (adDate) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    transactionDateRoman: adDate,
+                                                                    billDate: adDate
+                                                                }));
+                                                            }
+                                                        }
                                                     }
                                                 }}
                                                 onKeyDown={(e) => {
@@ -2259,11 +2570,10 @@ const AddCashSales = () => {
                                                         const dateStr = e.target.value.trim();
 
                                                         if (!dateStr) {
-                                                            const currentDate = new NepaliDate();
-                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                            const currentDate = getCurrentNepaliDate();
                                                             setFormData({
                                                                 ...formData,
-                                                                transactionDateNepali: correctedDate
+                                                                transactionDateNepali: currentDate
                                                             });
                                                             setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
 
@@ -2282,16 +2592,41 @@ const AddCashSales = () => {
                                                         }
                                                     }
                                                 }}
-                                                onPaste={(e) => {
-                                                    e.preventDefault();
-                                                    const pastedData = e.clipboardData.getData('text');
-                                                    const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                                    const newValue = formData.transactionDateNepali + cleanedData;
-                                                    if (newValue.length <= 10) {
-                                                        setFormData({ ...formData, transactionDateNepali: newValue });
+                                                onBlur={(e) => {
+                                                    const dateStr = e.target.value.trim();
+                                                    if (!dateStr) {
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                        return;
+                                                    }
+
+                                                    if (isValidNepaliDate(dateStr)) {
+                                                        const adDate = convertBsToAd(dateStr);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                transactionDateNepali: dateStr,
+                                                                transactionDateRoman: adDate,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                    } else {
+                                                        const currentDate = getCurrentNepaliDate();
+                                                        const adDate = convertBsToAd(currentDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: currentDate,
+                                                            transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                            billDate: adDate || prev.billDate
+                                                        }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
                                                     }
                                                 }}
-                                                onBlur={handleTransactionDateNepaliBlur}
                                                 placeholder="YYYY-MM-DD"
                                                 required
                                                 style={{
@@ -2301,19 +2636,16 @@ const AddCashSales = () => {
                                                     width: '100%'
                                                 }}
                                             />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Transaction Date: <span className="text-danger">*</span>
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Transaction Date (BS): <span className="text-danger">*</span>
                                             </label>
                                             {dateErrors.transactionDateNepali && (
                                                 <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
@@ -2323,6 +2655,47 @@ const AddCashSales = () => {
                                         </div>
                                     </div>
 
+                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
+                                    {/* <div className="col-12 col-md-6 col-lg-3">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="transactionDateRoman"
+                                                id="transactionDateRoman"
+                                                className="form-control form-control-sm"
+                                                value={formData.transactionDateRoman || ''}
+                                                readOnly
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%',
+                                                    backgroundColor: '#f8f9fa',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Transaction Date (AD):
+                                            </label>
+                                        </div>
+                                    </div> */}
+
+                                    <input
+                                        type="hidden"
+                                        name="transactionDateRoman"
+                                        id="transactionDateRoman"
+                                        value={formData.transactionDateRoman || ''}
+                                    />
+
+                                    {/* Nepali Invoice Date */}
                                     <div className="col-12 col-md-6 col-lg-3">
                                         <div className="position-relative">
                                             <input
@@ -2335,9 +2708,26 @@ const AddCashSales = () => {
                                                 onChange={(e) => {
                                                     const value = e.target.value;
                                                     const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
                                                     if (sanitizedValue.length <= 10) {
-                                                        setFormData({ ...formData, nepaliDate: sanitizedValue });
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: sanitizedValue
+                                                        }));
                                                         setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                        // Auto-convert to AD when we have a complete valid date
+                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                            console.log('Invoice Date - Converting BS to AD:', sanitizedValue);
+                                                            const adDate = convertBsToAd(sanitizedValue);
+                                                            console.log('Invoice Date - Converted AD date:', adDate);
+                                                            if (adDate) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    billDate: adDate
+                                                                }));
+                                                            }
+                                                        }
                                                     }
                                                 }}
                                                 onKeyDown={(e) => {
@@ -2360,11 +2750,10 @@ const AddCashSales = () => {
                                                         const dateStr = e.target.value.trim();
 
                                                         if (!dateStr) {
-                                                            const currentDate = new NepaliDate();
-                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                            const currentDate = getCurrentNepaliDate();
                                                             setFormData({
                                                                 ...formData,
-                                                                nepaliDate: correctedDate
+                                                                nepaliDate: currentDate
                                                             });
                                                             setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
 
@@ -2383,16 +2772,39 @@ const AddCashSales = () => {
                                                         }
                                                     }
                                                 }}
-                                                onPaste={(e) => {
-                                                    e.preventDefault();
-                                                    const pastedData = e.clipboardData.getData('text');
-                                                    const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                                    const newValue = formData.nepaliDate + cleanedData;
-                                                    if (newValue.length <= 10) {
-                                                        setFormData({ ...formData, nepaliDate: newValue });
+                                                onBlur={(e) => {
+                                                    const dateStr = e.target.value.trim();
+                                                    if (!dateStr) {
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                        return;
+                                                    }
+
+                                                    if (isValidNepaliDate(dateStr)) {
+                                                        const adDate = convertBsToAd(dateStr);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                nepaliDate: dateStr,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                    } else {
+                                                        const currentDate = getCurrentNepaliDate();
+                                                        const adDate = convertBsToAd(currentDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: currentDate,
+                                                            billDate: adDate || prev.billDate
+                                                        }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
                                                     }
                                                 }}
-                                                onBlur={handleNepaliDateBlur}
                                                 placeholder="YYYY-MM-DD"
                                                 required
                                                 style={{
@@ -2402,19 +2814,16 @@ const AddCashSales = () => {
                                                     width: '100%'
                                                 }}
                                             />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Invoice Date: <span className="text-danger">*</span>
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Invoice Date (BS): <span className="text-danger">*</span>
                                             </label>
                                             {dateErrors.nepaliDate && (
                                                 <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
@@ -2423,8 +2832,48 @@ const AddCashSales = () => {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* AD Invoice Date (Auto-converted, Read-only) */}
+                                    {/* <div className="col-12 col-md-6 col-lg-3">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="billDate"
+                                                id="billDate"
+                                                className="form-control form-control-sm"
+                                                value={formData.billDate || ''}
+                                                readOnly
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%',
+                                                    backgroundColor: '#f8f9fa',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Invoice Date (AD):
+                                            </label>
+                                        </div>
+                                    </div> */}
+                                    <input
+                                        type="hidden"
+                                        name="billDate"
+                                        id="billDate"
+                                        value={formData.billDate || ''}
+                                    />
                                 </>
                             ) : (
+                                // English date format section (remains the same as your existing code)
                                 <>
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
@@ -2500,18 +2949,15 @@ const AddCashSales = () => {
                                                     width: '100%'
                                                 }}
                                             />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
                                                 Transaction Date: <span className="text-danger">*</span>
                                             </label>
                                         </div>
@@ -2590,18 +3036,15 @@ const AddCashSales = () => {
                                                     width: '100%'
                                                 }}
                                             />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
                                                 Invoice Date: <span className="text-danger">*</span>
                                             </label>
                                         </div>
@@ -3524,7 +3967,7 @@ const AddCashSales = () => {
                                                 </label>
                                             </div>
                                         </td> */}
-                                        
+
                                         <td style={{ padding: '1px', verticalAlign: 'middle' }}>
                                             <div className="position-relative" style={{ minWidth: '150px' }}>
                                                 <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>

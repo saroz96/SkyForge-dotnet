@@ -5,13 +5,15 @@ namespace SkyForge.Services.Retailer.MonthlyVatSummaryServices
     public interface IMonthlyVatSummaryService
     {
         Task<MonthlyVatSummaryDTO> GetMonthlyVatSummaryAsync(
-            Guid companyId, 
-            Guid fiscalYearId, 
-            string? month, 
-            string? year, 
-            string? nepaliMonth, 
-            string? nepaliYear, 
+            Guid companyId,
+            Guid fiscalYearId,
+            string? month,
+            string? year,
+            string? nepaliMonth,
+            string? nepaliYear,
             string? periodType,
-            string dateFormat);
+            string dateFormat,
+            string? fromDate,
+            string? toDate);
     }
 }

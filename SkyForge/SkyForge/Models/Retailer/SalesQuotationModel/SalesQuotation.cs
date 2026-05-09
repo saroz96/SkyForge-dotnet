@@ -108,15 +108,12 @@ namespace SkyForge.Models.Retailer.SalesQuotationModel
         [Column("description")]
         [StringLength(500)]
         public string? Description { get; set; }
-
-        [Column("nepali_date")]
-        public DateTime nepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Column("date")]
         public DateTime Date { get; set; }
 
-        [Column("transaction_date_nepali")]
-        public DateTime transactionDateNepali { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         [Column("transaction_date")]
         public DateTime TransactionDate { get; set; }

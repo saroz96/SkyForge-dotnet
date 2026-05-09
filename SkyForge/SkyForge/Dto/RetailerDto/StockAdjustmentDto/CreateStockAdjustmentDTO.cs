@@ -15,9 +15,8 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
         public string AdjustmentType { get; set; } = string.Empty;
 
         public string? Note { get; set; }
-
-        public DateTime NepaliDate { get; set; }
-        public DateTime BillDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public DateTime Date { get; set; }
 
         public string IsVatExempt { get; set; } = "false"; // "true", "false", or "all"
 

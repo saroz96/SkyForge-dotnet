@@ -111,7 +111,7 @@ namespace SkyForge.Controllers.Retailer
                     dateString = lastDebitNote.Date.ToString("yyyy-MM-dd");
 
                 if (lastDebitNote.NepaliDate != null)
-                    nepaliDateString = lastDebitNote.NepaliDate.ToString("yyyy-MM-dd");
+                    nepaliDateString = lastDebitNote.NepaliDate;
 
                 _logger.LogInformation($"Last debit note date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastDebitNote.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 

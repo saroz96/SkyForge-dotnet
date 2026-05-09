@@ -84,7 +84,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public Guid? StoreId { get; set; }
         public Guid? RackId { get; set; }
 
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public DateTime Date { get; set; }
 
     }

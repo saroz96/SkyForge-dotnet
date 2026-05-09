@@ -111,7 +111,7 @@ namespace SkyForge.Controllers.Retailer
                     dateString = lastPayment.Date.ToString("yyyy-MM-dd");
 
                 if (lastPayment.NepaliDate != null)
-                    nepaliDateString = lastPayment.NepaliDate.ToString("yyyy-MM-dd");
+                    nepaliDateString = lastPayment.NepaliDate;
 
                 _logger.LogInformation($"Last purchase date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastPayment.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 

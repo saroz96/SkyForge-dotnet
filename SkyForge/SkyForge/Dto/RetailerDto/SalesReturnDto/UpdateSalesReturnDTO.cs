@@ -82,12 +82,10 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
 
         [Range(0, double.MaxValue)]
         public decimal? Price { get; set; }
-
         public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }
-
-        public DateTime NepaliDate { get; set; }
-        public DateTime TransactionDateNepali { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         public List<SalesReturnItemDTO>? Items { get; set; }
     }

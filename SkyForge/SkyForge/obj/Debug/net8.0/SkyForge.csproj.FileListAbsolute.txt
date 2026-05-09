@@ -112,3 +112,6 @@ C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\obj\Debug\net8.0\refint\SkyF
 C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\obj\Debug\net8.0\SkyForge.pdb
 C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\obj\Debug\net8.0\SkyForge.genruntimeconfig.cache
 C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\obj\Debug\net8.0\ref\SkyForge.dll
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\package-lock.json
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\package.json
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\NepDate.dll

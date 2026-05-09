@@ -13,9 +13,9 @@ namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
         public List<SalesQuotationItemDTO> Items { get; set; } = new();
 
         public DateTime TransactionDate { get; set; }
-        public DateTime TransactionDateNepali { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         public string? IsVatExempt { get; set; } // Can be "true", "false", or "all"
 

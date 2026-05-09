@@ -111,7 +111,7 @@ namespace SkyForge.Controllers.Retailer
                     dateString = lastJournal.Date.ToString("yyyy-MM-dd");
 
                 if (lastJournal.NepaliDate != null)
-                    nepaliDateString = lastJournal.NepaliDate.ToString("yyyy-MM-dd");
+                    nepaliDateString = lastJournal.NepaliDate;
 
                 _logger.LogInformation($"Last journal date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastJournal.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 

@@ -12,7 +12,7 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
         public string CurrentCompanyName { get; set; } = string.Empty;
         public CompanyPrintInfoDTO CurrentCompany { get; set; } = new();
         public bool FirstBill { get; set; }
-        public string NepaliDate { get; set; } = string.Empty;
+        public string? NepaliDate { get; set; }
         public DateTime EnglishDate { get; set; }
         public string CompanyDateFormat { get; set; } = string.Empty;
         public UserPrintDTO User { get; set; } = new();
@@ -30,8 +30,7 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
         public string Status { get; set; } = string.Empty;
         public bool IsActive { get; set; }
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
-        public DateTime EnglishDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         // Financial fields
         public decimal SubTotal { get; set; }

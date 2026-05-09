@@ -46,7 +46,8 @@ namespace SkyForge.Dto.RetailerDto
         public decimal Range30To60 { get; set; }
         public decimal Range60To90 { get; set; }
         public decimal Range90To120 { get; set; }
-        public decimal Over120 { get; set; }
+        public decimal Range120To150 { get; set; }  // Add this
+        public decimal Over150 { get; set; }
         public decimal Total { get; set; }
 
         public Dictionary<string, decimal> ToDictionary()
@@ -57,7 +58,8 @@ namespace SkyForge.Dto.RetailerDto
                 ["30-60"] = Range30To60,
                 ["60-90"] = Range60To90,
                 ["90-120"] = Range90To120,
-                ["over-120"] = Over120,
+                ["120-150"] = Range120To150,
+                ["over-150"] = Over150,
                 ["total"] = Total
             };
         }
@@ -68,7 +70,7 @@ namespace SkyForge.Dto.RetailerDto
         public DateTime Date { get; set; }
         public decimal Amount { get; set; }
         public Guid? FiscalYearId { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
     }
 
 
@@ -133,7 +135,7 @@ namespace SkyForge.Dto.RetailerDto
     {
         public Guid Id { get; set; }
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
         public decimal Balance { get; set; }

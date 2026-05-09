@@ -130,9 +130,8 @@ namespace SkyForge.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("OpeningBalanceDate")
                         .HasColumnType("timestamp without time zone");
@@ -201,9 +200,8 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -237,9 +235,8 @@ namespace SkyForge.Migrations
                     b.Property<Guid?>("InitialFiscalYearId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -274,9 +271,8 @@ namespace SkyForge.Migrations
                     b.Property<Guid?>("FiscalYearId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -311,9 +307,8 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("FiscalYearId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -788,9 +783,9 @@ namespace SkyForge.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
+                    b.Property<string>("NepaliDate")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -925,9 +920,8 @@ namespace SkyForge.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1588,9 +1582,8 @@ namespace SkyForge.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("mrp");
 
-                    b.Property<DateTime?>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("NetPrice")
                         .ValueGeneratedOnAdd()
@@ -1782,9 +1775,8 @@ namespace SkyForge.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1883,9 +1875,8 @@ namespace SkyForge.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2031,12 +2022,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("company_id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
                     b.Property<DateTime>("Date")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
@@ -2076,6 +2061,9 @@ namespace SkyForge.Migrations
 
                     b.Property<Guid?>("ItemId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal?>("NonVatPurchase")
                         .HasPrecision(18, 2)
@@ -2152,6 +2140,9 @@ namespace SkyForge.Migrations
                         .HasColumnName("transaction_date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("Type")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -2160,12 +2151,6 @@ namespace SkyForge.Migrations
                     b.Property<Guid?>("UnitId")
                         .HasColumnType("uuid")
                         .HasColumnName("unit_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -2186,14 +2171,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(5,2)")
                         .HasDefaultValue(13m)
                         .HasColumnName("vat_percentage");
-
-                    b.Property<DateTime>("nepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
-
-                    b.Property<DateTime>("transactionDateNepali")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("transaction_date_nepali");
 
                     b.HasKey("Id");
 
@@ -2279,16 +2256,16 @@ namespace SkyForge.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("cc_percentage");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
                     b.Property<string>("Currency")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)")
                         .HasColumnName("currency");
+
+                    b.Property<DateTime>("Date")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<decimal>("DiscountAmountPerItem")
                         .ValueGeneratedOnAdd()
@@ -2333,6 +2310,9 @@ namespace SkyForge.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("mrp");
 
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
                     b.Property<decimal>("NetPuPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
@@ -2357,6 +2337,15 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(10,3)")
                         .HasColumnName("quantity");
 
+                    b.Property<DateTime>("TransactionDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("UniqueUuid")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -2365,12 +2354,6 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("UnitId")
                         .HasColumnType("uuid")
                         .HasColumnName("unit_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("VatStatus")
                         .IsRequired()
@@ -2466,6 +2449,9 @@ namespace SkyForge.Migrations
                     b.Property<Guid?>("ItemId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
                     b.Property<decimal?>("NonVatPurchaseReturn")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
@@ -2533,6 +2519,9 @@ namespace SkyForge.Migrations
                         .HasColumnName("transaction_date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("Type")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -2559,14 +2548,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(5,2)")
                         .HasDefaultValue(13m)
                         .HasColumnName("vat_percentage");
-
-                    b.Property<DateTime>("nepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
-
-                    b.Property<DateTime>("transactionDateNepali")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("transaction_date_nepali");
 
                     b.HasKey("Id");
 
@@ -2637,16 +2618,16 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(5,2)")
                         .HasColumnName("cc_percentage");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
                     b.Property<string>("Currency")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)")
                         .HasColumnName("currency");
+
+                    b.Property<DateTime>("Date")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<decimal>("DiscountAmountPerItem")
                         .HasPrecision(18, 2)
@@ -2690,6 +2671,9 @@ namespace SkyForge.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("mrp");
 
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
                     b.Property<decimal>("NetPuPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
@@ -2718,6 +2702,15 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(10,3)")
                         .HasColumnName("quantity");
 
+                    b.Property<DateTime>("TransactionDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("UniqueUuid")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -2726,12 +2719,6 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("UnitId")
                         .HasColumnType("uuid")
                         .HasColumnName("unit_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("VatStatus")
                         .IsRequired()
@@ -2800,9 +2787,8 @@ namespace SkyForge.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2965,12 +2951,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("company_id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
                     b.Property<DateTime>("Date")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
@@ -3010,6 +2990,9 @@ namespace SkyForge.Migrations
 
                     b.Property<Guid?>("ItemId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("NonVatSales")
                         .HasPrecision(18, 2)
@@ -3069,16 +3052,16 @@ namespace SkyForge.Migrations
                         .HasColumnName("transaction_date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("Type")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("type");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -3095,14 +3078,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(5,2)")
                         .HasDefaultValue(13m)
                         .HasColumnName("vat_percentage");
-
-                    b.Property<DateTime>("nepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
-
-                    b.Property<DateTime>("transactionDateNepali")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("transaction_date_nepali");
 
                     b.HasKey("Id");
 
@@ -3137,10 +3112,10 @@ namespace SkyForge.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("batch_number");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime>("Date")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
+                        .HasColumnName("date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<decimal>("DiscountAmountPerItem")
@@ -3170,6 +3145,9 @@ namespace SkyForge.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("mrp");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("NetPrice")
                         .HasPrecision(18, 2)
@@ -3204,6 +3182,15 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("sales_bill_id");
 
+                    b.Property<DateTime>("TransactionDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("UniqueUuid")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -3213,11 +3200,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("unit_id");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("VatStatus")
                         .IsRequired()
@@ -3293,6 +3277,9 @@ namespace SkyForge.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_vat_exempt");
 
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
                     b.Property<decimal>("NonVatSales")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
@@ -3337,6 +3324,9 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("transaction_date");
 
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
@@ -3354,14 +3344,6 @@ namespace SkyForge.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)")
                         .HasColumnName("vat_percentage");
-
-                    b.Property<DateTime>("nepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
-
-                    b.Property<DateTime>("transactionDateNepali")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("transaction_date_nepali");
 
                     b.HasKey("Id");
 
@@ -3510,12 +3492,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("company_id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
                     b.Property<DateTime>("Date")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
@@ -3555,6 +3531,9 @@ namespace SkyForge.Migrations
 
                     b.Property<Guid?>("ItemId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal?>("NonVatSalesReturn")
                         .HasPrecision(18, 2)
@@ -3632,6 +3611,9 @@ namespace SkyForge.Migrations
                         .HasColumnName("transaction_date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("Type")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -3640,12 +3622,6 @@ namespace SkyForge.Migrations
                     b.Property<Guid?>("UnitId")
                         .HasColumnType("uuid")
                         .HasColumnName("unit_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -3662,14 +3638,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(5,2)")
                         .HasDefaultValue(13m)
                         .HasColumnName("vat_percentage");
-
-                    b.Property<DateTime>("nepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
-
-                    b.Property<DateTime>("transactionDateNepali")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("transaction_date_nepali");
 
                     b.HasKey("Id");
 
@@ -3715,10 +3683,10 @@ namespace SkyForge.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("batch_number");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime>("Date")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
+                        .HasColumnName("date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<decimal>("DiscountAmountPerItem")
@@ -3753,6 +3721,9 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("mrp");
 
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
                     b.Property<decimal?>("NetPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
@@ -3784,6 +3755,15 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("sales_return_id");
 
+                    b.Property<DateTime>("TransactionDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("UniqueUuid")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -3792,12 +3772,6 @@ namespace SkyForge.Migrations
                     b.Property<Guid>("UnitId")
                         .HasColumnType("uuid")
                         .HasColumnName("unit_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("VatStatus")
                         .IsRequired()
@@ -3979,9 +3953,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_vat_exempt");
 
-                    b.Property<DateTime>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("NonVatAdjustment")
                         .HasColumnType("numeric")
@@ -4160,9 +4133,6 @@ namespace SkyForge.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("BillDate")
-                        .HasColumnType("timestamp without time zone");
-
                     b.Property<string>("BillNumber")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -4180,7 +4150,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<Guid?>("DebitAccountId")
                         .HasColumnType("uuid");
@@ -4225,6 +4196,9 @@ namespace SkyForge.Migrations
 
                     b.Property<Guid?>("JournalBillId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("PartyBillNumber")
                         .HasMaxLength(100)
@@ -4289,6 +4263,13 @@ namespace SkyForge.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("transaction_date");
+
+                    b.Property<string>("TransactionDateNepali")
+                        .HasColumnType("text");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -4304,14 +4285,6 @@ namespace SkyForge.Migrations
                     b.Property<decimal?>("VatPercentage")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("nepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("nepali_date");
-
-                    b.Property<DateTime>("transactionDateNepali")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("transaction_date_nepali");
 
                     b.HasKey("Id");
 

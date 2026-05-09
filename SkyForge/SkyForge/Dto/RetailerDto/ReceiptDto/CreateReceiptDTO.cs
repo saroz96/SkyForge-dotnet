@@ -9,7 +9,7 @@ namespace SkyForge.Dto.RetailerDto.ReceiptDto
     public class CreateReceiptDTO
     {
         [Required]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Required]
         public DateTime Date { get; set; }

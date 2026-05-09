@@ -109,7 +109,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                             t.Type == TransactionType.Rcpt ||
                             t.Type == TransactionType.Jrnl) &&
                            // Filter by date based on company format
-                           ((isNepaliFormat && t.nepaliDate <= asOnDate) ||
+                           ((isNepaliFormat && t.Date <= asOnDate) ||
                             (!isNepaliFormat && t.Date <= asOnDate)))
                     .Include(t => t.PurchaseBill)
                     .Include(t => t.PurchaseReturn)
@@ -121,7 +121,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     .Include(t => t.Payment)
                     .Include(t => t.Receipt)
                     .Include(t => t.FiscalYear)
-                    .OrderBy(t => isNepaliFormat ? t.nepaliDate : t.Date)
+                    .OrderBy(t => isNepaliFormat ? t.Date : t.Date)
                     .ToListAsync();
 
                 _logger.LogInformation("Found {TransactionCount} transactions up to date {AsOnDate}",
@@ -150,7 +150,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                         DateTime openingBalanceDate;
                         if (isNepaliFormat)
                         {
-                            openingBalanceDate = initialOpeningBalance.NepaliDate;  // Use NepaliDate for Nepali format
+                            openingBalanceDate = initialOpeningBalance.Date;  // Use NepaliDate for Nepali format
                         }
                         else
                         {
@@ -199,7 +199,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                         .Select(t => new
                         {
                             Transaction = t,
-                            TransactionDate = isNepaliFormat ? t.nepaliDate : t.Date
+                            TransactionDate = isNepaliFormat ? t.Date : t.Date
                         })
                         .Where(t => t.TransactionDate <= asOnDate)
                         .OrderBy(t => t.TransactionDate)
@@ -301,7 +301,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     // Add remaining opening balance to over-120 bucket
                     if (Math.Abs(remainingOpeningBalance) > 0.01m)
                     {
-                        buckets.Over120 += remainingOpeningBalance;
+                        buckets.Over150 += remainingOpeningBalance;
                     }
 
                     // Process remaining unsettled items with FIFO
@@ -345,7 +345,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
 
                     // Calculate account total from buckets
                     buckets.Total = buckets.Range0To30 + buckets.Range30To60 + buckets.Range60To90 +
-                                    buckets.Range90To120 + buckets.Over120;
+                                    buckets.Range90To120+buckets.Range120To150 + buckets.Over150;
 
                     bool isReceivable = buckets.Total > 0;
 
@@ -421,7 +421,8 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                 Range30To60 = 0,
                 Range60To90 = 0,
                 Range90To120 = 0,
-                Over120 = 0,
+                Range120To150 = 0,
+                Over150 = 0,
                 Total = 0
             };
         }
@@ -448,8 +449,10 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     buckets.Range60To90 += isReceivable ? item.Amount : -item.Amount;
                 else if (ageInDays <= 120)
                     buckets.Range90To120 += isReceivable ? item.Amount : -item.Amount;
+                else if (ageInDays <= 150)
+                    buckets.Range120To150 += isReceivable ? item.Amount : -item.Amount;
                 else
-                    buckets.Over120 += isReceivable ? item.Amount : -item.Amount;
+                    buckets.Over150 += isReceivable ? item.Amount : -item.Amount;
             }
         }
 
@@ -459,7 +462,8 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
             totals.Range30To60 += buckets.Range30To60;
             totals.Range60To90 += buckets.Range60To90;
             totals.Range90To120 += buckets.Range90To120;
-            totals.Over120 += buckets.Over120;
+            totals.Range120To150 += buckets.Range120To150;
+            totals.Over150 += buckets.Over150;
             totals.Total += buckets.Total;
         }
 
@@ -471,7 +475,8 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                 Range30To60 = -buckets.Range30To60,
                 Range60To90 = -buckets.Range60To90,
                 Range90To120 = -buckets.Range90To120,
-                Over120 = -buckets.Over120,
+                Range120To150 = -buckets.Range120To150,
+                Over150 = -buckets.Over150,
                 Total = -buckets.Total
             };
         }
@@ -492,8 +497,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     throw new ArgumentException("Company not found");
                 }
 
-                var companyDateFormat = company.DateFormat?.ToString().ToLower() ?? "nepali";
-                var isNepaliFormat = companyDateFormat == "nepali";
+                var companyDateFormat = company.DateFormat?.ToString().ToLower() ?? "english";
 
                 // Get account details
                 var account = await _context.Accounts
@@ -520,58 +524,45 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                 decimal openingBalance = 0;
                 string openingBalanceType = "Dr";
                 DateTime openingBalanceDate = DateTime.UtcNow;
+                string openingBalanceNepaliDate = "";
 
                 if (initialOpeningBalance != null && initialOpeningBalance.InitialFiscalYearId == initialFiscalYear?.Id)
                 {
-                    DateTime openingBalanceDateToCheck;
-                    if (isNepaliFormat)
-                    {
-                        openingBalanceDateToCheck = initialOpeningBalance.NepaliDate;
-                    }
-                    else
-                    {
-                        openingBalanceDateToCheck = initialOpeningBalance.Date;
-                    }
-
-                    if (openingBalanceDateToCheck <= asOnDate)
+                    if (initialOpeningBalance.Date <= asOnDate)
                     {
                         openingBalance = initialOpeningBalance.Amount;
                         openingBalanceType = initialOpeningBalance.Type;
-                        openingBalanceDate = openingBalanceDateToCheck;
+                        openingBalanceDate = initialOpeningBalance.Date;
+                        openingBalanceNepaliDate = initialOpeningBalance.NepaliDate?.ToString() ?? "";
                     }
                 }
 
-                // FIXED: Calculate initial running balance correctly
-                // For Sundry Debtors/Receivable accounts:
-                // Dr (Debit) = Positive balance (customer owes us)
-                // Cr (Credit) = Negative balance (we owe customer)
+                // Calculate initial running balance correctly
                 decimal initialRunningBalance = openingBalanceType == "Dr" ? openingBalance : -openingBalance;
 
                 _logger.LogInformation($"Initial opening balance for {account.Name}: {openingBalance} {openingBalanceType}");
                 _logger.LogInformation($"Initial running balance: {initialRunningBalance}");
 
-                // Get ALL transactions (not just before date) for proper calculation
-                var allTransactions = await GetTransactionsAsync(companyId, accountId, null, asOnDate, isNepaliFormat, includePopulations: true);
+                // Get ALL transactions up to asOnDate (using AD date only)
+                var allTransactions = await GetTransactionsAsync(companyId, accountId, null, asOnDate, includePopulations: true);
 
                 _logger.LogInformation($"Found {allTransactions.Count} total transactions");
 
                 // Process transactions in chronological order to calculate running balance
-                var processedVouchers = new HashSet<string>();
                 decimal runningBalance = initialRunningBalance;
                 var transactionList = new List<object>();
                 decimal totalOutstanding = 0;
-                decimal oneToThirty = 0, thirtyOneToSixty = 0, sixtyOneToNinety = 0, ninetyPlus = 0;
+                decimal current = 0, oneToThirty = 0, thirtyOneToSixty = 0, sixtyOneToNinety = 0, ninetyPlus = 0;
 
-                // Group transactions by date and voucher
-                var groupedTransactions = allTransactions
-                    .GroupBy(t => isNepaliFormat ? t.nepaliDate : t.Date)
-                    .OrderBy(g => g.Key)
-                    .SelectMany(g => g.OrderBy(t => t.CreatedAt))
+                // Order transactions by date
+                var orderedTransactions = allTransactions
+                    .OrderBy(t => t.Date)
+                    .ThenBy(t => t.CreatedAt)
                     .ToList();
 
                 var processedVoucherIds = new HashSet<string>();
 
-                foreach (var transaction in groupedTransactions)
+                foreach (var transaction in orderedTransactions)
                 {
                     var voucherIdentifier = GetVoucherIdentifier(transaction);
 
@@ -585,18 +576,15 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     var amounts = CalculateVoucherAmounts(voucherTransactions);
                     var mainTransaction = IdentifyMainTransaction(voucherTransactions);
 
-                    // Calculate age in days
-                    var transactionDate = isNepaliFormat ? mainTransaction.nepaliDate : mainTransaction.Date;
+                    // Calculate age in days using standard DateTime
+                    var transactionDate = mainTransaction.Date;
                     var ageInDays = (int)(asOnDate - transactionDate).TotalDays;
                     if (ageInDays < 0) ageInDays = 0;
 
-                    // FIXED: Update running balance correctly
-                    // For a receivable account:
-                    // Debit increases the balance (customer owes more)
-                    // Credit decreases the balance (customer pays)
+                    // Update running balance correctly
                     runningBalance = runningBalance + amounts.totalDebit - amounts.totalCredit;
 
-                    // Calculate net amount for aging categorization (only positive outstanding amounts)
+                    // Calculate net amount for aging categorization
                     var netAmount = amounts.totalDebit - amounts.totalCredit;
 
                     if (netAmount > 0)
@@ -605,21 +593,28 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
 
                         // Categorize by age
                         if (ageInDays <= 30)
-                            oneToThirty += netAmount;
+                            current += netAmount;
                         else if (ageInDays <= 60)
-                            thirtyOneToSixty += netAmount;
+                            oneToThirty += netAmount;
                         else if (ageInDays <= 90)
-                            sixtyOneToNinety += netAmount;
+                            thirtyOneToSixty += netAmount;
                         else
                             ninetyPlus += netAmount;
                     }
 
-                    // Prepare transaction data
+                    // Get Nepali date from the transaction's NepaliDate property (stored as string)
+                    string nepaliDate = "";
+                    if (mainTransaction.NepaliDate != null)
+                    {
+                        nepaliDate = mainTransaction.NepaliDate.ToString();
+                    }
+
+                    // Prepare transaction data with both AD and BS dates
                     transactionList.Add(new
                     {
-                        _id = mainTransaction.Id,
-                        date = mainTransaction.Date,
-                        nepaliDate = mainTransaction.nepaliDate,
+                        id = mainTransaction.Id,
+                        date = mainTransaction.Date.ToString("yyyy-MM-dd"),
+                        nepaliDate = nepaliDate,
                         debit = amounts.totalDebit,
                         credit = amounts.totalCredit,
                         balance = runningBalance,
@@ -655,7 +650,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     .OrderBy(a => a.Name)
                     .Select(a => new
                     {
-                        _id = a.Id,
+                        id = a.Id,
                         name = a.Name,
                         address = a.Address,
                         phone = a.Phone,
@@ -668,7 +663,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                 {
                     account = new
                     {
-                        _id = account.Id,
+                        id = account.Id,
                         name = account.Name,
                         address = account.Address,
                         phone = account.Phone,
@@ -676,13 +671,15 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                         companyGroups = account.AccountGroupsId,
                         openingBalance = openingBalance,
                         openingBalanceType = openingBalanceType,
-                        openingBalanceDate = openingBalanceDate,
+                        openingBalanceDate = openingBalanceDate.ToString("yyyy-MM-dd"),
+                        openingBalanceNepaliDate = openingBalanceNepaliDate,
                         initialFiscalYear = initialFiscalYear?.Id,
                         initialOpeningBalance = account.InitialOpeningBalance != null ? new
                         {
                             amount = account.InitialOpeningBalance.Amount,
                             type = account.InitialOpeningBalance.Type,
-                            date = account.InitialOpeningBalance.Date,
+                            date = account.InitialOpeningBalance.Date.ToString("yyyy-MM-dd"),
+                            nepaliDate = account.InitialOpeningBalance.NepaliDate?.ToString() ?? "",
                             initialFiscalYearId = account.InitialOpeningBalance.InitialFiscalYearId
                         } : null
                     },
@@ -691,7 +688,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                         totalOutstanding = totalOutstanding,
                         agingBreakdown = new
                         {
-                            current = 0m,
+                            current = current,
                             oneToThirty = oneToThirty,
                             thirtyOneToSixty = thirtyOneToSixty,
                             sixtyOneToNinety = sixtyOneToNinety,
@@ -701,31 +698,38 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                         summary = new
                         {
                             totalTransactions = transactionList.Count,
-                            asOnDate = asOnDate,
+                            asOnDate = asOnDate.ToString("yyyy-MM-dd"),
                             initialBalanceUsed = new
                             {
                                 amount = openingBalance,
                                 type = openingBalanceType,
-                                date = openingBalanceDate
+                                date = openingBalanceDate.ToString("yyyy-MM-dd"),
+                                nepaliDate = openingBalanceNepaliDate
                             }
                         }
                     },
                     company = new
                     {
-                        _id = company.Id,
+                        id = company.Id,
                         name = company.Name,
+                        address = company.Address,
+                        city = company.City,
+                        pan = company.Pan,
                         dateFormat = company.DateFormat.ToString()
                     },
                     currentFiscalYear = currentFiscalYear != null ? new
                     {
-                        _id = currentFiscalYear.Id,
+                        id = currentFiscalYear.Id,
                         name = currentFiscalYear.Name,
                         startDate = currentFiscalYear.StartDate,
-                        endDate = currentFiscalYear.EndDate
+                        endDate = currentFiscalYear.EndDate,
+                        startDateNepali = currentFiscalYear.StartDateNepali,
+                        endDateNepali = currentFiscalYear.EndDateNepali
                     } : null,
                     accounts = allAccounts,
                     currentCompanyName = company.Name,
-                    asOnDate = asOnDate,
+                    asOnDate = asOnDate.ToString("yyyy-MM-dd"),
+                    companyDateFormat = companyDateFormat,
                     hasDateFilter = true
                 };
             }
@@ -736,7 +740,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
             }
         }
 
-        private async Task<List<Transaction>> GetTransactionsAsync(Guid companyId, Guid accountId, DateTime? fromDate, DateTime toDate, bool isNepaliFormat, bool includePopulations = false)
+        private async Task<List<Transaction>> GetTransactionsAsync(Guid companyId, Guid accountId, DateTime? fromDate, DateTime toDate, bool includePopulations = false)
         {
             var query = _context.Transactions
                 .Where(t => t.CompanyId == companyId &&
@@ -744,23 +748,13 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                        t.IsActive &&
                        t.Status == TransactionStatus.Active);
 
-            // FIXED: Exclude cash transactions properly
-            // Cash transactions should not be included in ageing report
+            // Exclude cash transactions properly
             query = query.Where(t => t.PaymentMode != PaymentMode.Cash);
 
-            // Apply date filter
-            if (isNepaliFormat)
-            {
-                if (fromDate.HasValue)
-                    query = query.Where(t => t.nepaliDate >= fromDate.Value);
-                query = query.Where(t => t.nepaliDate <= toDate);
-            }
-            else
-            {
-                if (fromDate.HasValue)
-                    query = query.Where(t => t.Date >= fromDate.Value);
-                query = query.Where(t => t.Date <= toDate);
-            }
+            // Apply date filter - use standard DateTime comparison (AD date only)
+            if (fromDate.HasValue)
+                query = query.Where(t => t.Date >= fromDate.Value);
+            query = query.Where(t => t.Date <= toDate);
 
             if (includePopulations)
             {

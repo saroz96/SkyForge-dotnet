@@ -126,7 +126,7 @@ namespace SkyForge.Services.Retailer.TransactionServices
                     {
                         Id = transaction.Id,
                         Date = transaction.Date,
-                        NepaliDate=transaction.nepaliDate,
+                        // NepaliDate=transaction.nepaliDate,
                         BillNumber = transaction.BillNumber,
                         Type = transaction.Type.ToString(),
                         PurchaseSalesType = transaction.PurchaseSalesType ?? transaction.PurchaseSalesReturnType,
@@ -218,7 +218,7 @@ namespace SkyForge.Services.Retailer.TransactionServices
                     {
                         Id = transaction.Id,
                         Date = transaction.Date,
-                          NepaliDate = transaction.nepaliDate,
+                        //   NepaliDate = transaction.nepaliDate,
                         BillNumber = transaction.BillNumber,
                         Type = transaction.Type.ToString(),
                         PurchaseSalesType = transaction.PurchaseSalesType,
@@ -229,7 +229,7 @@ namespace SkyForge.Services.Retailer.TransactionServices
                         PuPrice = transactionItem.PuPrice ?? 0,
                         Amount = transactionItem.Debit + transactionItem.Credit,
                         UnitName = transactionItem.Unit?.Name ?? string.Empty,
-                        Unit = transactionItem.Unit?.Name ?? string.Empty, 
+                        Unit = transactionItem.Unit?.Name ?? string.Empty,
                         BillId = transaction.SalesBillId,
                         SalesBillId = transaction.SalesBillId,
                         PurchaseBillNumber = transaction.SalesBill?.BillNumber

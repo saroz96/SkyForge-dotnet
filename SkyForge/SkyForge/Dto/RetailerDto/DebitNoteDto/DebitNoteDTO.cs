@@ -27,7 +27,7 @@ namespace SkyForge.Dto.RetailerDto.DebitNoteDto
     public class CreateDebitNoteDTO
     {
         [Required]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Required]
         public DateTime Date { get; set; }
@@ -80,7 +80,7 @@ namespace SkyForge.Dto.RetailerDto.DebitNoteDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public decimal TotalAmount { get; set; }
         public string? Description { get; set; }
         public string Status { get; set; } = string.Empty;
@@ -119,7 +119,7 @@ namespace SkyForge.Dto.RetailerDto.DebitNoteDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public string Description { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public string UserName { get; set; } = string.Empty;
@@ -165,7 +165,7 @@ namespace SkyForge.Dto.RetailerDto.DebitNoteDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public decimal TotalAmount { get; set; }
         public string? Description { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
@@ -194,7 +194,7 @@ namespace SkyForge.Dto.RetailerDto.DebitNoteDto
         public List<DebitNoteEntryEditDTO> Entries { get; set; } = new();
         public List<AccountInfoDTO> Accounts { get; set; } = new();
         public FiscalYearDTO CurrentFiscalYear { get; set; } = new();
-        public string NepaliDate { get; set; } = string.Empty;
+        public string? NepaliDate { get; set; }
         public string CompanyDateFormat { get; set; } = string.Empty;
         public string CurrentCompanyName { get; set; } = string.Empty;
         public UserEditInfoDTO User { get; set; } = new();
@@ -207,7 +207,7 @@ namespace SkyForge.Dto.RetailerDto.DebitNoteDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public decimal TotalAmount { get; set; }
         public string Description { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
@@ -233,7 +233,7 @@ namespace SkyForge.Dto.RetailerDto.DebitNoteDto
     public class UpdateDebitNoteDTO
     {
         [Required]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Required]
         public DateTime Date { get; set; }

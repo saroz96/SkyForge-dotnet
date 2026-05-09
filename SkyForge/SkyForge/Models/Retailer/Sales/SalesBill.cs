@@ -138,26 +138,17 @@ namespace SkyForge.Models.Retailer.Sales
         [StringLength(50)]
         public string? PaymentMode { get; set; }
 
-
-        [Column("nepali_date")]
-        public DateTime nepaliDate { get; set; }
-
         [Column("date")]
         public DateTime Date { get; set; }
-
-        [Column("transaction_date_nepali")]
-        public DateTime transactionDateNepali { get; set; }
 
         [Column("transaction_date")]
         public DateTime TransactionDate { get; set; }
 
-        [Column("created_at")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
-        [Column("updated_at")]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
 
-        // Navigation properties
         public virtual ICollection<SalesBillItem> Items { get; set; } = new List<SalesBillItem>();
 
         // Index for unique constraint

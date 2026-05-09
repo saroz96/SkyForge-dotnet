@@ -26,11 +26,9 @@ namespace SkyForge.Models.AccountModel
         [RegularExpression("^(Dr|Cr)$", ErrorMessage = "Type must be 'Dr' or 'Cr'")]
         public string Type { get; set; } = "Dr";
 
-        // English Date
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        [Column("Nepali_Date")]
-        public DateTime? NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
 
         // Foreign Key to Account

@@ -20,7 +20,8 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
     {
         public string BillNumber { get; set; }
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public string AccountName { get; set; }
         public string PanNumber { get; set; }
         public decimal TotalAmount { get; set; }

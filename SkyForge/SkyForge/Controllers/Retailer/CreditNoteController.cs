@@ -111,7 +111,7 @@ namespace SkyForge.Controllers.Retailer
                     dateString = lastCreditNote.Date.ToString("yyyy-MM-dd");
 
                 if (lastCreditNote.NepaliDate != null)
-                    nepaliDateString = lastCreditNote.NepaliDate.ToString("yyyy-MM-dd");
+                    nepaliDateString = lastCreditNote.NepaliDate;
 
                 _logger.LogInformation($"Last credit note date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastCreditNote.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 

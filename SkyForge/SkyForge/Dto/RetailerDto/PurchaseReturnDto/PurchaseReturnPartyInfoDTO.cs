@@ -4,6 +4,9 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
     {
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public string? PartyBillNumber { get; set; }
         public string? PaymentMode { get; set; }
         public Guid AccountId { get; set; }

@@ -26,7 +26,7 @@ namespace SkyForge.Dto.RetailerDto.JournalVoucherDto
     public class CreateJournalVoucherDTO
     {
         [Required]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Required]
         public DateTime Date { get; set; }
@@ -79,7 +79,7 @@ namespace SkyForge.Dto.RetailerDto.JournalVoucherDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public decimal TotalAmount { get; set; }
         public string? Description { get; set; }
         public string Status { get; set; } = string.Empty;
@@ -118,7 +118,7 @@ namespace SkyForge.Dto.RetailerDto.JournalVoucherDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public string Description { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public string UserName { get; set; } = string.Empty;
@@ -164,7 +164,7 @@ namespace SkyForge.Dto.RetailerDto.JournalVoucherDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public decimal TotalAmount { get; set; }
         public string? Description { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
@@ -206,7 +206,7 @@ namespace SkyForge.Dto.RetailerDto.JournalVoucherDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public decimal TotalAmount { get; set; }
         public string Description { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
@@ -232,7 +232,7 @@ namespace SkyForge.Dto.RetailerDto.JournalVoucherDto
     public class UpdateJournalVoucherDTO
     {
         [Required]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Required]
         public DateTime Date { get; set; }

@@ -3,7 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Table } from 'react-bootstrap';
 import { BiPrinter, BiArrowBack, BiSolidFilePdf, BiReceipt } from 'react-icons/bi';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -605,9 +607,9 @@ const JournalVoucherPrint = () => {
                         <Button variant="secondary" size="sm" className="me-2" onClick={handleBack}>
                             <BiArrowBack /> Back
                         </Button>
-                        <Button variant="primary" size="sm" className="me-2" onClick={generatePdf}>
+                        {/* <Button variant="primary" size="sm" className="me-2" onClick={generatePdf}>
                             <BiSolidFilePdf /> <span className="pdf-button-text">PDF</span>
-                        </Button>
+                        </Button> */}
                         <Button variant="info" size="sm" className="me-2" onClick={printVoucher}>
                             <BiPrinter /> Print
                         </Button>
@@ -629,7 +631,7 @@ const JournalVoucherPrint = () => {
                                 <div><strong>Vch. No:</strong> {journal.billNumber}</div>
                             </div>
                             <div className="right">
-                                <div><strong>Date:</strong> {journalData.companyDateFormat === 'Nepali' ? formatDate(journal.nepaliDate, 'nepali') : formatDate(journal.date)}</div>
+                                <div><strong>Date:</strong> {journalData.companyDateFormat === 'nepali' ? formatDate(journal.nepaliDate, 'Nepali') : formatDate(journal.date)}({new Date(journal.date).toLocaleDateString()})</div>
                             </div>
                         </div>
 
@@ -755,7 +757,7 @@ const JournalVoucherPrint = () => {
                             <div><strong>Vch. No:</strong> {journal.billNumber}</div>
                         </div>
                         <div>
-                            <div><strong>Date:</strong> {journalData.companyDateFormat === 'Nepali' ? formatDate(journal.nepaliDate, 'nepali') : formatDate(journal.date)}</div>
+                            <div><strong>Date:</strong> {journalData.companyDateFormat === 'nepali' ? formatDate(journal.nepaliDate, 'Nepali') : formatDate(journal.date)}({new Date(journal.date).toLocaleDateString()})</div>
                         </div>
                     </div>
 

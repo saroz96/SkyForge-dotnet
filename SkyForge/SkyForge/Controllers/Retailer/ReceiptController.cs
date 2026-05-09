@@ -111,7 +111,7 @@ namespace SkyForge.Controllers.Retailer
                     dateString = lastReceipt.Date.ToString("yyyy-MM-dd");
 
                 if (lastReceipt.NepaliDate != null)
-                    nepaliDateString = lastReceipt.NepaliDate.ToString("yyyy-MM-dd");
+                    nepaliDateString = lastReceipt.NepaliDate;
 
                 _logger.LogInformation($"Last receipt date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastReceipt.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 

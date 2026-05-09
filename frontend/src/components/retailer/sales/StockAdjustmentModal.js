@@ -453,7 +453,9 @@
 // StockAdjustmentModal.js
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import NotificationToast from '../../NotificationToast';
 
 const getDefaultExpiryDate = () => {

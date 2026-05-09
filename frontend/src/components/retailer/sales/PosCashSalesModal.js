@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';

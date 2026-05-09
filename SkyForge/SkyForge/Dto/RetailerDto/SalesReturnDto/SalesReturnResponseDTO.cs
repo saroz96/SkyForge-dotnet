@@ -64,16 +64,10 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
         public string? PaymentMode { get; set; }
         public decimal? Quantity { get; set; }
         public decimal? Price { get; set; }
-
-        // Dates
-        public DateTime NepaliDate { get; set; }
         public DateTime Date { get; set; }
-        public DateTime TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
-
-        // Metadata
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         // UI Helper Data
         public DateInfoDTO? Dates { get; set; }

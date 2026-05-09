@@ -2,13 +2,110 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../Header';
-import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import '../../../stylesheet/noDateIcon.css';
 import Loader from '../../Loader';
 import ProductModal from '../dashboard/modals/ProductModal';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import html2pdf from 'html2pdf.js';
+
+// Helper functions for date conversion
+const convertBsToAd = (bsDate) => {
+    if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+
+    try {
+        const nepaliDate = new NepaliDate(bsDate);
+        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
+            console.error('Invalid NepaliDate object or missing getDateObject method');
+            return null;
+        }
+
+        const jsDate = nepaliDate.getDateObject();
+        if (!jsDate || isNaN(jsDate.getTime())) {
+            console.error('Invalid AD date generated from BS date:', bsDate);
+            return null;
+        }
+
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
+        return null;
+    }
+};
+
+const convertAdToBs = (adDate) => {
+    if (!adDate) return null;
+
+    try {
+        let date;
+        if (typeof adDate === 'string') {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+                date = new Date(adDate + 'T00:00:00');
+            } else {
+                date = new Date(adDate);
+            }
+        } else if (adDate instanceof Date) {
+            date = adDate;
+        } else {
+            return null;
+        }
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid AD date:', adDate);
+            return null;
+        }
+
+        const nepaliDate = new NepaliDate(date);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            console.error('Invalid NepaliDate object');
+            return null;
+        }
+
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth();
+        const day = nepaliDate.getDate();
+
+        if (!year || month === undefined || !day) {
+            console.error('Invalid BS components generated');
+            return null;
+        }
+
+        return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
+        return null;
+    }
+};
+
+const isValidNepaliDate = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    try {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 32) return false;
+
+        const nepaliDate = new NepaliDate(dateStr);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            return false;
+        }
+
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch (error) {
+        console.warn('Invalid Nepali date:', dateStr, error.message);
+        return false;
+    }
+};
 
 const PaymentsList = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
@@ -35,19 +132,48 @@ const PaymentsList = () => {
         fiscalYear: {}
     });
 
-    const [data, setData] = useState(() => {
+    // SPLIT STATE: Separate date range from payments and company info
+    const [dateRange, setDateRange] = useState(() => {
         if (draftSave && draftSave.paymentsData) {
-            return draftSave.paymentsData;
+            return {
+                fromDate: draftSave.paymentsData.fromDate || '',
+                toDate: draftSave.paymentsData.toDate || '',
+                fromDateAd: draftSave.paymentsData.fromDateAd || '',
+                toDateAd: draftSave.paymentsData.toDateAd || ''
+            };
+        }
+        return {
+            fromDate: '',
+            toDate: '',
+            fromDateAd: '',
+            toDateAd: ''
+        };
+    });
+
+    const [payments, setPayments] = useState(() => {
+        if (draftSave && draftSave.paymentsData) {
+            return draftSave.paymentsData.payments || [];
+        }
+        return [];
+    });
+
+    const [companyInfo, setCompanyInfo] = useState(() => {
+        if (draftSave && draftSave.paymentsData) {
+            return {
+                company: draftSave.paymentsData.company,
+                currentFiscalYear: draftSave.paymentsData.currentFiscalYear,
+                currentCompanyName: draftSave.paymentsData.currentCompanyName || '',
+                companyDateFormat: draftSave.paymentsData.companyDateFormat || 'english',
+                vatEnabled: draftSave.paymentsData.vatEnabled !== undefined ? draftSave.paymentsData.vatEnabled : true,
+                isAdminOrSupervisor: draftSave.paymentsData.isAdminOrSupervisor || false
+            };
         }
         return {
             company: null,
             currentFiscalYear: null,
-            payments: [],
-            fromDate: '',
-            toDate: '',
             currentCompanyName: '',
             companyDateFormat: 'english',
-            nepaliDate: '',
+            vatEnabled: true,
             isAdminOrSupervisor: false
         };
     });
@@ -73,15 +199,16 @@ const PaymentsList = () => {
         return 0;
     });
 
-    // Column resizing state
+    // Column resizing state - Updated with BS and AD date columns
     const [columnWidths, setColumnWidths] = useState({
-        date: 90,
-        voucherNo: 120,
-        account: 200,
-        debit: 100,
-        paymentAccount: 150,
-        user: 120,
-        actions: 140
+        bsDate: 80,
+        adDate: 80,
+        voucherNo: 100,
+        account: 150,
+        debit: 80,
+        paymentAccount: 130,
+        user: 100,
+        actions: 100
     });
 
     const [isResizing, setIsResizing] = useState(false);
@@ -109,74 +236,78 @@ const PaymentsList = () => {
         }
     );
 
-    // Fetch company and fiscal year info from payment entry data
+    // Fetch company and fiscal year info - RUNS ONLY ONCE on mount
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                // Fetch payment entry data from ASP.NET endpoint
                 const response = await api.get('/api/retailer/payment/entry-data');
 
                 if (response.data.success) {
-                    const data = response.data.data;
+                    const responseData = response.data.data;
+
+                    const dateFormat = responseData.company.dateFormat?.toLowerCase() || 'english';
+                    const isNepaliFormat = dateFormat === 'nepali';
 
                     setCompany({
-                        ...data.company,
-                        dateFormat: data.company.dateFormat?.toLowerCase() || 'english',
-                        vatEnabled: data.company.vatEnabled || true
+                        ...responseData.company,
+                        dateFormat: dateFormat,
+                        vatEnabled: responseData.company.vatEnabled || true
                     });
 
-                    // Set fiscal year from response
-                    const currentFiscalYear = data.currentFiscalYear;
-
-                    // Determine date format
-                    const isNepaliFormat = data.company.dateFormat?.toLowerCase() === 'nepali';
-
-                    // Check if we have draft dates
-                    const hasDraftDates = draftSave?.paymentsData?.fromDate && draftSave?.paymentsData?.toDate;
+                    const currentFiscalYear = responseData.currentFiscalYear;
+                    const hasDraftDates = draftSave?.paymentsData?.fromDate &&
+                        draftSave?.paymentsData?.toDate;
 
                     if (!hasDraftDates && currentFiscalYear) {
-                        // Set default dates based on company date format
                         let fromDateFormatted = '';
                         let toDateFormatted = '';
+                        let fromDateAd = '';
+                        let toDateAd = '';
 
                         if (isNepaliFormat) {
-                            // Use Nepali date fields from fiscal year
                             fromDateFormatted = currentFiscalYear.startDateNepali || currentNepaliDate;
                             toDateFormatted = currentNepaliDate;
+                            fromDateAd = convertBsToAd(fromDateFormatted);
+                            toDateAd = convertBsToAd(toDateFormatted);
                         } else {
-                            // Use English date fields from fiscal year
                             fromDateFormatted = currentFiscalYear.startDate
                                 ? new Date(currentFiscalYear.startDate).toISOString().split('T')[0]
                                 : currentEnglishDate;
-
                             toDateFormatted = currentFiscalYear.endDate
                                 ? new Date(currentFiscalYear.endDate).toISOString().split('T')[0]
                                 : currentEnglishDate;
+                            fromDateAd = fromDateFormatted;
+                            toDateAd = toDateFormatted;
                         }
 
-                        setData(prev => ({
-                            ...prev,
+                        setDateRange({
                             fromDate: fromDateFormatted,
                             toDate: toDateFormatted,
-                            company: data.company,
-                            currentFiscalYear,
-                            currentCompanyName: data.company.name,
-                            companyDateFormat: data.company.dateFormat,
-                            nepaliDate: data.dates?.nepaliDate || currentNepaliDate,
-                            isAdminOrSupervisor: data.permissions?.isAdminOrSupervisor || false
-                        }));
-                    } else {
-                        // If we have draft data, ensure company info is updated
-                        setData(prev => ({
+                            fromDateAd: fromDateAd,
+                            toDateAd: toDateAd
+                        });
+                    } else if (hasDraftDates) {
+                        let fromDateAd = dateRange.fromDate;
+                        let toDateAd = dateRange.toDate;
+                        if (isNepaliFormat && dateRange.fromDate) {
+                            fromDateAd = convertBsToAd(dateRange.fromDate);
+                            toDateAd = convertBsToAd(dateRange.toDate);
+                        }
+                        setDateRange(prev => ({
                             ...prev,
-                            company: data.company,
-                            currentFiscalYear,
-                            currentCompanyName: data.company.name,
-                            companyDateFormat: data.company.dateFormat,
-                            nepaliDate: data.dates?.nepaliDate || currentNepaliDate,
-                            isAdminOrSupervisor: data.permissions?.isAdminOrSupervisor || false
+                            fromDateAd: fromDateAd || prev.fromDateAd,
+                            toDateAd: toDateAd || prev.toDateAd
                         }));
                     }
+
+                    setCompanyInfo({
+                        company: responseData.company,
+                        currentFiscalYear: currentFiscalYear,
+                        currentCompanyName: responseData.company.name,
+                        companyDateFormat: responseData.company.dateFormat,
+                        vatEnabled: responseData.company.vatEnabled,
+                        isAdminOrSupervisor: responseData.permissions?.isAdminOrSupervisor || false
+                    });
                 }
             } catch (err) {
                 console.error('Error fetching initial data:', err);
@@ -209,16 +340,23 @@ const PaymentsList = () => {
     useEffect(() => {
         setDraftSave({
             ...draftSave,
-            paymentsData: data,
+            paymentsData: {
+                ...companyInfo,
+                payments: payments,
+                fromDate: dateRange.fromDate,
+                toDate: dateRange.toDate,
+                fromDateAd: dateRange.fromDateAd,
+                toDateAd: dateRange.toDateAd
+            },
             paymentsSearch: {
                 searchQuery,
                 paymentAccountFilter,
                 selectedRowIndex,
-                fromDate: data.fromDate,
-                toDate: data.toDate
+                fromDate: dateRange.fromDate,
+                toDate: dateRange.toDate
             }
         });
-    }, [data, searchQuery, paymentAccountFilter, selectedRowIndex, data.fromDate, data.toDate]);
+    }, [payments, searchQuery, paymentAccountFilter, selectedRowIndex, dateRange.fromDate, dateRange.toDate, dateRange.fromDateAd, dateRange.toDateAd, companyInfo]);
 
     // Save/load column widths
     useEffect(() => {
@@ -236,30 +374,34 @@ const PaymentsList = () => {
         localStorage.setItem('paymentsTableColumnWidths', JSON.stringify(columnWidths));
     }, [columnWidths]);
 
-    // Fetch data when generate report is clicked
+    // Fetch data when generate report is clicked - ONLY UPDATES PAYMENTS, NOT INPUT FIELDS
     useEffect(() => {
+        const abortController = new AbortController();
+
         const fetchData = async () => {
             if (!shouldFetch) return;
 
             try {
                 setLoading(true);
                 const params = new URLSearchParams();
-                if (data.fromDate) params.append('fromDate', data.fromDate);
-                if (data.toDate) params.append('toDate', data.toDate);
+                // Use AD dates for API call
+                if (dateRange.fromDateAd) params.append('fromDate', dateRange.fromDateAd);
+                if (dateRange.toDateAd) params.append('toDate', dateRange.toDateAd);
 
-                const response = await api.get(`/api/retailer/payments/register?${params.toString()}`);
+                const response = await api.get(`/api/retailer/payments/register?${params.toString()}`, {
+                    signal: abortController.signal
+                });
 
                 if (response.data.success) {
-                    setData(prev => ({
-                        ...prev,
-                        payments: response.data.data.payments || [],
-                        company: response.data.data.company,
-                        currentFiscalYear: response.data.data.currentFiscalYear,
-                        currentCompanyName: response.data.data.currentCompanyName,
-                        companyDateFormat: response.data.data.companyDateFormat,
-                        nepaliDate: response.data.data.nepaliDate,
-                        isAdminOrSupervisor: response.data.data.isAdminOrSupervisor
-                    }));
+                    // ONLY update payments - keep everything else unchanged
+                    setPayments(response.data.data.payments || []);
+                    // Update company info only if needed
+                    if (response.data.data.vatEnabled !== undefined) {
+                        setCompanyInfo(prev => ({
+                            ...prev,
+                            vatEnabled: response.data.data.vatEnabled
+                        }));
+                    }
                     setError(null);
                 } else {
                     setError(response.data.error || 'Failed to fetch payments');
@@ -269,8 +411,10 @@ const PaymentsList = () => {
                     setSelectedRowIndex(0);
                 }
             } catch (err) {
-                console.error('Fetch error:', err);
-                setError(err.response?.data?.error || 'Failed to fetch payments');
+                if (err.name !== 'AbortError') {
+                    console.error('Fetch error:', err);
+                    setError(err.response?.data?.error || 'Failed to fetch payments');
+                }
             } finally {
                 setLoading(false);
                 setShouldFetch(false);
@@ -278,29 +422,35 @@ const PaymentsList = () => {
         };
 
         fetchData();
-    }, [shouldFetch, data.fromDate, data.toDate]);
+
+        return () => {
+            abortController.abort();
+        };
+    }, [shouldFetch, dateRange.fromDateAd, dateRange.toDateAd]);
 
     // Filter payments based on search and payment account
     useEffect(() => {
-        const filtered = data.payments.filter(payment => {
+        const paymentsArray = Array.isArray(payments) ? payments : [];
+
+        const filtered = paymentsArray.filter(payment => {
             const matchesSearch =
-                payment.billNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                payment.accountName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                payment.userName?.toLowerCase().includes(searchQuery.toLowerCase());
+                (payment.billNumber?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                (payment.accountName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                (payment.userName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
 
             const matchesPaymentAccount =
                 paymentAccountFilter === '' ||
-                payment.paymentAccountName?.toLowerCase() === paymentAccountFilter.toLowerCase();
+                (payment.paymentAccountName?.toLowerCase() || '') === paymentAccountFilter.toLowerCase();
 
             return matchesSearch && matchesPaymentAccount;
         });
 
         setFilteredPayments(filtered);
 
-        if (!draftSave?.paymentsSearch?.selectedRowIndex) {
+        if (selectedRowIndex >= filtered.length && filtered.length > 0) {
             setSelectedRowIndex(0);
         }
-    }, [data.payments, searchQuery, paymentAccountFilter]);
+    }, [payments, searchQuery, paymentAccountFilter]);
 
     // Calculate totals when filtered payments change
     useEffect(() => {
@@ -342,20 +492,7 @@ const PaymentsList = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [filteredPayments, selectedRowIndex, navigate]);
-
-    // Scroll to selected row
-    useEffect(() => {
-        if (tableBodyRef.current && filteredPayments.length > 0) {
-            const rows = tableBodyRef.current.querySelectorAll('tr');
-            if (rows.length > selectedRowIndex) {
-                rows[selectedRowIndex].scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'nearest'
-                });
-            }
-        }
-    }, [selectedRowIndex, filteredPayments]);
+    }, [filteredPayments]);
 
     // F9 key handler for product modal
     useEffect(() => {
@@ -394,21 +531,8 @@ const PaymentsList = () => {
         return true;
     }
 
-    const handleDateChange = (e) => {
-        const { name, value } = e.target;
-        setData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSearchChange = (e) => {
-        setSearchQuery(e.target.value);
-    };
-
-    const handlePaymentAccountFilterChange = (e) => {
-        setPaymentAccountFilter(e.target.value);
-    };
-
     const handleGenerateReport = () => {
-        if (!data.fromDate || !data.toDate) {
+        if (!dateRange.fromDate || !dateRange.toDate) {
             setError('Please select both from and to dates');
             return;
         }
@@ -416,7 +540,7 @@ const PaymentsList = () => {
     };
 
     const handlePrint = (filtered = false) => {
-        const rowsToPrint = filtered ? filteredPayments : data.payments;
+        const rowsToPrint = filtered ? filteredPayments : (Array.isArray(payments) ? payments : []);
 
         if (rowsToPrint.length === 0) {
             alert("No payments to print");
@@ -425,139 +549,160 @@ const PaymentsList = () => {
 
         const printWindow = window.open("", "_blank");
         const printHeader = `
-        <div class="print-header">
-            <h1>${data.currentCompanyName || 'Company Name'}</h1>
-            <p>
-                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''},
-                PAN: ${data.company?.pan || ''}<br>
-            </p>
-            <hr>
-        </div>
-        `;
+    <div class="print-header">
+        <h1 style="font-size: 14px; margin: 0;">${companyInfo.currentCompanyName || 'Company Name'}</h1>
+        <p style="font-size: 8px; margin: 2px 0;">
+            ${companyInfo.company?.address || ''}${companyInfo.company?.city ? ', ' + companyInfo.company.city : ''},
+            PAN: ${companyInfo.company?.pan || ''}<br>
+        </p>
+        <hr style="margin: 2px 0;">
+    </div>
+    `;
 
         let tableContent = `
-        <style>
-            @page {
-                size: A4 landscape;
-                margin: 10mm;
-            }
-            body { 
-                font-family: Arial, sans-serif; 
-                font-size: 10px; 
-                margin: 0;
-                padding: 10mm;
-            }
-            table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                page-break-inside: auto;
-            }
-            tr { 
-                page-break-inside: avoid; 
-                page-break-after: auto; 
-            }
-            th, td { 
-                border: 1px solid #000; 
-                padding: 4px; 
-                text-align: left; 
-                white-space: nowrap;
-            }
-            th { 
-                background-color: #f2f2f2 !important; 
-                -webkit-print-color-adjust: exact; 
-            }
-            .print-header { 
-                text-align: center; 
-                margin-bottom: 15px; 
-            }
-            .nowrap {
-                white-space: nowrap;
-            }
-            .text-danger {
-                color: #dc3545 !important;
-            }
-        </style>
-        ${printHeader}
-        <h1 style="text-align:center;text-decoration:underline;">Payment Voucher's Register</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th class="nowrap">Date</th>
-                    <th class="nowrap">Vch No.</th>
-                    <th class="nowrap">Account</th>
-                    <th class="nowrap">Debit</th>
-                    <th class="nowrap">Payment Account</th>
-                    <th class="nowrap">User</th>
-                </tr>
-            </thead>
-            <tbody>
-        `;
+    <style>
+        @page {
+            margin: 3mm;
+        }
+        body { 
+            font-family: Arial, sans-serif; 
+            font-size: 7px; 
+            margin: 0;
+            padding: 2mm;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            page-break-inside: auto;
+            font-size: 6px;
+        }
+        tr { 
+            page-break-inside: avoid; 
+            page-break-after: auto; 
+        }
+        th, td { 
+            border: 1px solid #000; 
+            padding: 2px 3px; 
+            text-align: left; 
+            white-space: nowrap;
+        }
+        th { 
+            background-color: #f2f2f2 !important; 
+            -webkit-print-color-adjust: exact;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 3px 3px;
+        }
+        td {
+            font-size: 8px;
+            padding: 2px 3px;
+        }
+        .print-header { 
+            text-align: center; 
+            margin-bottom: 5px; 
+        }
+        .nowrap {
+            white-space: nowrap;
+        }
+        h1 {
+            font-size: 14px;
+            margin: 0;
+        }
+        .report-title {
+            text-align: center;
+            text-decoration: underline;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 3px 0;
+        }
+        .grand-total-row td {
+            font-weight: bold;
+            border-top: 2px solid #000;
+            font-size: 7px;
+        }
+        .text-danger {
+            color: #dc3545 !important;
+        }
+    </style>
+    ${printHeader}
+    <div class="report-title">Payment Voucher's Register</div>
+    <table>
+        <thead>
+            <tr>
+                <th class="nowrap">Miti</th>
+                <th class="nowrap">Date</th>
+                <th class="nowrap">Vch No.</th>
+                <th class="nowrap">Account</th>
+                <th class="nowrap">Debit</th>
+                <th class="nowrap">Payment Account</th>
+                <th class="nowrap">User</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
 
-        let totalDebit = 0;
+        let printTotalDebit = 0;
 
         rowsToPrint.forEach(payment => {
             const isCanceled = payment.status !== 'Active';
 
             tableContent += `
-            <tr>
-                <td class="nowrap">${payment.date ? new NepaliDate(payment.date).format('YYYY-MM-DD') : ''}</td>
-                <td class="nowrap">${payment.billNumber || ''}</td>
-                <td class="nowrap">${isCanceled ? '<span class="text-danger">Canceled</span>' : (payment.accountName || 'N/A')}</td>
-                <td class="nowrap">${isCanceled ? '<span class="text-danger">0.00</span>' : (payment.debit?.toFixed(2) || '0.00')}</td>
-                <td class="nowrap">${isCanceled ? '<span class="text-danger">Canceled</span>' : (payment.paymentAccountName || 'N/A')}</td>
-                <td class="nowrap">${payment.userName || 'N/A'}</td>
-            </tr>
-            `;
+        <tr>
+            <td class="nowrap">${payment.nepaliDate || ''}</td>
+            <td class="nowrap">${payment.date ? new Date(payment.date).toLocaleDateString() : ''}</td>
+            <td class="nowrap">${payment.billNumber || ''}</td>
+            <td class="nowrap">${isCanceled ? '<span class="text-danger">Canceled</span>' : (payment.accountName || 'N/A')}</td>
+            <td class="nowrap" style="text-align: right;">${isCanceled ? '<span class="text-danger">0.00</span>' : (payment.debit?.toFixed(2) || '0.00')}</td>
+            <td class="nowrap">${isCanceled ? '<span class="text-danger">Canceled</span>' : (payment.paymentAccountName || 'N/A')}</td>
+            <td class="nowrap">${payment.userName || 'N/A'}</td>
+        </tr>
+        `;
 
             if (!isCanceled) {
-                totalDebit += parseFloat(payment.debit || 0);
+                printTotalDebit += parseFloat(payment.debit || 0);
             }
         });
 
-        // Add totals row
         tableContent += `
-            <tr style="font-weight:bold; border-top: 2px solid #000;">
-                <td colspan="3">Grand Totals</td>
-                <td>${totalDebit.toFixed(2)}</td>
-                <td colspan="2"></td>
-            </tr>
-            </tbody>
-        </table>
-        `;
+        <tr class="grand-total-row" style="font-weight:bold;">
+            <td colspan="4" style="font-weight: bold;">Grand Totals</td>
+            <td style="text-align: right; font-weight: bold;">${printTotalDebit.toFixed(2)}</td>
+            <td colspan="2"></td>
+        </tr>
+        </tbody>
+    </table>
+    `;
 
         printWindow.document.write(`
-        <html>
-            <head>
-                <title>Payment Voucher's Register</title>
-            </head>
-            <body>
-                ${tableContent}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                        }, 200);
-                    };
-                <\/script>
-            </body>
-        </html>
-        `);
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Payment Voucher's Register</title>
+            <meta charset="UTF-8">
+        </head>
+        <body>
+            ${tableContent}
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                        window.close();
+                    }, 200);
+                };
+            <\/script>
+        </body>
+    </html>
+    `);
         printWindow.document.close();
     };
 
     const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
-        if (company.dateFormat === 'nepali') {
-            return number.toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-        return number.toLocaleString('en-US', {
+        return number.toLocaleString('en-IN', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
-    }, [company.dateFormat]);
+    }, []);
 
     const handleRowClick = useCallback((index) => {
         setSelectedRowIndex(index);
@@ -593,10 +738,10 @@ const PaymentsList = () => {
 
     // Get unique payment accounts for filter dropdown
     const paymentAccounts = useMemo(() => {
-        return [...new Set(data.payments
+        return [...new Set(payments
             .map(payment => payment.paymentAccountName)
             .filter(name => name !== undefined && name !== null))];
-    }, [data.payments]);
+    }, [payments]);
 
     // Resize Handle Component
     const ResizeHandle = React.memo(({ onResizeStart, left, columnName }) => {
@@ -622,10 +767,11 @@ const PaymentsList = () => {
         );
     });
 
-    // Table Header Component
+    // Table Header Component - Updated with BS Date and AD Date columns
     const TableHeader = React.memo(() => {
-        const totalWidth = columnWidths.date + columnWidths.voucherNo + columnWidths.account +
-            columnWidths.debit + columnWidths.paymentAccount + columnWidths.user + columnWidths.actions;
+        const totalWidth = columnWidths.bsDate + columnWidths.adDate + columnWidths.voucherNo +
+            columnWidths.account + columnWidths.debit + columnWidths.paymentAccount +
+            columnWidths.user + columnWidths.actions;
 
         const handleResizeStart = (e, columnName) => {
             setIsResizing(true);
@@ -667,164 +813,88 @@ const PaymentsList = () => {
                     }
                 }}
             >
-                {/* Date */}
-                <div
-                    className="d-flex align-items-center justify-content-center px-1 border-end position-relative"
-                    style={{
-                        width: `${columnWidths.date}px`,
-                        flexShrink: 0,
-                        minWidth: '60px'
-                    }}
-                >
+                {/* BS Date */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, minWidth: '80px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Miti</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.bsDate - 2} columnName="bsDate" />
+                </div>
+
+                {/* AD Date */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Date</strong>
-                    <ResizeHandle
-                        onResizeStart={handleResizeStart}
-                        left={columnWidths.date - 2}
-                        columnName="date"
-                    />
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.adDate - 2} columnName="adDate" />
                 </div>
 
                 {/* Vch No. */}
-                <div
-                    className="d-flex align-items-center px-1 border-end position-relative"
-                    style={{
-                        width: `${columnWidths.voucherNo}px`,
-                        flexShrink: 0,
-                        minWidth: '60px'
-                    }}
-                >
+                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, minWidth: '60px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Vch No.</strong>
-                    <ResizeHandle
-                        onResizeStart={handleResizeStart}
-                        left={columnWidths.voucherNo - 3}
-                        columnName="voucherNo"
-                    />
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.voucherNo - 3} columnName="voucherNo" />
                 </div>
 
                 {/* Account */}
-                <div
-                    className="d-flex align-items-center px-1 border-end position-relative"
-                    style={{
-                        width: `${columnWidths.account}px`,
-                        flexShrink: 0,
-                        minWidth: '100px'
-                    }}
-                >
+                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.account}px`, flexShrink: 0, minWidth: '100px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Account</strong>
-                    <ResizeHandle
-                        onResizeStart={handleResizeStart}
-                        left={columnWidths.account - 3}
-                        columnName="account"
-                    />
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.account - 3} columnName="account" />
                 </div>
 
                 {/* Debit */}
-                <div
-                    className="d-flex align-items-center justify-content-end px-1 border-end position-relative"
-                    style={{
-                        width: `${columnWidths.debit}px`,
-                        flexShrink: 0,
-                        minWidth: '80px'
-                    }}
-                >
+                <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, minWidth: '70px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Debit</strong>
-                    <ResizeHandle
-                        onResizeStart={handleResizeStart}
-                        left={columnWidths.debit - 2}
-                        columnName="debit"
-                    />
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.debit - 2} columnName="debit" />
                 </div>
 
                 {/* Payment Account */}
-                <div
-                    className="d-flex align-items-center px-1 border-end position-relative"
-                    style={{
-                        width: `${columnWidths.paymentAccount}px`,
-                        flexShrink: 0,
-                        minWidth: '100px'
-                    }}
-                >
+                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.paymentAccount}px`, flexShrink: 0, minWidth: '100px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Payment Account</strong>
-                    <ResizeHandle
-                        onResizeStart={handleResizeStart}
-                        left={columnWidths.paymentAccount - 3}
-                        columnName="paymentAccount"
-                    />
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.paymentAccount - 3} columnName="paymentAccount" />
                 </div>
 
                 {/* User */}
-                <div
-                    className="d-flex align-items-center px-1 border-end position-relative"
-                    style={{
-                        width: `${columnWidths.user}px`,
-                        flexShrink: 0,
-                        minWidth: '80px'
-                    }}
-                >
+                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.user}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>User</strong>
-                    <ResizeHandle
-                        onResizeStart={handleResizeStart}
-                        left={columnWidths.user - 2}
-                        columnName="user"
-                    />
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.user - 2} columnName="user" />
                 </div>
 
                 {/* Actions */}
-                <div
-                    className="d-flex align-items-center px-1 position-relative"
-                    style={{
-                        width: `${columnWidths.actions}px`,
-                        flexShrink: 0,
-                        minWidth: '100px'
-                    }}
-                >
+                <div className="d-flex align-items-center px-1 position-relative" style={{ width: `${columnWidths.actions}px`, flexShrink: 0, minWidth: '85px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Actions</strong>
-                    <ResizeHandle
-                        onResizeStart={handleResizeStart}
-                        left={columnWidths.actions - 2}
-                        columnName="actions"
-                    />
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.actions - 2} columnName="actions" />
                 </div>
 
-                {/* Resizing indicator overlay */}
                 {isResizing && (
-                    <div
-                        style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            zIndex: 1000,
-                            cursor: 'col-resize'
-                        }}
-                    />
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, cursor: 'col-resize' }} />
                 )}
             </div>
         );
     });
 
-    // Table Row Component
+    // Table Row Component - Updated with BS Date and AD Date columns
     const TableRow = React.memo(({ index, style, data: rowData }) => {
-        const { payments, selectedRowIndex, formatCurrency, navigate } = rowData;
-        const payment = payments[index];
+        const { payments: rowPayments, selectedRowIndex, formatCurrency, navigate } = rowData;
+        const payment = rowPayments[index];
 
         const handleRowClick = () => {
             rowData.handleRowClick(index);
         };
 
         const handleDoubleClick = () => {
-            navigate(`/retailer/payments/${payment.id}/print`);
+            if (payment && payment.id) {
+                navigate(`/retailer/payments/${payment.id}/print`);
+            }
         };
 
         const handleViewClick = (e) => {
             e.stopPropagation();
-            navigate(`/retailer/payments/${payment.id}/print`);
+            if (payment && payment.id) {
+                navigate(`/retailer/payments/${payment.id}/print`);
+            }
         };
 
         const handleEditClick = (e) => {
             e.stopPropagation();
-            navigate(`/retailer/payments/edit/${payment.id}`);
+            if (payment && payment.id) {
+                navigate(`/retailer/payments/edit/${payment.id}`);
+            }
         };
 
         if (!payment) return null;
@@ -848,46 +918,23 @@ const PaymentsList = () => {
                 onClick={handleRowClick}
                 onDoubleClick={handleDoubleClick}
             >
-                {/* Date */}
-                <div
-                    className="d-flex align-items-center justify-content-center px-1 border-end"
-                    style={{
-                        width: `${columnWidths.date}px`,
-                        flexShrink: 0,
-                        height: '100%'
-                    }}
-                >
-                    <span style={{ fontSize: '0.75rem' }}>
-                        {payment.date ? new NepaliDate(payment.date).format('YYYY-MM-DD') : ''}
-                    </span>
+                {/* BS Date */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{payment.nepaliDate || ''}</span>
+                </div>
+
+                {/* AD Date */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{payment.date ? new Date(payment.date).toLocaleDateString() : ''}</span>
                 </div>
 
                 {/* Vch No. */}
-                <div
-                    className="d-flex align-items-center px-1 border-end"
-                    style={{
-                        width: `${columnWidths.voucherNo}px`,
-                        flexShrink: 0,
-                        height: '100%',
-                        overflow: 'hidden'
-                    }}
-                >
-                    <span style={{ fontSize: '0.75rem' }}>
-                        {payment.billNumber}
-                    </span>
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{payment.billNumber || ''}</span>
                 </div>
 
                 {/* Account */}
-                <div
-                    className="d-flex align-items-center px-1 border-end"
-                    style={{
-                        width: `${columnWidths.account}px`,
-                        flexShrink: 0,
-                        height: '100%',
-                        overflow: 'hidden'
-                    }}
-                    title={payment.accountName || 'N/A'}
-                >
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={payment.accountName || 'N/A'}>
                     <span style={{
                         fontSize: '0.75rem',
                         whiteSpace: 'nowrap',
@@ -900,14 +947,7 @@ const PaymentsList = () => {
                 </div>
 
                 {/* Debit */}
-                <div
-                    className="d-flex align-items-center justify-content-end px-1 border-end"
-                    style={{
-                        width: `${columnWidths.debit}px`,
-                        flexShrink: 0,
-                        height: '100%'
-                    }}
-                >
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
                     <span style={{
                         fontSize: '0.75rem',
                         color: isCanceled ? '#dc3545' : 'inherit'
@@ -917,16 +957,7 @@ const PaymentsList = () => {
                 </div>
 
                 {/* Payment Account */}
-                <div
-                    className="d-flex align-items-center px-1 border-end"
-                    style={{
-                        width: `${columnWidths.paymentAccount}px`,
-                        flexShrink: 0,
-                        height: '100%',
-                        overflow: 'hidden'
-                    }}
-                    title={payment.paymentAccountName || 'N/A'}
-                >
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.paymentAccount}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={payment.paymentAccountName || 'N/A'}>
                     <span style={{
                         fontSize: '0.75rem',
                         whiteSpace: 'nowrap',
@@ -939,51 +970,19 @@ const PaymentsList = () => {
                 </div>
 
                 {/* User */}
-                <div
-                    className="d-flex align-items-center px-1 border-end"
-                    style={{
-                        width: `${columnWidths.user}px`,
-                        flexShrink: 0,
-                        height: '100%',
-                        overflow: 'hidden'
-                    }}
-                    title={payment.userName || 'N/A'}
-                >
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.user}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={payment.userName || 'N/A'}>
                     <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {payment.userName || 'N/A'}
                     </span>
                 </div>
 
-                {/* Actions */}
-                <div
-                    className="d-flex align-items-center justify-content-center px-1 gap-1"
-                    style={{
-                        width: `${columnWidths.actions}px`,
-                        flexShrink: 0,
-                        height: '100%'
-                    }}
-                >
-                    <button
-                        className="btn btn-sm btn-info py-0 px-1 d-flex align-items-center"
-                        onClick={handleViewClick}
-                        style={{
-                            height: '20px',
-                            fontSize: '0.7rem',
-                            fontWeight: 'bold'
-                        }}
-                    >
-                        <i className="fas fa-eye me-1" style={{ fontSize: '0.6rem' }}></i>View
+                {/* Actions - Compact buttons */}
+                <div className="d-flex align-items-center justify-content-center px-1 gap-1" style={{ width: `${columnWidths.actions}px`, flexShrink: 0, height: '100%' }}>
+                    <button className="btn btn-sm btn-info py-0 px-1 d-flex align-items-center" onClick={handleViewClick} style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold' }} title="View">
+                        <i className="bi bi-eye"></i>
                     </button>
-                    <button
-                        className="btn btn-sm btn-warning py-0 px-1 d-flex align-items-center"
-                        onClick={handleEditClick}
-                        style={{
-                            height: '20px',
-                            fontSize: '0.7rem',
-                            fontWeight: 'bold',
-                        }}
-                    >
-                        <i className="fas fa-edit me-1" style={{ fontSize: '0.6rem' }}></i>Edit
+                    <button className="btn btn-sm btn-warning py-0 px-1 d-flex align-items-center" onClick={handleEditClick} style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold' }} title="Edit">
+                        <i className="bi bi-pencil-square"></i>
                     </button>
                 </div>
             </div>
@@ -991,34 +990,56 @@ const PaymentsList = () => {
     }, (prevProps, nextProps) => {
         if (prevProps.index !== nextProps.index) return false;
         if (prevProps.style !== nextProps.style) return false;
-
         const prevPayment = prevProps.data.payments[prevProps.index];
         const nextPayment = nextProps.data.payments[nextProps.index];
-
-        return (
-            shallowEqual(prevPayment, nextPayment) &&
-            prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex
-        );
+        return shallowEqual(prevPayment, nextPayment) && prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex;
     });
 
-    // Reset column widths function
     const resetColumnWidths = () => {
         setColumnWidths({
-            date: 90,
-            voucherNo: 120,
-            account: 200,
-            debit: 100,
-            paymentAccount: 150,
-            user: 120,
-            actions: 140
+            bsDate: 80,
+            adDate: 80,
+            voucherNo: 100,
+            account: 150,
+            debit: 80,
+            paymentAccount: 130,
+            user: 100,
+            actions: 100
         });
     };
 
-    if (loading) return <Loader />;
+    // Validate and auto-correct Nepali date
+    const validateAndCorrectNepaliDate = (dateStr) => {
+        if (!dateStr) return null;
+        if (isValidNepaliDate(dateStr)) return dateStr;
+
+        const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (match) {
+            let [_, year, month, day] = match;
+            month = parseInt(month, 10);
+            day = parseInt(day, 10);
+
+            if (month < 1) month = 1;
+            if (month > 12) month = 12;
+            if (day < 1) day = 1;
+            if (day > 32) day = 32;
+
+            const correctedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            if (isValidNepaliDate(correctedDate)) {
+                return correctedDate;
+            }
+        }
+        return null;
+    };
+
+    // Safe check for loading and error states
+    if (loading && payments.length === 0) return <Loader />;
 
     if (error) {
         return <div className="alert alert-danger text-center py-5">{error}</div>;
     }
+
+    const paymentsArray = Array.isArray(payments) ? payments : [];
 
     return (
         <div className="container-fluid">
@@ -1030,8 +1051,8 @@ const PaymentsList = () => {
 
                 <div className="card-body p-2 p-md-3">
                     <div className="row g-2 mb-3">
-                        {/* Date Range Row */}
-                        <div className="col-12 col-md-1">
+                        {/* From Date BS Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -1039,205 +1060,92 @@ const PaymentsList = () => {
                                     id="fromDate"
                                     ref={fromDateRef}
                                     className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
-                                    value={data.fromDate}
+                                    value={dateRange.fromDate || ''}
                                     onChange={(e) => {
                                         const value = e.target.value;
-                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-                                        if (sanitizedValue.length <= 10) {
-                                            setData(prev => ({ ...prev, fromDate: sanitizedValue }));
-                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                        }
+                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+                                        const adDate = convertBsToAd(sanitizedValue);
+                                        setDateRange(prev => ({
+                                            ...prev,
+                                            fromDate: sanitizedValue,
+                                            fromDateAd: adDate || prev.fromDateAd
+                                        }));
+                                        setDateErrors(prev => ({ ...prev, fromDate: '' }));
                                     }}
                                     onKeyDown={(e) => {
-                                        const allowedKeys = [
-                                            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                            'Home', 'End'
-                                        ];
-
-                                        if (!allowedKeys.includes(e.key) &&
-                                            !/^\d$/.test(e.key) &&
-                                            e.key !== '/' &&
-                                            e.key !== '-' &&
-                                            !e.ctrlKey && !e.metaKey) {
+                                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+                                        if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && e.key !== '/' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
                                             e.preventDefault();
                                         }
-
                                         if (e.key === 'Enter') {
                                             e.preventDefault();
                                             const dateStr = e.target.value.trim();
-
                                             if (!dateStr) {
                                                 const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-                                                const correctedDate = company.dateFormat === 'nepali'
-                                                    ? currentDate.format('YYYY-MM-DD')
-                                                    : currentDate.toISOString().split('T')[0];
-
-                                                setData(prev => ({ ...prev, fromDate: correctedDate }));
+                                                const correctedDate = company.dateFormat === 'nepali' ? currentDate.format('YYYY-MM-DD') : currentDate.toISOString().split('T')[0];
+                                                setDateRange(prev => ({ ...prev, fromDate: correctedDate }));
                                                 setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
-                                                setNotification({
-                                                    show: true,
-                                                    message: 'Date required. Auto-corrected to current date.',
-                                                    type: 'warning',
-                                                    duration: 3000
-                                                });
-
-                                                handleKeyDown(e, 'toDate');
+                                                setNotification({ show: true, message: 'Date required. Auto-corrected to current date.', type: 'warning', duration: 3000 });
+                                                handleKeyDown(e, 'fromDateAd');
                                             } else if (dateErrors.fromDate) {
                                                 e.target.focus();
                                             } else {
-                                                handleKeyDown(e, 'toDate');
+                                                handleKeyDown(e, 'fromDateAd');
                                             }
-                                        }
-                                    }}
-                                    onPaste={(e) => {
-                                        e.preventDefault();
-                                        const pastedData = e.clipboardData.getData('text');
-                                        const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                        const newValue = data.fromDate + cleanedData;
-                                        if (newValue.length <= 10) {
-                                            setData(prev => ({ ...prev, fromDate: newValue }));
                                         }
                                     }}
                                     onBlur={(e) => {
-                                        try {
-                                            const dateStr = e.target.value.trim();
-                                            if (!dateStr) {
-                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                                return;
-                                            }
-
-                                            if (company.dateFormat === 'nepali') {
-                                                const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                if (!nepaliDateFormat.test(dateStr)) {
-                                                    const currentDate = new NepaliDate();
-                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid date format. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                    return;
-                                                }
-
-                                                const normalizedDateStr = dateStr.replace(/-/g, '/');
-                                                const [year, month, day] = normalizedDateStr.split('/').map(Number);
-
-                                                if (month < 1 || month > 12) {
-                                                    throw new Error("Month must be between 1-12");
-                                                }
-                                                if (day < 1 || day > 32) {
-                                                    throw new Error("Day must be between 1-32");
-                                                }
-
-                                                const nepaliDate = new NepaliDate(year, month - 1, day);
-
-                                                if (
-                                                    nepaliDate.getYear() !== year ||
-                                                    nepaliDate.getMonth() + 1 !== month ||
-                                                    nepaliDate.getDate() !== day
-                                                ) {
-                                                    const currentDate = new NepaliDate();
-                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                } else {
-                                                    setData(prev => ({
-                                                        ...prev,
-                                                        fromDate: nepaliDate.format('YYYY-MM-DD')
-                                                    }));
-                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                                }
-                                            } else {
-                                                const englishDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                if (!englishDateFormat.test(dateStr)) {
-                                                    const currentDate = new Date();
-                                                    const correctedDate = currentDate.toISOString().split('T')[0];
-                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid date format. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                    return;
-                                                }
-
-                                                const dateObj = new Date(dateStr);
-                                                if (isNaN(dateObj.getTime())) {
-                                                    throw new Error("Invalid English date");
-                                                }
-
-                                                setData(prev => ({
-                                                    ...prev,
-                                                    fromDate: dateObj.toISOString().split('T')[0]
-                                                }));
-                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                            }
-                                        } catch (error) {
-                                            const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-                                            const correctedDate = company.dateFormat === 'nepali'
-                                                ? currentDate.format('YYYY-MM-DD')
-                                                : currentDate.toISOString().split('T')[0];
-
-                                            setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
-
-                                            setNotification({
-                                                show: true,
-                                                message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
-                                                type: 'warning',
-                                                duration: 3000
-                                            });
+                                        const dateStr = e.target.value.trim();
+                                        if (!dateStr) return;
+                                        const correctedDate = validateAndCorrectNepaliDate(dateStr);
+                                        if (!correctedDate) {
+                                            const fallbackDate = currentNepaliDate;
+                                            const adDate = convertBsToAd(fallbackDate);
+                                            setDateRange(prev => ({ ...prev, fromDate: fallbackDate, fromDateAd: adDate }));
+                                            setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected to current date.', type: 'warning', duration: 3000 });
                                         }
                                     }}
-                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    placeholder="YYYY-MM-DD (BS)"
                                     required
+                                    autoFocus
                                     autoComplete="off"
-                                    style={{
-                                        height: '26px',
-                                        fontSize: '0.875rem',
-                                        paddingTop: '0.75rem',
-                                        width: '100%'
-                                    }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                 />
-                                <label
-                                    className="position-absolute"
-                                    style={{
-                                        top: '-0.5rem',
-                                        left: '0.75rem',
-                                        fontSize: '0.75rem',
-                                        backgroundColor: 'white',
-                                        padding: '0 0.25rem',
-                                        color: '#6c757d',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    From Date: <span className="text-danger">*</span>
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    From (BS): <span className="text-danger">*</span>
                                 </label>
-                                {dateErrors.fromDate && (
-                                    <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
-                                        {dateErrors.fromDate}
-                                    </div>
-                                )}
                             </div>
                         </div>
 
-                        <div className="col-12 col-md-1">
+                        {/* From Date AD Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
+                            <div className="position-relative">
+                                <input
+                                    type="date"
+                                    name="fromDateAd"
+                                    id="fromDateAd"
+                                    className="form-control form-control-sm"
+                                    value={dateRange.fromDateAd || ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        const bsDate = convertAdToBs(value);
+                                        setDateRange(prev => ({
+                                            ...prev,
+                                            fromDateAd: value,
+                                            fromDate: bsDate || prev.fromDate
+                                        }));
+                                    }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'toDate'); }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    From (AD):
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* To Date BS Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -1245,226 +1153,100 @@ const PaymentsList = () => {
                                     id="toDate"
                                     ref={toDateRef}
                                     className={`form-control form-control-sm no-date-icon ${dateErrors.toDate ? 'is-invalid' : ''}`}
-                                    value={data.toDate}
+                                    value={dateRange.toDate || ''}
                                     onChange={(e) => {
                                         const value = e.target.value;
-                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-                                        if (sanitizedValue.length <= 10) {
-                                            setData(prev => ({ ...prev, toDate: sanitizedValue }));
-                                            setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                        }
+                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+                                        const adDate = convertBsToAd(sanitizedValue);
+                                        setDateRange(prev => ({
+                                            ...prev,
+                                            toDate: sanitizedValue,
+                                            toDateAd: adDate || prev.toDateAd
+                                        }));
+                                        setDateErrors(prev => ({ ...prev, toDate: '' }));
                                     }}
                                     onKeyDown={(e) => {
-                                        const allowedKeys = [
-                                            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                            'Home', 'End'
-                                        ];
-
-                                        if (!allowedKeys.includes(e.key) &&
-                                            !/^\d$/.test(e.key) &&
-                                            e.key !== '/' &&
-                                            e.key !== '-' &&
-                                            !e.ctrlKey && !e.metaKey) {
+                                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+                                        if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && e.key !== '/' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
                                             e.preventDefault();
                                         }
-
                                         if (e.key === 'Enter') {
                                             e.preventDefault();
                                             const dateStr = e.target.value.trim();
-
                                             if (!dateStr) {
                                                 const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-                                                const correctedDate = company.dateFormat === 'nepali'
-                                                    ? currentDate.format('YYYY-MM-DD')
-                                                    : currentDate.toISOString().split('T')[0];
-
-                                                setData(prev => ({ ...prev, toDate: correctedDate }));
+                                                const correctedDate = company.dateFormat === 'nepali' ? currentDate.format('YYYY-MM-DD') : currentDate.toISOString().split('T')[0];
+                                                setDateRange(prev => ({ ...prev, toDate: correctedDate }));
                                                 setDateErrors(prev => ({ ...prev, toDate: '' }));
-
-                                                setNotification({
-                                                    show: true,
-                                                    message: 'Date required. Auto-corrected to current date.',
-                                                    type: 'warning',
-                                                    duration: 3000
-                                                });
-
-                                                document.getElementById('generateReport').focus();
+                                                setNotification({ show: true, message: 'Date required. Auto-corrected to current date.', type: 'warning', duration: 3000 });
+                                                handleKeyDown(e, 'toDateAd');
                                             } else if (dateErrors.toDate) {
                                                 e.target.focus();
                                             } else {
-                                                document.getElementById('generateReport').focus();
+                                                handleKeyDown(e, 'toDateAd');
                                             }
-                                        }
-                                    }}
-                                    onPaste={(e) => {
-                                        e.preventDefault();
-                                        const pastedData = e.clipboardData.getData('text');
-                                        const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                        const newValue = data.toDate + cleanedData;
-                                        if (newValue.length <= 10) {
-                                            setData(prev => ({ ...prev, toDate: newValue }));
                                         }
                                     }}
                                     onBlur={(e) => {
-                                        try {
-                                            const dateStr = e.target.value.trim();
-                                            if (!dateStr) {
-                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                                return;
-                                            }
-
-                                            if (company.dateFormat === 'nepali') {
-                                                const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                if (!nepaliDateFormat.test(dateStr)) {
-                                                    const currentDate = new NepaliDate();
-                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid date format. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                    return;
-                                                }
-
-                                                const normalizedDateStr = dateStr.replace(/-/g, '/');
-                                                const [year, month, day] = normalizedDateStr.split('/').map(Number);
-
-                                                if (month < 1 || month > 12) {
-                                                    throw new Error("Month must be between 1-12");
-                                                }
-                                                if (day < 1 || day > 32) {
-                                                    throw new Error("Day must be between 1-32");
-                                                }
-
-                                                const nepaliDate = new NepaliDate(year, month - 1, day);
-
-                                                if (
-                                                    nepaliDate.getYear() !== year ||
-                                                    nepaliDate.getMonth() + 1 !== month ||
-                                                    nepaliDate.getDate() !== day
-                                                ) {
-                                                    const currentDate = new NepaliDate();
-                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                } else {
-                                                    setData(prev => ({
-                                                        ...prev,
-                                                        toDate: nepaliDate.format('YYYY-MM-DD')
-                                                    }));
-                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                                }
-                                            } else {
-                                                const englishDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                if (!englishDateFormat.test(dateStr)) {
-                                                    const currentDate = new Date();
-                                                    const correctedDate = currentDate.toISOString().split('T')[0];
-                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid date format. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                    return;
-                                                }
-
-                                                const dateObj = new Date(dateStr);
-                                                if (isNaN(dateObj.getTime())) {
-                                                    throw new Error("Invalid English date");
-                                                }
-
-                                                setData(prev => ({
-                                                    ...prev,
-                                                    toDate: dateObj.toISOString().split('T')[0]
-                                                }));
-                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                            }
-                                        } catch (error) {
-                                            const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-                                            const correctedDate = company.dateFormat === 'nepali'
-                                                ? currentDate.format('YYYY-MM-DD')
-                                                : currentDate.toISOString().split('T')[0];
-
-                                            setData(prev => ({ ...prev, toDate: correctedDate }));
-                                            setDateErrors(prev => ({ ...prev, toDate: '' }));
-
-                                            setNotification({
-                                                show: true,
-                                                message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
-                                                type: 'warning',
-                                                duration: 3000
-                                            });
+                                        const dateStr = e.target.value.trim();
+                                        if (!dateStr) return;
+                                        const correctedDate = validateAndCorrectNepaliDate(dateStr);
+                                        if (!correctedDate) {
+                                            const fallbackDate = currentNepaliDate;
+                                            const adDate = convertBsToAd(fallbackDate);
+                                            setDateRange(prev => ({ ...prev, toDate: fallbackDate, toDateAd: adDate }));
+                                            setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected to current date.', type: 'warning', duration: 3000 });
                                         }
                                     }}
-                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    placeholder="YYYY-MM-DD (BS)"
                                     required
-                                    autoComplete='off'
-                                    style={{
-                                        height: '26px',
-                                        fontSize: '0.875rem',
-                                        paddingTop: '0.75rem',
-                                        width: '100%'
-                                    }}
+                                    autoComplete="off"
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                 />
-                                <label
-                                    className="position-absolute"
-                                    style={{
-                                        top: '-0.5rem',
-                                        left: '0.75rem',
-                                        fontSize: '0.75rem',
-                                        backgroundColor: 'white',
-                                        padding: '0 0.25rem',
-                                        color: '#6c757d',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    To Date: <span className="text-danger">*</span>
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    To (BS): <span className="text-danger">*</span>
                                 </label>
-                                {dateErrors.toDate && (
-                                    <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
-                                        {dateErrors.toDate}
-                                    </div>
-                                )}
+                            </div>
+                        </div>
+
+                        {/* To Date AD Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
+                            <div className="position-relative">
+                                <input
+                                    type="date"
+                                    name="toDateAd"
+                                    id="toDateAd"
+                                    className="form-control form-control-sm"
+                                    value={dateRange.toDateAd || ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        const bsDate = convertAdToBs(value);
+                                        setDateRange(prev => ({
+                                            ...prev,
+                                            toDateAd: value,
+                                            toDate: bsDate || prev.toDate
+                                        }));
+                                    }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'generateReport'); }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    To (AD):
+                                </label>
                             </div>
                         </div>
 
                         {/* Generate Report Button */}
                         <div className="col-12 col-md-1">
-                            <button
-                                type="button"
-                                id="generateReport"
-                                ref={generateReportRef}
-                                className="btn btn-primary btn-sm"
-                                onClick={handleGenerateReport}
-                                style={{
-                                    height: '30px',
-                                    fontSize: '0.8rem',
-                                    padding: '0 12px',
-                                    fontWeight: '500',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                <i className="fas fa-chart-line me-1"></i>Generate
+                            <button type="button" id="generateReport" ref={generateReportRef}
+                                className="btn btn-primary btn-sm" onClick={handleGenerateReport}
+                                style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                <i className="bi bi-search"></i>Generate
                             </button>
                         </div>
 
                         {/* Search Row */}
-                        <div className="col-12 col-md-2">
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <div className="input-group input-group-sm">
                                     <input
@@ -1472,142 +1254,69 @@ const PaymentsList = () => {
                                         className="form-control form-control-sm"
                                         id="searchInput"
                                         ref={searchInputRef}
-                                        placeholder="Search..."
+                                        placeholder=""
                                         value={searchQuery}
-                                        onChange={handleSearchChange}
-                                        disabled={data.payments.length === 0}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        disabled={paymentsArray.length === 0}
                                         autoComplete='off'
-                                        style={{
-                                            height: '26px',
-                                            fontSize: '0.875rem',
-                                            paddingTop: '0.75rem',
-                                            width: '100%'
-                                        }}
+                                        style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                     />
                                 </div>
-                                <label
-                                    className="position-absolute"
-                                    style={{
-                                        top: '-0.5rem',
-                                        left: '0.75rem',
-                                        fontSize: '0.75rem',
-                                        backgroundColor: 'white',
-                                        padding: '0 0.25rem',
-                                        color: '#6c757d',
-                                        fontWeight: '500'
-                                    }}
-                                >
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                     Search
                                 </label>
                             </div>
                         </div>
 
-                        {/* Payment Account Filter Row */}
-                        <div className="col-12 col-md-2">
+                        {/* Payment Account Filter */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <select
                                     className="form-select form-select-sm"
                                     id="paymentAccountFilter"
                                     ref={paymentAccountFilterRef}
                                     value={paymentAccountFilter}
-                                    onChange={handlePaymentAccountFilterChange}
-                                    disabled={data.payments.length === 0}
-                                    style={{
-                                        height: '30px',
-                                        fontSize: '0.875rem',
-                                        paddingTop: '0.25rem',
-                                        width: '100%'
-                                    }}
+                                    onChange={(e) => setPaymentAccountFilter(e.target.value)}
+                                    disabled={paymentsArray.length === 0}
+                                    style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', width: '100%' }}
                                 >
                                     <option value="">All</option>
                                     {paymentAccounts.map(account => (
                                         <option key={account} value={account}>{account}</option>
                                     ))}
                                 </select>
-                                <label
-                                    className="position-absolute"
-                                    style={{
-                                        top: '-0.5rem',
-                                        left: '0.75rem',
-                                        fontSize: '0.75rem',
-                                        backgroundColor: 'white',
-                                        padding: '0 0.25rem',
-                                        color: '#6c757d',
-                                        fontWeight: '500'
-                                    }}
-                                >
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                     Payment Account
                                 </label>
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="col-12 col-md-auto d-flex align-items-end justify-content-end gap-2">
-                            <button
-                                className="btn btn-primary btn-sm d-flex align-items-center"
+                            <button className="btn btn-primary btn-sm d-flex align-items-center"
                                 onClick={() => navigate('/retailer/payments')}
-                                style={{
-                                    height: '30px',
-                                    padding: '0 12px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '500',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                <i className="fas fa-wallet me-1"></i>New Vch.
+                                style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                <i className="bi bi-plus-circle"></i>
                             </button>
-                            <button
-                                className="btn btn-secondary btn-sm d-flex align-items-center"
-                                onClick={() => handlePrint(false)}
-                                disabled={data.payments.length === 0}
-                                style={{
-                                    height: '30px',
-                                    padding: '0 12px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '500',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                <i className="fas fa-print me-1"></i>Print All
+                            <button className="btn btn-secondary btn-sm d-flex align-items-center"
+                                onClick={() => handlePrint(true)} disabled={paymentsArray.length === 0}
+                                style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                <i className="bi bi-printer"></i>
                             </button>
-                            <button
-                                className="btn btn-secondary btn-sm d-flex align-items-center"
-                                onClick={() => handlePrint(true)}
-                                disabled={data.payments.length === 0}
-                                style={{
-                                    height: '30px',
-                                    padding: '0 12px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '500',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                <i className="fas fa-filter me-1"></i>Print Filtered
-                            </button>
-                            <button
-                                className="btn btn-secondary btn-sm d-flex align-items-center"
-                                onClick={resetColumnWidths}
-                                title="Reset column widths to default"
-                                style={{
-                                    height: '30px',
-                                    padding: '0 12px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '500'
-                                }}
-                            >
-                                <i className="fas fa-redo me-1" style={{ fontSize: '0.6rem' }}></i>Reset
+                            <button className="btn btn-secondary btn-sm d-flex align-items-center"
+                                onClick={resetColumnWidths} title="Reset column widths to default"
+                                style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}>
+                                <i className="bi bi-x-circle"></i>
                             </button>
                         </div>
                     </div>
 
-                    {data.payments.length === 0 ? (
+                    {paymentsArray.length === 0 && !loading ? (
                         <div className="alert alert-info text-center py-3" style={{ fontSize: '0.875rem' }}>
                             <i className="fas fa-info-circle me-2"></i>
                             Please select date range and click "Generate Report" to view data
                         </div>
                     ) : (
                         <>
-                            {/* Payments Table */}
                             <div
                                 style={{
                                     height: "400px",
@@ -1639,15 +1348,13 @@ const PaymentsList = () => {
                                 ) : (
                                     <AutoSizer>
                                         {({ height, width }) => {
-                                            const totalWidth = columnWidths.date + columnWidths.voucherNo + columnWidths.account +
-                                                columnWidths.debit + columnWidths.paymentAccount + columnWidths.user + columnWidths.actions;
+                                            const totalWidth = columnWidths.bsDate + columnWidths.adDate +
+                                                columnWidths.voucherNo + columnWidths.account +
+                                                columnWidths.debit + columnWidths.paymentAccount +
+                                                columnWidths.user + columnWidths.actions;
 
                                             return (
-                                                <div style={{
-                                                    position: 'relative',
-                                                    height: height,
-                                                    width: Math.max(width, totalWidth),
-                                                }}>
+                                                <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
                                                     <TableHeader />
                                                     <List
                                                         height={height - 28}
@@ -1674,44 +1381,18 @@ const PaymentsList = () => {
                             {/* Footer with totals */}
                             <div
                                 className="d-flex bg-light border-top sticky-bottom"
-                                style={{
-                                    zIndex: 2,
-                                    height: '28px',
-                                    borderTop: '2px solid #dee2e6'
-                                }}
+                                style={{ zIndex: 2, height: '28px', borderTop: '2px solid #dee2e6' }}
                             >
                                 <div
                                     className="d-flex align-items-center px-1"
-                                    style={{
-                                        width: `${columnWidths.date + columnWidths.voucherNo + columnWidths.account}px`,
-                                        flexShrink: 0,
-                                        height: '100%'
-                                    }}
+                                    style={{ width: `${columnWidths.bsDate + columnWidths.adDate + columnWidths.voucherNo + columnWidths.account}px`, flexShrink: 0, height: '100%' }}
                                 >
                                     <strong style={{ fontSize: '0.75rem' }}>Total:</strong>
                                 </div>
-
-                                <div
-                                    className="d-flex align-items-center justify-content-end px-1 border-start"
-                                    style={{
-                                        width: `${columnWidths.debit}px`,
-                                        flexShrink: 0,
-                                        height: '100%'
-                                    }}
-                                >
+                                <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
                                     <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totalDebit)}</strong>
                                 </div>
-
-                                <div
-                                    className="d-flex align-items-center px-1 border-start"
-                                    style={{
-                                        width: `${columnWidths.paymentAccount + columnWidths.user + columnWidths.actions}px`,
-                                        flexShrink: 0,
-                                        height: '100%'
-                                    }}
-                                >
-                                    {/* Empty space */}
-                                </div>
+                                <div className="d-flex align-items-center px-1 border-start" style={{ flex: 1, height: '100%', minWidth: `${columnWidths.paymentAccount + columnWidths.user + columnWidths.actions}px` }}></div>
                             </div>
                         </>
                     )}

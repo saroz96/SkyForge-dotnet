@@ -469,7 +469,7 @@ namespace SkyForge.Services.Retailer.ProfitLossServices
             if (isNepaliFormat)
             {
                 // Use nepaliDate field for filtering
-                query = query.Where(sbi => sbi.SalesBill.nepaliDate >= startDate && sbi.SalesBill.nepaliDate <= endDate);
+                query = query.Where(sbi => sbi.SalesBill.Date >= startDate && sbi.SalesBill.Date <= endDate);
                 _logger.LogInformation("Using nepaliDate field for sales filtering");
             }
             else
@@ -489,7 +489,7 @@ namespace SkyForge.Services.Retailer.ProfitLossServices
                 .Select(sbi => new
                 {
                     // Use the appropriate date field for the output
-                    Date = isNepaliFormat ? sbi.SalesBill.nepaliDate : sbi.SalesBill.Date,
+                    Date = isNepaliFormat ? sbi.SalesBill.Date : sbi.SalesBill.Date,
                     sbi.SalesBill.Id,
                     sbi.SalesBill.BillNumber,
                     sbi.SalesBill.AccountId,
@@ -552,7 +552,7 @@ namespace SkyForge.Services.Retailer.ProfitLossServices
             if (isNepaliFormat)
             {
                 // Use nepaliDate field for filtering
-                query = query.Where(sri => sri.SalesReturn.nepaliDate >= startDate && sri.SalesReturn.nepaliDate <= endDate);
+                query = query.Where(sri => sri.SalesReturn.Date >= startDate && sri.SalesReturn.Date <= endDate);
                 _logger.LogInformation("Using nepaliDate field for sales return filtering");
             }
             else
@@ -572,7 +572,7 @@ namespace SkyForge.Services.Retailer.ProfitLossServices
                 .Select(sri => new
                 {
                     // Use the appropriate date field for the output
-                    Date = isNepaliFormat ? sri.SalesReturn.nepaliDate : sri.SalesReturn.Date,
+                    Date = isNepaliFormat ? sri.SalesReturn.Date : sri.SalesReturn.Date,
                     sri.SalesReturn.Id,
                     sri.SalesReturn.BillNumber,
                     sri.SalesReturn.AccountId,

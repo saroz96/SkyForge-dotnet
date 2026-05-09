@@ -96,8 +96,7 @@ namespace SkyForge.Models.AccountModel
 
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        [Column("Nepali_Date")]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

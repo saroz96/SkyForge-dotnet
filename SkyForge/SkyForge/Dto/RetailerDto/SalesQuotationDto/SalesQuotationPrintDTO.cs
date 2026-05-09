@@ -15,7 +15,6 @@ namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
         public string PaymentMode { get; set; } = string.Empty;
         public string NepaliDate { get; set; } = string.Empty;
         public string TransactionDateNepali { get; set; } = string.Empty;
-        public DateTime EnglishDate { get; set; }
         public string CompanyDateFormat { get; set; } = string.Empty;
         public UserPrintDTO User { get; set; } = new();
         public bool IsAdminOrSupervisor { get; set; }
@@ -69,10 +68,9 @@ namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
         public string? Description { get; set; }
 
         public DateTime Date { get; set; }
-        public DateTime EnglishDate { get; set; }
         public DateTime TransactionDate { get; set; }
-        public DateTime NepaliDate { get; set; }
-        public DateTime TransactionDateNepali { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         // Financial fields
         public decimal? SubTotal { get; set; }

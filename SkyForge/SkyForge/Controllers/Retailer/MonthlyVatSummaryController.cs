@@ -34,7 +34,9 @@ namespace SkyForge.Controllers.Retailer
             [FromQuery] string? year = null,
             [FromQuery] string? nepaliMonth = null,
             [FromQuery] string? nepaliYear = null,
-            [FromQuery] string? periodType = null)
+            [FromQuery] string? periodType = null,
+            [FromQuery] string? fromDate = null,
+    [FromQuery] string? toDate = null)
         {
             try
             {
@@ -145,7 +147,9 @@ namespace SkyForge.Controllers.Retailer
                     nepaliMonth,
                     nepaliYear,
                     periodType,
-                    dateFormat);
+                    dateFormat,
+                    fromDate,
+                    toDate);
 
                 return Ok(new { success = true, data = result });
             }

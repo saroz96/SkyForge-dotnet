@@ -981,127 +981,6 @@ namespace SkyForge.Services.Retailer.ItemServices
             }
         }
 
-        /// <summary>
-        /// Deletes an item (checks for transactions first)
-        /// </summary>
-
-        // public async Task<bool> DeleteItemAsync(Guid itemId, Guid companyId)
-        // {
-        //     using var transaction = await _context.Database.BeginTransactionAsync();
-
-        //     try
-        //     {
-        //         // Check if item exists and belongs to the company
-        //         var item = await _context.Items
-        //             .FirstOrDefaultAsync(i => i.Id == itemId && i.CompanyId == companyId);
-
-        //         if (item == null)
-        //         {
-        //             _logger.LogWarning("Item {ItemId} not found for company {CompanyId}", itemId, companyId);
-        //             return false;
-        //         }
-
-        //         // Check if the item has any related transactions
-        //         bool hasSales = await _context.SalesBills
-        //             .AnyAsync(sb => sb.CompanyId == companyId && 
-        //                           sb.Items != null && 
-        //                           sb.Items.Any(i => i.ItemId == itemId));
-
-        //         bool hasSalesReturn = await _context.SalesReturns
-        //             .AnyAsync(sr => sr.CompanyId == companyId && 
-        //                           sr.Items != null && 
-        //                           sr.Items.Any(i => i.ItemId == itemId));
-
-        //         bool hasPurchase = await _context.PurchaseBills
-        //             .AnyAsync(pb => pb.CompanyId == companyId && 
-        //                           pb.Items != null && 
-        //                           pb.Items.Any(i => i.ItemId == itemId));
-
-        //         bool hasPurchaseReturn = await _context.PurchaseReturns
-        //             .AnyAsync(pr => pr.CompanyId == companyId && 
-        //                           pr.Items != null && 
-        //                           pr.Items.Any(i => i.ItemId == itemId));
-
-        //         // Now using the correct DbSet name
-        //         bool hasStockAdjustment = await _context.StockAdjustments
-        //             .AnyAsync(sa => sa.CompanyId == companyId && 
-        //                           sa.Items != null && 
-        //                           sa.Items.Any(i => i.ItemId == itemId));
-
-        //         bool hasTransaction = await _context.Transactions
-        //             .AnyAsync(t => t.ItemId == itemId && t.CompanyId == companyId);
-
-        //         if (hasSales || hasSalesReturn || hasPurchase || hasPurchaseReturn || hasStockAdjustment || hasTransaction)
-        //         {
-        //             _logger.LogWarning("Cannot delete item {ItemId} because it has related transactions", itemId);
-        //             return false;
-        //         }
-
-        //         // Load related entities for deletion
-        //         await _context.Entry(item)
-        //             .Collection(i => i.ItemCompositions)
-        //             .LoadAsync();
-
-        //         await _context.Entry(item)
-        //             .Collection(i => i.StockEntries)
-        //             .LoadAsync();
-
-        //         // Check for InitialOpeningStock
-        //         var initialOpeningStock = await _context.Set<ItemInitialOpeningStock>()
-        //             .FirstOrDefaultAsync(ios => ios.ItemId == itemId);
-
-        //         if (initialOpeningStock != null)
-        //         {
-        //             _context.Set<ItemInitialOpeningStock>().Remove(initialOpeningStock);
-        //         }
-
-        //         // Delete opening stocks by fiscal year
-        //         var openingStocks = await _context.Set<ItemOpeningStockByFiscalYear>()
-        //             .Where(os => os.ItemId == itemId)
-        //             .ToListAsync();
-
-        //         if (openingStocks.Any())
-        //         {
-        //             _context.Set<ItemOpeningStockByFiscalYear>().RemoveRange(openingStocks);
-        //         }
-
-        //         // Delete closing stocks by fiscal year
-        //         var closingStocks = await _context.Set<ItemClosingStockByFiscalYear>()
-        //             .Where(cs => cs.ItemId == itemId)
-        //             .ToListAsync();
-
-        //         if (closingStocks.Any())
-        //         {
-        //             _context.Set<ItemClosingStockByFiscalYear>().RemoveRange(closingStocks);
-        //         }
-
-        //         // Delete related entities
-        //         if (item.ItemCompositions != null && item.ItemCompositions.Any())
-        //         {
-        //             _context.ItemCompositions.RemoveRange(item.ItemCompositions);
-        //         }
-
-        //         if (item.StockEntries != null && item.StockEntries.Any())
-        //         {
-        //             _context.StockEntries.RemoveRange(item.StockEntries);
-        //         }
-
-        //         // Finally delete the item
-        //         _context.Items.Remove(item);
-        //         await _context.SaveChangesAsync();
-        //         await transaction.CommitAsync();
-
-        //         _logger.LogInformation("Item {ItemId} deleted successfully", itemId);
-        //         return true;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         await transaction.RollbackAsync();
-        //         _logger.LogError(ex, "Error deleting item {ItemId}", itemId);
-        //         throw;
-        //     }
-        // }
-
         public async Task<bool> DeleteItemAsync(Guid itemId, Guid companyId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -1496,7 +1375,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     pbi.MarginPercentage = updateDto.MarginPercentage;
                     pbi.Mrp = updateDto.Mrp;
                     pbi.AltPrice = pbi.WsUnit > 0 ? updateDto.Price / pbi.WsUnit.Value : updateDto.Price;
-                    pbi.UpdatedAt = DateTime.UtcNow;
+                    pbi.NepaliDate = pbi.PurchaseBill != null ? pbi.PurchaseBill.NepaliDate : pbi.NepaliDate;
                 }
 
                 _logger.LogInformation("Updated {Count} purchase bill items", purchaseBillItems.Count);
@@ -1513,7 +1392,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     sbi.Price = updateDto.Price;
                     sbi.MarginPercentage = updateDto.MarginPercentage;
                     sbi.Mrp = updateDto.Mrp;
-                    sbi.UpdatedAt = DateTime.UtcNow;
+                    sbi.NepaliDate = sbi.SalesBill != null ? sbi.SalesBill.NepaliDate : sbi.NepaliDate;
                 }
 
                 _logger.LogInformation("Updated {Count} sales bill items", salesBillItems.Count);
@@ -1530,7 +1409,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     pri.Price = updateDto.Price;
                     pri.MarginPercentage = updateDto.MarginPercentage;
                     pri.Mrp = updateDto.Mrp;
-                    pri.UpdatedAt = DateTime.UtcNow;
+                    pri.NepaliDate = pri.PurchaseReturn != null ? pri.PurchaseReturn.NepaliDate : pri.NepaliDate;
                 }
 
                 _logger.LogInformation("Updated {Count} purchase return items", purchaseReturnItems.Count);
@@ -1547,7 +1426,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     sri.Mrp = updateDto.Mrp;
                     sri.MarginPercentage = updateDto.MarginPercentage;
                     sri.Price = updateDto.Price;
-                    sri.UpdatedAt = DateTime.UtcNow;
+                    sri.NepaliDate = sri.SalesReturn != null ? sri.SalesReturn.NepaliDate : sri.NepaliDate;
                 }
 
                 _logger.LogInformation("Updated {Count} sales return items", salesReturnItems.Count);

@@ -794,6 +794,22 @@
           "lib/netstandard2.0/Mono.TextTemplating.dll": {}
         }
       },
+      "NepDate/2.0.6": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/NepDate.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/NepDate.dll": {}
+        },
+        "contentFiles": {
+          "contentFiles/any/net8.0/Assets/nuget-icon.ico": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          }
+        }
+      },
       "Npgsql/8.0.0": {
         "type": "package",
         "dependencies": {
@@ -2615,6 +2631,25 @@
         "mono.texttemplating.nuspec"
       ]
     },
+    "NepDate/2.0.6": {
+      "sha512": "DWEHJClEoH541aNWH3qlD7fEWl/mOIj6AozRxLxqX+/GXFLfycX/N3bj3InGi2f2Y8d/lbegC1G1dnlBcroOlg==",
+      "type": "package",
+      "path": "nepdate/2.0.6",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "README.md",
+        "content/Assets/nuget-icon.ico",
+        "contentFiles/any/net8.0/Assets/nuget-icon.ico",
+        "contentFiles/any/netstandard2.0/Assets/nuget-icon.ico",
+        "lib/net8.0/NepDate.dll",
+        "lib/netstandard2.0/NepDate.dll",
+        "nepdate.2.0.6.nupkg.sha512",
+        "nepdate.nuspec",
+        "nuget-icon.png"
+      ]
+    },
     "Npgsql/8.0.0": {
       "sha512": "Qiz74U+O7Mv4knrsXgKVYGJjgwoziK+aMFZqz7PtKR3vyGIhZA0tnW6HoUnL3X+YqtmVuhmoKkN8LDWEHMxPbw==",
       "type": "package",
@@ -3208,6 +3243,7 @@
       "Microsoft.AspNetCore.Identity.EntityFrameworkCore >= 8.0.0",
       "Microsoft.EntityFrameworkCore.Design >= 8.0.0",
       "Microsoft.EntityFrameworkCore.Tools >= 8.0.0",
+      "NepDate >= 2.0.6",
       "Npgsql.EntityFrameworkCore.PostgreSQL >= 8.0.0",
       "Swashbuckle.AspNetCore >= 6.6.2"
     ]
@@ -3273,6 +3309,10 @@
             "suppressParent": "All",
             "target": "Package",
             "version": "[8.0.0, )"
+          },
+          "NepDate": {
+            "target": "Package",
+            "version": "[2.0.6, )"
           },
           "Npgsql.EntityFrameworkCore.PostgreSQL": {
             "target": "Package",

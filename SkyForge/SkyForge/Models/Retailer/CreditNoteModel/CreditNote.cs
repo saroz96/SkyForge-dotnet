@@ -28,9 +28,7 @@ namespace SkyForge.Models.Retailer.CreditNoteModel
 
         [Column("date")]
         public DateTime Date { get; set; }
-
-        [Column("nepali_date")]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [StringLength(1000)]
         public string? Description { get; set; }

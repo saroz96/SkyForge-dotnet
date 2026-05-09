@@ -132,6 +132,7 @@ import CreditSalesReturnVoucherNumber from './components/retailer/salesReturn/Cr
 import EditSalesReturn from './components/retailer/salesReturn/EditSalesReturn';
 import EditCashSalesReturn from './components/retailer/salesReturn/EditCashSalesReturn';
 import CashSalesReturnVoucherNumber from './components/retailer/salesReturn/CashVoucherNumber';
+import ClientDetails from './components/systemOwner/pages/ClientDetails';
 
 function AppContent() {
   const { currentUser } = useAuth();
@@ -1094,9 +1095,16 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+
+            <Route path="/system-owner/clients/:id" element={
+              <ProtectedRoute>
+                <ClientDetails />
+              </ProtectedRoute>
+            }
+            />
             {/**======================================================*/}
 
-            <Route path="/unauthorized" element={<Unauthorized />} />
+            < Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </PageNotRefreshProvider>

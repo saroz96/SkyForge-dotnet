@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
@@ -9,6 +11,172 @@ import '../../../stylesheet/noDateIcon.css';
 import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 import useDebounce from '../../../hooks/useDebounce';
 import ProductModal from '../dashboard/modals/ProductModal';
+
+// Date conversion utilities using nepali-datetime
+const convertBsToAd = (bsDate) => {
+    if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+
+    try {
+        const nepaliDate = new NepaliDate(bsDate);
+        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
+            console.error('Invalid NepaliDate object or missing getDateObject method');
+            return null;
+        }
+
+        const jsDate = nepaliDate.getDateObject();
+        if (!jsDate || isNaN(jsDate.getTime())) {
+            console.error('Invalid AD date generated from BS date:', bsDate);
+            return null;
+        }
+
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
+        return null;
+    }
+};
+
+const convertAdToBs = (adDate) => {
+    if (!adDate) return null;
+
+    try {
+        let date;
+        if (typeof adDate === 'string') {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+                date = new Date(adDate + 'T00:00:00');
+            } else {
+                date = new Date(adDate);
+            }
+        } else if (adDate instanceof Date) {
+            date = adDate;
+        } else {
+            return null;
+        }
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid AD date:', adDate);
+            return null;
+        }
+
+        const nepaliDate = new NepaliDate(date);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            console.error('Invalid NepaliDate object');
+            return null;
+        }
+
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth();
+        const day = nepaliDate.getDate();
+
+        if (!year || !month === undefined || !day) {
+            console.error('Invalid BS components generated');
+            return null;
+        }
+
+        return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
+        return null;
+    }
+};
+
+const isValidNepaliDate = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    try {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 32) return false;
+
+        const nepaliDate = new NepaliDate(dateStr);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            return false;
+        }
+
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch (error) {
+        console.warn('Invalid Nepali date:', dateStr, error.message);
+        return false;
+    }
+};
+
+const getCurrentNepaliDate = () => {
+    try {
+        const now = new NepaliDate();
+        if (!now || typeof now.getYear !== 'function') {
+            return '2080-01-01';
+        }
+        const year = now.getYear();
+        const month = now.getMonth() + 1;
+        const day = now.getDate();
+
+        if (!year || !month || !day) {
+            return '2080-01-01';
+        }
+
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error getting current Nepali date:', error);
+        return '2080-01-01';
+    }
+};
+
+// Helper function to format AD date to YYYY-MM-DD
+const formatAdDate = (date) => {
+    if (!date) return null;
+
+    try {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return null;
+
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error formatting AD date:', error);
+        return null;
+    }
+};
+
+// Get Nepali month days for validation
+const getNepaliMonthDays = (year, month) => {
+    const monthDays = {
+        1: 31,  // Baisakh
+        2: 31,  // Jestha
+        3: 32,  // Ashad
+        4: 32,  // Shrawan
+        5: 31,  // Bhadra
+        6: 31,  // Ashwin
+        7: 30,  // Kartik
+        8: 30,  // Mangsir
+        9: 30,  // Poush
+        10: 30, // Magh
+        11: 30, // Falgun
+        12: 30  // Chaitra
+    };
+
+    if (month === 3) {
+        const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
+        return ashad31Years.includes(year) ? 31 : 32;
+    }
+
+    if (month === 11) {
+        const isLeapYear = (year + 1) % 4 === 0;
+        return isLeapYear ? 30 : 29;
+    }
+
+    return monthDays[month] || 30;
+};
 
 const AddStockAdjustment = () => {
     const navigate = useNavigate();
@@ -20,8 +188,17 @@ const AddStockAdjustment = () => {
     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    const dateInputRef = useRef(null);
     const [useVoucherLastDateForStockAdjustment, setUseVoucherLastDateForStockAdjustment] = useState(false);
     const [lastStockAdjustmentDate, setLastStockAdjustmentDate] = useState(null);
+    const [stockValidation, setStockValidation] = useState({
+        itemStockMap: new Map(),  // Map of itemId -> total stock
+        batchStockMap: new Map(), // Map of batchKey -> batch stock
+        usedStockMap: new Map(),  // Map of batchKey -> used stock in current bill
+    });
+
+    const [quantityErrors, setQuantityErrors] = useState({});  // Track quantity errors per row
+
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -276,7 +453,8 @@ const AddStockAdjustment = () => {
                     ...prev,
                     billNumber: currentBillNum,
                     nepaliDate: isNepaliFormat ? transactionDate : '',
-                    billDate: !isNepaliFormat ? invoiceDate : ''
+                    // billDate: !isNepaliFormat ? invoiceDate : ''
+                    billDate: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : ''),
                 }));
 
                 setNextBillNumber(currentBillNum);
@@ -294,43 +472,6 @@ const AddStockAdjustment = () => {
         };
         fetchInitialData();
     }, []);
-
-    // useEffect(() => {
-    //     const fetchInitialData = async () => {
-    //         try {
-    //             setIsLoading(true);
-
-    //             // Fetch stock adjustment initial data (company, categories, etc.)
-    //             const companyResponse = await api.get('/api/retailer/stock-adjustments');
-    //             const { data } = companyResponse.data;
-
-    //             // Fetch next bill number separately
-    //             const currentBillNum = await getCurrentBillNumber();
-
-    //             setCompany(data.company || {});
-
-    //             // Use the bill number from the separate endpoint
-    //             setNextBillNumber(currentBillNum);
-
-    //             setFormData(prev => ({
-    //                 ...prev,
-    //                 billNumber: currentBillNum
-    //             }));
-
-    //             setIsInitialDataLoaded(true);
-    //         } catch (error) {
-    //             console.error('Error fetching initial data:', error);
-    //             setNotification({
-    //                 show: true,
-    //                 message: 'Error loading stock adjustment data',
-    //                 type: 'error'
-    //             });
-    //         } finally {
-    //             setIsLoading(false);
-    //         }
-    //     };
-    //     fetchInitialData();
-    // }, []);
 
     useEffect(() => {
         if (isInitialDataLoaded && transactionDateRef.current) {
@@ -381,6 +522,134 @@ const AddStockAdjustment = () => {
         }
     }, [debouncedHeaderSearchQuery, formData.isVatExempt, showHeaderItemModal, headerShouldShowLastSearchResults, headerLastSearchQuery]);
 
+    // Refetch items when date changes
+    useEffect(() => {
+        // Only refetch if the header item modal is open or item dropdown is active
+        if (showHeaderItemModal) {
+            const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
+            fetchItemsFromBackend(searchTerm, 1, true);
+        }
+
+        if (showItemDropdown) {
+            fetchItemsFromBackend(searchQuery, 1, false);
+        }
+    }, [formData.nepaliDate, formData.billDate]);
+
+    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
+    //     try {
+    //         if (isHeaderModal) {
+    //             setIsHeaderSearching(true);
+    //         } else {
+    //             setIsSearching(true);
+    //         }
+
+    //         // Determine which date to send based on company format
+    //         const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+    //         let params = {
+    //             search: searchTerm,
+    //             page: page,
+    //             limit: searchTerm.trim() ? 15 : 25,
+    //             vatStatus: formData.isVatExempt,
+    //             sortBy: searchTerm.trim() ? 'relevance' : 'name'
+    //         };
+
+    //         // IMPORTANT: For stock adjustment, we need stock as of the adjustment date
+    //         // Use billDate (AD date) if available, otherwise convert from nepaliDate
+    //         if (formData.billDate) {
+    //             params.asOfDate = formData.billDate;
+    //             console.log('Stock Adjustment - Sending AD date filter:', formData.billDate);
+    //         } else if (formData.nepaliDate) {
+    //             const adDate = convertBsToAd(formData.nepaliDate);
+    //             if (adDate) {
+    //                 params.asOfDate = adDate;
+    //                 console.log('Stock Adjustment - Converted BS to AD for filter:', formData.nepaliDate, '->', adDate);
+    //             }
+    //         } else {
+    //             const today = new Date().toISOString().split('T')[0];
+    //             params.asOfDate = today;
+    //             console.log('Stock Adjustment - No date set, using current date:', today);
+    //         }
+
+    //         const response = await api.get('/api/retailer/items/search', { params });
+
+    //         if (response.data.success) {
+    //             // IMPORTANT: The backend already filtered stockEntries based on asOfDate
+    //             const itemsWithPrices = response.data.items.map(item => {
+    //                 let latestPrice = 0;
+    //                 let latestBatchNumber = '';
+    //                 let latestExpiryDate = '';
+
+    //                 // CRITICAL FIX: Calculate total stock from filtered stockEntries
+    //                 // The backend now returns stockEntries that are ONLY up to the asOfDate
+    //                 let totalStock = 0;
+    //                 if (item.stockEntries && item.stockEntries.length > 0) {
+    //                     // Sum up all quantities from the filtered stockEntries
+    //                     totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
+
+    //                     // For price, use the most recent stock entry's price
+    //                     const sortedEntries = [...item.stockEntries].sort((a, b) =>
+    //                         new Date(b.date) - new Date(a.date)
+    //                     );
+    //                     latestPrice = sortedEntries[0]?.puPrice || 0;
+    //                     latestBatchNumber = sortedEntries[0]?.batchNumber || '';
+    //                     latestExpiryDate = sortedEntries[0]?.expiryDate || '';
+
+    //                     console.log(`Item ${item.name}: Total stock as of ${params.asOfDate} = ${totalStock}, Stock entries count: ${item.stockEntries.length}`);
+    //                 }
+
+    //                 return {
+    //                     ...item,
+    //                     id: item.id,
+    //                     _id: item.id,
+    //                     latestPrice: latestPrice,
+    //                     latestBatchNumber: latestBatchNumber,
+    //                     latestExpiryDate: latestExpiryDate,
+    //                     // This is the STOCK AS OF THE ADJUSTMENT DATE
+    //                     stock: totalStock,
+    //                     // Keep the original stockEntries for reference
+    //                     stockEntries: item.stockEntries
+    //                 };
+    //             });
+
+    //             if (isHeaderModal) {
+    //                 if (page === 1) {
+    //                     setHeaderSearchResults(itemsWithPrices);
+    //                 } else {
+    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
+    //                 }
+    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
+    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
+    //                 setHeaderSearchPage(page);
+    //             } else {
+    //                 if (page === 1) {
+    //                     setSearchResults(itemsWithPrices);
+    //                 } else {
+    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
+    //                 }
+    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
+    //                 setTotalSearchItems(response.data.pagination.totalItems);
+    //                 setSearchPage(page);
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching items:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error loading items',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         if (isHeaderModal) {
+    //             setIsHeaderSearching(false);
+    //         } else {
+    //             setIsSearching(false);
+    //         }
+    //     }
+    // };
+
+    // Calculate used stock from current items
+
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
             if (isHeaderModal) {
@@ -389,15 +658,35 @@ const AddStockAdjustment = () => {
                 setIsSearching(true);
             }
 
-            const response = await api.get('/api/retailer/items/search', {
-                params: {
-                    search: searchTerm,
-                    page: page,
-                    limit: searchTerm.trim() ? 15 : 25,
-                    vatStatus: formData.isVatExempt,
-                    sortBy: searchTerm.trim() ? 'relevance' : 'name'
+            // Determine which date to send based on company format
+            const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+            let params = {
+                search: searchTerm,
+                page: page,
+                limit: searchTerm.trim() ? 15 : 25,
+                vatStatus: formData.isVatExempt,
+                sortBy: searchTerm.trim() ? 'relevance' : 'name'
+            };
+
+            // IMPORTANT: For stock adjustment, we need stock as of the adjustment date
+            // Use billDate (AD date) if available, otherwise convert from nepaliDate
+            if (formData.billDate) {
+                params.asOfDate = formData.billDate;
+                console.log('Stock Adjustment - Sending AD date filter:', formData.billDate);
+            } else if (formData.nepaliDate) {
+                const adDate = convertBsToAd(formData.nepaliDate);
+                if (adDate) {
+                    params.asOfDate = adDate;
+                    console.log('Stock Adjustment - Converted BS to AD for filter:', formData.nepaliDate, '->', adDate);
                 }
-            });
+            } else {
+                const today = new Date().toISOString().split('T')[0];
+                params.asOfDate = today;
+                console.log('Stock Adjustment - No date set, using current date:', today);
+            }
+
+            const response = await api.get('/api/retailer/items/search', { params });
 
             if (response.data.success) {
                 const itemsWithPrices = response.data.items.map(item => {
@@ -405,25 +694,61 @@ const AddStockAdjustment = () => {
                     let latestBatchNumber = '';
                     let latestExpiryDate = '';
 
+                    // Calculate total stock from filtered stockEntries
+                    let totalStock = 0;
+                    const batchStockMap = new Map(); // For storing batch-specific stock
+
                     if (item.stockEntries && item.stockEntries.length > 0) {
-                        const sortedEntries = item.stockEntries.sort((a, b) =>
+                        // Sum up all quantities from the filtered stockEntries
+                        totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
+
+                        // Store batch-specific stock for validation
+                        item.stockEntries.forEach(entry => {
+                            const batchKey = `${item.id}-${entry.batchNumber}-${entry.uniqueUuid}`;
+                            batchStockMap.set(batchKey, entry.quantity || 0);
+                        });
+
+                        // For price, use the most recent stock entry's price
+                        const sortedEntries = [...item.stockEntries].sort((a, b) =>
                             new Date(b.date) - new Date(a.date)
                         );
-                        latestPrice = sortedEntries[0].puPrice || 0;
-                        latestBatchNumber = sortedEntries[0].batchNumber || '';
-                        latestExpiryDate = sortedEntries[0].expiryDate || '';
+                        latestPrice = sortedEntries[0]?.puPrice || 0;
+                        latestBatchNumber = sortedEntries[0]?.batchNumber || '';
+                        latestExpiryDate = sortedEntries[0]?.expiryDate || '';
+
+                        console.log(`Item ${item.name}: Total stock as of ${params.asOfDate} = ${totalStock}, Batch entries: ${item.stockEntries.length}`);
                     }
 
                     return {
                         ...item,
                         id: item.id,
                         _id: item.id,
-                        latestPrice,
-                        latestBatchNumber,
-                        latestExpiryDate,
-                        stock: item.currentStock || 0
+                        latestPrice: latestPrice,
+                        latestBatchNumber: latestBatchNumber,
+                        latestExpiryDate: latestExpiryDate,
+                        stock: totalStock,
+                        stockEntries: item.stockEntries,
+                        batchStockMap: batchStockMap // Add batch stock map to item
                     };
                 });
+
+                // Update stock validation maps
+                const newItemStockMap = new Map();
+                const newBatchStockMap = new Map();
+
+                itemsWithPrices.forEach(item => {
+                    newItemStockMap.set(item.id, item.stock);
+                    // Add batch stock info
+                    item.batchStockMap.forEach((stock, batchKey) => {
+                        newBatchStockMap.set(batchKey, stock);
+                    });
+                });
+
+                setStockValidation(prev => ({
+                    ...prev,
+                    itemStockMap: newItemStockMap,
+                    batchStockMap: newBatchStockMap
+                }));
 
                 if (isHeaderModal) {
                     if (page === 1) {
@@ -459,6 +784,91 @@ const AddStockAdjustment = () => {
                 setIsSearching(false);
             }
         }
+    };
+
+    const calculateUsedStock = (itemsToCalculate) => {
+        const newUsedStockMap = new Map();
+
+        itemsToCalculate.forEach(item => {
+            if (item.uniqueUuid) {
+                const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+                const currentUsed = newUsedStockMap.get(batchKey) || 0;
+                const itemQuantity = parseFloat(item.quantity) || 0;
+                newUsedStockMap.set(batchKey, currentUsed + itemQuantity);
+            }
+        });
+
+        return newUsedStockMap;
+    };
+
+    // Get available stock for display (total stock minus used stock)
+    const getAvailableStockForDisplay = (item, itemsToCheck = items) => {
+        if (!item || formData.adjustmentType !== 'short') return Infinity;
+
+        const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+        const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+        // Calculate used stock from current items
+        const usedStockMap = calculateUsedStock(itemsToCheck);
+        const usedStock = usedStockMap.get(batchKey) || 0;
+
+        return Math.max(0, totalStock - usedStock);
+    };
+
+    // Get remaining stock for validation
+    const getRemainingStock = (item, itemsToCheck = items) => {
+        if (!item || formData.adjustmentType !== 'short') return Infinity;
+
+        const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+        const availableStock = stockValidation.batchStockMap.get(batchKey) || 0;
+        const usedStockMap = calculateUsedStock(itemsToCheck);
+        const totalUsed = usedStockMap.get(batchKey) || 0;
+
+        return availableStock - totalUsed;
+    };
+
+    // Validate a single quantity
+    const validateQuantity = (index, quantity, itemsToValidate = items) => {
+        const item = itemsToValidate[index];
+        if (!item || formData.adjustmentType !== 'short') return true;
+
+        const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+        const availableStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+        if (availableStock === 0 && !stockValidation.batchStockMap.has(batchKey)) {
+            return true;
+        }
+
+        const usedStockMap = calculateUsedStock(itemsToValidate);
+        const totalUsed = usedStockMap.get(batchKey) || 0;
+
+        return totalUsed <= availableStock;
+    };
+
+    // Validate all quantities
+    const validateAllQuantities = (itemsToValidate = items) => {
+        const newErrors = {};
+
+        if (formData.adjustmentType !== 'short') {
+            setQuantityErrors({});
+            return true;
+        }
+
+        itemsToValidate.forEach((item, index) => {
+            const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+
+            if (stockValidation.batchStockMap.has(batchKey)) {
+                const isValid = validateQuantity(index, item.quantity, itemsToValidate);
+                if (!isValid) {
+                    const remainingStock = getRemainingStock(item, itemsToValidate);
+                    const availableStock = getAvailableStockForDisplay(item, itemsToValidate);
+                    newErrors[index] = `Stock: ${availableStock} | Rem.: ${remainingStock}`;
+                }
+            }
+        });
+
+        setQuantityErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleItemSearch = (e) => {
@@ -677,8 +1087,85 @@ const AddStockAdjustment = () => {
         }
     };
 
+    // const handleBatchRowClick = async (batchInfo) => {
+    //     if (!selectedItemForBatch) return;
+
+    //     const isHeaderInsert = selectedItemForBatch === selectedItemForInsert;
+
+    //     if (isHeaderInsert) {
+    //         // Store batch info for later use
+    //         setSelectedItemForInsert({
+    //             ...selectedItemForInsert,
+    //             batchInfo: {
+    //                 batchNumber: batchInfo.batchNumber,
+    //                 expiryDate: batchInfo.expiryDate,
+    //                 price: batchInfo.price,
+    //                 uniqueUuid: batchInfo.uniqueUuid,
+    //                 puPrice: batchInfo.puPrice
+    //             }
+    //         });
+
+    //         // Set the separate state variables for inputs
+    //         setSelectedItemBatchNumber(batchInfo.batchNumber || '');
+    //         setSelectedItemExpiryDate(batchInfo.expiryDate ? formatDateForInput(batchInfo.expiryDate) : '');
+    //         // Don't override user's manually entered rate - only set if rate is 0
+    //         if (selectedItemRate === 0) {
+    //             setSelectedItemRate(batchInfo.puPrice || 0);
+    //         }
+
+    //         setShowBatchModal(false);
+    //         setSelectedItemForBatch(null);
+
+    //         setTimeout(() => {
+    //             const batchInput = document.getElementById('selectedItemBatch');
+    //             if (batchInput) {
+    //                 batchInput.focus();
+    //                 batchInput.select();
+    //             }
+    //         }, 100);
+    //     } else {
+    //         // For regular item addition
+    //         addItemToBill(selectedItemForBatch, {
+    //             batchNumber: batchInfo.batchNumber,
+    //             expiryDate: batchInfo.expiryDate,
+    //             price: batchInfo.price,
+    //             uniqueUuid: batchInfo.uniqueUuid,
+    //             puPrice: batchInfo.puPrice
+    //         });
+
+    //         setShowBatchModal(false);
+    //         setSelectedItemForBatch(null);
+    //     }
+    // };
+
     const handleBatchRowClick = async (batchInfo) => {
         if (!selectedItemForBatch) return;
+
+        // For short type, validate stock availability
+        if (formData.adjustmentType === 'short') {
+            const batchKey = `${selectedItemForBatch.id}-${batchInfo.batchNumber}-${batchInfo.uniqueUuid}`;
+            const availableStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+            // Check if this batch has already been used in current items
+            const usedStock = items
+                .filter(item =>
+                    item.itemId === selectedItemForBatch.id &&
+                    item.batchNumber === batchInfo.batchNumber &&
+                    item.uniqueUuid === batchInfo.uniqueUuid
+                )
+                .reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+
+            const remainingStock = availableStock - usedStock;
+
+            if (remainingStock <= 0) {
+                setNotification({
+                    show: true,
+                    message: `No stock available in batch "${batchInfo.batchNumber}". Available: ${remainingStock}`,
+                    type: 'error'
+                });
+                return;
+            }
+        }
 
         const isHeaderInsert = selectedItemForBatch === selectedItemForInsert;
 
@@ -698,6 +1185,7 @@ const AddStockAdjustment = () => {
             // Set the separate state variables for inputs
             setSelectedItemBatchNumber(batchInfo.batchNumber || '');
             setSelectedItemExpiryDate(batchInfo.expiryDate ? formatDateForInput(batchInfo.expiryDate) : '');
+
             // Don't override user's manually entered rate - only set if rate is 0
             if (selectedItemRate === 0) {
                 setSelectedItemRate(batchInfo.puPrice || 0);
@@ -727,6 +1215,104 @@ const AddStockAdjustment = () => {
             setSelectedItemForBatch(null);
         }
     };
+
+    // const insertSelectedItem = () => {
+    //     const batchNumber = selectedItemBatchNumber || selectedItemForInsert?.batchInfo?.batchNumber;
+    //     const expiryDate = selectedItemExpiryDate || selectedItemForInsert?.batchInfo?.expiryDate;
+
+    //     if (!selectedItemForInsert) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please select an item first',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     if (formData.adjustmentType === 'short' && !batchNumber) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please enter batch information first',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     if (!selectedItemQuantity || selectedItemQuantity <= 0) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please enter a valid quantity',
+    //             type: 'error'
+    //         });
+    //         document.getElementById('selectedItemQuantity')?.focus();
+    //         return;
+    //     }
+
+    //     // For xcess type, use default values if not provided
+    //     const finalBatchNumber = formData.adjustmentType === 'xcess'
+    //         ? (batchNumber || 'XXX')
+    //         : batchNumber;
+
+    //     const finalExpiryDate = formData.adjustmentType === 'xcess'
+    //         ? (expiryDate || getDefaultExpiryDate())
+    //         : expiryDate;
+
+    //     // Get the puPrice from batchInfo or latestPrice
+    //     const batchPuPrice = selectedItemForInsert?.batchInfo?.puPrice || selectedItemForInsert.latestPrice || 0;
+
+    //     // IMPORTANT: Use the user's manually entered rate (selectedItemRate) if it's not 0
+    //     // Otherwise use the batch price or latest price
+    //     const finalPrice = selectedItemRate !== 0 ? selectedItemRate :
+    //         (selectedItemForInsert?.batchInfo?.price || selectedItemForInsert.latestPrice || 0);
+
+    //     const finalPuPrice = selectedItemRate !== 0 ? selectedItemRate : batchPuPrice;
+
+    //     const newItem = {
+    //         itemId: selectedItemForInsert.id,
+    //         uniqueNumber: selectedItemForInsert.uniqueNumber || 'N/A',
+    //         hscode: selectedItemForInsert.hscode,
+    //         name: selectedItemForInsert.name,
+    //         category: selectedItemForInsert.category?.name || 'No Category',
+    //         batchNumber: finalBatchNumber,
+    //         expiryDate: finalExpiryDate ? new Date(finalExpiryDate).toISOString().split('T')[0] : '',
+    //         quantity: selectedItemQuantity || 0,
+    //         unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
+    //         unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
+    //         price: finalPrice,
+    //         puPrice: finalPuPrice, // Use the finalPuPrice (could be user-modified)
+    //         amount: (selectedItemQuantity || 0) * finalPuPrice,
+    //         vatStatus: selectedItemForInsert.vatStatus,
+    //         reason: selectedItemReason,
+    //         uniqueUuid: selectedItemForInsert?.batchInfo?.uniqueUuid || '',
+    //         mrp: 0
+    //     };
+
+    //     const updatedItems = [...items, newItem];
+    //     setItems(updatedItems);
+
+    //     // Reset all fields including the rate
+    //     setSelectedItemForInsert(null);
+    //     setSelectedItemQuantity(0);
+    //     setSelectedItemRate(0); // Reset rate back to 0
+    //     setSelectedItemReason('');
+    //     setSelectedItemBatchNumber('');
+    //     setSelectedItemExpiryDate('');
+    //     setHeaderSearchQuery('');
+
+    //     setTimeout(() => {
+    //         const searchInput = document.getElementById('headerItemSearch');
+    //         if (searchInput) {
+    //             searchInput.focus();
+    //             searchInput.select();
+    //         }
+    //     }, 50);
+
+    //     setTimeout(() => {
+    //         if (itemsTableRef.current) {
+    //             itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
+    //         }
+    //     }, 50);
+    // };
 
     const insertSelectedItem = () => {
         const batchNumber = selectedItemBatchNumber || selectedItemForInsert?.batchInfo?.batchNumber;
@@ -760,6 +1346,38 @@ const AddStockAdjustment = () => {
             return;
         }
 
+        // Validate stock for short type
+        if (formData.adjustmentType === 'short') {
+            const batchKey = `${selectedItemForInsert.id}-${batchNumber}-${selectedItemForInsert?.batchInfo?.uniqueUuid}`;
+            const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+            // Calculate already used stock for this batch
+            const existingItems = items.filter(item =>
+                item.itemId === selectedItemForInsert.id &&
+                item.batchNumber === batchNumber &&
+                item.uniqueUuid === selectedItemForInsert?.batchInfo?.uniqueUuid
+            );
+
+            let totalExistingQuantity = 0;
+            if (existingItems.length > 0) {
+                totalExistingQuantity = existingItems.reduce((sum, item) => {
+                    return sum + (parseFloat(item.quantity) || 0);
+                }, 0);
+            }
+
+            const availableStock = totalStock - totalExistingQuantity;
+
+            if (selectedItemQuantity > availableStock) {
+                setNotification({
+                    show: true,
+                    message: `Insufficient stock. Available: ${availableStock}, Requested: ${selectedItemQuantity}`,
+                    type: 'error'
+                });
+                document.getElementById('selectedItemQuantity')?.focus();
+                return;
+            }
+        }
+
         // For xcess type, use default values if not provided
         const finalBatchNumber = formData.adjustmentType === 'xcess'
             ? (batchNumber || 'XXX')
@@ -791,7 +1409,7 @@ const AddStockAdjustment = () => {
             unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
             unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
             price: finalPrice,
-            puPrice: finalPuPrice, // Use the finalPuPrice (could be user-modified)
+            puPrice: finalPuPrice,
             amount: (selectedItemQuantity || 0) * finalPuPrice,
             vatStatus: selectedItemForInsert.vatStatus,
             reason: selectedItemReason,
@@ -802,10 +1420,15 @@ const AddStockAdjustment = () => {
         const updatedItems = [...items, newItem];
         setItems(updatedItems);
 
+        // Validate all quantities after adding
+        setTimeout(() => {
+            validateAllQuantities(updatedItems);
+        }, 0);
+
         // Reset all fields including the rate
         setSelectedItemForInsert(null);
         setSelectedItemQuantity(0);
-        setSelectedItemRate(0); // Reset rate back to 0
+        setSelectedItemRate(0);
         setSelectedItemReason('');
         setSelectedItemBatchNumber('');
         setSelectedItemExpiryDate('');
@@ -826,11 +1449,49 @@ const AddStockAdjustment = () => {
         }, 50);
     };
 
+    // const updateItemField = (index, field, value) => {
+    //     const updatedItems = [...items];
+    //     updatedItems[index][field] = value;
+
+    //     if (field === 'quantity' || field === 'puPrice') {
+    //         updatedItems[index].amount = (updatedItems[index].quantity * updatedItems[index].puPrice).toFixed(2);
+    //     }
+
+    //     setItems(updatedItems);
+    // };
+
     const updateItemField = (index, field, value) => {
         const updatedItems = [...items];
         updatedItems[index][field] = value;
 
         if (field === 'quantity' || field === 'puPrice') {
+            if (field === 'quantity') {
+                // Validate quantity for short type
+                if (formData.adjustmentType === 'short') {
+                    const item = updatedItems[index];
+                    const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+
+                    if (stockValidation.batchStockMap.has(batchKey)) {
+                        const isValid = validateQuantity(index, value, updatedItems);
+                        const remainingStock = getRemainingStock(item, updatedItems);
+                        const availableStock = getAvailableStockForDisplay(item, updatedItems);
+
+                        if (!isValid) {
+                            setQuantityErrors(prev => ({
+                                ...prev,
+                                [index]: `Stock: ${availableStock} | Rem.: ${remainingStock}`
+                            }));
+                        } else {
+                            setQuantityErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors[index];
+                                return newErrors;
+                            });
+                        }
+                    }
+                }
+            }
+
             updatedItems[index].amount = (updatedItems[index].quantity * updatedItems[index].puPrice).toFixed(2);
         }
 
@@ -887,71 +1548,6 @@ const AddStockAdjustment = () => {
             totalAmount
         };
     };
-
-    // Manual reset function - does NOT increment bill number
-    // const handleManualReset = async () => {
-    //     try {
-    //         setIsLoading(true);
-
-    //         // Get current bill number (does NOT increment)
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch company settings if needed
-    //         const companyResponse = await api.get('/api/retailer/stock-adjustments');
-    //         const { data } = companyResponse.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             adjustmentType: 'xcess',
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum, // Use from separate endpoint
-    //             isVatExempt: 'all',
-    //             note: '',
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setCompany(data.company || {});
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-
-    //         setSelectedItemForInsert(null);
-    //         setSelectedItemQuantity(0);
-    //         setSelectedItemRate(0);
-    //         setHeaderSearchQuery('');
-    //         setHeaderLastSearchQuery('');
-    //         setHeaderShouldShowLastSearchResults(false);
-    //         setSelectedItemBatchNumber('');
-    //         setSelectedItemExpiryDate('');
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-    //         setShowItemDropdown(false);
-
-    //         setTimeout(() => {
-    //             if (company.dateFormat === 'nepali' && nepaliDateRef.current) {
-    //                 nepaliDateRef.current.focus();
-    //             } else if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting form:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
 
     // Manual reset function - does NOT increment bill number
     const handleManualReset = async () => {
@@ -1055,67 +1651,6 @@ const AddStockAdjustment = () => {
         }
     };
 
-    // Reset after save - gets next bill number (increments)
-    // const resetAfterSave = async () => {
-    //     try {
-    //         // Get next bill number (this increments the counter)
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch company settings if needed
-    //         const companyResponse = await api.get('/api/retailer/stock-adjustments');
-    //         const { data } = companyResponse.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             adjustmentType: 'xcess',
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum,
-    //             isVatExempt: 'all',
-    //             note: '',
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setCompany(data.company || {});
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-
-    //         setSelectedItemForInsert(null);
-    //         setSelectedItemQuantity(0);
-    //         setSelectedItemRate(0);
-    //         setHeaderSearchQuery('');
-    //         setHeaderLastSearchQuery('');
-    //         setHeaderShouldShowLastSearchResults(false);
-    //         setSelectedItemBatchNumber('');
-    //         setSelectedItemExpiryDate('');
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-    //         setShowItemDropdown(false);
-
-    //         setTimeout(() => {
-    //             if (company.dateFormat === 'nepali' && nepaliDateRef.current) {
-    //                 nepaliDateRef.current.focus();
-    //             } else if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting after save:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     }
-    // };
-
     // Reset after save - respects date preferences
     const resetAfterSave = async () => {
         try {
@@ -1198,10 +1733,11 @@ const AddStockAdjustment = () => {
             setShowItemDropdown(false);
 
             setTimeout(() => {
-                if (company.dateFormat === 'nepali' && nepaliDateRef.current) {
-                    nepaliDateRef.current.focus();
-                } else if (transactionDateRef.current) {
-                    transactionDateRef.current.focus();
+                if (dateInputRef.current) {
+                    dateInputRef.current.focus();
+                    // If it's a text input (Nepali date), also select the text
+                    if (dateInputRef.current.type === 'text' || dateInputRef.current.type !== 'date') {
+                    }
                 }
             }, 100);
         } catch (err) {
@@ -1248,7 +1784,7 @@ const AddStockAdjustment = () => {
                     </div>
                     <div>
                         <div><strong>Vch. No:</strong> ${printData.adjustment.billNumber || ''}</div>
-                        <div><strong>Date:</strong> ${printData.companyDateFormat === 'Nepali' ? formatDate(printData.nepaliDate, 'nepali') : formatDate(printData.adjustment.date)}</div>
+                        <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.nepaliDate, 'Nepali') : formatDateForInput(printData.adjustment.date)} (${new Date(printData.adjustment.date).toLocaleDateString()})</div>
                     </div>
                 </div>
 
@@ -1561,35 +2097,32 @@ const AddStockAdjustment = () => {
         return rounded.toString();
     };
 
-    const formatDate = (dateString, format = 'english') => {
-        if (!dateString) return 'N/A';
-
-        try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return 'N/A';
-
-            if (format === 'nepali') {
-                const nepaliDate = new NepaliDate(date);
-                return nepaliDate.format('YYYY-MM-DD');
-            }
-
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        } catch (e) {
-            console.error('Date formatting error:', e);
-            return 'N/A';
-        }
-    };
-
     const handleSubmit = async (e, print = false) => {
         e.preventDefault();
+
+        if (formData.adjustmentType === 'short') {
+            const isValid = validateAllQuantities();
+            if (!isValid) {
+                setNotification({
+                    show: true,
+                    message: 'Please fix quantity errors before submitting',
+                    type: 'error'
+                });
+
+                const firstErrorIndex = Object.keys(quantityErrors)[0];
+                if (firstErrorIndex !== undefined) {
+                    setTimeout(() => {
+                        document.getElementById(`quantity-${firstErrorIndex}`)?.focus();
+                    }, 100);
+                }
+                return;
+            }
+        }
+
         setIsSaving(true);
 
         try {
             const totals = calculateTotal();
-
             const parseDate = (dateString) => {
                 if (!dateString) return new Date().toISOString();
 
@@ -1607,8 +2140,8 @@ const AddStockAdjustment = () => {
                 adjustmentType: formData.adjustmentType,
                 // nepaliDate: formData.nepaliDate,
                 // billDate: formData.billDate,
-                nepaliDate: parseDate(formData.nepaliDate),
-                billDate: parseDate(formData.billDate),
+                nepaliDate: formData.nepaliDate,
+                date: parseDate(formData.billDate),
                 isVatExempt: formData.isVatExempt,
                 vatPercentage: parseFloat(formData.vatPercentage) || 13,
                 discountPercentage: 0, // Not used in stock adjustment
@@ -1721,6 +2254,14 @@ const AddStockAdjustment = () => {
             }, 100);
         }
     }, [showSalesPriceModal]);
+
+    useEffect(() => {
+        if (formData.adjustmentType === 'short' && items.length > 0) {
+            setTimeout(() => {
+                validateAllQuantities();
+            }, 100);
+        }
+    }, [items]);
 
     const totals = calculateTotal();
 
@@ -1911,13 +2452,14 @@ const AddStockAdjustment = () => {
                         <div className="row g-2 mb-3">
                             {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
+                                    {/* Nepali Date (Primary editable field) */}
                                     <div className="col-12 col-md-6 col-lg-3">
                                         <div className="position-relative">
                                             <input
                                                 type="text"
                                                 name="nepaliDate"
                                                 id="nepaliDate"
-                                                ref={nepaliDateRef}
+                                                ref={dateInputRef}
                                                 autoFocus
                                                 autoComplete='off'
                                                 className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
@@ -1925,9 +2467,26 @@ const AddStockAdjustment = () => {
                                                 onChange={(e) => {
                                                     const value = e.target.value;
                                                     const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
                                                     if (sanitizedValue.length <= 10) {
-                                                        setFormData({ ...formData, nepaliDate: sanitizedValue });
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: sanitizedValue
+                                                        }));
                                                         setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
+                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                            console.log('Converting BS to AD:', sanitizedValue);
+                                                            const adDate = convertBsToAd(sanitizedValue);
+                                                            console.log('Converted AD date:', adDate);
+                                                            if (adDate) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    billDate: adDate
+                                                                }));
+                                                            }
+                                                        }
                                                     }
                                                 }}
                                                 onKeyDown={(e) => {
@@ -1950,11 +2509,10 @@ const AddStockAdjustment = () => {
                                                         const dateStr = e.target.value.trim();
 
                                                         if (!dateStr) {
-                                                            const currentDate = new NepaliDate();
-                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                            const currentDate = getCurrentNepaliDate();
                                                             setFormData({
                                                                 ...formData,
-                                                                nepaliDate: correctedDate
+                                                                nepaliDate: currentDate
                                                             });
                                                             setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
 
@@ -1973,92 +2531,34 @@ const AddStockAdjustment = () => {
                                                         }
                                                     }
                                                 }}
-                                                onPaste={(e) => {
-                                                    e.preventDefault();
-                                                    const pastedData = e.clipboardData.getData('text');
-                                                    const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                                    const newValue = formData.nepaliDate + cleanedData;
-                                                    if (newValue.length <= 10) {
-                                                        setFormData({ ...formData, nepaliDate: newValue });
-                                                    }
-                                                }}
                                                 onBlur={(e) => {
-                                                    try {
-                                                        const dateStr = e.target.value.trim();
-                                                        if (!dateStr) {
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                            return;
-                                                        }
-
-                                                        const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                        if (!nepaliDateFormat.test(dateStr)) {
-                                                            const currentDate = new NepaliDate();
-                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: correctedDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Invalid date format. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-                                                            return;
-                                                        }
-
-                                                        const normalizedDateStr = dateStr.replace(/-/g, '/');
-                                                        const [year, month, day] = normalizedDateStr.split('/').map(Number);
-
-                                                        if (month < 1 || month > 12) {
-                                                            throw new Error("Month must be between 1-12");
-                                                        }
-                                                        if (day < 1 || day > 32) {
-                                                            throw new Error("Day must be between 1-32");
-                                                        }
-
-                                                        const nepaliDate = new NepaliDate(year, month - 1, day);
-
-                                                        if (
-                                                            nepaliDate.getYear() !== year ||
-                                                            nepaliDate.getMonth() + 1 !== month ||
-                                                            nepaliDate.getDate() !== day
-                                                        ) {
-                                                            const currentDate = new NepaliDate();
-                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: correctedDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-                                                        } else {
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: nepaliDate.format('YYYY-MM-DD')
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                        }
-                                                    } catch (error) {
-                                                        const currentDate = new NepaliDate();
-                                                        const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                        setFormData({
-                                                            ...formData,
-                                                            nepaliDate: correctedDate
-                                                        });
+                                                    const dateStr = e.target.value.trim();
+                                                    if (!dateStr) {
                                                         setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                        return;
+                                                    }
 
+                                                    if (isValidNepaliDate(dateStr)) {
+                                                        const adDate = convertBsToAd(dateStr);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                nepaliDate: dateStr,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                    } else {
+                                                        const currentDate = getCurrentNepaliDate();
+                                                        const adDate = convertBsToAd(currentDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: currentDate,
+                                                            billDate: adDate || prev.billDate
+                                                        }));
                                                         setNotification({
                                                             show: true,
-                                                            message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
                                                             type: 'warning',
                                                             duration: 3000
                                                         });
@@ -2073,19 +2573,16 @@ const AddStockAdjustment = () => {
                                                     width: '100%'
                                                 }}
                                             />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Date: <span className="text-danger">*</span>
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Date (BS): <span className="text-danger">*</span>
                                             </label>
                                             {dateErrors.nepaliDate && (
                                                 <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
@@ -2094,8 +2591,16 @@ const AddStockAdjustment = () => {
                                             )}
                                         </div>
                                     </div>
+
+                                    <input
+                                        type="hidden"
+                                        name="billDate"
+                                        id="billDate"
+                                        value={formData.billDate || ''}
+                                    />
                                 </>
                             ) : (
+                                // English date format section
                                 <div className="col-12 col-md-6 col-lg-3">
                                     <div className="position-relative">
                                         <input
@@ -2171,18 +2676,15 @@ const AddStockAdjustment = () => {
                                                 width: '100%'
                                             }}
                                         />
-                                        <label
-                                            className="position-absolute"
-                                            style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}
-                                        >
+                                        <label className="position-absolute" style={{
+                                            top: '-0.5rem',
+                                            left: '0.75rem',
+                                            fontSize: '0.75rem',
+                                            backgroundColor: 'white',
+                                            padding: '0 0.25rem',
+                                            color: '#6c757d',
+                                            fontWeight: '500'
+                                        }}>
                                             Date: <span className="text-danger">*</span>
                                         </label>
                                     </div>
@@ -2856,7 +3358,7 @@ const AddStockAdjustment = () => {
                                                     }}
                                                 />
                                             </td>
-                                            <td style={{ padding: '3px' }}>
+                                            {/* <td style={{ padding: '3px' }}>
                                                 <input
                                                     type="number"
                                                     name={`items[${index}][quantity]`}
@@ -2880,7 +3382,46 @@ const AddStockAdjustment = () => {
                                                         padding: '0 4px'
                                                     }}
                                                 />
+                                            </td> */}
+
+                                            <td style={{ padding: '3px' }}>
+                                                <input
+                                                    type="number"
+                                                    name={`items[${index}][quantity]`}
+                                                    className={`form-control form-control-sm ${quantityErrors[index] ? 'is-invalid' : ''}`}
+                                                    id={`quantity-${index}`}
+                                                    value={item.quantity}
+                                                    onChange={(e) => updateItemField(index, 'quantity', e.target.value)}
+                                                    required
+                                                    min="0"
+                                                    step="any"
+                                                    onFocus={(e) => {
+                                                        e.target.select();
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            if (!quantityErrors[index]) {
+                                                                document.getElementById(`puPrice-${index}`)?.focus();
+                                                            } else {
+                                                                e.target.focus();
+                                                                e.target.select();
+                                                            }
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '20px',
+                                                        fontSize: '0.75rem',
+                                                        padding: '0 4px'
+                                                    }}
+                                                />
+                                                {quantityErrors[index] && (
+                                                    <div className="invalid-feedback d-block small" style={{ fontSize: '0.7rem' }}>
+                                                        {quantityErrors[index]}
+                                                    </div>
+                                                )}
                                             </td>
+
                                             <td className="text-nowrap" style={{ padding: '3px', fontSize: '0.75rem' }}>
                                                 {item.unitName}
                                                 <input type="hidden" name={`items[${index}][unitId]`} value={item.unitId} />
@@ -3376,20 +3917,6 @@ const AddStockAdjustment = () => {
                                                 </>
                                             )}
                                         </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-warning btn-sm d-flex align-items-center"
-                                            onClick={(e) => handleSubmit(e, true)}
-                                            disabled={isSaving}
-                                            style={{
-                                                height: '26px',
-                                                padding: '0 12px',
-                                                fontSize: '0.8rem',
-                                                fontWeight: '500'
-                                            }}
-                                        >
-                                            <i className="bi bi-printer me-1" style={{ fontSize: '0.9rem' }}></i> Print
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -3568,7 +4095,7 @@ const AddStockAdjustment = () => {
             )}
 
             {/* Batch Modal - Only show for "short" adjustment type */}
-            {showBatchModal && selectedItemForBatch && formData.adjustmentType === 'short' && (
+            {/* {showBatchModal && selectedItemForBatch && formData.adjustmentType === 'short' && (
                 <div className="modal fade show" id="batchModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
                     <div className="modal-dialog modal-lg modal-dialog-centered">
                         <div className="modal-content" style={{ borderRadius: '8px', overflow: 'hidden', minHeight: '200px' }}>
@@ -3713,6 +4240,299 @@ const AddStockAdjustment = () => {
                                                 }
                                             </tbody>
                                         </table>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="modal-footer py-0 justify-content-center" style={{
+                                backgroundColor: '#f8f9fa',
+                                borderTop: '1px solid #dee2e6',
+                            }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm py-1 px-3 d-flex align-items-center"
+                                    onClick={() => {
+                                        setShowBatchModal(false);
+                                        setSelectedItemForBatch(null);
+                                        if (selectedItemForInsert === selectedItemForBatch) {
+                                            setSelectedItemForInsert(null);
+                                            setTimeout(() => {
+                                                const searchInput = document.getElementById('headerItemSearch');
+                                                if (searchInput) {
+                                                    searchInput.focus();
+                                                    searchInput.select();
+                                                }
+                                            }, 100);
+                                        }
+                                    }}
+                                    style={{
+                                        fontSize: '0.8rem',
+                                        lineHeight: '1.2',
+                                        minHeight: '28px'
+                                    }}
+                                >
+                                    <i className="bi bi-x-circle me-1"></i>
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {showBatchModal && selectedItemForBatch && formData.adjustmentType === 'short' && (
+                <div className="modal fade show" id="batchModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content" style={{ borderRadius: '8px', overflow: 'hidden', minHeight: '200px' }}>
+                            <div className="modal-header py-0" style={{ backgroundColor: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
+                                <h5 className="modal-title mb-0 mx-auto fw-semibold" style={{ fontSize: '1.1rem' }}>
+                                    <i className="bi bi-box-seam me-2"></i>
+                                    {selectedItemForInsert === selectedItemForBatch
+                                        ? "Select Batch for Insertion"
+                                        : "Batch Information: " + selectedItemForBatch.name}
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close position-absolute"
+                                    style={{ right: '1rem', top: '0.25rem' }}
+                                    onClick={() => {
+                                        setShowBatchModal(false);
+                                        setSelectedItemForBatch(null);
+                                        if (selectedItemForInsert === selectedItemForBatch) {
+                                            setSelectedItemForInsert(null);
+                                            setTimeout(() => {
+                                                const searchInput = document.getElementById('headerItemSearch');
+                                                if (searchInput) {
+                                                    searchInput.focus();
+                                                    searchInput.select();
+                                                }
+                                            }, 100);
+                                        }
+                                    }}
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div className="modal-body p-0" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                {selectedItemForBatch.stockEntries && selectedItemForBatch.stockEntries.every(entry => entry.quantity === 0) ? (
+                                    <div className="d-flex justify-content-center align-items-center py-2">
+                                        <div className="alert alert-warning d-flex align-items-center py-2 px-3 mb-0 w-75 text-center">
+                                            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                            <span>Out of stock</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="table-responsive" style={{
+                                        maxHeight: 'calc(55vh - 110px)',
+                                        overflowY: 'auto'
+                                    }} id="batchTableContainer">
+                                        <table className="table table-sm table-hover mb-0">
+                                            <thead className="table-light" style={{
+                                                position: 'sticky',
+                                                top: 0,
+                                                zIndex: 1,
+                                                backgroundColor: '#f8f9fa'
+                                            }}>
+                                                <tr className="text-center">
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Batch No.</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Expiry Date</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Stock</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>S.P</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>C.P</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>%</th>
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>MRP</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {selectedItemForBatch.stockEntries
+                                                    .filter(entry => entry.quantity > 0)
+                                                    .map((entry, index) => {
+                                                        // Calculate available stock for this batch
+                                                        const batchKey = `${selectedItemForBatch.id}-${entry.batchNumber}-${entry.uniqueUuid}`;
+                                                        const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+                                                        // Calculate used stock in current bill
+                                                        const usedStock = items
+                                                            .filter(item =>
+                                                                item.itemId === selectedItemForBatch.id &&
+                                                                item.batchNumber === entry.batchNumber &&
+                                                                item.uniqueUuid === entry.uniqueUuid
+                                                            )
+                                                            .reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+
+                                                        const availableStock = Math.max(0, totalStock - usedStock);
+
+                                                        return (
+                                                            <tr
+                                                                key={index}
+                                                                className={`batch-row text-center ${index === 0 ? 'bg-primary text-white' : ''}`}
+                                                                style={{
+                                                                    height: '24px',
+                                                                    cursor: availableStock > 0 ? 'pointer' : 'not-allowed',
+                                                                    fontSize: '0.75rem',
+                                                                    opacity: availableStock > 0 ? 1 : 0.6
+                                                                }}
+                                                                onClick={() => {
+                                                                    if (availableStock > 0) {
+                                                                        handleBatchRowClick({
+                                                                            batchNumber: entry.batchNumber,
+                                                                            expiryDate: entry.expiryDate,
+                                                                            price: entry.price,
+                                                                            puPrice: entry.puPrice,
+                                                                            uniqueUuid: entry.uniqueUuid
+                                                                        });
+                                                                    }
+                                                                }}
+                                                                tabIndex={availableStock > 0 ? 0 : -1}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' && availableStock > 0) {
+                                                                        e.preventDefault();
+                                                                        handleBatchRowClick({
+                                                                            batchNumber: entry.batchNumber,
+                                                                            expiryDate: entry.expiryDate,
+                                                                            price: entry.price,
+                                                                            puPrice: entry.puPrice,
+                                                                            uniqueUuid: entry.uniqueUuid
+                                                                        });
+                                                                    } else if (e.key === 'ArrowDown') {
+                                                                        e.preventDefault();
+                                                                        const nextRow = e.currentTarget.nextElementSibling;
+                                                                        if (nextRow) {
+                                                                            e.currentTarget.classList.remove('bg-primary', 'text-white');
+                                                                            nextRow.classList.add('bg-primary', 'text-white');
+                                                                            nextRow.focus();
+
+                                                                            const tableContainer = document.getElementById('batchTableContainer');
+                                                                            if (tableContainer) {
+                                                                                const rowRect = nextRow.getBoundingClientRect();
+                                                                                const containerRect = tableContainer.getBoundingClientRect();
+
+                                                                                if (rowRect.bottom > containerRect.bottom) {
+                                                                                    nextRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    } else if (e.key === 'ArrowUp') {
+                                                                        e.preventDefault();
+                                                                        const prevRow = e.currentTarget.previousElementSibling;
+                                                                        if (prevRow) {
+                                                                            e.currentTarget.classList.remove('bg-primary', 'text-white');
+                                                                            prevRow.classList.add('bg-primary', 'text-white');
+                                                                            prevRow.focus();
+
+                                                                            const tableContainer = document.getElementById('batchTableContainer');
+                                                                            if (tableContainer) {
+                                                                                const rowRect = prevRow.getBoundingClientRect();
+                                                                                const containerRect = tableContainer.getBoundingClientRect();
+
+                                                                                if (rowRect.top < containerRect.top) {
+                                                                                    prevRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                                                                }
+                                                                            }
+                                                                        } else {
+                                                                            e.currentTarget.focus();
+                                                                            e.currentTarget.classList.add('bg-primary', 'text-white');
+                                                                        }
+                                                                    } else if (e.key === 'Escape') {
+                                                                        e.preventDefault();
+                                                                        setShowBatchModal(false);
+                                                                        setSelectedItemForBatch(null);
+                                                                    }
+                                                                }}
+                                                                onFocus={(e) => {
+                                                                    if (availableStock > 0) {
+                                                                        document.querySelectorAll('.batch-row').forEach(row => {
+                                                                            row.classList.remove('bg-primary', 'text-white');
+                                                                        });
+                                                                        e.currentTarget.classList.add('bg-primary', 'text-white');
+
+                                                                        const tableContainer = document.getElementById('batchTableContainer');
+                                                                        if (tableContainer) {
+                                                                            const rowRect = e.currentTarget.getBoundingClientRect();
+                                                                            const containerRect = tableContainer.getBoundingClientRect();
+
+                                                                            if (rowRect.bottom > containerRect.bottom) {
+                                                                                e.currentTarget.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                                                                            } else if (rowRect.top < containerRect.top) {
+                                                                                e.currentTarget.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    if (availableStock > 0) {
+                                                                        document.querySelectorAll('.batch-row').forEach(row => {
+                                                                            row.classList.remove('bg-primary', 'text-white');
+                                                                        });
+                                                                        e.currentTarget.classList.add('bg-primary', 'text-white');
+
+                                                                        const tableContainer = document.getElementById('batchTableContainer');
+                                                                        if (tableContainer) {
+                                                                            const rowRect = e.currentTarget.getBoundingClientRect();
+                                                                            const containerRect = tableContainer.getBoundingClientRect();
+
+                                                                            if (rowRect.bottom > containerRect.bottom) {
+                                                                                e.currentTarget.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                                                                            } else if (rowRect.top < containerRect.top) {
+                                                                                e.currentTarget.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                title={availableStock > 0
+                                                                    ? `Total: ${totalStock} | Used in current bill: ${usedStock} | Available: ${availableStock}\nClick to select this batch`
+                                                                    : `Total: ${totalStock} | Used in current bill: ${usedStock} | Available: ${availableStock}\nOut of stock`
+                                                                }
+                                                            >
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{entry.batchNumber || 'N/A'}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{formatDateForInput(entry.expiryDate)}</td>
+                                                                <td className="align-middle fw-semibold" style={{ padding: '3px' }}>
+                                                                    <span
+                                                                        style={{
+                                                                            color: availableStock <= 0 ? '#dc3545' :
+                                                                                availableStock < 5 ? '#ffc107' :
+                                                                                    '#198754',
+                                                                            position: 'relative'
+                                                                        }}
+                                                                    >
+                                                                        {availableStock}
+                                                                        {usedStock > 0 && (
+                                                                            <small
+                                                                                style={{
+                                                                                    fontSize: '0.6rem',
+                                                                                    color: '#6c757d',
+                                                                                    marginLeft: '2px',
+                                                                                    position: 'absolute',
+                                                                                    top: '-8px',
+                                                                                    right: '-12px'
+                                                                                }}
+                                                                                title={`Used in current bill: ${usedStock}`}
+                                                                            >
+                                                                                (-{usedStock})
+                                                                            </small>
+                                                                        )}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.price * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.puPrice * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.marginPercentage * 100) / 100}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.mrp * 100) / 100}</td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                }
+                                            </tbody>
+                                        </table>
+                                        {selectedItemForBatch.stockEntries.filter(entry => entry.quantity > 0).length > 6 && (
+                                            <div className="text-center py-0" style={{
+                                                fontSize: '0.5rem',
+                                                color: '#6c757d',
+                                                backgroundColor: '#f8f9fa',
+                                                borderTop: '1px solid #dee2e6',
+                                                position: 'sticky',
+                                                bottom: 0
+                                            }}>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

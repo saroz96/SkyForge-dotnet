@@ -5,7 +5,10 @@ import { BiPrinter, BiArrowBack, BiSolidFilePdf } from 'react-icons/bi';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+
+import NepaliDate from 'nepali-datetime';
+
 
 const SalesBillPrint = () => {
     const { id } = useParams();
@@ -731,9 +734,9 @@ const SalesBillPrint = () => {
                         <Button variant="secondary" size="sm" className="me-2" onClick={handleBack}>
                             <BiArrowBack /> Back
                         </Button>
-                        <Button variant="primary" size="sm" className="me-2" onClick={generatePdf}>
+                        {/* <Button variant="primary" size="sm" className="me-2" onClick={generatePdf}>
                             <BiSolidFilePdf /> <span className="pdf-button-text">PDF</span>
-                        </Button>
+                        </Button> */}
                         <Button variant="info" size="sm" onClick={printBill}>
                             <BiPrinter /> Print
                         </Button>
@@ -794,8 +797,8 @@ const SalesBillPrint = () => {
                             </div>
                             <div className="right">
                                 <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
-                                <div><strong>Trans. Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.transactionDateNepali, 'nepali') : formatDate(billData.bill.transactionDate)}</div>
-                                <div><strong>Invoice Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.nepaliDate, 'nepali') : formatDate(billData.bill.date)}</div>
+                                <div><strong>Trans. Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.transactionDateNepali, 'Nepali') : formatDate(billData.bill.transactionDate)}({new Date(billData.bill.transactionDate).toLocaleDateString()})</div>
+                                <div><strong>Invoice Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.nepaliDate, 'Nepali') : formatDate(billData.bill.date)}({new Date(billData.bill.date).toLocaleDateString()})</div>
                                 <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
                             </div>
                         </div>
@@ -950,8 +953,8 @@ const SalesBillPrint = () => {
                         </div>
                         <div className="right">
                             <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
-                            <div><strong>Trans. Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.transactionDateNepali, 'nepali') : formatDate(billData.bill.transactionDate)}</div>
-                            <div><strong>Invoice Date:</strong> {billData.companyDateFormat === 'Nepali' ? formatDate(billData.nepaliDate, 'nepali') : formatDate(billData.bill.date)}</div>
+                            <div><strong>Trans. Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.transactionDateNepali, 'Nepali') : formatDate(billData.bill.transactionDate)}({new Date(billData.bill.transactionDate).toLocaleDateString()})</div>
+                                <div><strong>Invoice Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.nepaliDate, 'Nepali') : formatDate(billData.bill.date)}({new Date(billData.bill.date).toLocaleDateString()})</div>
                             <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
                         </div>
                     </div>

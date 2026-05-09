@@ -1,78 +1,322 @@
-/* Clients.css
-.cursor-pointer {
+/* Animations */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Header Section */
+.clients-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+  border-radius: 1rem;
+  color: white;
+}
+
+.clients-header .header-icon {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  padding: 0.75rem;
+  backdrop-filter: blur(10px);
+}
+
+.clients-header h1 {
+  color: white;
+}
+
+.clients-header .text-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Action Buttons */
+.action-btn {
+  transition: all 0.3s ease;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Stat Cards */
+.stat-card {
+  transition: all 0.3s ease;
   cursor: pointer;
 }
 
-.client-table tr {
-  transition: all 0.2s ease;
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
 }
 
-.client-table tr:hover {
-  background-color: rgba(13, 110, 253, 0.05);
-  transform: translateY(-1px);
-}
-
-.status-badge {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-.action-btn {
-  min-width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.table th {
-  font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #dee2e6;
-  padding: 1rem;
-}
-
-.table td {
-  padding: 1rem;
-  vertical-align: middle;
-}
-
-.client-avatar {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+.stat-icon {
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  font-weight: bold;
+  transition: all 0.3s ease;
 }
 
-.stat-card {
-  border-radius: 12px;
-  transition: transform 0.2s ease;
+.stat-card:hover .stat-icon {
+  transform: scale(1.1);
 }
 
-.stat-card:hover {
-  transform: translateY(-2px);
+/* Client Avatar */
+.client-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.table-responsive::-webkit-scrollbar {
-  height: 6px;
+.avatar-initials {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
 }
 
-.table-responsive::-webkit-scrollbar-track {
+.client-avatar-lg {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-initials-lg {
+  color: white;
+  font-weight: 600;
+  font-size: 24px;
+}
+
+/* Table Styles */
+.clients-table {
+  margin-bottom: 0;
+}
+
+.clients-table thead th {
+  border-bottom: 2px solid #e9ecef;
+  padding: 1rem;
+  font-weight: 600;
+  color: #495057;
+  background-color: #f8f9fa;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.sortable-header:hover {
+  background-color: #e9ecef;
+}
+
+.client-row {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.client-row:hover {
+  background-color: #f8f9fa;
+  transform: scale(1.01);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.client-name a {
+  color: #2c3e50;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.client-name a:hover {
+  color: #667eea;
+}
+
+.contact-info {
+  line-height: 1.4;
+}
+
+/* Action Icons */
+.action-buttons {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.action-icon {
+  padding: 0.25rem;
+  color: #6c757d;
+  transition: all 0.2s ease;
+}
+
+.action-icon:hover {
+  color: #667eea;
+  transform: scale(1.1);
+}
+
+.action-icon.text-danger:hover {
+  color: #dc3545 !important;
+}
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Grid View Cards */
+.client-grid-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.client-grid-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12) !important;
+}
+
+.client-info {
+  font-size: 0.875rem;
+}
+
+/* Empty State */
+.empty-state {
+  padding: 4rem 2rem;
+}
+
+.empty-state svg {
+  margin-bottom: 1rem;
+}
+
+/* Modal Styling */
+.delete-icon {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .clients-header {
+    padding: 1.5rem;
+  }
+  
+  .clients-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .stat-card h2 {
+    font-size: 1.5rem;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .clients-table {
+    font-size: 0.875rem;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 3px;
+  border-radius: 10px;
 }
 
-.table-responsive::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
 }
 
-.table-responsive::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
-} */
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Loading Skeleton */
+.skeleton-loader {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Toast Customization */
+.toast {
+  border-radius: 0.5rem;
+  border-left: 4px solid #28a745;
+}
+
+.toast-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+/* Progress Bar Customization */
+.progress {
+  border-radius: 10px;
+  background-color: #e9ecef;
+}
+
+.progress-bar {
+  border-radius: 10px;
+  transition: width 0.6s ease;
+}
+

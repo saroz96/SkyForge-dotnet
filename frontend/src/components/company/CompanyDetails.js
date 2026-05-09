@@ -108,47 +108,6 @@ const CompanyDetails = () => {
         fetchCompanyData();
     }, [id, navigate, userInfo]);
 
-    // const handleDelete = async () => {
-    //     if (window.confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
-    //         setIsDeleting(true);
-    //         try {
-    //             const api = axios.create({
-    //                 baseURL: process.env.REACT_APP_API_BASE_URL,
-    //                 withCredentials: true,
-    //             });
-
-    //             api.interceptors.request.use(config => {
-    //                 const token = localStorage.getItem('token');
-    //                 if (token) {
-    //                     config.headers.Authorization = `Bearer ${token}`;
-    //                 }
-    //                 return config;
-    //             });
-
-    //             // Note: You need to create a delete endpoint in your backend
-    //             await api.delete(`/api/Companies/${id}`);
-
-    //             setNotification({
-    //                 show: true,
-    //                 message: 'Company deleted successfully!',
-    //                 type: 'success'
-    //             });
-
-    //             setTimeout(() => {
-    //                 navigate('/dashboard');
-    //             }, 1500);
-    //         } catch (err) {
-    //             setNotification({
-    //                 show: true,
-    //                 message: err.response?.data?.message || 'Error deleting company',
-    //                 type: 'error'
-    //             });
-    //         } finally {
-    //             setIsDeleting(false);
-    //         }
-    //     }
-    // };
-
     const handleDelete = async () => {
         if (window.confirm("Are you sure you want to delete this company? This action will permanently delete:\n\n• Company information\n• All fiscal years\n• All accounts and account groups\n• All items, units, and categories\n• All stores and racks\n• All associated settings\n\nThis action cannot be undone!")) {
             setIsDeleting(true);

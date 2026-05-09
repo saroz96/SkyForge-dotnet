@@ -19,6 +19,10 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public List<StockEntryInfoDTO> StockEntries { get; set; }
         public CategoryInfoDTO Category { get; set; }
         public UnitInfoDTO Unit { get; set; }
+        public DateTime Date { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
     }
 
     public class ItemEditDTO

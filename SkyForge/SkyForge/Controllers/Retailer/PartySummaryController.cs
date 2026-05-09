@@ -65,7 +65,7 @@ namespace SkyForge.Controllers.Retailer
                 // Get fiscal year from claims
                 Guid fiscalYearId;
                 string fiscalYearName = fiscalYearNameClaim ?? "";
-                
+
                 if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearId))
                 {
                     // Fallback to database if not in claims
@@ -119,13 +119,100 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // [HttpGet("party-summary-by-month-range/{accountId}")]
+        // public async Task<IActionResult> GetPartySummaryByMonthRange(
+        //     Guid accountId,
+        //     [FromQuery] int startYear,
+        //     [FromQuery] int startMonth,
+        //     [FromQuery] int endYear,
+        //     [FromQuery] int endMonth)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetPartySummaryByMonthRange Started for Account: {AccountId} ===", accountId);
+
+        //         // Extract claims from JWT
+        //         var userIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var fiscalYearNameClaim = User.FindFirst("fiscalYearName")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
+        //         {
+        //             return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyId))
+        //         {
+        //             return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new { success = false, error = "Access restricted to retailer accounts" });
+        //         }
+
+        //         // Get fiscal year from claims
+        //         Guid fiscalYearId;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearId))
+        //         {
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 activeFiscalYear = await _context.FiscalYears
+        //                     .Where(f => f.CompanyId == companyId)
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (activeFiscalYear == null)
+        //                 {
+        //                     return BadRequest(new { success = false, error = "No fiscal year found for this company." });
+        //                 }
+        //             }
+        //             fiscalYearId = activeFiscalYear.Id;
+        //         }
+
+        //         var result = await _partySummaryService.GetPartySummaryByMonthRangeAsync(
+        //             companyId,
+        //             fiscalYearId,
+        //             accountId,
+        //             startYear,
+        //             startMonth,
+        //             endYear,
+        //             endMonth);
+
+        //         // Add fiscal year name from claim
+        //         result.FiscalYear = fiscalYearNameClaim ?? result.FiscalYear;
+
+        //         return Ok(new { success = true, data = result });
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in GetPartySummaryByMonthRange");
+        //         return BadRequest(new { success = false, error = ex.Message });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetPartySummaryByMonthRange");
+        //         return StatusCode(500, new { success = false, error = "Internal server error while fetching party summary" });
+        //     }
+        // }
+
         [HttpGet("party-summary-by-month-range/{accountId}")]
         public async Task<IActionResult> GetPartySummaryByMonthRange(
-            Guid accountId,
-            [FromQuery] int startYear,
-            [FromQuery] int startMonth,
-            [FromQuery] int endYear,
-            [FromQuery] int endMonth)
+        Guid accountId,
+        [FromQuery] int startYear,
+        [FromQuery] int startMonth,
+        [FromQuery] int endYear,
+        [FromQuery] int endMonth,
+        [FromQuery] string? fromDate = null,
+        [FromQuery] string? toDate = null)
         {
             try
             {
@@ -185,9 +272,10 @@ namespace SkyForge.Controllers.Retailer
                     startYear,
                     startMonth,
                     endYear,
-                    endMonth);
+                    endMonth,
+                    fromDate,
+                    toDate);
 
-                // Add fiscal year name from claim
                 result.FiscalYear = fiscalYearNameClaim ?? result.FiscalYear;
 
                 return Ok(new { success = true, data = result });
@@ -203,6 +291,5 @@ namespace SkyForge.Controllers.Retailer
                 return StatusCode(500, new { success = false, error = "Internal server error while fetching party summary" });
             }
         }
-    
     }
 }

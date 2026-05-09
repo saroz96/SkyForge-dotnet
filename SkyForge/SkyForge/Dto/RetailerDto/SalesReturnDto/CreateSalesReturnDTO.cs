@@ -37,11 +37,10 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
         public decimal? Quantity { get; set; }
         public decimal? Price { get; set; }
 
-        // Dates
-        public DateTime NepaliDate { get; set; }
         public DateTime Date { get; set; }
-        public DateTime TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         // Items
         public List<SalesReturnItemDTO> Items { get; set; } = new();

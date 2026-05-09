@@ -1,4 +1,4 @@
-/* /* .sidebar {
+ .sidebar {
   width: var(--sidebar-width);
   background: linear-gradient(180deg, var(--dark-bg) 0%, #343a40 100%);
   color: white;
@@ -453,4 +453,32 @@
   height: 6px;
   background: var(--primary-color);
   border-radius: 50%;
-} */
+}
+
+/* Add to your Sidebar.css or AdminDashboard.css */
+.admin-dashboard-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 250px; /* Same as sidebar width */
+  transition: margin-left 0.3s ease;
+  padding: 20px;
+  width: calc(100% - 250px);
+}
+
+/* When sidebar is collapsed */
+.sidebar.collapsed ~ .main-content {
+  margin-left: 70px;
+  width: calc(100% - 70px);
+}
+
+/* For mobile devices */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}

@@ -1654,16 +1654,14 @@ namespace SkyForge.Controllers.Retailer
                 if (isNepaliFormat)
                 {
                     // For Nepali format: English date is MinValue, Nepali date is parsed from fiscal year start
-                    newAccount.Date = DateTime.MinValue;
-                    newAccount.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                        ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                        : DateTime.MinValue;
+                    newAccount.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                    newAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                 }
                 else
                 {
                     // For English format: Use fiscal year start date or current date
                     newAccount.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                    newAccount.NepaliDate = DateTime.MinValue;
+                    newAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                 }
 
                 // Set OpeningBalanceDate based on fiscal year start date and company format
@@ -1694,10 +1692,8 @@ namespace SkyForge.Controllers.Retailer
                     // Set date based on company format
                     if (isNepaliFormat)
                     {
-                        newAccount.OpeningBalance.Date = DateTime.MinValue;
-                        newAccount.OpeningBalance.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                            : DateTime.MinValue;
+                        newAccount.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                        newAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
                     else
                     {
@@ -1720,15 +1716,13 @@ namespace SkyForge.Controllers.Retailer
                         // Set date based on company format
                         if (isNepaliFormat)
                         {
-                            newAccount.InitialOpeningBalance.Date = DateTime.MinValue;
-                            newAccount.InitialOpeningBalance.NepaliDate = !string.IsNullOrEmpty(initialFiscalYear.StartDateNepali)
-                                ? DateTime.Parse(initialFiscalYear.StartDateNepali)
-                                : DateTime.MinValue;
+                            newAccount.InitialOpeningBalance.Date = initialFiscalYear.StartDate ?? DateTime.UtcNow;
+                            newAccount.InitialOpeningBalance.NepaliDate = initialFiscalYear.StartDateNepali;
                         }
                         else
                         {
                             newAccount.InitialOpeningBalance.Date = initialFiscalYear.StartDate ?? DateTime.UtcNow;
-                            newAccount.InitialOpeningBalance.NepaliDate = DateTime.MinValue;
+                            newAccount.InitialOpeningBalance.NepaliDate = initialFiscalYear.StartDateNepali;
                         }
                     }
 
@@ -1745,15 +1739,13 @@ namespace SkyForge.Controllers.Retailer
                     // Set date based on company format
                     if (isNepaliFormat)
                     {
-                        openingBalanceByFiscalYear.Date = DateTime.MinValue;
-                        openingBalanceByFiscalYear.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                            : DateTime.MinValue;
+                        openingBalanceByFiscalYear.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                        openingBalanceByFiscalYear.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
                     else
                     {
                         openingBalanceByFiscalYear.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                        openingBalanceByFiscalYear.NepaliDate = DateTime.MinValue;
+                        openingBalanceByFiscalYear.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
 
                     newAccount.OpeningBalanceByFiscalYear.Add(openingBalanceByFiscalYear);
@@ -2732,24 +2724,22 @@ namespace SkyForge.Controllers.Retailer
                 if (isNepaliFormat)
                 {
                     // For Nepali format: English date is MinValue, Nepali date is parsed from fiscal year start
-                    accountToUpdate.Date = DateTime.MinValue;
-                    accountToUpdate.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                        ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                        : DateTime.MinValue;
+                    accountToUpdate.Date = currentFiscalYear.StartDate ?? DateTime.MinValue;
+                    accountToUpdate.NepaliDate = currentFiscalYear.StartDateNepali;
 
                     // Set OpeningBalanceDate fields
-                    accountToUpdate.OpeningBalanceDate = DateTime.MinValue;
+                    accountToUpdate.OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.MinValue;
                     accountToUpdate.OpeningBalanceDateNepali = currentFiscalYear.StartDateNepali;
                 }
                 else
                 {
                     // For English format: Use fiscal year start date or current date
                     accountToUpdate.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                    accountToUpdate.NepaliDate = DateTime.MinValue;
+                    accountToUpdate.NepaliDate = currentFiscalYear.StartDateNepali;
 
                     // Set OpeningBalanceDate fields
                     accountToUpdate.OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                    accountToUpdate.OpeningBalanceDateNepali = null;
+                    accountToUpdate.OpeningBalanceDateNepali = currentFiscalYear.StartDateNepali;
                 }
 
                 // 16. Attach and mark as modified
@@ -2778,15 +2768,13 @@ namespace SkyForge.Controllers.Retailer
 
                     if (isNepaliFormat)
                     {
-                        newOpeningBalance.Date = DateTime.MinValue;
-                        newOpeningBalance.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                            : DateTime.MinValue;
+                        newOpeningBalance.Date = currentFiscalYear.StartDate ?? DateTime.MinValue;
+                        newOpeningBalance.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
                     else
                     {
                         newOpeningBalance.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                        newOpeningBalance.NepaliDate = null;
+                        newOpeningBalance.NepaliDate = currentFiscalYear.StartDateNepali;;
                     }
 
                     await _context.OpeningBalances.AddAsync(newOpeningBalance);
@@ -2814,15 +2802,13 @@ namespace SkyForge.Controllers.Retailer
 
                     if (isNepaliFormat)
                     {
-                        newInitialOpeningBalance.Date = DateTime.MinValue;
-                        newInitialOpeningBalance.NepaliDate = !string.IsNullOrEmpty(initialFiscalYear.StartDateNepali)
-                            ? DateTime.Parse(initialFiscalYear.StartDateNepali)
-                            : DateTime.MinValue;
+                        newInitialOpeningBalance.Date = initialFiscalYear.StartDate ?? DateTime.MinValue;
+                        newInitialOpeningBalance.NepaliDate = initialFiscalYear.StartDateNepali;
                     }
                     else
                     {
                         newInitialOpeningBalance.Date = initialFiscalYear.StartDate ?? DateTime.UtcNow;
-                        newInitialOpeningBalance.NepaliDate = DateTime.MinValue;
+                        newInitialOpeningBalance.NepaliDate =initialFiscalYear.StartDateNepali;
                     }
 
                     await _context.InitialOpeningBalances.AddAsync(newInitialOpeningBalance);
@@ -2850,15 +2836,13 @@ namespace SkyForge.Controllers.Retailer
 
                     if (isNepaliFormat)
                     {
-                        newOpeningBalanceByFiscalYear.Date = DateTime.MinValue;
-                        newOpeningBalanceByFiscalYear.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                            : DateTime.MinValue;
+                        newOpeningBalanceByFiscalYear.Date = currentFiscalYear.StartDate ?? DateTime.MinValue;
+                        newOpeningBalanceByFiscalYear.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
                     else
                     {
                         newOpeningBalanceByFiscalYear.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                        newOpeningBalanceByFiscalYear.NepaliDate = DateTime.MinValue;
+                        newOpeningBalanceByFiscalYear.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
 
                     await _context.OpeningBalanceByFiscalYear.AddAsync(newOpeningBalanceByFiscalYear);

@@ -124,12 +124,14 @@ namespace SkyForge.Models.Retailer.Purchase
         [Column("unique_uuid")]
         [StringLength(100)]
         public string? UniqueUuid { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
-        [Column("created_at")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Column("date")]
+        public DateTime Date { get; set; }
 
-        [Column("updated_at")]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        [Column("transaction_date")]
+        public DateTime TransactionDate { get; set; }
 
         // Computed properties (will be calculated in code, not stored)
         [NotMapped]

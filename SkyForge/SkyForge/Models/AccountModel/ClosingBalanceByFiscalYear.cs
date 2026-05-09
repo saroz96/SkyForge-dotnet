@@ -1,11 +1,4 @@
-﻿//namespace SkyForge.Models.AccountModel
-//{
-//    public class ClosingBalanceByFiscalYear
-//    {
-//    }
-//}
-
-using SkyForge.Models.FiscalYearModel;
+﻿using SkyForge.Models.FiscalYearModel;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -19,8 +12,7 @@ namespace SkyForge.Models.AccountModel
 
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        [Column("Nepali_Date")]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Required(ErrorMessage = "Amount is required")]
         [Column(TypeName = "decimal(18,2)")]

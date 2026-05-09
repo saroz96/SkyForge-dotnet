@@ -34,7 +34,9 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal DiscountAmountPerItem { get; set; }
         public string VatStatus { get; set; } = string.Empty;
         public string? UniqueUuid { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
+        public DateTime Date { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
     }
 }

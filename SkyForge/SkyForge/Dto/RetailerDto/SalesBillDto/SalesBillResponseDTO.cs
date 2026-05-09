@@ -29,10 +29,10 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public bool IsVatExempt { get; set; }
         public decimal VatPercentage { get; set; }
         public string PaymentMode { get; set; } = string.Empty;
-        public DateTime NepaliDate { get; set; }
         public DateTime Date { get; set; }
-        public DateTime TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public UserInfoDTO? User { get; set; }
     }
 
@@ -94,11 +94,10 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal? TotalAmount { get; set; }
         public string? PaymentMode { get; set; }
 
-        public DateTime NepaliDate { get; set; }
-        public DateTime Date { get; set; }
-
-        public DateTime TransactionDateNepali { get; set; }
+       public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         public UserInfoDTO? User { get; set; }
         public DateTime CreatedAt { get; set; }

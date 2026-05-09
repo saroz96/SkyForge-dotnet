@@ -142,7 +142,7 @@ namespace SkyForge.Controllers.Retailer
                 var entries = await GetLedgerEntriesAsync(id, companyIdGuid, startDate, endDate);
 
                 // Sort entries by date
-                entries = entries.OrderBy(e => e.nepaliDate).ToList();
+                entries = entries.OrderBy(e => e.Date).ToList();
 
                 // Calculate running balance and track current purchase price
                 decimal balance = openingStock;
@@ -257,9 +257,9 @@ namespace SkyForge.Controllers.Retailer
             var latestPurchase = await _context.PurchaseBills
                 .Include(p => p.Items)
                 .Where(p => p.CompanyId == companyId &&
-                           p.nepaliDate < beforeDate &&
+                           p.Date < beforeDate &&
                            p.Items.Any(i => i.ItemId == itemId))
-                .OrderByDescending(p => p.nepaliDate)
+                .OrderByDescending(p => p.Date)
                 .FirstOrDefaultAsync();
 
             if (latestPurchase != null)
@@ -277,10 +277,10 @@ namespace SkyForge.Controllers.Retailer
                 var latestAdjustment = await _context.StockAdjustments
                     .Include(sa => sa.Items)
                     .Where(sa => sa.CompanyId == companyId &&
-                                sa.NepaliDate < beforeDate &&
+                                sa.Date < beforeDate &&
                                 sa.Items.Any(i => i.ItemId == itemId) &&
                                 sa.Items.Any(i => i.PuPrice > 0))
-                    .OrderByDescending(sa => sa.NepaliDate)
+                    .OrderByDescending(sa => sa.Date)
                     .FirstOrDefaultAsync();
 
                 if (latestAdjustment != null)
@@ -304,7 +304,7 @@ namespace SkyForge.Controllers.Retailer
             var historicalPurchases = await _context.PurchaseBills
                 .Include(p => p.Items)
                 .Where(p => p.CompanyId == companyId &&
-                           p.nepaliDate < fromDate &&
+                           p.Date < fromDate &&
                            p.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -320,7 +320,7 @@ namespace SkyForge.Controllers.Retailer
             var historicalPurchaseReturns = await _context.PurchaseReturns
                 .Include(pr => pr.Items)
                 .Where(pr => pr.CompanyId == companyId &&
-                            pr.nepaliDate < fromDate &&
+                            pr.Date < fromDate &&
                             pr.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -336,7 +336,7 @@ namespace SkyForge.Controllers.Retailer
             var historicalSales = await _context.SalesBills
                 .Include(s => s.Items)
                 .Where(s => s.CompanyId == companyId &&
-                           s.nepaliDate < fromDate &&
+                           s.Date < fromDate &&
                            s.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -352,7 +352,7 @@ namespace SkyForge.Controllers.Retailer
             var historicalSalesReturns = await _context.SalesReturns
                 .Include(sr => sr.Items)
                 .Where(sr => sr.CompanyId == companyId &&
-                            sr.nepaliDate < fromDate &&
+                            sr.Date < fromDate &&
                             sr.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -368,7 +368,7 @@ namespace SkyForge.Controllers.Retailer
             var historicalAdjustments = await _context.StockAdjustments
                 .Include(sa => sa.Items)
                 .Where(sa => sa.CompanyId == companyId &&
-                            sa.NepaliDate < fromDate &&
+                            sa.Date < fromDate &&
                             sa.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -401,7 +401,7 @@ namespace SkyForge.Controllers.Retailer
                     .ThenInclude(i => i.Item)
                         .ThenInclude(it => it.Unit)
                 .Where(p => p.CompanyId == companyId &&
-                           p.nepaliDate >= fromDate && p.nepaliDate <= toDate &&
+                           p.Date >= fromDate && p.Date <= toDate &&
                            p.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -420,7 +420,7 @@ namespace SkyForge.Controllers.Retailer
                     .ThenInclude(i => i.Item)
                         .ThenInclude(it => it.Unit)
                 .Where(pr => pr.CompanyId == companyId &&
-                            pr.nepaliDate >= fromDate && pr.nepaliDate <= toDate &&
+                            pr.Date >= fromDate && pr.Date <= toDate &&
                             pr.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -439,7 +439,7 @@ namespace SkyForge.Controllers.Retailer
                     .ThenInclude(i => i.Item)
                         .ThenInclude(it => it.Unit)
                 .Where(s => s.CompanyId == companyId &&
-                           s.nepaliDate >= fromDate && s.nepaliDate <= toDate &&
+                           s.Date >= fromDate && s.Date <= toDate &&
                            s.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -458,7 +458,7 @@ namespace SkyForge.Controllers.Retailer
                     .ThenInclude(i => i.Item)
                         .ThenInclude(it => it.Unit)
                 .Where(sr => sr.CompanyId == companyId &&
-                            sr.nepaliDate >= fromDate && sr.nepaliDate <= toDate &&
+                            sr.Date >= fromDate && sr.Date <= toDate &&
                             sr.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -476,7 +476,7 @@ namespace SkyForge.Controllers.Retailer
                     .ThenInclude(i => i.Item)
                         .ThenInclude(it => it.Unit)
                 .Where(sa => sa.CompanyId == companyId &&
-                            sa.NepaliDate >= fromDate && sa.NepaliDate <= toDate &&
+                            sa.Date >= fromDate && sa.Date <= toDate &&
                             sa.Items.Any(i => i.ItemId == itemId))
                 .ToListAsync();
 
@@ -496,7 +496,7 @@ namespace SkyForge.Controllers.Retailer
             return new LedgerEntryDTO
             {
                 Date = purchaseBill.Date,
-                nepaliDate = purchaseBill.nepaliDate,
+                NepaliDate = purchaseBill.NepaliDate,
                 TransactionId = purchaseBill.Id,
                 PartyName = purchaseBill.Account?.Name ?? "N/A",
                 BillNumber = purchaseBill.BillNumber,
@@ -518,7 +518,7 @@ namespace SkyForge.Controllers.Retailer
             return new LedgerEntryDTO
             {
                 Date = purchaseReturn.Date,
-                nepaliDate = purchaseReturn.nepaliDate,
+                NepaliDate = purchaseReturn.NepaliDate,
                 TransactionId = purchaseReturn.Id,
                 PartyName = purchaseReturn.Account?.Name ?? "N/A",
                 BillNumber = purchaseReturn.BillNumber,
@@ -539,7 +539,7 @@ namespace SkyForge.Controllers.Retailer
             return new LedgerEntryDTO
             {
                 Date = salesBill.Date,
-                nepaliDate = salesBill.nepaliDate,
+                NepaliDate = salesBill.NepaliDate,
                 TransactionId = salesBill.Id,
                 PartyName = salesBill.Account != null ? salesBill.Account.Name : (salesBill.CashAccount ?? "N/A"),
                 BillNumber = salesBill.BillNumber,
@@ -561,7 +561,7 @@ namespace SkyForge.Controllers.Retailer
             return new LedgerEntryDTO
             {
                 Date = salesReturn.Date,
-                nepaliDate = salesReturn.nepaliDate,
+                NepaliDate = salesReturn.NepaliDate,
                 TransactionId = salesReturn.Id,
                 PartyName = salesReturn.Account != null ? salesReturn.Account.Name : (salesReturn.CashAccount ?? "N/A"),
                 BillNumber = salesReturn.BillNumber,
@@ -585,7 +585,7 @@ namespace SkyForge.Controllers.Retailer
             return new LedgerEntryDTO
             {
                 Date = adjustment.Date,
-                nepaliDate = adjustment.NepaliDate,
+                NepaliDate = adjustment.NepaliDate,
                 TransactionId = adjustment.Id,
                 PartyName = "Stock Adjustments",
                 BillNumber = adjustment.BillNumber,

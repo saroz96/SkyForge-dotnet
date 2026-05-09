@@ -6,7 +6,10 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
         public FiscalYearDTO CurrentFiscalYear { get; set; }
         public List<SalesReturnVatEntryDTO> SalesReturnVatReport { get; set; } = new List<SalesReturnVatEntryDTO>();
         public string CompanyDateFormat { get; set; }
-        public string NepaliDate { get; set; }
+        public DateTime Date { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public CompanyInfoDTO CurrentCompany { get; set; }
         public string FromDate { get; set; }
         public string ToDate { get; set; }
@@ -20,7 +23,9 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
     {
         public string BillNumber { get; set; }
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public string AccountName { get; set; }
         public string PanNumber { get; set; }
         public decimal TotalAmount { get; set; }

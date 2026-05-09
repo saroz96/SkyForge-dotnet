@@ -38,11 +38,205 @@ namespace SkyForge.Services.Retailer.PurchaseServices
             _billNumberService = billNumberService;
         }
 
-        public async Task<PurchaseRegisterDataDTO> GetPurchaseRegisterAsync(
-            Guid companyId,
-            Guid fiscalYearId,
-            string? fromDate = null,
-            string? toDate = null)
+        // public async Task<PurchaseRegisterDataDTO> GetPurchaseRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("GetPurchaseRegisterAsync called with companyId: {CompanyId}, fiscalYearId: {FiscalYearId}, fromDate: {FromDate}, toDate: {ToDate}",
+        //             companyId, fiscalYearId, fromDate, toDate);
+
+        //         // Get company information including date format
+        //         var company = await _context.Companies
+        //             .Where(c => c.Id == companyId)
+        //             .Select(c => new CompanyInfoDTO
+        //             {
+        //                 Id = c.Id,
+        //                 Name = c.Name,
+        //                 Address = c.Address,
+        //                 City = c.City,
+        //                 Phone = c.Phone,
+        //                 Pan = c.Pan,
+        //                 RenewalDate = c.RenewalDate,
+        //                 DateFormat = c.DateFormat.ToString(),
+        //                 VatEnabled = c.VatEnabled,
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         // Determine if company uses Nepali date format
+        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
+
+        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
+        //             company.DateFormat, isNepaliFormat);
+
+        //         // Get fiscal year
+        //         var fiscalYear = await _context.FiscalYears
+        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
+        //             .Select(f => new FiscalYearDTO
+        //             {
+        //                 Id = f.Id,
+        //                 Name = f.Name,
+        //                 StartDate = f.StartDate,
+        //                 EndDate = f.EndDate,
+        //                 StartDateNepali = f.StartDateNepali,
+        //                 EndDateNepali = f.EndDateNepali,
+        //                 IsActive = f.IsActive,
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         // If no date range provided, return empty bill list
+        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
+        //         {
+        //             _logger.LogInformation("No date range provided, returning empty bill list");
+        //             return new PurchaseRegisterDataDTO
+        //             {
+        //                 Company = company,
+        //                 CurrentFiscalYear = fiscalYear,
+        //                 Bills = new List<PurchaseBillResponseDTO>(),
+        //                 FromDate = fromDate,
+        //                 ToDate = toDate,
+        //                 CurrentCompanyName = company.Name,
+        //                 CompanyDateFormat = company.DateFormat,
+        //                 VatEnabled = company.VatEnabled,
+        //             };
+        //         }
+
+        //         // Parse dates based on company format
+        //         DateTime startDateTime;
+        //         DateTime endDateTime;
+
+        //         if (isNepaliFormat)
+        //         {
+        //             // For Nepali dates, we need to convert the Nepali date string to DateTime for comparison
+        //             // Note: This assumes the Nepali date is stored as DateTime in the database
+        //             // You might need to adjust this based on how you store Nepali dates
+        //             if (!DateTime.TryParse(fromDate, out startDateTime))
+        //             {
+        //                 _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
+        //                 startDateTime = DateTime.MinValue;
+        //             }
+
+        //             if (!DateTime.TryParse(toDate, out endDateTime))
+        //             {
+        //                 _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
+        //                 endDateTime = DateTime.MaxValue;
+        //             }
+        //         }
+        //         else
+        //         {
+        //             // For English dates, parse normally
+        //             if (!DateTime.TryParse(fromDate, out startDateTime))
+        //             {
+        //                 _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
+        //                 startDateTime = DateTime.MinValue;
+        //             }
+
+        //             if (!DateTime.TryParse(toDate, out endDateTime))
+        //             {
+        //                 _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
+        //                 endDateTime = DateTime.MaxValue;
+        //             }
+        //         }
+
+        //         // Set end date to end of day
+        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
+
+        //         _logger.LogInformation("Searching for bills between {StartDate} and {EndDate} using {DateFormat} format",
+        //             startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
+
+        //         // First, check if there are any purchase bills for this company and fiscal year
+        //         var totalBillsCount = await _context.PurchaseBills
+        //             .CountAsync(pb => pb.CompanyId == companyId && pb.FiscalYearId == fiscalYearId);
+
+        //         _logger.LogInformation("Total bills for company {CompanyId} and fiscal year {FiscalYearId}: {Count}",
+        //             companyId, fiscalYearId, totalBillsCount);
+
+        //         // Build query with date filter based on company date format
+        //         var query = _context.PurchaseBills
+        //             .Include(pb => pb.Company)
+        //             .Include(pb => pb.Account)
+        //             .Include(pb => pb.User)
+        //             .Include(pb => pb.FiscalYear)
+        //             .Include(pb => pb.Items)
+        //                 .ThenInclude(i => i.Item)
+        //             .Where(pb => pb.CompanyId == companyId &&
+        //                         pb.FiscalYearId == fiscalYearId);
+
+        //         // // Apply date filter based on company's date format
+        //         // if (isNepaliFormat)
+        //         // {
+        //         //     // Use nepaliDate field for filtering
+        //         //     query = query.Where(pb => pb.NepaliDate >= startDateTime && pb.NepaliDate <= endDateTime);
+        //         //     _logger.LogInformation("Using nepaliDate field for filtering");
+        //         // }
+        //         // else
+        //         // {
+        //         //     // Use Date field for filtering
+        //         //     query = query.Where(pb => pb.Date >= startDateTime && pb.Date <= endDateTime);
+        //         //     _logger.LogInformation("Using Date field for filtering");
+        //         // }
+        //         if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
+        //         {
+        //             // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
+        //             query = query.Where(pb => string.Compare(pb.NepaliDate, fromDate) >= 0
+        //                                   && string.Compare(pb.NepaliDate, toDate) <= 0);
+        //         }
+        //         else
+        //             query = query.Where(pb => pb.Date >= startDateTime && pb.Date <= endDateTime);
+
+
+        //         // Log the SQL query (optional - for debugging)
+        //         var sql = query.ToQueryString();
+        //         _logger.LogDebug("SQL Query: {Sql}", sql);
+
+        //         // Get bills ordered by date and bill number
+        //         var purchaseBills = await query
+        //             .OrderBy(pb => pb.Date)
+        //             .ThenBy(pb => pb.BillNumber)
+        //             .ToListAsync();
+
+        //         _logger.LogInformation("Found {Count} bills matching the criteria", purchaseBills.Count);
+
+        //         // If no bills found, log sample of all bills to debug
+        //         if (purchaseBills.Count == 0)
+        //         {
+        //             var sampleBills = await _context.PurchaseBills
+        //                 .Where(pb => pb.CompanyId == companyId)
+        //                 .OrderByDescending(pb => pb.Date)
+        //                 .Take(5)
+        //                 .Select(pb => new { pb.Id, pb.BillNumber, pb.Date, pb.NepaliDate })
+        //                 .ToListAsync();
+
+        //             _logger.LogInformation("Sample of recent bills (Date vs NepaliDate): {SampleBills}",
+        //                 string.Join(", ", sampleBills.Select(b => $"{b.BillNumber} - Date: {b.Date}, NepaliDate: {b.NepaliDate}")));
+        //         }
+
+        //         // Map to response DTOs
+        //         var billDtos = purchaseBills.Select(bill => MapToResponseDTO(bill, company.DateFormat)).ToList();
+
+        //         return new PurchaseRegisterDataDTO
+        //         {
+        //             Company = company,
+        //             CurrentFiscalYear = fiscalYear,
+        //             Bills = billDtos,
+        //             FromDate = fromDate,
+        //             ToDate = toDate,
+        //             CurrentCompanyName = company.Name,
+        //             CompanyDateFormat = company.DateFormat,
+        //             VatEnabled = company.VatEnabled,
+        //             IsAdminOrSupervisor = true
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error getting purchase register for company {CompanyId}", companyId);
+        //         throw;
+        //     }
+        // }
+
+        public async Task<PurchaseRegisterDataDTO> GetPurchaseRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
             try
             {
@@ -69,7 +263,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 if (company == null)
                     throw new ArgumentException("Company not found");
 
-                // Determine if company uses Nepali date format
+                // Determine if company uses Nepali date format (for display only)
                 bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
 
                 _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
@@ -107,57 +301,36 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     };
                 }
 
-                // Parse dates based on company format
+                // Parse dates as AD dates (frontend sends AD dates)
                 DateTime startDateTime;
                 DateTime endDateTime;
 
-                if (isNepaliFormat)
+                if (!DateTime.TryParse(fromDate, out startDateTime))
                 {
-                    // For Nepali dates, we need to convert the Nepali date string to DateTime for comparison
-                    // Note: This assumes the Nepali date is stored as DateTime in the database
-                    // You might need to adjust this based on how you store Nepali dates
-                    if (!DateTime.TryParse(fromDate, out startDateTime))
-                    {
-                        _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
-                        startDateTime = DateTime.MinValue;
-                    }
-
-                    if (!DateTime.TryParse(toDate, out endDateTime))
-                    {
-                        _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
-                        endDateTime = DateTime.MaxValue;
-                    }
+                    _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
+                    startDateTime = DateTime.MinValue;
                 }
-                else
-                {
-                    // For English dates, parse normally
-                    if (!DateTime.TryParse(fromDate, out startDateTime))
-                    {
-                        _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
-                        startDateTime = DateTime.MinValue;
-                    }
 
-                    if (!DateTime.TryParse(toDate, out endDateTime))
-                    {
-                        _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
-                        endDateTime = DateTime.MaxValue;
-                    }
+                if (!DateTime.TryParse(toDate, out endDateTime))
+                {
+                    _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
+                    endDateTime = DateTime.MaxValue;
                 }
 
                 // Set end date to end of day
                 endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
 
-                _logger.LogInformation("Searching for bills between {StartDate} and {EndDate} using {DateFormat} format",
-                    startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
+                _logger.LogInformation("Searching for purchase bills between {StartDate} and {EndDate} (AD dates)",
+                    startDateTime, endDateTime);
 
-                // First, check if there are any purchase bills for this company and fiscal year
+                // Check if there are any purchase bills for this company and fiscal year
                 var totalBillsCount = await _context.PurchaseBills
                     .CountAsync(pb => pb.CompanyId == companyId && pb.FiscalYearId == fiscalYearId);
 
                 _logger.LogInformation("Total bills for company {CompanyId} and fiscal year {FiscalYearId}: {Count}",
                     companyId, fiscalYearId, totalBillsCount);
 
-                // Build query with date filter based on company date format
+                // Build query with date filter - ALWAYS use Date field (AD dates)
                 var query = _context.PurchaseBills
                     .Include(pb => pb.Company)
                     .Include(pb => pb.Account)
@@ -166,23 +339,11 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     .Include(pb => pb.Items)
                         .ThenInclude(i => i.Item)
                     .Where(pb => pb.CompanyId == companyId &&
-                                pb.FiscalYearId == fiscalYearId);
+                                pb.FiscalYearId == fiscalYearId &&
+                                pb.Date >= startDateTime &&
+                                pb.Date <= endDateTime);
 
-                // Apply date filter based on company's date format
-                if (isNepaliFormat)
-                {
-                    // Use nepaliDate field for filtering
-                    query = query.Where(pb => pb.nepaliDate >= startDateTime && pb.nepaliDate <= endDateTime);
-                    _logger.LogInformation("Using nepaliDate field for filtering");
-                }
-                else
-                {
-                    // Use Date field for filtering
-                    query = query.Where(pb => pb.Date >= startDateTime && pb.Date <= endDateTime);
-                    _logger.LogInformation("Using Date field for filtering");
-                }
-
-                // Log the SQL query (optional - for debugging)
+                // Log the SQL query for debugging
                 var sql = query.ToQueryString();
                 _logger.LogDebug("SQL Query: {Sql}", sql);
 
@@ -201,11 +362,11 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         .Where(pb => pb.CompanyId == companyId)
                         .OrderByDescending(pb => pb.Date)
                         .Take(5)
-                        .Select(pb => new { pb.Id, pb.BillNumber, pb.Date, pb.nepaliDate })
+                        .Select(pb => new { pb.Id, pb.BillNumber, pb.Date, pb.NepaliDate })
                         .ToListAsync();
 
                     _logger.LogInformation("Sample of recent bills (Date vs NepaliDate): {SampleBills}",
-                        string.Join(", ", sampleBills.Select(b => $"{b.BillNumber} - Date: {b.Date}, NepaliDate: {b.nepaliDate}")));
+                        string.Join(", ", sampleBills.Select(b => $"{b.BillNumber} - Date: {b.Date}, NepaliDate: {b.NepaliDate}")));
                 }
 
                 // Map to response DTOs
@@ -289,14 +450,12 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     IsVatAll = dto.IsVatAll,
                     RoundOffAmount = dto.RoundOffAmount ?? 0,
                     PaymentMode = dto.PaymentMode,
-                    nepaliDate = dto.NepaliDate,
+                    NepaliDate = dto.NepaliDate,
                     Date = dto.Date,
-                    transactionDateNepali = dto.TransactionDateNepali,
+                    TransactionDateNepali = dto.TransactionDateNepali,
                     TransactionDate = dto.TransactionDate,
                     PurchaseSalesType = dto.PurchaseSalesType,
                     OriginalCopies = dto.OriginalCopies,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
                 };
 
                 // Dictionary to track items and avoid duplicate product updates
@@ -420,8 +579,10 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
                         VatStatus = itemDto.VatStatus,
                         UniqueUuid = UniqueUuid,
-                        CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
-                        UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
+                        Date = dto.Date,
+                        TransactionDate = dto.TransactionDate,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali
                     };
 
                     purchaseBill.Items.Add(billItem);
@@ -536,9 +697,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         VatAmount = dto.VatAmount,
                         PaymentMode = paymentMode,
                         Date = dto.TransactionDate,
-                        BillDate = dto.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = dto.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -595,9 +756,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         VatAmount = dto.VatAmount,
                         PaymentMode = paymentMode,
                         Date = dto.TransactionDate,
-                        BillDate = dto.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = dto.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -655,9 +816,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         VatAmount = totalVatDebit,
                         PaymentMode = paymentMode,
                         Date = dto.TransactionDate,
-                        BillDate = dto.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = dto.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -712,9 +873,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         TotalCredit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
                         PaymentMode = paymentMode,
                         Date = dto.TransactionDate,
-                        BillDate = dto.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = dto.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -741,9 +902,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         TotalCredit = dto.TotalAmount ?? 0,
                         PaymentMode = PaymentMode.Cash,
                         Date = dto.TransactionDate,
-                        BillDate = dto.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = dto.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -950,7 +1111,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 if (isNepaliFormat)
                 {
                     // For Nepali format, order by nepaliDate descending
-                    latestBillQuery = latestBillQuery.OrderByDescending(pb => pb.nepaliDate)
+                    latestBillQuery = latestBillQuery.OrderByDescending(pb => pb.NepaliDate)
                                                      .ThenByDescending(pb => pb.BillNumber);
                 }
                 else
@@ -965,12 +1126,12 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     {
                         pb.BillNumber,
                         pb.Date,
-                        pb.nepaliDate
+                        pb.NepaliDate
                     })
                     .FirstOrDefaultAsync();
 
                 _logger.LogInformation("Latest bill query result: BillNumber: {BillNumber}, Date: {Date}, NepaliDate: {NepaliDate}",
-                    latestBill?.BillNumber, latestBill?.Date, latestBill?.nepaliDate);
+                    latestBill?.BillNumber, latestBill?.Date, latestBill?.NepaliDate);
 
                 // Get user with roles
                 var user = await _context.Users
@@ -1150,7 +1311,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
 
                 // 6. Update purchase bill with new account
                 originalBill.AccountId = newAccountId;
-                originalBill.UpdatedAt = DateTime.UtcNow;
                 originalBill.PurchaseSalesType = "Purchase";
 
                 // 7. Process each transaction
@@ -1648,8 +1808,10 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 ExpiryDate = item.ExpiryDate,
                 VatStatus = item.VatStatus,
                 UniqueUuid = item.UniqueUuid,
-                CreatedAt = item.CreatedAt,
-                UpdatedAt = item.UpdatedAt
+                NepaliDate = item.NepaliDate,
+                TransactionDateNepali = item.TransactionDateNepali,
+                Date = item.Date,
+                TransactionDate = item.TransactionDate
             };
         }
 
@@ -1833,11 +1995,10 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 existingBill.RoundOffAmount = dto.RoundOffAmount;
                 existingBill.PaymentMode = dto.PaymentMode;
                 existingBill.TotalCcAmount = dto.TotalCcAmount;
-                existingBill.nepaliDate = dto.NepaliDate;
+                existingBill.NepaliDate = dto.NepaliDate;
                 existingBill.Date = dto.Date;
-                existingBill.transactionDateNepali = dto.TransactionDateNepali;
+                existingBill.TransactionDateNepali = dto.TransactionDateNepali;
                 existingBill.TransactionDate = dto.TransactionDate;
-                existingBill.UpdatedAt = DateTime.UtcNow;
 
                 // Update the bill
                 _context.PurchaseBills.Update(existingBill);
@@ -1965,8 +2126,10 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
                         VatStatus = itemDto.VatStatus ?? product.VatStatus ?? "vatable",
                         UniqueUuid = uniqueUuid,
-                        CreatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date,
-                        UpdatedAt = isNepaliFormat ? dto.NepaliDate : dto.Date
+                        Date = dto.Date,
+                        TransactionDate = dto.TransactionDate,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali
                     };
 
                     await _context.PurchaseBillItems.AddAsync(newItem);
@@ -2053,9 +2216,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         VatAmount = dto.VatAmount,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
-                        BillDate = existingBill.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = existingBill.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2111,9 +2274,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         VatAmount = dto.VatAmount,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
-                        BillDate = existingBill.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = existingBill.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2170,9 +2333,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         VatAmount = totalVatDebit,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
-                        BillDate = existingBill.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = existingBill.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2226,9 +2389,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         TotalCredit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount) : 0,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
-                        BillDate = existingBill.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = existingBill.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2254,9 +2417,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         TotalCredit = dto.TotalAmount,
                         PaymentMode = PaymentMode.Cash,
                         Date = existingBill.TransactionDate,
-                        BillDate = existingBill.Date,
-                        nepaliDate = dto.NepaliDate,
-                        transactionDateNepali = dto.TransactionDateNepali,
+                        TransactionDate = existingBill.Date,
+                        NepaliDate = dto.NepaliDate,
+                        TransactionDateNepali = dto.TransactionDateNepali,
                         FiscalYearId = fiscalYearId,
                         CreatedAt = DateTime.UtcNow,
                         Status = TransactionStatus.Active,
@@ -2402,7 +2565,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     .Where(pbi => pbi.ItemId == itemId &&
                                  pbi.PurchaseBill.CompanyId == companyId)
                     .OrderByDescending(pbi => pbi.PurchaseBill.Date)
-                    .ThenByDescending(pbi => pbi.PurchaseBill.CreatedAt)
+                    .ThenByDescending(pbi => pbi.PurchaseBill.TransactionDate)
                     .Select(pbi => new LastPurchaseDataDTO
                     {
                         PurchaseBillId = pbi.PurchaseBillId,
@@ -2454,242 +2617,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 throw;
             }
         }
-
-
-        // public async Task<PurchaseBillPrintDTO> GetPurchaseBillForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetPurchaseBillForPrintAsync called for Bill ID: {BillId}, Company: {CompanyId}", id, companyId);
-
-        //         // Get company details - materialize first
-        //         var companyEntity = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .FirstOrDefaultAsync();
-
-        //         if (companyEntity == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         // Parse renewal date
-        //         DateTime? renewalDate = null;
-        //         if (DateTime.TryParse(companyEntity.RenewalDate, out var parsedDate))
-        //         {
-        //             renewalDate = parsedDate;
-        //         }
-
-        //         // Create DTO manually
-        //         var company = new CompanyPrintDTO
-        //         {
-        //             Id = companyEntity.Id,
-        //             RenewalDate = renewalDate,
-        //             DateFormat = companyEntity.DateFormat.ToString(),
-        //             FiscalYear = null
-        //         };
-        //         if (company == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         // Get fiscal year
-        //         var currentFiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // Get current company info
-        //         var currentCompany = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyPrintInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 Address = c.Address
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // Get the purchase bill with all related data
-        //         var purchaseBill = await _context.PurchaseBills
-        //             .Include(pb => pb.Account)
-        //             .Include(pb => pb.User)
-        //             .Include(pb => pb.Items)
-        //                 .ThenInclude(i => i.Item)
-        //                     .ThenInclude(it => it.Unit)
-        //             .FirstOrDefaultAsync(pb => pb.Id == id && pb.CompanyId == companyId);
-
-        //         if (purchaseBill == null)
-        //             throw new ArgumentException("Bill not found");
-
-        //         // Check and update first printed status
-        //         bool firstBill = !purchaseBill.FirstPrinted;
-        //         if (firstBill)
-        //         {
-        //             purchaseBill.FirstPrinted = true;
-        //             purchaseBill.PrintCount += 1;
-        //             await _context.SaveChangesAsync();
-        //         }
-
-        //         // Calculate last balance for credit bills
-        //         decimal? finalBalance = null;
-        //         string balanceLabel = "";
-
-        //         if (purchaseBill.PaymentMode?.ToLower() == "credit")
-        //         {
-        //             // Fix: Use Date instead of TransactionDate
-        //             var latestTransaction = await _context.Transactions
-        //                 .Where(t => t.CompanyId == companyId &&
-        //                            t.PurchaseBillId == id)
-        //                 .OrderByDescending(t => t.Date)
-        //                 .FirstOrDefaultAsync();
-
-        //             decimal lastBalance = 0;
-
-        //             if (latestTransaction != null)
-        //             {
-        //                 lastBalance = Math.Abs(latestTransaction.Balance ?? 0);
-        //                 if (latestTransaction.Debit > 0)
-        //                     balanceLabel = "Dr";
-        //                 else if (latestTransaction.Credit > 0)
-        //                     balanceLabel = "Cr";
-        //             }
-
-        //             // Get opening balance from account
-        //             if (purchaseBill.Account != null && purchaseBill.Account.OpeningBalance != null)
-        //             {
-        //                 var openingBalance = purchaseBill.Account.OpeningBalance;
-        //                 lastBalance += openingBalance.Type == "Dr" ? openingBalance.Amount : -openingBalance.Amount;
-        //                 balanceLabel = openingBalance.Type;
-        //             }
-
-        //             finalBalance = lastBalance;
-        //         }
-
-        //         // Get user with roles
-        //         var user = await _context.Users
-        //             .Include(u => u.UserRoles)
-        //                 .ThenInclude(ur => ur.Role)
-        //             .FirstOrDefaultAsync(u => u.Id == userId);
-
-        //         // Create user preferences DTO
-        //         var userPreferences = new UserPreferencesDTO
-        //         {
-        //             Theme = user?.Preferences.Theme.ToString() ?? "Light"
-        //         };
-
-        //         // Determine if user is admin or supervisor
-        //         bool isAdminOrSupervisor = user?.IsAdmin == true ||
-        //                                   (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor" &&
-        //                                                              (ur.ExpiresAt == null || ur.ExpiresAt > DateTime.UtcNow)) ?? false);
-
-        //         // Get company date format
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         // Map to response DTO
-        //         var response = new PurchaseBillPrintDTO
-        //         {
-        //             Company = company,
-        //             CurrentFiscalYear = currentFiscalYear,
-        //             Bill = new PurchaseBillPrintBillDTO
-        //             {
-        //                 Id = purchaseBill.Id,
-        //                 BillNumber = purchaseBill.BillNumber,
-        //                 PartyBillNumber = purchaseBill.PartyBillNumber,
-        //                 FirstPrinted = purchaseBill.FirstPrinted,
-        //                 PrintCount = purchaseBill.PrintCount,
-        //                 PaymentMode = purchaseBill.PaymentMode,
-        //                 Date = isNepaliFormat ? purchaseBill.nepaliDate : purchaseBill.Date,
-        //                 TransactionDate = isNepaliFormat ? purchaseBill.transactionDateNepali : purchaseBill.TransactionDate,
-        //                 SubTotal = purchaseBill.SubTotal,
-        //                 NonVatPurchase = purchaseBill.NonVatPurchase,
-        //                 TaxableAmount = purchaseBill.TaxableAmount,
-        //                 TotalCcAmount = purchaseBill.TotalCcAmount,
-        //                 DiscountPercentage = purchaseBill.DiscountPercentage,
-        //                 DiscountAmount = purchaseBill.DiscountAmount,
-        //                 VatPercentage = purchaseBill.VatPercentage,
-        //                 VatAmount = purchaseBill.VatAmount,
-        //                 TotalAmount = purchaseBill.TotalAmount,
-        //                 IsVatExempt = purchaseBill.IsVatExempt,
-        //                 RoundOffAmount = purchaseBill.RoundOffAmount,
-        //                 Account = purchaseBill.Account != null ? new AccountPrintDTO
-        //                 {
-        //                     Id = purchaseBill.Account.Id,
-        //                     Name = purchaseBill.Account.Name,
-        //                     Pan = purchaseBill.Account.Pan,
-        //                     Address = purchaseBill.Account.Address,
-        //                     Email = purchaseBill.Account.Email,
-        //                     Phone = purchaseBill.Account.Phone,
-        //                 } : null,
-        //                 User = purchaseBill.User != null ? new UserPrintDTO
-        //                 {
-        //                     Id = purchaseBill.User.Id,
-        //                     Name = purchaseBill.User.Name,
-        //                     IsAdmin = purchaseBill.User.IsAdmin,
-        //                     Role = purchaseBill.User.UserRoles?
-        //                         .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
-        //                 } : null,
-        //                 Items = purchaseBill.Items.Select(i => new PurchaseBillItemPrintDTO
-        //                 {
-        //                     Id = i.Id,
-        //                     ItemId = i.ItemId,
-        //                     ItemName = i.Item?.Name,
-        //                     Hscode = i.Item?.Hscode,  // Add this
-        //                     UniqueNumber = i.Item?.UniqueNumber,  // Add this
-        //                     UnitId = i.UnitId,
-        //                     UnitName = i.Item?.Unit?.Name,
-        //                     WsUnit = i.WsUnit,
-        //                     Quantity = i.Quantity,
-        //                     Bonus = i.Bonus,
-        //                     Price = i.Price,
-        //                     PuPrice = i.PuPrice,
-        //                     DiscountPercentagePerItem = i.DiscountPercentagePerItem,
-        //                     DiscountAmountPerItem = i.DiscountAmountPerItem,
-        //                     NetPuPrice = i.NetPuPrice,
-        //                     CcPercentage = i.CcPercentage,
-        //                     ItemCcAmount = i.ItemCcAmount,
-        //                     Mrp = i.Mrp,
-        //                     MarginPercentage = i.MarginPercentage,
-        //                     Currency = i.Currency,
-        //                     BatchNumber = i.BatchNumber,
-        //                     ExpiryDate = i.ExpiryDate,
-        //                     VatStatus = i.VatStatus
-        //                 }).ToList()
-        //             },
-        //             CurrentCompanyName = currentCompany?.Name ?? string.Empty,
-        //             CurrentCompany = currentCompany ?? new CompanyPrintInfoDTO(),
-        //             FirstBill = firstBill,
-        //             LastBalance = finalBalance,
-        //             BalanceLabel = balanceLabel,
-        //             PaymentMode = purchaseBill.PaymentMode ?? string.Empty,
-        //             CompanyDateFormat = company.DateFormat?.ToString()?.ToLower() ?? "english",
-        //             User = new UserPrintDTO
-        //             {
-        //                 Id = userId,
-        //                 Name = user?.Name ?? string.Empty,
-        //                 IsAdmin = user?.IsAdmin ?? false,
-        //                 Role = user?.UserRoles?
-        //                     .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ??
-        //                        (user?.IsAdmin == true ? "Admin" : "User"),
-        //                 Preferences = userPreferences
-        //             },
-        //             IsAdminOrSupervisor = isAdminOrSupervisor
-        //         };
-
-        //         return response;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting purchase bill for print: {BillId}", id);
-        //         throw;
-        //     }
-        // }
 
         public async Task<PurchaseBillPrintDTO> GetPurchaseBillForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
         {
@@ -2847,8 +2774,10 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         FirstPrinted = purchaseBill.FirstPrinted,
                         PrintCount = purchaseBill.PrintCount,
                         PaymentMode = purchaseBill.PaymentMode,
-                        Date = isNepaliFormat ? purchaseBill.nepaliDate : purchaseBill.Date,
-                        TransactionDate = isNepaliFormat ? purchaseBill.transactionDateNepali : purchaseBill.TransactionDate,
+                        Date = purchaseBill.Date,
+                        TransactionDate = purchaseBill.TransactionDate,
+                        NepaliDate = purchaseBill.NepaliDate,
+                        TransactionDateNepali = purchaseBill.TransactionDateNepali,
                         SubTotal = purchaseBill.SubTotal,
                         NonVatPurchase = purchaseBill.NonVatPurchase,
                         TaxableAmount = purchaseBill.TaxableAmount,
@@ -3065,8 +2994,10 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     ExpiryDate = i.ExpiryDate,
                     VatStatus = i.VatStatus,
                     UniqueUuid = i.UniqueUuid,
-                    CreatedAt = i.CreatedAt,
-                    UpdatedAt = i.UpdatedAt
+                    Date = i.Date,
+                    TransactionDate = i.TransactionDate,
+                    NepaliDate = i.NepaliDate,
+                    TransactionDateNepali = i.TransactionDateNepali
                 }).ToList(),
                 SubTotal = purchaseBill.SubTotal,
                 NonVatPurchase = purchaseBill.NonVatPurchase,
@@ -3081,12 +3012,10 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 IsVatAll = purchaseBill.IsVatAll,
                 RoundOffAmount = purchaseBill.RoundOffAmount,
                 PaymentMode = purchaseBill.PaymentMode,
-                NepaliDate = purchaseBill.nepaliDate,
-                Date = isNepaliFormat ? purchaseBill.nepaliDate : purchaseBill.Date,
-                TransactionDateNepali = purchaseBill.transactionDateNepali,
+                NepaliDate = purchaseBill.NepaliDate,
+                Date = purchaseBill.Date,
+                TransactionDateNepali = purchaseBill.TransactionDateNepali,
                 TransactionDate = purchaseBill.TransactionDate,
-                CreatedAt = purchaseBill.CreatedAt,
-                UpdatedAt = purchaseBill.UpdatedAt
             };
         }
 
@@ -3182,8 +3111,17 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                                 pb.FiscalYearId == fiscalYearId);
 
                 // Apply date filter based on company's date format
-                if (isNepaliFormat)
-                    query = query.Where(pb => pb.nepaliDate >= startDateTime && pb.nepaliDate <= endDateTime);
+                // if (isNepaliFormat)
+                //     query = query.Where(pb => pb.NepaliDate >= startDateTime && pb.NepaliDate <= endDateTime);
+                // else
+                //     query = query.Where(pb => pb.Date >= startDateTime && pb.Date <= endDateTime);
+
+                if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
+                {
+                    // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
+                    query = query.Where(pb => string.Compare(pb.NepaliDate, fromDate) >= 0
+                                          && string.Compare(pb.NepaliDate, toDate) <= 0);
+                }
                 else
                     query = query.Where(pb => pb.Date >= startDateTime && pb.Date <= endDateTime);
 
@@ -3198,7 +3136,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     BillNumber = bill.BillNumber,
                     PartyBillNumber = bill.PartyBillNumber ?? "",
                     Date = bill.Date,
-                    NepaliDate = bill.nepaliDate,
+                    NepaliDate = bill.NepaliDate,
                     AccountName = bill.Account?.Name ?? "",
                     PanNumber = bill.Account?.Pan ?? "",
                     TotalAmount = bill.TotalAmount ?? 0,

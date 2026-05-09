@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
 import axios from 'axios';
 import Header from '../Header';
 import '../../../stylesheet/retailer/purchase/AddPurchase.css'
@@ -13,6 +13,256 @@ import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
 import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
+import NepaliDate from 'nepali-datetime';
+
+// Date conversion utilities using nepali-datetime
+const convertBsToAd = (bsDate) => {
+    if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+
+    try {
+        // Create NepaliDate from BS date string
+        const nepaliDate = new NepaliDate(bsDate);
+
+        // Check if the NepaliDate object is valid
+        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
+            console.error('Invalid NepaliDate object or missing getDateObject method');
+            return null;
+        }
+
+        // Get JavaScript Date object
+        const jsDate = nepaliDate.getDateObject();
+
+        // Validate the JavaScript Date
+        if (!jsDate || isNaN(jsDate.getTime())) {
+            console.error('Invalid AD date generated from BS date:', bsDate);
+            return null;
+        }
+
+        // Format as YYYY-MM-DD
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
+        return null;
+    }
+};
+
+const convertAdToBs = (adDate) => {
+    if (!adDate) return null;
+
+    try {
+        // Parse the AD date
+        let date;
+        if (typeof adDate === 'string') {
+            // Handle YYYY-MM-DD format
+            if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+                date = new Date(adDate + 'T00:00:00');
+            } else {
+                date = new Date(adDate);
+            }
+        } else if (adDate instanceof Date) {
+            date = adDate;
+        } else {
+            return null;
+        }
+
+        // Validate the date
+        if (isNaN(date.getTime())) {
+            console.error('Invalid AD date:', adDate);
+            return null;
+        }
+
+        // Create NepaliDate from JavaScript Date
+        const nepaliDate = new NepaliDate(date);
+
+        // Check if NepaliDate object is valid
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            console.error('Invalid NepaliDate object');
+            return null;
+        }
+
+        // Get BS components
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth(); // Returns 0-11 (0 = Baisakh)
+        const day = nepaliDate.getDate();
+
+        // Validate components
+        if (!year || !month === undefined || !day) {
+            console.error('Invalid BS components generated');
+            return null;
+        }
+
+        // Format as YYYY-MM-DD
+        return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
+        return null;
+    }
+};
+
+const isValidNepaliDate = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    try {
+        const [year, month, day] = dateStr.split('-').map(Number);
+
+        // Quick validation for month range
+        if (month < 1 || month > 12) return false;
+
+        // Quick validation for day range (max 32 days in Nepali calendar)
+        if (day < 1 || day > 32) return false;
+
+        // Create NepaliDate object
+        const nepaliDate = new NepaliDate(dateStr);
+
+        // Check if the object is valid
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            return false;
+        }
+
+        // Verify by checking if the year matches
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        // All components should match
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch (error) {
+        console.warn('Invalid Nepali date:', dateStr, error.message);
+        return false;
+    }
+};
+
+// Get current Nepali date
+const getCurrentNepaliDate = () => {
+    try {
+        const now = new NepaliDate();
+
+        if (!now || typeof now.getYear !== 'function') {
+            console.error('Cannot create current Nepali date');
+            // Fallback to a default date
+            return '2080-01-01';
+        }
+
+        const year = now.getYear();
+        const month = now.getMonth() + 1;
+        const day = now.getDate();
+
+        // Validate components
+        if (!year || !month || !day) {
+            return '2080-01-01';
+        }
+
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error getting current Nepali date:', error);
+        return '2080-01-01';
+    }
+};
+
+// Helper function to format AD date to YYYY-MM-DD
+const formatAdDate = (date) => {
+    if (!date) return null;
+
+    try {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return null;
+
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error formatting AD date:', error);
+        return null;
+    }
+};
+
+// Get Nepali month days for validation
+const getNepaliMonthDays = (year, month) => {
+    // Month is 1-indexed (1 = Baisakh)
+    const monthDays = {
+        1: 31,  // Baisakh
+        2: 31,  // Jestha
+        3: 32,  // Ashad (varies, sometimes 31)
+        4: 32,  // Shrawan
+        5: 31,  // Bhadra
+        6: 31,  // Ashwin
+        7: 30,  // Kartik
+        8: 30,  // Mangsir
+        9: 30,  // Poush
+        10: 30, // Magh
+        11: 30, // Falgun (29 in leap years)
+        12: 30  // Chaitra
+    };
+
+    // Adjust for Ashad (month 3) - some years have 31 days
+    if (month === 3) {
+        // Years where Ashad has 31 days (based on Nepali calendar pattern)
+        const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
+        return ashad31Years.includes(year) ? 31 : 32;
+    }
+
+    // Adjust for Falgun (month 11) - leap year adjustment
+    if (month === 11) {
+        // Nepali leap years: years where (year + 1) is divisible by 4
+        const isLeapYear = (year + 1) % 4 === 0;
+        return isLeapYear ? 30 : 29;
+    }
+
+    return monthDays[month] || 30;
+};
+
+// Enhanced validation with month day limits
+const isValidNepaliDateEnhanced = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    const [year, month, day] = dateStr.split('-').map(Number);
+
+    // Basic range checks
+    if (year < 1970 || year > 2100) return false;
+    if (month < 1 || month > 12) return false;
+
+    // Check day against month limits
+    const maxDays = getNepaliMonthDays(year, month);
+    if (day < 1 || day > maxDays) return false;
+
+    // Final validation with library
+    try {
+        const nepaliDate = new NepaliDate(dateStr);
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch {
+        return false;
+    }
+};
+
+// Safe date parser for forms
+const safeParseNepaliDate = (dateStr) => {
+    if (!dateStr) return null;
+
+    // Try to correct common mistakes
+    let corrected = dateStr;
+
+    // Fix if day > max days for month
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (year && month && day) {
+        const maxDays = getNepaliMonthDays(year, month);
+        if (day > maxDays) {
+            corrected = `${year}-${String(month).padStart(2, '0')}-${String(maxDays).padStart(2, '0')}`;
+            console.log(`Corrected date: ${dateStr} -> ${corrected}`);
+        }
+    }
+
+    return corrected;
+};
 
 const AddPurchase = () => {
     const { draftSave, setDraftSave, clearDraft } = usePageNotRefreshContext();
@@ -228,96 +478,6 @@ const AddPurchase = () => {
         }
     };
 
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-
-    //         const response = await api.get('/api/retailer/items/search', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: 15,
-    //                 vatStatus: formData.isVatExempt,
-    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             const itemsWithLatestPuPrice = response.data.items.map(item => {
-    //                 // Get latest purchase price from stockEntries
-    //                 let latestPrice = 0;
-    //                 let latestBatchNumber = '';
-    //                 let latestExpiryDate = '';
-    //                 let latestWSUnit = 1;
-
-    //                 // Calculate total stock from stockEntries
-    //                 let totalStock = 0;
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     // Calculate total stock by summing up all quantities from stockEntries
-    //                     totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
-
-    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
-    //                         new Date(b.date) - new Date(a.date)
-    //                     );
-    //                     latestPrice = sortedEntries[0].puPrice || 0;
-    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
-    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
-    //                     latestWSUnit = sortedEntries[0].WSUnit || 1;
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     latestPrice,
-    //                     latestBatchNumber,
-    //                     latestExpiryDate,
-    //                     latestWSUnit,
-    //                     stock: totalStock
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithLatestPuPrice);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithLatestPuPrice]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithLatestPuPrice);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithLatestPuPrice]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
-
-    // For header modal search
-   
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
             if (isHeaderModal) {
@@ -338,14 +498,26 @@ const AddPurchase = () => {
             };
 
             // Add date filter based on date format
-            if (isNepaliFormat && formData.transactionDateNepali) {
-                // Send Nepali date directly - no conversion needed
-                params.asOfNepaliDate = formData.transactionDateNepali;
-                console.log('Sending Nepali date filter:', formData.transactionDateNepali);
-            } else if (!isNepaliFormat && formData.transactionDateRoman) {
-                // Send English date
-                params.asOfEnglishDate = formData.transactionDateRoman;
-                console.log('Sending English date filter:', formData.transactionDateRoman);
+            // if (isNepaliFormat && formData.transactionDateNepali) {
+            //     // Send Nepali date directly - no conversion needed
+            //     params.asOfNepaliDate = formData.transactionDateNepali;
+            //     console.log('Sending Nepali date filter:', formData.transactionDateNepali);
+            // } else if (!isNepaliFormat && formData.transactionDateRoman) {
+            //     // Send English date
+            //     params.asOfEnglishDate = formData.transactionDateRoman;
+            //     console.log('Sending English date filter:', formData.transactionDateRoman);
+            // }
+
+            if (formData.transactionDateRoman) {
+                params.asOfDate = formData.transactionDateRoman;
+                console.log('Sending AD date filter:', formData.transactionDateRoman);
+            } else if (formData.transactionDateNepali) {
+                // Convert BS to AD if needed
+                const adDate = convertBsToAd(formData.transactionDateNepali);
+                if (adDate) {
+                    params.asOfDate = adDate;
+                    console.log('Converted BS to AD for filter:', formData.transactionDateNepali, '->', adDate);
+                }
             }
 
             const response = await api.get('/api/retailer/items/search', { params });
@@ -722,8 +894,8 @@ const AddPurchase = () => {
                         billNumber: data.nextPurchaseBillNumber || '',
                         transactionDateNepali: isNepaliFormat ? transactionDate : '',
                         nepaliDate: isNepaliFormat ? invoiceDate : '',
-                        transactionDateRoman: !isNepaliFormat ? transactionDate : '',
-                        billDate: !isNepaliFormat ? invoiceDate : ''
+                        transactionDateRoman: !isNepaliFormat ? transactionDate : (isNepaliFormat ? convertBsToAd(transactionDate) : ''),
+                        billDate: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : '')
                     }));
 
                     setIsInitialDataLoaded(true);
@@ -2006,9 +2178,9 @@ const AddPurchase = () => {
                 nonVatPurchase: calculatedValues.nonTaxableAmount,
                 totalCcAmount: calculatedValues.totalCCAmount,
                 totalAmount: calculatedValues.totalAmount,
-                nepaliDate: parseDate(formData.nepaliDate),
+                nepaliDate: formData.nepaliDate,
                 date: parseDate(formData.billDate),
-                transactionDateNepali: parseDate(formData.transactionDateNepali),
+                transactionDateNepali: formData.transactionDateNepali,
                 transactionDate: parseDate(formData.transactionDateRoman),
                 purchaseSalesType: "Purchase",
                 originalCopies: 1,
@@ -2106,8 +2278,8 @@ const AddPurchase = () => {
                         <div>
                             <div><strong>Invoice No:</strong> ${printData.bill.billNumber || 'N/A'}</div>
                             <div><strong>Supplier Inv No:</strong> ${printData.bill.partyBillNumber || 'N/A'}</div>
-                            <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
-                            <div><strong>Inv. Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
+                            <div><strong>Trans Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.bill.transactionDateNepali, 'Nepali') : formatDateForInput(printData.bill.transactionDate)}(${new Date(printData.bill.transactionDate).toLocaleDateString()})</div>
+                            <div><strong>Invoice Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.bill.nepaliDate, 'Nepali') : formatDateForInput(printData.bill.date)}(${new Date(printData.bill.date).toLocaleDateString()})</div>
                         </div>
                     </div>
 
@@ -2250,6 +2422,29 @@ const AddPurchase = () => {
             });
         }
     };
+
+    const formatDateForInput = (date) => {
+        if (!date) return '';
+
+        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return date;
+        }
+
+        try {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return '';
+
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+
+            return `${year}-${month}-${day}`;
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return '';
+        }
+    };
+
 
     function formatTo2Decimal(num) {
         const rounded = Math.round(num * 100) / 100;
@@ -2554,7 +2749,7 @@ const AddPurchase = () => {
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
                         <div className="row g-2 mb-3">
-                            {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
+                            {/* {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
@@ -2922,6 +3117,460 @@ const AddPurchase = () => {
                                             )}
                                         </div>
                                     </div>
+                                </> */}
+
+
+                            {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
+                                <>
+                                    {/* Nepali Transaction Date */}
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="transactionDateNepali"
+                                                id="transactionDateNepali"
+                                                ref={transactionDateRef}
+                                                autoComplete='off'
+                                                className={`form-control form-control-sm no-date-icon ${dateErrors.transactionDateNepali ? 'is-invalid' : ''}`}
+                                                value={formData.transactionDateNepali}
+                                                onKeyDown={(e) => {
+                                                    const allowedKeys = [
+                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                        'Home', 'End'
+                                                    ];
+
+                                                    if (!allowedKeys.includes(e.key) &&
+                                                        !/^\d$/.test(e.key) &&
+                                                        e.key !== '/' &&
+                                                        e.key !== '-' &&
+                                                        !e.ctrlKey && !e.metaKey) {
+                                                        e.preventDefault();
+                                                    }
+
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const dateStr = e.target.value.trim();
+
+                                                        if (!dateStr) {
+                                                            const currentDate = new NepaliDate();
+                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                            setFormData({
+                                                                ...formData,
+                                                                transactionDateNepali: correctedDate
+                                                            });
+                                                            setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                            setNotification({
+                                                                show: true,
+                                                                message: 'Date required. Auto-corrected to current date.',
+                                                                type: 'warning',
+                                                                duration: 3000
+                                                            });
+
+                                                            handleKeyDown(e, 'transactionDateNepali');
+                                                        } else if (dateErrors.transactionDateNepali) {
+                                                            e.target.focus();
+                                                        } else {
+                                                            handleKeyDown(e, 'transactionDateNepali');
+                                                        }
+                                                    }
+                                                }}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                                    if (sanitizedValue.length <= 10) {
+                                                        // First update the Nepali date
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: sanitizedValue
+                                                        }));
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
+                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                            console.log('Converting BS to AD:', sanitizedValue);
+                                                            const adDate = convertBsToAd(sanitizedValue);
+                                                            console.log('Converted AD date:', adDate);
+                                                            if (adDate) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    transactionDateRoman: adDate,
+                                                                    billDate: adDate
+                                                                }));
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    const dateStr = e.target.value.trim();
+                                                    if (!dateStr) {
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                        return;
+                                                    }
+
+                                                    if (isValidNepaliDate(dateStr)) {
+                                                        const adDate = convertBsToAd(dateStr);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                transactionDateNepali: dateStr,
+                                                                transactionDateRoman: adDate,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                    } else {
+                                                        // Auto-correct to current date
+                                                        const currentDate = new NepaliDate();
+                                                        const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                        const adDate = convertBsToAd(correctedDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: correctedDate,
+                                                            transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                            billDate: adDate || prev.billDate
+                                                        }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    }
+                                                }}
+                                                placeholder="YYYY-MM-DD"
+                                                required
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Transaction Date (BS): <span className="text-danger">*</span>
+                                            </label>
+                                            {dateErrors.transactionDateNepali && (
+                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                                    {dateErrors.transactionDateNepali}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
+                                    {/* <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="transactionDateRoman"
+                                                id="transactionDateRoman"
+                                                className="form-control form-control-sm"
+                                                value={formData.transactionDateRoman || ''}
+                                                onKeyDown={(e) => {
+                                                    const allowedKeys = [
+                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                        'Home', 'End'
+                                                    ];
+
+                                                    if (!allowedKeys.includes(e.key) &&
+                                                        !/^\d$/.test(e.key) &&
+                                                        e.key !== '/' &&
+                                                        e.key !== '-' &&
+                                                        !e.ctrlKey && !e.metaKey) {
+                                                        e.preventDefault();
+                                                    }
+
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const dateStr = e.target.value.trim();
+
+                                                        if (!dateStr) {
+                                                            const currentDate = new NepaliDate();
+                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                            setFormData({
+                                                                ...formData,
+                                                                transactionDateRoman: correctedDate
+                                                            });
+                                                            setDateErrors(prev => ({ ...prev, transactionDateRoman: '' }));
+
+                                                            setNotification({
+                                                                show: true,
+                                                                message: 'Date required. Auto-corrected to current date.',
+                                                                type: 'warning',
+                                                                duration: 3000
+                                                            });
+
+                                                            handleKeyDown(e, 'transactionDateRoman');
+                                                        } else if (dateErrors.transactionDateRoman) {
+                                                            e.target.focus();
+                                                        } else {
+                                                            handleKeyDown(e, 'transactionDateRoman');
+                                                        }
+                                                    }
+                                                }}
+                                                readOnly
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%',
+                                                    backgroundColor: '#f8f9fa',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Transaction Date (AD):
+                                            </label>
+                                        </div>
+                                    </div> */}
+
+                                    <input
+                                        type="hidden"
+                                        name="transactionDateRoman"
+                                        id="transactionDateRoman"
+                                        value={formData.transactionDateRoman || ''}
+                                    />
+
+                                    {/* Nepali Invoice Date */}
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="nepaliDate"
+                                                id="nepaliDate"
+                                                autoComplete='off'
+                                                className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
+                                                value={formData.nepaliDate}
+                                                onKeyDown={(e) => {
+                                                    const allowedKeys = [
+                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                        'Home', 'End'
+                                                    ];
+
+                                                    if (!allowedKeys.includes(e.key) &&
+                                                        !/^\d$/.test(e.key) &&
+                                                        e.key !== '/' &&
+                                                        e.key !== '-' &&
+                                                        !e.ctrlKey && !e.metaKey) {
+                                                        e.preventDefault();
+                                                    }
+
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const dateStr = e.target.value.trim();
+
+                                                        if (!dateStr) {
+                                                            const currentDate = new NepaliDate();
+                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                            setFormData({
+                                                                ...formData,
+                                                                nepaliDate: correctedDate
+                                                            });
+                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                            setNotification({
+                                                                show: true,
+                                                                message: 'Date required. Auto-corrected to current date.',
+                                                                type: 'warning',
+                                                                duration: 3000
+                                                            });
+
+                                                            handleKeyDown(e, 'nepaliDate');
+                                                        } else if (dateErrors.nepaliDate) {
+                                                            e.target.focus();
+                                                        } else {
+                                                            handleKeyDown(e, 'nepaliDate');
+                                                        }
+                                                    }
+                                                }}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                                    if (sanitizedValue.length <= 10) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: sanitizedValue
+                                                        }));
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                            console.log('Invoice - Converting BS to AD:', sanitizedValue);
+                                                            const adDate = convertBsToAd(sanitizedValue);
+                                                            console.log('Invoice - Converted AD date:', adDate);
+                                                            if (adDate) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    billDate: adDate
+                                                                }));
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    const dateStr = e.target.value.trim();
+                                                    if (!dateStr) {
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                        return;
+                                                    }
+
+                                                    if (isValidNepaliDate(dateStr)) {
+                                                        const adDate = convertBsToAd(dateStr);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                nepaliDate: dateStr,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                    } else {
+                                                        const currentDate = new NepaliDate();
+                                                        const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                        const adDate = convertBsToAd(correctedDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: correctedDate,
+                                                            billDate: adDate || prev.billDate
+                                                        }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    }
+                                                }}
+                                                placeholder="YYYY-MM-DD"
+                                                required
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Invoice Date (BS): <span className="text-danger">*</span>
+                                            </label>
+                                            {dateErrors.nepaliDate && (
+                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                                    {dateErrors.nepaliDate}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* AD Invoice Date (Auto-converted, Read-only) */}
+                                    {/* <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="billDate"
+                                                id="billDate"
+                                                className="form-control form-control-sm"
+                                                value={formData.billDate || ''}
+                                                onKeyDown={(e) => {
+                                                    const allowedKeys = [
+                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                        'Home', 'End'
+                                                    ];
+
+                                                    if (!allowedKeys.includes(e.key) &&
+                                                        !/^\d$/.test(e.key) &&
+                                                        e.key !== '/' &&
+                                                        e.key !== '-' &&
+                                                        !e.ctrlKey && !e.metaKey) {
+                                                        e.preventDefault();
+                                                    }
+
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const dateStr = e.target.value.trim();
+
+                                                        if (!dateStr) {
+                                                            const currentDate = new NepaliDate();
+                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                            setFormData({
+                                                                ...formData,
+                                                                billDate: correctedDate
+                                                            });
+                                                            setDateErrors(prev => ({ ...prev, billDate: '' }));
+
+                                                            setNotification({
+                                                                show: true,
+                                                                message: 'Date required. Auto-corrected to current date.',
+                                                                type: 'warning',
+                                                                duration: 3000
+                                                            });
+
+                                                            handleKeyDown(e, 'billDate');
+                                                        } else if (dateErrors.billDate) {
+                                                            e.target.focus();
+                                                        } else {
+                                                            handleKeyDown(e, 'billDate');
+                                                        }
+                                                    }
+                                                }}
+                                                readOnly
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%',
+                                                    backgroundColor: '#f8f9fa',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Invoice Date (AD):
+                                            </label>
+                                        </div>
+                                    </div> */}
+                                    <input
+                                        type="hidden"
+                                        name="billDate"
+                                        id="billDate"
+                                        value={formData.billDate || ''}
+                                    />
                                 </>
                             ) : (
                                 <>

@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Table } from 'react-bootstrap';
 import { BiPrinter, BiArrowBack, BiSolidFilePdf, BiReceipt } from 'react-icons/bi';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -604,15 +606,15 @@ const CreditNotePrint = () => {
                         <Button variant="secondary" size="sm" className="me-2" onClick={handleBack}>
                             <BiArrowBack /> Back
                         </Button>
-                        <Button variant="primary" size="sm" className="me-2" onClick={generatePdf}>
+                        {/* <Button variant="primary" size="sm" className="me-2" onClick={generatePdf}>
                             <BiSolidFilePdf /> <span className="pdf-button-text">PDF</span>
-                        </Button>
+                        </Button> */}
                         <Button variant="info" size="sm" className="me-2" onClick={printVoucher}>
                             <BiPrinter /> Print
                         </Button>
-                        <Button variant="success" size="sm" onClick={() => navigate('/retailer/credit-note')}>
+                        {/* <Button variant="success" size="sm" onClick={() => navigate('/retailer/credit-note')}>
                             <BiReceipt /> New Cr. Note
-                        </Button>
+                        </Button> */}
                     </div>
 
                     <Card className="p-4">
@@ -631,7 +633,7 @@ const CreditNotePrint = () => {
                                 <div><strong>Vch. No:</strong> {creditNote.billNumber}</div>
                             </div>
                             <div className="right">
-                                <div><strong>Date:</strong> {creditNoteData.companyDateFormat === 'Nepali' ? formatDate(creditNote.nepaliDate, 'nepali') : formatDate(creditNote.date)}</div>
+                                <div><strong>Date:</strong> {creditNoteData.companyDateFormat === 'nepali' ? formatDate(creditNote.nepaliDate, 'Nepali') : formatDate(creditNote.date)}({new Date(creditNote.date).toLocaleDateString()})</div>
                             </div>
                         </div>
 
@@ -757,7 +759,7 @@ const CreditNotePrint = () => {
                             <div><strong>Vch. No:</strong> {creditNote.billNumber}</div>
                         </div>
                         <div>
-                            <div><strong>Date:</strong> {creditNoteData.companyDateFormat === 'Nepali' ? formatDate(creditNote.nepaliDate, 'nepali') : formatDate(creditNote.date)}</div>
+                            <div><strong>Date:</strong> {creditNoteData.companyDateFormat === 'nepali' ? formatDate(creditNote.nepaliDate, 'Nepali') : formatDate(creditNote.date)}({new Date(creditNote.date).toLocaleDateString()})</div>
                         </div>
                     </div>
 

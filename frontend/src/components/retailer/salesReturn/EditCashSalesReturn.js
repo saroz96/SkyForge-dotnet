@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
@@ -11,6 +13,172 @@ import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
+
+// Date conversion utilities using nepali-datetime
+const convertBsToAd = (bsDate) => {
+    if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+
+    try {
+        const nepaliDate = new NepaliDate(bsDate);
+        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
+            console.error('Invalid NepaliDate object or missing getDateObject method');
+            return null;
+        }
+
+        const jsDate = nepaliDate.getDateObject();
+        if (!jsDate || isNaN(jsDate.getTime())) {
+            console.error('Invalid AD date generated from BS date:', bsDate);
+            return null;
+        }
+
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
+        return null;
+    }
+};
+
+const convertAdToBs = (adDate) => {
+    if (!adDate) return null;
+
+    try {
+        let date;
+        if (typeof adDate === 'string') {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+                date = new Date(adDate + 'T00:00:00');
+            } else {
+                date = new Date(adDate);
+            }
+        } else if (adDate instanceof Date) {
+            date = adDate;
+        } else {
+            return null;
+        }
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid AD date:', adDate);
+            return null;
+        }
+
+        const nepaliDate = new NepaliDate(date);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            console.error('Invalid NepaliDate object');
+            return null;
+        }
+
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth();
+        const day = nepaliDate.getDate();
+
+        if (!year || !month === undefined || !day) {
+            console.error('Invalid BS components generated');
+            return null;
+        }
+
+        return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
+        return null;
+    }
+};
+
+const isValidNepaliDate = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    try {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 32) return false;
+
+        const nepaliDate = new NepaliDate(dateStr);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            return false;
+        }
+
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch (error) {
+        console.warn('Invalid Nepali date:', dateStr, error.message);
+        return false;
+    }
+};
+
+const getCurrentNepaliDate = () => {
+    try {
+        const now = new NepaliDate();
+        if (!now || typeof now.getYear !== 'function') {
+            return '2080-01-01';
+        }
+        const year = now.getYear();
+        const month = now.getMonth() + 1;
+        const day = now.getDate();
+
+        if (!year || !month || !day) {
+            return '2080-01-01';
+        }
+
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error getting current Nepali date:', error);
+        return '2080-01-01';
+    }
+};
+
+// Helper function to format AD date to YYYY-MM-DD
+const formatAdDate = (date) => {
+    if (!date) return null;
+
+    try {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return null;
+
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error formatting AD date:', error);
+        return null;
+    }
+};
+
+// Get Nepali month days for validation
+const getNepaliMonthDays = (year, month) => {
+    const monthDays = {
+        1: 31,  // Baisakh
+        2: 31,  // Jestha
+        3: 32,  // Ashad
+        4: 32,  // Shrawan
+        5: 31,  // Bhadra
+        6: 31,  // Ashwin
+        7: 30,  // Kartik
+        8: 30,  // Mangsir
+        9: 30,  // Poush
+        10: 30, // Magh
+        11: 30, // Falgun
+        12: 30  // Chaitra
+    };
+
+    if (month === 3) {
+        const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
+        return ashad31Years.includes(year) ? 31 : 32;
+    }
+
+    if (month === 11) {
+        const isLeapYear = (year + 1) % 4 === 0;
+        return isLeapYear ? 30 : 29;
+    }
+
+    return monthDays[month] || 30;
+};
 
 const EditCashSalesReturn = () => {
     const { id } = useParams();
@@ -286,12 +454,22 @@ const EditCashSalesReturn = () => {
             };
 
             // Add date filter based on the return bill's transaction date (not current date)
-            if (isNepaliFormat && formData.transactionDateNepali) {
-                params.asOfNepaliDate = formData.transactionDateNepali;
-                console.log('Sending Nepali date filter for edit cash sales return:', formData.transactionDateNepali);
-            } else if (!isNepaliFormat && formData.transactionDateRoman) {
-                params.asOfEnglishDate = formData.transactionDateRoman;
-                console.log('Sending English date filter for edit cash sales return:', formData.transactionDateRoman);
+            if (formData.transactionDateRoman) {
+                // Send AD date directly
+                params.asOfDate = formData.transactionDateRoman;
+                console.log('Sales - Sending AD date filter:', formData.transactionDateRoman);
+            } else if (formData.transactionDateNepali) {
+                // Convert BS to AD if needed
+                const adDate = convertBsToAd(formData.transactionDateNepali);
+                if (adDate) {
+                    params.asOfDate = adDate;
+                    console.log('Sales - Converted BS to AD for filter:', formData.transactionDateNepali, '->', adDate);
+                }
+            } else {
+                // Fallback to current date if no date is set
+                const today = new Date().toISOString().split('T')[0];
+                params.asOfDate = today;
+                console.log('Sales - No date set, using current date:', today);
             }
 
             const response = await api.get('/api/retailer/items/search', { params });
@@ -1118,180 +1296,6 @@ const EditCashSalesReturn = () => {
         localStorage.setItem('printAfterSaveCashSalesReturn', isChecked);
     };
 
-    // const printImmediately = async (billId) => {
-    //     try {
-    //         const response = await api.get(`/api/retailer/sales-return/${billId}/print`);
-    //         const printData = response.data.data;
-
-    //         const tempDiv = document.createElement('div');
-    //         tempDiv.style.position = 'absolute';
-    //         tempDiv.style.left = '-9999px';
-    //         document.body.appendChild(tempDiv);
-
-    //         tempDiv.innerHTML = `
-    //             <div id="printableContent" class="print-version">
-    //                 <div class="print-invoice-container">
-    //                     <div class="print-invoice-header">
-    //                         <div class="print-company-name">${printData.currentCompanyName || ''}</div>
-    //                         <div class="print-company-details">
-    //                             ${printData.currentCompany?.address || ''} | Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || ''}
-    //                         </div>
-    //                         <div class="print-invoice-title">SALES RETURN</div>
-    //                     </div>
-
-    //                     <div class="print-invoice-details">
-    //                         <div>
-    //                             <div><strong>M/S:</strong> ${printData.bill.cashAccount || 'N/A'}</div>
-    //                             <div><strong>Address:</strong> ${printData.bill.cashAccountAddress || 'N/A'}</div>
-    //                             <div><strong>PAN:</strong> ${printData.bill.cashAccountPan || 'N/A'}</div>
-    //                             <div><strong>Email:</strong> ${printData.bill.cashAccountEmail || 'N/A'}</div>
-    //                             <div><strong>Payment Mode:</strong> ${printData.bill.paymentMode || 'N/A'}</div>
-    //                         </div>
-    //                         <div>
-    //                             <div><strong>Return No:</strong> ${printData.bill.billNumber || 'N/A'}</div>
-    //                             <div><strong>Original Inv No:</strong> ${printData.bill.originalSalesBillNumber || 'N/A'}</div>
-    //                             <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
-    //                             <div><strong>Inv. Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
-    //                         </div>
-    //                     </div>
-
-    //                     <table class="print-invoice-table">
-    //                         <thead>
-    //                             <tr>
-    //                                 <th>SN</th>
-    //                                 <th>#</th>
-    //                                 <th>HSN</th>
-    //                                 <th>Description of Goods</th>
-    //                                 <th>Unit</th>
-    //                                 <th>Batch</th>
-    //                                 <th>Expiry</th>
-    //                                 <th>Qty</th>
-    //                                 <th>Price</th>
-    //                                 <th>Amount</th>
-    //                             </tr>
-    //                         </thead>
-    //                         <tbody>
-    //                             ${printData.bill.items?.map((item, i) => `
-    //                                 <tr key="${i}">
-    //                                     <td>${i + 1}</td>
-    //                                     <td>${item.item?.uniqueNumber || ''}</td>
-    //                                     <td>${item.item?.hscode || ''}</td>
-    //                                     <td>${item.item?.name || ''}</td>
-    //                                     <td>${item.item?.unit?.name || ''}</td>
-    //                                     <td>${item.batchNumber || ''}</td>
-    //                                     <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-    //                                     <td>${item.quantity || 0}</td>
-    //                                     <td>${(item.price || 0).toFixed(2)}</td>
-    //                                     <td>${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
-    //                                 </tr>
-    //                             `).join('') || ''}
-    //                         </tbody>
-    //                     </table>
-
-    //                     <table class="print-totals-table">
-    //                         <tbody>
-    //                             <tr>
-    //                                 <td><strong>Sub-Total:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.subTotal || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Discount:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.discountAmount || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Non-Taxable:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.nonVatSalesReturn || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Taxable Amount:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.taxableAmount || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             ${!printData.bill.isVatExempt ? `
-    //                                 <tr>
-    //                                     <td><strong>VAT (${printData.bill.vatPercentage}%):</strong></td>
-    //                                     <td class="print-text-right">${((printData.bill.taxableAmount || 0) * (printData.bill.vatPercentage || 0) / 100).toFixed(2)}</td>
-    //                                 </tr>
-    //                             ` : ''}
-    //                             <tr>
-    //                                 <td><strong>Round Off:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.roundOffAmount || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                             <tr>
-    //                                 <td><strong>Grand Total:</strong></td>
-    //                                 <td class="print-text-right">${(printData.bill.totalAmount || 0).toFixed(2)}</td>
-    //                             </tr>
-    //                         </tbody>
-    //                     </table>
-
-    //                     <div class="print-amount-in-words">
-    //                         <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.bill.totalAmount || 0)} Only.
-    //                     </div>
-
-    //                     <div class="print-signature-area">
-    //                         <div class="print-signature-box">Received By</div>
-    //                         <div class="print-signature-box">Prepared By: ${printData.bill.user?.name || ''}</div>
-    //                         <div class="print-signature-box">For: ${printData.currentCompanyName || ''}</div>
-    //                     </div>
-    //                 </div>
-    //             </div>
-    //         `;
-
-    //         const styles = `
-    //             @media print {
-    //                 @page { size: A4; margin: 5mm; }
-    //                 body { font-family: 'Arial Narrow', Arial, sans-serif; font-size: 9pt; line-height: 1.2; color: #000; background: white; margin: 0; padding: 0; }
-    //                 .print-invoice-container { width: 100%; max-width: 210mm; margin: 0 auto; padding: 2mm; }
-    //                 .print-invoice-header { text-align: center; margin-bottom: 3mm; border-bottom: 1px dashed #000; padding-bottom: 2mm; }
-    //                 .print-invoice-title { font-size: 12pt; font-weight: bold; margin: 2mm 0; text-transform: uppercase; }
-    //                 .print-company-name { font-size: 16pt; font-weight: bold; }
-    //                 .print-company-details { font-size: 8pt; font-weight: bold; margin: 1mm 0; }
-    //                 .print-invoice-details { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
-    //                 .print-invoice-table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; border: none; }
-    //                 .print-invoice-table thead { border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
-    //                 .print-invoice-table th { background-color: transparent; border: none; padding: 1mm; text-align: left; font-weight: bold; }
-    //                 .print-invoice-table td { border: none; padding: 1mm; border-bottom: 1px solid #eee; }
-    //                 .print-text-right { text-align: right; }
-    //                 .print-amount-in-words { font-size: 8pt; margin: 2mm 0; padding: 1mm; border: 1px dashed #000; }
-    //                 .print-signature-area { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 8pt; }
-    //                 .print-signature-box { text-align: center; width: 30%; border-top: 1px dashed #000; padding-top: 1mm; font-weight: bold; }
-    //                 .print-totals-table { width: 60%; margin-left: auto; border-collapse: collapse; font-size: 8pt; }
-    //                 .print-totals-table td { padding: 1mm; }
-    //             }
-    //             @media screen { .print-version { display: none; } }
-    //         `;
-
-    //         const printWindow = window.open('', '_blank');
-    //         printWindow.document.write(`
-    //             <html>
-    //                 <head>
-    //                     <title>Cash_Sales_Return_${printData.bill.billNumber}</title>
-    //                     <style>${styles}</style>
-    //                 </head>
-    //                 <body>
-    //                     ${tempDiv.innerHTML}
-    //                     <script>
-    //                         window.onload = function() {
-    //                             setTimeout(function() {
-    //                                 window.print();
-    //                                 window.close();
-    //                             }, 200);
-    //                         };
-    //                     </script>
-    //                 </body>
-    //             </html>
-    //         `);
-    //         printWindow.document.close();
-
-    //         document.body.removeChild(tempDiv);
-    //     } catch (error) {
-    //         console.error('Error fetching print data:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Bill updated but failed to load print data',
-    //             type: 'warning'
-    //         });
-    //     }
-    // };
     const formatTo2Decimal = (num) => {
         if (num === null || num === undefined) return '0.00';
         const rounded = Math.round(num * 100) / 100;
@@ -1301,27 +1305,25 @@ const EditCashSalesReturn = () => {
         return rounded.toString();
     };
 
-    const formatDate = (dateString, format = 'english') => {
-        if (!dateString) return 'N/A';
+    const formatDateForInput = (date) => {
+        if (!date) return '';
+
+        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return date;
+        }
 
         try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return 'N/A';
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return '';
 
-            if (format === 'nepali') {
-                // Convert to Nepali date
-                const nepaliDate = new NepaliDate(date);
-                return nepaliDate.format('YYYY-MM-DD');
-            }
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
 
-            // English format
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
-        } catch (e) {
-            console.error('Date formatting error:', e);
-            return 'N/A';
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return '';
         }
     };
 
@@ -1371,8 +1373,8 @@ const EditCashSalesReturn = () => {
                             <div>
                                 <div><strong>Invoice No:</strong> ${printData.bill.billNumber || ''}</div>
                                 <div><strong>Org. Inv.:</strong> ${printData.bill.originalSalesBillNumber || ''}</div>
-                                <div><strong>Transaction Date:</strong> ${printData.companyDateFormat === 'Nepali' ? formatDate(printData.transactionDateNepali, 'nepali') : formatDate(printData.bill.transactionDate)}</div>
-                                <div><strong>Invoice Issue Date:</strong> ${printData.companyDateFormat === 'Nepali' ? formatDate(printData.nepaliDate, 'nepali') : formatDate(printData.bill.date)}</div>
+                                <div><strong>Trans. Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.transactionDateNepali, 'Nepali') : formatDateForInput(printData.bill.transactionDate)}(${new Date(printData.bill.transactionDate).toLocaleDateString()})</div>
+                                <div><strong>Invoice Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.nepaliDate, 'Nepali') : formatDateForInput(printData.bill.date)}(${new Date(printData.bill.date).toLocaleDateString()})</div>
                                 <div><strong>Payment Mode:</strong> ${printData.bill.paymentMode || ''}</div>
                             </div>
                         </div>
@@ -1847,7 +1849,7 @@ const EditCashSalesReturn = () => {
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
                         <div className="row g-2 mb-3">
-                            {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
+                            {/* {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
@@ -2041,6 +2043,456 @@ const EditCashSalesReturn = () => {
                                         </div>
                                     </div>
                                 </>
+                            )} */}
+
+                            {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
+                                <>
+                                    {/* Nepali Transaction Date */}
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="transactionDateNepali"
+                                                id="transactionDateNepali"
+                                                ref={transactionDateRef}
+                                                autoComplete='off'
+                                                className={`form-control form-control-sm no-date-icon ${dateErrors.transactionDateNepali ? 'is-invalid' : ''}`}
+                                                value={formData.transactionDateNepali}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                                    if (sanitizedValue.length <= 10) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: sanitizedValue
+                                                        }));
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
+                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                            console.log('Converting BS to AD:', sanitizedValue);
+                                                            const adDate = convertBsToAd(sanitizedValue);
+                                                            console.log('Converted AD date:', adDate);
+                                                            if (adDate) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    transactionDateRoman: adDate,
+                                                                    billDate: adDate
+                                                                }));
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    const allowedKeys = [
+                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                        'Home', 'End'
+                                                    ];
+
+                                                    if (!allowedKeys.includes(e.key) &&
+                                                        !/^\d$/.test(e.key) &&
+                                                        e.key !== '/' &&
+                                                        e.key !== '-' &&
+                                                        !e.ctrlKey && !e.metaKey) {
+                                                        e.preventDefault();
+                                                    }
+
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const dateStr = e.target.value.trim();
+
+                                                        if (!dateStr) {
+                                                            const currentDate = getCurrentNepaliDate();
+                                                            setFormData({
+                                                                ...formData,
+                                                                transactionDateNepali: currentDate
+                                                            });
+                                                            setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                            setNotification({
+                                                                show: true,
+                                                                message: 'Date required. Auto-corrected to current date.',
+                                                                type: 'warning',
+                                                                duration: 3000
+                                                            });
+
+                                                            handleKeyDown(e, 'transactionDateNepali');
+                                                        } else if (dateErrors.transactionDateNepali) {
+                                                            e.target.focus();
+                                                        } else {
+                                                            handleKeyDown(e, 'transactionDateNepali');
+                                                        }
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    const dateStr = e.target.value.trim();
+                                                    if (!dateStr) {
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                        return;
+                                                    }
+
+                                                    if (isValidNepaliDate(dateStr)) {
+                                                        const adDate = convertBsToAd(dateStr);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                transactionDateNepali: dateStr,
+                                                                transactionDateRoman: adDate,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                    } else {
+                                                        const currentDate = getCurrentNepaliDate();
+                                                        const adDate = convertBsToAd(currentDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: currentDate,
+                                                            transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                            billDate: adDate || prev.billDate
+                                                        }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    }
+                                                }}
+                                                placeholder="YYYY-MM-DD"
+                                                required
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Transaction Date (BS): <span className="text-danger">*</span>
+                                            </label>
+                                            {dateErrors.transactionDateNepali && (
+                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                                    {dateErrors.transactionDateNepali}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
+                                    {/* <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="transactionDateRoman"
+                                                id="transactionDateRoman"
+                                                className="form-control form-control-sm"
+                                                value={formData.transactionDateRoman || ''}
+                                                readOnly
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%',
+                                                    backgroundColor: '#f8f9fa',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Transaction Date (AD):
+                                            </label>
+                                        </div>
+                                    </div> */}
+
+                                    <input
+                                        type="hidden"
+                                        name="transactionDateRoman"
+                                        id="transactionDateRoman"
+                                        value={formData.transactionDateRoman || ''}
+                                    />
+
+                                    {/* Nepali Return Date (Invoice Date) */}
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="nepaliDate"
+                                                id="nepaliDate"
+                                                autoComplete='off'
+                                                className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
+                                                value={formData.nepaliDate}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                                    if (sanitizedValue.length <= 10) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: sanitizedValue
+                                                        }));
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                        // Auto-convert to AD when we have a complete valid date
+                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                            console.log('Return Date - Converting BS to AD:', sanitizedValue);
+                                                            const adDate = convertBsToAd(sanitizedValue);
+                                                            console.log('Return Date - Converted AD date:', adDate);
+                                                            if (adDate) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    billDate: adDate
+                                                                }));
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    const allowedKeys = [
+                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                        'Home', 'End'
+                                                    ];
+
+                                                    if (!allowedKeys.includes(e.key) &&
+                                                        !/^\d$/.test(e.key) &&
+                                                        e.key !== '/' &&
+                                                        e.key !== '-' &&
+                                                        !e.ctrlKey && !e.metaKey) {
+                                                        e.preventDefault();
+                                                    }
+
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const dateStr = e.target.value.trim();
+
+                                                        if (!dateStr) {
+                                                            const currentDate = getCurrentNepaliDate();
+                                                            setFormData({
+                                                                ...formData,
+                                                                nepaliDate: currentDate
+                                                            });
+                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                            setNotification({
+                                                                show: true,
+                                                                message: 'Date required. Auto-corrected to current date.',
+                                                                type: 'warning',
+                                                                duration: 3000
+                                                            });
+
+                                                            handleKeyDown(e, 'nepaliDate');
+                                                        } else if (dateErrors.nepaliDate) {
+                                                            e.target.focus();
+                                                        } else {
+                                                            handleKeyDown(e, 'nepaliDate');
+                                                        }
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    const dateStr = e.target.value.trim();
+                                                    if (!dateStr) {
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                        return;
+                                                    }
+
+                                                    if (isValidNepaliDate(dateStr)) {
+                                                        const adDate = convertBsToAd(dateStr);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                nepaliDate: dateStr,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                    } else {
+                                                        const currentDate = getCurrentNepaliDate();
+                                                        const adDate = convertBsToAd(currentDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: currentDate,
+                                                            billDate: adDate || prev.billDate
+                                                        }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    }
+                                                }}
+                                                placeholder="YYYY-MM-DD"
+                                                required
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Invoice Date (BS): <span className="text-danger">*</span>
+                                            </label>
+                                            {dateErrors.nepaliDate && (
+                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                                    {dateErrors.nepaliDate}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* AD Return Date (Auto-converted, Read-only) */}
+                                    {/* <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="text"
+                                                name="billDate"
+                                                id="billDate"
+                                                className="form-control form-control-sm"
+                                                value={formData.billDate || ''}
+                                                readOnly
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%',
+                                                    backgroundColor: '#f8f9fa',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Invoice Date (AD):
+                                            </label>
+                                        </div>
+                                    </div> */}
+
+                                    <input
+                                        type="hidden"
+                                        name="billDate"
+                                        id="billDate"
+                                        value={formData.billDate || ''}
+                                    />
+                                </>
+                            ) : (
+                                // English date format section (remains the same as your existing code)
+                                <>
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="date"
+                                                name="transactionDateRoman"
+                                                id="transactionDateRoman"
+                                                className="form-control form-control-sm"
+                                                ref={transactionDateRef}
+                                                value={formData.transactionDateRoman}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setFormData({ ...formData, transactionDateRoman: value });
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleKeyDown(e, 'transactionDateRoman');
+                                                    }
+                                                }}
+                                                max={new Date().toISOString().split('T')[0]}
+                                                required
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Transaction Date: <span className="text-danger">*</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="date"
+                                                name="billDate"
+                                                id="billDate"
+                                                className="form-control form-control-sm"
+                                                value={formData.billDate}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setFormData({ ...formData, billDate: value });
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleKeyDown(e, 'billDate');
+                                                    }
+                                                }}
+                                                max={new Date().toISOString().split('T')[0]}
+                                                required
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label className="position-absolute" style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}>
+                                                Return Date: <span className="text-danger">*</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </>
                             )}
 
                             <div className="col-12 col-md-6 col-lg-2">
@@ -2077,7 +2529,7 @@ const EditCashSalesReturn = () => {
                                             fontWeight: '500'
                                         }}
                                     >
-                                        Return No:
+                                        Inv. No:
                                     </label>
                                 </div>
                             </div>

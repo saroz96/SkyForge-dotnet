@@ -314,8 +314,8 @@ namespace SkyForge.Services.Retailer.StatementServices
 
                 if (request.DateFormat?.ToLower() == "nepali")
                 {
-                    query = query.Where(t => t.nepaliDate.Date >= fromDateOnly &&
-                                            t.nepaliDate.Date <= toDateOnly);
+                    query = query.Where(t => t.Date.Date >= fromDateOnly &&
+                                            t.Date.Date <= toDateOnly);
                 }
                 else
                 {
@@ -328,7 +328,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 var fromDateOnly = request.FromDate.Value.Date;
                 if (request.DateFormat?.ToLower() == "nepali")
                 {
-                    query = query.Where(t => t.nepaliDate.Date >= fromDateOnly);
+                    query = query.Where(t => t.Date.Date >= fromDateOnly);
                 }
                 else
                 {
@@ -340,7 +340,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 var toDateOnly = request.ToDate.Value.Date;
                 if (request.DateFormat?.ToLower() == "nepali")
                 {
-                    query = query.Where(t => t.nepaliDate.Date <= toDateOnly);
+                    query = query.Where(t => t.Date.Date <= toDateOnly);
                 }
                 else
                 {
@@ -406,7 +406,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 // Apply date filter based on format
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    openingBalanceQuery = openingBalanceQuery.Where(t => t.nepaliDate.Date < fromDateOnly);
+                    openingBalanceQuery = openingBalanceQuery.Where(t => t.Date.Date < fromDateOnly);
                 }
                 else
                 {
@@ -421,7 +421,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 // Order by appropriate date field
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    openingBalanceQuery = openingBalanceQuery.OrderBy(t => t.nepaliDate).ThenBy(t => t.CreatedAt);
+                    openingBalanceQuery = openingBalanceQuery.OrderBy(t => t.Date).ThenBy(t => t.CreatedAt);
                 }
                 else
                 {
@@ -477,7 +477,7 @@ namespace SkyForge.Services.Retailer.StatementServices
             if (dateFormat?.ToLower() == "nepali")
             {
                 return await query
-                    .OrderBy(t => t.nepaliDate)
+                    .OrderBy(t => t.Date)
                     .ThenBy(t => t.CreatedAt)
                     .Include(t => t.PaymentAccount)
                     .Include(t => t.ReceiptAccount)
@@ -576,7 +576,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 DateTime? displayDate;
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    displayDate = tx.nepaliDate;
+                    displayDate = tx.Date;
                 }
                 else
                 {
@@ -689,8 +689,8 @@ namespace SkyForge.Services.Retailer.StatementServices
 
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    query = query.Where(t => t.nepaliDate.Date >= fromDateOnly &&
-                                            t.nepaliDate.Date <= toDateOnly);
+                    query = query.Where(t => t.Date.Date >= fromDateOnly &&
+                                            t.Date.Date <= toDateOnly);
                 }
                 else
                 {
@@ -703,7 +703,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 var fromDateOnly = fromDate.Value.Date;
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    query = query.Where(t => t.nepaliDate.Date >= fromDateOnly);
+                    query = query.Where(t => t.Date.Date >= fromDateOnly);
                 }
                 else
                 {
@@ -715,7 +715,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 var toDateOnly = toDate.Value.Date;
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    query = query.Where(t => t.nepaliDate.Date <= toDateOnly);
+                    query = query.Where(t => t.Date.Date <= toDateOnly);
                 }
                 else
                 {
@@ -747,7 +747,7 @@ namespace SkyForge.Services.Retailer.StatementServices
             // Order by appropriate date field
             if (dateFormat?.ToLower() == "nepali")
             {
-                query = query.OrderBy(t => t.nepaliDate);
+                query = query.OrderBy(t => t.Date);
             }
             else
             {
@@ -775,7 +775,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 var toDateOnly = toDate.Value.Date;
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.nepaliDate.Date >= fromDateOnly && t.nepaliDate.Date <= toDateOnly);
+                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date >= fromDateOnly && t.Date.Date <= toDateOnly);
                 }
                 else
                 {
@@ -787,7 +787,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 var fromDateOnly = fromDate.Value.Date;
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.nepaliDate.Date >= fromDateOnly);
+                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date >= fromDateOnly);
                 }
                 else
                 {
@@ -799,7 +799,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 var toDateOnly = toDate.Value.Date;
                 if (dateFormat?.ToLower() == "nepali")
                 {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.nepaliDate.Date <= toDateOnly);
+                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date <= toDateOnly);
                 }
                 else
                 {
@@ -885,7 +885,7 @@ namespace SkyForge.Services.Retailer.StatementServices
 
                 if (!billItemsMap.ContainsKey(tx.BillNumber))
                 {
-                    DateTime displayDate = dateFormat?.ToLower() == "nepali" ? tx.nepaliDate : tx.Date;
+                    DateTime displayDate = dateFormat?.ToLower() == "nepali" ? tx.Date : tx.Date;
 
                     // Get party name
                     string partyName = tx.Account?.Name ??

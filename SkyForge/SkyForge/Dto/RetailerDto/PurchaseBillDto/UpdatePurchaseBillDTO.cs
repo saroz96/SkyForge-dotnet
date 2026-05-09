@@ -68,8 +68,8 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }
 
-        public DateTime NepaliDate { get; set; }
-        public DateTime TransactionDateNepali { get; set; }
+        public string NepaliDate { get; set; }
+        public string TransactionDateNepali { get; set; }
 
         public List<PurchaseBillItemDTO>? Items { get; set; }
     }

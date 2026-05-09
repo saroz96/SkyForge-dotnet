@@ -105,7 +105,7 @@ namespace SkyForge.Controllers.Retailer
                     _logger.LogInformation($"Using active fiscal year: {fiscalYearIdGuid}");
                 }
 
-                // Get company details to determine date format
+                // Get company details to determine date format and address info
                 var company = await _context.Companies
                     .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
 
@@ -160,6 +160,21 @@ namespace SkyForge.Controllers.Retailer
                 // Get ageing report data from service with the asOnDate
                 var reportData = await _ageingReportService.GetAgeingReportAsync(companyIdGuid, fiscalYearIdGuid, asOnDateTime);
 
+                // Create company object with all required fields including address, city, pan
+                var companyInfo = new
+                {
+                    id = company.Id,
+                    name = company.Name,
+                    address = company.Address ?? "",
+                    city = company.City ?? "",
+                    pan = company.Pan ?? "",
+                    phone = company.Phone ?? "",
+                    email = company.Email ?? "",
+                    renewalDate = company.RenewalDate,
+                    dateFormat = company.DateFormat.ToString(),
+                    vatEnabled = company.VatEnabled,
+                };
+
                 return Ok(new
                 {
                     success = true,
@@ -169,13 +184,30 @@ namespace SkyForge.Controllers.Retailer
                         receivableTotals = reportData.ReceivableTotals,
                         payableTotals = reportData.PayableTotals,
                         netTotals = reportData.NetTotals,
-                        company = reportData.Company,
-                        currentCompany = reportData.CurrentCompany,
-                        companyDateFormat = reportData.CompanyDateFormat,
-                        currentFiscalYear = reportData.CurrentFiscalYear,
-                        initialFiscalYear = reportData.InitialFiscalYear,
-                        currentCompanyName = reportData.CurrentCompanyName,
-                        asOnDateUsed = asOnDateTime
+                        company = companyInfo,  // Use the enhanced company object with all fields
+                        currentCompany = companyInfo,  // Use same enhanced object
+                        companyDateFormat = reportData.CompanyDateFormat ?? company.DateFormat.ToString().ToLower(),
+                        currentFiscalYear = reportData.CurrentFiscalYear != null ? new
+                        {
+                            id = reportData.CurrentFiscalYear.Id,
+                            name = reportData.CurrentFiscalYear.Name,
+                            startDate = reportData.CurrentFiscalYear.StartDate?.ToString("yyyy-MM-dd"),
+                            endDate = reportData.CurrentFiscalYear.EndDate?.ToString("yyyy-MM-dd"),
+                            startDateNepali = reportData.CurrentFiscalYear.StartDateNepali,
+                            endDateNepali = reportData.CurrentFiscalYear.EndDateNepali
+                        } : null,
+                        initialFiscalYear = reportData.InitialFiscalYear != null ? new
+                        {
+                            id = reportData.InitialFiscalYear.Id,
+                            name = reportData.InitialFiscalYear.Name,
+                            startDate = reportData.InitialFiscalYear.StartDate?.ToString("yyyy-MM-dd"),
+                            endDate = reportData.InitialFiscalYear.EndDate?.ToString("yyyy-MM-dd"),
+                            startDateNepali = reportData.InitialFiscalYear.StartDateNepali,
+                            endDateNepali = reportData.InitialFiscalYear.EndDateNepali
+                        } : null,
+                        currentCompanyName = reportData.CurrentCompanyName ?? company.Name,
+                        asOnDateUsed = asOnDateTime.ToString("yyyy-MM-dd"),
+                        asOnDateNepali = isNepaliFormat ? asOnDate : asOnDate // Placeholder - implement actual conversion if needed
                     }
                 });
             }
@@ -199,7 +231,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-
         // GET: api/retailer/day-count-aging
         [HttpGet("day-count-aging")]
         public async Task<IActionResult> GetDayCountAging([FromQuery] Guid? accountId = null, [FromQuery] string? asOnDate = null)
@@ -422,6 +453,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-    
+
     }
 }

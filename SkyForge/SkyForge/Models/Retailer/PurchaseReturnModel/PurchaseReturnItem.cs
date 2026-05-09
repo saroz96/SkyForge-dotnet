@@ -129,12 +129,14 @@ namespace SkyForge.Models.Retailer.PurchaseReturnModel
 
         [ForeignKey("PurchaseBillId")]
         public PurchaseBill? PurchaseBill { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
-        [Column("created_at")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Column("date")]
+        public DateTime Date { get; set; }
 
-        [Column("updated_at")]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        [Column("transaction_date")]
+        public DateTime TransactionDate { get; set; }
 
         // Computed properties (for display/calculation)
         [NotMapped]

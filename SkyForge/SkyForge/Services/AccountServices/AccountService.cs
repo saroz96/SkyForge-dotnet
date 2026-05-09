@@ -309,10 +309,8 @@ namespace SkyForge.Services.AccountServices
                     {
                         Amount = 0,
                         Type = "Dr",
-                        Date = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                        NepaliDate = isNepaliDateFormat && !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-            : DateTime.MinValue,
+                        Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
+                        NepaliDate = currentFiscalYear.StartDateNepali,
                         FiscalYearId = currentFiscalYear.Id
                     },
                     OpeningBalanceType = "Dr",
@@ -327,15 +325,13 @@ namespace SkyForge.Services.AccountServices
 
                 if (isNepaliDateFormat)
                 {
-                    cashAccount.Date = DateTime.MinValue;
-                    cashAccount.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                        ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                        : DateTime.MinValue;
+                    cashAccount.Date = currentFiscalYear.StartDate ?? DateTime.MinValue;
+                    cashAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                 }
                 else
                 {
                     cashAccount.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                    cashAccount.NepaliDate = DateTime.MinValue;
+                    cashAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                 }
 
                 cashAccount = await CreateAccountAsync(cashAccount);
@@ -404,10 +400,8 @@ namespace SkyForge.Services.AccountServices
                     {
                         Amount = 0,
                         Type = "Dr",
-                        Date = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                        NepaliDate = isNepaliDateFormat && !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-            : DateTime.MinValue,
+                        Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
+                        NepaliDate = currentFiscalYear.StartDateNepali,
                         FiscalYearId = currentFiscalYear.Id
                     },
                     OpeningBalanceType = "Dr",
@@ -422,15 +416,13 @@ namespace SkyForge.Services.AccountServices
 
                 if (isNepaliDateFormat)
                 {
-                    vatAccount.Date = DateTime.MinValue;
-                    vatAccount.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                        ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                        : DateTime.MinValue;
+                    vatAccount.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                    vatAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                 }
                 else
                 {
                     vatAccount.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                    vatAccount.NepaliDate = DateTime.MinValue;
+                    vatAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                 }
 
                 vatAccount = await CreateAccountAsync(vatAccount);
@@ -475,9 +467,8 @@ namespace SkyForge.Services.AccountServices
                     // Set opening balance date based on fiscal year format
                     if (isNepaliDateFormat)
                     {
-                        account.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
-                            ? DateTime.Parse(fiscalYear.StartDateNepali)
-                            : DateTime.MinValue;
+                        account.Date = fiscalYear.StartDate ?? DateTime.UtcNow;
+                        account.NepaliDate = fiscalYear.StartDateNepali;
                         // Use fiscal year's Nepali start date
                         account.OpeningBalanceDate = DateTime.MinValue; // Placeholder
                         account.OpeningBalanceDateNepali = fiscalYear.StartDateNepali;
@@ -622,10 +613,8 @@ namespace SkyForge.Services.AccountServices
                         {
                             Amount = 0,
                             Type = "Dr",
-                            Date = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                            NepaliDate = isNepaliDateFormat && !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-            : DateTime.MinValue,
+                            Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
+                            NepaliDate = currentFiscalYear.StartDateNepali,
                             FiscalYearId = currentFiscalYear.Id
                         },
                         OpeningBalanceType = "Dr",
@@ -639,15 +628,13 @@ namespace SkyForge.Services.AccountServices
 
                     if (isNepaliDateFormat)
                     {
-                        account.Date = DateTime.MinValue;
-                        account.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-                            ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-                            : DateTime.MinValue;
+                        account.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                        account.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
                     else
                     {
-                        account.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                        account.NepaliDate = DateTime.MinValue;
+                         account.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                        account.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
 
                     await CreateAccountAsync(account);

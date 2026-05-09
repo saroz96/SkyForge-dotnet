@@ -204,220 +204,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         {
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "receipt");
         }
-
-        // public async Task<Receipt> CreateReceiptAsync(CreateReceiptDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
-        // {
-        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
-
-        //     return await executionStrategy.ExecuteAsync(async () =>
-        //     {
-        //         using var transaction = await _context.Database.BeginTransactionAsync();
-
-        //         try
-        //         {
-        //             _logger.LogInformation("CreateReceiptAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
-
-        //             // Validate entries
-        //             if (dto.Entries == null || dto.Entries.Count < 2)
-        //             {
-        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
-        //             }
-
-        //             // Calculate totals and validate
-        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
-        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
-
-        //             if (totalDebit != totalCredit)
-        //             {
-        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
-        //             }
-
-        //             // Identify debit and credit entries
-        //             var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
-        //             var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
-
-        //             if (debitEntry == null || creditEntry == null)
-        //             {
-        //                 throw new ArgumentException("Both debit and credit entries are required");
-        //             }
-
-        //             // Store accounts for setting navigation properties
-        //             var accountCache = new Dictionary<Guid, Account>();
-
-        //             // Verify debit account (Party account - money source)
-        //             var debitAccount = await _context.Accounts
-        //                 .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
-        //             if (debitAccount == null)
-        //             {
-        //                 throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
-        //             }
-        //             accountCache[debitEntry.AccountId] = debitAccount;
-
-        //             // Verify credit account (Receipt account - money destination, e.g., Cash/Bank)
-        //             var creditAccount = await _context.Accounts
-        //                 .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
-        //             if (creditAccount == null)
-        //             {
-        //                 throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
-        //             }
-        //             accountCache[creditEntry.AccountId] = creditAccount;
-
-        //             // Get bill number
-        //             var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "receipt");
-
-        //             // Create receipt master record
-        //             var receipt = new Receipt
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 BillNumber = billNumber,
-        //                 TotalAmount = totalCredit,
-        //                 Date = dto.Date,
-        //                 NepaliDate = dto.NepaliDate,
-        //                 Description = dto.Description,
-        //                 UserId = userId,
-        //                 CompanyId = companyId,
-        //                 FiscalYearId = fiscalYearId,
-        //                 Status = ReceiptStatus.Active,
-        //                 IsActive = true,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-
-        //             await _context.Receipts.AddAsync(receipt);
-
-        //             // Create receipt entries
-        //             var debitReceiptEntry = new ReceiptEntry
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 ReceiptId = receipt.Id,
-        //                 AccountId = debitEntry.AccountId,
-        //                 EntryType = "Debit",
-        //                 Amount = debitEntry.Amount,
-        //                 Description = debitEntry.Description,
-        //                 InstType = debitEntry.InstType,
-        //                 BankAcc = debitEntry.BankAcc,
-        //                 InstNo = debitEntry.InstNo,
-        //                 ReferenceNumber = debitEntry.ReferenceNumber,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-
-        //             var creditReceiptEntry = new ReceiptEntry
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 ReceiptId = receipt.Id,
-        //                 AccountId = creditEntry.AccountId,
-        //                 EntryType = "Credit",
-        //                 Amount = creditEntry.Amount,
-        //                 Description = creditEntry.Description,
-        //                 InstType = creditEntry.InstType,
-        //                 BankAcc = creditEntry.BankAcc,
-        //                 InstNo = creditEntry.InstNo,
-        //                 ReferenceNumber = creditEntry.ReferenceNumber,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-
-        //             await _context.ReceiptEntries.AddRangeAsync(new[] { debitReceiptEntry, creditReceiptEntry });
-
-        //             // Create transactions with opposite account names in PaymentReceiptType
-        //             var transactions = new List<Transaction>();
-
-        //             // 1. DEBIT transaction (Money coming OUT from Party Account)
-        //             decimal previousDebitBalance = 0;
-        //             var lastDebitTransaction = await _context.Transactions
-        //                 .Where(t => t.AccountId == debitEntry.AccountId && t.CompanyId == companyId)
-        //                 .OrderByDescending(t => t.CreatedAt)
-        //                 .FirstOrDefaultAsync();
-        //             if (lastDebitTransaction != null)
-        //             {
-        //                 previousDebitBalance = lastDebitTransaction.Balance ?? 0;
-        //             }
-        //             decimal newDebitBalance = previousDebitBalance - debitEntry.Amount; // Decrease balance for debit in receipt
-
-        //             var debitTransaction = new Transaction
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 ReceiptAccountId = receipt.Id,
-        //                 AccountId = debitEntry.AccountId,
-        //                 Type = TransactionType.Rcpt,
-        //                 DrCrNoteAccountTypes = "Debit",
-        //                 PaymentReceiptType = creditAccount.Name,  // Store the receipt account name (Cash/Bank account)
-        //                 BillNumber = billNumber,
-        //                 InstType = debitEntry.InstType.HasValue
-        //                     ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
-        //                     : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
-        //                 InstNo = debitEntry.InstNo,
-        //                 BankAcc = debitEntry.BankAcc,
-        //                 Debit = debitEntry.Amount,
-        //                 Credit = 0,
-        //                 Balance = newDebitBalance,
-        //                 PaymentMode = PaymentMode.Receipt,
-        //                 Date = receipt.Date,
-        //                 nepaliDate = receipt.NepaliDate,
-        //                 IsActive = true,
-        //                 CompanyId = companyId,
-        //                 FiscalYearId = fiscalYearId,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-        //             transactions.Add(debitTransaction);
-
-        //             // 2. CREDIT transaction (Money coming IN to Receipt Account - Cash/Bank)
-        //             decimal previousCreditBalance = 0;
-        //             var lastCreditTransaction = await _context.Transactions
-        //                 .Where(t => t.AccountId == creditEntry.AccountId && t.CompanyId == companyId)
-        //                 .OrderByDescending(t => t.CreatedAt)
-        //                 .FirstOrDefaultAsync();
-        //             if (lastCreditTransaction != null)
-        //             {
-        //                 previousCreditBalance = lastCreditTransaction.Balance ?? 0;
-        //             }
-        //             decimal newCreditBalance = previousCreditBalance + creditEntry.Amount; // Increase balance for credit in receipt
-
-        //             var creditTransaction = new Transaction
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 ReceiptAccountId = receipt.Id,
-        //                 AccountId = creditEntry.AccountId,
-        //                 Type = TransactionType.Rcpt,
-        //                 DrCrNoteAccountTypes = "Credit",
-        //                 PaymentReceiptType = debitAccount.Name,  // Store the party account name (money source)
-        //                 BillNumber = billNumber,
-        //                 InstType = creditEntry.InstType.HasValue
-        //                     ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
-        //                     : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
-        //                 InstNo = creditEntry.InstNo,
-        //                 BankAcc = creditEntry.BankAcc,
-        //                 Debit = 0,
-        //                 Credit = creditEntry.Amount,
-        //                 Balance = newCreditBalance,
-        //                 PaymentMode = PaymentMode.Receipt,
-        //                 Date = receipt.Date,
-        //                 nepaliDate = receipt.NepaliDate,
-        //                 IsActive = true,
-        //                 CompanyId = companyId,
-        //                 FiscalYearId = fiscalYearId,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-        //             transactions.Add(creditTransaction);
-
-        //             await _context.Transactions.AddRangeAsync(transactions);
-        //             await _context.SaveChangesAsync();
-
-        //             // Commit transaction
-        //             await transaction.CommitAsync();
-
-        //             _logger.LogInformation("Receipt created successfully. ID: {ReceiptId}, BillNumber: {BillNumber}, Amount: {Amount}, From: {FromAccount}, To: {ToAccount}",
-        //                 receipt.Id, receipt.BillNumber, creditEntry.Amount, debitAccount.Name, creditAccount.Name);
-
-        //             return receipt;
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             _logger.LogError(ex, "Error in CreateReceiptAsync for Company: {CompanyId}", companyId);
-        //             await transaction.RollbackAsync();
-        //             throw;
-        //         }
-        //     });
-        // }
-
         public async Task<Receipt> CreateReceiptAsync(CreateReceiptDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -552,7 +338,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         TotalCredit = 0,
                         PaymentMode = PaymentMode.Receipt,
                         Date = receipt.Date,
-                        nepaliDate = receipt.NepaliDate,
+                        NepaliDate = receipt.NepaliDate,
                         IsActive = true,
                         CompanyId = companyId,
                         FiscalYearId = fiscalYearId,
@@ -580,7 +366,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         TotalCredit = creditEntry.Amount,
                         PaymentMode = PaymentMode.Receipt,
                         Date = receipt.Date,
-                        nepaliDate = receipt.NepaliDate,
+                        NepaliDate = receipt.NepaliDate,
                         IsActive = true,
                         CompanyId = companyId,
                         FiscalYearId = fiscalYearId,
@@ -1040,7 +826,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
             {
                 Id = receipt.Id,
                 BillNumber = receipt.BillNumber,
-                Date = isNepaliFormat ? receipt.NepaliDate : receipt.Date,
+                Date = receipt.Date,
                 NepaliDate = receipt.NepaliDate,
                 TotalAmount = receipt.TotalAmount,
                 Description = receipt.Description,
@@ -1070,233 +856,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 ReferenceNumber = e.ReferenceNumber
             }).ToList();
         }
-
-
-        // public async Task<Receipt> UpdateReceiptAsync(Guid id, UpdateReceiptDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
-        // {
-        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
-
-        //     return await executionStrategy.ExecuteAsync(async () =>
-        //     {
-        //         using var transaction = await _context.Database.BeginTransactionAsync();
-
-        //         try
-        //         {
-        //             _logger.LogInformation("=== Starting UpdateReceiptAsync for Receipt ID: {ReceiptId} ===", id);
-
-        //             // Validate entries
-        //             if (dto.Entries == null || dto.Entries.Count < 2)
-        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
-
-        //             // Identify debit and credit entries
-        //             var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
-        //             var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
-
-        //             if (debitEntry == null || creditEntry == null)
-        //                 throw new ArgumentException("Both debit and credit entries are required");
-
-        //             if (debitEntry.Amount != creditEntry.Amount)
-        //                 throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
-
-        //             // Get existing receipt with entries
-        //             var existingReceipt = await _context.Receipts
-        //                 .Include(r => r.ReceiptEntries)
-        //                 .FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId);
-
-        //             if (existingReceipt == null)
-        //                 throw new ArgumentException("Receipt voucher not found");
-
-        //             // Validate accounts exist
-        //             var debitAccount = await _context.Accounts
-        //                 .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
-        //             if (debitAccount == null)
-        //                 throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
-
-        //             var creditAccount = await _context.Accounts
-        //                 .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
-        //             if (creditAccount == null)
-        //                 throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
-
-        //             var company = await _context.Companies.FindAsync(companyId);
-        //             if (company == null)
-        //                 throw new ArgumentException("Company not found");
-
-        //             var fiscalYear = await _context.FiscalYears
-        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
-        //             if (fiscalYear == null)
-        //                 throw new ArgumentException("Fiscal year not found");
-
-        //             // Delete existing transactions
-        //             var existingTransactions = await _context.Transactions
-        //                 .Where(t => t.ReceiptAccountId == id)
-        //                 .ToListAsync();
-
-        //             if (existingTransactions.Any())
-        //             {
-        //                 _context.Transactions.RemoveRange(existingTransactions);
-        //                 _logger.LogInformation("Deleted {Count} existing transactions", existingTransactions.Count);
-        //             }
-
-        //             // Delete existing entries
-        //             if (existingReceipt.ReceiptEntries.Any())
-        //             {
-        //                 _context.ReceiptEntries.RemoveRange(existingReceipt.ReceiptEntries);
-        //                 _logger.LogInformation("Deleted {Count} existing entries", existingReceipt.ReceiptEntries.Count);
-        //             }
-
-        //             await _context.SaveChangesAsync();
-
-        //             // Update receipt properties
-        //             existingReceipt.TotalAmount = debitEntry.Amount;
-        //             existingReceipt.Description = dto.Description;
-        //             existingReceipt.NepaliDate = dto.NepaliDate;
-        //             existingReceipt.Date = dto.Date;
-        //             existingReceipt.UpdatedAt = DateTime.UtcNow;
-
-        //             _context.Receipts.Update(existingReceipt);
-        //             await _context.SaveChangesAsync();
-
-        //             // Create new entries and transactions
-        //             var newEntries = new List<ReceiptEntry>();
-        //             var newTransactions = new List<Transaction>();
-
-        //             // 1. Create DEBIT Receipt Entry and Transaction (Party Account - Money going OUT)
-        //             var debitReceiptEntry = new ReceiptEntry
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 ReceiptId = existingReceipt.Id,
-        //                 AccountId = debitEntry.AccountId,
-        //                 EntryType = "Debit",
-        //                 Amount = debitEntry.Amount,
-        //                 Description = debitEntry.Description,
-        //                 InstType = debitEntry.InstType,
-        //                 BankAcc = debitEntry.BankAcc,
-        //                 InstNo = debitEntry.InstNo,
-        //                 ReferenceNumber = debitEntry.ReferenceNumber,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-        //             newEntries.Add(debitReceiptEntry);
-
-        //             // Calculate balance for debit account (Party Account - Money source)
-        //             decimal previousDebitBalance = 0;
-        //             var lastDebitTransaction = await _context.Transactions
-        //                 .Where(t => t.AccountId == debitEntry.AccountId && t.CompanyId == companyId)
-        //                 .OrderByDescending(t => t.CreatedAt)
-        //                 .FirstOrDefaultAsync();
-        //             if (lastDebitTransaction != null)
-        //                 previousDebitBalance = lastDebitTransaction.Balance ?? 0;
-        //             decimal newDebitBalance = previousDebitBalance - debitEntry.Amount; // Decrease balance for receipt debit
-
-        //             var debitTransaction = new Transaction
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 ReceiptAccountId = existingReceipt.Id,
-        //                 AccountId = debitEntry.AccountId,
-        //                 Type = TransactionType.Rcpt,
-        //                 DrCrNoteAccountTypes = "Debit",
-        //                 PaymentReceiptType = creditAccount.Name,  // Store the receipt account name (Credit account name - Cash/Bank)
-        //                 BillNumber = existingReceipt.BillNumber,
-        //                 InstType = debitEntry.InstType.HasValue
-        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
-        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
-        //                 InstNo = debitEntry.InstNo,
-        //                 BankAcc = debitEntry.BankAcc,
-        //                 Debit = debitEntry.Amount,
-        //                 Credit = 0,
-        //                 Balance = newDebitBalance,
-        //                 PaymentMode = PaymentMode.Receipt,
-        //                 Date = existingReceipt.Date,
-        //                 nepaliDate = existingReceipt.NepaliDate,
-        //                 IsActive = true,
-        //                 CompanyId = companyId,
-        //                 FiscalYearId = fiscalYearId,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-        //             newTransactions.Add(debitTransaction);
-
-        //             // 2. Create CREDIT Receipt Entry and Transaction (Receipt Account - Money coming IN to Cash/Bank)
-        //             var creditReceiptEntry = new ReceiptEntry
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 ReceiptId = existingReceipt.Id,
-        //                 AccountId = creditEntry.AccountId,
-        //                 EntryType = "Credit",
-        //                 Amount = creditEntry.Amount,
-        //                 Description = creditEntry.Description,
-        //                 InstType = creditEntry.InstType,
-        //                 BankAcc = creditEntry.BankAcc,
-        //                 InstNo = creditEntry.InstNo,
-        //                 ReferenceNumber = creditEntry.ReferenceNumber,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-        //             newEntries.Add(creditReceiptEntry);
-
-        //             // Calculate balance for credit account (Receipt Account - Cash/Bank - Money destination)
-        //             decimal previousCreditBalance = 0;
-        //             var lastCreditTransaction = await _context.Transactions
-        //                 .Where(t => t.AccountId == creditEntry.AccountId && t.CompanyId == companyId)
-        //                 .OrderByDescending(t => t.CreatedAt)
-        //                 .FirstOrDefaultAsync();
-        //             if (lastCreditTransaction != null)
-        //                 previousCreditBalance = lastCreditTransaction.Balance ?? 0;
-        //             decimal newCreditBalance = previousCreditBalance + creditEntry.Amount; // Increase balance for receipt credit
-
-        //             var creditTransaction = new Transaction
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 ReceiptAccountId = existingReceipt.Id,
-        //                 AccountId = creditEntry.AccountId,
-        //                 Type = TransactionType.Rcpt,
-        //                 DrCrNoteAccountTypes = "Credit",
-        //                 PaymentReceiptType = debitAccount.Name,  // Store the party account name (Debit account name - money source)
-        //                 BillNumber = existingReceipt.BillNumber,
-        //                 InstType = creditEntry.InstType.HasValue
-        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
-        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
-        //                 InstNo = creditEntry.InstNo,
-        //                 BankAcc = creditEntry.BankAcc,
-        //                 Debit = 0,
-        //                 Credit = creditEntry.Amount,
-        //                 Balance = newCreditBalance,
-        //                 PaymentMode = PaymentMode.Receipt,
-        //                 Date = existingReceipt.Date,
-        //                 nepaliDate = existingReceipt.NepaliDate,
-        //                 IsActive = true,
-        //                 CompanyId = companyId,
-        //                 FiscalYearId = fiscalYearId,
-        //                 CreatedAt = DateTime.UtcNow
-        //             };
-        //             newTransactions.Add(creditTransaction);
-
-        //             // Add all new entries and transactions
-        //             await _context.ReceiptEntries.AddRangeAsync(newEntries);
-        //             await _context.Transactions.AddRangeAsync(newTransactions);
-
-        //             var saveResult = await _context.SaveChangesAsync();
-        //             _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
-
-        //             await transaction.CommitAsync();
-        //             _logger.LogInformation("Transaction committed successfully");
-
-        //             _logger.LogInformation("=== Successfully updated receipt: {ReceiptId} with {EntryCount} entries ===",
-        //                 id, newEntries.Count);
-
-        //             // Return updated receipt with entries
-        //             var updatedReceipt = await _context.Receipts
-        //                 .Include(r => r.ReceiptEntries)
-        //                     .ThenInclude(e => e.Account)
-        //                 .FirstOrDefaultAsync(r => r.Id == id);
-
-        //             return updatedReceipt ?? existingReceipt;
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             _logger.LogError(ex, "Error updating receipt: {ReceiptId}", id);
-        //             await transaction.RollbackAsync();
-        //             throw;
-        //         }
-        //     });
-        // }
 
         public async Task<Receipt> UpdateReceiptAsync(Guid id, UpdateReceiptDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
@@ -1423,7 +982,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         TotalCredit = 0,
                         PaymentMode = PaymentMode.Receipt,
                         Date = existingReceipt.Date,
-                        nepaliDate = existingReceipt.NepaliDate,
+                        NepaliDate = existingReceipt.NepaliDate,
                         IsActive = true,
                         CompanyId = companyId,
                         FiscalYearId = fiscalYearId,
@@ -1467,7 +1026,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         TotalCredit = creditEntry.Amount,
                         PaymentMode = PaymentMode.Receipt,
                         Date = existingReceipt.Date,
-                        nepaliDate = existingReceipt.NepaliDate,
+                        NepaliDate = existingReceipt.NepaliDate,
                         IsActive = true,
                         CompanyId = companyId,
                         FiscalYearId = fiscalYearId,
@@ -1505,6 +1064,201 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 }
             });
         }
+
+        // public async Task<ReceiptsRegisterDataDTO> GetReceiptsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("GetReceiptsRegisterAsync called with companyId: {CompanyId}, fiscalYearId: {FiscalYearId}, fromDate: {FromDate}, toDate: {ToDate}",
+        //             companyId, fiscalYearId, fromDate, toDate);
+
+        //         // Get company information including date format
+        //         var company = await _context.Companies
+        //             .Where(c => c.Id == companyId)
+        //             .Select(c => new CompanyInfoDTO
+        //             {
+        //                 Id = c.Id,
+        //                 Name = c.Name,
+        //                 Address = c.Address,
+        //                 City = c.City,
+        //                 Phone = c.Phone,
+        //                 Pan = c.Pan,
+        //                 RenewalDate = c.RenewalDate,
+        //                 DateFormat = c.DateFormat.ToString(),
+        //                 VatEnabled = c.VatEnabled,
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         // Get today's date in Nepali format
+        //         var today = DateTime.UtcNow;
+        //         var nepaliDate = today.ToString("yyyy-MM-dd");
+
+        //         // Determine if company uses Nepali date format
+        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
+
+        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
+        //             company.DateFormat, isNepaliFormat);
+
+        //         // Get fiscal year
+        //         var fiscalYear = await _context.FiscalYears
+        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
+        //             .Select(f => new FiscalYearDTO
+        //             {
+        //                 Id = f.Id,
+        //                 Name = f.Name,
+        //                 StartDate = f.StartDate,
+        //                 EndDate = f.EndDate,
+        //                 StartDateNepali = f.StartDateNepali,
+        //                 EndDateNepali = f.EndDateNepali,
+        //                 IsActive = f.IsActive,
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         // If no date range provided, return basic info with empty receipts list
+        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
+        //         {
+        //             _logger.LogInformation("No date range provided, returning basic info with empty receipts list");
+        //             return new ReceiptsRegisterDataDTO
+        //             {
+        //                 Company = company,
+        //                 CurrentFiscalYear = fiscalYear,
+        //                 Receipts = new List<ReceiptResponseItemDTO>(),
+        //                 FromDate = fromDate,
+        //                 ToDate = toDate,
+        //                 CurrentCompanyName = company.Name,
+        //                 CompanyDateFormat = company.DateFormat,
+        //                 NepaliDate = nepaliDate,
+        //                 UserPreferences = new UserPreferencesDTO { Theme = "light" }
+        //             };
+        //         }
+
+        //         // Parse dates based on company format
+        //         DateTime startDateTime;
+        //         DateTime endDateTime;
+
+        //         if (isNepaliFormat)
+        //         {
+        //             // For Nepali dates, parse to DateTime
+        //             if (!DateTime.TryParse(fromDate, out startDateTime))
+        //             {
+        //                 _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
+        //                 startDateTime = DateTime.MinValue;
+        //             }
+
+        //             if (!DateTime.TryParse(toDate, out endDateTime))
+        //             {
+        //                 _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
+        //                 endDateTime = DateTime.MaxValue;
+        //             }
+        //         }
+        //         else
+        //         {
+        //             // For English dates, parse normally
+        //             if (!DateTime.TryParse(fromDate, out startDateTime))
+        //             {
+        //                 _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
+        //                 startDateTime = DateTime.MinValue;
+        //             }
+
+        //             if (!DateTime.TryParse(toDate, out endDateTime))
+        //             {
+        //                 _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
+        //                 endDateTime = DateTime.MaxValue;
+        //             }
+        //         }
+
+        //         // Set end date to end of day
+        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
+
+        //         _logger.LogInformation("Searching for receipts between {StartDate} and {EndDate} using {DateFormat} format",
+        //             startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
+
+        //         // Build query with date filter based on company date format
+        //         // var query = _context.Receipts
+        //         //     .Include(r => r.Account)
+        //         //     .Include(r => r.ReceiptAccount)
+        //         //     .Include(r => r.User)
+        //         //     .Include(r => r.Company)
+        //         //     .Include(r => r.FiscalYear)
+        //         //     .Where(r => r.CompanyId == companyId &&
+        //         //                r.FiscalYearId == fiscalYearId);
+
+        //         // Build query with date filter based on company date format
+        //         var query = _context.Receipts
+        //             .Include(r => r.ReceiptEntries)
+        //                 .ThenInclude(e => e.Account)
+        //             .Include(r => r.User)
+        //             .Include(r => r.Company)
+        //             .Include(r => r.FiscalYear)
+        //             .Where(r => r.CompanyId == companyId &&
+        //                        r.FiscalYearId == fiscalYearId);
+
+        //         // Apply date filter based on company's date format
+        //        if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
+        //         {
+        //             // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
+        //             query = query.Where(r => string.Compare(r.NepaliDate, fromDate) >= 0
+        //                                   && string.Compare(r.NepaliDate, toDate) <= 0);
+        //         }
+        //         else
+        //         {
+        //             // Use Date field for filtering
+        //             query = query.Where(r => r.Date >= startDateTime && r.Date <= endDateTime);
+        //             _logger.LogInformation("Using Date field for filtering");
+        //         }
+
+        //         // Log the SQL query (optional - for debugging)
+        //         var sql = query.ToQueryString();
+        //         _logger.LogDebug("SQL Query: {Sql}", sql);
+
+        //         // Get receipts ordered by date and bill number
+        //         var receipts = await query
+        //             .OrderBy(r => r.Date)
+        //             .ThenBy(r => r.BillNumber)
+        //             .ToListAsync();
+
+        //         _logger.LogInformation("Found {Count} receipts matching the criteria", receipts.Count);
+
+        //         // If no receipts found, log sample of all receipts to debug
+        //         if (receipts.Count == 0)
+        //         {
+        //             var sampleReceipts = await _context.Receipts
+        //                 .Where(r => r.CompanyId == companyId)
+        //                 .OrderByDescending(r => r.Date)
+        //                 .Take(5)
+        //                 .Select(r => new { r.Id, r.BillNumber, r.Date, r.NepaliDate })
+        //                 .ToListAsync();
+
+        //             _logger.LogInformation("Sample of recent receipts (Date vs NepaliDate): {SampleReceipts}",
+        //                 string.Join(", ", sampleReceipts.Select(r => $"{r.BillNumber} - Date: {r.Date}, NepaliDate: {r.NepaliDate}")));
+        //         }
+
+        //         // Map to response DTOs
+        //         var receiptDtos = receipts.Select(receipt => MapToResponseItemDTO(receipt, company.DateFormat)).ToList();
+
+        //         return new ReceiptsRegisterDataDTO
+        //         {
+        //             Company = company,
+        //             CurrentFiscalYear = fiscalYear,
+        //             Receipts = receiptDtos,
+        //             FromDate = fromDate,
+        //             ToDate = toDate,
+        //             CurrentCompanyName = company.Name,
+        //             CompanyDateFormat = company.DateFormat,
+        //             NepaliDate = nepaliDate,
+        //             UserPreferences = new UserPreferencesDTO { Theme = "light" }
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error getting receipts register for company {CompanyId}", companyId);
+        //         throw;
+        //     }
+        // }
+
 
         public async Task<ReceiptsRegisterDataDTO> GetReceiptsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
@@ -1576,58 +1330,29 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     };
                 }
 
-                // Parse dates based on company format
+                // Parse dates as AD dates (frontend sends AD dates)
                 DateTime startDateTime;
                 DateTime endDateTime;
 
-                if (isNepaliFormat)
+                if (!DateTime.TryParse(fromDate, out startDateTime))
                 {
-                    // For Nepali dates, parse to DateTime
-                    if (!DateTime.TryParse(fromDate, out startDateTime))
-                    {
-                        _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
-                        startDateTime = DateTime.MinValue;
-                    }
-
-                    if (!DateTime.TryParse(toDate, out endDateTime))
-                    {
-                        _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
-                        endDateTime = DateTime.MaxValue;
-                    }
+                    _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
+                    startDateTime = DateTime.MinValue;
                 }
-                else
-                {
-                    // For English dates, parse normally
-                    if (!DateTime.TryParse(fromDate, out startDateTime))
-                    {
-                        _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
-                        startDateTime = DateTime.MinValue;
-                    }
 
-                    if (!DateTime.TryParse(toDate, out endDateTime))
-                    {
-                        _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
-                        endDateTime = DateTime.MaxValue;
-                    }
+                if (!DateTime.TryParse(toDate, out endDateTime))
+                {
+                    _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
+                    endDateTime = DateTime.MaxValue;
                 }
 
                 // Set end date to end of day
                 endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
 
-                _logger.LogInformation("Searching for receipts between {StartDate} and {EndDate} using {DateFormat} format",
-                    startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
+                _logger.LogInformation("Searching for receipts between {StartDate} and {EndDate} (AD dates)",
+                    startDateTime, endDateTime);
 
-                // Build query with date filter based on company date format
-                // var query = _context.Receipts
-                //     .Include(r => r.Account)
-                //     .Include(r => r.ReceiptAccount)
-                //     .Include(r => r.User)
-                //     .Include(r => r.Company)
-                //     .Include(r => r.FiscalYear)
-                //     .Where(r => r.CompanyId == companyId &&
-                //                r.FiscalYearId == fiscalYearId);
-
-                // Build query with date filter based on company date format
+                // Build query - ALWAYS use Date field (AD dates) for filtering
                 var query = _context.Receipts
                     .Include(r => r.ReceiptEntries)
                         .ThenInclude(e => e.Account)
@@ -1635,23 +1360,11 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     .Include(r => r.Company)
                     .Include(r => r.FiscalYear)
                     .Where(r => r.CompanyId == companyId &&
-                               r.FiscalYearId == fiscalYearId);
+                               r.FiscalYearId == fiscalYearId &&
+                               r.Date >= startDateTime &&
+                               r.Date <= endDateTime);
 
-                // Apply date filter based on company's date format
-                if (isNepaliFormat)
-                {
-                    // Use NepaliDate field for filtering
-                    query = query.Where(r => r.NepaliDate >= startDateTime && r.NepaliDate <= endDateTime);
-                    _logger.LogInformation("Using NepaliDate field for filtering");
-                }
-                else
-                {
-                    // Use Date field for filtering
-                    query = query.Where(r => r.Date >= startDateTime && r.Date <= endDateTime);
-                    _logger.LogInformation("Using Date field for filtering");
-                }
-
-                // Log the SQL query (optional - for debugging)
+                // Log the SQL query for debugging
                 var sql = query.ToQueryString();
                 _logger.LogDebug("SQL Query: {Sql}", sql);
 
@@ -1663,7 +1376,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
 
                 _logger.LogInformation("Found {Count} receipts matching the criteria", receipts.Count);
 
-                // If no receipts found, log sample of all receipts to debug
+                // If no receipts found, log sample for debugging
                 if (receipts.Count == 0)
                 {
                     var sampleReceipts = await _context.Receipts
@@ -1690,7 +1403,8 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     CurrentCompanyName = company.Name,
                     CompanyDateFormat = company.DateFormat,
                     NepaliDate = nepaliDate,
-                    UserPreferences = new UserPreferencesDTO { Theme = "light" }
+                    UserPreferences = new UserPreferencesDTO { Theme = "light" },
+                    IsAdminOrSupervisor = true
                 };
             }
             catch (Exception ex)
@@ -1893,7 +1607,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
             {
                 Id = receipt.Id,
                 BillNumber = receipt.BillNumber,
-                Date = isNepaliFormat ? receipt.NepaliDate : receipt.Date,
+                Date = receipt.Date,
                 NepaliDate = receipt.NepaliDate,
                 // For backward compatibility - show first debit and credit account
                 AccountId = entries.FirstOrDefault(e => e.EntryType == "Credit")?.AccountId ?? Guid.Empty,
@@ -1912,143 +1626,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 CreatedAt = receipt.CreatedAt
             };
         }
-
-        // public async Task<ReceiptPrintDTO> GetReceiptForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetReceiptForPrintAsync called for Receipt ID: {ReceiptId}", id);
-
-        //         // Get company details
-        //         var companyEntity = await _context.Companies
-        //             .FirstOrDefaultAsync(c => c.Id == companyId);
-
-        //         if (companyEntity == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         // Get receipt with all entries and accounts
-        //         var receipt = await _context.Receipts
-        //             .Include(r => r.ReceiptEntries)
-        //                 .ThenInclude(e => e.Account)
-        //             .Include(r => r.User)
-        //             .FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId);
-
-        //         if (receipt == null)
-        //             throw new ArgumentException("Receipt voucher not found");
-
-        //         // Get all receipt entries
-        //         var entries = receipt.ReceiptEntries.ToList();
-
-        //         // Separate debit and credit entries
-        //         var debitEntries = entries.Where(e => e.EntryType == "Debit").ToList();
-        //         var creditEntries = entries.Where(e => e.EntryType == "Credit").ToList();
-
-        //         // Get fiscal year
-        //         var currentFiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 IsActive = f.IsActive
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // Get current company info
-        //         var currentCompany = new CompanyPrintInfoDTO
-        //         {
-        //             Id = companyEntity.Id,
-        //             Name = companyEntity.Name,
-        //             Phone = companyEntity.Phone,
-        //             Pan = companyEntity.Pan,
-        //             Address = companyEntity.Address,
-        //         };
-
-        //         // Get user info
-        //         var user = await _context.Users
-        //             .Include(u => u.UserRoles)
-        //                 .ThenInclude(ur => ur.Role)
-        //             .FirstOrDefaultAsync(u => u.Id == userId);
-
-        //         bool isAdminOrSupervisor = user?.IsAdmin == true ||
-        //                                   (user?.UserRoles?.Any(ur => ur.Role?.Name == "Supervisor") ?? false);
-
-        //         // Map to print DTO
-        //         var response = new ReceiptPrintDTO
-        //         {
-        //             Company = new CompanyPrintDTO
-        //             {
-        //                 Id = companyEntity.Id,
-        //                 DateFormat = companyEntity.DateFormat.ToString(),
-        //                 FiscalYear = null
-        //             },
-        //             CurrentFiscalYear = currentFiscalYear,
-        //             Receipt = new ReceiptPrintReceiptDTO
-        //             {
-        //                 Id = receipt.Id,
-        //                 BillNumber = receipt.BillNumber,
-        //                 Date = receipt.Date,
-        //                 NepaliDate = receipt.NepaliDate,
-        //                 TotalAmount = receipt.TotalAmount,
-        //                 Description = receipt.Description,
-        //                 Status = receipt.Status.ToString(),
-        //                 CreatedAt = receipt.CreatedAt,
-        //                 UpdatedAt = receipt.UpdatedAt,
-        //                 User = receipt.User != null ? new UserPrintDTO
-        //                 {
-        //                     Id = receipt.User.Id,
-        //                     Name = receipt.User.Name,
-        //                     Role = receipt.User.UserRoles?
-        //                         .FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
-        //                 } : null
-        //             },
-        //             DebitEntries = debitEntries.Select(e => new ReceiptEntryPrintDTO
-        //             {
-        //                 Id = e.Id,
-        //                 AccountId = e.AccountId,
-        //                 AccountName = e.Account?.Name ?? string.Empty,
-        //                 Amount = e.Amount,
-        //                 Description = e.Description,
-        //                 InstType = e.InstType?.ToString() ?? "N/A",
-        //                 BankAcc = e.BankAcc,
-        //                 InstNo = e.InstNo,
-        //                 ReferenceNumber = e.ReferenceNumber
-        //             }).ToList(),
-        //             CreditEntries = creditEntries.Select(e => new ReceiptEntryPrintDTO
-        //             {
-        //                 Id = e.Id,
-        //                 AccountId = e.AccountId,
-        //                 AccountName = e.Account?.Name ?? string.Empty,
-        //                 Amount = e.Amount,
-        //                 Description = e.Description,
-        //                 ReferenceNumber = e.ReferenceNumber
-        //             }).ToList(),
-        //             CurrentCompanyName = currentCompany.Name ?? string.Empty,
-        //             CurrentCompany = currentCompany,
-        //             NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-        //             EnglishDate = DateTime.UtcNow,
-        //             CompanyDateFormat = companyEntity.DateFormat?.ToString().ToLower() ?? "english",
-        //             User = new UserPrintDTO
-        //             {
-        //                 Id = userId,
-        //                 Name = user?.Name ?? string.Empty,
-        //                 IsAdmin = user?.IsAdmin ?? false,
-        //                 Role = user?.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User"
-        //             },
-        //             IsAdminOrSupervisor = isAdminOrSupervisor
-        //         };
-
-        //         return response;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting receipt for print: {ReceiptId}", id);
-        //         throw;
-        //     }
-        // }
-
         public async Task<ReceiptPrintDTO> GetReceiptForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId)
         {
             try
@@ -2148,7 +1725,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         Id = receipt.Id,
                         BillNumber = receipt.BillNumber,
                         // FIX: Return the correct date based on company format
-                        Date = isNepaliFormat ? receipt.NepaliDate : receipt.Date,
+                        Date = receipt.Date,
                         NepaliDate = receipt.NepaliDate,
                         TotalAmount = receipt.TotalAmount,
                         Description = receipt.Description,

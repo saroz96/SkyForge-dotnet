@@ -89,9 +89,7 @@ namespace SkyForge.Models.Retailer.StockAdjustmentModel
 
         // Collection Navigation Property
         public virtual ICollection<StockAdjustmentItem> Items { get; set; } = new List<StockAdjustmentItem>();
-
-        [Column("nepali_date")]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Column("date")]
         public DateTime Date { get; set; } = DateTime.UtcNow;

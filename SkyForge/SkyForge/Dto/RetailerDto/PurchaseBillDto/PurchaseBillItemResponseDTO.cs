@@ -45,9 +45,10 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public decimal CalculatedAltPuPrice { get; set; }
         public decimal ItemTotal => Quantity * PuPrice;
         public decimal ItemTotalWithDiscount => ItemTotal - DiscountAmountPerItem;
+        public DateTime Date { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
-        public DateTime CreatedAt { get; set; }
-
-        public DateTime UpdatedAt { get; set; }
     }
 }

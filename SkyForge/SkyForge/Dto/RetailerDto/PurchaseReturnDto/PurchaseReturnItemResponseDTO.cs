@@ -49,8 +49,9 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public decimal? CalculatedAltPuPrice { get; set; }
         public decimal? ItemTotal { get; set; }
         public decimal? VatAmount => VatStatus == "vatable" && ItemTotal.HasValue ? ItemTotal * 0.13m : 0; // Assuming 13% VAT
-
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
+        public DateTime Date { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
     }
 }

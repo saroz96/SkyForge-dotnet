@@ -88,11 +88,14 @@ namespace SkyForge.Models.Retailer.SalesReturnModel
         [StringLength(100)]
         public string? UniqueUuid { get; set; }
 
-        [Column("created_at")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
-        [Column("updated_at")]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        [Column("date")]
+        public DateTime Date { get; set; }
+
+        [Column("transaction_date")]
+        public DateTime TransactionDate { get; set; }
 
         // Calculated properties
         [NotMapped]

@@ -26,6 +26,8 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public string PartyBillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public UserInfoDTO? User { get; set; }
     }
     public class PurchaseReturnResponseDTO
@@ -76,12 +78,10 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public decimal? VatPercentage { get; set; }
         public decimal? TotalAmount { get; set; }
         public string? PaymentMode { get; set; } = string.Empty;
-        public DateTime nepaliDate { get; set; }
         public DateTime Date { get; set; }
-        public DateTime transactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public UserInfoDTO? User { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
     }
 }

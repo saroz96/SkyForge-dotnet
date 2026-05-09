@@ -22,7 +22,7 @@ namespace SkyForge.Dto.RetailerDto.ItemsLedgerDto
     public class LedgerEntryDTO
     {
         public DateTime Date { get; set; }
-        public DateTime nepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public Guid TransactionId { get; set; }
         public string PartyName { get; set; } = string.Empty;
         public string BillNumber { get; set; } = string.Empty;

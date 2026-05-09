@@ -26,11 +26,10 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public List<SalesBillItemDTO> Items { get; set; }
         public decimal? VatPercentage { get; set; }
 
-        public DateTime NepaliDate { get; set; }
         public DateTime Date { get; set; }
-
-        public DateTime TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public string IsVatExempt { get; set; } // "true", "false", or "all"
         public decimal? DiscountPercentage { get; set; }
         public decimal? DiscountAmount { get; set; }

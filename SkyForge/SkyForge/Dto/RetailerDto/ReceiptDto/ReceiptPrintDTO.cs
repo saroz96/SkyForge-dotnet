@@ -24,7 +24,7 @@ namespace SkyForge.Dto.RetailerDto.ReceiptDto
         public Guid Id { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public decimal TotalAmount { get; set; }
         public string? Description { get; set; }
         public string Status { get; set; } = string.Empty;

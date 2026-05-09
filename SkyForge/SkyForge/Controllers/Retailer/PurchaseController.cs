@@ -72,20 +72,20 @@ namespace SkyForge.Controllers.Retailer
                 if (isNepaliFormat)
                 {
                     // For Nepali format, order by nepaliDate descending (this is the Nepali date field)
-                    orderedQuery = query.OrderByDescending(p => p.nepaliDate)
-                                       .ThenByDescending(p => p.CreatedAt);
+                    orderedQuery = query.OrderByDescending(p => p.NepaliDate)
+                                       .ThenByDescending(p => p.BillNumber);
                     _logger.LogInformation("Ordering by Nepali date (nepaliDate field)");
                 }
                 else
                 {
                     // For English format, order by Date descending
                     orderedQuery = query.OrderByDescending(p => p.Date)
-                                       .ThenByDescending(p => p.CreatedAt);
+                                       .ThenByDescending(p => p.BillNumber);
                     _logger.LogInformation("Ordering by English date (Date field)");
                 }
 
                 var lastPurchase = await orderedQuery
-                    .Select(p => new { p.Date, p.nepaliDate, p.TransactionDate, p.transactionDateNepali, p.BillNumber })
+                    .Select(p => new { p.Date, p.NepaliDate, p.TransactionDate, p.TransactionDateNepali, p.BillNumber })
                     .FirstOrDefaultAsync();
 
                 if (lastPurchase == null)
@@ -114,14 +114,14 @@ namespace SkyForge.Controllers.Retailer
                 if (lastPurchase.Date != null)
                     dateString = lastPurchase.Date.ToString("yyyy-MM-dd");
 
-                if (lastPurchase.nepaliDate != null)
-                    nepaliDateString = lastPurchase.nepaliDate.ToString("yyyy-MM-dd");
+                if (lastPurchase.NepaliDate != null)
+                    nepaliDateString = lastPurchase.NepaliDate;
 
                 if (lastPurchase.TransactionDate != null)
                     transactionDateString = lastPurchase.TransactionDate.ToString("yyyy-MM-dd");
 
-                if (lastPurchase.transactionDateNepali != null)
-                    transactionDateNepaliString = lastPurchase.transactionDateNepali.ToString("yyyy-MM-dd");
+                if (lastPurchase.TransactionDateNepali != null)
+                    transactionDateNepaliString = lastPurchase.TransactionDateNepali;
 
                 _logger.LogInformation($"Last purchase date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastPurchase.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 
@@ -550,10 +550,10 @@ namespace SkyForge.Controllers.Retailer
                     string formattedDate = "";
                     if (existingBill?.Date != null)
                     {
-                        if (isNepaliFormat && existingBill.nepaliDate != null)
+                        if (isNepaliFormat && existingBill.NepaliDate != null)
                         {
                             // Use Nepali date if available and format is Nepali
-                            formattedDate = existingBill.nepaliDate.ToString("yyyy-MM-dd");
+                            formattedDate = existingBill.NepaliDate;
                         }
                         else
                         {

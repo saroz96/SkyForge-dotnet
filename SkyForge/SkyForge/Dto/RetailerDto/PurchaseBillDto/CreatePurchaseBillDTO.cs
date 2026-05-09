@@ -65,12 +65,12 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
 
         [StringLength(50)]
         public string? PaymentMode { get; set; }
-
-        public DateTime NepaliDate { get; set; }
         public DateTime Date { get; set; }
-
-        public DateTime TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
+
+
     }
 
     public class PurchaseEntryDataDTO

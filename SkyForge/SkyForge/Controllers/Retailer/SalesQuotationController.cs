@@ -70,9 +70,9 @@ namespace SkyForge.Controllers.RetailerControllers
                 if (isNepaliFormat)
                 {
                     // For Nepali format, order by nepaliDate descending (this is the Nepali date field)
-                    orderedQuery = query.OrderByDescending(p => p.nepaliDate)
+                    orderedQuery = query.OrderByDescending(p => p.NepaliDate)
                                        .ThenByDescending(p => p.CreatedAt);
-                    _logger.LogInformation("Ordering by Nepali date (nepaliDate field)");
+                    _logger.LogInformation("Ordering by Nepali date (NepaliDate field)");
                 }
                 else
                 {
@@ -83,7 +83,7 @@ namespace SkyForge.Controllers.RetailerControllers
                 }
 
                 var lastSalesQuotation = await orderedQuery
-                    .Select(p => new { p.Date, p.nepaliDate, p.TransactionDate, p.transactionDateNepali, p.BillNumber })
+                    .Select(p => new { p.Date, p.NepaliDate, p.TransactionDate, p.TransactionDateNepali, p.BillNumber })
                     .FirstOrDefaultAsync();
 
                 if (lastSalesQuotation == null)
@@ -112,14 +112,14 @@ namespace SkyForge.Controllers.RetailerControllers
                 if (lastSalesQuotation.Date != null)
                     dateString = lastSalesQuotation.Date.ToString("yyyy-MM-dd");
 
-                if (lastSalesQuotation.nepaliDate != null)
-                    nepaliDateString = lastSalesQuotation.nepaliDate.ToString("yyyy-MM-dd");
+                if (lastSalesQuotation.NepaliDate != null)
+                    nepaliDateString = lastSalesQuotation.NepaliDate;
 
                 if (lastSalesQuotation.TransactionDate != null)
                     transactionDateString = lastSalesQuotation.TransactionDate.ToString("yyyy-MM-dd");
 
-                if (lastSalesQuotation.transactionDateNepali != null)
-                    transactionDateNepaliString = lastSalesQuotation.transactionDateNepali.ToString("yyyy-MM-dd");
+                if (lastSalesQuotation.TransactionDateNepali != null)
+                    transactionDateNepaliString = lastSalesQuotation.TransactionDateNepali;
 
                 _logger.LogInformation($"Last purchase date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastSalesQuotation.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 

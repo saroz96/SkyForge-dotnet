@@ -33,8 +33,8 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public string? PaymentMode { get; set; }
         public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }
-        public string NepaliDate { get; set; } = string.Empty;
-        public string TransactionDateNepali { get; set; } = string.Empty;
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         // Financial fields
         public decimal SubTotal { get; set; }

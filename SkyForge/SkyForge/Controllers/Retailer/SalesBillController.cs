@@ -73,20 +73,20 @@ namespace SkyForge.Controllers.Retailer
                 if (isNepaliFormat)
                 {
                     // For Nepali format, order by nepaliDate descending (this is the Nepali date field)
-                    orderedQuery = query.OrderByDescending(p => p.nepaliDate)
-                                       .ThenByDescending(p => p.CreatedAt);
+                    orderedQuery = query.OrderByDescending(p => p.NepaliDate)
+                                       .ThenByDescending(p => p.BillNumber);
                     _logger.LogInformation("Ordering by Nepali date (nepaliDate field)");
                 }
                 else
                 {
                     // For English format, order by Date descending
                     orderedQuery = query.OrderByDescending(p => p.Date)
-                                       .ThenByDescending(p => p.CreatedAt);
+                                       .ThenByDescending(p => p.BillNumber);
                     _logger.LogInformation("Ordering by English date (Date field)");
                 }
 
                 var lastSales = await orderedQuery
-                    .Select(p => new { p.Date, p.nepaliDate, p.TransactionDate, p.transactionDateNepali, p.BillNumber })
+                    .Select(p => new { p.Date, p.NepaliDate, p.TransactionDate, p.TransactionDateNepali, p.BillNumber })
                     .FirstOrDefaultAsync();
 
                 if (lastSales == null)
@@ -115,14 +115,14 @@ namespace SkyForge.Controllers.Retailer
                 if (lastSales.Date != null)
                     dateString = lastSales.Date.ToString("yyyy-MM-dd");
 
-                if (lastSales.nepaliDate != null)
-                    nepaliDateString = lastSales.nepaliDate.ToString("yyyy-MM-dd");
+                if (lastSales.NepaliDate != null)
+                    nepaliDateString = lastSales.NepaliDate;
 
                 if (lastSales.TransactionDate != null)
                     transactionDateString = lastSales.TransactionDate.ToString("yyyy-MM-dd");
 
-                if (lastSales.transactionDateNepali != null)
-                    transactionDateNepaliString = lastSales.transactionDateNepali.ToString("yyyy-MM-dd");
+                if (lastSales.TransactionDateNepali != null)
+                    transactionDateNepaliString = lastSales.TransactionDateNepali;
 
                 _logger.LogInformation($"Last purchase date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastSales.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 
@@ -3730,9 +3730,11 @@ namespace SkyForge.Controllers.Retailer
                                 sb.FiscalYearId == fiscalYearIdGuid);
 
                 // Apply date filter based on company's date format
-                if (isNepaliFormat)
+                if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
                 {
-                    query = query.Where(sb => sb.nepaliDate >= startDateTime && sb.nepaliDate <= endDateTime);
+                    // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
+                    query = query.Where(sb => string.Compare(sb.NepaliDate, fromDate) >= 0
+                                          && string.Compare(sb.NepaliDate, toDate) <= 0);
                 }
                 else
                 {
@@ -3759,7 +3761,7 @@ namespace SkyForge.Controllers.Retailer
                         {
                             BillNumber = bill.BillNumber,
                             Date = bill.Date,
-                            NepaliDate = bill.nepaliDate,
+                            NepaliDate = bill.NepaliDate,
                             AccountName = bill.Account.Name ?? "",
                             PanNumber = bill.Account.Pan ?? "",
                             TotalAmount = bill.TotalAmount,
@@ -3777,7 +3779,7 @@ namespace SkyForge.Controllers.Retailer
                         {
                             BillNumber = bill.BillNumber,
                             Date = bill.Date,
-                            NepaliDate = bill.nepaliDate,
+                            NepaliDate = bill.NepaliDate,
                             AccountName = bill.CashAccount ?? "Cash Sale",
                             PanNumber = bill.CashAccountPan ?? "",
                             TotalAmount = bill.TotalAmount,

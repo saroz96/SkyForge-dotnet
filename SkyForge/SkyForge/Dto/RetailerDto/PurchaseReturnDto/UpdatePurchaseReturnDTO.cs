@@ -38,11 +38,10 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         [Required]
         public string PaymentMode { get; set; } = string.Empty;
 
-        // Date fields based on company format
-        public DateTime Date { get; set; }  // English date
-        public DateTime NepaliDate { get; set; }  // Nepali date
-        public DateTime TransactionDate { get; set; }  // English transaction date
-        public DateTime TransactionDateNepali { get; set; }  // Nepali transaction date
+        public DateTime Date { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
 
         public bool Print { get; set; }
     }

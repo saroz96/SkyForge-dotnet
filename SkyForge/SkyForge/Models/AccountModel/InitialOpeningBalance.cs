@@ -28,8 +28,7 @@ namespace SkyForge.Models.AccountModel
 
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        [Column("Nepali_Date")]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         public Guid AccountId { get; set; }
 

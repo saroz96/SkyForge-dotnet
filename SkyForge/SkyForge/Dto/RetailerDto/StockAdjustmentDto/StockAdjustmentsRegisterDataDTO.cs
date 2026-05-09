@@ -22,7 +22,7 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
     public class StockAdjustmentItemDetailDTO
     {
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public Guid ItemId { get; set; }
         public string ItemName { get; set; } = string.Empty;

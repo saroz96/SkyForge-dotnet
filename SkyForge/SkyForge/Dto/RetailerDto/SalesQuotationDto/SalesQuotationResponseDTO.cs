@@ -54,9 +54,9 @@ namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
         public string? Description { get; set; }
 
         // Dates
-        public DateTime nepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public DateTime Date { get; set; }
-        public DateTime transactionDateNepali { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public DateTime TransactionDate { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

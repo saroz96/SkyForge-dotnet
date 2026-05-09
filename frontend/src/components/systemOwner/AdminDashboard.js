@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Dashboard from './pages/Dashboard';
+import QuikCard from './pages/QuikCard';
 // import '../../App.css'; // Make sure to import your CSS
 import Sidebar from './layout/Sidebar';
 
@@ -50,7 +50,7 @@ const AdminDashboard = () => {
       />
       
       <div className={`main-content ${!sidebarCollapsed && !isMobile ? 'with-sidebar' : ''} ${isMobile ? 'mobile-view' : ''}`}>
-        <Dashboard onMenuClick={handleMenuClick} />
+        <QuikCard onMenuClick={handleMenuClick} />
       </div>
     </div>
   );

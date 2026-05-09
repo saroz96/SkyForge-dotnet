@@ -73,8 +73,8 @@ namespace SkyForge.Controllers.Retailer
                 if (isNepaliFormat)
                 {
                     // For Nepali format, order by nepaliDate descending (this is the Nepali date field)
-                    orderedQuery = query.OrderByDescending(p => p.nepaliDate)
-                                       .ThenByDescending(p => p.CreatedAt);
+                    orderedQuery = query.OrderByDescending(p => p.NepaliDate)
+                                       .ThenByDescending(p => p.BillNumber);
                     _logger.LogInformation("Ordering by Nepali date (nepaliDate field)");
                 }
                 else
@@ -86,7 +86,7 @@ namespace SkyForge.Controllers.Retailer
                 }
 
                 var lastPurchaseReturn = await orderedQuery
-                    .Select(p => new { p.Date, p.nepaliDate, p.TransactionDate, p.transactionDateNepali, p.BillNumber })
+                    .Select(p => new { p.Date, p.NepaliDate, p.TransactionDate, p.TransactionDateNepali, p.BillNumber })
                     .FirstOrDefaultAsync();
 
                 if (lastPurchaseReturn == null)
@@ -115,14 +115,14 @@ namespace SkyForge.Controllers.Retailer
                 if (lastPurchaseReturn.Date != null)
                     dateString = lastPurchaseReturn.Date.ToString("yyyy-MM-dd");
 
-                if (lastPurchaseReturn.nepaliDate != null)
-                    nepaliDateString = lastPurchaseReturn.nepaliDate.ToString("yyyy-MM-dd");
+                if (lastPurchaseReturn.NepaliDate != null)
+                    nepaliDateString = lastPurchaseReturn.NepaliDate;
 
                 if (lastPurchaseReturn.TransactionDate != null)
                     transactionDateString = lastPurchaseReturn.TransactionDate.ToString("yyyy-MM-dd");
 
-                if (lastPurchaseReturn.transactionDateNepali != null)
-                    transactionDateNepaliString = lastPurchaseReturn.transactionDateNepali.ToString("yyyy-MM-dd");
+                if (lastPurchaseReturn.TransactionDateNepali != null)
+                    transactionDateNepaliString = lastPurchaseReturn.TransactionDateNepali;
 
                 _logger.LogInformation($"Last purchase date found: Date={dateString}, NepaliDate={nepaliDateString}, Bill={lastPurchaseReturn.BillNumber}, IsNepaliFormat={isNepaliFormat}");
 

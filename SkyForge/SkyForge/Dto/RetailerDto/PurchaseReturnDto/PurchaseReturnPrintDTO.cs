@@ -13,11 +13,10 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public decimal? LastBalance { get; set; }
         public string BalanceLabel { get; set; } = string.Empty;
         public string PaymentMode { get; set; } = string.Empty;
-        public string NepaliDate { get; set; } = string.Empty;
-        public string TransactionDateNepali { get; set; } = string.Empty;
-
-        public DateTime EnglishDate { get; set; }
-
+        public DateTime Date { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public string CompanyDateFormat { get; set; } = string.Empty;
         public UserPrintDTO User { get; set; } = new();
         public bool IsAdminOrSupervisor { get; set; }
@@ -33,10 +32,9 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
         public string? PaymentMode { get; set; }
 
         public DateTime Date { get; set; }
-
         public DateTime TransactionDate { get; set; }
-        public string NepaliDate { get; set; } = string.Empty;
-        public string TransactionDateNepali { get; set; } = string.Empty;
+        public string? NepaliDate { get; set; }
+        public string? TransactionDateNepali { get; set; }
         public decimal? SubTotal { get; set; }
         public decimal? NonVatPurchaseReturn { get; set; }
         public decimal? TaxableAmount { get; set; }

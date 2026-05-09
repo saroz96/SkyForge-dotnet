@@ -14,7 +14,9 @@ import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import ProductModal from '../dashboard/modals/ProductModal';
-import NepaliDate from 'nepali-date-converter';
+// import NepaliDate from 'nepali-date-converter';
+import NepaliDate from 'nepali-datetime';
+
 import * as XLSX from 'xlsx';
 
 const Items = () => {

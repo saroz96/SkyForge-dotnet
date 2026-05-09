@@ -25,9 +25,7 @@ namespace SkyForge.Models.Retailer.PaymentModel
 
         [Column("date")]
         public DateTime Date { get; set; }
-
-        [Column("nepali_date")]
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [StringLength(500)]
         public string? Description { get; set; }

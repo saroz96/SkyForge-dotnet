@@ -284,7 +284,6 @@ namespace SkyForge.Controllers
             }
         }
 
-        // Add this method to generate JWT with company info
         private string GenerateJwtTokenWithCompany(User user, Role? primaryRole = null, Company? company = null)
         {
             var claims = new List<Claim>
