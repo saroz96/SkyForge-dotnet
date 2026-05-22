@@ -19,7 +19,7 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
         return () => {
             locationService.stopWatching();
         };
-    }, []);
+    }, [initializeLocation]);
 
     const initializeLocation = async () => {
         try {
@@ -38,7 +38,7 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
                 
                 if (status === 'granted' || status === 'timeout') {
                     // Start watching location
-                    const unsubscribe = locationService.subscribe((update) => {
+                    locationService.subscribe((update) => {
                         if (update && update.type === 'error') {
                             setError(update.error);
                         } else if (update && update.lat) {
@@ -94,7 +94,7 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
             
             if (status === 'granted' || status === 'timeout') {
                 // Start watching
-                const unsubscribe = locationService.subscribe((update) => {
+                locationService.subscribe((update) => {
                     if (update && update.type === 'error') {
                         setError(update.error);
                     } else if (update && update.lat) {

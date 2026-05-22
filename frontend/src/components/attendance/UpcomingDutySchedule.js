@@ -1,23 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Card, 
-    Button, 
-    Alert, 
-    Spinner,
-    Badge,
-    Table,
-    Row,
-    Col
-} from 'react-bootstrap';
-import { 
-    FaCalendar, 
-    FaMapMarkerAlt, 
-    FaEye,
-    FaClock,
-    FaCalendarDay,
-    FaList,
-    FaChevronRight
-} from 'react-icons/fa';
+import { Card, Spinner,} from 'react-bootstrap';
+import { FaCalendar, } from 'react-icons/fa';
 import axios from 'axios';
 
 // Component to show user's upcoming schedule in the dashboard

@@ -9,7 +9,6 @@ import {
     Alert,
     Badge,
     Spinner,
-    ListGroup,
     InputGroup
 } from 'react-bootstrap';
 import {
@@ -47,30 +46,7 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
         if (company) {
             fetchOfficeLocations();
         }
-    }, [company]);
-
-    // const fetchOfficeLocations = async () => {
-    //     if (!company) return;
-
-    //     setLoading(true);
-    //     try {
-    //         const token = localStorage.getItem('token');
-    //         const response = await axios.get('/api/attendance/company', {
-    //             params: { companyId: company._id },
-    //             headers: { Authorization: `Bearer ${token}` }
-    //         });
-
-    //         if (response.data.success) {
-    //             const officeLocations = response.data.company?.attendanceSettings?.officeLocations || [];
-    //             setLocations(officeLocations);
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching office locations:', error);
-    //         setError('Failed to load office locations');
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
+    }, [company, fetchOfficeLocations]);
 
     const fetchOfficeLocations = async () => {
         if (!company) return;
