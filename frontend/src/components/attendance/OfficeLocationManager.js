@@ -48,7 +48,7 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
         }
     }, [company, fetchOfficeLocations]);
 
-    const fetchOfficeLocations = async () => {
+    const fetchOfficeLocations = useCallback(async () => {
         if (!company) return;
 
         setLoading(true);
@@ -93,7 +93,7 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [company]);
 
     const getCurrentLocation = () => {
         setMapLoading(true);

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaMapMarkerAlt, FaShieldAlt, FaCompressAlt } from 'react-icons/fa';
 import locationService from '../services/locationService';
@@ -21,7 +21,7 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
         };
     }, [initializeLocation]);
 
-    const initializeLocation = async () => {
+    const initializeLocation = useCallback(async () => {
         try {
             // Check if geolocation is available
             if (!locationService.isAvailable()) {
@@ -84,7 +84,7 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
         } finally {
             setIsInitialized(true);
         }
-    };
+    }, [onLocationUpdate]);
 
     const handleAllowLocation = async () => {
         try {
