@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SkyForge")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1da361556954bc50b9482c7bbaa4e33b2de44559")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c652936bacea24a6cb8e3c7057a2ad67bae66ef3")]
 [assembly: System.Reflection.AssemblyProductAttribute("SkyForge")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SkyForge")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
