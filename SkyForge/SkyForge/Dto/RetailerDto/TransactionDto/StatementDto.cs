@@ -88,7 +88,7 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
     public class StatementEntryDTO
     {
         public DateTime? Date { get; set; }
-        public DateTime? NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public string? Type { get; set; }
         public string? BillNumber { get; set; }
         public string? PaymentMode { get; set; }
@@ -148,7 +148,7 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
     public class ItemwiseStatementDTO
     {
         public DateTime Date { get; set; }
-        public DateTime NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
         public string BillNumber { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public string PaymentMode { get; set; } = string.Empty;

@@ -55,7 +55,7 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
 
         [Required]
         [StringLength(20)]
-        [RegularExpression("^(all|vatable|vatExempt)$")]
+        [RegularExpression("^(all|13|vatExempt)$")]
         public string VatStatus { get; set; } = string.Empty;
 
         [Range(0, double.MaxValue)]
@@ -77,6 +77,8 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public string? Currency { get; set; }
         public Guid? StoreId { get; set; }
         public Guid? RackId { get; set; }
+        public string? NepaliDate { get; set; }
+        public DateTime Date { get; set; }
 
         [Required]
         public Guid CompanyId { get; set; }
@@ -85,6 +87,7 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public Guid FiscalYearId { get; set; }
 
         public List<CreateStockEntryDTO>? StockEntries { get; set; }
+
 
         [StringLength(20)]
         [RegularExpression("^(active|inactive)$")]

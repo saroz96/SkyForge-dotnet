@@ -1,6 +1,7 @@
 ﻿
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SkyForge.Models.CompanyModel;
 using SkyForge.Models.FiscalYearModel;
 
 namespace SkyForge.Models.Retailer.Items
@@ -46,11 +47,18 @@ namespace SkyForge.Models.Retailer.Items
         [Precision(18, 2)]
         public decimal SalesPrice { get; set; } = 0;
 
+        [Required]
+        [Column("company_id")]
+        public Guid CompanyId { get; set; }
+
+        [ForeignKey("CompanyId")]
+        public Company Company { get; set; } = null!;
+
+
         [Column("date")]
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        [Column("Nepali_Date")]
-        public DateTime? NepaliDate { get; set; }
+        public string? NepaliDate { get; set; }
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

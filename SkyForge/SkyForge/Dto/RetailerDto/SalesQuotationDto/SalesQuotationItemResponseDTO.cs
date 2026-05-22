@@ -40,7 +40,7 @@ namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
         public decimal? CalculatedAltPrice { get; set; }
         public decimal? CalculatedAltPuPrice { get; set; }
         public decimal? ItemTotal { get; set; }
-        public decimal? VatAmount => VatStatus == "vatable" && ItemTotal.HasValue ? ItemTotal * 0.13m : 0; // Assuming 13% VAT
+        public decimal? VatAmount => VatStatus == "13" && ItemTotal.HasValue ? ItemTotal * 0.13m : 0; // Assuming 13% VAT
 
         public DateTime CreatedAt { get; set; }
 

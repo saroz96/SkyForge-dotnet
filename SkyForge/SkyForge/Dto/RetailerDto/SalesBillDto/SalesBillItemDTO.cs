@@ -54,7 +54,7 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
 
         [Required]
         [StringLength(20)]
-        [RegularExpression("^(vatable|vatExempt)$", ErrorMessage = "VatStatus must be either 'vatable' or 'vatExempt'")]
+        [RegularExpression("^(13|vatExempt)$", ErrorMessage = "VatStatus must be either '13' or 'vatExempt'")]
         public string VatStatus { get; set; } = string.Empty;
 
         [StringLength(100)]

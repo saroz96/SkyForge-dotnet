@@ -45,10 +45,12 @@ namespace SkyForge.Dto.CompanyDto
         public bool StoreManagement { get; set; }
 
         [Required(ErrorMessage = "Renewal date is required")]
-        public string RenewalDate { get; set; }
+        public string? RenewalDate { get; set; }
 
         [Required(ErrorMessage = "Fiscal year start date is required")]
-        public string FiscalYearStartDate { get; set; }
+        public string? FiscalYearStartDateNepali { get; set; }
+
+        public DateTime? FiscalYearStartDateEnglish { get; set; }
 
         public List<string> NotificationEmails { get; set; } = new();
 

@@ -1026,161 +1026,6 @@ const EditCreditSales = () => {
         calculateTotal();
     }, [items, formData.discountPercentage, formData.discountAmount, formData.roundOffAmount, formData.isVatExempt, formData.vatPercentage]);
 
-    // const calculateTotal = (itemsToCalculate = items) => {
-    //     let subTotal = 0;
-    //     let taxableAmount = 0;
-    //     let nonTaxableAmount = 0;
-
-    //     itemsToCalculate.forEach(item => {
-    //         const itemAmount = parseFloat(item.amount) || 0;
-    //         subTotal += itemAmount;
-
-    //         if (item.vatStatus === 'vatable') {
-    //             taxableAmount += itemAmount;
-    //         } else {
-    //             nonTaxableAmount += itemAmount;
-    //         }
-    //     });
-
-    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
-    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
-
-    //     let effectiveDiscount = 0;
-    //     let discountForTaxable = 0;
-    //     let discountForNonTaxable = 0;
-
-    //     if (discountAmount > 0) {
-    //         effectiveDiscount = discountAmount;
-
-    //         if (subTotal > 0) {
-    //             const taxableRatio = taxableAmount / subTotal;
-    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
-
-    //             discountForTaxable = effectiveDiscount * taxableRatio;
-    //             discountForNonTaxable = effectiveDiscount * nonTaxableRatio;
-    //         }
-    //     } else if (discountPercentage > 0) {
-    //         discountForTaxable = (taxableAmount * discountPercentage) / 100;
-    //         discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-    //         effectiveDiscount = discountForTaxable + discountForNonTaxable;
-    //     }
-
-    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
-    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
-
-    //     let vatAmount = 0;
-    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-    //         vatAmount = (finalTaxableAmount * parseFloat(formData.vatPercentage)) / 100;
-    //     }
-
-    //     const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-    //     const totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount + roundOffAmount;
-
-    //     setFormData(prev => ({
-    //         ...prev,
-    //         subTotal: Math.round(subTotal * 100) / 100,
-    //         taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
-    //         nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
-    //         vatAmount: Math.round(vatAmount * 100) / 100,
-    //         totalAmount: Math.round(totalAmount * 100) / 100,
-    //         discountAmount: Math.round(effectiveDiscount * 100) / 100
-    //     }));
-    // };
-
-    // const calculateTotal = (itemsToCalculate = items) => {
-    //     let subTotal = 0;
-    //     let taxableAmount = 0;
-    //     let nonTaxableAmount = 0;
-
-    //     itemsToCalculate.forEach(item => {
-    //         const itemAmount = parseFloat(item.amount) || 0;
-    //         subTotal += itemAmount;
-
-    //         if (item.vatStatus === 'vatable') {
-    //             taxableAmount += itemAmount;
-    //         } else {
-    //             nonTaxableAmount += itemAmount;
-    //         }
-    //     });
-
-    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
-    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
-
-    //     let effectiveDiscount = 0;
-    //     let discountForTaxable = 0;
-    //     let discountForNonTaxable = 0;
-
-    //     if (discountAmount > 0) {
-    //         effectiveDiscount = discountAmount;
-
-    //         if (subTotal > 0) {
-    //             const taxableRatio = taxableAmount / subTotal;
-    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
-
-    //             discountForTaxable = effectiveDiscount * taxableRatio;
-    //             discountForNonTaxable = effectiveDiscount * nonTaxableRatio;
-    //         }
-    //     } else if (discountPercentage > 0) {
-    //         discountForTaxable = (taxableAmount * discountPercentage) / 100;
-    //         discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-    //         effectiveDiscount = discountForTaxable + discountForNonTaxable;
-    //     }
-
-    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
-    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
-
-    //     let vatAmount = 0;
-    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-    //         vatAmount = (finalTaxableAmount * parseFloat(formData.vatPercentage)) / 100;
-    //     }
-
-    //     // Calculate total before round off
-    //     let totalBeforeRoundOff = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
-
-    //     // Calculate auto round-off amount
-    //     let roundOffAmount = 0;
-    //     let autoRoundOffAmount = 0;
-
-    //     // Calculate auto round-off if enabled
-    //     if (roundOffSales) {
-    //         const roundedTotal = Math.round(totalBeforeRoundOff);
-    //         autoRoundOffAmount = roundedTotal - totalBeforeRoundOff;
-    //         autoRoundOffAmount = Math.round(autoRoundOffAmount * 100) / 100;
-    //     }
-
-    //     // Use auto or manual round-off
-    //     if (roundOffSales && !manualRoundOffOverride) {
-    //         roundOffAmount = autoRoundOffAmount;
-    //     } else {
-    //         roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-    //     }
-
-    //     const totalAmount = totalBeforeRoundOff + roundOffAmount;
-
-    //     setFormData(prev => ({
-    //         ...prev,
-    //         subTotal: Math.round(subTotal * 100) / 100,
-    //         taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
-    //         nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
-    //         vatAmount: Math.round(vatAmount * 100) / 100,
-    //         totalAmount: Math.round(totalAmount * 100) / 100,
-    //         discountAmount: Math.round(effectiveDiscount * 100) / 100,
-    //         roundOffAmount: Math.round(roundOffAmount * 100) / 100,
-    //         autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
-    //     }));
-
-    //     return {
-    //         subTotal: Math.round(subTotal * 100) / 100,
-    //         taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
-    //         nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
-    //         vatAmount: Math.round(vatAmount * 100) / 100,
-    //         totalAmount: Math.round(totalAmount * 100) / 100,
-    //         discountAmount: Math.round(effectiveDiscount * 100) / 100,
-    //         roundOffAmount: Math.round(roundOffAmount * 100) / 100,
-    //         autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
-    //     };
-    // };
-
 
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
@@ -1191,7 +1036,7 @@ const EditCreditSales = () => {
             const itemAmount = parseFloat(item.amount) || 0;
             subTotal += itemAmount;
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount += itemAmount;
             } else {
                 nonTaxableAmount += itemAmount;
@@ -3845,7 +3690,7 @@ const EditCreditSales = () => {
                                         const availableStock = getAvailableStockForDisplay(item);
                                         const remainingStock = getRemainingStock(item);
                                         return (
-                                            <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                            <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>

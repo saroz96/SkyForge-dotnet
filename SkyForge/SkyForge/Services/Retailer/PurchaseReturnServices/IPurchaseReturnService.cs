@@ -20,6 +20,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
         Task<PurchaseReturnEditDataDTO> GetPurchaseReturnEditDataAsync(Guid billId, Guid companyId, Guid fiscalYearId, Guid userId);
         Task<PurchaseReturn> UpdatePurchaseReturnAsync(Guid id, UpdatePurchaseReturnDTO dto, Guid companyId, Guid fiscalYearId, Guid userId);
         Task<PurchaseReturnPrintDTO> GetPurchaseReturnForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId);
-        Task<PurchaseReturnVatReportDTO> GetPurchaseReturnVatReportAsync(Guid companyId, Guid fiscalYearId, string? fromDate, string? toDate);
+      
+        // Task<PurchaseReturnVatReportDTO> GetPurchaseReturnVatReportAsync(Guid companyId, Guid fiscalYearId, string? fromDate, string? toDate);
     }
 }

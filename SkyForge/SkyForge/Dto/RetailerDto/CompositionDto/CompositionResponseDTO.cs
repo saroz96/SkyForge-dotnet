@@ -21,12 +21,13 @@ namespace SkyForge.Dto.RetailerDto.CompositionDto
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public string? Sku { get; set; }
-        public decimal Price { get; set; }
+        public string? VatStatus { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public decimal? Price { get; set; }
         public decimal? PuPrice { get; set; }
-        public decimal CurrentStock { get; set; }
-        public decimal StockValue { get; set; }
-        public string UnitName { get; set; } = string.Empty;
+        public string? UnitName { get; set; }
+        public string? CategoryName { get; set; }
+
         public DateTime CreatedAt { get; set; }
     }
 }

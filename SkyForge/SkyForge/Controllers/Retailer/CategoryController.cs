@@ -316,7 +316,8 @@ namespace SkyForge.Controllers.Retailer
 
                 // 1. Extract trade type from JWT claims
                 var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-                
+                var fiscalYearIdClaim = User.FindFirst("currentFiscalYear")?.Value;
+
                 // 2. Check if trade type is Retailer
                 if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
                 {
@@ -329,7 +330,7 @@ namespace SkyForge.Controllers.Retailer
 
                 // 3. Extract company info from JWT claims
                 var companyId = User.FindFirst("currentCompany")?.Value;
-                
+
                 // 4. Check if company is selected
                 if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
                 {
@@ -337,6 +338,50 @@ namespace SkyForge.Controllers.Retailer
                     {
                         success = false,
                         error = "Company ID is required"
+                    });
+                }
+
+                // *** FIX 1: Check against Guid.Empty instead of HasValue ***
+                // Use fiscal year from request, or from JWT claim, or get active one
+                Guid fiscalYearId;
+
+                // Check if request.FiscalYearId is not empty (instead of HasValue)
+                if (request.FiscalYearId != Guid.Empty)
+                {
+                    fiscalYearId = request.FiscalYearId;
+                }
+                else if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid parsedFiscalYearId))
+                {
+                    fiscalYearId = parsedFiscalYearId;
+                }
+                else
+                {
+                    // Get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company"
+                        });
+                    }
+
+                    fiscalYearId = activeFiscalYear.Id;
+                }
+
+                // *** FIX 2: Validate fiscal year exists and belongs to company ***
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyIdGuid);
+
+                if (fiscalYear == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = $"Fiscal year {fiscalYearId} not found for this company"
                     });
                 }
 
@@ -350,11 +395,20 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                // 6. Create new category object
+                // 6. Create new category object WITH fiscal year dates
                 var newCategory = new Category
                 {
                     Id = Guid.NewGuid(),
                     Name = request.Name.Trim(),
+                    FiscalYearId = fiscalYearId,
+                    OriginalFiscalYearId = fiscalYearId,
+                    // Set Date and NepaliDate from fiscal year start date
+                    Date = fiscalYear.StartDate.HasValue
+                        ? fiscalYear.StartDate.Value.ToUniversalTime()
+                        : DateTime.UtcNow,
+                    NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                        ? fiscalYear.StartDateNepali
+                        : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     CompanyId = companyIdGuid,
                     CreatedAt = DateTime.UtcNow,
                     UniqueNumber = await _categoryService.GenerateUniqueCategoryNumberAsync()
@@ -374,11 +428,14 @@ namespace SkyForge.Controllers.Retailer
                         {
                             _id = createdCategory.Id,
                             name = createdCategory.Name,
-                            company = createdCategory.CompanyId
+                            company = createdCategory.CompanyId,
+                            fiscalYearId = createdCategory.FiscalYearId,
+                            date = createdCategory.Date,
+                            nepaliDate = createdCategory.NepaliDate
                         }
                     };
 
-                    _logger.LogInformation($"Successfully created category '{createdCategory.Name}' for company {companyIdGuid}");
+                    _logger.LogInformation($"Successfully created category '{createdCategory.Name}' for company {companyIdGuid} with fiscal year {fiscalYearId}");
 
                     return StatusCode(201, response);
                 }
@@ -402,8 +459,8 @@ namespace SkyForge.Controllers.Retailer
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating category");
-                
-                // Return 500 error with message (matching Express route)
+
+                // Return 500 error with message
                 return StatusCode(500, new
                 {
                     success = false,
@@ -412,143 +469,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-
-        // [HttpPost("categories")]
-        // public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryDTO request)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("=== CreateCategory Started ===");
-
-        //         // 1. Extract user and company info from JWT claims
-        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        //         var companyId = User.FindFirst("currentCompany")?.Value;
-        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-
-        //         // 2. Validate required claims exist
-        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
-        //         {
-        //             return Unauthorized(new
-        //             {
-        //                 success = false,
-        //                 error = "Invalid user token. Please login again."
-        //             });
-        //         }
-
-        //         // 3. Check if company is selected
-        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "No company selected. Please select a company first."
-        //             });
-        //         }
-
-        //         // 4. Check if trade type is Retailer
-        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
-        //         {
-        //             return StatusCode(403, new
-        //             {
-        //                 success = false,
-        //                 error = "Access denied for this trade type"
-        //             });
-        //         }
-
-        //         // 5. Validate required fields
-        //         if (string.IsNullOrEmpty(request.Name))
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "Category name is required"
-        //             });
-        //         }
-
-        //         // 6. Get the company
-        //         var company = await _context.Companies
-        //             .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
-
-        //         if (company == null)
-        //         {
-        //             return NotFound(new
-        //             {
-        //                 success = false,
-        //                 error = "Company not found"
-        //             });
-        //         }
-
-        //         // 7. Check if category with same name already exists in this company
-        //         var existingCategory = await _context.Categories
-        //             .FirstOrDefaultAsync(c => c.CompanyId == companyIdGuid &&
-        //                                       c.Name.ToLower() == request.Name.ToLower());
-
-        //         if (existingCategory != null)
-        //         {
-        //             return Conflict(new
-        //             {
-        //                 success = false,
-        //                 error = "A category with this name already exists within the selected company"
-        //             });
-        //         }
-
-        //         // 8. Create new category using service
-        //         var newCategory = new Category
-        //         {
-        //             Id = Guid.NewGuid(),
-        //             Name = request.Name.Trim(),
-        //             CompanyId = companyIdGuid,
-        //             CreatedAt = DateTime.UtcNow,
-        //             UniqueNumber = await _categoryService.GenerateUniqueCategoryNumberAsync()
-        //         };
-
-        //         // 9. Save the category using the service
-        //         var createdCategory = await _categoryService.CreateCategoryAsync(newCategory);
-
-        //         // 10. Prepare response
-        //         var response = new
-        //         {
-        //             success = true,
-        //             message = "Successfully created a new category",
-        //             data = new
-        //             {
-        //                 category = new
-        //                 {
-        //                     _id = createdCategory.Id,
-        //                     name = createdCategory.Name,
-        //                     uniqueNumber = createdCategory.UniqueNumber,
-        //                     companyId = createdCategory.CompanyId,
-        //                     createdAt = createdCategory.CreatedAt,
-        //                     status = "active"
-        //                 }
-        //             }
-        //         };
-
-        //         _logger.LogInformation($"Successfully created category '{createdCategory.Name}' for company {company.Name}");
-
-        //         return Ok(response);
-        //     }
-        //     catch (DbUpdateException dbEx)
-        //     {
-        //         _logger.LogError(dbEx, "Database error while creating category");
-        //         return StatusCode(500, new
-        //         {
-        //             success = false,
-        //             error = "Database error while creating category"
-        //         });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error in CreateCategory");
-        //         return StatusCode(500, new
-        //         {
-        //             success = false,
-        //             error = "Internal server error while creating category",
-        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
-        //         });
-        //     }
-        // }
-
         [HttpPut("categories/{id}")]
         public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] UpdateCategoryDTO request)
         {

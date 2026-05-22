@@ -1,4 +1,5 @@
-﻿using SkyForge.Models.CompanyModel;
+﻿using SkyForge.Models.FiscalYearModel;
+using SkyForge.Models.CompanyModel;
 using SkyForge.Models.Retailer.Items;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -27,6 +28,23 @@ namespace SkyForge.Models.Retailer.CompositionModel
 
         [ForeignKey("CompanyId")]
         public Company Company { get; set; } = null!;
+
+        [Required]
+        [Column("fiscal_year_id")]
+        public Guid FiscalYearId { get; set; }
+
+        [ForeignKey("FiscalYearId")]
+        public FiscalYear FiscalYear { get; set; } = null!;
+
+        [Column("original_fiscal_year_id")]
+        public Guid? OriginalFiscalYearId { get; set; }
+
+        [ForeignKey("OriginalFiscalYearId")]
+        public FiscalYear? OriginalFiscalYear { get; set; }
+
+        [Column("date")]
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+        public string? NepaliDate { get; set; }
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

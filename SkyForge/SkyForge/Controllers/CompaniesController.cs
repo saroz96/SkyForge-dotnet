@@ -389,8 +389,8 @@ namespace SkyForge.Controllers
                 {
                     // For Nepali dates, store as string
                     fiscalYearStartDate = request.StartDateNepali ?? string.Empty;
-                    startDate = null;
-                    endDate = null;
+                    startDate = request.StartDateEnglish != null ? DateTime.Parse(request.StartDateEnglish) : (DateTime?)null;
+                    endDate = startDate?.AddYears(1).AddDays(-1);
                 }
                 else
                 {
@@ -434,7 +434,8 @@ namespace SkyForge.Controllers
                     TradeType = tradeTypeEnum,
                     DateFormat = dateFormatEnum,
                     VatEnabled = request.VatEnabled,
-                    FiscalYearStartDate = fiscalYearStartDate,
+                    FiscalYearStartDateNepali = fiscalYearStartDate,
+                    FiscalYearStartDateEnglish = startDate,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = null
                 };
@@ -729,7 +730,8 @@ namespace SkyForge.Controllers
                     VatEnabled = request.VatEnabled,
                     StoreManagement = request.StoreManagement,
                     RenewalDate = request.RenewalDate,
-                    FiscalYearStartDate = request.FiscalYearStartDate,
+                    FiscalYearStartDateNepali = request.FiscalYearStartDateNepali,
+                    FiscalYearStartDateEnglish = request.FiscalYearStartDateEnglish,
                     NotificationEmails = request.NotificationEmails ?? new(),
                     AttendanceSettings = request.AttendanceSettings != null
                         ? new CompanyAttendanceSettings
@@ -796,7 +798,8 @@ namespace SkyForge.Controllers
                 TradeType = company.TradeType.ToString(),
                 DateFormat = company.DateFormat.ToString(),
                 VatEnabled = company.VatEnabled,
-                FiscalYearStartDate = company.FiscalYearStartDate,
+                FiscalYearStartDateNepali = company.FiscalYearStartDateNepali,
+                FiscalYearStartDateEnglish = company.FiscalYearStartDateEnglish,
                 RenewalDate = company.RenewalDate,
                 CreatedAt = company.CreatedAt,
                 UpdatedAt = company.UpdatedAt,

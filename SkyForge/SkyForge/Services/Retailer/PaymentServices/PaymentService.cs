@@ -78,7 +78,6 @@ namespace SkyForge.Services.Retailer.PaymentServices
                 var cashAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            groupsToInclude.Contains(a.AccountGroupsId) &&
                            _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId && ag.Name == "Cash in Hand"))
                     .Select(a => new AccountInfoDTO
@@ -96,7 +95,6 @@ namespace SkyForge.Services.Retailer.PaymentServices
                 var bankAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            groupsToInclude.Contains(a.AccountGroupsId) &&
                            _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId &&
                                (ag.Name == "Bank Accounts" || ag.Name == "Bank O/D Account")))
@@ -115,7 +113,6 @@ namespace SkyForge.Services.Retailer.PaymentServices
                 var accounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            !groupsToExclude.Contains(a.AccountGroupsId))
                     .Select(a => new AccountInfoDTO
                     {
@@ -1023,173 +1020,6 @@ namespace SkyForge.Services.Retailer.PaymentServices
                 }
             });
         }
-        // public async Task<PaymentsRegisterDataDTO> GetPaymentsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetPaymentsRegisterAsync called with companyId: {CompanyId}, fiscalYearId: {FiscalYearId}, fromDate: {FromDate}, toDate: {ToDate}",
-        //             companyId, fiscalYearId, fromDate, toDate);
-
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Address = c.Address,
-        //                 City = c.City,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 RenewalDate = c.RenewalDate,
-        //                 DateFormat = c.DateFormat.ToString(),
-        //                 VatEnabled = c.VatEnabled,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         var today = DateTime.UtcNow;
-        //         var nepaliDate = today.ToString("yyyy-MM-dd");
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
-        //             company.DateFormat, isNepaliFormat);
-
-        //         var fiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
-        //         {
-        //             _logger.LogInformation("No date range provided, returning basic info with empty payments list");
-        //             return new PaymentsRegisterDataDTO
-        //             {
-        //                 Company = company,
-        //                 CurrentFiscalYear = fiscalYear,
-        //                 Payments = new List<PaymentResponseItemDTO>(),
-        //                 FromDate = fromDate,
-        //                 ToDate = toDate,
-        //                 CurrentCompanyName = company.Name,
-        //                 CompanyDateFormat = company.DateFormat,
-        //                 NepaliDate = nepaliDate,
-        //                 UserPreferences = new UserPreferencesDTO { Theme = "light" }
-        //             };
-        //         }
-
-        //         DateTime startDateTime;
-        //         DateTime endDateTime;
-
-        //         if (isNepaliFormat)
-        //         {
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-        //         else
-        //         {
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-
-        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
-
-        //         _logger.LogInformation("Searching for payments between {StartDate} and {EndDate} using {DateFormat} format",
-        //             startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
-
-        //         var query = _context.Payments
-        //             .Include(p => p.PaymentEntries)
-        //                 .ThenInclude(e => e.Account)
-        //             .Include(p => p.User)
-        //             .Include(p => p.Company)
-        //             .Include(p => p.FiscalYear)
-        //             .Where(p => p.CompanyId == companyId &&
-        //                        p.FiscalYearId == fiscalYearId);
-
-
-        //         if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
-        //         {
-        //             // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
-        //             query = query.Where(pb => string.Compare(pb.NepaliDate, fromDate) >= 0
-        //                                   && string.Compare(pb.NepaliDate, toDate) <= 0);
-        //         }
-        //         else
-        //         {
-        //             query = query.Where(p => p.Date >= startDateTime && p.Date <= endDateTime);
-        //             _logger.LogInformation("Using Date field for filtering");
-        //         }
-
-        //         var sql = query.ToQueryString();
-        //         _logger.LogDebug("SQL Query: {Sql}", sql);
-
-        //         var payments = await query
-        //             .OrderBy(p => p.Date)
-        //             .ThenBy(p => p.BillNumber)
-        //             .ToListAsync();
-
-        //         _logger.LogInformation("Found {Count} payments matching the criteria", payments.Count);
-
-        //         if (payments.Count == 0)
-        //         {
-        //             var samplePayments = await _context.Payments
-        //                 .Where(p => p.CompanyId == companyId)
-        //                 .OrderByDescending(p => p.Date)
-        //                 .Take(5)
-        //                 .Select(p => new { p.Id, p.BillNumber, p.Date, p.NepaliDate })
-        //                 .ToListAsync();
-
-        //             _logger.LogInformation("Sample of recent payments (Date vs NepaliDate): {SamplePayments}",
-        //                 string.Join(", ", samplePayments.Select(p => $"{p.BillNumber} - Date: {p.Date}, NepaliDate: {p.NepaliDate}")));
-        //         }
-
-        //         var paymentDtos = payments.Select(payment => MapToResponseItemDTO(payment, company.DateFormat)).ToList();
-
-        //         return new PaymentsRegisterDataDTO
-        //         {
-        //             Company = company,
-        //             CurrentFiscalYear = fiscalYear,
-        //             Payments = paymentDtos,
-        //             FromDate = fromDate,
-        //             ToDate = toDate,
-        //             CurrentCompanyName = company.Name,
-        //             CompanyDateFormat = company.DateFormat,
-        //             NepaliDate = nepaliDate,
-        //             UserPreferences = new UserPreferencesDTO { Theme = "light" }
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting payments register for company {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
 
         public async Task<PaymentsRegisterDataDTO> GetPaymentsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
@@ -1286,7 +1116,6 @@ namespace SkyForge.Services.Retailer.PaymentServices
                     .Include(p => p.Company)
                     .Include(p => p.FiscalYear)
                     .Where(p => p.CompanyId == companyId &&
-                               p.FiscalYearId == fiscalYearId &&
                                p.Date >= startDateTime &&
                                p.Date <= endDateTime);
 

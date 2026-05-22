@@ -1,6 +1,7 @@
 ﻿using SkyForge.Models.CompanyModel;
 using SkyForge.Models.AccountModel;
 using System;
+using SkyForge.Models.FiscalYearModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Security.Principal;
@@ -14,7 +15,7 @@ namespace SkyForge.Models.AccountGroupModel
 
         [Required(ErrorMessage = "Account group name is required")]
         [StringLength(200, ErrorMessage = "Name cannot exceed 200 characters")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         [Range(1000, 9999, ErrorMessage = "Unique number must be 4 digits")]
         public int? UniqueNumber { get; set; }
@@ -22,11 +23,11 @@ namespace SkyForge.Models.AccountGroupModel
         [Required(ErrorMessage = "Primary group field is required")]
         [StringLength(3, MinimumLength = 2, ErrorMessage = "PrimaryGroup must be 'Yes' or 'No'")]
         [RegularExpression("^(Yes|No)$", ErrorMessage = "PrimaryGroup must be 'Yes' or 'No'")]
-        public string PrimaryGroup { get; set; } // Changed from bool to string to match "Yes"/"No"
+        public string? PrimaryGroup { get; set; } // Changed from bool to string to match "Yes"/"No"
 
         [Required(ErrorMessage = "Type is required")]
         [StringLength(50)]
-        public string Type { get; set; }
+        public string? Type { get; set; }
 
         // Foreign key to Company
         [Required(ErrorMessage = "Company is required")]
@@ -34,7 +35,24 @@ namespace SkyForge.Models.AccountGroupModel
 
         // Navigation property
         [ForeignKey("CompanyId")]
-        public virtual Company Company { get; set; }
+        public virtual Company? Company { get; set; }
+
+        // [Required]
+        // [Column("fiscal_year_id")]
+        // public Guid FiscalYearId { get; set; }
+
+        // [ForeignKey("FiscalYearId")]
+        // public FiscalYear FiscalYear { get; set; } = null!;
+
+        [Column("original_fiscal_year_id")]
+        public Guid? OriginalFiscalYearId { get; set; }
+
+        [ForeignKey("OriginalFiscalYearId")]
+        public FiscalYear? OriginalFiscalYear { get; set; }
+
+        [Column("date")]
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+        public string? NepaliDate { get; set; }
 
         // Timestamps
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

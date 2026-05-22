@@ -20,6 +20,84 @@ namespace SkyForge.Services.CategoryServices
             _logger = logger;
         }
 
+        // public async Task<Category> CreateCategoryAsync(Category category)
+        // {
+        //     try
+        //     {
+        //         // Validate company exists
+        //         var company = await _context.Companies.FindAsync(category.CompanyId);
+        //         if (company == null)
+        //         {
+        //             throw new KeyNotFoundException($"Company with ID {category.CompanyId} not found");
+        //         }
+
+        //         if (category.FiscalYearId == Guid.Empty)
+        //         {
+        //             // If no fiscal year provided, get the active one
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == category.CompanyId && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 throw new InvalidOperationException($"No active fiscal year found for company {category.CompanyId}");
+        //             }
+
+        //             category.FiscalYearId = activeFiscalYear.Id;
+        //             category.OriginalFiscalYearId = activeFiscalYear.Id;
+        //         }
+        //         else
+        //         {
+        //             // Verify the provided fiscal year exists and belongs to the company
+        //             var fiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == category.FiscalYearId && f.CompanyId == category.CompanyId);
+
+        //             if (fiscalYear == null)
+        //             {
+        //                 throw new KeyNotFoundException($"Fiscal year {category.FiscalYearId} not found for company {category.CompanyId}");
+        //             }
+
+        //             // Also set OriginalFiscalYearId if not set
+        //             if (!category.OriginalFiscalYearId.HasValue)
+        //             {
+        //                 category.OriginalFiscalYearId = category.FiscalYearId;
+        //             }
+        //         }
+
+        //         // Check if category with same name already exists for this company
+        //         var existingCategory = await _context.Categories
+        //             .FirstOrDefaultAsync(c => c.CompanyId == category.CompanyId &&
+        //                                       c.Name.ToLower() == category.Name.ToLower());
+
+        //         if (existingCategory != null)
+        //         {
+        //             throw new InvalidOperationException($"Category '{category.Name}' already exists for this company");
+        //         }
+
+        //         // Generate unique number if not provided
+        //         if (!category.UniqueNumber.HasValue)
+        //         {
+        //             category.UniqueNumber = await GenerateUniqueCategoryNumberAsync();
+        //         }
+
+        //         category.CreatedAt = DateTime.UtcNow;
+        //         category.UpdatedAt = null;
+
+        //         _context.Categories.Add(category);
+        //         await _context.SaveChangesAsync();
+
+        //         _logger.LogInformation("Category '{CategoryName}' (ID: {CategoryId}, Unique: {UniqueNumber}) created for company {CompanyId}",
+        //             category.Name, category.Id, category.UniqueNumber, category.CompanyId);
+
+        //         return category;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error creating category '{CategoryName}' for company {CompanyId}",
+        //             category.Name, category.CompanyId);
+        //         throw;
+        //     }
+        // }
+
         public async Task<Category> CreateCategoryAsync(Category category)
         {
             try
@@ -29,6 +107,87 @@ namespace SkyForge.Services.CategoryServices
                 if (company == null)
                 {
                     throw new KeyNotFoundException($"Company with ID {category.CompanyId} not found");
+                }
+
+                // *** ADD THIS: Validate and set Date/NepaliDate if not already set ***
+                if (category.FiscalYearId != Guid.Empty)
+                {
+                    var fiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == category.FiscalYearId && f.CompanyId == category.CompanyId);
+
+                    if (fiscalYear != null)
+                    {
+                        // Set Date and NepaliDate from fiscal year if they are not already set
+                        if (category.Date == default(DateTime))
+                        {
+                            category.Date = fiscalYear.StartDate.HasValue
+                                ? fiscalYear.StartDate.Value.ToUniversalTime()
+                                : DateTime.UtcNow;
+                        }
+
+                        if (string.IsNullOrEmpty(category.NepaliDate))
+                        {
+                            category.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                                ? fiscalYear.StartDateNepali
+                                : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                        }
+                    }
+                }
+
+                // Rest of your existing code...
+                if (category.FiscalYearId == Guid.Empty)
+                {
+                    // If no fiscal year provided, get the active one
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == category.CompanyId && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        throw new InvalidOperationException($"No active fiscal year found for company {category.CompanyId}");
+                    }
+
+                    category.FiscalYearId = activeFiscalYear.Id;
+                    category.OriginalFiscalYearId = activeFiscalYear.Id;
+
+                    // Set Date and NepaliDate from active fiscal year
+                    category.Date = activeFiscalYear.StartDate.HasValue
+                        ? activeFiscalYear.StartDate.Value.ToUniversalTime()
+                        : DateTime.UtcNow;
+                    category.NepaliDate = !string.IsNullOrEmpty(activeFiscalYear.StartDateNepali)
+                        ? activeFiscalYear.StartDateNepali
+                        : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                }
+                else
+                {
+                    // Verify the provided fiscal year exists and belongs to the company
+                    var fiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == category.FiscalYearId && f.CompanyId == category.CompanyId);
+
+                    if (fiscalYear == null)
+                    {
+                        throw new KeyNotFoundException($"Fiscal year {category.FiscalYearId} not found for company {category.CompanyId}");
+                    }
+
+                    // Also set OriginalFiscalYearId if not set
+                    if (category.OriginalFiscalYearId == Guid.Empty)
+                    {
+                        category.OriginalFiscalYearId = category.FiscalYearId;
+                    }
+
+                    // Set Date and NepaliDate from fiscal year if not already set
+                    if (category.Date == default(DateTime))
+                    {
+                        category.Date = fiscalYear.StartDate.HasValue
+                            ? fiscalYear.StartDate.Value.ToUniversalTime()
+                            : DateTime.UtcNow;
+                    }
+
+                    if (string.IsNullOrEmpty(category.NepaliDate))
+                    {
+                        category.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                            ? fiscalYear.StartDateNepali
+                            : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                    }
                 }
 
                 // Check if category with same name already exists for this company
@@ -53,8 +212,8 @@ namespace SkyForge.Services.CategoryServices
                 _context.Categories.Add(category);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Category '{CategoryName}' (ID: {CategoryId}, Unique: {UniqueNumber}) created for company {CompanyId}",
-                    category.Name, category.Id, category.UniqueNumber, category.CompanyId);
+                _logger.LogInformation("Category '{CategoryName}' (ID: {CategoryId}, Unique: {UniqueNumber}) created for company {CompanyId} with FiscalYear {FiscalYearId}",
+                    category.Name, category.Id, category.UniqueNumber, category.CompanyId, category.FiscalYearId);
 
                 return category;
             }
@@ -188,6 +347,25 @@ namespace SkyForge.Services.CategoryServices
                     throw new KeyNotFoundException($"Company with ID {companyId} not found");
                 }
 
+                var activeFiscalYear = await _context.FiscalYears
+                     .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+                if (activeFiscalYear == null)
+                {
+                    // If no active fiscal year, get the most recent one
+                    activeFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyId)
+                        .OrderByDescending(f => f.CreatedAt)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (activeFiscalYear == null)
+                {
+                    _logger.LogError("No fiscal year found for company {CompanyId}", companyId);
+                    throw new InvalidOperationException($"Cannot create default category: No fiscal year exists for company {companyId}");
+                }
+
+
                 // Check if default category already exists for this company
                 var existingCategory = await _context.Categories
                     .FirstOrDefaultAsync(c => c.CompanyId == companyId &&
@@ -204,6 +382,10 @@ namespace SkyForge.Services.CategoryServices
                 {
                     Name = "General",
                     CompanyId = companyId,
+                    FiscalYearId = activeFiscalYear.Id,           // *** ADD THIS ***
+                    OriginalFiscalYearId = activeFiscalYear.Id,    // *** ADD THIS ***
+                    Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,  // Optional but recommended
+                    NepaliDate = activeFiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -275,10 +457,19 @@ namespace SkyForge.Services.CategoryServices
         }
 
         // Helper method to get or create category by name
-        public async Task<Category> GetOrCreateCategoryAsync(Guid companyId, string name)
+        public async Task<Category> GetOrCreateCategoryAsync(Guid companyId, string name, Guid fiscalYearId)
         {
             try
             {
+                // 1. Validate fiscal year exists and belongs to company
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+                if (fiscalYear == null)
+                {
+                    throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
+                }
+
                 var category = await GetCategoryByNameAsync(companyId, name);
 
                 if (category == null)
@@ -286,6 +477,10 @@ namespace SkyForge.Services.CategoryServices
                     category = new Category
                     {
                         Name = name,
+                        FiscalYearId = fiscalYearId,
+                        OriginalFiscalYearId = fiscalYearId,
+                        Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow,
+                        NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CompanyId = companyId,
                         CreatedAt = DateTime.UtcNow
                     };

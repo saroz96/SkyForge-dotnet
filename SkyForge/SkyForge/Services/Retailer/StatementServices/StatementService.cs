@@ -20,11 +20,7 @@ namespace SkyForge.Services.Retailer.StatementServices
             _logger = logger;
         }
 
-        public async Task<StatementResponseDTO> GetStatementAsync(
-            Guid companyId,
-            Guid fiscalYearId,
-            Guid userId,
-            StatementRequestDTO request)
+        public async Task<StatementResponseDTO> GetStatementAsync(Guid companyId, Guid fiscalYearId, Guid userId, StatementRequestDTO request)
         {
             try
             {
@@ -153,19 +149,18 @@ namespace SkyForge.Services.Retailer.StatementServices
                     };
                 }
 
-                // Build transaction query with date format support for filtering
+                // Build transaction query - ALWAYS use Date field for filtering (AD dates)
                 var query = BuildTransactionQuery(companyId, request);
 
                 // Get filtered transactions (ordered correctly for calculations)
-                var transactions = await GetFilteredTransactionsAsync(query, request.DateFormat);
+                var transactions = await GetFilteredTransactionsAsync(query);
 
-                // Calculate opening balance with date format support
+                // Calculate opening balance - use AD dates for filtering
                 var openingBalance = await CalculateOpeningBalanceAsync(
                     companyId,
                     request.AccountId.Value,
                     request.FromDate,
                     account.InitialOpeningBalance,
-                    request.DateFormat,
                     request.PaymentMode);
 
                 // Process transactions and prepare statement
@@ -246,9 +241,7 @@ namespace SkyForge.Services.Retailer.StatementServices
         {
             return await _context.Accounts
                 .Where(a => a.CompanyId == companyId &&
-                           a.IsActive &&
-                           (a.OriginalFiscalYearId == fiscalYearId ||
-                            a.FiscalYears.Any(fy => fy.Id == fiscalYearId)))
+                           a.IsActive)
                 .OrderBy(a => a.Name)
                 .Select(a => new AccountStatementDTO
                 {
@@ -272,9 +265,7 @@ namespace SkyForge.Services.Retailer.StatementServices
             var account = await _context.Accounts
                 .Where(a => a.Id == accountId &&
                            a.CompanyId == companyId &&
-                           a.IsActive &&
-                           (a.OriginalFiscalYearId == fiscalYearId ||
-                            a.FiscalYears.Any(fy => fy.Id == fiscalYearId)))
+                           a.IsActive)
                 .Select(a => new AccountStatementDTO
                 {
                     Id = a.Id,
@@ -303,52 +294,29 @@ namespace SkyForge.Services.Retailer.StatementServices
             var query = _context.Transactions
                 .Where(t => t.CompanyId == companyId && t.IsActive);
 
-            _logger.LogInformation("Building query with DateFormat: {DateFormat}", request.DateFormat);
+            _logger.LogInformation("Building query for statement");
             _logger.LogInformation("FromDate value: {FromDate}, ToDate value: {ToDate}", request.FromDate, request.ToDate);
 
-            // Date filtering - Use correct date field based on format
+            // Date filtering - ALWAYS use the Date field (AD date) for filtering
+            // The frontend sends dates as AD dates for API calls
             if (request.FromDate.HasValue && request.ToDate.HasValue)
             {
                 var fromDateOnly = request.FromDate.Value.Date;
                 var toDateOnly = request.ToDate.Value.Date;
-
-                if (request.DateFormat?.ToLower() == "nepali")
-                {
-                    query = query.Where(t => t.Date.Date >= fromDateOnly &&
-                                            t.Date.Date <= toDateOnly);
-                }
-                else
-                {
-                    query = query.Where(t => t.Date.Date >= fromDateOnly &&
-                                            t.Date.Date <= toDateOnly);
-                }
+                query = query.Where(t => t.Date.Date >= fromDateOnly && t.Date.Date <= toDateOnly);
             }
             else if (request.FromDate.HasValue)
             {
                 var fromDateOnly = request.FromDate.Value.Date;
-                if (request.DateFormat?.ToLower() == "nepali")
-                {
-                    query = query.Where(t => t.Date.Date >= fromDateOnly);
-                }
-                else
-                {
-                    query = query.Where(t => t.Date.Date >= fromDateOnly);
-                }
+                query = query.Where(t => t.Date.Date >= fromDateOnly);
             }
             else if (request.ToDate.HasValue)
             {
                 var toDateOnly = request.ToDate.Value.Date;
-                if (request.DateFormat?.ToLower() == "nepali")
-                {
-                    query = query.Where(t => t.Date.Date <= toDateOnly);
-                }
-                else
-                {
-                    query = query.Where(t => t.Date.Date <= toDateOnly);
-                }
+                query = query.Where(t => t.Date.Date <= toDateOnly);
             }
 
-            // Account filtering - using new property names
+            // Account filtering
             if (request.AccountId.HasValue)
             {
                 query = query.Where(t =>
@@ -381,8 +349,7 @@ namespace SkyForge.Services.Retailer.StatementServices
             Guid accountId,
             DateTime? fromDate,
             InitialOpeningBalanceDTO initialOpeningBalance,
-            string? dateFormat,
-             string? paymentMode)
+            string? paymentMode)
         {
             // Start with initial opening balance
             decimal openingBalance = initialOpeningBalance.Type == "Dr"
@@ -393,40 +360,24 @@ namespace SkyForge.Services.Retailer.StatementServices
             {
                 var fromDateOnly = fromDate.Value.Date;
 
-                // Get all transactions before the fromDate
+                // Get all transactions before the fromDate - ALWAYS use Date field (AD dates)
                 var openingBalanceQuery = _context.Transactions
                     .Where(t => t.CompanyId == companyId &&
                                t.IsActive &&
+                               t.Date.Date < fromDateOnly &&
                                (t.AccountId == accountId ||
                                 t.PaymentAccountId2 == accountId ||
                                 t.ReceiptAccountId2 == accountId ||
                                 t.DebitAccountId == accountId ||
                                 t.CreditAccountId == accountId));
 
-                // Apply date filter based on format
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    openingBalanceQuery = openingBalanceQuery.Where(t => t.Date.Date < fromDateOnly);
-                }
-                else
-                {
-                    openingBalanceQuery = openingBalanceQuery.Where(t => t.Date.Date < fromDateOnly);
-                }
-
                 if (paymentMode == "exclude-cash")
                 {
                     openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
                 }
 
-                // Order by appropriate date field
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    openingBalanceQuery = openingBalanceQuery.OrderBy(t => t.Date).ThenBy(t => t.CreatedAt);
-                }
-                else
-                {
-                    openingBalanceQuery = openingBalanceQuery.OrderBy(t => t.Date).ThenBy(t => t.CreatedAt);
-                }
+                // Order by date
+                openingBalanceQuery = openingBalanceQuery.OrderBy(t => t.Date).ThenBy(t => t.CreatedAt);
 
                 var transactionsBeforeFromDate = await openingBalanceQuery.ToListAsync();
 
@@ -471,41 +422,22 @@ namespace SkyForge.Services.Retailer.StatementServices
             return openingBalance;
         }
 
-        private async Task<List<Transaction>> GetFilteredTransactionsAsync(IQueryable<Transaction> query, string? dateFormat)
+        private async Task<List<Transaction>> GetFilteredTransactionsAsync(IQueryable<Transaction> query)
         {
-            // Order by appropriate date field for correct calculation order
-            if (dateFormat?.ToLower() == "nepali")
-            {
-                return await query
-                    .OrderBy(t => t.Date)
-                    .ThenBy(t => t.CreatedAt)
-                    .Include(t => t.PaymentAccount)
-                    .Include(t => t.ReceiptAccount)
-                    .Include(t => t.DebitAccount)
-                    .Include(t => t.CreditAccount)
-                    .Include(t => t.Account)
-                    .Include(t => t.TransactionItems)
-                        .ThenInclude(ti => ti.Item)
-                    .Include(t => t.TransactionItems)
-                        .ThenInclude(ti => ti.Unit)
-                    .ToListAsync();
-            }
-            else
-            {
-                return await query
-                    .OrderBy(t => t.Date)
-                    .ThenBy(t => t.CreatedAt)
-                    .Include(t => t.PaymentAccount)
-                    .Include(t => t.ReceiptAccount)
-                    .Include(t => t.DebitAccount)
-                    .Include(t => t.CreditAccount)
-                    .Include(t => t.Account)
-                    .Include(t => t.TransactionItems)
-                        .ThenInclude(ti => ti.Item)
-                    .Include(t => t.TransactionItems)
-                        .ThenInclude(ti => ti.Unit)
-                    .ToListAsync();
-            }
+            // Order by Date for correct calculation order
+            return await query
+                .OrderBy(t => t.Date)
+                .ThenBy(t => t.CreatedAt)
+                .Include(t => t.PaymentAccount)
+                .Include(t => t.ReceiptAccount)
+                .Include(t => t.DebitAccount)
+                .Include(t => t.CreditAccount)
+                .Include(t => t.Account)
+                .Include(t => t.TransactionItems)
+                    .ThenInclude(ti => ti.Item)
+                .Include(t => t.TransactionItems)
+                    .ThenInclude(ti => ti.Unit)
+                .ToListAsync();
         }
 
         private (List<StatementEntryDTO> statement, decimal totalDebit, decimal totalCredit) PrepareStatementWithOpeningBalanceAndTotals(
@@ -533,7 +465,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                     AccountType = "Opening",
                     Debit = 0,
                     Credit = 0,
-                    Balance = openingBalance
+                    Balance = openingBalance,
+                    NepaliDate = null // Will be set by frontend based on date format
                 });
             }
 
@@ -572,16 +505,9 @@ namespace SkyForge.Services.Retailer.StatementServices
                 totalDebit += tx.TotalDebit;
                 totalCredit += tx.TotalCredit;
 
-                // Determine which date to display based on format
-                DateTime? displayDate;
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    displayDate = tx.Date;
-                }
-                else
-                {
-                    displayDate = tx.Date;
-                }
+                // Determine which date to display based on format - use AD date for Date field
+                // The frontend will convert to BS if needed using the NepaliDate library
+                DateTime? displayDate = tx.Date;
 
                 // Determine account type display
                 string accountType = "Opening Balance";
@@ -660,7 +586,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                     PaymentAccountId = tx.PaymentAccountId2,
                     ReceiptAccountId = tx.ReceiptAccountId2,
                     JournalBillId = tx.JournalBillId,
-                    DebitNoteId = tx.DebitNoteId
+                    DebitNoteId = tx.DebitNoteId,
+                    NepaliDate = tx.NepaliDate // Include Nepali date for frontend display
                 });
             }
 
@@ -681,46 +608,22 @@ namespace SkyForge.Services.Retailer.StatementServices
                            t.IsActive &&
                            t.TransactionItems.Any());
 
-            // Date filtering based on format
+            // Date filtering - ALWAYS use Date field (AD dates)
             if (fromDate.HasValue && toDate.HasValue)
             {
                 var fromDateOnly = fromDate.Value.Date;
                 var toDateOnly = toDate.Value.Date;
-
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    query = query.Where(t => t.Date.Date >= fromDateOnly &&
-                                            t.Date.Date <= toDateOnly);
-                }
-                else
-                {
-                    query = query.Where(t => t.Date.Date >= fromDateOnly &&
-                                            t.Date.Date <= toDateOnly);
-                }
+                query = query.Where(t => t.Date.Date >= fromDateOnly && t.Date.Date <= toDateOnly);
             }
             else if (fromDate.HasValue)
             {
                 var fromDateOnly = fromDate.Value.Date;
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    query = query.Where(t => t.Date.Date >= fromDateOnly);
-                }
-                else
-                {
-                    query = query.Where(t => t.Date.Date >= fromDateOnly);
-                }
+                query = query.Where(t => t.Date.Date >= fromDateOnly);
             }
             else if (toDate.HasValue)
             {
                 var toDateOnly = toDate.Value.Date;
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    query = query.Where(t => t.Date.Date <= toDateOnly);
-                }
-                else
-                {
-                    query = query.Where(t => t.Date.Date <= toDateOnly);
-                }
+                query = query.Where(t => t.Date.Date <= toDateOnly);
             }
 
             // Include transactions where the party account is involved
@@ -744,15 +647,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                 }
             }
 
-            // Order by appropriate date field
-            if (dateFormat?.ToLower() == "nepali")
-            {
-                query = query.OrderBy(t => t.Date);
-            }
-            else
-            {
-                query = query.OrderBy(t => t.Date);
-            }
+            // Order by date
+            query = query.OrderBy(t => t.Date);
 
             var transactions = await query
                 .Include(t => t.TransactionItems)
@@ -768,43 +664,22 @@ namespace SkyForge.Services.Retailer.StatementServices
             var allRelatedTransactionsQuery = _context.Transactions
                 .Where(t => t.CompanyId == companyId && t.IsActive);
 
-            // Apply same date filters
+            // Apply same date filters using Date field (AD dates)
             if (fromDate.HasValue && toDate.HasValue)
             {
                 var fromDateOnly = fromDate.Value.Date;
                 var toDateOnly = toDate.Value.Date;
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date >= fromDateOnly && t.Date.Date <= toDateOnly);
-                }
-                else
-                {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date >= fromDateOnly && t.Date.Date <= toDateOnly);
-                }
+                allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date >= fromDateOnly && t.Date.Date <= toDateOnly);
             }
             else if (fromDate.HasValue)
             {
                 var fromDateOnly = fromDate.Value.Date;
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date >= fromDateOnly);
-                }
-                else
-                {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date >= fromDateOnly);
-                }
+                allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date >= fromDateOnly);
             }
             else if (toDate.HasValue)
             {
                 var toDateOnly = toDate.Value.Date;
-                if (dateFormat?.ToLower() == "nepali")
-                {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date <= toDateOnly);
-                }
-                else
-                {
-                    allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date <= toDateOnly);
-                }
+                allRelatedTransactionsQuery = allRelatedTransactionsQuery.Where(t => t.Date.Date <= toDateOnly);
             }
 
             // Include transactions where the party account is involved
@@ -885,7 +760,8 @@ namespace SkyForge.Services.Retailer.StatementServices
 
                 if (!billItemsMap.ContainsKey(tx.BillNumber))
                 {
-                    DateTime displayDate = dateFormat?.ToLower() == "nepali" ? tx.Date : tx.Date;
+                    // Use AD date for the Date field, NepaliDate is separate
+                    DateTime displayDate = tx.Date;
 
                     // Get party name
                     string partyName = tx.Account?.Name ??
@@ -896,6 +772,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                     billItemsMap[tx.BillNumber] = new ItemwiseStatementDTO
                     {
                         Date = displayDate,
+                        NepaliDate = tx.NepaliDate, // Include Nepali date for frontend
                         BillNumber = tx.BillNumber,
                         Type = tx.Type.ToString(),
                         PaymentMode = tx.PaymentMode.ToString(),

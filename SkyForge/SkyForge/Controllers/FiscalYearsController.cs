@@ -265,7 +265,7 @@ namespace SkyForge.Controllers
         }
 
         // [HttpPost("create-next")]
-        // public async Task<IActionResult> CreateNextFiscalYear()
+        // public async Task<IActionResult> CreateNextFiscalYear([FromBody] CreateNextFiscalYearRequest request)
         // {
         //     try
         //     {
@@ -293,20 +293,67 @@ namespace SkyForge.Controllers
         //             return BadRequest(new { success = false, error = "No active fiscal year found" });
         //         }
 
-        //         // Calculate next fiscal year dates
+        //         // Get dates from request (sent from frontend)
         //         DateTime? nextStartDate = null;
         //         DateTime? nextEndDate = null;
         //         string? nextStartDateNepali = null;
         //         string? nextEndDateNepali = null;
+        //         string nextYearName = string.Empty;
 
-        //         if (currentFiscalYear.EndDate.HasValue)
+        //         var isNepaliFormat = currentFiscalYear.DateFormat == DateFormatEnum.Nepali;
+
+        //         if (isNepaliFormat)
         //         {
-        //             nextStartDate = currentFiscalYear.EndDate.Value.AddDays(1);
-        //             nextEndDate = nextStartDate.Value.AddYears(1).AddDays(-1);
-        //         }
+        //             // For Nepali format, use Nepali dates from request
+        //             nextStartDateNepali = request.StartDateNepali;
+        //             nextEndDateNepali = request.EndDateNepali;
 
-        //         // Generate name for next fiscal year
-        //         var nextYearName = $"FY {nextStartDate?.Year}-{(nextStartDate?.Year + 1) % 100}";
+        //             // English dates can be stored as null or approximate
+        //             nextStartDate = null;
+        //             nextEndDate = null;
+
+        //             // Generate name from Nepali start year (e.g., 2082/83)
+        //             if (!string.IsNullOrEmpty(nextStartDateNepali))
+        //             {
+        //                 var parts = nextStartDateNepali.Split('-');
+        //                 if (parts.Length == 3)
+        //                 {
+        //                     int startYear = int.Parse(parts[0]);
+        //                     int endYear = startYear + 1;
+        //                     nextYearName = $"{startYear}/{endYear % 100:D2}";
+        //                 }
+        //                 else
+        //                 {
+        //                     nextYearName = $"FY {DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1) % 100}";
+        //                 }
+        //             }
+        //             else
+        //             {
+        //                 nextYearName = $"FY {DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1) % 100}";
+        //             }
+        //         }
+        //         else
+        //         {
+        //             // For English format, use English dates from request
+        //             nextStartDate = request.StartDate;
+        //             nextEndDate = request.EndDate;
+
+        //             // Nepali dates can be stored as null
+        //             nextStartDateNepali = null;
+        //             nextEndDateNepali = null;
+
+        //             // Generate name from English start year (e.g., 2024/25)
+        //             if (nextStartDate.HasValue)
+        //             {
+        //                 int startYear = nextStartDate.Value.Year;
+        //                 int endYear = startYear + 1;
+        //                 nextYearName = $"{startYear}/{endYear % 100:D2}";
+        //             }
+        //             else
+        //             {
+        //                 nextYearName = $"FY {DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1) % 100}";
+        //             }
+        //         }
 
         //         // Create new fiscal year
         //         var newFiscalYear = new FiscalYear
@@ -370,14 +417,6 @@ namespace SkyForge.Controllers
         //     }
         // }
 
-        // private string GenerateUniquePrefix()
-        // {
-        //     const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        //     var random = new Random();
-        //     return new string(Enumerable.Repeat(chars, 4)
-        //         .Select(s => s[random.Next(s.Length)]).ToArray());
-        // }
-
         [HttpPost("create-next")]
         public async Task<IActionResult> CreateNextFiscalYear([FromBody] CreateNextFiscalYearRequest request)
         {
@@ -422,9 +461,9 @@ namespace SkyForge.Controllers
                     nextStartDateNepali = request.StartDateNepali;
                     nextEndDateNepali = request.EndDateNepali;
 
-                    // English dates can be stored as null or approximate
-                    nextStartDate = null;
-                    nextEndDate = null;
+                    // ALSO use English dates from request (these are already calculated in frontend)
+                    nextStartDate = request.StartDate;
+                    nextEndDate = request.EndDate;
 
                     // Generate name from Nepali start year (e.g., 2082/83)
                     if (!string.IsNullOrEmpty(nextStartDateNepali))
@@ -452,9 +491,9 @@ namespace SkyForge.Controllers
                     nextStartDate = request.StartDate;
                     nextEndDate = request.EndDate;
 
-                    // Nepali dates can be stored as null
-                    nextStartDateNepali = null;
-                    nextEndDateNepali = null;
+                    // Also use Nepali dates from request
+                    nextStartDateNepali = request.StartDateNepali;
+                    nextEndDateNepali = request.EndDateNepali;
 
                     // Generate name from English start year (e.g., 2024/25)
                     if (nextStartDate.HasValue)
@@ -823,6 +862,176 @@ namespace SkyForge.Controllers
             };
         }
 
+        // [HttpPost("switch-fiscal-year")]
+        // public async Task<IActionResult> SwitchFiscalYear([FromBody] SwitchFiscalYearRequestDto request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== SwitchFiscalYear Started ===");
+
+        //         // Validate request
+        //         if (request.FiscalYearId == Guid.Empty)
+        //         {
+        //             return BadRequest(new ApiResponse<object>
+        //             {
+        //                 Success = false,
+        //                 Message = "Fiscal Year ID is required"
+        //             });
+        //         }
+
+        //         // Extract existing claims from current JWT token
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+        //         var currentCompanyName = User.FindFirst("currentCompanyName")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        //         var isAdminClaim = User.FindFirst("isAdmin")?.Value;
+        //         var isEmailVerifiedClaim = User.FindFirst("isEmailVerified")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        //         {
+        //             return Unauthorized(new ApiResponse<object>
+        //             {
+        //                 Success = false,
+        //                 Message = "Invalid user token"
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyIdGuid))
+        //         {
+        //             return BadRequest(new ApiResponse<object>
+        //             {
+        //                 Success = false,
+        //                 Message = "No company selected"
+        //             });
+        //         }
+
+        //         // Fetch the selected fiscal year
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == request.FiscalYearId && f.CompanyId == companyIdGuid);
+
+        //         if (fiscalYear == null)
+        //         {
+        //             return NotFound(new ApiResponse<object>
+        //             {
+        //                 Success = false,
+        //                 Message = "Fiscal Year not found"
+        //             });
+        //         }
+
+        //         // Get the user for token generation
+        //         var user = await _context.Users
+        //             .Include(u => u.UserRoles)
+        //                 .ThenInclude(ur => ur.Role)
+        //             .FirstOrDefaultAsync(u => u.Id == userGuid);
+
+        //         if (user == null)
+        //         {
+        //             return NotFound(new ApiResponse<object>
+        //             {
+        //                 Success = false,
+        //                 Message = "User not found"
+        //             });
+        //         }
+
+        //         // Get company details with fiscal years
+        //         var company = await _context.Companies
+        //             .Include(c => c.FiscalYears)
+        //             .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
+
+        //         if (company == null)
+        //         {
+        //             return NotFound(new ApiResponse<object>
+        //             {
+        //                 Success = false,
+        //                 Message = "Company not found"
+        //             });
+        //         }
+
+        //         // Get user's primary role
+        //         var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
+
+        //         // Prepare ALL claims - MUST include all required claims for the middleware
+        //         var allClaims = new Dictionary<string, string>
+        //         {
+        //             // User claims
+        //             ["userId"] = user.Id.ToString(),
+        //             ["isAdmin"] = user.IsAdmin.ToString(),
+        //             ["isEmailVerified"] = user.IsEmailVerified.ToString(),
+
+        //             // Company claims
+        //             ["currentCompany"] = company.Id.ToString(),
+        //             ["currentCompanyName"] = company.Name,
+        //             ["tradeType"] = company.TradeType.ToString(),
+
+        //             // Fiscal year claims (CRITICAL for EnsureFiscalYearMiddleware)
+        //             ["fiscalYearId"] = fiscalYear.Id.ToString(),
+        //             ["fiscalYearName"] = fiscalYear.Name,
+        //             ["fiscalYearStartDate"] = GetFormattedDateForClaim(fiscalYear.StartDate, fiscalYear.DateFormat, fiscalYear.StartDateNepali),
+        //             ["fiscalYearEndDate"] = GetFormattedDateForClaim(fiscalYear.EndDate, fiscalYear.DateFormat, fiscalYear.EndDateNepali),
+        //             ["fiscalYearDateFormat"] = fiscalYear.DateFormat?.ToString() ?? "English"
+        //         };
+
+        //         // Add role claim if exists
+        //         if (primaryRole != null)
+        //         {
+        //             allClaims[ClaimTypes.Role] = primaryRole.Name;
+        //             allClaims["roleId"] = primaryRole.Id.ToString();
+        //         }
+        //         else if (!string.IsNullOrEmpty(userRole))
+        //         {
+        //             allClaims[ClaimTypes.Role] = userRole;
+        //         }
+
+        //         // Generate new JWT token with all claims
+        //         var newToken = _jwtService.GenerateTokenWithClaims(user, allClaims, primaryRole);
+
+        //         // Return success response with new token
+        //         return Ok(new ApiResponse<object>
+        //         {
+        //             Success = true,
+        //             Message = $"Switched to fiscal year: {fiscalYear.Name}",
+        //             Data = new
+        //             {
+        //                 token = newToken,
+        //                 sessionData = new
+        //                 {
+        //                     company = new
+        //                     {
+        //                         id = company.Id,
+        //                         name = company.Name,
+        //                         tradeType = company.TradeType.ToString(),
+        //                         dateFormat = company.DateFormat?.ToString() ?? "English"
+        //                     },
+        //                     fiscalYear = new
+        //                     {
+        //                         id = fiscalYear.Id,
+        //                         name = fiscalYear.Name,
+        //                         startDate = fiscalYear.StartDate?.ToString("yyyy-MM-dd"),
+        //                         endDate = fiscalYear.EndDate?.ToString("yyyy-MM-dd"),
+        //                         startDateNepali = fiscalYear.StartDateNepali,
+        //                         endDateNepali = fiscalYear.EndDateNepali,
+        //                         dateFormat = fiscalYear.DateFormat?.ToString() ?? "English",
+        //                         isActive = fiscalYear.IsActive
+        //                     }
+        //                 }
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error switching fiscal year");
+        //         return StatusCode(500, new ApiResponse<object>
+        //         {
+        //             Success = false,
+        //             Message = "Failed to switch fiscal year: " + ex.Message
+        //         });
+        //     }
+        // }
+
+
         [HttpPost("switch-fiscal-year")]
         public async Task<IActionResult> SwitchFiscalYear([FromBody] SwitchFiscalYearRequestDto request)
         {
@@ -911,10 +1120,37 @@ namespace SkyForge.Controllers
                     });
                 }
 
+                using var dbTransaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    // Get all fiscal years for this company
+                    var allFiscalYears = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyIdGuid)
+                        .ToListAsync();
+
+                    // Update IsActive flag: set selected fiscal year to true, all others to false
+                    foreach (var fy in allFiscalYears)
+                    {
+                        fy.IsActive = (fy.Id == request.FiscalYearId);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await dbTransaction.CommitAsync();
+
+                    _logger.LogInformation("Updated fiscal year active status: {FiscalYearName} is now active", fiscalYear.Name);
+                }
+                catch (Exception ex)
+                {
+                    await dbTransaction.RollbackAsync();
+                    _logger.LogError(ex, "Error updating fiscal year active status");
+                    throw;
+                }
+
+
                 // Get user's primary role
                 var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
 
-                // Prepare ALL claims - MUST include all required claims for the middleware
+                // Prepare ALL claims - MUST include BOTH company AND fiscal year claims
                 var allClaims = new Dictionary<string, string>
                 {
                     // User claims
@@ -922,7 +1158,7 @@ namespace SkyForge.Controllers
                     ["isAdmin"] = user.IsAdmin.ToString(),
                     ["isEmailVerified"] = user.IsEmailVerified.ToString(),
 
-                    // Company claims
+                    // Company claims (CRITICAL - these must be included)
                     ["currentCompany"] = company.Id.ToString(),
                     ["currentCompanyName"] = company.Name,
                     ["tradeType"] = company.TradeType.ToString(),
@@ -946,7 +1182,12 @@ namespace SkyForge.Controllers
                     allClaims[ClaimTypes.Role] = userRole;
                 }
 
-                // Generate new JWT token with all claims
+                // Also add email and name claims for completeness
+                allClaims[ClaimTypes.Email] = user.Email;
+                allClaims[ClaimTypes.Name] = user.Name;
+                allClaims[ClaimTypes.NameIdentifier] = user.Id.ToString();
+
+                // Generate new JWT token with ALL claims (both company and fiscal year)
                 var newToken = _jwtService.GenerateTokenWithClaims(user, allClaims, primaryRole);
 
                 // Return success response with new token
@@ -975,7 +1216,7 @@ namespace SkyForge.Controllers
                                 startDateNepali = fiscalYear.StartDateNepali,
                                 endDateNepali = fiscalYear.EndDateNepali,
                                 dateFormat = fiscalYear.DateFormat?.ToString() ?? "English",
-                                isActive = fiscalYear.IsActive
+                                isActive = true
                             }
                         }
                     }
@@ -991,6 +1232,7 @@ namespace SkyForge.Controllers
                 });
             }
         }
+
         private string GetFormattedDateForClaim(DateTime? date, DateFormatEnum? dateFormat, string nepaliDate)
         {
             if (!date.HasValue) return string.Empty;

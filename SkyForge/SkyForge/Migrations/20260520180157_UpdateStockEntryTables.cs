@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SkyForge.Migrations
 {
     /// <inheritdoc />
-    public partial class AddNewDatabase : Migration
+    public partial class UpdateStockEntryTables : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -43,6 +43,10 @@ namespace SkyForge.Migrations
                     PrimaryGroup = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
                     Type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    original_fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
                 },
@@ -70,13 +74,13 @@ namespace SkyForge.Migrations
                     OpeningBalanceDateNepali = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     AccountGroupsId = table.Column<Guid>(type: "uuid", nullable: false),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
-                    OriginalFiscalYearId = table.Column<Guid>(type: "uuid", nullable: true),
+                    original_fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
                     DefaultCashAccount = table.Column<bool>(type: "boolean", nullable: false),
                     DefaultVatAccount = table.Column<bool>(type: "boolean", nullable: false),
                     IsDefaultAccount = table.Column<bool>(type: "boolean", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    Date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    NepaliDate = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
@@ -145,6 +149,10 @@ namespace SkyForge.Migrations
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     UniqueNumber = table.Column<int>(type: "integer", nullable: true),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    original_fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
                 },
@@ -163,7 +171,8 @@ namespace SkyForge.Migrations
                     Amount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
                     Type = table.Column<string>(type: "character varying(2)", maxLength: 2, nullable: false),
                     FiscalYearId = table.Column<Guid>(type: "uuid", nullable: false),
-                    AccountId = table.Column<Guid>(type: "uuid", nullable: false)
+                    AccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -194,7 +203,8 @@ namespace SkyForge.Migrations
                     OwnerId = table.Column<Guid>(type: "uuid", nullable: false),
                     DateFormat = table.Column<string>(type: "varchar(20)", nullable: true),
                     RenewalDate = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    FiscalYearStartDate = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    FiscalYearStartDateNepali = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    FiscalYearStartDateEnglish = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     VatEnabled = table.Column<bool>(type: "boolean", nullable: false),
                     StoreManagement = table.Column<bool>(type: "boolean", nullable: false),
                     NotificationEmails = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'[]'::jsonb"),
@@ -210,28 +220,6 @@ namespace SkyForge.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Companies", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "compositions",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    unique_number = table.Column<int>(type: "integer", nullable: false),
-                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_compositions", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_compositions_Companies_company_id",
-                        column: x => x.company_id,
-                        principalTable: "Companies",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -275,50 +263,6 @@ namespace SkyForge.Migrations
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ItemCompanies",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    UniqueNumber = table.Column<int>(type: "integer", nullable: true),
-                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ItemCompanies", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ItemCompanies_Companies_CompanyId",
-                        column: x => x.CompanyId,
-                        principalTable: "Companies",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "MainUnits",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    UniqueNumber = table.Column<int>(type: "integer", nullable: true),
-                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_MainUnits", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_MainUnits_Companies_CompanyId",
-                        column: x => x.CompanyId,
-                        principalTable: "Companies",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -370,25 +314,40 @@ namespace SkyForge.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Units",
+                name: "compositions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    UniqueNumber = table.Column<int>(type: "integer", nullable: true),
-                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    unique_number = table.Column<int>(type: "integer", nullable: false),
+                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    original_fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Units", x => x.Id);
+                    table.PrimaryKey("PK_compositions", x => x.id);
                     table.ForeignKey(
-                        name: "FK_Units_Companies_CompanyId",
-                        column: x => x.CompanyId,
+                        name: "FK_compositions_Companies_company_id",
+                        column: x => x.company_id,
                         principalTable: "Companies",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_compositions_FiscalYears_fiscal_year_id",
+                        column: x => x.fiscal_year_id,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_compositions_FiscalYears_original_fiscal_year_id",
+                        column: x => x.original_fiscal_year_id,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -401,7 +360,8 @@ namespace SkyForge.Migrations
                     Type = table.Column<string>(type: "character varying(2)", maxLength: 2, nullable: false),
                     Date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     NepaliDate = table.Column<string>(type: "text", nullable: true),
-                    AccountId = table.Column<Guid>(type: "uuid", nullable: false)
+                    AccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -413,8 +373,88 @@ namespace SkyForge.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
+                        name: "FK_InitialOpeningBalances_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
                         name: "FK_InitialOpeningBalances_FiscalYears_InitialFiscalYearId",
                         column: x => x.InitialFiscalYearId,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ItemCompanies",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    UniqueNumber = table.Column<int>(type: "integer", nullable: true),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    original_fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ItemCompanies", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ItemCompanies_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ItemCompanies_FiscalYears_fiscal_year_id",
+                        column: x => x.fiscal_year_id,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ItemCompanies_FiscalYears_original_fiscal_year_id",
+                        column: x => x.original_fiscal_year_id,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MainUnits",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    UniqueNumber = table.Column<int>(type: "integer", nullable: true),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    original_fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MainUnits", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MainUnits_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_MainUnits_FiscalYears_fiscal_year_id",
+                        column: x => x.fiscal_year_id,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MainUnits_FiscalYears_original_fiscal_year_id",
+                        column: x => x.original_fiscal_year_id,
                         principalTable: "FiscalYears",
                         principalColumn: "Id");
                 });
@@ -429,7 +469,8 @@ namespace SkyForge.Migrations
                     Amount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
                     Type = table.Column<string>(type: "character varying(2)", maxLength: 2, nullable: false),
                     FiscalYearId = table.Column<Guid>(type: "uuid", nullable: false),
-                    AccountId = table.Column<Guid>(type: "uuid", nullable: false)
+                    AccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -438,6 +479,12 @@ namespace SkyForge.Migrations
                         name: "FK_OpeningBalanceByFiscalYear_Accounts_AccountId",
                         column: x => x.AccountId,
                         principalTable: "Accounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_OpeningBalanceByFiscalYear_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
@@ -458,7 +505,8 @@ namespace SkyForge.Migrations
                     Type = table.Column<string>(type: "character varying(2)", maxLength: 2, nullable: false),
                     Date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     NepaliDate = table.Column<string>(type: "text", nullable: true),
-                    AccountId = table.Column<Guid>(type: "uuid", nullable: false)
+                    AccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -470,8 +518,51 @@ namespace SkyForge.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
+                        name: "FK_OpeningBalances_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
                         name: "FK_OpeningBalances_FiscalYears_FiscalYearId",
                         column: x => x.FiscalYearId,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Units",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    UniqueNumber = table.Column<int>(type: "integer", nullable: true),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    original_fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Units", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Units_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Units_FiscalYears_fiscal_year_id",
+                        column: x => x.fiscal_year_id,
+                        principalTable: "FiscalYears",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Units_FiscalYears_original_fiscal_year_id",
+                        column: x => x.original_fiscal_year_id,
                         principalTable: "FiscalYears",
                         principalColumn: "Id");
                 });
@@ -573,13 +664,12 @@ namespace SkyForge.Migrations
                     unique_number = table.Column<int>(type: "integer", nullable: false),
                     barcode_number = table.Column<long>(type: "bigint", nullable: false),
                     company_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: false),
                     original_fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
                     status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "active"),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    Nepali_Date = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
+                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -594,12 +684,6 @@ namespace SkyForge.Migrations
                         name: "FK_items_Companies_company_id",
                         column: x => x.company_id,
                         principalTable: "Companies",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_items_FiscalYears_fiscal_year_id",
-                        column: x => x.fiscal_year_id,
-                        principalTable: "FiscalYears",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
@@ -1016,7 +1100,7 @@ namespace SkyForge.Migrations
                     purchase_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     sales_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    Nepali_Date = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
@@ -1074,7 +1158,7 @@ namespace SkyForge.Migrations
                     purchase_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     sales_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    Nepali_Date = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
@@ -1106,14 +1190,21 @@ namespace SkyForge.Migrations
                     opening_stock_value = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     purchase_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     sales_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
                     date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    Nepali_Date = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    NepaliDate = table.Column<string>(type: "text", nullable: true),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_item_opening_stock_by_fiscal_year", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_item_opening_stock_by_fiscal_year_Companies_company_id",
+                        column: x => x.company_id,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_item_opening_stock_by_fiscal_year_FiscalYears_fiscal_year_id",
                         column: x => x.fiscal_year_id,
@@ -2056,10 +2147,13 @@ namespace SkyForge.Migrations
                     mrp = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     margin_percentage = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
                     currency = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
                     fiscal_year_id = table.Column<Guid>(type: "uuid", nullable: true),
                     unique_uuid = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     purchase_bill_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    sales_bill_id = table.Column<Guid>(type: "uuid", nullable: true),
                     sales_return_bill_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    stock_adjustment_id = table.Column<Guid>(type: "uuid", nullable: true),
                     expiry_status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "safe"),
                     days_until_expiry = table.Column<int>(type: "integer", nullable: false, defaultValue: 730),
                     store_id = table.Column<Guid>(type: "uuid", nullable: true),
@@ -2067,6 +2161,10 @@ namespace SkyForge.Migrations
                     source_transfer_from_store_id = table.Column<Guid>(type: "uuid", nullable: true),
                     source_transfer_original_entry_id = table.Column<Guid>(type: "uuid", nullable: true),
                     source_transfer_date = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    is_active = table.Column<bool>(type: "boolean", nullable: false),
+                    is_sale_entry = table.Column<bool>(type: "boolean", nullable: false),
+                    parent_stock_entry_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    is_reduction_entry = table.Column<bool>(type: "boolean", nullable: false),
                     NepaliDate = table.Column<string>(type: "text", nullable: true),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
@@ -2076,6 +2174,12 @@ namespace SkyForge.Migrations
                 {
                     table.PrimaryKey("PK_stock_entries", x => x.id);
                     table.CheckConstraint("CK_StockEntry_ExpiryStatus", "expiry_status IN ('safe', 'warning', 'danger', 'expired')");
+                    table.ForeignKey(
+                        name: "FK_stock_entries_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_stock_entries_FiscalYears_fiscal_year_id",
                         column: x => x.fiscal_year_id,
@@ -2112,9 +2216,24 @@ namespace SkyForge.Migrations
                         principalColumn: "id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
+                        name: "FK_stock_entries_sales_bills_sales_bill_id",
+                        column: x => x.sales_bill_id,
+                        principalTable: "sales_bills",
+                        principalColumn: "id");
+                    table.ForeignKey(
                         name: "FK_stock_entries_sales_returns_sales_return_bill_id",
                         column: x => x.sales_return_bill_id,
                         principalTable: "sales_returns",
+                        principalColumn: "id");
+                    table.ForeignKey(
+                        name: "FK_stock_entries_stock_adjustments_stock_adjustment_id",
+                        column: x => x.stock_adjustment_id,
+                        principalTable: "stock_adjustments",
+                        principalColumn: "id");
+                    table.ForeignKey(
+                        name: "FK_stock_entries_stock_entries_parent_stock_entry_id",
+                        column: x => x.parent_stock_entry_id,
+                        principalTable: "stock_entries",
                         principalColumn: "id");
                 });
 
@@ -2322,10 +2441,20 @@ namespace SkyForge.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AccountGroups_fiscal_year_id",
+                table: "AccountGroups",
+                column: "fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_AccountGroups_Name_CompanyId",
                 table: "AccountGroups",
                 columns: new[] { "Name", "CompanyId" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AccountGroups_original_fiscal_year_id",
+                table: "AccountGroups",
+                column: "original_fiscal_year_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Accounts_AccountGroupsId",
@@ -2344,9 +2473,9 @@ namespace SkyForge.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Accounts_OriginalFiscalYearId",
+                name: "IX_Accounts_original_fiscal_year_id",
                 table: "Accounts",
-                column: "OriginalFiscalYearId");
+                column: "original_fiscal_year_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Accounts_UniqueNumber",
@@ -2376,15 +2505,30 @@ namespace SkyForge.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Categories_fiscal_year_id",
+                table: "Categories",
+                column: "fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Categories_Name_CompanyId",
                 table: "Categories",
                 columns: new[] { "Name", "CompanyId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Categories_original_fiscal_year_id",
+                table: "Categories",
+                column: "original_fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ClosingBalanceByFiscalYear_AccountId",
                 table: "ClosingBalanceByFiscalYear",
                 column: "AccountId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClosingBalanceByFiscalYear_CompanyId",
+                table: "ClosingBalanceByFiscalYear",
+                column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ClosingBalanceByFiscalYear_FiscalYearId",
@@ -2411,6 +2555,16 @@ namespace SkyForge.Migrations
                 name: "IX_Composition_Company",
                 table: "compositions",
                 column: "company_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_compositions_fiscal_year_id",
+                table: "compositions",
+                column: "fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_compositions_original_fiscal_year_id",
+                table: "compositions",
+                column: "original_fiscal_year_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CreditNoteEntries_AccountId",
@@ -2597,6 +2751,11 @@ namespace SkyForge.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_InitialOpeningBalances_CompanyId",
+                table: "InitialOpeningBalances",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_InitialOpeningBalances_InitialFiscalYearId",
                 table: "InitialOpeningBalances",
                 column: "InitialFiscalYearId");
@@ -2639,6 +2798,11 @@ namespace SkyForge.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_item_opening_stock_by_fiscal_year_company_id",
+                table: "item_opening_stock_by_fiscal_year",
+                column: "company_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_item_opening_stock_by_fiscal_year_fiscal_year_id",
                 table: "item_opening_stock_by_fiscal_year",
                 column: "fiscal_year_id");
@@ -2655,10 +2819,20 @@ namespace SkyForge.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ItemCompanies_fiscal_year_id",
+                table: "ItemCompanies",
+                column: "fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ItemCompanies_Name_CompanyId",
                 table: "ItemCompanies",
                 columns: new[] { "Name", "CompanyId" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ItemCompanies_original_fiscal_year_id",
+                table: "ItemCompanies",
+                column: "original_fiscal_year_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Item_BarcodeNumber",
@@ -2699,7 +2873,7 @@ namespace SkyForge.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Item_Name_Company_FiscalYear",
                 table: "items",
-                columns: new[] { "name", "company_id", "fiscal_year_id" },
+                columns: new[] { "name", "company_id" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -2712,11 +2886,6 @@ namespace SkyForge.Migrations
                 name: "IX_items_category_id",
                 table: "items",
                 column: "category_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_items_fiscal_year_id",
-                table: "items",
-                column: "fiscal_year_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_items_items_company_id",
@@ -2775,15 +2944,30 @@ namespace SkyForge.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_MainUnits_fiscal_year_id",
+                table: "MainUnits",
+                column: "fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MainUnits_Name_CompanyId",
                 table: "MainUnits",
                 columns: new[] { "Name", "CompanyId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_MainUnits_original_fiscal_year_id",
+                table: "MainUnits",
+                column: "original_fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OpeningBalanceByFiscalYear_AccountId",
                 table: "OpeningBalanceByFiscalYear",
                 column: "AccountId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OpeningBalanceByFiscalYear_CompanyId",
+                table: "OpeningBalanceByFiscalYear",
+                column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OpeningBalanceByFiscalYear_FiscalYearId",
@@ -2795,6 +2979,11 @@ namespace SkyForge.Migrations
                 table: "OpeningBalances",
                 column: "AccountId",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OpeningBalances_CompanyId",
+                table: "OpeningBalances",
+                column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OpeningBalances_FiscalYearId",
@@ -3403,9 +3592,19 @@ namespace SkyForge.Migrations
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_stock_entries_CompanyId",
+                table: "stock_entries",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_stock_entries_fiscal_year_id",
                 table: "stock_entries",
                 column: "fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_stock_entries_parent_stock_entry_id",
+                table: "stock_entries",
+                column: "parent_stock_entry_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_stock_entries_ParentItemId",
@@ -3423,9 +3622,19 @@ namespace SkyForge.Migrations
                 column: "rack_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_stock_entries_sales_bill_id",
+                table: "stock_entries",
+                column: "sales_bill_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_stock_entries_sales_return_bill_id",
                 table: "stock_entries",
                 column: "sales_return_bill_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_stock_entries_stock_adjustment_id",
+                table: "stock_entries",
+                column: "stock_adjustment_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_stock_entries_store_id",
@@ -3594,10 +3803,20 @@ namespace SkyForge.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Units_fiscal_year_id",
+                table: "Units",
+                column: "fiscal_year_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Units_Name_CompanyId",
                 table: "Units",
                 columns: new[] { "Name", "CompanyId" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Units_original_fiscal_year_id",
+                table: "Units",
+                column: "original_fiscal_year_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserRoles_AssignedById",
@@ -3641,6 +3860,21 @@ namespace SkyForge.Migrations
                 onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
+                name: "FK_AccountGroups_FiscalYears_fiscal_year_id",
+                table: "AccountGroups",
+                column: "fiscal_year_id",
+                principalTable: "FiscalYears",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_AccountGroups_FiscalYears_original_fiscal_year_id",
+                table: "AccountGroups",
+                column: "original_fiscal_year_id",
+                principalTable: "FiscalYears",
+                principalColumn: "Id");
+
+            migrationBuilder.AddForeignKey(
                 name: "FK_Accounts_Companies_CompanyId",
                 table: "Accounts",
                 column: "CompanyId",
@@ -3649,9 +3883,9 @@ namespace SkyForge.Migrations
                 onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_Accounts_FiscalYears_OriginalFiscalYearId",
+                name: "FK_Accounts_FiscalYears_original_fiscal_year_id",
                 table: "Accounts",
-                column: "OriginalFiscalYearId",
+                column: "original_fiscal_year_id",
                 principalTable: "FiscalYears",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
@@ -3689,6 +3923,29 @@ namespace SkyForge.Migrations
                 onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
+                name: "FK_Categories_FiscalYears_fiscal_year_id",
+                table: "Categories",
+                column: "fiscal_year_id",
+                principalTable: "FiscalYears",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Categories_FiscalYears_original_fiscal_year_id",
+                table: "Categories",
+                column: "original_fiscal_year_id",
+                principalTable: "FiscalYears",
+                principalColumn: "Id");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_ClosingBalanceByFiscalYear_Companies_CompanyId",
+                table: "ClosingBalanceByFiscalYear",
+                column: "CompanyId",
+                principalTable: "Companies",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
                 name: "FK_ClosingBalanceByFiscalYear_FiscalYears_FiscalYearId",
                 table: "ClosingBalanceByFiscalYear",
                 column: "FiscalYearId",
@@ -3721,11 +3978,15 @@ namespace SkyForge.Migrations
                 table: "FiscalYears");
 
             migrationBuilder.DropForeignKey(
-                name: "FK_Accounts_AccountGroups_AccountGroupsId",
-                table: "Accounts");
+                name: "FK_AccountGroups_FiscalYears_fiscal_year_id",
+                table: "AccountGroups");
 
             migrationBuilder.DropForeignKey(
-                name: "FK_Accounts_FiscalYears_OriginalFiscalYearId",
+                name: "FK_AccountGroups_FiscalYears_original_fiscal_year_id",
+                table: "AccountGroups");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_Accounts_FiscalYears_original_fiscal_year_id",
                 table: "Accounts");
 
             migrationBuilder.DropTable(
@@ -3813,10 +4074,10 @@ namespace SkyForge.Migrations
                 name: "sales_quotations");
 
             migrationBuilder.DropTable(
-                name: "stock_adjustments");
+                name: "Racks");
 
             migrationBuilder.DropTable(
-                name: "Racks");
+                name: "stock_adjustments");
 
             migrationBuilder.DropTable(
                 name: "Transactions");
@@ -3879,13 +4140,13 @@ namespace SkyForge.Migrations
                 name: "Users");
 
             migrationBuilder.DropTable(
-                name: "AccountGroups");
-
-            migrationBuilder.DropTable(
                 name: "FiscalYears");
 
             migrationBuilder.DropTable(
                 name: "Accounts");
+
+            migrationBuilder.DropTable(
+                name: "AccountGroups");
         }
     }
 }

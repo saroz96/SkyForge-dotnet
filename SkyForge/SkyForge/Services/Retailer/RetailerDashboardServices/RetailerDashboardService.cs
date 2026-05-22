@@ -245,7 +245,7 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                 // Get all active items
                 var items = await _context.Items
                     .AsNoTracking()
-                    .Where(i => i.CompanyId == companyId && i.Status == "active" && i.FiscalYearId == fiscalYearId)
+                    .Where(i => i.CompanyId == companyId && i.Status == "active")
                     .Include(i => i.InitialOpeningStock)
                     .ToListAsync();
 

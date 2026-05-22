@@ -31,6 +31,87 @@ namespace SkyForge.Services.UnitServices
                     throw new KeyNotFoundException($"Company with ID {unit.CompanyId} not found");
                 }
 
+                if (unit.FiscalYearId != Guid.Empty)
+                {
+                    var fiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == unit.FiscalYearId && f.CompanyId == unit.CompanyId);
+
+                    if (fiscalYear != null)
+                    {
+                        // Set Date and NepaliDate from fiscal year if they are not already set
+                        if (unit.Date == default(DateTime))
+                        {
+                            unit.Date = fiscalYear.StartDate.HasValue
+                                ? fiscalYear.StartDate.Value.ToUniversalTime()
+                                : DateTime.UtcNow;
+                        }
+
+                        if (string.IsNullOrEmpty(unit.NepaliDate))
+                        {
+                            unit.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                                ? fiscalYear.StartDateNepali
+                                : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                        }
+                    }
+                }
+
+                // Handle FiscalYearId if empty
+                if (unit.FiscalYearId == Guid.Empty)
+                {
+                    // If no fiscal year provided, get the active one
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == unit.CompanyId && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        throw new InvalidOperationException($"No active fiscal year found for company {unit.CompanyId}");
+                    }
+
+                    unit.FiscalYearId = activeFiscalYear.Id;
+                    unit.OriginalFiscalYearId = activeFiscalYear.Id;
+
+                    // Set Date and NepaliDate from active fiscal year
+                    unit.Date = activeFiscalYear.StartDate.HasValue
+                        ? activeFiscalYear.StartDate.Value.ToUniversalTime()
+                        : DateTime.UtcNow;
+                    unit.NepaliDate = !string.IsNullOrEmpty(activeFiscalYear.StartDateNepali)
+                        ? activeFiscalYear.StartDateNepali
+                        : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                }
+                else
+                {
+                    // Verify the provided fiscal year exists and belongs to the company
+                    var fiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == unit.FiscalYearId && f.CompanyId == unit.CompanyId);
+
+                    if (fiscalYear == null)
+                    {
+                        throw new KeyNotFoundException($"Fiscal year {unit.FiscalYearId} not found for company {unit.CompanyId}");
+                    }
+
+                    // Also set OriginalFiscalYearId if not set
+                    if (unit.OriginalFiscalYearId == Guid.Empty)
+                    {
+                        unit.OriginalFiscalYearId = unit.FiscalYearId;
+                    }
+
+                    // Set Date and NepaliDate from fiscal year if not already set
+                    if (unit.Date == default(DateTime))
+                    {
+                        unit.Date = fiscalYear.StartDate.HasValue
+                            ? fiscalYear.StartDate.Value.ToUniversalTime()
+                            : DateTime.UtcNow;
+                    }
+
+                    if (string.IsNullOrEmpty(unit.NepaliDate))
+                    {
+                        unit.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                            ? fiscalYear.StartDateNepali
+                            : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                    }
+                }
+
+
                 // Check if unit with same name already exists for this company
                 var existingUnit = await _context.Units
                     .FirstOrDefaultAsync(u => u.CompanyId == unit.CompanyId &&
@@ -188,6 +269,24 @@ namespace SkyForge.Services.UnitServices
                     throw new KeyNotFoundException($"Company with ID {companyId} not found");
                 }
 
+                var activeFiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+                if (activeFiscalYear == null)
+                {
+                    activeFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyId)
+                        .OrderByDescending(f => f.CreatedAt)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (activeFiscalYear == null)
+                {
+                    _logger.LogError("No fiscal year found for company {CompanyId}", companyId);
+                    throw new InvalidOperationException($"Cannot create default item company: No fiscal year exists for company {companyId}");
+                }
+
+
                 // Get existing units to avoid duplicates
                 var existingUnits = await _context.Units
                     .Where(u => u.CompanyId == companyId)
@@ -233,6 +332,10 @@ namespace SkyForge.Services.UnitServices
                     {
                         Name = unitName,
                         CompanyId = companyId,
+                        FiscalYearId = activeFiscalYear.Id,
+                        OriginalFiscalYearId = activeFiscalYear.Id,
+                        Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,
+                        NepaliDate = activeFiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         UniqueNumber = uniqueNumber,
                         CreatedAt = now
                     };
@@ -315,10 +418,19 @@ namespace SkyForge.Services.UnitServices
             }
         }
 
-        public async Task<Unit> GetOrCreateUnitAsync(Guid companyId, string name)
+        public async Task<Unit> GetOrCreateUnitAsync(Guid companyId, string name, Guid fiscalYearId)
         {
             try
             {
+                // 1. Validate fiscal year exists and belongs to company
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+                if (fiscalYear == null)
+                {
+                    throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
+                }
+
                 var unit = await GetUnitByNameAsync(companyId, name);
 
                 if (unit == null)
@@ -327,6 +439,10 @@ namespace SkyForge.Services.UnitServices
                     {
                         Name = name,
                         CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        OriginalFiscalYearId = fiscalYearId,
+                        Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow,
+                        NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow
                     };
 

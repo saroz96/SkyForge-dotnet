@@ -1,4 +1,4 @@
-using SkyForge.Dto.CompositionDto;
+using SkyForge.Dto.RetailerDto.CompositionDto;
 using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.RetailerDto.ItemDto

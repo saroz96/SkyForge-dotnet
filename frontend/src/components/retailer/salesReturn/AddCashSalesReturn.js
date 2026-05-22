@@ -1214,69 +1214,6 @@ const AddCashSalesReturn = () => {
         }
     };
 
-    // const calculateTotal = (itemsToCalculate = items) => {
-    //     let subTotal = 0;
-    //     let taxableAmount = 0;
-    //     let nonTaxableAmount = 0;
-
-    //     itemsToCalculate.forEach(item => {
-    //         const itemAmount = parseFloat(item.amount) || 0;
-    //         subTotal += itemAmount;
-
-    //         if (item.vatStatus === 'vatable') {
-    //             taxableAmount += itemAmount;
-    //         } else {
-    //             nonTaxableAmount += itemAmount;
-    //         }
-    //     });
-
-    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
-    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
-
-    //     let effectiveDiscount = 0;
-    //     let discountForTaxable = 0;
-    //     let discountForNonTaxable = 0;
-
-    //     if (discountAmount > 0) {
-    //         effectiveDiscount = discountAmount;
-
-    //         if (subTotal > 0) {
-    //             const taxableRatio = taxableAmount / subTotal;
-    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
-
-    //             discountForTaxable = effectiveDiscount * taxableRatio;
-    //             discountForNonTaxable = effectiveDiscount * nonTaxableRatio;
-    //         }
-    //     } else if (discountPercentage > 0) {
-    //         discountForTaxable = (taxableAmount * discountPercentage) / 100;
-    //         discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-    //         effectiveDiscount = discountForTaxable + discountForNonTaxable;
-    //     }
-
-    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
-    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
-
-    //     let vatAmount = 0;
-    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-    //         vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
-    //     }
-
-    //     let totalBeforeRoundOff = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
-
-    //     const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-    //     const totalAmount = totalBeforeRoundOff + roundOffAmount;
-
-    //     return {
-    //         subTotal,
-    //         taxableAmount: finalTaxableAmount,
-    //         nonTaxableAmount: finalNonTaxableAmount,
-    //         vatAmount,
-    //         totalAmount,
-    //         discountAmount: effectiveDiscount,
-    //         roundOffAmount
-    //     };
-    // };
-
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
@@ -1286,7 +1223,7 @@ const AddCashSalesReturn = () => {
             const itemAmount = parseFloat(item.amount) || 0;
             subTotal += itemAmount;
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount += itemAmount;
             } else {
                 nonTaxableAmount += itemAmount;
@@ -1619,7 +1556,7 @@ const AddCashSalesReturn = () => {
                     quantity: Number(item.quantity) || 0,
                     unitId: unitId,
                     price: Number(item.price) || 0,
-                    vatStatus: item.vatStatus || 'vatable',
+                    vatStatus: item.vatStatus || '13',
                     stockEntryId: item.stockEntryId || null
                 };
             });
@@ -2297,10 +2234,10 @@ const AddCashSalesReturn = () => {
 
                 if (billData.items && billData.items.length > 0) {
                     const vatStatuses = billData.items.map(item => {
-                        return item.item?.vatStatus || item.vatStatus || 'vatable';
+                        return item.item?.vatStatus || item.vatStatus || '13';
                     });
 
-                    const allVatable = vatStatuses.every(status => status === 'vatable');
+                    const allVatable = vatStatuses.every(status => status === '13');
                     const allVatExempt = vatStatuses.every(status => status === 'vatExempt');
 
                     if (allVatable) {
@@ -2366,7 +2303,7 @@ const AddCashSalesReturn = () => {
                         unitName: unitName || '',
                         price: item.originalPrice || item.price || item.item?.sellingPrice || 0,
                         amount: (defaultQuantity * (item.originalPrice || item.price || item.item?.sellingPrice || 0)).toFixed(2),
-                        vatStatus: item.item?.vatStatus || item.vatStatus || 'vatable',
+                        vatStatus: item.item?.vatStatus || item.vatStatus || '13',
                         _originalQuantity: item.originalQuantity,
                         _availableQuantity: item.availableQuantity,
                         _returnedQuantity: item.returnedQuantity
@@ -3733,7 +3670,7 @@ const AddCashSalesReturn = () => {
                                 </thead>
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
                                     {items.map((item, index) => (
-                                        <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                        <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>

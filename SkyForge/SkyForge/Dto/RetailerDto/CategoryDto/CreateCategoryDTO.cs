@@ -9,6 +9,9 @@ namespace SkyForge.Dto.RetailerDto.CategoryDto
         [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
         public string Name { get; set; } = string.Empty;
 
+        [Required]
+        public Guid FiscalYearId { get; set; }
+
         [Required(ErrorMessage = "Company is required")]
         public Guid CompanyId { get; set; }
     }

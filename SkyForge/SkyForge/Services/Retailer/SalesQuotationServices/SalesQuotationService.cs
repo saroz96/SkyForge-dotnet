@@ -128,7 +128,7 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
                         UnitId = itemDto.UnitId,
                         Quantity = itemDto.Quantity,
                         Price = itemDto.Price,
-                        VatStatus = item.VatStatus ?? "vatable",
+                        VatStatus = item.VatStatus ?? "13",
                         Description = itemDto.Description,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -333,197 +333,6 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "salesQuotation");
         }
 
-
-        // public async Task<SalesQuotationRegisterDataDTO> GetSalesQuotationRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetSalesQuotationRegisterAsync called with companyId: {CompanyId}, fiscalYearId: {FiscalYearId}, fromDate: {FromDate}, toDate: {ToDate}",
-        //             companyId, fiscalYearId, fromDate, toDate);
-
-        //         // Get company information including date format
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Address = c.Address,
-        //                 City = c.City,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 RenewalDate = c.RenewalDate,
-        //                 DateFormat = c.DateFormat.ToString(),
-        //                 VatEnabled = c.VatEnabled,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         // Determine if company uses Nepali date format
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
-        //             company.DateFormat, isNepaliFormat);
-
-        //         // Get fiscal year
-        //         var fiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearInfoDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // If no date range provided, return empty bill list
-        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
-        //         {
-        //             _logger.LogInformation("No date range provided, returning empty bill list");
-        //             return new SalesQuotationRegisterDataDTO
-        //             {
-        //                 Company = company,
-        //                 CurrentFiscalYear = fiscalYear,
-        //                 Bills = new List<SalesQuotationResponseDTO>(),
-        //                 FromDate = fromDate,
-        //                 ToDate = toDate,
-        //                 CurrentCompanyName = company.Name,
-        //                 CompanyDateFormat = company.DateFormat,
-        //                 VatEnabled = company.VatEnabled,
-        //             };
-        //         }
-
-        //         // Parse dates based on company format
-        //         DateTime startDateTime;
-        //         DateTime endDateTime;
-
-        //         if (isNepaliFormat)
-        //         {
-        //             // For Nepali dates, we need to convert the Nepali date string to DateTime for comparison
-        //             // Note: This assumes the Nepali date is stored as DateTime in the database
-        //             // You might need to adjust this based on how you store Nepali dates
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-        //         else
-        //         {
-        //             // For English dates, parse normally
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-
-        //         // Set end date to end of day
-        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
-
-        //         _logger.LogInformation("Searching for bills between {StartDate} and {EndDate} using {DateFormat} format",
-        //             startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
-
-        //         // First, check if there are any purchase bills for this company and fiscal year
-        //         var totalBillsCount = await _context.SalesQuotations
-        //             .CountAsync(pb => pb.CompanyId == companyId && pb.FiscalYearId == fiscalYearId);
-
-        //         _logger.LogInformation("Total bills for company {CompanyId} and fiscal year {FiscalYearId}: {Count}",
-        //             companyId, fiscalYearId, totalBillsCount);
-
-        //         // Build query with date filter based on company date format
-        //         var query = _context.SalesQuotations
-        //             .Include(pb => pb.Company)
-        //             .Include(pb => pb.Account)
-        //             .Include(pb => pb.User)
-        //             .Include(pb => pb.FiscalYear)
-        //             .Include(pb => pb.Items)
-        //                 .ThenInclude(i => i.Item)
-        //             .Where(pb => pb.CompanyId == companyId &&
-        //                         pb.FiscalYearId == fiscalYearId);
-
-        //         // Apply date filter based on company's date format
-        //         if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
-        //         {
-        //             // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
-        //             query = query.Where(pb => string.Compare(pb.NepaliDate, fromDate) >= 0
-        //                                   && string.Compare(pb.NepaliDate, toDate) <= 0);
-        //         }
-        //         else
-        //         {
-        //             // Use Date field for filtering
-        //             query = query.Where(pb => pb.Date >= startDateTime && pb.Date <= endDateTime);
-        //             _logger.LogInformation("Using Date field for filtering");
-        //         }
-
-        //         // Log the SQL query (optional - for debugging)
-        //         var sql = query.ToQueryString();
-        //         _logger.LogDebug("SQL Query: {Sql}", sql);
-
-        //         // Get bills ordered by date and bill number
-        //         var SalesQuotations = await query
-        //             .OrderBy(pb => pb.Date)
-        //             .ThenBy(pb => pb.BillNumber)
-        //             .ToListAsync();
-
-        //         _logger.LogInformation("Found {Count} bills matching the criteria", SalesQuotations.Count);
-
-        //         // If no bills found, log sample of all bills to debug
-        //         if (SalesQuotations.Count == 0)
-        //         {
-        //             var sampleBills = await _context.SalesQuotations
-        //                 .Where(pb => pb.CompanyId == companyId)
-        //                 .OrderByDescending(pb => pb.Date)
-        //                 .Take(5)
-        //                 .Select(pb => new { pb.Id, pb.BillNumber, pb.Date, pb.NepaliDate })
-        //                 .ToListAsync();
-
-        //             _logger.LogInformation("Sample of recent bills (Date vs NepaliDate): {SampleBills}",
-        //                 string.Join(", ", sampleBills.Select(b => $"{b.BillNumber} - Date: {b.Date}, NepaliDate: {b.NepaliDate}")));
-        //         }
-
-        //         // Map to response DTOs
-        //         var billDtos = SalesQuotations.Select(bill => MapToResponseDTO(bill, company.DateFormat)).ToList();
-
-        //         return new SalesQuotationRegisterDataDTO
-        //         {
-        //             Company = company,
-        //             CurrentFiscalYear = fiscalYear,
-        //             Bills = billDtos,
-        //             FromDate = fromDate,
-        //             ToDate = toDate,
-        //             CurrentCompanyName = company.Name,
-        //             CompanyDateFormat = company.DateFormat,
-        //             VatEnabled = company.VatEnabled,
-        //             IsAdminOrSupervisor = true
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting purchase register for company {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
-
-
         public async Task<SalesQuotationRegisterDataDTO> GetSalesQuotationRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
             try
@@ -607,7 +416,7 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
 
                 // Check if there are any sales quotations for this company and fiscal year
                 var totalBillsCount = await _context.SalesQuotations
-                    .CountAsync(pb => pb.CompanyId == companyId && pb.FiscalYearId == fiscalYearId);
+                    .CountAsync(pb => pb.CompanyId == companyId);
 
                 _logger.LogInformation("Total bills for company {CompanyId} and fiscal year {FiscalYearId}: {Count}",
                     companyId, fiscalYearId, totalBillsCount);
@@ -621,7 +430,6 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
                     .Include(pb => pb.Items)
                         .ThenInclude(i => i.Item)
                     .Where(pb => pb.CompanyId == companyId &&
-                                pb.FiscalYearId == fiscalYearId &&
                                 pb.Date >= startDateTime &&
                                 pb.Date <= endDateTime);
 
@@ -1498,7 +1306,7 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
                 foreach (var itemDto in dto.Items)
                 {
                     var item = await _context.Items.FindAsync(itemDto.ItemId);
-                    if (item?.VatStatus == "vatable")
+                    if (item?.VatStatus == "13")
                         hasVatableItems = true;
                     else
                         hasNonVatableItems = true;
@@ -1568,7 +1376,7 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
                         UnitId = itemDto.UnitId,
                         Quantity = itemDto.Quantity,
                         Price = itemDto.Price,
-                        VatStatus = item?.VatStatus ?? "vatable",
+                        VatStatus = item?.VatStatus ?? "13",
                         Description = itemDto.Description,
                         CreatedAt = existingQuotation.CreatedAt, // Keep original creation date
                         UpdatedAt = DateTime.UtcNow

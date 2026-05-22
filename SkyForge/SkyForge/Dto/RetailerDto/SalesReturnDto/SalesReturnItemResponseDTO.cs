@@ -31,7 +31,7 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
         public decimal ItemTotal => Quantity * Price;
         public decimal ItemTotalWithDiscount => ItemTotal - DiscountAmountPerItem;
         public decimal EffectivePrice => Price - (DiscountAmountPerItem / Quantity);
-        public decimal? VatAmount => VatStatus == "vatable" ? ItemTotal * 0.13m : 0; // Assuming 13% VAT
+        public decimal? VatAmount => VatStatus == "13" ? ItemTotal * 0.13m : 0; // Assuming 13% VAT
 
        public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }

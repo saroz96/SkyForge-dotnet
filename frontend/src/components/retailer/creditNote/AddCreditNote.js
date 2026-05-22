@@ -1623,7 +1623,7 @@ const AddCreditNote = () => {
                                 </div>
                             </div>
 
-                            <div className="col-12 col-md-6 col-lg-8">
+                            <div className="col-12 col-md-6 col-lg-6">
                                 <div className="position-relative">
                                     <input
                                         type="text"

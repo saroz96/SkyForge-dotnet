@@ -21,7 +21,7 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [filteredCompanies, setFilteredCompanies] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [hasFetchedCompanies, setHasFetchedCompanies] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const api = axios.create({
     baseURL: process.env.REACT_APP_API_BASE_URL,
@@ -37,46 +37,18 @@ const Dashboard = () => {
     return config;
   });
 
-  // ✅ FIX: Fetch companies only once when component mounts
-  useEffect(() => {
-    const fetchData = async () => {
-      // Check if we already have companies in Redux or localStorage
-      if (userCompanies && userCompanies.length > 0) {
-        console.log('Using existing companies from Redux');
-        setFilteredCompanies(userCompanies);
-        setHasFetchedCompanies(true);
-        return;
-      }
-
-      // Check localStorage for cached companies
-      const cachedCompanies = localStorage.getItem('cachedUserCompanies');
-      if (cachedCompanies) {
-        try {
-          const parsedCompanies = JSON.parse(cachedCompanies);
-          console.log('Using cached companies from localStorage');
-          dispatch(setUserCompanies(parsedCompanies));
-          setFilteredCompanies(parsedCompanies);
-          setHasFetchedCompanies(true);
-        } catch (e) {
-          console.error('Error parsing cached companies:', e);
-        }
-      }
-
-      // Only fetch from API if we haven't fetched yet
-      if (!hasFetchedCompanies) {
-        await fetchUserCompanies();
-      }
-    };
-
-    fetchData();
-  }, []); // Empty dependency array - runs only once on mount
-
-  const fetchUserCompanies = useCallback(async () => {
+  // Fetch user companies function
+  const fetchUserCompanies = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
+      setIsRefreshing(true);
+      setError('');
+      
       console.log('Fetching companies from API...');
       
-      // Fetch companies from API
+      // Fetch companies from API - NO CACHING
       const response = await api.get('/api/Companies/user-companies');
       const companies = response.data || [];
 
@@ -88,16 +60,23 @@ const Dashboard = () => {
       // Initialize filtered companies
       setFilteredCompanies(companies);
 
-      // Cache in localStorage with timestamp
-      localStorage.setItem('cachedUserCompanies', JSON.stringify(companies));
-      localStorage.setItem('cachedUserCompaniesTimestamp', Date.now().toString());
+      // Clear cache from localStorage to ensure fresh data next time
+      localStorage.removeItem('cachedUserCompanies');
+      localStorage.removeItem('cachedUserCompaniesTimestamp');
 
-      setHasFetchedCompanies(true);
-      setLoading(false);
+      setIsRefreshing(false);
+      if (showLoading) {
+        setLoading(false);
+      }
+      
+      return companies;
     } catch (err) {
       console.error('Error fetching companies:', err);
       setError(err.response?.data?.message || 'Failed to load companies');
-      setLoading(false);
+      setIsRefreshing(false);
+      if (showLoading) {
+        setLoading(false);
+      }
       
       // If unauthorized, redirect to login
       if (err.response?.status === 401) {
@@ -106,15 +85,70 @@ const Dashboard = () => {
         localStorage.removeItem('cachedUserCompaniesTimestamp');
         navigate('/auth/login');
       }
+      
+      return [];
     }
   }, [api, dispatch, navigate]);
+
+  // Initial fetch - always fetch fresh data
+  useEffect(() => {
+    fetchUserCompanies(true);
+  }, []); // Empty dependency array - runs only once on mount
+
+  // Listen for company changes via storage events and custom events
+  useEffect(() => {
+    // Function to handle company changes
+    const handleCompanyChange = (event) => {
+      console.log('Company change detected, refreshing list...');
+      fetchUserCompanies(false); // Fetch without showing full loading
+    };
+
+    // Listen for custom events from CompanyForm and other components
+    window.addEventListener('companyCreated', handleCompanyChange);
+    window.addEventListener('companyDeleted', handleCompanyChange);
+    window.addEventListener('companyUpdated', handleCompanyChange);
+    
+    // Listen for storage events (for cross-tab updates)
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'companyDataChanged') {
+        console.log('Storage event detected company change');
+        fetchUserCompanies(false);
+      }
+    });
+
+    // Check URL params for refresh flag
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get('refresh') === 'true') {
+      console.log('Refresh flag found in URL');
+      fetchUserCompanies(false);
+      // Clean URL
+      navigate(location.pathname, { replace: true });
+    }
+
+    return () => {
+      window.removeEventListener('companyCreated', handleCompanyChange);
+      window.removeEventListener('companyDeleted', handleCompanyChange);
+      window.removeEventListener('companyUpdated', handleCompanyChange);
+      window.removeEventListener('storage', handleCompanyChange);
+    };
+  }, [fetchUserCompanies, location, navigate]);
 
   // Sync filteredCompanies with Redux when userCompanies changes
   useEffect(() => {
     if (userCompanies && userCompanies.length > 0) {
-      setFilteredCompanies(userCompanies);
+      // Apply current search filter
+      if (searchTerm.trim()) {
+        const filtered = userCompanies.filter(company =>
+          company.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        setFilteredCompanies(filtered);
+      } else {
+        setFilteredCompanies(userCompanies);
+      }
+    } else if (userCompanies && userCompanies.length === 0) {
+      setFilteredCompanies([]);
     }
-  }, [userCompanies]);
+  }, [userCompanies, searchTerm]);
 
   const handleSearch = (searchTerm) => {
     setSearchTerm(searchTerm);
@@ -169,40 +203,37 @@ const Dashboard = () => {
     }
   }, [api, dispatch, navigate]);
 
-  // Add a refresh button handler
+  // Manual refresh handler
   const handleRefresh = async () => {
     console.log('Manual refresh triggered');
-    localStorage.removeItem('cachedUserCompanies');
-    localStorage.removeItem('cachedUserCompaniesTimestamp');
-    setHasFetchedCompanies(false);
-    await fetchUserCompanies();
+    await fetchUserCompanies(true);
   };
 
-  // Check cache age and refresh if too old (optional)
+  // Listen for navigation state (when coming back from create/delete)
   useEffect(() => {
-    const checkCacheAge = () => {
-      const timestamp = localStorage.getItem('cachedUserCompaniesTimestamp');
-      if (timestamp) {
-        const age = Date.now() - parseInt(timestamp);
-        const FIVE_MINUTES = 5 * 60 * 1000;
-        
-        if (age > FIVE_MINUTES) {
-          console.log('Cache is stale, refreshing...');
-          localStorage.removeItem('cachedUserCompanies');
-          localStorage.removeItem('cachedUserCompaniesTimestamp');
-          if (!loading) {
-            fetchUserCompanies();
-          }
-        }
+    // Check if we're returning from company creation/deletion
+    if (location.state && location.state.shouldRefresh) {
+      console.log('Navigation state indicates need to refresh');
+      fetchUserCompanies(false);
+      // Clear the state to prevent repeated refreshes
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, fetchUserCompanies, navigate]);
+
+  // Polling for changes (optional - every 30 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Only poll if the tab is visible to save resources
+      if (document.visibilityState === 'visible') {
+        console.log('Polling for company changes...');
+        fetchUserCompanies(false);
       }
-    };
+    }, 30000); // Poll every 30 seconds
 
-    // Check cache age every minute
-    const interval = setInterval(checkCacheAge, 60000);
     return () => clearInterval(interval);
-  }, [fetchUserCompanies, loading]);
+  }, [fetchUserCompanies]);
 
-  if (loading && !hasFetchedCompanies) {
+  if (loading && !isRefreshing) {
     return <Loader />;
   }
 
@@ -223,15 +254,16 @@ const Dashboard = () => {
                   <h2 className="card-title mb-0" style={{ fontSize: '1.1rem', fontWeight: '500' }}>
                     Your Companies
                   </h2>
-                  {hasFetchedCompanies && (
-                    <button 
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={handleRefresh}
-                      disabled={loading}
-                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-                    >
-                      <i className="fas fa-sync-alt"></i>
-                    </button>
+                  <button 
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                  >
+                    <i className={`fas fa-sync-alt ${isRefreshing ? 'fa-spin' : ''}`}></i>
+                  </button>
+                  {isRefreshing && (
+                    <span style={{ fontSize: '0.7rem', color: '#6c757d' }}>Updating...</span>
                   )}
                 </div>
               </div>

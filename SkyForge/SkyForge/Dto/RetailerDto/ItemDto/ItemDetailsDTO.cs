@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using SkyForge.Dto.CompositionDto; // Add this using
+using SkyForge.Dto.RetailerDto.CompositionDto;
 
 namespace SkyForge.Dto.RetailerDto.ItemDto
 {
@@ -37,7 +37,7 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public decimal StockValue { get; set; }
-        public List<CompositionItemDto> Compositions { get; set; } = new List<CompositionItemDto>(); // Change this
+        public List<CompositionItemDTO> Compositions { get; set; } = new List<CompositionItemDTO>(); // Change this
         public int StockEntriesCount { get; set; }
         public bool HasTransactions { get; set; }
     }

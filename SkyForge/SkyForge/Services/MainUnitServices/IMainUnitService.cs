@@ -15,7 +15,7 @@ namespace SkyForge.Services
         Task<bool> AddDefaultMainUnitsAsync(Guid companyId);
         Task<MainUnit> GetMainUnitByNameAsync(Guid companyId, string name);
         Task<List<MainUnit>> SearchMainUnitsAsync(Guid companyId, string searchTerm);
-        Task<MainUnit> GetOrCreateMainUnitAsync(Guid companyId, string name);
+        Task<MainUnit> GetOrCreateMainUnitAsync(Guid companyId, string name, Guid fiscalYearId);
         Task<bool> BulkCreateMainUnitsAsync(Guid companyId, List<string> mainUnitNames);
         List<string> GetDefaultMainUnitNames();
         Task<Dictionary<string, List<MainUnit>>> GetMainUnitsGroupedByCategoryAsync(Guid companyId);

@@ -250,7 +250,7 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                     decimal itemTotal = price * itemDto.Quantity;
                     subTotal += itemTotal;
 
-                    if (item.VatStatus?.ToLower() == "vatable")
+                    if (item.VatStatus?.ToLower() == "13")
                     {
                         hasVatableItems = true;
                         totalTaxableAmount += itemTotal;
@@ -283,7 +283,8 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                             PuPrice = puPrice,                                  // Cost price from DTO (400)
                             Mrp = mrp,                                          // Restored MRP from purchase
                             MarginPercentage = marginPercentage,                // Restored margin % from purchase
-                            UniqueUuid = uniqueUuid,                            // New unique UUID for this batch
+                            UniqueUuid = uniqueUuid,
+                            CompanyId = companyId,                              // New unique UUID for this batch
                             FiscalYearId = fiscalYearId
                         };
 
@@ -453,224 +454,6 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                 throw;
             }
         }
-        // public async Task<StockAdjustmentsRegisterDataDTO> GetStockAdjustmentsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetStockAdjustmentsRegisterAsync called with companyId: {CompanyId}, fiscalYearId: {FiscalYearId}, fromDate: {FromDate}, toDate: {ToDate}",
-        //             companyId, fiscalYearId, fromDate, toDate);
-
-        //         // Get company information including date format
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Address = c.Address,
-        //                 City = c.City,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 RenewalDate = c.RenewalDate,
-        //                 DateFormat = c.DateFormat.ToString(),
-        //                 VatEnabled = c.VatEnabled,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         // Determine if company uses Nepali date format
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
-        //             company.DateFormat, isNepaliFormat);
-
-        //         // Get fiscal year
-        //         var fiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // Get current Nepali date
-        //         var today = DateTime.UtcNow;
-        //         var nepaliDate = today.ToString("yyyy-MM-dd"); // You might want to use a proper Nepali date converter here
-
-        //         // If no date range provided, return basic info without adjustments
-        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
-        //         {
-        //             // Get all items for the dropdown
-        //             var items = await _context.Items
-        //                 .Where(i => i.CompanyId == companyId)
-        //                 .Select(i => new ItemInfoDTO
-        //                 {
-        //                     Id = i.Id,
-        //                     Name = i.Name,
-        //                     VatStatus = i.VatStatus ?? "vatable"
-        //                 })
-        //                 .ToListAsync();
-
-        //             return new StockAdjustmentsRegisterDataDTO
-        //             {
-        //                 Company = company,
-        //                 CurrentFiscalYear = fiscalYear,
-        //                 StockAdjustments = new List<StockAdjustmentItemDetailDTO>(),
-        //                 Items = items,
-        //                 FromDate = fromDate,
-        //                 ToDate = toDate,
-        //                 CurrentCompanyName = company.Name,
-        //                 CompanyDateFormat = company.DateFormat,
-        //                 NepaliDate = nepaliDate,
-        //                 UserPreferences = new UserPreferencesDTO { Theme = "light" }
-        //             };
-        //         }
-
-        //         // Parse dates based on company format
-        //         DateTime startDateTime;
-        //         DateTime endDateTime;
-
-        //         if (isNepaliFormat)
-        //         {
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-        //         else
-        //         {
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-
-        //         // Set end date to end of day
-        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
-
-        //         _logger.LogInformation("Searching for stock adjustments between {StartDate} and {EndDate} using {DateFormat} format",
-        //             startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
-
-        //         // Build query for stock adjustments
-        //         var query = _context.StockAdjustments
-        //             .Include(sa => sa.Company)
-        //             .Include(sa => sa.User)
-        //             .Include(sa => sa.FiscalYear)
-        //             .Include(sa => sa.Items)
-        //                 .ThenInclude(i => i.Item)
-        //             .Include(sa => sa.Items)
-        //                 .ThenInclude(i => i.Unit)
-        //             .Where(sa => sa.CompanyId == companyId &&
-        //                         sa.FiscalYearId == fiscalYearId);
-
-        //         // Apply date filter based on company's date format
-        //         if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
-        //         {
-        //             // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
-        //             query = query.Where(pb => string.Compare(pb.NepaliDate, fromDate) >= 0
-        //                                   && string.Compare(pb.NepaliDate, toDate) <= 0);
-        //         }
-        //         else
-        //         {
-        //             // Use Date field for filtering
-        //             query = query.Where(sa => sa.Date >= startDateTime && sa.Date <= endDateTime);
-        //             _logger.LogInformation("Using Date field for filtering");
-        //         }
-
-        //         // Log the SQL query (optional - for debugging)
-        //         var sql = query.ToQueryString();
-        //         _logger.LogDebug("SQL Query: {Sql}", sql);
-
-        //         // Get adjustments ordered by date and bill number
-        //         var stockAdjustments = await query
-        //             .OrderBy(sa => sa.Date)
-        //             .ThenBy(sa => sa.BillNumber)
-        //             .ToListAsync();
-
-        //         _logger.LogInformation("Found {Count} stock adjustments matching the criteria", stockAdjustments.Count);
-
-        //         // Map to flattened item details (matching Express.js structure)
-        //         var itemDetails = new List<StockAdjustmentItemDetailDTO>();
-
-        //         foreach (var adjustment in stockAdjustments)
-        //         {
-        //             foreach (var item in adjustment.Items)
-        //             {
-        //                 itemDetails.Add(new StockAdjustmentItemDetailDTO
-        //                 {
-        //                     Date = adjustment.Date,
-        //                     NepaliDate = adjustment.NepaliDate,
-        //                     BillNumber = adjustment.BillNumber,
-        //                     ItemId = item.ItemId,
-        //                     ItemName = item.Item?.Name ?? "N/A",
-        //                     Quantity = item.Quantity,
-        //                     UnitId = item.UnitId,
-        //                     UnitName = item.Unit?.Name ?? "N/A",
-        //                     PuPrice = item.PuPrice,
-        //                     AdjustmentType = adjustment.AdjustmentType,
-        //                     Reason = string.Join(" ", item.Reason ?? Array.Empty<string>()),
-        //                     VatStatus = item.VatStatus,
-        //                     UserId = adjustment.UserId,
-        //                     UserName = adjustment.User?.Name ?? "N/A",
-        //                     AdjustmentId = adjustment.Id,
-        //                     Note = adjustment.Note
-        //                 });
-        //             }
-        //         }
-
-        //         // Get all items for the dropdown
-        //         var allItems = await _context.Items
-        //             .Where(i => i.CompanyId == companyId)
-        //             .Select(i => new ItemInfoDTO
-        //             {
-        //                 Id = i.Id,
-        //                 Name = i.Name,
-        //                 VatStatus = i.VatStatus ?? "vatable"
-        //             })
-        //             .ToListAsync();
-
-        //         return new StockAdjustmentsRegisterDataDTO
-        //         {
-        //             Company = company,
-        //             CurrentFiscalYear = fiscalYear,
-        //             StockAdjustments = itemDetails,
-        //             Items = allItems,
-        //             FromDate = fromDate,
-        //             ToDate = toDate,
-        //             CurrentCompanyName = company.Name,
-        //             CompanyDateFormat = company.DateFormat,
-        //             NepaliDate = nepaliDate,
-        //             UserPreferences = new UserPreferencesDTO { Theme = "light" }
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting stock adjustments register for company {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
 
         public async Task<StockAdjustmentsRegisterDataDTO> GetStockAdjustmentsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
@@ -734,7 +517,7 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                         {
                             Id = i.Id,
                             Name = i.Name,
-                            VatStatus = i.VatStatus ?? "vatable"
+                            VatStatus = i.VatStatus ?? "13"
                         })
                         .ToListAsync();
 
@@ -785,7 +568,6 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                     .Include(sa => sa.Items)
                         .ThenInclude(i => i.Unit)
                     .Where(sa => sa.CompanyId == companyId &&
-                                sa.FiscalYearId == fiscalYearId &&
                                 sa.Date >= startDateTime &&
                                 sa.Date <= endDateTime);
 
@@ -851,7 +633,7 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                     {
                         Id = i.Id,
                         Name = i.Name,
-                        VatStatus = i.VatStatus ?? "vatable"
+                        VatStatus = i.VatStatus ?? "13"
                     })
                     .ToListAsync();
 
@@ -928,7 +710,7 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                     {
                         Id = i.Id,
                         Name = i.Name,
-                        VatStatus = i.VatStatus ?? "vatable",
+                        VatStatus = i.VatStatus ?? "13",
                     })
                     .ToListAsync();
 
@@ -1164,7 +946,7 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                             BatchNumber = i.BatchNumber,
                             ExpiryDate = i.ExpiryDate,
                             Reason = i.Reason,
-                            VatStatus = i.VatStatus ?? "vatable"
+                            VatStatus = i.VatStatus ?? "13"
                         }).ToList()
                     },
                     Totals = new StockAdjustmentTotalsDTO

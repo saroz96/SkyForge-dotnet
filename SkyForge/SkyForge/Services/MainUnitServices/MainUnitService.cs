@@ -20,6 +20,52 @@ namespace SkyForge.Services.MainUnitServices
             _logger = logger;
         }
 
+        // public async Task<MainUnit> CreateMainUnitAsync(MainUnit mainUnit)
+        // {
+        //     try
+        //     {
+        //         // Validate company exists
+        //         var company = await _context.Companies.FindAsync(mainUnit.CompanyId);
+        //         if (company == null)
+        //         {
+        //             throw new KeyNotFoundException($"Company with ID {mainUnit.CompanyId} not found");
+        //         }
+
+        //         // Check if main unit with same name already exists for this company
+        //         var existingMainUnit = await _context.MainUnits
+        //             .FirstOrDefaultAsync(mu => mu.CompanyId == mainUnit.CompanyId &&
+        //                                        mu.Name.ToLower() == mainUnit.Name.ToLower());
+
+        //         if (existingMainUnit != null)
+        //         {
+        //             throw new InvalidOperationException($"Main unit '{mainUnit.Name}' already exists for this company");
+        //         }
+
+        //         // Generate unique number if not provided
+        //         if (!mainUnit.UniqueNumber.HasValue)
+        //         {
+        //             mainUnit.UniqueNumber = await GenerateUniqueMainUnitNumberAsync();
+        //         }
+
+        //         mainUnit.CreatedAt = DateTime.UtcNow;
+        //         mainUnit.UpdatedAt = null;
+
+        //         _context.MainUnits.Add(mainUnit);
+        //         await _context.SaveChangesAsync();
+
+        //         _logger.LogInformation("Main unit '{MainUnitName}' (ID: {MainUnitId}, Unique: {UniqueNumber}) created for company {CompanyId}",
+        //             mainUnit.Name, mainUnit.Id, mainUnit.UniqueNumber, mainUnit.CompanyId);
+
+        //         return mainUnit;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error creating main unit '{MainUnitName}' for company {CompanyId}",
+        //             mainUnit.Name, mainUnit.CompanyId);
+        //         throw;
+        //     }
+        // }
+
         public async Task<MainUnit> CreateMainUnitAsync(MainUnit mainUnit)
         {
             try
@@ -29,6 +75,87 @@ namespace SkyForge.Services.MainUnitServices
                 if (company == null)
                 {
                     throw new KeyNotFoundException($"Company with ID {mainUnit.CompanyId} not found");
+                }
+
+                // Handle FiscalYearId if it exists (check if MainUnit has these fields)
+                if (mainUnit.FiscalYearId != Guid.Empty)
+                {
+                    var fiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == mainUnit.FiscalYearId && f.CompanyId == mainUnit.CompanyId);
+
+                    if (fiscalYear != null)
+                    {
+                        // Set Date and NepaliDate from fiscal year if they are not already set
+                        if (mainUnit.Date == default(DateTime))
+                        {
+                            mainUnit.Date = fiscalYear.StartDate.HasValue
+                                ? fiscalYear.StartDate.Value.ToUniversalTime()
+                                : DateTime.UtcNow;
+                        }
+
+                        if (string.IsNullOrEmpty(mainUnit.NepaliDate))
+                        {
+                            mainUnit.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                                ? fiscalYear.StartDateNepali
+                                : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                        }
+                    }
+                }
+
+                // Handle FiscalYearId if empty
+                if (mainUnit.FiscalYearId == Guid.Empty)
+                {
+                    // If no fiscal year provided, get the active one
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == mainUnit.CompanyId && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        throw new InvalidOperationException($"No active fiscal year found for company {mainUnit.CompanyId}");
+                    }
+
+                    mainUnit.FiscalYearId = activeFiscalYear.Id;
+                    mainUnit.OriginalFiscalYearId = activeFiscalYear.Id;
+
+                    // Set Date and NepaliDate from active fiscal year
+                    mainUnit.Date = activeFiscalYear.StartDate.HasValue
+                        ? activeFiscalYear.StartDate.Value.ToUniversalTime()
+                        : DateTime.UtcNow;
+                    mainUnit.NepaliDate = !string.IsNullOrEmpty(activeFiscalYear.StartDateNepali)
+                        ? activeFiscalYear.StartDateNepali
+                        : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                }
+                else
+                {
+                    // Verify the provided fiscal year exists and belongs to the company
+                    var fiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == mainUnit.FiscalYearId && f.CompanyId == mainUnit.CompanyId);
+
+                    if (fiscalYear == null)
+                    {
+                        throw new KeyNotFoundException($"Fiscal year {mainUnit.FiscalYearId} not found for company {mainUnit.CompanyId}");
+                    }
+
+                    // Also set OriginalFiscalYearId if not set
+                    if (mainUnit.OriginalFiscalYearId == Guid.Empty)
+                    {
+                        mainUnit.OriginalFiscalYearId = mainUnit.FiscalYearId;
+                    }
+
+                    // Set Date and NepaliDate from fiscal year if not already set
+                    if (mainUnit.Date == default(DateTime))
+                    {
+                        mainUnit.Date = fiscalYear.StartDate.HasValue
+                            ? fiscalYear.StartDate.Value.ToUniversalTime()
+                            : DateTime.UtcNow;
+                    }
+
+                    if (string.IsNullOrEmpty(mainUnit.NepaliDate))
+                    {
+                        mainUnit.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                            ? fiscalYear.StartDateNepali
+                            : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                    }
                 }
 
                 // Check if main unit with same name already exists for this company
@@ -53,8 +180,8 @@ namespace SkyForge.Services.MainUnitServices
                 _context.MainUnits.Add(mainUnit);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Main unit '{MainUnitName}' (ID: {MainUnitId}, Unique: {UniqueNumber}) created for company {CompanyId}",
-                    mainUnit.Name, mainUnit.Id, mainUnit.UniqueNumber, mainUnit.CompanyId);
+                _logger.LogInformation("Main unit '{MainUnitName}' (ID: {MainUnitId}, Unique: {UniqueNumber}) created for company {CompanyId} with FiscalYear {FiscalYearId}",
+                    mainUnit.Name, mainUnit.Id, mainUnit.UniqueNumber, mainUnit.CompanyId, mainUnit.FiscalYearId);
 
                 return mainUnit;
             }
@@ -190,6 +317,24 @@ namespace SkyForge.Services.MainUnitServices
                     throw new KeyNotFoundException($"Company with ID {companyId} not found");
                 }
 
+                var activeFiscalYear = await _context.FiscalYears
+                   .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+                if (activeFiscalYear == null)
+                {
+                    activeFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyId)
+                        .OrderByDescending(f => f.CreatedAt)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (activeFiscalYear == null)
+                {
+                    _logger.LogError("No fiscal year found for company {CompanyId}", companyId);
+                    throw new InvalidOperationException($"Cannot create default item company: No fiscal year exists for company {companyId}");
+                }
+
+
                 // Get existing main units to avoid duplicates
                 var existingMainUnits = await _context.MainUnits
                     .Where(mu => mu.CompanyId == companyId)
@@ -235,6 +380,10 @@ namespace SkyForge.Services.MainUnitServices
                     {
                         Name = mainUnitName,
                         CompanyId = companyId,
+                        FiscalYearId = activeFiscalYear.Id,           // *** ADD THIS ***
+                        OriginalFiscalYearId = activeFiscalYear.Id,    // *** ADD THIS ***
+                        Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,  // Optional but recommended
+                        NepaliDate = activeFiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         UniqueNumber = uniqueNumber,
                         CreatedAt = now
                     };
@@ -317,10 +466,18 @@ namespace SkyForge.Services.MainUnitServices
             }
         }
 
-        public async Task<MainUnit> GetOrCreateMainUnitAsync(Guid companyId, string name)
+        public async Task<MainUnit> GetOrCreateMainUnitAsync(Guid companyId, string name, Guid fiscalYearId)
         {
             try
             {
+                // 1. Validate fiscal year exists and belongs to company
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+                if (fiscalYear == null)
+                {
+                    throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
+                }
                 var mainUnit = await GetMainUnitByNameAsync(companyId, name);
 
                 if (mainUnit == null)
@@ -328,6 +485,10 @@ namespace SkyForge.Services.MainUnitServices
                     mainUnit = new MainUnit
                     {
                         Name = name,
+                        FiscalYearId = fiscalYearId,
+                        OriginalFiscalYearId = fiscalYearId,
+                        Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow,
+                        NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CompanyId = companyId,
                         CreatedAt = DateTime.UtcNow
                     };

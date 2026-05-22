@@ -477,7 +477,8 @@ namespace SkyForge.Controllers.SystemOwnder
                     tradeType = company.TradeType.ToString(),
                     dateFormat = company.DateFormat.ToString(),
                     renewalDate = company.RenewalDate,
-                    fiscalYearStartDate = company.FiscalYearStartDate,
+                    fiscalYearStartDateNepali = company.FiscalYearStartDateNepali,
+                    fiscalYearStartDateEnglish = company.FiscalYearStartDateEnglish,
 
                     // Features
                     vatEnabled = company.VatEnabled,

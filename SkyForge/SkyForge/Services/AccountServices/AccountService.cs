@@ -271,6 +271,25 @@ namespace SkyForge.Services.AccountServices
                     throw new KeyNotFoundException($"Company with ID {companyId} not found");
                 }
 
+                var activeFiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+                if (activeFiscalYear == null)
+                {
+                    // If no active fiscal year, get the most recent one
+                    activeFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyId)
+                        .OrderByDescending(f => f.CreatedAt)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (activeFiscalYear == null)
+                {
+                    _logger.LogError("No fiscal year found for company {CompanyId}", companyId);
+                    throw new InvalidOperationException($"Cannot create default category: No fiscal year exists for company {companyId}");
+                }
+
+
                 var currentFiscalYear = company.FiscalYears.FirstOrDefault();
                 if (currentFiscalYear == null)
                 {
@@ -309,23 +328,28 @@ namespace SkyForge.Services.AccountServices
                     {
                         Amount = 0,
                         Type = "Dr",
-                        Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
+                        Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,  // No ToUniversalTime()
                         NepaliDate = currentFiscalYear.StartDateNepali,
-                        FiscalYearId = currentFiscalYear.Id
+                        FiscalYearId = currentFiscalYear.Id,
+                        CompanyId = companyId
                     },
                     OpeningBalanceType = "Dr",
                     CompanyId = companyId,
-                    OriginalFiscalYearId = currentFiscalYear.Id,
+                    // OriginalFiscalYearId = currentFiscalYear.Id,
+                    // FiscalYearId = activeFiscalYear.Id,           // *** ADD THIS ***
+                    OriginalFiscalYearId = activeFiscalYear.Id,    // *** ADD THIS ***
+                    Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,  // Optional but recommended
+                    NepaliDate = activeFiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     DefaultCashAccount = true,
                     IsDefaultAccount = true,
                     CreatedAt = DateTime.UtcNow,
-                    OpeningBalanceDate = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                    OpeningBalanceDateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null
+                    // OpeningBalanceDate = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
+                    // OpeningBalanceDateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null
                 };
 
                 if (isNepaliDateFormat)
                 {
-                    cashAccount.Date = currentFiscalYear.StartDate ?? DateTime.MinValue;
+                    cashAccount.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
                     cashAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                 }
                 else
@@ -360,6 +384,24 @@ namespace SkyForge.Services.AccountServices
                 if (company == null)
                 {
                     throw new KeyNotFoundException($"Company with ID {companyId} not found");
+                }
+
+                var activeFiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+                if (activeFiscalYear == null)
+                {
+                    // If no active fiscal year, get the most recent one
+                    activeFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyId)
+                        .OrderByDescending(f => f.CreatedAt)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (activeFiscalYear == null)
+                {
+                    _logger.LogError("No fiscal year found for company {CompanyId}", companyId);
+                    throw new InvalidOperationException($"Cannot create default category: No fiscal year exists for company {companyId}");
                 }
 
                 var currentFiscalYear = company.FiscalYears.FirstOrDefault();
@@ -400,18 +442,23 @@ namespace SkyForge.Services.AccountServices
                     {
                         Amount = 0,
                         Type = "Dr",
-                        Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
+                        Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,  // No ToUniversalTime()
                         NepaliDate = currentFiscalYear.StartDateNepali,
-                        FiscalYearId = currentFiscalYear.Id
+                        FiscalYearId = currentFiscalYear.Id,
+                        CompanyId = companyId
                     },
                     OpeningBalanceType = "Dr",
                     CompanyId = companyId,
-                    OriginalFiscalYearId = currentFiscalYear.Id,
+                    // OriginalFiscalYearId = currentFiscalYear.Id,
                     DefaultVatAccount = true,
                     IsDefaultAccount = true,
+                    // FiscalYearId = activeFiscalYear.Id,           // *** ADD THIS ***
+                    OriginalFiscalYearId = activeFiscalYear.Id,    // *** ADD THIS ***
+                    Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,  // No ToUniversalTime()
+                    NepaliDate = currentFiscalYear.StartDateNepali,
                     CreatedAt = DateTime.UtcNow,
-                    OpeningBalanceDate = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                    OpeningBalanceDateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null
+                    // OpeningBalanceDate = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
+                    // OpeningBalanceDateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null
                 };
 
                 if (isNepaliDateFormat)
@@ -439,6 +486,114 @@ namespace SkyForge.Services.AccountServices
             }
         }
 
+        // public async Task<Account> CreateAccountAsync(Account account)
+        // {
+        //     try
+        //     {
+        //         // Generate unique number if not provided
+        //         if (!account.UniqueNumber.HasValue)
+        //         {
+        //             account.UniqueNumber = await GenerateUniqueAccountNumberAsync();
+        //         }
+
+        //         // Validate opening balance type
+        //         if (account.OpeningBalanceType != "Dr" && account.OpeningBalanceType != "Cr")
+        //         {
+        //             throw new ArgumentException("OpeningBalanceType must be either 'Dr' or 'Cr'");
+        //         }
+
+        //         // *** ADD THIS: Validate and set FiscalYearId ***
+        //         if (account.FiscalYearId == Guid.Empty)
+        //         {
+        //             // If no fiscal year provided, get the active one
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == account.CompanyId && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 throw new InvalidOperationException($"No active fiscal year found for company {account.CompanyId}");
+        //             }
+
+        //             account.FiscalYearId = activeFiscalYear.Id;
+        //             account.OriginalFiscalYearId = activeFiscalYear.Id;
+
+        //             // Set Date and NepaliDate from active fiscal year
+        //             account.Date = activeFiscalYear.StartDate.HasValue
+        //                 ? activeFiscalYear.StartDate.Value.ToUniversalTime()
+        //                 : DateTime.UtcNow;
+        //             account.NepaliDate = !string.IsNullOrEmpty(activeFiscalYear.StartDateNepali)
+        //                 ? activeFiscalYear.StartDateNepali
+        //                 : DateTime.UtcNow.ToString("yyyy-MM-dd");
+        //         }
+        //         else
+        //         {
+        //             // Verify the provided fiscal year exists and belongs to the company
+        //             var fiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == account.FiscalYearId && f.CompanyId == account.CompanyId);
+
+        //             if (fiscalYear == null)
+        //             {
+        //                 throw new KeyNotFoundException($"Fiscal year {account.FiscalYearId} not found for company {account.CompanyId}");
+        //             }
+
+        //             // Set OriginalFiscalYearId if not set
+        //             if (account.OriginalFiscalYearId == Guid.Empty)
+        //             {
+        //                 account.OriginalFiscalYearId = account.FiscalYearId;
+        //             }
+
+        //             // Set Date and NepaliDate from fiscal year if not already set
+        //             if (account.Date == default(DateTime))
+        //             {
+        //                 account.Date = fiscalYear.StartDate.HasValue
+        //                     ? fiscalYear.StartDate.Value.ToUniversalTime()
+        //                     : DateTime.UtcNow;
+        //             }
+
+        //             if (string.IsNullOrEmpty(account.NepaliDate))
+        //             {
+        //                 account.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+        //                     ? fiscalYear.StartDateNepali
+        //                     : DateTime.UtcNow.ToString("yyyy-MM-dd");
+        //             }
+        //         }
+
+        //         // Set opening balance date based on fiscal year format
+        //         var assignedFiscalYear = await _context.FiscalYears.FindAsync(account.FiscalYearId);
+        //         if (assignedFiscalYear != null)
+        //         {
+        //             bool isNepaliDateFormat = assignedFiscalYear.DateFormat == DateFormatEnum.Nepali;
+
+        //             if (isNepaliDateFormat)
+        //             {
+        //                 account.OpeningBalanceDate = DateTime.MinValue;
+        //                 account.OpeningBalanceDateNepali = assignedFiscalYear.StartDateNepali;
+        //             }
+        //             else
+        //             {
+        //                 account.OpeningBalanceDate = assignedFiscalYear.StartDate ?? DateTime.UtcNow;
+        //                 account.OpeningBalanceDateNepali = null;
+        //             }
+        //         }
+
+        //         account.CreatedAt = DateTime.UtcNow;
+        //         account.IsActive = true;
+
+        //         _context.Accounts.Add(account);
+        //         await _context.SaveChangesAsync();
+
+        //         _logger.LogInformation("Account '{AccountName}' created with ID {AccountId}, FiscalYear {FiscalYearId}, Date {Date}, NepaliDate {NepaliDate}",
+        //             account.Name, account.Id, account.FiscalYearId, account.Date, account.NepaliDate);
+
+        //         return account;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error creating account '{AccountName}'", account.Name);
+        //         throw;
+        //     }
+        // }
+
         public async Task<Account> CreateAccountAsync(Account account)
         {
             try
@@ -455,46 +610,78 @@ namespace SkyForge.Services.AccountServices
                     throw new ArgumentException("OpeningBalanceType must be either 'Dr' or 'Cr'");
                 }
 
-                // Get fiscal year to determine date format
-                var fiscalYear = account.OriginalFiscalYearId.HasValue
-                    ? await _context.FiscalYears.FindAsync(account.OriginalFiscalYearId.Value)
-                    : null;
+                // Get the active fiscal year for this company
+                var activeFiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == account.CompanyId && f.IsActive);
 
-                if (fiscalYear != null)
+                if (activeFiscalYear == null)
                 {
-                    bool isNepaliDateFormat = fiscalYear.DateFormat == DateFormatEnum.Nepali;
+                    throw new InvalidOperationException($"No active fiscal year found for company {account.CompanyId}");
+                }
 
-                    // Set opening balance date based on fiscal year format
-                    if (isNepaliDateFormat)
-                    {
-                        account.Date = fiscalYear.StartDate ?? DateTime.UtcNow;
-                        account.NepaliDate = fiscalYear.StartDateNepali;
-                        // Use fiscal year's Nepali start date
-                        account.OpeningBalanceDate = DateTime.MinValue; // Placeholder
-                        account.OpeningBalanceDateNepali = fiscalYear.StartDateNepali;
-                    }
-                    else
-                    {
-                        account.Date = fiscalYear.StartDate ?? DateTime.UtcNow;
-                        // Use current date for English
-                        account.OpeningBalanceDate = DateTime.UtcNow;
-                        account.OpeningBalanceDateNepali = null;
-                    }
-                }
-                else
+                // Set OriginalFiscalYearId (track when this account was first created)
+                if (account.OriginalFiscalYearId == null || account.OriginalFiscalYearId == Guid.Empty)
                 {
-                    // Default to English date
-                    account.OpeningBalanceDate = DateTime.UtcNow;
+                    account.OriginalFiscalYearId = activeFiscalYear.Id;
                 }
+
+                // Set Date and NepaliDate from active fiscal year start date
+                account.Date = activeFiscalYear.StartDate ?? DateTime.UtcNow;
+                account.NepaliDate = activeFiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+                // Set opening balance date based on fiscal year format
+                // bool isNepaliDateFormat = activeFiscalYear.DateFormat == DateFormatEnum.Nepali;
+
+                // if (isNepaliDateFormat)
+                // {
+                //     account.OpeningBalanceDate = DateTime.MinValue;
+                //     account.OpeningBalanceDateNepali = activeFiscalYear.StartDateNepali;
+                // }
+                // else
+                // {
+                //     account.OpeningBalanceDate = activeFiscalYear.StartDate ?? DateTime.UtcNow;
+                //     account.OpeningBalanceDateNepali = null;
+                // }
 
                 account.CreatedAt = DateTime.UtcNow;
                 account.IsActive = true;
 
+                // Add the account
                 _context.Accounts.Add(account);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Account '{AccountName}' created with ID {AccountId} and unique number {UniqueNumber}",
-                    account.Name, account.Id, account.UniqueNumber);
+                // **CRITICAL: Create OpeningBalanceByFiscalYear record for the active fiscal year**
+                var openingBalance = new OpeningBalanceByFiscalYear
+                {
+                    Id = Guid.NewGuid(),
+                    AccountId = account.Id,
+                    FiscalYearId = activeFiscalYear.Id,
+                    CompanyId = account.CompanyId,
+                    Amount = account.OpeningBalanceType == "Dr"
+                        ? (account.InitialOpeningBalance?.Amount ?? 0)
+                        : (account.InitialOpeningBalance?.Amount ?? 0),
+                    Type = account.OpeningBalanceType,
+                    Date = account.Date,
+                    NepaliDate = account.NepaliDate,
+                };
+
+                _context.OpeningBalanceByFiscalYear.Add(openingBalance);
+
+                // // If there's an initial opening balance, also add it to InitialOpeningBalance table
+                // if (account.InitialOpeningBalance != null)
+                // {
+                //     account.InitialOpeningBalance.AccountId = account.Id;
+                //     account.InitialOpeningBalance.FiscalYearId = activeFiscalYear.Id;
+                //     _context.InitialOpeningBalances.Add(account.InitialOpeningBalance);
+                // }
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Account '{AccountName}' created with ID {AccountId}, " +
+                    "OriginalFiscalYear {OriginalFiscalYearId}, OpeningBalance for FiscalYear {FiscalYearId}, " +
+                    "Date {Date}, NepaliDate {NepaliDate}",
+                    account.Name, account.Id, account.OriginalFiscalYearId, activeFiscalYear.Id,
+                    account.Date, account.NepaliDate);
 
                 return account;
             }
@@ -517,6 +704,24 @@ namespace SkyForge.Services.AccountServices
                 if (company == null)
                 {
                     throw new KeyNotFoundException($"Company with ID {companyId} not found");
+                }
+
+                var activeFiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+                if (activeFiscalYear == null)
+                {
+                    // If no active fiscal year, get the most recent one
+                    activeFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyId)
+                        .OrderByDescending(f => f.CreatedAt)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (activeFiscalYear == null)
+                {
+                    _logger.LogError("No fiscal year found for company {CompanyId}", companyId);
+                    throw new InvalidOperationException($"Cannot create default category: No fiscal year exists for company {companyId}");
                 }
 
                 var currentFiscalYear = company.FiscalYears.FirstOrDefault();
@@ -613,17 +818,22 @@ namespace SkyForge.Services.AccountServices
                         {
                             Amount = 0,
                             Type = "Dr",
-                            Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
+                            Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,  // No ToUniversalTime()
                             NepaliDate = currentFiscalYear.StartDateNepali,
-                            FiscalYearId = currentFiscalYear.Id
+                            FiscalYearId = currentFiscalYear.Id,
+                            CompanyId = companyId
                         },
                         OpeningBalanceType = "Dr",
                         CompanyId = companyId,
-                        OriginalFiscalYearId = currentFiscalYear.Id,
+                        // OriginalFiscalYearId = currentFiscalYear.Id,
+                        // FiscalYearId = activeFiscalYear.Id,           // *** ADD THIS ***
+                        OriginalFiscalYearId = activeFiscalYear.Id,    // *** ADD THIS ***
+                        Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,  // No ToUniversalTime()
+                        NepaliDate = currentFiscalYear.StartDateNepali,
                         IsDefaultAccount = true,
                         CreatedAt = DateTime.UtcNow,
-                        OpeningBalanceDate = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
-                        OpeningBalanceDateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null
+                        // OpeningBalanceDate = isNepaliDateFormat ? DateTime.MinValue : DateTime.UtcNow,
+                        // OpeningBalanceDateNepali = isNepaliDateFormat ? currentFiscalYear.StartDateNepali : null
                     };
 
                     if (isNepaliDateFormat)
@@ -633,7 +843,7 @@ namespace SkyForge.Services.AccountServices
                     }
                     else
                     {
-                         account.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                        account.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
                         account.NepaliDate = currentFiscalYear.StartDateNepali;
                     }
 

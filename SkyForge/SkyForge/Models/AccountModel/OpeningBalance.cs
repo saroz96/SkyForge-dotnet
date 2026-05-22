@@ -1,4 +1,5 @@
-﻿using SkyForge.Models.FiscalYearModel;
+﻿using SkyForge.Models.CompanyModel;
+using SkyForge.Models.FiscalYearModel;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -36,5 +37,9 @@ namespace SkyForge.Models.AccountModel
 
         [ForeignKey("AccountId")]
         public virtual Account Account { get; set; }
+        public Guid CompanyId { get; set; }
+        // Navigation property
+        [ForeignKey("CompanyId")]
+        public virtual Company Company { get; set; } = null!;
     }
 }

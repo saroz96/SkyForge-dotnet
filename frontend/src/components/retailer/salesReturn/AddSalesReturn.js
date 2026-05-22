@@ -1,9 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
-
 import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
@@ -1560,7 +1558,7 @@ const AddSalesReturn = () => {
             const itemAmount = parseFloat(item.amount) || 0;
             subTotal += itemAmount;
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount += itemAmount;
             } else {
                 nonTaxableAmount += itemAmount;
@@ -2357,10 +2355,10 @@ const AddSalesReturn = () => {
 
                 if (billData.items && billData.items.length > 0) {
                     const vatStatuses = billData.items.map(item => {
-                        return item.item?.vatStatus || item.vatStatus || 'vatable';
+                        return item.item?.vatStatus || item.vatStatus || '13';
                     });
 
-                    const allVatable = vatStatuses.every(status => status === 'vatable');
+                    const allVatable = vatStatuses.every(status => status === '13');
                     const allVatExempt = vatStatuses.every(status => status === 'vatExempt');
 
                     if (allVatable) {
@@ -2428,7 +2426,7 @@ const AddSalesReturn = () => {
                         unitName: unitName || '',
                         price: item.originalPrice || item.price || item.item?.sellingPrice || 0,
                         amount: (defaultQuantity * (item.originalPrice || item.price || item.item?.sellingPrice || 0)).toFixed(2),
-                        vatStatus: item.item?.vatStatus || item.vatStatus || 'vatable',
+                        vatStatus: item.item?.vatStatus || item.vatStatus || '13',
                         _originalQuantity: item.originalQuantity,
                         _availableQuantity: item.availableQuantity,
                         _returnedQuantity: item.returnedQuantity
@@ -2592,7 +2590,7 @@ const AddSalesReturn = () => {
                     quantity: Number(item.quantity) || 0,
                     unitId: unitId,
                     price: Number(item.price) || 0,
-                    vatStatus: item.vatStatus || 'vatable',
+                    vatStatus: item.vatStatus || '13',
                     stockEntryId: item.stockEntryId || null // Include stock entry ID if available
                 };
             });
@@ -4372,7 +4370,7 @@ const AddSalesReturn = () => {
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
                                     {items.map((item, index) => {
                                         return (
-                                            <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                            <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>

@@ -3464,7 +3464,6 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // GET: api/retailer/salesReturn-vat-report
         [HttpGet("salesReturn-vat-report")]
         public async Task<IActionResult> GetSalesReturnVatReport([FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
         {
@@ -3628,32 +3627,108 @@ namespace SkyForge.Controllers.Retailer
                     return Ok(new { success = true, data = emptyResponse });
                 }
 
-                // Get sales return VAT report from service
-                var reportData = await _salesReturnService.GetSalesReturnVatReportAsync(
-                    companyIdGuid,
-                    fiscalYearIdGuid,
-                    fromDate,
-                    toDate);
+                // CRITICAL FIX: Always parse dates as AD dates (frontend sends AD dates)
+                DateTime startDateTime;
+                DateTime endDateTime;
 
-                // Add user info to response
-                reportData.User = new UserInfoDTO
+                if (!DateTime.TryParse(fromDate, out startDateTime))
                 {
-                    Id = user?.Id ?? userIdGuid,
-                    Name = user?.Name ?? "",
-                    Email = user?.Email ?? "",
-                    IsAdmin = isAdmin,
-                    Role = userRoleName,
-                    Preferences = new UserPreferencesDTO
+                    _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
+                    startDateTime = DateTime.MinValue;
+                }
+
+                if (!DateTime.TryParse(toDate, out endDateTime))
+                {
+                    _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
+                    endDateTime = DateTime.MaxValue;
+                }
+
+                // Set end date to end of day
+                endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
+
+                _logger.LogInformation("Searching for sales returns between {StartDate} and {EndDate} (AD dates)",
+                    startDateTime, endDateTime);
+
+                // Build query for sales returns - ALWAYS use Date field (AD dates) for filtering
+                var query = _context.SalesReturns
+                    .Where(sr => sr.CompanyId == companyIdGuid &&
+                                sr.Date >= startDateTime &&
+                                sr.Date <= endDateTime);
+
+                // Log the SQL query for debugging
+                var sql = query.ToQueryString();
+                _logger.LogDebug("SQL Query: {Sql}", sql);
+
+                // Include related data and order
+                var salesReturns = await query
+                    .Include(sr => sr.Account)
+                    .OrderBy(sr => sr.Date)
+                    .ThenBy(sr => sr.BillNumber)
+                    .ToListAsync();
+
+                _logger.LogInformation("Found {Count} sales returns matching the criteria", salesReturns.Count);
+
+                // If no sales returns found, log sample of all sales returns to debug
+                if (salesReturns.Count == 0)
+                {
+                    var sampleReturns = await _context.SalesReturns
+                        .Where(sr => sr.CompanyId == companyIdGuid)
+                        .OrderByDescending(sr => sr.Date)
+                        .Take(5)
+                        .Select(sr => new { sr.Id, sr.BillNumber, sr.Date, sr.NepaliDate })
+                        .ToListAsync();
+
+                    _logger.LogInformation("Sample of recent sales returns (Date vs NepaliDate): {SampleReturns}",
+                        string.Join(", ", sampleReturns.Select(r => $"{r.BillNumber} - Date: {r.Date}, NepaliDate: {r.NepaliDate}")));
+                }
+
+                // Build the sales return VAT report
+                var salesReturnVatReport = salesReturns.Select(salesReturn => new SalesReturnVatEntryDTO
+                {
+                    BillNumber = salesReturn.BillNumber,
+                    Date = salesReturn.Date,
+                    NepaliDate = salesReturn.NepaliDate,
+                    TransactionDateNepali = salesReturn.TransactionDateNepali,
+                    AccountName = salesReturn.Account != null ? salesReturn.Account.Name ?? "" : salesReturn.CashAccount ?? "Cash Sale Return",
+                    PanNumber = salesReturn.Account != null ? salesReturn.Account.Pan ?? "" : salesReturn.CashAccountPan ?? "",
+                    TotalAmount = salesReturn.TotalAmount ?? 0,
+                    DiscountAmount = salesReturn.DiscountAmount ?? 0,
+                    NonVatSalesReturn = salesReturn.NonVatSalesReturn ?? 0,
+                    TaxableAmount = salesReturn.TaxableAmount ?? 0,
+                    VatAmount = salesReturn.VatAmount ?? 0,
+                    IsCash = salesReturn.Account == null
+                }).ToList();
+
+                var response = new SalesReturnVatReportDTO
+                {
+                    Company = company,
+                    CurrentFiscalYear = currentFiscalYear,
+                    SalesReturnVatReport = salesReturnVatReport,
+                    CompanyDateFormat = companyDateFormat,
+                    NepaliDate = nepaliDate,
+                    CurrentCompany = company,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    CurrentCompanyName = company.Name,
+                    User = new UserInfoDTO
                     {
-                        Theme = user?.Preferences?.Theme.ToString() ?? "light"
-                    }
+                        Id = user?.Id ?? userIdGuid,
+                        Name = user?.Name ?? "",
+                        Email = user?.Email ?? "",
+                        IsAdmin = isAdmin,
+                        Role = userRoleName,
+                        Preferences = new UserPreferencesDTO
+                        {
+                            Theme = user?.Preferences?.Theme.ToString() ?? "light"
+                        }
+                    },
+                    Theme = user?.Preferences?.Theme.ToString() ?? "light",
+                    IsAdminOrSupervisor = isAdminOrSupervisor
                 };
-                reportData.Theme = user?.Preferences?.Theme.ToString() ?? "light";
-                reportData.IsAdminOrSupervisor = isAdminOrSupervisor;
 
-                _logger.LogInformation($"Successfully fetched sales return VAT report with {reportData.SalesReturnVatReport.Count} entries");
+                _logger.LogInformation($"Successfully fetched sales return VAT report with {salesReturnVatReport.Count} entries");
 
-                return Ok(new { success = true, data = reportData });
+                return Ok(new { success = true, data = response });
             }
             catch (Exception ex)
             {
@@ -3666,6 +3741,7 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
     }
 }
 

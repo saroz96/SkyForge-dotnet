@@ -26,6 +26,8 @@ namespace SkyForge.Dto.RetailerDto
         public string? FromDate { get; set; }
         public string? ToDate { get; set; }
         public string? BillNumber { get; set; }
+        public DateTime Date { get; set; }
+        public string? NepaliDate { get; set; }
         public CompanyInfoDTO Company { get; set; }
         public FiscalYearDTO CurrentFiscalYear { get; set; }
         public CompanyInfoDTO CurrentCompany { get; set; }
@@ -39,6 +41,7 @@ namespace SkyForge.Dto.RetailerDto
         public Guid Id { get; set; }
         public string? BillNumber { get; set; }
         public DateTime Date { get; set; }
+        public string? NepaliDate { get; set; } 
         public Guid? AccountId { get; set; }
         public string? AccountName { get; set; }
         public string? CashAccount { get; set; }

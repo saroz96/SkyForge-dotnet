@@ -47,7 +47,7 @@ const ItemRow = memo(({ item, index, style, onItemClick, searchRef }) => {
   // Build CSS class string
   const rowClasses = [
     'dropdown-item',
-    item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt',
+    item.vatStatus === '13' ? 'vatable' : 'vatExempt',
     `expiry-${expiryStatus}`
   ].filter(Boolean).join(' ');
 

@@ -145,7 +145,7 @@ namespace SkyForge.Controllers.Retailer
                 return StatusCode(500, new { success = false, error = "Internal Server Error" });
             }
         }
-       
+
         // GET: api/retailer/purchase-register
         [HttpGet("purchase-register")]
         public async Task<IActionResult> GetPurchaseRegister([FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
@@ -1796,9 +1796,8 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-
-
-        // GET: api/retailer/purchase-vat-report
+        
+        
         [HttpGet("purchase-vat-report")]
         public async Task<IActionResult> GetPurchaseVatReport([FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
         {
@@ -1962,32 +1961,107 @@ namespace SkyForge.Controllers.Retailer
                     return Ok(new { success = true, data = emptyResponse });
                 }
 
-                // Get purchase VAT report from service
-                var reportData = await _purchaseService.GetPurchaseVatReportAsync(
-                    companyIdGuid,
-                    fiscalYearIdGuid,
-                    fromDate,
-                    toDate);
+                // CRITICAL FIX: Always parse dates as AD dates (frontend sends AD dates)
+                DateTime startDateTime;
+                DateTime endDateTime;
 
-                // Add user info to response
-                reportData.User = new UserInfoDTO
+                if (!DateTime.TryParse(fromDate, out startDateTime))
                 {
-                    Id = user?.Id ?? userIdGuid,
-                    Name = user?.Name ?? "",
-                    Email = user?.Email ?? "",
-                    IsAdmin = isAdmin,
-                    Role = userRoleName,
-                    Preferences = new UserPreferencesDTO
+                    _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
+                    startDateTime = DateTime.MinValue;
+                }
+
+                if (!DateTime.TryParse(toDate, out endDateTime))
+                {
+                    _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
+                    endDateTime = DateTime.MaxValue;
+                }
+
+                // Set end date to end of day
+                endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
+
+                _logger.LogInformation("Searching for purchase bills between {StartDate} and {EndDate} (AD dates)",
+                    startDateTime, endDateTime);
+
+                // Build query for purchase bills - ALWAYS use Date field (AD dates) for filtering
+                var query = _context.PurchaseBills
+                    .Where(pb => pb.CompanyId == companyIdGuid &&
+                                pb.Date >= startDateTime &&
+                                pb.Date <= endDateTime);
+
+                // Log the SQL query for debugging
+                var sql = query.ToQueryString();
+                _logger.LogDebug("SQL Query: {Sql}", sql);
+
+                // Include related data and order
+                var bills = await query
+                    .Include(pb => pb.Account)
+                    .OrderBy(pb => pb.Date)
+                    .ThenBy(pb => pb.BillNumber)
+                    .ToListAsync();
+
+                _logger.LogInformation("Found {Count} purchase bills matching the criteria", bills.Count);
+
+                // If no bills found, log sample of all bills to debug
+                if (bills.Count == 0)
+                {
+                    var sampleBills = await _context.PurchaseBills
+                        .Where(pb => pb.CompanyId == companyIdGuid)
+                        .OrderByDescending(pb => pb.Date)
+                        .Take(5)
+                        .Select(pb => new { pb.Id, pb.BillNumber, pb.Date, pb.NepaliDate })
+                        .ToListAsync();
+
+                    _logger.LogInformation("Sample of recent purchase bills (Date vs NepaliDate): {SampleBills}",
+                        string.Join(", ", sampleBills.Select(b => $"{b.BillNumber} - Date: {b.Date}, NepaliDate: {b.NepaliDate}")));
+                }
+
+                // Build the purchase VAT report
+                var purchaseVatReport = bills.Select(bill => new PurchaseVatEntryDTO
+                {
+                    BillNumber = bill.BillNumber,
+                    PartyBillNumber = bill.PartyBillNumber ?? "",
+                    Date = bill.Date,
+                    NepaliDate = bill.NepaliDate,
+                    AccountName = bill.Account?.Name ?? "",
+                    PanNumber = bill.Account?.Pan ?? "",
+                    TotalAmount = bill.TotalAmount ?? 0,
+                    DiscountAmount = bill.DiscountAmount ?? 0,
+                    NonVatPurchase = bill.NonVatPurchase ?? 0,
+                    TaxableAmount = bill.TaxableAmount ?? 0,
+                    VatAmount = bill.VatAmount ?? 0
+                }).ToList();
+
+                var response = new PurchaseVatReportDTO
+                {
+                    Company = company,
+                    CurrentFiscalYear = currentFiscalYear,
+                    PurchaseVatReport = purchaseVatReport,
+                    CompanyDateFormat = companyDateFormat,
+                    NepaliDate = nepaliDate,
+                    CurrentCompany = company,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    CurrentCompanyName = company.Name,
+                    User = new UserInfoDTO
                     {
-                        Theme = user?.Preferences?.Theme.ToString() ?? "light"
-                    }
+                        Id = user?.Id ?? userIdGuid,
+                        Name = user?.Name ?? "",
+                        Email = user?.Email ?? "",
+                        IsAdmin = isAdmin,
+                        Role = userRoleName,
+                        Preferences = new UserPreferencesDTO
+                        {
+                            Theme = user?.Preferences?.Theme.ToString() ?? "light"
+                        }
+                    },
+                    Theme = user?.Preferences?.Theme.ToString() ?? "light",
+                    IsAdminOrSupervisor = isAdminOrSupervisor
                 };
-                reportData.Theme = user?.Preferences?.Theme.ToString() ?? "light";
-                reportData.IsAdminOrSupervisor = isAdminOrSupervisor;
 
-                _logger.LogInformation($"Successfully fetched purchase VAT report with {reportData.PurchaseVatReport.Count} entries");
+                _logger.LogInformation($"Successfully fetched purchase VAT report with {purchaseVatReport.Count} entries");
 
-                return Ok(new { success = true, data = reportData });
+                return Ok(new { success = true, data = response });
             }
             catch (Exception ex)
             {

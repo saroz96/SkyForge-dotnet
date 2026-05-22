@@ -163,7 +163,7 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
         {
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "debitNote");
         }
-        
+
         public async Task<DebitNote> CreateDebitNoteAsync(CreateDebitNoteDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -844,157 +844,6 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
             });
         }
 
-        // public async Task<DebitNoteRegisterDataDTO> GetDebitNotesRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetDebitNotesRegisterAsync called with companyId: {CompanyId}, fiscalYearId: {FiscalYearId}, fromDate: {FromDate}, toDate: {ToDate}",
-        //             companyId, fiscalYearId, fromDate, toDate);
-
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Address = c.Address,
-        //                 City = c.City,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 RenewalDate = c.RenewalDate,
-        //                 DateFormat = c.DateFormat.ToString(),
-        //                 VatEnabled = c.VatEnabled,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         var today = DateTime.UtcNow;
-        //         var nepaliDate = today.ToString("yyyy-MM-dd");
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
-        //             company.DateFormat, isNepaliFormat);
-
-        //         var fiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // If no date range provided, return basic info with empty debit notes
-        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
-        //         {
-        //             _logger.LogInformation("No date range provided, returning basic info with empty debit notes list");
-        //             return new DebitNoteRegisterDataDTO
-        //             {
-        //                 Company = company,
-        //                 CurrentFiscalYear = fiscalYear,
-        //                 DebitNotes = new List<DebitNoteResponseItemDTO>(),
-        //                 FromDate = fromDate,
-        //                 ToDate = toDate,
-        //                 CurrentCompanyName = company.Name,
-        //                 CompanyDateFormat = company.DateFormat,
-        //                 NepaliDate = nepaliDate,
-        //                 UserPreferences = new UserPreferencesDTO { Theme = "light" },
-        //                 IsAdminOrSupervisor = false
-        //             };
-        //         }
-
-        //         DateTime startDateTime;
-        //         DateTime endDateTime;
-
-        //         if (isNepaliFormat)
-        //         {
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-        //         else
-        //         {
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-
-        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
-
-        //         _logger.LogInformation("Searching for debit notes between {StartDate} and {EndDate} using {DateFormat} format",
-        //             startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
-
-        //         var query = _context.DebitNotes
-        //             .Include(d => d.DebitNoteEntries)
-        //                 .ThenInclude(e => e.Account)
-        //             .Include(d => d.User)
-        //             .Where(d => d.CompanyId == companyId && d.FiscalYearId == fiscalYearId);
-
-        //         if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
-        //         {
-        //             // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
-        //             query = query.Where(d => string.Compare(d.NepaliDate, fromDate) >= 0
-        //                                   && string.Compare(d.NepaliDate, toDate) <= 0);
-        //         }
-        //         else
-        //         {
-        //             query = query.Where(d => d.Date >= startDateTime && d.Date <= endDateTime);
-        //             _logger.LogInformation("Using Date field for filtering");
-        //         }
-
-        //         var debitNotes = await query
-        //             .OrderBy(d => d.Date)
-        //             .ThenBy(d => d.BillNumber)
-        //             .ToListAsync();
-
-        //         _logger.LogInformation("Found {Count} debit notes matching the criteria", debitNotes.Count);
-
-        //         var debitNoteDtos = debitNotes.Select(debitNote => MapToResponseItemDTO(debitNote, company.DateFormat)).ToList();
-
-        //         return new DebitNoteRegisterDataDTO
-        //         {
-        //             Company = company,
-        //             CurrentFiscalYear = fiscalYear,
-        //             DebitNotes = debitNoteDtos,
-        //             FromDate = fromDate,
-        //             ToDate = toDate,
-        //             CurrentCompanyName = company.Name,
-        //             CompanyDateFormat = company.DateFormat,
-        //             NepaliDate = nepaliDate,
-        //             UserPreferences = new UserPreferencesDTO { Theme = "light" },
-        //             IsAdminOrSupervisor = false
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting debit notes register for company {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
-
         public async Task<DebitNoteRegisterDataDTO> GetDebitNotesRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
             try
@@ -1089,7 +938,6 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
                         .ThenInclude(e => e.Account)
                     .Include(d => d.User)
                     .Where(d => d.CompanyId == companyId &&
-                               d.FiscalYearId == fiscalYearId &&
                                d.Date >= startDateTime &&
                                d.Date <= endDateTime);
 

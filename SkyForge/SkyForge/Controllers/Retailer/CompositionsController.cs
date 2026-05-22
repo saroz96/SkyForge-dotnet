@@ -212,39 +212,39 @@ namespace SkyForge.Controllers.Retailer
 
                 // 13. Prepare compositions data for response
                 // Prepare compositions data for response
-var compositionsData = compositions.Select(c => new
-{
-    _id = c.Id,
-    name = c.Name,
-    uniqueNumber = c.UniqueNumber,
-    company = c.CompanyId,
-    companyName = c.Company?.Name,
-    createdAt = c.CreatedAt,
-    updatedAt = c.UpdatedAt,
-    items = c.ItemCompositions?.Select(ic => new ItemDetailsDTO
-    {
-        Id = ic.Item?.Id ?? Guid.Empty,
-        Name = ic.Item?.Name ?? string.Empty,
-        Price = ic.Item?.Price,
-        PuPrice = ic.Item?.PuPrice,
-        MainUnitPuPrice = ic.Item?.MainUnitPuPrice ?? 0,
-        UnitName = ic.Item?.Unit?.Name,
-        OpeningStock = ic.Item?.OpeningStock ?? 0,
-        MinStock = ic.Item?.MinStock ?? 0,
-        MaxStock = ic.Item?.MaxStock ?? 0,
-        ReorderLevel = ic.Item?.ReorderLevel ?? 0,
-        UniqueNumber = ic.Item?.UniqueNumber ?? 0,
-        BarcodeNumber = ic.Item?.BarcodeNumber ?? 0,
-        CategoryId = ic.Item?.CategoryId ?? Guid.Empty,
-        CategoryName = ic.Item?.Category?.Name,
-        UnitId = ic.Item?.UnitId ?? Guid.Empty,
-        Status = ic.Item?.Status ?? "active",
-        CreatedAt = ic.Item?.CreatedAt ?? DateTime.MinValue,
-        UpdatedAt = ic.Item?.UpdatedAt ?? DateTime.MinValue,
-        // Add other properties as needed
-    }).ToList() ?? new List<ItemDetailsDTO>(),
-    itemCount = c.ItemCompositions?.Count ?? 0
-}).ToList();
+                var compositionsData = compositions.Select(c => new
+                {
+                    _id = c.Id,
+                    name = c.Name,
+                    uniqueNumber = c.UniqueNumber,
+                    company = c.CompanyId,
+                    companyName = c.Company?.Name,
+                    createdAt = c.CreatedAt,
+                    updatedAt = c.UpdatedAt,
+                    items = c.ItemCompositions?.Select(ic => new ItemDetailsDTO
+                    {
+                        Id = ic.Item?.Id ?? Guid.Empty,
+                        Name = ic.Item?.Name ?? string.Empty,
+                        Price = ic.Item?.Price,
+                        PuPrice = ic.Item?.PuPrice,
+                        MainUnitPuPrice = ic.Item?.MainUnitPuPrice ?? 0,
+                        UnitName = ic.Item?.Unit?.Name,
+                        OpeningStock = ic.Item?.OpeningStock ?? 0,
+                        MinStock = ic.Item?.MinStock ?? 0,
+                        MaxStock = ic.Item?.MaxStock ?? 0,
+                        ReorderLevel = ic.Item?.ReorderLevel ?? 0,
+                        UniqueNumber = ic.Item?.UniqueNumber ?? 0,
+                        BarcodeNumber = ic.Item?.BarcodeNumber ?? 0,
+                        CategoryId = ic.Item?.CategoryId ?? Guid.Empty,
+                        CategoryName = ic.Item?.Category?.Name,
+                        UnitId = ic.Item?.UnitId ?? Guid.Empty,
+                        Status = ic.Item?.Status ?? "active",
+                        CreatedAt = ic.Item?.CreatedAt ?? DateTime.MinValue,
+                        UpdatedAt = ic.Item?.UpdatedAt ?? DateTime.MinValue,
+                        // Add other properties as needed
+                    }).ToList() ?? new List<ItemDetailsDTO>(),
+                    itemCount = c.ItemCompositions?.Count ?? 0
+                }).ToList();
 
                 // 14. Prepare response matching Express route format
                 var responseData = new
@@ -302,6 +302,7 @@ var compositionsData = compositions.Select(c => new
 
                 // 1. Extract trade type from JWT claims
                 var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("currentFiscalYear")?.Value;
 
                 // 2. Check if trade type is Retailer
                 if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
@@ -326,6 +327,49 @@ var compositionsData = compositions.Select(c => new
                     });
                 }
 
+                Guid fiscalYearId;
+
+                // Check if request.FiscalYearId is not empty (instead of HasValue)
+                if (request.FiscalYearId != Guid.Empty)
+                {
+                    fiscalYearId = request.FiscalYearId;
+                }
+                else if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid parsedFiscalYearId))
+                {
+                    fiscalYearId = parsedFiscalYearId;
+                }
+                else
+                {
+                    // Get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company"
+                        });
+                    }
+
+                    fiscalYearId = activeFiscalYear.Id;
+                }
+
+                // *** FIX 2: Validate fiscal year exists and belongs to company ***
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyIdGuid);
+
+                if (fiscalYear == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = $"Fiscal year {fiscalYearId} not found for this company"
+                    });
+                }
+
+
                 // 5. Validate required fields
                 if (string.IsNullOrEmpty(request.Name) || request.Name.Trim() == "")
                 {
@@ -334,7 +378,7 @@ var compositionsData = compositions.Select(c => new
                         success = false,
                         error = "Composition name is required and must be a non-empty string"
                     });
-                }   
+                }
 
                 // 7. Create new composition object
                 var newComposition = new Composition
@@ -342,6 +386,15 @@ var compositionsData = compositions.Select(c => new
                     Id = Guid.NewGuid(),
                     Name = request.Name.Trim(),
                     CompanyId = companyIdGuid,
+                    FiscalYearId = fiscalYearId,
+                    OriginalFiscalYearId = fiscalYearId,
+                    // Set Date and NepaliDate from fiscal year start date
+                    Date = fiscalYear.StartDate.HasValue
+                        ? fiscalYear.StartDate.Value.ToUniversalTime()
+                        : DateTime.UtcNow,
+                    NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                        ? fiscalYear.StartDateNepali
+                        : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -486,7 +539,7 @@ var compositionsData = compositions.Select(c => new
                         {
                             await _compositionService.RemoveItemsFromCompositionAsync(id, existingItemIds);
                         }
-                        
+
                         // Add new items
                         if (request.ItemIds.Any())
                         {
@@ -497,27 +550,27 @@ var compositionsData = compositions.Select(c => new
                     // 9. Get updated composition with items
                     var updatedCompositionWithItems = await _compositionService.GetCompositionByIdAsync(id);
 
-var response = new
-{
-    success = true,
-    message = "Composition updated successfully",
-    data = new
-    {
-        composition = new
-        {
-            _id = result.Id,
-            name = result.Name,
-            company = result.CompanyId,
-            createdAt = result.CreatedAt,
-            updatedAt = result.UpdatedAt,
-            items = updatedCompositionWithItems?.ItemCompositions?.Select(ic => new
-            {
-                _id = ic.Item?.Id,
-                name = ic.Item?.Name
-            }).ToList<object>() ?? new List<object>()  // Use ToList<object>() here
-        }
-    }
-};
+                    var response = new
+                    {
+                        success = true,
+                        message = "Composition updated successfully",
+                        data = new
+                        {
+                            composition = new
+                            {
+                                _id = result.Id,
+                                name = result.Name,
+                                company = result.CompanyId,
+                                createdAt = result.CreatedAt,
+                                updatedAt = result.UpdatedAt,
+                                items = updatedCompositionWithItems?.ItemCompositions?.Select(ic => new
+                                {
+                                    _id = ic.Item?.Id,
+                                    name = ic.Item?.Name
+                                }).ToList<object>() ?? new List<object>()  // Use ToList<object>() here
+                            }
+                        }
+                    };
 
                     _logger.LogInformation($"Successfully updated composition '{result.Name}' (ID: {id})");
 
@@ -787,24 +840,24 @@ var response = new
                 bool isAdmin = bool.TryParse(isAdminClaim, out bool admin) && admin;
 
                 var compositionData = new
-{
-    _id = composition.Id,
-    name = composition.Name,
-    uniqueNumber = composition.UniqueNumber,
-    companyId = composition.CompanyId,
-    companyName = composition.Company?.Name,
-    createdAt = composition.CreatedAt,
-    updatedAt = composition.UpdatedAt,
-    items = composition.ItemCompositions?.Select(ic => new
-    {
-        _id = ic.Item?.Id,
-        name = ic.Item?.Name,
-        price = ic.Item?.Price,
-        unitName = ic.Item?.Unit?.Name
-    }).ToList<object>() ?? new List<object>(),  // Add .ToList<object>() here
-    itemCount = composition.ItemCompositions?.Count ?? 0,
-    status = "active"
-};
+                {
+                    _id = composition.Id,
+                    name = composition.Name,
+                    uniqueNumber = composition.UniqueNumber,
+                    companyId = composition.CompanyId,
+                    companyName = composition.Company?.Name,
+                    createdAt = composition.CreatedAt,
+                    updatedAt = composition.UpdatedAt,
+                    items = composition.ItemCompositions?.Select(ic => new
+                    {
+                        _id = ic.Item?.Id,
+                        name = ic.Item?.Name,
+                        price = ic.Item?.Price,
+                        unitName = ic.Item?.Unit?.Name
+                    }).ToList<object>() ?? new List<object>(),  // Add .ToList<object>() here
+                    itemCount = composition.ItemCompositions?.Count ?? 0,
+                    status = "active"
+                };
                 // 12. Prepare the main response
                 var response = new
                 {
@@ -888,31 +941,31 @@ var response = new
                 // 5. Search compositions using service
                 var compositions = await _compositionService.SearchCompositionsAsync(companyIdGuid, term);
 
-               // 6. Prepare response
-var response = new
-{
-    success = true,
-    data = new
-    {
-        compositions = compositions.Select(c => new
-        {
-            _id = c.Id,
-            name = c.Name,
-            uniqueNumber = c.UniqueNumber,
-            companyId = c.CompanyId,
-            companyName = c.Company?.Name,
-            createdAt = c.CreatedAt,
-            updatedAt = c.UpdatedAt,
-            items = c.ItemCompositions?.Select(ic => new
-            {
-                _id = ic.Item?.Id,
-                name = ic.Item?.Name
-            }).ToList<object>() ?? new List<object>(),  // Add .ToList<object>() here
-            itemCount = c.ItemCompositions?.Count ?? 0,
-            status = "active"
-        })
-    }
-};
+                // 6. Prepare response
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        compositions = compositions.Select(c => new
+                        {
+                            _id = c.Id,
+                            name = c.Name,
+                            uniqueNumber = c.UniqueNumber,
+                            companyId = c.CompanyId,
+                            companyName = c.Company?.Name,
+                            createdAt = c.CreatedAt,
+                            updatedAt = c.UpdatedAt,
+                            items = c.ItemCompositions?.Select(ic => new
+                            {
+                                _id = ic.Item?.Id,
+                                name = ic.Item?.Name
+                            }).ToList<object>() ?? new List<object>(),  // Add .ToList<object>() here
+                            itemCount = c.ItemCompositions?.Count ?? 0,
+                            status = "active"
+                        })
+                    }
+                };
 
                 // _logger.LogInformation($"Found {compositions.Count} compositions matching term '{term}'");
 

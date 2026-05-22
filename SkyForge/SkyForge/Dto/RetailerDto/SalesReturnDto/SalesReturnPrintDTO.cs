@@ -99,6 +99,6 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
         // Calculated properties
         public decimal ItemTotal => Quantity * Price;
         public decimal ItemTotalWithDiscount => ItemTotal - DiscountAmountPerItem;
-        public decimal ItemTotalWithVat => (ItemTotal - DiscountAmountPerItem) * (VatStatus == "vatable" ? 1.13m : 1m);
+        public decimal ItemTotalWithVat => (ItemTotal - DiscountAmountPerItem) * (VatStatus == "13" ? 1.13m : 1m);
     }
 }

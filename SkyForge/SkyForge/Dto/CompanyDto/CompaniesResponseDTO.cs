@@ -20,7 +20,8 @@ namespace SkyForge.Dto.CompanyDto
         public bool VatEnabled { get; set; }
         public bool StoreManagement { get; set; }
         public string RenewalDate { get; set; } = string.Empty;
-        public string FiscalYearStartDate { get; set; }
+        public string FiscalYearStartDateNepali { get; set; }
+        public DateTime? FiscalYearStartDateEnglish { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public List<string> NotificationEmails { get; set; } = new();

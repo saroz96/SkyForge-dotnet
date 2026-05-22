@@ -37,6 +37,9 @@ namespace SkyForge.Dto.AccountDto
         // Changed from int to Guid to match Account model
         [Required(ErrorMessage = "Account group is required")]
         public Guid AccountGroups { get; set; }
+
+        [Required]
+        public Guid FiscalYearId { get; set; }
         public DateTime Date { get; set; } = DateTime.UtcNow;
         public DateTime NepaliDate { get; set; }
         public OpeningBalanceDTO OpeningBalance { get; set; } = new OpeningBalanceDTO();

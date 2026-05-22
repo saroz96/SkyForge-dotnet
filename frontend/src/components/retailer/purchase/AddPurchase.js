@@ -1439,7 +1439,7 @@ const AddPurchase = () => {
             subTotal = preciseAdd(subTotal, itemAmount);
             totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount = preciseAdd(taxableAmount, itemAmount);
                 taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
             } else {
@@ -4449,7 +4449,7 @@ const AddPurchase = () => {
                                 </thead>
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
                                     {items.map((item, index) => (
-                                        <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                        <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>
@@ -5876,7 +5876,7 @@ const AddPurchase = () => {
                                                     const mrp = parseFloat(e.target.value) || 0;
                                                     let salesPrice = salesPriceData.currency === 'INR' ? mrp * 1.6 : mrp;
                                                     const item = isHeaderMode ? selectedItemForInsert : items[selectedItemIndex];
-                                                    if (item?.vatStatus === 'vatable') {
+                                                    if (item?.vatStatus === '13') {
                                                         salesPrice = salesPrice / 1.13;
                                                     }
                                                     const margin = ((salesPrice - salesPriceData.puPrice) / salesPriceData.puPrice) * 100;

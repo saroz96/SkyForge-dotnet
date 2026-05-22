@@ -1539,47 +1539,6 @@ const AddCashSales = () => {
         }
     }, [items]);
 
-    // const calculateTotal = (itemsToCalculate = items) => {
-    //     let subTotal = 0;
-    //     let taxableAmount = 0;
-    //     let nonTaxableAmount = 0;
-
-    //     itemsToCalculate.forEach(item => {
-    //         subTotal += parseFloat(item.amount) || 0;
-
-    //         if (item.vatStatus === 'vatable') {
-    //             taxableAmount += parseFloat(item.amount) || 0;
-    //         } else {
-    //             nonTaxableAmount += parseFloat(item.amount) || 0;
-    //         }
-    //     });
-
-    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
-    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
-
-    //     const discountForTaxable = (taxableAmount * discountPercentage) / 100;
-    //     const discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-
-    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
-    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
-
-    //     let vatAmount = 0;
-    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-    //         vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
-    //     }
-
-    //     const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-    //     const totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount + roundOffAmount;
-
-    //     return {
-    //         subTotal,
-    //         taxableAmount: finalTaxableAmount,
-    //         nonTaxableAmount: finalNonTaxableAmount,
-    //         vatAmount,
-    //         totalAmount,
-    //         discountAmount
-    //     };
-    // };
 
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
@@ -1590,7 +1549,7 @@ const AddCashSales = () => {
             const itemAmount = parseFloat(item.amount) || 0;
             subTotal += itemAmount;
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount += itemAmount;
             } else {
                 nonTaxableAmount += itemAmount;
@@ -1943,7 +1902,7 @@ const AddCashSales = () => {
                     puPrice: parseFloat(item.puPrice) || 0,
                     mrp: parseFloat(item.mrp),
                     netPuPrice: parseFloat(item.netPuPrice) || parseFloat(item.puPrice) || 0,
-                    vatStatus: item.vatStatus || 'vatable',
+                    vatStatus: item.vatStatus || '13',
                     uniqueUuid: item.uniqueUuid || ''
                 })),
 
@@ -3619,7 +3578,7 @@ const AddCashSales = () => {
                                         const availableStock = getAvailableStockForDisplay(item);
                                         const remainingStock = getRemainingStock(item);
                                         return (
-                                            <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                            <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>

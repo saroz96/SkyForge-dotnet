@@ -122,10 +122,10 @@ namespace SkyForge.Controllers.Retailer
                     success = true,
                     data = new
                     {
-                        startDate = isNepaliFormat 
+                        startDate = isNepaliFormat
                             ? (currentFiscalYear.StartDateNepali ?? nepaliDateStr)
                             : (currentFiscalYear.StartDate?.ToString("yyyy-MM-dd") ?? ""),
-                        endDate = isNepaliFormat 
+                        endDate = isNepaliFormat
                             ? nepaliDateStr
                             : (currentFiscalYear.EndDate?.ToString("yyyy-MM-dd") ?? ""),
                         company = new
@@ -285,59 +285,37 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                bool isNepaliFormat = company.DateFormat?.ToString()?.ToLower() == "nepali";
-
+                // CRITICAL FIX: Always parse dates as AD dates (frontend sends AD dates)
                 DateTime startDateTime;
                 DateTime endDateTime;
 
-                // Handle dates based on company format
-                if (isNepaliFormat)
+                // Parse dates as AD dates
+                if (!DateTime.TryParse(request.FromDate.ToString(), out startDateTime))
                 {
-                    // For Nepali format, the request.FromDate and request.ToDate are Nepali date strings
-                    // Parse them as DateTime (they are already stored as DateTime in the database)
-                    // The frontend sends Nepali date strings, we need to convert them to DateTime
-                    // Since your database stores nepaliDate as DateTime, we can parse the date string
-                    // assuming it's in YYYY-MM-DD format and convert to DateTime at start of day
-                    
-                    if (DateTime.TryParseExact(request.FromDate.ToString("yyyy-MM-dd"), "yyyy-MM-dd", 
-                        System.Globalization.CultureInfo.InvariantCulture, 
-                        System.Globalization.DateTimeStyles.AssumeUniversal, out DateTime fromDate))
-                    {
-                        startDateTime = fromDate.Date;
-                    }
-                    else
-                    {
-                        startDateTime = DateTime.MinValue;
-                    }
-                    
-                    if (DateTime.TryParseExact(request.ToDate.ToString("yyyy-MM-dd"), "yyyy-MM-dd", 
-                        System.Globalization.CultureInfo.InvariantCulture, 
-                        System.Globalization.DateTimeStyles.AssumeUniversal, out DateTime toDate))
-                    {
-                        endDateTime = toDate.Date.AddDays(1).AddSeconds(-1);
-                    }
-                    else
-                    {
-                        endDateTime = DateTime.MaxValue;
-                    }
-                    
-                    _logger.LogInformation($"Using Nepali date filter: From {request.FromDate} ({startDateTime}) to {request.ToDate} ({endDateTime})");
-                }
-                else
-                {
-                    startDateTime = request.FromDate.Date;
-                    endDateTime = request.ToDate.Date.AddDays(1).AddSeconds(-1);
-                    _logger.LogInformation($"Using English date filter: From {startDateTime} to {endDateTime}");
+                    _logger.LogWarning("Invalid fromDate format: {FromDate}", request.FromDate);
+                    startDateTime = DateTime.MinValue;
                 }
 
-                // Get net sales with proper date filtering
-                var netSales = await GetNetSales(companyIdGuid, currentFiscalYear.Id, startDateTime, endDateTime, isNepaliFormat);
+                if (!DateTime.TryParse(request.ToDate.ToString(), out endDateTime))
+                {
+                    _logger.LogWarning("Invalid toDate format: {ToDate}", request.ToDate);
+                    endDateTime = DateTime.MaxValue;
+                }
 
-                // Get net purchases with proper date filtering
-                var netPurchases = await GetNetPurchases(companyIdGuid, currentFiscalYear.Id, startDateTime, endDateTime, isNepaliFormat);
+                // Set end date to end of day
+                endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
 
-                // Calculate daily profit with proper date filtering
-                var dailyProfit = await CalculateDailyProfit(companyIdGuid, currentFiscalYear.Id, startDateTime, endDateTime, isNepaliFormat);
+                _logger.LogInformation("Searching for sales between {StartDate} and {EndDate} (AD dates)",
+                    startDateTime, endDateTime);
+
+                // Get net sales with AD date filtering
+                var netSales = await GetNetSales(companyIdGuid, startDateTime, endDateTime);
+
+                // Get net purchases with AD date filtering
+                var netPurchases = await GetNetPurchases(companyIdGuid, startDateTime, endDateTime);
+
+                // Calculate daily profit with AD date filtering
+                var dailyProfit = await CalculateDailyProfit(companyIdGuid, startDateTime, endDateTime);
 
                 // Calculate summary statistics
                 var summary = new SummaryDto
@@ -426,28 +404,19 @@ namespace SkyForge.Controllers.Retailer
             return DateTime.UtcNow.Date;
         }
 
-        private async Task<List<NetSalesDto>> GetNetSales(Guid companyId, Guid fiscalYearId, DateTime startDate, DateTime endDate, bool isNepaliFormat)
+        private async Task<List<NetSalesDto>> GetNetSales(Guid companyId, DateTime startDate, DateTime endDate)
         {
+            // Get regular sales - ALWAYS use Date field (AD dates)
             var salesQuery = _context.SalesBillItems
                 .Include(sbi => sbi.SalesBill)
                 .Where(sbi => sbi.SalesBill.CompanyId == companyId &&
-                              sbi.SalesBill.FiscalYearId == fiscalYearId);
+                              sbi.SalesBill.Date >= startDate &&
+                              sbi.SalesBill.Date <= endDate);
 
-            // Apply date filter based on format
-            if (isNepaliFormat)
-            {
-                salesQuery = salesQuery.Where(sbi => sbi.SalesBill.Date >= startDate && 
-                                                     sbi.SalesBill.Date <= endDate);
-            }
-            else
-            {
-                salesQuery = salesQuery.Where(sbi => sbi.SalesBill.Date >= startDate && 
-                                                     sbi.SalesBill.Date <= endDate);
-            }
+            _logger.LogInformation("Getting sales between {StartDate} and {EndDate} (AD dates)", startDate, endDate);
 
-            // Get regular sales
             var sales = await salesQuery
-                .GroupBy(sbi => isNepaliFormat ? sbi.SalesBill.Date.Date : sbi.SalesBill.Date.Date)
+                .GroupBy(sbi => sbi.SalesBill.Date.Date)
                 .Select(g => new
                 {
                     Date = g.Key,
@@ -456,25 +425,15 @@ namespace SkyForge.Controllers.Retailer
                 })
                 .ToListAsync();
 
-            // Get sales returns
+            // Get sales returns - ALWAYS use Date field (AD dates)
             var returnsQuery = _context.SalesReturnItems
                 .Include(sri => sri.SalesReturn)
                 .Where(sri => sri.SalesReturn.CompanyId == companyId &&
-                              sri.SalesReturn.FiscalYearId == fiscalYearId);
-
-            if (isNepaliFormat)
-            {
-                returnsQuery = returnsQuery.Where(sri => sri.SalesReturn.Date >= startDate && 
-                                                         sri.SalesReturn.Date <= endDate);
-            }
-            else
-            {
-                returnsQuery = returnsQuery.Where(sri => sri.SalesReturn.Date >= startDate && 
-                                                         sri.SalesReturn.Date <= endDate);
-            }
+                              sri.SalesReturn.Date >= startDate &&
+                              sri.SalesReturn.Date <= endDate);
 
             var salesReturns = await returnsQuery
-                .GroupBy(sri => isNepaliFormat ? sri.SalesReturn.Date.Date : sri.SalesReturn.Date.Date)
+                .GroupBy(sri => sri.SalesReturn.Date.Date)
                 .Select(g => new
                 {
                     Date = g.Key,
@@ -525,55 +484,37 @@ namespace SkyForge.Controllers.Retailer
             return salesMap.Values.OrderBy(d => d.Date).ToList();
         }
 
-        private async Task<List<NetPurchasesDto>> GetNetPurchases(Guid companyId, Guid fiscalYearId, DateTime startDate, DateTime endDate, bool isNepaliFormat)
+        private async Task<List<NetPurchasesDto>> GetNetPurchases(Guid companyId, DateTime startDate, DateTime endDate)
         {
+            // Get regular purchases - ALWAYS use Date field (AD dates)
             var purchasesQuery = _context.PurchaseBillItems
                 .Include(pbi => pbi.PurchaseBill)
                 .Where(pbi => pbi.PurchaseBill.CompanyId == companyId &&
-                              pbi.PurchaseBill.FiscalYearId == fiscalYearId);
+                              pbi.PurchaseBill.Date >= startDate &&
+                              pbi.PurchaseBill.Date <= endDate);
 
-            if (isNepaliFormat)
-            {
-                purchasesQuery = purchasesQuery.Where(pbi => pbi.PurchaseBill.Date >= startDate && 
-                                                            pbi.PurchaseBill.Date <= endDate);
-            }
-            else
-            {
-                purchasesQuery = purchasesQuery.Where(pbi => pbi.PurchaseBill.Date >= startDate && 
-                                                            pbi.PurchaseBill.Date <= endDate);
-            }
+            _logger.LogInformation("Getting purchases between {StartDate} and {EndDate} (AD dates)", startDate, endDate);
 
-            // Get regular purchases
             var purchases = await purchasesQuery
-                .GroupBy(pbi => isNepaliFormat ? pbi.PurchaseBill.Date.Date : pbi.PurchaseBill.Date.Date)
+                .GroupBy(pbi => pbi.PurchaseBill.Date.Date)
                 .Select(g => new
                 {
                     Date = g.Key,
-                    TotalPurchases = g.Sum(pbi => pbi.Quantity * pbi.NetPuPrice),
-                    TotalCost = g.Sum(pbi => pbi.Quantity * pbi.NetPuPrice),
+                    TotalPurchases = g.Sum(pbi => pbi.Quantity * pbi.PuPrice),
+                    TotalCost = g.Sum(pbi => pbi.Quantity * pbi.PuPrice),
                     Count = g.Count()
                 })
                 .ToListAsync();
 
+            // Get purchase returns - ALWAYS use Date field (AD dates)
             var returnsQuery = _context.PurchaseReturnItems
                 .Include(pri => pri.PurchaseReturn)
                 .Where(pri => pri.PurchaseReturn.CompanyId == companyId &&
-                              pri.PurchaseReturn.FiscalYearId == fiscalYearId);
+                              pri.PurchaseReturn.Date >= startDate &&
+                              pri.PurchaseReturn.Date <= endDate);
 
-            if (isNepaliFormat)
-            {
-                returnsQuery = returnsQuery.Where(pri => pri.PurchaseReturn.Date >= startDate && 
-                                                        pri.PurchaseReturn.Date <= endDate);
-            }
-            else
-            {
-                returnsQuery = returnsQuery.Where(pri => pri.PurchaseReturn.Date >= startDate && 
-                                                        pri.PurchaseReturn.Date <= endDate);
-            }
-
-            // Get purchase returns
             var purchaseReturns = await returnsQuery
-                .GroupBy(pri => isNepaliFormat ? pri.PurchaseReturn.Date.Date : pri.PurchaseReturn.Date.Date)
+                .GroupBy(pri => pri.PurchaseReturn.Date.Date)
                 .Select(g => new
                 {
                     Date = g.Key,
@@ -633,80 +574,70 @@ namespace SkyForge.Controllers.Retailer
             return purchaseMap.Values.OrderBy(d => d.Date).ToList();
         }
 
-        private async Task<List<DailyProfitDto>> CalculateDailyProfit(Guid companyId, Guid fiscalYearId, DateTime startDate, DateTime endDate, bool isNepaliFormat)
+        private async Task<List<DailyProfitDto>> CalculateDailyProfit(Guid companyId, DateTime startDate, DateTime endDate)
         {
+            // Get sales profit calculation - ALWAYS use Date field (AD dates)
             var salesQuery = _context.SalesBillItems
                 .Include(sbi => sbi.SalesBill)
                 .Where(sbi => sbi.SalesBill.CompanyId == companyId &&
-                              sbi.SalesBill.FiscalYearId == fiscalYearId);
+                              sbi.SalesBill.Date >= startDate &&
+                              sbi.SalesBill.Date <= endDate);
 
-            if (isNepaliFormat)
-            {
-                salesQuery = salesQuery.Where(sbi => sbi.SalesBill.Date >= startDate && 
-                                                     sbi.SalesBill.Date <= endDate);
-            }
-            else
-            {
-                salesQuery = salesQuery.Where(sbi => sbi.SalesBill.Date >= startDate && 
-                                                     sbi.SalesBill.Date <= endDate);
-            }
+            _logger.LogInformation("Calculating daily profit between {StartDate} and {EndDate} (AD dates)", startDate, endDate);
 
-            // Get sales profit calculation
+            // Calculate sales with proper profit calculation
             var salesResults = await salesQuery
                 .Select(sbi => new
                 {
-                    Date = isNepaliFormat ? sbi.SalesBill.Date.Date : sbi.SalesBill.Date.Date,
+                    Date = sbi.SalesBill.Date.Date,
                     Quantity = sbi.Quantity,
-                    NetPrice = sbi.NetPrice > 0 ? sbi.NetPrice : sbi.Price,
-                    NetPuPrice = sbi.NetPuPrice ?? 0,
-                    ItemProfit = ((sbi.NetPrice > 0 ? sbi.NetPrice : sbi.Price) - (sbi.NetPuPrice ?? 0)) * sbi.Quantity,
+                    SellingPrice = sbi.NetPrice > 0 ? sbi.NetPrice : sbi.Price,
+                    CostPrice = sbi.PuPrice ?? 0,
+                    // Profit = (Selling Price - Cost Price) * Quantity
+                    Profit = ((sbi.NetPrice > 0 ? sbi.NetPrice : sbi.Price) - (sbi.PuPrice ?? 0)) * sbi.Quantity,
                     SalesAmount = (sbi.NetPrice > 0 ? sbi.NetPrice : sbi.Price) * sbi.Quantity,
-                    CostAmount = (sbi.NetPuPrice ?? 0) * sbi.Quantity
+                    CostAmount = (sbi.PuPrice ?? 0) * sbi.Quantity
                 })
                 .GroupBy(x => x.Date)
                 .Select(g => new
                 {
                     Date = g.Key,
-                    TotalProfit = g.Sum(x => x.ItemProfit),
+                    TotalProfit = g.Sum(x => x.Profit),
                     TotalSales = g.Sum(x => x.SalesAmount),
                     TotalCost = g.Sum(x => x.CostAmount),
                     SalesCount = g.Count()
                 })
                 .ToListAsync();
 
+            // Get sales returns - CORRECTED calculation
+            // When an item is returned, it reduces profit (negative impact)
             var returnsQuery = _context.SalesReturnItems
                 .Include(sri => sri.SalesReturn)
                 .Where(sri => sri.SalesReturn.CompanyId == companyId &&
-                              sri.SalesReturn.FiscalYearId == fiscalYearId);
+                              sri.SalesReturn.Date >= startDate &&
+                              sri.SalesReturn.Date <= endDate);
 
-            if (isNepaliFormat)
-            {
-                returnsQuery = returnsQuery.Where(sri => sri.SalesReturn.Date >= startDate && 
-                                                        sri.SalesReturn.Date <= endDate);
-            }
-            else
-            {
-                returnsQuery = returnsQuery.Where(sri => sri.SalesReturn.Date >= startDate && 
-                                                        sri.SalesReturn.Date <= endDate);
-            }
-
-            // Get sales returns (negative profit)
             var salesReturnResults = await returnsQuery
                 .Select(sri => new
                 {
-                    Date = isNepaliFormat ? sri.SalesReturn.Date.Date : sri.SalesReturn.Date.Date,
+                    Date = sri.SalesReturn.Date.Date,
                     Quantity = sri.Quantity,
-                    NetPrice = sri.NetPrice ?? sri.Price,
-                    NetPuPrice = sri.NetPuPrice,
-                    ItemProfit = ((sri.NetPuPrice) - (sri.NetPrice ?? sri.Price)) * -1 * sri.Quantity,
-                    SalesAmount = (sri.NetPrice ?? sri.Price) * sri.Quantity * -1,
-                    CostAmount = sri.NetPuPrice * sri.Quantity * -1
+                    // For returns, the NetPrice is the selling price at time of return
+                    SellingPrice = sri.NetPrice ?? sri.Price,
+                    CostPrice = sri.PuPrice,
+                    // For returns: Profit impact = (Cost Price - Selling Price) * Quantity
+                    // Because we lose the profit we had gained
+                    Profit = ((sri.PuPrice) - (sri.NetPrice ?? sri.Price)) * sri.Quantity,
+                    // Sales amount is negative (reducing sales)
+                    SalesAmount = -((sri.NetPrice ?? sri.Price) * sri.Quantity),
+                    // Cost amount is negative (reducing cost)
+                    CostAmount = -((sri.PuPrice) * sri.Quantity)
                 })
                 .GroupBy(x => x.Date)
                 .Select(g => new
                 {
                     Date = g.Key,
-                    TotalProfit = g.Sum(x => x.ItemProfit),
+                    TotalProfit = g.Sum(x => x.Profit),
                     TotalSales = g.Sum(x => x.SalesAmount),
                     TotalCost = g.Sum(x => x.CostAmount),
                     ReturnCount = g.Count()
@@ -714,7 +645,7 @@ namespace SkyForge.Controllers.Retailer
                 .ToListAsync();
 
             // Get net purchases data
-            var netPurchases = await GetNetPurchases(companyId, fiscalYearId, startDate, endDate, isNepaliFormat);
+            var netPurchases = await GetNetPurchases(companyId, startDate, endDate);
 
             // Combine sales and returns data by date
             var profitByDate = new Dictionary<DateTime, DailyProfitDto>();
@@ -742,32 +673,22 @@ namespace SkyForge.Controllers.Retailer
                 };
             }
 
-            // Process sales returns
+            // Process sales returns - CORRECTED: Returns reduce both sales and profit
             foreach (var returnItem in salesReturnResults)
             {
                 if (profitByDate.ContainsKey(returnItem.Date))
                 {
                     var existing = profitByDate[returnItem.Date];
                     existing.Returns += Math.Abs(returnItem.TotalSales);
-                    existing.NetSales = existing.GrossSales - existing.Returns;
-                    existing.NetCost -= Math.Abs(returnItem.TotalCost);
-                    existing.NetProfit += returnItem.TotalProfit;
+                    existing.NetSales = existing.GrossSales + returnItem.TotalSales; // TotalSales is negative
+                    existing.NetCost += returnItem.TotalCost ?? 0; // TotalCost is also negative
+                    existing.NetProfit += returnItem.TotalProfit ?? 0;
                     existing.ReturnCount += returnItem.ReturnCount;
 
                     // Recalculate percentages
-                    if (existing.NetProfit < 0)
-                    {
-                        existing.CpPercentage = Math.Abs(existing.NetCost) != 0
-                            ? (-Math.Abs(existing.NetProfit) / Math.Abs(existing.NetCost)) * 100
-                            : 0;
-                    }
-                    else
-                    {
-                        existing.CpPercentage = existing.NetCost != 0
-                            ? (existing.NetProfit / existing.NetCost) * 100
-                            : 0;
-                    }
-
+                    existing.CpPercentage = existing.NetCost != 0
+                        ? (existing.NetProfit / existing.NetCost) * 100
+                        : 0;
                     existing.SpPercentage = existing.NetSales != 0
                         ? (existing.NetProfit / existing.NetSales) * 100
                         : 0;
@@ -779,22 +700,28 @@ namespace SkyForge.Controllers.Retailer
                         Date = returnItem.Date,
                         GrossSales = 0,
                         Returns = Math.Abs(returnItem.TotalSales),
-                        NetSales = -Math.Abs(returnItem.TotalSales),
-                        NetCost = -Math.Abs(returnItem.TotalCost),
-                        NetProfit = returnItem.TotalProfit,
+                        NetSales = returnItem.TotalSales,
+                        NetCost = returnItem.TotalCost ?? 0,
+                        NetProfit = returnItem.TotalProfit ?? 0,
                         SalesCount = 0,
                         ReturnCount = returnItem.ReturnCount,
                         PurchaseCount = 0,
                         GrossPurchases = 0,
                         PurchaseReturns = 0,
                         NetPurchases = 0,
-                        GrossProfit = -Math.Abs(returnItem.TotalSales - returnItem.TotalCost),
-                        CpPercentage = Math.Abs(returnItem.TotalCost) != 0
-                            ? (-Math.Abs(returnItem.TotalProfit) / Math.Abs(returnItem.TotalCost)) * 100
-                            : 0,
-                        SpPercentage = Math.Abs(returnItem.TotalSales) != 0
-                            ? (-Math.Abs(returnItem.TotalProfit) / Math.Abs(returnItem.TotalSales)) * 100
-                            : 0
+                        GrossProfit = returnItem.TotalSales - returnItem.TotalCost ?? 0,
+                        // CpPercentage = returnItem.TotalCost != 0
+                        //     ? (returnItem.TotalProfit / returnItem.TotalCost) * 100
+                        //     : 0,
+                        // SpPercentage = returnItem.TotalSales != 0
+                        //     ? (returnItem.TotalProfit / returnItem.TotalSales) * 100
+                        //     : 0
+                        CpPercentage = (returnItem.TotalCost ?? 0) != 0
+    ? ((returnItem.TotalProfit ?? 0) / (returnItem.TotalCost ?? 0)) * 100
+    : 0,
+                        SpPercentage = returnItem.TotalSales != 0
+    ? ((returnItem.TotalProfit ?? 0) / returnItem.TotalSales) * 100
+    : 0
                     };
                 }
             }
@@ -842,6 +769,8 @@ namespace SkyForge.Controllers.Retailer
                 {
                     day.TotalTransactions = day.SalesCount + day.ReturnCount + day.PurchaseCount;
                 }
+                // Also ensure NetSales and NetCost are correctly calculated
+                day.GrossProfit = day.NetSales - day.NetCost;
             }
 
             return profitByDate.Values.OrderBy(d => d.Date).ToList();

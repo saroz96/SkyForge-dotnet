@@ -501,9 +501,7 @@ namespace SkyForge.Controllers.Retailer
                 // 7. Build base query
                 var baseQuery = _context.Accounts
                     .Where(a => a.CompanyId == companyIdGuid &&
-                               a.IsActive &&
-                               (a.OriginalFiscalYearId == fiscalYearIdGuid ||
-                                _context.FiscalYears.Any(f => f.Id == fiscalYearIdGuid && f.Id > a.OriginalFiscalYearId)));
+                               a.IsActive);
 
                 // 8. Exclude the specified groups
                 if (groupsToExclude.Any())
@@ -1005,7 +1003,7 @@ namespace SkyForge.Controllers.Retailer
 
                 // 11. Get accounts for this company and fiscal year
                 var accounts = await _context.Accounts
-                    .Where(a => a.CompanyId == companyIdGuid && a.OriginalFiscalYearId == fiscalYear.Id)
+                    .Where(a => a.CompanyId == companyIdGuid)
                     .Include(a => a.AccountGroup)
                     .Include(a => a.OriginalFiscalYear)
                     .Select(a => new
@@ -1140,332 +1138,6 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // [HttpPost("companies")]
-        // public async Task<IActionResult> CreateAccount([FromBody] CreateAccountDTO request)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("=== CreateAccount Started ===");
-
-        //         // 1. Extract user and company info from JWT claims
-        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        //         var companyId = User.FindFirst("currentCompany")?.Value;
-        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-
-        //         // 2. Validate required claims exist
-        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
-        //         {
-        //             return Unauthorized(new
-        //             {
-        //                 success = false,
-        //                 error = "Invalid user token. Please login again."
-        //             });
-        //         }
-
-        //         // 3. Check if company is selected
-        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "No company selected. Please select a company first."
-        //             });
-        //         }
-
-        //         // 4. Check if trade type is Retailer
-        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
-        //         {
-        //             return StatusCode(403, new
-        //             {
-        //                 success = false,
-        //                 error = "Access denied for this trade type"
-        //             });
-        //         }
-
-        //         // 5. Validate required fields
-        //         if (string.IsNullOrEmpty(request.Name))
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "Name is required"
-        //             });
-        //         }
-
-        //         if (request.AccountGroups == Guid.Empty)  // Changed from CompanyGroups to AccountGroups
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "Account group is required"
-        //             });
-        //         }
-
-        //         // 6. Get the company
-        //         var company = await _context.Companies
-        //             .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
-
-        //         if (company == null)
-        //         {
-        //             return NotFound(new
-        //             {
-        //                 success = false,
-        //                 error = "Company not found"
-        //             });
-        //         }
-
-        //         // 7. Get the initial fiscal year
-        //         var initialFiscalYear = await _context.FiscalYears
-        //             .Where(f => f.CompanyId == companyIdGuid)
-        //             .OrderBy(f => f.StartDate)
-        //             .FirstOrDefaultAsync();
-
-        //         if (initialFiscalYear == null)
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "Initial fiscal year not found"
-        //             });
-        //         }
-
-        //         // 8. Get current active fiscal year
-        //         var currentFiscalYear = await _context.FiscalYears
-        //             .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
-
-        //         if (currentFiscalYear == null)
-        //         {
-        //             // Get any fiscal year as fallback
-        //             currentFiscalYear = await _context.FiscalYears
-        //                 .Where(f => f.CompanyId == companyIdGuid)
-        //                 .OrderByDescending(f => f.StartDate)
-        //                 .FirstOrDefaultAsync();
-
-        //             if (currentFiscalYear == null)
-        //             {
-        //                 return BadRequest(new
-        //                 {
-        //                     success = false,
-        //                     error = "No fiscal year found"
-        //                 });
-        //             }
-        //         }
-
-        //         // 9. Validate account group (using AccountGroups from DTO)
-        //         var accountGroup = await _context.AccountGroups
-        //             .FirstOrDefaultAsync(ag => ag.Id == request.AccountGroups && ag.CompanyId == companyIdGuid);
-
-        //         if (accountGroup == null)
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "Invalid account group for this company"
-        //             });
-        //         }
-
-        //         // 10. Check if opening balance is only set in initial fiscal year
-        //         bool isInitialYear = currentFiscalYear.Id == initialFiscalYear.Id;
-
-        //         if (!isInitialYear && request.OpeningBalance?.Amount > 0)
-        //         {
-        //             return BadRequest(new
-        //             {
-        //                 success = false,
-        //                 error = "Opening balance can only be set in the initial fiscal year"
-        //             });
-        //         }
-
-        //         // 11. Check if account with same name already exists in this company
-        //         var existingAccount = await _context.Accounts
-        //             .FirstOrDefaultAsync(a => a.CompanyId == companyIdGuid &&
-        //                                       a.Name.ToLower() == request.Name.ToLower());
-
-        //         if (existingAccount != null)
-        //         {
-        //             return Conflict(new
-        //             {
-        //                 success = false,
-        //                 error = "An account with this name already exists within the selected company"
-        //             });
-        //         }
-
-        //         // 12. Prepare opening balance data
-        //         decimal openingBalanceAmount = 0;
-        //         string openingBalanceType = "Dr";
-
-        //         if (isInitialYear && request.OpeningBalance != null)
-        //         {
-        //             openingBalanceAmount = request.OpeningBalance.Amount ?? 0;
-        //             openingBalanceType = request.OpeningBalance.Type ?? "Dr";
-        //         }
-
-        //         // 13. Create new account object (without OpeningBalance entities)
-        //         var newAccount = new Account
-        //         {
-        //             Id = Guid.NewGuid(),
-        //             Name = request.Name.Trim(),
-        //             Address = request.Address?.Trim() ?? string.Empty,
-        //             Phone = request.Phone?.Trim() ?? string.Empty,
-        //             Ward = request.Ward,
-        //             Pan = !string.IsNullOrWhiteSpace(request.Pan) ? request.Pan.Trim() : null,
-        //             Email = request.Email?.Trim()?.ToLower() ?? string.Empty,
-        //             ContactPerson = request.ContactPerson?.Trim() ?? string.Empty,
-        //             CreditLimit = request.CreditLimit ?? 0,
-        //             AccountGroupsId = request.AccountGroups,
-        //             OpeningBalanceType = openingBalanceType,
-        //             CompanyId = companyIdGuid,
-        //             OriginalFiscalYearId = currentFiscalYear.Id,
-        //             OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.UtcNow,
-        //             CreatedAt = DateTime.UtcNow,
-        //             IsActive = true
-        //         };
-
-        //         // Set opening balance amount if needed
-        //         if (openingBalanceAmount != 0)
-        //         {
-        //             var companyDateFormat = company.DateFormat?.ToString().ToLower() ?? "english";
-        //             var isNepaliFormat = companyDateFormat == "nepali";
-        //             // Create OpeningBalance entity
-        //             newAccount.OpeningBalance = new OpeningBalance
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 Amount = openingBalanceAmount,
-        //                 Type = openingBalanceType,
-        //                 FiscalYearId = currentFiscalYear.Id,
-        //                 Date = isNepaliFormat ? DateTime.MinValue : (currentFiscalYear.StartDate ?? DateTime.UtcNow),
-        //                 NepaliDate = isNepaliFormat && !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-        // ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-        // : DateTime.MinValue
-        //             };
-
-        //             if (isInitialYear)
-        //             {
-
-        //                 newAccount.InitialOpeningBalance = new InitialOpeningBalance
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     Amount = openingBalanceAmount,
-        //                     Type = openingBalanceType,
-        //                     InitialFiscalYearId = initialFiscalYear.Id,
-        //                     Date = isNepaliFormat ? DateTime.MinValue : (initialFiscalYear.StartDate ?? DateTime.UtcNow),
-        //                     NepaliDate = isNepaliFormat && !string.IsNullOrEmpty(initialFiscalYear.StartDateNepali)
-        //     ? DateTime.Parse(initialFiscalYear.StartDateNepali)
-        //     : DateTime.MinValue
-        //                 };
-        //             }
-
-        //             // NEW: Create OpeningBalanceByFiscalYear record
-        //             var openingBalanceByFiscalYear = new OpeningBalanceByFiscalYear
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
-        //                 Amount = openingBalanceAmount,
-        //                 Type = openingBalanceType,
-        //                 FiscalYearId = currentFiscalYear.Id,
-        //                 AccountId = newAccount.Id
-        //             };
-
-        //             // Add to the collection
-        //             newAccount.OpeningBalanceByFiscalYear.Add(openingBalanceByFiscalYear);
-        //         }
-
-        //         // 14. Save the account using the service
-        //         var createdAccount = await _accountService.CreateAccountAsync(newAccount);
-
-        //         // 15. Load related data for response
-        //         await _context.Entry(createdAccount)
-        //             .Reference(a => a.AccountGroup)
-        //             .LoadAsync();
-
-        //         await _context.Entry(createdAccount)
-        //             .Reference(a => a.OriginalFiscalYear)
-        //             .LoadAsync();
-
-        //         // Load OpeningBalanceByFiscalYear collection
-        //         await _context.Entry(createdAccount)
-        //             .Collection(a => a.OpeningBalanceByFiscalYear)
-        //             .Query()
-        //             .Include(ob => ob.FiscalYear)
-        //             .LoadAsync();
-
-        //         // 16. Prepare response
-        //         var response = new
-        //         {
-        //             success = true,
-        //             message = "Successfully created a new account",
-        //             data = new
-        //             {
-        //                 account = new
-        //                 {
-        //                     _id = newAccount.Id,
-        //                     name = newAccount.Name,
-        //                     address = newAccount.Address,
-        //                     phone = newAccount.Phone,
-        //                     ward = newAccount.Ward,
-        //                     pan = newAccount.Pan,
-        //                     email = newAccount.Email,
-        //                     creditLimit = newAccount.CreditLimit,
-        //                     contactperson = newAccount.ContactPerson,
-        //                     openingBalance = new
-        //                     {
-        //                         amount = newAccount.OpeningBalance?.Amount ?? 0,
-        //                         type = newAccount.OpeningBalanceType
-        //                     },
-        //                     // Include OpeningBalanceByFiscalYear in response
-        //                     openingBalanceByFiscalYear = newAccount.OpeningBalanceByFiscalYear.Select(ob => new
-        //                     {
-        //                         _id = ob.Id,
-        //                         date = ob.Date,
-        //                         amount = ob.Amount,
-        //                         type = ob.Type,
-        //                         fiscalYear = ob.FiscalYear == null ? null : new
-        //                         {
-        //                             _id = ob.FiscalYear.Id,
-        //                             name = ob.FiscalYear.Name
-        //                         }
-        //                     }).ToList(),
-        //                     accountGroups = newAccount.AccountGroup == null ? null : new
-        //                     {
-        //                         _id = newAccount.AccountGroup.Id,
-        //                         name = newAccount.AccountGroup.Name
-        //                     },
-        //                     originalFiscalYear = newAccount.OriginalFiscalYear == null ? null : new
-        //                     {
-        //                         _id = newAccount.OriginalFiscalYear.Id,
-        //                         name = newAccount.OriginalFiscalYear.Name
-        //                     },
-        //                     createdAt = newAccount.CreatedAt
-        //                 }
-        //             }
-        //         };
-
-        //         _logger.LogInformation($"Successfully created account '{newAccount.Name}' for company {company.Name}");
-
-        //         return Ok(response);
-
-        //     }
-        //     catch (DbUpdateException dbEx)
-        //     {
-        //         _logger.LogError(dbEx, "Database error while creating account");
-        //         return StatusCode(500, new
-        //         {
-        //             success = false,
-        //             error = "Database error while creating account"
-        //         });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error in CreateAccount");
-        //         return StatusCode(500, new
-        //         {
-        //             success = false,
-        //             error = "Internal server error while creating account",
-        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
-        //         });
-        //     }
-        // }
-
         [HttpPost("companies")]
         public async Task<IActionResult> CreateAccount([FromBody] CreateAccountDTO request)
         {
@@ -1477,6 +1149,7 @@ namespace SkyForge.Controllers.Retailer
                 var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var companyId = User.FindFirst("currentCompany")?.Value;
                 var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("currentFiscalYear")?.Value;
 
                 // 2. Validate required claims exist
                 if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
@@ -1629,6 +1302,48 @@ namespace SkyForge.Controllers.Retailer
                     openingBalanceType = request.OpeningBalance.Type ?? "Dr";
                 }
 
+                Guid fiscalYearId;
+
+                // Check if request.FiscalYearId is provided (add to DTO if needed)
+                if (request.FiscalYearId != Guid.Empty)
+                {
+                    fiscalYearId = request.FiscalYearId;
+                }
+                else if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid parsedFiscalYearId))
+                {
+                    fiscalYearId = parsedFiscalYearId;
+                }
+                else
+                {
+                    // Get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company"
+                        });
+                    }
+
+                    fiscalYearId = activeFiscalYear.Id;
+                }
+
+                // *** Validate fiscal year exists and belongs to company ***
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyIdGuid);
+
+                if (fiscalYear == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = $"Fiscal year {fiscalYearId} not found for this company"
+                    });
+                }
+
                 // 13. Create new account object
                 var newAccount = new Account
                 {
@@ -1644,7 +1359,15 @@ namespace SkyForge.Controllers.Retailer
                     AccountGroupsId = request.AccountGroups,
                     OpeningBalanceType = openingBalanceType,
                     CompanyId = companyIdGuid,
-                    OriginalFiscalYearId = currentFiscalYear.Id,
+                    // OriginalFiscalYearId = currentFiscalYear.Id,
+                    // FiscalYearId = fiscalYearId,
+                    OriginalFiscalYearId = fiscalYearId,
+                    Date = fiscalYear.StartDate.HasValue
+                ? fiscalYear.StartDate.Value.ToUniversalTime()
+                : DateTime.UtcNow,
+                    NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                ? fiscalYear.StartDateNepali
+                : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     IsActive = true
@@ -1664,17 +1387,17 @@ namespace SkyForge.Controllers.Retailer
                     newAccount.NepaliDate = currentFiscalYear.StartDateNepali;
                 }
 
-                // Set OpeningBalanceDate based on fiscal year start date and company format
-                if (isNepaliFormat)
-                {
-                    newAccount.OpeningBalanceDate = DateTime.MinValue; // Placeholder for Nepali date
-                    newAccount.OpeningBalanceDateNepali = currentFiscalYear.StartDateNepali;
-                }
-                else
-                {
-                    newAccount.OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                    newAccount.OpeningBalanceDateNepali = null;
-                }
+                // // Set OpeningBalanceDate based on fiscal year start date and company format
+                // if (isNepaliFormat)
+                // {
+                //     newAccount.OpeningBalanceDate = DateTime.MinValue; // Placeholder for Nepali date
+                //     newAccount.OpeningBalanceDateNepali = currentFiscalYear.StartDateNepali;
+                // }
+                // else
+                // {
+                //     newAccount.OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                //     newAccount.OpeningBalanceDateNepali = null;
+                // }
 
                 // 14. Set opening balance entities if amount is not zero
                 if (openingBalanceAmount != 0)
@@ -1686,7 +1409,14 @@ namespace SkyForge.Controllers.Retailer
                         Amount = openingBalanceAmount,
                         Type = openingBalanceType,
                         FiscalYearId = currentFiscalYear.Id,
-                        AccountId = newAccount.Id
+                        AccountId = newAccount.Id,
+                        CompanyId = companyIdGuid,
+                        Date = currentFiscalYear.StartDate.HasValue
+                             ? currentFiscalYear.StartDate.Value.ToUniversalTime()
+                                : DateTime.UtcNow,
+                        NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+                             ? currentFiscalYear.StartDateNepali
+                                : DateTime.UtcNow.ToString("yyyy-MM-dd")
                     };
 
                     // Set date based on company format
@@ -1710,7 +1440,15 @@ namespace SkyForge.Controllers.Retailer
                             Amount = openingBalanceAmount,
                             Type = openingBalanceType,
                             InitialFiscalYearId = initialFiscalYear.Id,
-                            AccountId = newAccount.Id
+                            AccountId = newAccount.Id,
+                            CompanyId = companyIdGuid,
+                            Date = currentFiscalYear.StartDate.HasValue
+                             ? currentFiscalYear.StartDate.Value.ToUniversalTime()
+                                : DateTime.UtcNow,
+                            NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+                             ? currentFiscalYear.StartDateNepali
+                                : DateTime.UtcNow.ToString("yyyy-MM-dd")
+
                         };
 
                         // Set date based on company format
@@ -1733,7 +1471,15 @@ namespace SkyForge.Controllers.Retailer
                         Amount = openingBalanceAmount,
                         Type = openingBalanceType,
                         FiscalYearId = currentFiscalYear.Id,
-                        AccountId = newAccount.Id
+                        AccountId = newAccount.Id,
+                        CompanyId = companyIdGuid,
+                        Date = currentFiscalYear.StartDate.HasValue
+                             ? currentFiscalYear.StartDate.Value.ToUniversalTime()
+                                : DateTime.UtcNow,
+                        NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+                             ? currentFiscalYear.StartDateNepali
+                                : DateTime.UtcNow.ToString("yyyy-MM-dd")
+
                     };
 
                     // Set date based on company format
@@ -1869,703 +1615,6 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // [HttpPut("companies/{id}")]
-        // public async Task<IActionResult> UpdateAccount(Guid id, [FromBody] UpdateAccountDTO request)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("=== UpdateAccount Started ===");
-
-        //         // 1. Extract user and company info from JWT claims
-        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        //         var companyId = User.FindFirst("currentCompany")?.Value;
-        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-
-        //         // 2. Validate required claims exist
-        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
-        //         {
-        //             return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
-        //         }
-
-        //         // 3. Check if company is selected
-        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
-        //         {
-        //             return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
-        //         }
-
-        //         // 4. Check if trade type is Retailer
-        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
-        //         {
-        //             return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
-        //         }
-
-        //         // 5. Validate required fields
-        //         if (string.IsNullOrEmpty(request.Name))
-        //         {
-        //             return BadRequest(new { success = false, error = "Name is required" });
-        //         }
-
-        //         if (!request.AccountGroups.HasValue || request.AccountGroups.Value == Guid.Empty)
-        //         {
-        //             return BadRequest(new { success = false, error = "Account group is required" });
-        //         }
-
-        //         // 6. Get the company
-        //         var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == companyIdGuid);
-        //         if (company == null)
-        //         {
-        //             return NotFound(new { success = false, error = "Company not found" });
-        //         }
-
-        //         // 7. Get the initial fiscal year
-        //         var initialFiscalYear = await _context.FiscalYears
-        //             .Where(f => f.CompanyId == companyIdGuid)
-        //             .OrderBy(f => f.StartDate)
-        //             .FirstOrDefaultAsync();
-
-        //         if (initialFiscalYear == null)
-        //         {
-        //             return BadRequest(new { success = false, error = "Initial fiscal year not found" });
-        //         }
-
-        //         // 8. Get current active fiscal year
-        //         var currentFiscalYear = await _context.FiscalYears
-        //             .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
-
-        //         if (currentFiscalYear == null)
-        //         {
-        //             currentFiscalYear = await _context.FiscalYears
-        //                 .Where(f => f.CompanyId == companyIdGuid)
-        //                 .OrderByDescending(f => f.StartDate)
-        //                 .FirstOrDefaultAsync();
-
-        //             if (currentFiscalYear == null)
-        //             {
-        //                 return BadRequest(new { success = false, error = "No fiscal year found" });
-        //             }
-        //         }
-
-        //         // 9. Validate account group
-        //         var accountGroup = await _context.AccountGroups
-        //             .FirstOrDefaultAsync(ag => ag.Id == request.AccountGroups && ag.CompanyId == companyIdGuid);
-
-        //         if (accountGroup == null)
-        //         {
-        //             return BadRequest(new { success = false, error = "Invalid account group for this company" });
-        //         }
-
-        //         // 10. Check if opening balance is only set in initial fiscal year
-        //         bool isInitialYear = currentFiscalYear.Id == initialFiscalYear.Id;
-
-        //         if (!isInitialYear && request.OpeningBalance != null && request.OpeningBalance.Amount > 0)
-        //         {
-        //             return BadRequest(new { success = false, error = "Opening balance can only be set in the initial fiscal year" });
-        //         }
-
-        //         // 11. Find the existing account - Use AsNoTracking to avoid tracking issues
-        //         var existingAccount = await _context.Accounts
-        //             .AsNoTracking()  // IMPORTANT: Add this to avoid tracking conflicts
-        //             .Include(a => a.OpeningBalance)
-        //             .Include(a => a.InitialOpeningBalance)
-        //             .Include(a => a.OpeningBalanceByFiscalYear)
-        //             .FirstOrDefaultAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
-
-        //         if (existingAccount == null)
-        //         {
-        //             return NotFound(new { success = false, error = "Account not found" });
-        //         }
-
-        //         // 12. Check for duplicate name
-        //         var duplicateAccount = await _context.Accounts
-        //             .AnyAsync(a => a.CompanyId == companyIdGuid &&
-        //                           a.Id != id &&
-        //                           a.Name.ToLower() == request.Name.ToLower());
-
-        //         if (duplicateAccount)
-        //         {
-        //             return Conflict(new { success = false, error = "An account with this name already exists within the selected company" });
-        //         }
-
-        //         // 13. Prepare opening balance data
-        //         decimal openingBalanceAmount = 0;
-        //         string openingBalanceType = "Dr";
-
-        //         if (isInitialYear && request.OpeningBalance != null)
-        //         {
-        //             openingBalanceAmount = request.OpeningBalance.Amount ?? 0;
-        //             openingBalanceType = request.OpeningBalance.Type ?? "Dr";
-        //         }
-
-        //         // 14. Create a NEW account entity for update (to avoid tracking issues)
-        //         var accountToUpdate = new Account
-        //         {
-        //             Id = id,
-        //             Name = request.Name.Trim(),
-        //             Address = request.Address?.Trim() ?? string.Empty,
-        //             Phone = request.Phone?.Trim() ?? string.Empty,
-        //             Ward = request.Ward,
-        //             Pan = !string.IsNullOrWhiteSpace(request.Pan) ? request.Pan.Trim() : null,
-        //             Email = request.Email?.Trim()?.ToLower() ?? string.Empty,
-        //             ContactPerson = request.ContactPerson?.Trim() ?? string.Empty,
-        //             CreditLimit = request.CreditLimit ?? 0,
-        //             AccountGroupsId = request.AccountGroups.Value,
-        //             IsActive = request.IsActive,
-        //             OpeningBalanceType = openingBalanceType,
-        //             OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.UtcNow,
-        //             UpdatedAt = DateTime.UtcNow,
-        //             CompanyId = companyIdGuid,
-        //             OriginalFiscalYearId = existingAccount.OriginalFiscalYearId,
-        //             UniqueNumber = existingAccount.UniqueNumber,
-        //             CreatedAt = existingAccount.CreatedAt
-        //         };
-
-        //         // 15. Attach and mark as modified
-        //         _context.Accounts.Attach(accountToUpdate);
-        //         _context.Entry(accountToUpdate).State = EntityState.Modified;
-
-        //         // 16. Handle OpeningBalance - Remove old and add new
-        //         var existingOpeningBalance = await _context.OpeningBalances
-        //             .FirstOrDefaultAsync(ob => ob.AccountId == id);
-
-        //         if (existingOpeningBalance != null)
-        //         {
-        //             _context.OpeningBalances.Remove(existingOpeningBalance);
-        //         }
-
-        //         if (openingBalanceAmount != 0)
-        //         {
-        //             var newOpeningBalance = new OpeningBalance
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 Amount = openingBalanceAmount,
-        //                 FiscalYearId = currentFiscalYear.Id,
-        //                 Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
-        //                 AccountId = id
-        //             };
-        //             await _context.OpeningBalances.AddAsync(newOpeningBalance);
-        //         }
-
-        //         // 17. Handle InitialOpeningBalance
-        //         var existingInitialOpeningBalance = await _context.InitialOpeningBalances
-        //             .FirstOrDefaultAsync(iob => iob.AccountId == id);
-
-        //         if (existingInitialOpeningBalance != null)
-        //         {
-        //             _context.InitialOpeningBalances.Remove(existingInitialOpeningBalance);
-        //         }
-
-        //         if (isInitialYear && openingBalanceAmount != 0)
-        //         {
-        //             var newInitialOpeningBalance = new InitialOpeningBalance
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 Amount = openingBalanceAmount,
-        //                 InitialFiscalYearId = initialFiscalYear.Id,
-        //                 Date = initialFiscalYear.StartDate ?? DateTime.UtcNow,
-        //                 AccountId = id
-        //             };
-        //             await _context.InitialOpeningBalances.AddAsync(newInitialOpeningBalance);
-        //         }
-
-        //         // 18. Handle OpeningBalanceByFiscalYear - Remove old and add new
-        //         var existingOpeningBalanceByFiscalYear = await _context.OpeningBalanceByFiscalYear
-        //             .FirstOrDefaultAsync(ob => ob.AccountId == id && ob.FiscalYearId == currentFiscalYear.Id);
-
-        //         if (existingOpeningBalanceByFiscalYear != null)
-        //         {
-        //             _context.OpeningBalanceByFiscalYear.Remove(existingOpeningBalanceByFiscalYear);
-        //         }
-
-        //         if (openingBalanceAmount != 0)
-        //         {
-        //             var newOpeningBalanceByFiscalYear = new OpeningBalanceByFiscalYear
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 Amount = openingBalanceAmount,
-        //                 Type = openingBalanceType,
-        //                 Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
-        //                 FiscalYearId = currentFiscalYear.Id,
-        //                 AccountId = id
-        //             };
-        //             await _context.OpeningBalanceByFiscalYear.AddAsync(newOpeningBalanceByFiscalYear);
-        //         }
-
-        //         // 19. Save changes
-        //         await _context.SaveChangesAsync();
-
-        //         // 20. Load the updated account for response
-        //         var updatedAccount = await _context.Accounts
-        //             .Include(a => a.AccountGroup)
-        //             .Include(a => a.OpeningBalance)
-        //             .Include(a => a.OriginalFiscalYear)
-        //             .Include(a => a.OpeningBalanceByFiscalYear)
-        //                 .ThenInclude(ob => ob.FiscalYear)
-        //             .FirstOrDefaultAsync(a => a.Id == id);
-
-        //         // 21. Prepare response
-        //         var response = new
-        //         {
-        //             success = true,
-        //             message = "Account updated successfully",
-        //             data = new
-        //             {
-        //                 account = new
-        //                 {
-        //                     _id = updatedAccount.Id,
-        //                     name = updatedAccount.Name,
-        //                     address = updatedAccount.Address,
-        //                     phone = updatedAccount.Phone,
-        //                     ward = updatedAccount.Ward,
-        //                     pan = updatedAccount.Pan,
-        //                     email = updatedAccount.Email,
-        //                     creditLimit = updatedAccount.CreditLimit,
-        //                     contactperson = updatedAccount.ContactPerson,
-        //                     openingBalance = new
-        //                     {
-        //                         amount = updatedAccount.OpeningBalance?.Amount ?? 0,
-        //                         type = updatedAccount.OpeningBalanceType
-        //                     },
-        //                     openingBalanceByFiscalYear = updatedAccount.OpeningBalanceByFiscalYear.Select(ob => new
-        //                     {
-        //                         _id = ob.Id,
-        //                         date = ob.Date,
-        //                         amount = ob.Amount,
-        //                         type = ob.Type,
-        //                         fiscalYear = ob.FiscalYear == null ? null : new
-        //                         {
-        //                             _id = ob.FiscalYear.Id,
-        //                             name = ob.FiscalYear.Name
-        //                         }
-        //                     }).ToList(),
-        //                     accountGroups = updatedAccount.AccountGroup == null ? null : new
-        //                     {
-        //                         _id = updatedAccount.AccountGroup.Id,
-        //                         name = updatedAccount.AccountGroup.Name
-        //                     },
-        //                     originalFiscalYear = updatedAccount.OriginalFiscalYear == null ? null : new
-        //                     {
-        //                         _id = updatedAccount.OriginalFiscalYear.Id,
-        //                         name = updatedAccount.OriginalFiscalYear.Name
-        //                     },
-        //                     createdAt = updatedAccount.CreatedAt,
-        //                     updatedAt = updatedAccount.UpdatedAt,
-        //                     isActive = updatedAccount.IsActive
-        //                 }
-        //             }
-        //         };
-
-        //         _logger.LogInformation($"Successfully updated account '{updatedAccount.Name}' for company {company.Name}");
-
-        //         return Ok(response);
-        //     }
-        //     catch (DbUpdateConcurrencyException concurrencyEx)
-        //     {
-        //         _logger.LogError(concurrencyEx, "Concurrency error while updating account");
-
-        //         // Check if account still exists
-        //         var accountExists = await _context.Accounts.AsNoTracking().AnyAsync(a => a.Id == id);
-        //         if (!accountExists)
-        //         {
-        //             return NotFound(new { success = false, error = "Account was deleted during the update operation" });
-        //         }
-
-        //         return StatusCode(409, new { success = false, error = "The account was modified by another user. Please refresh and try again." });
-        //     }
-        //     catch (DbUpdateException dbEx)
-        //     {
-        //         _logger.LogError(dbEx, "Database error while updating account");
-        //         return StatusCode(500, new { success = false, error = "Database error while updating account" });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error in UpdateAccount");
-        //         return StatusCode(500, new
-        //         {
-        //             success = false,
-        //             error = "Internal server error while updating account",
-        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
-        //         });
-        //     }
-        // }
-
-        // [HttpPut("companies/{id}")]
-        // public async Task<IActionResult> UpdateAccount(Guid id, [FromBody] UpdateAccountDTO request)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("=== UpdateAccount Started ===");
-
-        //         // 1. Extract user and company info from JWT claims
-        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        //         var companyId = User.FindFirst("currentCompany")?.Value;
-        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-
-        //         // 2. Validate required claims exist
-        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
-        //         {
-        //             return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
-        //         }
-
-        //         // 3. Check if company is selected
-        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
-        //         {
-        //             return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
-        //         }
-
-        //         // 4. Check if trade type is Retailer
-        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
-        //         {
-        //             return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
-        //         }
-
-        //         // 5. Validate required fields
-        //         if (string.IsNullOrEmpty(request.Name))
-        //         {
-        //             return BadRequest(new { success = false, error = "Name is required" });
-        //         }
-
-        //         if (!request.AccountGroups.HasValue || request.AccountGroups.Value == Guid.Empty)
-        //         {
-        //             return BadRequest(new { success = false, error = "Account group is required" });
-        //         }
-
-        //         // 6. Get the company with date format
-        //         var company = await _context.Companies
-        //             .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
-
-        //         if (company == null)
-        //         {
-        //             return NotFound(new { success = false, error = "Company not found" });
-        //         }
-
-        //         // 7. Get the initial fiscal year
-        //         var initialFiscalYear = await _context.FiscalYears
-        //             .Where(f => f.CompanyId == companyIdGuid)
-        //             .OrderBy(f => f.StartDate)
-        //             .FirstOrDefaultAsync();
-
-        //         if (initialFiscalYear == null)
-        //         {
-        //             return BadRequest(new { success = false, error = "Initial fiscal year not found" });
-        //         }
-
-        //         // 8. Get current active fiscal year
-        //         var currentFiscalYear = await _context.FiscalYears
-        //             .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
-
-        //         if (currentFiscalYear == null)
-        //         {
-        //             currentFiscalYear = await _context.FiscalYears
-        //                 .Where(f => f.CompanyId == companyIdGuid)
-        //                 .OrderByDescending(f => f.StartDate)
-        //                 .FirstOrDefaultAsync();
-
-        //             if (currentFiscalYear == null)
-        //             {
-        //                 return BadRequest(new { success = false, error = "No fiscal year found" });
-        //             }
-        //         }
-
-        //         // Determine date format
-        //         bool isNepaliFormat = (company.DateFormat ?? DateFormatEnum.English) == DateFormatEnum.Nepali;
-
-        //         // 9. Validate account group
-        //         var accountGroup = await _context.AccountGroups
-        //             .FirstOrDefaultAsync(ag => ag.Id == request.AccountGroups && ag.CompanyId == companyIdGuid);
-
-        //         if (accountGroup == null)
-        //         {
-        //             return BadRequest(new { success = false, error = "Invalid account group for this company" });
-        //         }
-
-        //         // 10. Check if opening balance is only set in initial fiscal year
-        //         bool isInitialYear = currentFiscalYear.Id == initialFiscalYear.Id;
-
-        //         if (!isInitialYear && request.OpeningBalance != null && request.OpeningBalance.Amount > 0)
-        //         {
-        //             return BadRequest(new { success = false, error = "Opening balance can only be set in the initial fiscal year" });
-        //         }
-
-        //         // 11. Find the existing account - Use AsNoTracking to avoid tracking issues
-        //         var existingAccount = await _context.Accounts
-        //             .AsNoTracking()
-        //             .Include(a => a.OpeningBalance)
-        //             .Include(a => a.InitialOpeningBalance)
-        //             .Include(a => a.OpeningBalanceByFiscalYear)
-        //             .FirstOrDefaultAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
-
-        //         if (existingAccount == null)
-        //         {
-        //             return NotFound(new { success = false, error = "Account not found" });
-        //         }
-
-        //         // 12. Check for duplicate name
-        //         var duplicateAccount = await _context.Accounts
-        //             .AnyAsync(a => a.CompanyId == companyIdGuid &&
-        //                           a.Id != id &&
-        //                           a.Name.ToLower() == request.Name.ToLower());
-
-        //         if (duplicateAccount)
-        //         {
-        //             return Conflict(new { success = false, error = "An account with this name already exists within the selected company" });
-        //         }
-
-        //         // 13. Prepare opening balance data
-        //         decimal openingBalanceAmount = 0;
-        //         string openingBalanceType = "Dr";
-
-        //         if (isInitialYear && request.OpeningBalance != null)
-        //         {
-        //             openingBalanceAmount = request.OpeningBalance.Amount ?? 0;
-        //             openingBalanceType = request.OpeningBalance.Type ?? "Dr";
-        //         }
-
-        //         // 14. Create a NEW account entity for update
-        //         var accountToUpdate = new Account
-        //         {
-        //             Id = id,
-        //             Name = request.Name.Trim(),
-        //             Address = request.Address?.Trim() ?? string.Empty,
-        //             Phone = request.Phone?.Trim() ?? string.Empty,
-        //             Ward = request.Ward,
-        //             Pan = !string.IsNullOrWhiteSpace(request.Pan) ? request.Pan.Trim() : null,
-        //             Email = request.Email?.Trim()?.ToLower() ?? string.Empty,
-        //             ContactPerson = request.ContactPerson?.Trim() ?? string.Empty,
-        //             CreditLimit = request.CreditLimit ?? 0,
-        //             AccountGroupsId = request.AccountGroups.Value,
-        //             IsActive = request.IsActive,
-        //             OpeningBalanceType = openingBalanceType,
-        //             UpdatedAt = DateTime.UtcNow,
-        //             CompanyId = companyIdGuid,
-        //             OriginalFiscalYearId = existingAccount.OriginalFiscalYearId,
-        //             UniqueNumber = existingAccount.UniqueNumber,
-        //             CreatedAt = existingAccount.CreatedAt
-        //         };
-
-        //         // Set OpeningBalanceDate based on fiscal year start date and company format
-        //         if (isNepaliFormat)
-        //         {
-        //             accountToUpdate.OpeningBalanceDate = DateTime.MinValue; // Placeholder for Nepali date
-        //             accountToUpdate.OpeningBalanceDateNepali = currentFiscalYear.StartDateNepali;
-        //         }
-        //         else
-        //         {
-        //             accountToUpdate.OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-        //             accountToUpdate.OpeningBalanceDateNepali = null;
-        //         }
-
-        //         // 15. Attach and mark as modified
-        //         _context.Accounts.Attach(accountToUpdate);
-        //         _context.Entry(accountToUpdate).State = EntityState.Modified;
-
-        //         // 16. Handle OpeningBalance - Remove old and add new
-        //         var existingOpeningBalance = await _context.OpeningBalances
-        //             .FirstOrDefaultAsync(ob => ob.AccountId == id);
-
-        //         if (existingOpeningBalance != null)
-        //         {
-        //             _context.OpeningBalances.Remove(existingOpeningBalance);
-        //         }
-
-        //         if (openingBalanceAmount != 0)
-        //         {
-        //             var newOpeningBalance = new OpeningBalance
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 Amount = openingBalanceAmount,
-        //                 Type = openingBalanceType,
-        //                 FiscalYearId = currentFiscalYear.Id,
-        //                 AccountId = id
-        //             };
-
-        //             // Set date based on company format
-        //             if (isNepaliFormat)
-        //             {
-        //                 newOpeningBalance.Date = DateTime.MinValue;
-        //                 newOpeningBalance.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-        //                     ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-        //                     : DateTime.MinValue;
-        //             }
-        //             else
-        //             {
-        //                 newOpeningBalance.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-        //                 newOpeningBalance.NepaliDate = null;
-        //             }
-
-        //             await _context.OpeningBalances.AddAsync(newOpeningBalance);
-        //         }
-
-        //         // 17. Handle InitialOpeningBalance
-        //         var existingInitialOpeningBalance = await _context.InitialOpeningBalances
-        //             .FirstOrDefaultAsync(iob => iob.AccountId == id);
-
-        //         if (existingInitialOpeningBalance != null)
-        //         {
-        //             _context.InitialOpeningBalances.Remove(existingInitialOpeningBalance);
-        //         }
-
-        //         if (isInitialYear && openingBalanceAmount != 0)
-        //         {
-        //             var newInitialOpeningBalance = new InitialOpeningBalance
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 Amount = openingBalanceAmount,
-        //                 Type = openingBalanceType,
-        //                 InitialFiscalYearId = initialFiscalYear.Id,
-        //                 AccountId = id
-        //             };
-
-        //             // Set date based on company format
-        //             if (isNepaliFormat)
-        //             {
-        //                 newInitialOpeningBalance.Date = DateTime.MinValue;
-        //                 newInitialOpeningBalance.NepaliDate = !string.IsNullOrEmpty(initialFiscalYear.StartDateNepali)
-        //                     ? DateTime.Parse(initialFiscalYear.StartDateNepali)
-        //                     : DateTime.MinValue;
-        //             }
-        //             else
-        //             {
-        //                 newInitialOpeningBalance.Date = initialFiscalYear.StartDate ?? DateTime.UtcNow;
-        //                 newInitialOpeningBalance.NepaliDate = DateTime.MinValue;
-        //             }
-
-        //             await _context.InitialOpeningBalances.AddAsync(newInitialOpeningBalance);
-        //         }
-
-        //         // 18. Handle OpeningBalanceByFiscalYear - Remove old and add new
-        //         var existingOpeningBalanceByFiscalYear = await _context.OpeningBalanceByFiscalYear
-        //             .FirstOrDefaultAsync(ob => ob.AccountId == id && ob.FiscalYearId == currentFiscalYear.Id);
-
-        //         if (existingOpeningBalanceByFiscalYear != null)
-        //         {
-        //             _context.OpeningBalanceByFiscalYear.Remove(existingOpeningBalanceByFiscalYear);
-        //         }
-
-        //         if (openingBalanceAmount != 0)
-        //         {
-        //             var newOpeningBalanceByFiscalYear = new OpeningBalanceByFiscalYear
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 Amount = openingBalanceAmount,
-        //                 Type = openingBalanceType,
-        //                 FiscalYearId = currentFiscalYear.Id,
-        //                 AccountId = id
-        //             };
-
-        //             // Set date based on company format
-        //             if (isNepaliFormat)
-        //             {
-        //                 newOpeningBalanceByFiscalYear.Date = DateTime.MinValue;
-        //                 newOpeningBalanceByFiscalYear.NepaliDate = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
-        //                     ? DateTime.Parse(currentFiscalYear.StartDateNepali)
-        //                     : DateTime.MinValue;
-        //             }
-        //             else
-        //             {
-        //                 newOpeningBalanceByFiscalYear.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-        //                 newOpeningBalanceByFiscalYear.NepaliDate = DateTime.MinValue;
-        //             }
-
-        //             await _context.OpeningBalanceByFiscalYear.AddAsync(newOpeningBalanceByFiscalYear);
-        //         }
-
-        //         // 19. Save changes
-        //         await _context.SaveChangesAsync();
-
-        //         // 20. Load the updated account for response
-        //         var updatedAccount = await _context.Accounts
-        //             .Include(a => a.AccountGroup)
-        //             .Include(a => a.OpeningBalance)
-        //             .Include(a => a.OriginalFiscalYear)
-        //             .Include(a => a.OpeningBalanceByFiscalYear)
-        //                 .ThenInclude(ob => ob.FiscalYear)
-        //             .FirstOrDefaultAsync(a => a.Id == id);
-
-        //         // 21. Prepare response
-        //         var response = new
-        //         {
-        //             success = true,
-        //             message = "Account updated successfully",
-        //             data = new
-        //             {
-        //                 account = new
-        //                 {
-        //                     _id = updatedAccount.Id,
-        //                     name = updatedAccount.Name,
-        //                     address = updatedAccount.Address,
-        //                     phone = updatedAccount.Phone,
-        //                     ward = updatedAccount.Ward,
-        //                     pan = updatedAccount.Pan,
-        //                     email = updatedAccount.Email,
-        //                     creditLimit = updatedAccount.CreditLimit,
-        //                     contactperson = updatedAccount.ContactPerson,
-        //                     openingBalance = new
-        //                     {
-        //                         amount = updatedAccount.OpeningBalance?.Amount ?? 0,
-        //                         type = updatedAccount.OpeningBalanceType
-        //                     },
-        //                     openingBalanceByFiscalYear = updatedAccount.OpeningBalanceByFiscalYear.Select(ob => new
-        //                     {
-        //                         _id = ob.Id,
-        //                         date = ob.Date,
-        //                         amount = ob.Amount,
-        //                         type = ob.Type,
-        //                         fiscalYear = ob.FiscalYear == null ? null : new
-        //                         {
-        //                             _id = ob.FiscalYear.Id,
-        //                             name = ob.FiscalYear.Name
-        //                         }
-        //                     }).ToList(),
-        //                     accountGroups = updatedAccount.AccountGroup == null ? null : new
-        //                     {
-        //                         _id = updatedAccount.AccountGroup.Id,
-        //                         name = updatedAccount.AccountGroup.Name
-        //                     },
-        //                     originalFiscalYear = updatedAccount.OriginalFiscalYear == null ? null : new
-        //                     {
-        //                         _id = updatedAccount.OriginalFiscalYear.Id,
-        //                         name = updatedAccount.OriginalFiscalYear.Name
-        //                     },
-        //                     createdAt = updatedAccount.CreatedAt,
-        //                     updatedAt = updatedAccount.UpdatedAt,
-        //                     isActive = updatedAccount.IsActive
-        //                 }
-        //             }
-        //         };
-
-        //         _logger.LogInformation($"Successfully updated account '{updatedAccount.Name}' for company {company.Name}");
-
-        //         return Ok(response);
-        //     }
-        //     catch (DbUpdateConcurrencyException concurrencyEx)
-        //     {
-        //         _logger.LogError(concurrencyEx, "Concurrency error while updating account");
-
-        //         var accountExists = await _context.Accounts.AsNoTracking().AnyAsync(a => a.Id == id);
-        //         if (!accountExists)
-        //         {
-        //             return NotFound(new { success = false, error = "Account was deleted during the update operation" });
-        //         }
-
-        //         return StatusCode(409, new { success = false, error = "The account was modified by another user. Please refresh and try again." });
-        //     }
-        //     catch (DbUpdateException dbEx)
-        //     {
-        //         _logger.LogError(dbEx, "Database error while updating account");
-        //         return StatusCode(500, new { success = false, error = "Database error while updating account" });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error in UpdateAccount");
-        //         return StatusCode(500, new
-        //         {
-        //             success = false,
-        //             error = "Internal server error while updating account",
-        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
-        //         });
-        //     }
-        // }
-
         [HttpPut("companies/{id}")]
         public async Task<IActionResult> UpdateAccount(Guid id, [FromBody] UpdateAccountDTO request)
         {
@@ -2607,10 +1656,8 @@ namespace SkyForge.Controllers.Retailer
                     return BadRequest(new { success = false, error = "Account group is required" });
                 }
 
-                // 6. Get the company with date format
-                var company = await _context.Companies
-                    .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
-
+                // 6. Get the company
+                var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == companyIdGuid);
                 if (company == null)
                 {
                     return NotFound(new { success = false, error = "Company not found" });
@@ -2664,9 +1711,8 @@ namespace SkyForge.Controllers.Retailer
                     return BadRequest(new { success = false, error = "Opening balance can only be set in the initial fiscal year" });
                 }
 
-                // 11. Find the existing account
+                // 11. Find the existing account WITH tracking (NO AsNoTracking)
                 var existingAccount = await _context.Accounts
-                    .AsNoTracking()
                     .Include(a => a.OpeningBalance)
                     .Include(a => a.InitialOpeningBalance)
                     .Include(a => a.OpeningBalanceByFiscalYear)
@@ -2698,160 +1744,153 @@ namespace SkyForge.Controllers.Retailer
                     openingBalanceType = request.OpeningBalance.Type ?? "Dr";
                 }
 
-                // 14. Create a NEW account entity for update
-                var accountToUpdate = new Account
-                {
-                    Id = id,
-                    Name = request.Name.Trim(),
-                    Address = request.Address?.Trim() ?? string.Empty,
-                    Phone = request.Phone?.Trim() ?? string.Empty,
-                    Ward = request.Ward,
-                    Pan = !string.IsNullOrWhiteSpace(request.Pan) ? request.Pan.Trim() : null,
-                    Email = request.Email?.Trim()?.ToLower() ?? string.Empty,
-                    ContactPerson = request.ContactPerson?.Trim() ?? string.Empty,
-                    CreditLimit = request.CreditLimit ?? 0,
-                    AccountGroupsId = request.AccountGroups.Value,
-                    IsActive = request.IsActive,
-                    OpeningBalanceType = openingBalanceType,
-                    UpdatedAt = DateTime.UtcNow,
-                    CompanyId = companyIdGuid,
-                    OriginalFiscalYearId = existingAccount.OriginalFiscalYearId,
-                    UniqueNumber = existingAccount.UniqueNumber,
-                    CreatedAt = existingAccount.CreatedAt
-                };
+                // 14. Update basic account properties
+                existingAccount.Name = request.Name.Trim();
+                existingAccount.Address = request.Address?.Trim() ?? string.Empty;
+                existingAccount.Phone = request.Phone?.Trim() ?? string.Empty;
+                existingAccount.Ward = request.Ward;
+                existingAccount.Pan = !string.IsNullOrWhiteSpace(request.Pan) ? request.Pan.Trim() : null;
+                existingAccount.Email = request.Email?.Trim()?.ToLower() ?? string.Empty;
+                existingAccount.ContactPerson = request.ContactPerson?.Trim() ?? string.Empty;
+                existingAccount.CreditLimit = request.CreditLimit ?? 0;
+                existingAccount.AccountGroupsId = request.AccountGroups.Value;
+                existingAccount.IsActive = request.IsActive;
+                existingAccount.OpeningBalanceType = openingBalanceType;
+                existingAccount.UpdatedAt = DateTime.UtcNow;
 
-                // 15. Set Date and NepaliDate on Account based on company format
-                if (isNepaliFormat)
-                {
-                    // For Nepali format: English date is MinValue, Nepali date is parsed from fiscal year start
-                    accountToUpdate.Date = currentFiscalYear.StartDate ?? DateTime.MinValue;
-                    accountToUpdate.NepaliDate = currentFiscalYear.StartDateNepali;
+                // Preserve fiscal year fields (don't change them)
+                // existingAccount.FiscalYearId stays the same
+                // existingAccount.OriginalFiscalYearId stays the same
+                // existingAccount.Date stays the same
+                // existingAccount.NepaliDate stays the same
 
-                    // Set OpeningBalanceDate fields
-                    accountToUpdate.OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.MinValue;
-                    accountToUpdate.OpeningBalanceDateNepali = currentFiscalYear.StartDateNepali;
+                // 15. Handle OpeningBalance - UPDATE instead of Remove/Add
+                if (openingBalanceAmount != 0)
+                {
+                    if (existingAccount.OpeningBalance != null)
+                    {
+                        // UPDATE existing OpeningBalance
+                        existingAccount.OpeningBalance.Amount = openingBalanceAmount;
+                        existingAccount.OpeningBalance.Type = openingBalanceType;
+                        existingAccount.OpeningBalance.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                        existingAccount.OpeningBalance.NepaliDate = currentFiscalYear.StartDateNepali;
+                        existingAccount.OpeningBalance.FiscalYearId = currentFiscalYear.Id;
+
+                        _context.Entry(existingAccount.OpeningBalance).State = EntityState.Modified;
+                    }
+                    else
+                    {
+                        // ADD new OpeningBalance
+                        existingAccount.OpeningBalance = new OpeningBalance
+                        {
+                            Id = Guid.NewGuid(),
+                            Amount = openingBalanceAmount,
+                            Type = openingBalanceType,
+                            FiscalYearId = currentFiscalYear.Id,
+                            AccountId = id,
+                            Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
+                            NepaliDate = currentFiscalYear.StartDateNepali
+                        };
+                        _context.OpeningBalances.Add(existingAccount.OpeningBalance);
+                    }
                 }
                 else
                 {
-                    // For English format: Use fiscal year start date or current date
-                    accountToUpdate.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                    accountToUpdate.NepaliDate = currentFiscalYear.StartDateNepali;
-
-                    // Set OpeningBalanceDate fields
-                    accountToUpdate.OpeningBalanceDate = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                    accountToUpdate.OpeningBalanceDateNepali = currentFiscalYear.StartDateNepali;
-                }
-
-                // 16. Attach and mark as modified
-                _context.Accounts.Attach(accountToUpdate);
-                _context.Entry(accountToUpdate).State = EntityState.Modified;
-
-                // 17. Handle OpeningBalance
-                var existingOpeningBalance = await _context.OpeningBalances
-                    .FirstOrDefaultAsync(ob => ob.AccountId == id);
-
-                if (existingOpeningBalance != null)
-                {
-                    _context.OpeningBalances.Remove(existingOpeningBalance);
-                }
-
-                if (openingBalanceAmount != 0)
-                {
-                    var newOpeningBalance = new OpeningBalance
+                    // Remove OpeningBalance if amount is 0
+                    if (existingAccount.OpeningBalance != null)
                     {
-                        Id = Guid.NewGuid(),
-                        Amount = openingBalanceAmount,
-                        Type = openingBalanceType,
-                        FiscalYearId = currentFiscalYear.Id,
-                        AccountId = id
-                    };
-
-                    if (isNepaliFormat)
-                    {
-                        newOpeningBalance.Date = currentFiscalYear.StartDate ?? DateTime.MinValue;
-                        newOpeningBalance.NepaliDate = currentFiscalYear.StartDateNepali;
+                        _context.OpeningBalances.Remove(existingAccount.OpeningBalance);
+                        existingAccount.OpeningBalance = null;
                     }
-                    else
-                    {
-                        newOpeningBalance.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                        newOpeningBalance.NepaliDate = currentFiscalYear.StartDateNepali;;
-                    }
-
-                    await _context.OpeningBalances.AddAsync(newOpeningBalance);
                 }
 
-                // 18. Handle InitialOpeningBalance
-                var existingInitialOpeningBalance = await _context.InitialOpeningBalances
-                    .FirstOrDefaultAsync(iob => iob.AccountId == id);
-
-                if (existingInitialOpeningBalance != null)
-                {
-                    _context.InitialOpeningBalances.Remove(existingInitialOpeningBalance);
-                }
-
+                // 16. Handle InitialOpeningBalance - UPDATE instead of Remove/Add
                 if (isInitialYear && openingBalanceAmount != 0)
                 {
-                    var newInitialOpeningBalance = new InitialOpeningBalance
+                    if (existingAccount.InitialOpeningBalance != null)
                     {
-                        Id = Guid.NewGuid(),
-                        Amount = openingBalanceAmount,
-                        Type = openingBalanceType,
-                        InitialFiscalYearId = initialFiscalYear.Id,
-                        AccountId = id
-                    };
+                        // UPDATE existing InitialOpeningBalance
+                        existingAccount.InitialOpeningBalance.Amount = openingBalanceAmount;
+                        existingAccount.InitialOpeningBalance.Type = openingBalanceType;
+                        existingAccount.InitialOpeningBalance.Date = initialFiscalYear.StartDate ?? DateTime.UtcNow;
+                        existingAccount.InitialOpeningBalance.NepaliDate = initialFiscalYear.StartDateNepali;
+                        existingAccount.InitialOpeningBalance.InitialFiscalYearId = initialFiscalYear.Id;
 
-                    if (isNepaliFormat)
-                    {
-                        newInitialOpeningBalance.Date = initialFiscalYear.StartDate ?? DateTime.MinValue;
-                        newInitialOpeningBalance.NepaliDate = initialFiscalYear.StartDateNepali;
+                        _context.Entry(existingAccount.InitialOpeningBalance).State = EntityState.Modified;
                     }
                     else
                     {
-                        newInitialOpeningBalance.Date = initialFiscalYear.StartDate ?? DateTime.UtcNow;
-                        newInitialOpeningBalance.NepaliDate =initialFiscalYear.StartDateNepali;
+                        // ADD new InitialOpeningBalance
+                        existingAccount.InitialOpeningBalance = new InitialOpeningBalance
+                        {
+                            Id = Guid.NewGuid(),
+                            Amount = openingBalanceAmount,
+                            Type = openingBalanceType,
+                            InitialFiscalYearId = initialFiscalYear.Id,
+                            AccountId = id,
+                            Date = initialFiscalYear.StartDate ?? DateTime.UtcNow,
+                            NepaliDate = initialFiscalYear.StartDateNepali
+                        };
+                        _context.InitialOpeningBalances.Add(existingAccount.InitialOpeningBalance);
                     }
-
-                    await _context.InitialOpeningBalances.AddAsync(newInitialOpeningBalance);
                 }
-
-                // 19. Handle OpeningBalanceByFiscalYear
-                var existingOpeningBalanceByFiscalYear = await _context.OpeningBalanceByFiscalYear
-                    .FirstOrDefaultAsync(ob => ob.AccountId == id && ob.FiscalYearId == currentFiscalYear.Id);
-
-                if (existingOpeningBalanceByFiscalYear != null)
+                else
                 {
-                    _context.OpeningBalanceByFiscalYear.Remove(existingOpeningBalanceByFiscalYear);
+                    // Remove InitialOpeningBalance if not initial year or amount is 0
+                    if (existingAccount.InitialOpeningBalance != null)
+                    {
+                        _context.InitialOpeningBalances.Remove(existingAccount.InitialOpeningBalance);
+                        existingAccount.InitialOpeningBalance = null;
+                    }
                 }
+
+                // 17. Handle OpeningBalanceByFiscalYear - UPDATE instead of Remove/Add
+                var existingOpeningBalanceByFY = existingAccount.OpeningBalanceByFiscalYear
+                    .FirstOrDefault(ob => ob.FiscalYearId == currentFiscalYear.Id);
 
                 if (openingBalanceAmount != 0)
                 {
-                    var newOpeningBalanceByFiscalYear = new OpeningBalanceByFiscalYear
+                    if (existingOpeningBalanceByFY != null)
                     {
-                        Id = Guid.NewGuid(),
-                        Amount = openingBalanceAmount,
-                        Type = openingBalanceType,
-                        FiscalYearId = currentFiscalYear.Id,
-                        AccountId = id
-                    };
+                        // UPDATE existing OpeningBalanceByFiscalYear
+                        existingOpeningBalanceByFY.Amount = openingBalanceAmount;
+                        existingOpeningBalanceByFY.Type = openingBalanceType;
+                        existingOpeningBalanceByFY.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                        existingOpeningBalanceByFY.NepaliDate = currentFiscalYear.StartDateNepali;
 
-                    if (isNepaliFormat)
-                    {
-                        newOpeningBalanceByFiscalYear.Date = currentFiscalYear.StartDate ?? DateTime.MinValue;
-                        newOpeningBalanceByFiscalYear.NepaliDate = currentFiscalYear.StartDateNepali;
+                        _context.Entry(existingOpeningBalanceByFY).State = EntityState.Modified;
                     }
                     else
                     {
-                        newOpeningBalanceByFiscalYear.Date = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-                        newOpeningBalanceByFiscalYear.NepaliDate = currentFiscalYear.StartDateNepali;
+                        // ADD new OpeningBalanceByFiscalYear
+                        var newOpeningBalanceByFY = new OpeningBalanceByFiscalYear
+                        {
+                            Id = Guid.NewGuid(),
+                            Amount = openingBalanceAmount,
+                            Type = openingBalanceType,
+                            FiscalYearId = currentFiscalYear.Id,
+                            AccountId = id,
+                            Date = currentFiscalYear.StartDate ?? DateTime.UtcNow,
+                            NepaliDate = currentFiscalYear.StartDateNepali
+                        };
+                        existingAccount.OpeningBalanceByFiscalYear.Add(newOpeningBalanceByFY);
+                        _context.OpeningBalanceByFiscalYear.Add(newOpeningBalanceByFY);
                     }
-
-                    await _context.OpeningBalanceByFiscalYear.AddAsync(newOpeningBalanceByFiscalYear);
+                }
+                else
+                {
+                    // Remove OpeningBalanceByFiscalYear if amount is 0
+                    if (existingOpeningBalanceByFY != null)
+                    {
+                        _context.OpeningBalanceByFiscalYear.Remove(existingOpeningBalanceByFY);
+                        existingAccount.OpeningBalanceByFiscalYear.Remove(existingOpeningBalanceByFY);
+                    }
                 }
 
-                // 20. Save changes
+                // 18. Save changes
                 await _context.SaveChangesAsync();
 
-                // 21. Load the updated account for response
+                // 19. Load the updated account for response
                 var updatedAccount = await _context.Accounts
                     .Include(a => a.AccountGroup)
                     .Include(a => a.OpeningBalance)
@@ -2860,7 +1899,7 @@ namespace SkyForge.Controllers.Retailer
                         .ThenInclude(ob => ob.FiscalYear)
                     .FirstOrDefaultAsync(a => a.Id == id);
 
-                // 22. Prepare response
+                // 20. Prepare response
                 var response = new
                 {
                     success = true,
@@ -2909,7 +1948,8 @@ namespace SkyForge.Controllers.Retailer
                             },
                             createdAt = updatedAccount.CreatedAt,
                             updatedAt = updatedAccount.UpdatedAt,
-                            isActive = updatedAccount.IsActive
+                            isActive = updatedAccount.IsActive,
+                            uniqueNumber = updatedAccount.UniqueNumber
                         }
                     }
                 };
@@ -2922,17 +1962,45 @@ namespace SkyForge.Controllers.Retailer
             {
                 _logger.LogError(concurrencyEx, "Concurrency error while updating account");
 
-                var accountExists = await _context.Accounts.AsNoTracking().AnyAsync(a => a.Id == id);
-                if (!accountExists)
+                // Refresh the entity to see what changed
+                var entry = concurrencyEx.Entries.First();
+                var databaseValues = await entry.GetDatabaseValuesAsync();
+
+                if (databaseValues == null)
                 {
                     return NotFound(new { success = false, error = "Account was deleted during the update operation" });
                 }
 
-                return StatusCode(409, new { success = false, error = "The account was modified by another user. Please refresh and try again." });
+                // Log the differences for debugging
+                var currentValues = entry.CurrentValues;
+                foreach (var property in currentValues.Properties)
+                {
+                    var currentValue = currentValues[property];
+                    var databaseValue = databaseValues[property];
+                    if (!Equals(currentValue, databaseValue))
+                    {
+                        _logger.LogWarning($"Property '{property.Name}' changed from '{databaseValue}' to '{currentValue}'");
+                    }
+                }
+
+                return StatusCode(409, new
+                {
+                    success = false,
+                    error = "The account was modified by another user. Please refresh and try again.",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? concurrencyEx.Message : null
+                });
             }
             catch (DbUpdateException dbEx)
             {
                 _logger.LogError(dbEx, "Database error while updating account");
+
+                // Check for specific constraint violations
+                if (dbEx.InnerException?.Message?.Contains("unique constraint") == true ||
+                    dbEx.InnerException?.Message?.Contains("23505") == true)
+                {
+                    return Conflict(new { success = false, error = "An account with this name already exists" });
+                }
+
                 return StatusCode(500, new { success = false, error = "Database error while updating account" });
             }
             catch (Exception ex)
@@ -3110,7 +2178,7 @@ namespace SkyForge.Controllers.Retailer
                                 }
                                 : null,
                             openingBalanceType = account.OpeningBalanceType,
-                            openingBalanceDate = account.OpeningBalanceDate,
+                            // openingBalanceDate = account.OpeningBalanceDate,
                             defaultCashAccount = account.DefaultCashAccount,
                             defaultVatAccount = account.DefaultVatAccount,
                             isDefaultAccount = account.IsDefaultAccount,

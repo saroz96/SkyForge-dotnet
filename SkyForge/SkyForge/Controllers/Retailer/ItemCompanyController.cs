@@ -283,7 +283,9 @@ namespace SkyForge.Controllers.Retailer
 
                 // 1. Extract trade type from JWT claims
                 var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-                
+                var fiscalYearIdClaim = User.FindFirst("currentFiscalYear")?.Value;
+
+
                 // 2. Check if trade type is Retailer
                 if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
                 {
@@ -294,9 +296,10 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
+
                 // 3. Extract company info from JWT claims
                 var companyId = User.FindFirst("currentCompany")?.Value;
-                
+
                 // 4. Check if company is selected
                 if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
                 {
@@ -306,6 +309,51 @@ namespace SkyForge.Controllers.Retailer
                         error = "Company ID is required"
                     });
                 }
+
+                // *** FIX 1: Check against Guid.Empty instead of HasValue ***
+                // Use fiscal year from request, or from JWT claim, or get active one
+                Guid fiscalYearId;
+
+                // Check if request.FiscalYearId is not empty (instead of HasValue)
+                if (request.FiscalYearId != Guid.Empty)
+                {
+                    fiscalYearId = request.FiscalYearId;
+                }
+                else if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid parsedFiscalYearId))
+                {
+                    fiscalYearId = parsedFiscalYearId;
+                }
+                else
+                {
+                    // Get active fiscal year for the company
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company"
+                        });
+                    }
+
+                    fiscalYearId = activeFiscalYear.Id;
+                }
+
+                // *** FIX 2: Validate fiscal year exists and belongs to company ***
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyIdGuid);
+
+                if (fiscalYear == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = $"Fiscal year {fiscalYearId} not found for this company"
+                    });
+                }
+
 
                 // 5. Validate required fields
                 if (string.IsNullOrEmpty(request.Name) || request.Name.Trim() == "")
@@ -323,6 +371,15 @@ namespace SkyForge.Controllers.Retailer
                     Id = Guid.NewGuid(),
                     Name = request.Name.Trim(),
                     CompanyId = companyIdGuid,
+                    FiscalYearId = fiscalYearId,
+                    OriginalFiscalYearId = fiscalYearId,
+                    // Set Date and NepaliDate from fiscal year start date
+                    Date = fiscalYear.StartDate.HasValue
+                        ? fiscalYear.StartDate.Value.ToUniversalTime()
+                        : DateTime.UtcNow,
+                    NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                        ? fiscalYear.StartDateNepali
+                        : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     CreatedAt = DateTime.UtcNow,
                     UniqueNumber = await _itemCompanyService.GenerateUniqueItemCompanyNumberAsync()
                 };
@@ -369,7 +426,7 @@ namespace SkyForge.Controllers.Retailer
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating item company");
-                
+
                 // Return 500 error with message (matching Express route)
                 return StatusCode(500, new
                 {
@@ -390,7 +447,7 @@ namespace SkyForge.Controllers.Retailer
 
                 // 1. Extract trade type from JWT claims
                 var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-                
+
                 // 2. Check if trade type is Retailer
                 if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
                 {
@@ -403,7 +460,7 @@ namespace SkyForge.Controllers.Retailer
 
                 // 3. Extract company info from JWT claims
                 var companyId = User.FindFirst("currentCompany")?.Value;
-                
+
                 // 4. Check if company is selected
                 if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
                 {
@@ -502,7 +559,7 @@ namespace SkyForge.Controllers.Retailer
 
                 // 1. Extract trade type from JWT claims
                 var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-                
+
                 // 2. Check if trade type is Retailer
                 if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
                 {
@@ -547,7 +604,7 @@ namespace SkyForge.Controllers.Retailer
                 // 6. Check for associated items
                 var associatedItems = await _context.Items
                     .AnyAsync(i => i.ItemsCompanyId == id);
-                    
+
                 if (associatedItems)
                 {
                     return Conflict(new
@@ -559,7 +616,7 @@ namespace SkyForge.Controllers.Retailer
 
                 // 7. Proceed with deletion
                 var result = await _itemCompanyService.DeleteItemCompanyAsync(id);
-                
+
                 if (!result)
                 {
                     return StatusCode(500, new
@@ -580,7 +637,7 @@ namespace SkyForge.Controllers.Retailer
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting item company");
-                
+
                 return StatusCode(500, new
                 {
                     success = false,

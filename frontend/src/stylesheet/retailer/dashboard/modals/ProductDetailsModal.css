@@ -3,7 +3,8 @@
     font-size: 14px;
 }
 
-#productDetailsHeader, .product-row {
+#productDetailsHeader,
+.product-row {
     display: flex;
     width: 100%;
     padding: 8px 0;
@@ -53,6 +54,11 @@
 
 .warning {
     background-color: #fff3cd;
+}
+
+.vat-13 {
+    background-color: lightgreen !important;
+    /* light green for 13% VAT */
 }
 
 .vatable {

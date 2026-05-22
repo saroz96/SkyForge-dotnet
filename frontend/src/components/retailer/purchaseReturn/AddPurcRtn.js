@@ -449,61 +449,6 @@ const AddPurcRtn = () => {
         }
     };
 
-    // useEffect(() => {
-    //     const fetchInitialData = async () => {
-    //         try {
-    //             setIsLoading(true);
-
-    //             // Fetch next bill number separately
-    //             const numberResponse = await api.get('/api/retailer/purchase-return/current-number');
-    //             const currentBillNum = await getCurrentBillNumber();
-
-    //             // Fetch company settings and initial data
-    //             const companyResponse = await api.get('/api/retailer/purchase-return');
-    //             const { data } = companyResponse.data; // Note: response.data.data structure from your controller
-
-    //             // Set company settings
-    //             setCompany({
-    //                 ...data.company,
-    //                 dateFormat: data.company.dateFormat || 'nepali',
-    //                 vatEnabled: data.company.vatEnabled || true
-    //             });
-
-    //             // Set other data
-    //             setCategories(data.categories || []);
-    //             setUnits(data.units || []);
-    //             setCompanyGroups(data.companyGroups || []);
-
-    //             // Use the bill number from the separate endpoint
-    //             setNextBillNumber(currentBillNum);
-    //             const isNepaliFormat = data.company.dateFormat === 'nepali' ||
-    //                 data.company.dateFormat === 'Nepali';
-
-    //             setFormData(prev => ({
-    //                 ...prev,
-    //                 billNumber: currentBillNum,
-    //                 transactionDateNepali: isNepaliFormat ? currentNepaliDate : '',
-    //                 nepaliDate: isNepaliFormat ? currentNepaliDate : '',
-    //                 transactionDateRoman: new Date().toISOString().split('T')[0],
-    //                 billDate: new Date().toISOString().split('T')[0]
-    //             }));
-
-    //             setIsInitialDataLoaded(true);
-    //         } catch (error) {
-    //             console.error('Error fetching initial data:', error);
-    //             setNotification({
-    //                 show: true,
-    //                 message: 'Error loading purchase return data',
-    //                 type: 'error'
-    //             });
-    //         } finally {
-    //             setIsLoading(false);
-    //         }
-    //     };
-    //     fetchInitialData();
-    // }, []);
-
-
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -1908,7 +1853,7 @@ const AddPurcRtn = () => {
             subTotal = preciseAdd(subTotal, itemAmount);
             totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount = preciseAdd(taxableAmount, itemAmount);
                 taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
             } else {
@@ -2652,7 +2597,7 @@ const AddPurcRtn = () => {
                 roundOffAmount: calculatedValues.roundOffAmount,
                 subTotal: calculatedValues.subTotal,
                 taxableAmount: calculatedValues.taxableAmount,
-                nonVatPurchase: calculatedValues.nonTaxableAmount,
+                nonVatPurchaseReturn: calculatedValues.nonTaxableAmount,
                 totalCcAmount: calculatedValues.totalCCAmount,
                 totalAmount: calculatedValues.totalAmount,
                 // nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
@@ -4387,7 +4332,7 @@ const AddPurcRtn = () => {
                                         const availableStock = getAvailableStockForDisplay(item);
                                         const remainingStock = getRemainingStock(item);
                                         return (
-                                            <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                            <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>

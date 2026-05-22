@@ -15,7 +15,7 @@ namespace SkyForge.Services.ItemCompanyServices
         Task<bool> AddDefaultItemCompanyAsync(Guid companyId);
         Task<ItemCompany> GetItemCompanyByNameAsync(Guid companyId, string name);
         Task<List<ItemCompany>> SearchItemCompaniesAsync(Guid companyId, string searchTerm);
-        Task<ItemCompany> GetOrCreateItemCompanyAsync(Guid companyId, string name);
+        Task<ItemCompany> GetOrCreateItemCompanyAsync(Guid companyId, string name, Guid fiscalYearId);
         Task<bool> BulkCreateItemCompaniesAsync(Guid companyId, List<string> companyNames);
         Task<int> GenerateUniqueItemCompanyNumberAsync();
         Task<bool> AddMultipleDefaultItemCompaniesAsync(Guid companyId);

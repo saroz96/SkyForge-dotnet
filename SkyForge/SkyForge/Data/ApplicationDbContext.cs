@@ -1372,7 +1372,7 @@ namespace SkyForge.Data
                 entity.ToTable("items");
 
                 // Composite unique index
-                entity.HasIndex(e => new { e.Name, e.CompanyId, e.FiscalYearId })
+                entity.HasIndex(e => new { e.Name, e.CompanyId })
                     .IsUnique()
                     .HasDatabaseName("IX_Item_Name_Company_FiscalYear");
 
@@ -1393,11 +1393,6 @@ namespace SkyForge.Data
                 entity.HasOne(e => e.Company)
                     .WithMany()
                     .HasForeignKey(e => e.CompanyId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(e => e.FiscalYear)
-                    .WithMany()
-                    .HasForeignKey(e => e.FiscalYearId)
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(e => e.OriginalFiscalYear)
@@ -1773,7 +1768,7 @@ namespace SkyForge.Data
 
                 // Check constraint for vat_status
                 entity.HasCheckConstraint("CK_PurchaseBillItem_VatStatus",
-                    "vat_status IN ('vatable', 'vatExempt')");
+                    "vat_status IN ('13', 'vatExempt')");
 
                 // Default values
                 entity.Property(e => e.DiscountPercentagePerItem).HasDefaultValue(0);
@@ -1929,7 +1924,7 @@ namespace SkyForge.Data
 
                 // Check constraint for vat_status
                 entity.HasCheckConstraint("CK_SalesReturnItem_VatStatus",
-                    "vat_status IN ('vatable', 'vatExempt')");
+                    "vat_status IN ('13', 'vatExempt')");
 
                 // Default values
                 entity.Property(e => e.DiscountPercentagePerItem).HasDefaultValue(0);
@@ -2112,7 +2107,7 @@ namespace SkyForge.Data
 
                 // Check constraint for vat_status
                 entity.HasCheckConstraint("CK_PurchaseReturnItem_VatStatus",
-                    "vat_status IN ('vatable', 'vatExempt')");
+                    "vat_status IN ('13', 'vatExempt')");
 
                 // Default values
                 entity.Property(e => e.Mrp).HasDefaultValue(0);

@@ -11,7 +11,7 @@ import '../../../stylesheet/noDateIcon.css';
 import ProductModal from '../dashboard/modals/ProductModal';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import useDebounce from '../../../hooks/useDebounce';
-import VirtualizedItemListForPurchaseReturn from '../../VirtualizedItemListForPurchaseReturn';
+import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
@@ -1210,7 +1210,7 @@ const EditPurchase = () => {
             subTotal = preciseAdd(subTotal, itemAmount);
             totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount = preciseAdd(taxableAmount, itemAmount);
                 taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
             } else {
@@ -1598,7 +1598,7 @@ const EditPurchase = () => {
             currency: currency,
             mrp: latestMrp,
             salesPrice: salesPrice,
-            isVatable: selectedItemForInsert.vatStatus === 'vatable'
+            isVatable: selectedItemForInsert.vatStatus === '13'
         });
 
         setIsHeaderMode(true);
@@ -1713,7 +1713,7 @@ const EditPurchase = () => {
             currency: currency,
             mrp: latestMrp,
             salesPrice: salesPrice,
-            isVatable: item.vatStatus === 'vatable'
+            isVatable: item.vatStatus === '13'
         });
 
         setShowSalesPriceModal(true);
@@ -3650,7 +3650,7 @@ const EditPurchase = () => {
                                 </thead>
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
                                     {items.map((item, index) => (
-                                        <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                        <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>
@@ -4498,7 +4498,7 @@ const EditPurchase = () => {
                                         </div>
 
                                         {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemListForPurchaseReturn
+                                            <VirtualizedItemListForPurchase
                                                 items={headerSearchResults}
                                                 onItemClick={(item) => {
                                                     selectItemForInsert(item);

@@ -1466,39 +1466,6 @@ const AddJournalVoucher = () => {
                                         </div>
                                     </div>
 
-                                    {/* AD Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="date"
-                                                id="date"
-                                                className="form-control form-control-sm"
-                                                value={formData.date || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
                                             <input
@@ -1605,7 +1572,7 @@ const AddJournalVoucher = () => {
                                 </div>
                             </div>
 
-                            <div className="col-12 col-md-6 col-lg-8">
+                            <div className="col-12 col-md-6 col-lg-6">
                                 <div className="position-relative">
                                     <input
                                         type="text"

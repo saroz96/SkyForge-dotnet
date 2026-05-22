@@ -12,8 +12,8 @@ using SkyForge.Data;
 namespace SkyForge.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260508165925_AddNewDatabase")]
-    partial class AddNewDatabase
+    [Migration("20260521184555_UpdateiTEMtables")]
+    partial class UpdateiTEMtables
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -52,10 +52,21 @@ namespace SkyForge.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OriginalFiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("original_fiscal_year_id");
 
                     b.Property<string>("PrimaryGroup")
                         .IsRequired()
@@ -76,6 +87,8 @@ namespace SkyForge.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
+
+                    b.HasIndex("OriginalFiscalYearId");
 
                     b.HasIndex("Name", "CompanyId")
                         .IsUnique();
@@ -110,7 +123,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<bool>("DefaultCashAccount")
                         .HasColumnType("boolean");
@@ -136,20 +150,14 @@ namespace SkyForge.Migrations
                     b.Property<string>("NepaliDate")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("OpeningBalanceDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("OpeningBalanceDateNepali")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
                     b.Property<string>("OpeningBalanceType")
                         .IsRequired()
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)");
 
                     b.Property<Guid?>("OriginalFiscalYearId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("original_fiscal_year_id");
 
                     b.Property<string>("Pan")
                         .HasMaxLength(20)
@@ -197,6 +205,9 @@ namespace SkyForge.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp without time zone");
 
@@ -215,6 +226,8 @@ namespace SkyForge.Migrations
 
                     b.HasIndex("AccountId");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("FiscalYearId");
 
                     b.ToTable("ClosingBalanceByFiscalYear");
@@ -231,6 +244,9 @@ namespace SkyForge.Migrations
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp without time zone");
@@ -251,6 +267,8 @@ namespace SkyForge.Migrations
                     b.HasIndex("AccountId")
                         .IsUnique();
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("InitialFiscalYearId");
 
                     b.ToTable("InitialOpeningBalances");
@@ -267,6 +285,9 @@ namespace SkyForge.Migrations
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp without time zone");
@@ -287,6 +308,8 @@ namespace SkyForge.Migrations
                     b.HasIndex("AccountId")
                         .IsUnique();
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("FiscalYearId");
 
                     b.ToTable("OpeningBalances");
@@ -303,6 +326,9 @@ namespace SkyForge.Migrations
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp without time zone");
@@ -321,6 +347,8 @@ namespace SkyForge.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("FiscalYearId");
 
@@ -395,7 +423,10 @@ namespace SkyForge.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("FiscalYearStartDate")
+                    b.Property<DateTime?>("FiscalYearStartDateEnglish")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("FiscalYearStartDateNepali")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -667,10 +698,25 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("timezone('utc', now())");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
+                    b.Property<Guid>("FiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fiscal_year_id");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OriginalFiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("original_fiscal_year_id");
 
                     b.Property<int?>("UniqueNumber")
                         .HasColumnType("integer");
@@ -681,6 +727,10 @@ namespace SkyForge.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
+
+                    b.HasIndex("FiscalYearId");
+
+                    b.HasIndex("OriginalFiscalYearId");
 
                     b.HasIndex("Name", "CompanyId")
                         .IsUnique();
@@ -703,11 +753,26 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
+                    b.Property<Guid>("FiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fiscal_year_id");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OriginalFiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("original_fiscal_year_id");
 
                     b.Property<int>("UniqueNumber")
                         .HasColumnType("integer")
@@ -721,6 +786,10 @@ namespace SkyForge.Migrations
 
                     b.HasIndex("CompanyId")
                         .HasDatabaseName("IX_Composition_Company");
+
+                    b.HasIndex("FiscalYearId");
+
+                    b.HasIndex("OriginalFiscalYearId");
 
                     b.ToTable("compositions");
                 });
@@ -1032,10 +1101,25 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("timezone('utc', now())");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
+                    b.Property<Guid>("FiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fiscal_year_id");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OriginalFiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("original_fiscal_year_id");
 
                     b.Property<int?>("UniqueNumber")
                         .HasColumnType("integer");
@@ -1046,6 +1130,10 @@ namespace SkyForge.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
+
+                    b.HasIndex("FiscalYearId");
+
+                    b.HasIndex("OriginalFiscalYearId");
 
                     b.HasIndex("Name", "CompanyId")
                         .IsUnique();
@@ -1083,10 +1171,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("date")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<Guid>("FiscalYearId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("fiscal_year_id");
 
                     b.Property<string>("Hscode")
                         .HasColumnType("text")
@@ -1127,9 +1211,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
-                    b.Property<DateTime?>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("OpeningStock")
                         .ValueGeneratedOnAdd()
@@ -1202,8 +1285,6 @@ namespace SkyForge.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("FiscalYearId");
-
                     b.HasIndex("ItemsCompanyId");
 
                     b.HasIndex("MainUnitId");
@@ -1234,7 +1315,7 @@ namespace SkyForge.Migrations
                     b.HasIndex("CompanyId", "VatStatus")
                         .HasDatabaseName("IX_Item_Company_VatStatus");
 
-                    b.HasIndex("Name", "CompanyId", "FiscalYearId")
+                    b.HasIndex("Name", "CompanyId")
                         .IsUnique()
                         .HasDatabaseName("IX_Item_Name_Company_FiscalYear");
 
@@ -1280,9 +1361,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
 
-                    b.Property<DateTime?>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("PurchasePrice")
                         .ValueGeneratedOnAdd()
@@ -1342,9 +1422,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
 
-                    b.Property<DateTime?>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("OpeningStock")
                         .ValueGeneratedOnAdd()
@@ -1398,6 +1477,10 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
@@ -1416,9 +1499,8 @@ namespace SkyForge.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
 
-                    b.Property<DateTime?>("NepaliDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("Nepali_Date");
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("OpeningStock")
                         .ValueGeneratedOnAdd()
@@ -1455,6 +1537,8 @@ namespace SkyForge.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("FiscalYearId");
 
@@ -1499,6 +1583,9 @@ namespace SkyForge.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)")
                         .HasColumnName("cc_percentage");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -1600,9 +1687,6 @@ namespace SkyForge.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("net_pu_price");
 
-                    b.Property<Guid?>("ParentItemId")
-                        .HasColumnType("uuid");
-
                     b.Property<decimal>("Price")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -1671,6 +1755,8 @@ namespace SkyForge.Migrations
                     b.HasIndex("BatchNumber")
                         .HasDatabaseName("IX_StockEntry_BatchNumber");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("ExpiryDate")
                         .HasDatabaseName("IX_StockEntry_ExpiryDate");
 
@@ -1678,8 +1764,6 @@ namespace SkyForge.Migrations
 
                     b.HasIndex("ItemId")
                         .HasDatabaseName("IX_StockEntry_ItemId");
-
-                    b.HasIndex("ParentItemId");
 
                     b.HasIndex("PurchaseBillId");
 
@@ -1823,10 +1907,25 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("timezone('utc', now())");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
+                    b.Property<Guid>("FiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fiscal_year_id");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OriginalFiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("original_fiscal_year_id");
 
                     b.Property<int?>("UniqueNumber")
                         .HasColumnType("integer");
@@ -1837,6 +1936,10 @@ namespace SkyForge.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
+
+                    b.HasIndex("FiscalYearId");
+
+                    b.HasIndex("OriginalFiscalYearId");
 
                     b.HasIndex("Name", "CompanyId")
                         .IsUnique();
@@ -4532,10 +4635,25 @@ namespace SkyForge.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("timezone('utc', now())");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
+
+                    b.Property<Guid>("FiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fiscal_year_id");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("NepaliDate")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OriginalFiscalYearId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("original_fiscal_year_id");
 
                     b.Property<int?>("UniqueNumber")
                         .HasColumnType("integer");
@@ -4546,6 +4664,10 @@ namespace SkyForge.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
+
+                    b.HasIndex("FiscalYearId");
+
+                    b.HasIndex("OriginalFiscalYearId");
 
                     b.HasIndex("Name", "CompanyId")
                         .IsUnique();
@@ -4650,7 +4772,13 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "OriginalFiscalYear")
+                        .WithMany()
+                        .HasForeignKey("OriginalFiscalYearId");
+
                     b.Navigation("Company");
+
+                    b.Navigation("OriginalFiscalYear");
                 });
 
             modelBuilder.Entity("SkyForge.Models.AccountModel.Account", b =>
@@ -4687,6 +4815,12 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
                         .WithMany()
                         .HasForeignKey("FiscalYearId")
@@ -4694,6 +4828,8 @@ namespace SkyForge.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+
+                    b.Navigation("Company");
 
                     b.Navigation("FiscalYear");
                 });
@@ -4706,11 +4842,19 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "InitialFiscalYear")
                         .WithMany()
                         .HasForeignKey("InitialFiscalYearId");
 
                     b.Navigation("Account");
+
+                    b.Navigation("Company");
 
                     b.Navigation("InitialFiscalYear");
                 });
@@ -4723,11 +4867,19 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
                         .WithMany()
                         .HasForeignKey("FiscalYearId");
 
                     b.Navigation("Account");
+
+                    b.Navigation("Company");
 
                     b.Navigation("FiscalYear");
                 });
@@ -4740,6 +4892,12 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
                         .WithMany()
                         .HasForeignKey("FiscalYearId")
@@ -4747,6 +4905,8 @@ namespace SkyForge.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+
+                    b.Navigation("Company");
 
                     b.Navigation("FiscalYear");
                 });
@@ -5036,7 +5196,21 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
+                        .WithMany()
+                        .HasForeignKey("FiscalYearId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "OriginalFiscalYear")
+                        .WithMany()
+                        .HasForeignKey("OriginalFiscalYearId");
+
                     b.Navigation("Company");
+
+                    b.Navigation("FiscalYear");
+
+                    b.Navigation("OriginalFiscalYear");
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.CompositionModel.Composition", b =>
@@ -5047,7 +5221,21 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
+                        .WithMany()
+                        .HasForeignKey("FiscalYearId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "OriginalFiscalYear")
+                        .WithMany()
+                        .HasForeignKey("OriginalFiscalYearId");
+
                     b.Navigation("Company");
+
+                    b.Navigation("FiscalYear");
+
+                    b.Navigation("OriginalFiscalYear");
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.CompositionModel.ItemComposition", b =>
@@ -5169,7 +5357,21 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
+                        .WithMany()
+                        .HasForeignKey("FiscalYearId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "OriginalFiscalYear")
+                        .WithMany()
+                        .HasForeignKey("OriginalFiscalYearId");
+
                     b.Navigation("Company");
+
+                    b.Navigation("FiscalYear");
+
+                    b.Navigation("OriginalFiscalYear");
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.Items.Item", b =>
@@ -5183,12 +5385,6 @@ namespace SkyForge.Migrations
                     b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
-                        .WithMany()
-                        .HasForeignKey("FiscalYearId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -5217,8 +5413,6 @@ namespace SkyForge.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Company");
-
-                    b.Navigation("FiscalYear");
 
                     b.Navigation("ItemCompany");
 
@@ -5268,6 +5462,12 @@ namespace SkyForge.Migrations
 
             modelBuilder.Entity("SkyForge.Models.Retailer.Items.ItemOpeningStockByFiscalYear", b =>
                 {
+                    b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
                         .WithMany()
                         .HasForeignKey("FiscalYearId")
@@ -5280,6 +5480,8 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Company");
+
                     b.Navigation("FiscalYear");
 
                     b.Navigation("Item");
@@ -5287,6 +5489,12 @@ namespace SkyForge.Migrations
 
             modelBuilder.Entity("SkyForge.Models.Retailer.Items.StockEntry", b =>
                 {
+                    b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
                         .WithMany()
                         .HasForeignKey("FiscalYearId")
@@ -5297,10 +5505,6 @@ namespace SkyForge.Migrations
                         .HasForeignKey("ItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("SkyForge.Models.Retailer.Items.Item", "ParentItem")
-                        .WithMany()
-                        .HasForeignKey("ParentItemId");
 
                     b.HasOne("SkyForge.Models.Retailer.Purchase.PurchaseBill", "PurchaseBill")
                         .WithMany()
@@ -5321,11 +5525,11 @@ namespace SkyForge.Migrations
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.Navigation("Company");
+
                     b.Navigation("FiscalYear");
 
                     b.Navigation("Item");
-
-                    b.Navigation("ParentItem");
 
                     b.Navigation("PurchaseBill");
 
@@ -5390,7 +5594,21 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
+                        .WithMany()
+                        .HasForeignKey("FiscalYearId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "OriginalFiscalYear")
+                        .WithMany()
+                        .HasForeignKey("OriginalFiscalYearId");
+
                     b.Navigation("Company");
+
+                    b.Navigation("FiscalYear");
+
+                    b.Navigation("OriginalFiscalYear");
                 });
 
             modelBuilder.Entity("SkyForge.Models.Retailer.PaymentModel.Payment", b =>
@@ -6163,7 +6381,21 @@ namespace SkyForge.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "FiscalYear")
+                        .WithMany()
+                        .HasForeignKey("FiscalYearId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.FiscalYearModel.FiscalYear", "OriginalFiscalYear")
+                        .WithMany()
+                        .HasForeignKey("OriginalFiscalYearId");
+
                     b.Navigation("Company");
+
+                    b.Navigation("FiscalYear");
+
+                    b.Navigation("OriginalFiscalYear");
                 });
 
             modelBuilder.Entity("SkyForge.Models.UserModel.User", b =>

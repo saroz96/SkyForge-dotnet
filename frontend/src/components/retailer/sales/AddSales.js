@@ -464,61 +464,6 @@ const AddSales = () => {
         }
     };
 
-    // Initial data fetching
-    // useEffect(() => {
-    //     const fetchInitialData = async () => {
-    //         try {
-    //             setIsLoading(true);
-
-    //             // Fetch next bill number separately
-    //             const numberResponse = await api.get('/api/retailer/credit-sales/current-number');
-    //             const currentBillNum = await getCurrentBillNumber();
-
-    //             // Fetch company settings and initial data
-    //             const companyResponse = await api.get('/api/retailer/credit-sales');
-    //             const { data } = companyResponse.data;
-
-    //             // Set company settings
-    //             setCompany({
-    //                 ...data.company,
-    //                 dateFormat: data.company.dateFormat || 'nepali',
-    //                 vatEnabled: data.company.vatEnabled || true
-    //             });
-
-    //             // Set other data
-    //             setCategories(data.categories || []);
-    //             setUnits(data.units || []);
-    //             setCompanyGroups(data.companyGroups || []);
-
-    //             // Use the bill number from the separate endpoint
-    //             setNextBillNumber(currentBillNum);
-    //             const isNepaliFormat = data.company.dateFormat === 'nepali' ||
-    //                 data.company.dateFormat === 'Nepali';
-
-    //             setFormData(prev => ({
-    //                 ...prev,
-    //                 billNumber: currentBillNum,
-    //                 transactionDateNepali: isNepaliFormat ? currentNepaliDate : '',
-    //                 nepaliDate: isNepaliFormat ? currentNepaliDate : '',
-    //                 transactionDateRoman: new Date().toISOString().split('T')[0],
-    //                 billDate: new Date().toISOString().split('T')[0]
-    //             }));
-
-    //             setIsInitialDataLoaded(true);
-    //         } catch (error) {
-    //             console.error('Error fetching initial data:', error);
-    //             setNotification({
-    //                 show: true,
-    //                 message: 'Error loading sales data',
-    //                 type: 'error'
-    //             });
-    //         } finally {
-    //             setIsLoading(false);
-    //         }
-    //     };
-    //     fetchInitialData();
-    // }, []);
-
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -969,186 +914,6 @@ const AddSales = () => {
             setIsAccountSearching(false);
         }
     };
-
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-    //         const response = await api.get('/api/retailer/items/search', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: 15,
-    //                 vatStatus: formData.isVatExempt,
-    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             const itemsWithPrices = response.data.items.map(item => {
-    //                 let latestPrice = 0;
-    //                 let latestBatchNumber = '';
-    //                 let latestExpiryDate = '';
-
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
-    //                         new Date(b.date) - new Date(a.date)  // Note: AddSalesOpen uses newest first
-    //                     );
-    //                     latestPrice = sortedEntries[0].price || 0;
-    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
-    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     id: item.id,
-    //                     _id: item.id,
-    //                     latestPrice,
-    //                     latestBatchNumber,
-    //                     latestExpiryDate,
-    //                     stock: item.currentStock || 0
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
-
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-    //         // Determine which date to send based on company format
-    //         const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
-
-    //         let params = {
-    //             search: searchTerm,
-    //             page: page,
-    //             limit: 15,
-    //             vatStatus: formData.isVatExempt,
-    //             sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //         };
-
-    //         // Add date filter based on date format
-    //         if (isNepaliFormat && formData.transactionDateNepali) {
-    //             // Send Nepali date directly - no conversion needed
-    //             params.asOfNepaliDate = formData.transactionDateNepali;
-    //             console.log('Sending Nepali date filter for sales:', formData.transactionDateNepali);
-    //         } else if (!isNepaliFormat && formData.transactionDateRoman) {
-    //             // Send English date
-    //             params.asOfEnglishDate = formData.transactionDateRoman;
-    //             console.log('Sending English date filter for sales:', formData.transactionDateRoman);
-    //         }
-
-    //         const response = await api.get('/api/retailer/items/search', { params });
-
-    //         if (response.data.success) {
-    //             const itemsWithPrices = response.data.items.map(item => {
-    //                 let latestPrice = 0;
-    //                 let latestBatchNumber = '';
-    //                 let latestExpiryDate = '';
-
-    //                 // Calculate total stock from filtered stockEntries
-    //                 let totalStock = 0;
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     // Calculate total stock by summing up all quantities from filtered stockEntries
-    //                     totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
-
-    //                     // For sales, we need the selling price (price field), not purchase price
-    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
-    //                         new Date(b.date) - new Date(a.date)
-    //                     );
-    //                     latestPrice = sortedEntries[0]?.price || 0;
-    //                     latestBatchNumber = sortedEntries[0]?.batchNumber || '';
-    //                     latestExpiryDate = sortedEntries[0]?.expiryDate || '';
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     id: item.id,
-    //                     _id: item.id,
-    //                     latestPrice,
-    //                     latestBatchNumber,
-    //                     latestExpiryDate,
-    //                     stock: totalStock
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
 
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
@@ -1930,49 +1695,6 @@ const AddSales = () => {
         };
     }, []);
 
-    // const calculateTotal = (itemsToCalculate = items) => {
-    //     let subTotal = 0;
-    //     let taxableAmount = 0;
-    //     let nonTaxableAmount = 0;
-
-    //     itemsToCalculate.forEach(item => {
-    //         subTotal += parseFloat(item.amount) || 0;
-
-    //         if (item.vatStatus === 'vatable') {
-    //             taxableAmount += parseFloat(item.amount) || 0;
-    //         } else {
-    //             nonTaxableAmount += parseFloat(item.amount) || 0;
-    //         }
-    //     });
-
-    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
-    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
-
-    //     const discountForTaxable = (taxableAmount * discountPercentage) / 100;
-    //     const discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-
-    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
-    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
-
-    //     let vatAmount = 0;
-    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-    //         vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
-    //     }
-
-    //     const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-    //     const totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount + roundOffAmount;
-
-    //     return {
-    //         subTotal,
-    //         taxableAmount: finalTaxableAmount,
-    //         nonTaxableAmount: finalNonTaxableAmount,
-    //         vatAmount,
-    //         totalAmount,
-    //         discountAmount,
-    //         roundOffAmount
-    //     };
-    // };
-
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
@@ -1982,7 +1704,7 @@ const AddSales = () => {
             const itemAmount = parseFloat(item.amount) || 0;
             subTotal += itemAmount;
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount += itemAmount;
             } else {
                 nonTaxableAmount += itemAmount;
@@ -2292,86 +2014,6 @@ const AddSales = () => {
         }
     };
 
-    // const handleManualReset = async () => {
-    //     try {
-    //         setIsLoading(true);
-
-    //         // Get current bill number (does NOT increment)
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/credit-sales');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum,
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         setCategories(data.categories || []);
-    //         setUnits(data.units || []);
-    //         setCompanyGroups(data.companyGroups || []);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-    //         clearSalesDraft();
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting form:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
-
-    // Reset after save - increments bill number
-
     const handleManualReset = async () => {
         try {
             setIsLoading(true);
@@ -2485,80 +2127,6 @@ const AddSales = () => {
             setIsLoading(false);
         }
     };
-
-    // const resetAfterSave = async () => {
-    //     try {
-    //         // Get next bill number (this increments the counter)
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/credit-sales');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum,
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         setCategories(data.categories || []);
-    //         setUnits(data.units || []);
-    //         setCompanyGroups(data.companyGroups || []);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-    //         clearSalesDraft();
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting after save:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     }
-    // };
 
     // Reset after save - respects date preferences
     const resetAfterSave = async () => {
@@ -2722,10 +2290,6 @@ const AddSales = () => {
                 taxableAmount: calculatedValues.taxableAmount,
                 nonVatSales: calculatedValues.nonTaxableAmount,
                 totalAmount: calculatedValues.totalAmount,
-                // nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
-                // date: formData.billDate,
-                // transactionDateNepali: new Date(formData.transactionDateNepali).toISOString().split('T')[0],
-                // transactionDate: formData.transactionDateRoman,
                 nepaliDate: formData.nepaliDate,
                 date: parseDate(formData.billDate),
                 transactionDateNepali: formData.transactionDateNepali,
@@ -3414,39 +2978,6 @@ const AddSales = () => {
                                         </div>
                                     </div>
 
-                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                value={formData.transactionDateRoman || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Transaction Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <input
                                         type="hidden"
                                         name="transactionDateRoman"
@@ -3592,38 +3123,6 @@ const AddSales = () => {
                                         </div>
                                     </div>
 
-                                    {/* AD Invoice Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Invoice Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
                                     <input
                                         type="hidden"
                                         name="billDate"
@@ -4384,7 +3883,7 @@ const AddSales = () => {
                                         const availableStock = getAvailableStockForDisplay(item);
                                         const remainingStock = getRemainingStock(item);
                                         return (
-                                            <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                            <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                                 <td style={{ padding: '3px', fontSize: '0.75rem' }}>

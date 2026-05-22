@@ -64,10 +64,10 @@ namespace SkyForge.Models.AccountModel
         [StringLength(2, MinimumLength = 2)] // Ensure exactly 2 characters (Dr or Cr)
         public string OpeningBalanceType { get; set; } = "Dr";
 
-        public DateTime OpeningBalanceDate { get; set; } = DateTime.UtcNow;
+        // public DateTime OpeningBalanceDate { get; set; } = DateTime.UtcNow;
 
-        [MaxLength(20)]
-        public string? OpeningBalanceDateNepali { get; set; }
+        // [MaxLength(20)]
+        // public string? OpeningBalanceDateNepali { get; set; }
 
         // Foreign Keys
         [Required(ErrorMessage = "Account group is required")]
@@ -82,10 +82,27 @@ namespace SkyForge.Models.AccountModel
         [ForeignKey("CompanyId")]
         public virtual Company Company { get; set; } = null!;
 
+        // [Required]
+        // [Column("fiscal_year_id")]
+        // public Guid FiscalYearId { get; set; }
+
+        // [ForeignKey("FiscalYearId")]
+        // public FiscalYear FiscalYear { get; set; } = null!;
+
+        [Column("original_fiscal_year_id")]
         public Guid? OriginalFiscalYearId { get; set; }
 
         [ForeignKey("OriginalFiscalYearId")]
-        public virtual FiscalYear? OriginalFiscalYear { get; set; }
+        public FiscalYear? OriginalFiscalYear { get; set; }
+
+        [Column("date")]
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+        public string? NepaliDate { get; set; }
+
+        // public Guid? OriginalFiscalYearId { get; set; }
+
+        // [ForeignKey("OriginalFiscalYearId")]
+        // public virtual FiscalYear? OriginalFiscalYear { get; set; }
 
         // Flags
         public bool DefaultCashAccount { get; set; } = false;
@@ -93,10 +110,6 @@ namespace SkyForge.Models.AccountModel
         public bool IsDefaultAccount { get; set; } = false;
 
         public bool IsActive { get; set; } = true;
-
-        public DateTime Date { get; set; } = DateTime.UtcNow;
-
-        public string? NepaliDate { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

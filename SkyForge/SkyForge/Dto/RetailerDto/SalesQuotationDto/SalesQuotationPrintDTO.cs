@@ -159,6 +159,6 @@ namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
         // Calculated properties
         public decimal ItemTotal => Quantity * PuPrice;
         public decimal ItemTotalWithDiscount => ItemTotal - DiscountAmountPerItem;
-        public decimal VatAmount => VatStatus == "vatable" ? ItemTotalWithDiscount * 0.13m : 0; // Assuming 13% VAT
+        public decimal VatAmount => VatStatus == "13" ? ItemTotalWithDiscount * 0.13m : 0; // Assuming 13% VAT
     }
 }

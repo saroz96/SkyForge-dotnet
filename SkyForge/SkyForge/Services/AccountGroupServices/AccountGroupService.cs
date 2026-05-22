@@ -30,32 +30,88 @@ namespace SkyForge.Services.AccountGroupServices
                     throw new ArgumentException($"Invalid account group type: {accountGroup.Type}");
                 }
 
-                // Check if account group with same name already exists for this company
-                var existing = await _context.AccountGroups
-                    .FirstOrDefaultAsync(ag => ag.CompanyId == accountGroup.CompanyId &&
-                                               ag.Name.ToLower() == accountGroup.Name.ToLower());
-
-                if (existing != null)
+                // if (accountGroup.FiscalYearId == Guid.Empty)
                 {
-                    throw new InvalidOperationException($"Account group '{accountGroup.Name}' already exists for this company");
+                    // If no fiscal year provided, get the active one
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == accountGroup.CompanyId && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        throw new InvalidOperationException($"No active fiscal year found for company {accountGroup.CompanyId}");
+                    }
+
+                    // accountGroup.FiscalYearId = activeFiscalYear.Id;
+                    accountGroup.OriginalFiscalYearId = activeFiscalYear.Id;
+
+                    // Set Date and NepaliDate from active fiscal year
+                    accountGroup.Date = activeFiscalYear.StartDate.HasValue
+                        ? activeFiscalYear.StartDate.Value.ToUniversalTime()
+                        : DateTime.UtcNow;
+                    accountGroup.NepaliDate = !string.IsNullOrEmpty(activeFiscalYear.StartDateNepali)
+                        ? activeFiscalYear.StartDateNepali
+                        : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                    // }
+                    // else
+                    // {
+                    //     // Verify the provided fiscal year exists and belongs to the company
+                    //     var fiscalYear = await _context.FiscalYears
+                    //         .FirstOrDefaultAsync(f => f.Id == accountGroup.FiscalYearId && f.CompanyId == accountGroup.CompanyId);
+
+                    //     if (fiscalYear == null)
+                    //     {
+                    //         throw new KeyNotFoundException($"Fiscal year {accountGroup.FiscalYearId} not found for company {accountGroup.CompanyId}");
+                    //     }
+
+                    //     // Set OriginalFiscalYearId if not set
+                    //     if (accountGroup.OriginalFiscalYearId == null || accountGroup.OriginalFiscalYearId == Guid.Empty)
+                    //     {
+                    //         accountGroup.OriginalFiscalYearId = accountGroup.FiscalYearId;
+                    //     }
+
+                    //     // Set Date and NepaliDate from fiscal year if not already set
+                    //     if (accountGroup.Date == default(DateTime))
+                    //     {
+                    //         accountGroup.Date = fiscalYear.StartDate.HasValue
+                    //             ? fiscalYear.StartDate.Value.ToUniversalTime()
+                    //             : DateTime.UtcNow;
+                    //     }
+
+                    //     if (string.IsNullOrEmpty(accountGroup.NepaliDate))
+                    //     {
+                    //         accountGroup.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                    //             ? fiscalYear.StartDateNepali
+                    //             : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                    //     }
+                    // }
+
+                    // Check if account group with same name already exists for this company
+                    var existing = await _context.AccountGroups
+                        .FirstOrDefaultAsync(ag => ag.CompanyId == accountGroup.CompanyId &&
+                                                   ag.Name.ToLower() == accountGroup.Name.ToLower());
+
+                    if (existing != null)
+                    {
+                        throw new InvalidOperationException($"Account group '{accountGroup.Name}' already exists for this company");
+                    }
+
+                    // Generate unique number if not provided
+                    if (!accountGroup.UniqueNumber.HasValue)
+                    {
+                        accountGroup.UniqueNumber = await GenerateUniqueAccountGroupNumberAsync();
+                    }
+
+                    accountGroup.CreatedAt = DateTime.UtcNow;
+                    accountGroup.UpdatedAt = null;
+
+                    _context.AccountGroups.Add(accountGroup);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation("Account group '{Name}' (ID: {Id}, Unique: {UniqueNumber}) created for company {CompanyId}",
+                        accountGroup.Name, accountGroup.Id, accountGroup.UniqueNumber, accountGroup.CompanyId);
+
+                    return accountGroup;
                 }
-
-                // Generate unique number if not provided
-                if (!accountGroup.UniqueNumber.HasValue)
-                {
-                    accountGroup.UniqueNumber = await GenerateUniqueAccountGroupNumberAsync();
-                }
-
-                accountGroup.CreatedAt = DateTime.UtcNow;
-                accountGroup.UpdatedAt = null;
-
-                _context.AccountGroups.Add(accountGroup);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Account group '{Name}' (ID: {Id}, Unique: {UniqueNumber}) created for company {CompanyId}",
-                    accountGroup.Name, accountGroup.Id, accountGroup.UniqueNumber, accountGroup.CompanyId);
-
-                return accountGroup;
             }
             catch (Exception ex)
             {
@@ -208,6 +264,23 @@ namespace SkyForge.Services.AccountGroupServices
                     throw new KeyNotFoundException($"Company with ID {companyId} not found");
                 }
 
+                var activeFiscalYear = await _context.FiscalYears
+            .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+                if (activeFiscalYear == null)
+                {
+                    // Try to get any fiscal year as fallback
+                    activeFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyId)
+                        .OrderByDescending(f => f.StartDate)
+                        .FirstOrDefaultAsync();
+
+                    if (activeFiscalYear == null)
+                    {
+                        throw new InvalidOperationException($"No fiscal year found for company {companyId}");
+                    }
+                }
+
                 // Check if account groups already exist for this company
                 var existingGroups = await _context.AccountGroups
                     .CountAsync(ag => ag.CompanyId == companyId);
@@ -222,39 +295,37 @@ namespace SkyForge.Services.AccountGroupServices
                 var defaultAccountGroups = new List<AccountGroup>
                 {
                     // Current Assets
-                    new AccountGroup { Name = "Sundry Debtors", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId },
-                    new AccountGroup { Name = "Sundry Creditors", PrimaryGroup = "No", Type = "Current Liabilities", CompanyId = companyId },
-                    new AccountGroup { Name = "Cash in Hand", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId },
-                    new AccountGroup { Name = "Bank Accounts", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId },
-                    new AccountGroup { Name = "Bank O/D Account", PrimaryGroup = "No", Type = "Loans(Liability)", CompanyId = companyId },
-                    new AccountGroup { Name = "Duties & Taxes", PrimaryGroup = "No", Type = "Current Liabilities", CompanyId = companyId },
+                    new AccountGroup { Name = "Sundry Debtors", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Sundry Creditors", PrimaryGroup = "No", Type = "Current Liabilities", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Cash in Hand", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Bank Accounts", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Bank O/D Account", PrimaryGroup = "No", Type = "Loans(Liability)", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Duties & Taxes", PrimaryGroup = "No", Type = "Current Liabilities", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
                     
                     // Primary Groups
-                    new AccountGroup { Name = "Fixed Assets", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Capital Account", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Current Liabilities", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Investments", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Loans(Liability)", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Pre-Operative Expenses", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Revenue Accounts", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Suspense Account", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Current Assets", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
-                    new AccountGroup { Name = "Profit & Loss", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId },
+                    new AccountGroup { Name = "Fixed Assets", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Capital Account", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Current Liabilities", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Investments", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Loans(Liability)", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Pre-Operative Expenses", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Current Assets", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Profit & Loss", PrimaryGroup = "Yes", Type = "Primary", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
                     
                     // Other groups
-                    new AccountGroup { Name = "Reserves & Surplus", PrimaryGroup = "No", Type = "Capital Account", CompanyId = companyId },
-                    new AccountGroup { Name = "Secured Loans", PrimaryGroup = "No", Type = "Loans(Liability)", CompanyId = companyId },
-                    new AccountGroup { Name = "Securities & Deposits", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId },
-                    new AccountGroup { Name = "Stock in hand", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId },
-                    new AccountGroup { Name = "Unsecured Loans", PrimaryGroup = "No", Type = "Loans(Liability)", CompanyId = companyId },
-                    new AccountGroup { Name = "Expenses (Direct/Mfg.)", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId },
-                    new AccountGroup { Name = "Expenses (Indirect/Admn.)", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId },
-                    new AccountGroup { Name = "Income (Direct/Opr.)", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId },
-                    new AccountGroup { Name = "Income (Indirect)", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId },
-                    new AccountGroup { Name = "Loans & Advances", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId },
-                    new AccountGroup { Name = "Provisions/Expenses Payable", PrimaryGroup = "No", Type = "Current Liabilities", CompanyId = companyId },
-                    new AccountGroup { Name = "Purchase", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId },
-                    new AccountGroup { Name = "Sale", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId },
+                    new AccountGroup { Name = "Reserves & Surplus", PrimaryGroup = "No", Type = "Capital Account", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Secured Loans", PrimaryGroup = "No", Type = "Loans(Liability)", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Securities & Deposits", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Stock in hand", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Unsecured Loans", PrimaryGroup = "No", Type = "Loans(Liability)", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Expenses (Direct/Mfg.)", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Expenses (Indirect/Admn.)", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Income (Direct/Opr.)", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Income (Indirect)", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId,OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Loans & Advances", PrimaryGroup = "No", Type = "Current Assets", CompanyId = companyId, OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Provisions/Expenses Payable", PrimaryGroup = "No", Type = "Current Liabilities", CompanyId = companyId, OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Purchase", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId, OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
+                    new AccountGroup { Name = "Sale", PrimaryGroup = "No", Type = "Revenue Accounts", CompanyId = companyId, OriginalFiscalYearId = activeFiscalYear.Id,Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,NepaliDate = activeFiscalYear.StartDateNepali, CreatedAt = DateTime.UtcNow },
                 };
 
                 // Generate unique numbers for all account groups

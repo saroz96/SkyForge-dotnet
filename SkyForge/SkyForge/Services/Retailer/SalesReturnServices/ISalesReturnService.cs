@@ -30,6 +30,6 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
         Task<SalesReturnRegisterDataDTO> GetSalesReturnRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null);
         Task<SalesReturnEntryDataDTO> GetSalesReturnRegisterEntryDataAsync(Guid companyId, Guid fiscalYearId, Guid userId);
         Task<SalesReturnPrintDTO> GetSalesReturnForPrintAsync(Guid id, Guid companyId, Guid userId, Guid fiscalYearId);
-        Task<SalesReturnVatReportDTO> GetSalesReturnVatReportAsync(Guid companyId, Guid fiscalYearId, string? fromDate, string? toDate);
+        // Task<SalesReturnVatReportDTO> GetSalesReturnVatReportAsync(Guid companyId, Guid fiscalYearId, string? fromDate, string? toDate);
     }
 }

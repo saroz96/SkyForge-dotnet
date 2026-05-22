@@ -83,7 +83,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var cashAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            groupsToInclude.Contains(a.AccountGroupsId) &&
                            _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId && ag.Name == "Cash in Hand"))
                     .Select(a => new AccountInfoDTO
@@ -102,7 +101,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var bankAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            groupsToInclude.Contains(a.AccountGroupsId) &&
                            _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId &&
                                (ag.Name == "Bank Accounts" || ag.Name == "Bank O/D Account")))
@@ -121,7 +119,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var accounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            !groupsToExclude.Contains(a.AccountGroupsId))
                     .Select(a => new AccountInfoDTO
                     {
@@ -1065,201 +1062,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
             });
         }
 
-        // public async Task<ReceiptsRegisterDataDTO> GetReceiptsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetReceiptsRegisterAsync called with companyId: {CompanyId}, fiscalYearId: {FiscalYearId}, fromDate: {FromDate}, toDate: {ToDate}",
-        //             companyId, fiscalYearId, fromDate, toDate);
-
-        //         // Get company information including date format
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Address = c.Address,
-        //                 City = c.City,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 RenewalDate = c.RenewalDate,
-        //                 DateFormat = c.DateFormat.ToString(),
-        //                 VatEnabled = c.VatEnabled,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         // Get today's date in Nepali format
-        //         var today = DateTime.UtcNow;
-        //         var nepaliDate = today.ToString("yyyy-MM-dd");
-
-        //         // Determine if company uses Nepali date format
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
-        //             company.DateFormat, isNepaliFormat);
-
-        //         // Get fiscal year
-        //         var fiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // If no date range provided, return basic info with empty receipts list
-        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
-        //         {
-        //             _logger.LogInformation("No date range provided, returning basic info with empty receipts list");
-        //             return new ReceiptsRegisterDataDTO
-        //             {
-        //                 Company = company,
-        //                 CurrentFiscalYear = fiscalYear,
-        //                 Receipts = new List<ReceiptResponseItemDTO>(),
-        //                 FromDate = fromDate,
-        //                 ToDate = toDate,
-        //                 CurrentCompanyName = company.Name,
-        //                 CompanyDateFormat = company.DateFormat,
-        //                 NepaliDate = nepaliDate,
-        //                 UserPreferences = new UserPreferencesDTO { Theme = "light" }
-        //             };
-        //         }
-
-        //         // Parse dates based on company format
-        //         DateTime startDateTime;
-        //         DateTime endDateTime;
-
-        //         if (isNepaliFormat)
-        //         {
-        //             // For Nepali dates, parse to DateTime
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-        //         else
-        //         {
-        //             // For English dates, parse normally
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-
-        //         // Set end date to end of day
-        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
-
-        //         _logger.LogInformation("Searching for receipts between {StartDate} and {EndDate} using {DateFormat} format",
-        //             startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
-
-        //         // Build query with date filter based on company date format
-        //         // var query = _context.Receipts
-        //         //     .Include(r => r.Account)
-        //         //     .Include(r => r.ReceiptAccount)
-        //         //     .Include(r => r.User)
-        //         //     .Include(r => r.Company)
-        //         //     .Include(r => r.FiscalYear)
-        //         //     .Where(r => r.CompanyId == companyId &&
-        //         //                r.FiscalYearId == fiscalYearId);
-
-        //         // Build query with date filter based on company date format
-        //         var query = _context.Receipts
-        //             .Include(r => r.ReceiptEntries)
-        //                 .ThenInclude(e => e.Account)
-        //             .Include(r => r.User)
-        //             .Include(r => r.Company)
-        //             .Include(r => r.FiscalYear)
-        //             .Where(r => r.CompanyId == companyId &&
-        //                        r.FiscalYearId == fiscalYearId);
-
-        //         // Apply date filter based on company's date format
-        //        if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
-        //         {
-        //             // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
-        //             query = query.Where(r => string.Compare(r.NepaliDate, fromDate) >= 0
-        //                                   && string.Compare(r.NepaliDate, toDate) <= 0);
-        //         }
-        //         else
-        //         {
-        //             // Use Date field for filtering
-        //             query = query.Where(r => r.Date >= startDateTime && r.Date <= endDateTime);
-        //             _logger.LogInformation("Using Date field for filtering");
-        //         }
-
-        //         // Log the SQL query (optional - for debugging)
-        //         var sql = query.ToQueryString();
-        //         _logger.LogDebug("SQL Query: {Sql}", sql);
-
-        //         // Get receipts ordered by date and bill number
-        //         var receipts = await query
-        //             .OrderBy(r => r.Date)
-        //             .ThenBy(r => r.BillNumber)
-        //             .ToListAsync();
-
-        //         _logger.LogInformation("Found {Count} receipts matching the criteria", receipts.Count);
-
-        //         // If no receipts found, log sample of all receipts to debug
-        //         if (receipts.Count == 0)
-        //         {
-        //             var sampleReceipts = await _context.Receipts
-        //                 .Where(r => r.CompanyId == companyId)
-        //                 .OrderByDescending(r => r.Date)
-        //                 .Take(5)
-        //                 .Select(r => new { r.Id, r.BillNumber, r.Date, r.NepaliDate })
-        //                 .ToListAsync();
-
-        //             _logger.LogInformation("Sample of recent receipts (Date vs NepaliDate): {SampleReceipts}",
-        //                 string.Join(", ", sampleReceipts.Select(r => $"{r.BillNumber} - Date: {r.Date}, NepaliDate: {r.NepaliDate}")));
-        //         }
-
-        //         // Map to response DTOs
-        //         var receiptDtos = receipts.Select(receipt => MapToResponseItemDTO(receipt, company.DateFormat)).ToList();
-
-        //         return new ReceiptsRegisterDataDTO
-        //         {
-        //             Company = company,
-        //             CurrentFiscalYear = fiscalYear,
-        //             Receipts = receiptDtos,
-        //             FromDate = fromDate,
-        //             ToDate = toDate,
-        //             CurrentCompanyName = company.Name,
-        //             CompanyDateFormat = company.DateFormat,
-        //             NepaliDate = nepaliDate,
-        //             UserPreferences = new UserPreferencesDTO { Theme = "light" }
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting receipts register for company {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
-
-
         public async Task<ReceiptsRegisterDataDTO> GetReceiptsRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
             try
@@ -1360,7 +1162,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     .Include(r => r.Company)
                     .Include(r => r.FiscalYear)
                     .Where(r => r.CompanyId == companyId &&
-                               r.FiscalYearId == fiscalYearId &&
                                r.Date >= startDateTime &&
                                r.Date <= endDateTime);
 

@@ -57,7 +57,7 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Code { get; set; }
-        public string VatStatus { get; set; } = "vatable";
+        public string VatStatus { get; set; } = "13";
         public Guid? ItemCategoryId { get; set; }
     }
 }

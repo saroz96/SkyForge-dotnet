@@ -1326,7 +1326,7 @@ const AddSalesQuotation = () => {
             const itemAmount = parseFloat(item.amount) || 0;
             subTotal += itemAmount;
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount += itemAmount;
             } else {
                 nonTaxableAmount += itemAmount;
@@ -3480,7 +3480,7 @@ const AddSalesQuotation = () => {
                                 </thead>
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
                                     {items.map((item, index) => (
-                                        <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                        <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>
                                                 {item.uniqueNumber}

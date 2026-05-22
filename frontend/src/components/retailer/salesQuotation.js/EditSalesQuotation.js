@@ -817,7 +817,7 @@ const EditSalesQuotation = () => {
                     puPrice: item.puPrice || 0,
                     netPuPrice: item.netPuPrice || 0,
                     amount: ((item.quantity || 0) * (item.price || 0)).toFixed(2),
-                    vatStatus: item.vatStatus || item.item?.vatStatus || 'vatable',
+                    vatStatus: item.vatStatus || item.item?.vatStatus || '13',
                     uniqueUuid: item.uniqueUuid || '',
                     description: item.description || ''
                 }));
@@ -1365,7 +1365,7 @@ const EditSalesQuotation = () => {
             puPrice: firstStockEntry.puPrice || 0,
             netPuPrice: firstStockEntry.netPuPrice || 0,
             amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round((firstStockEntry.price || 0) * 100) / 100),
-            vatStatus: selectedItemForInsert.vatStatus,
+            vatStatus: selectedItemForInsert.vatStatus || '13',
             uniqueUuid: firstStockEntry.uniqueUuid || '',
             description: selectedItemDescription || ''
         };
@@ -1445,7 +1445,7 @@ const EditSalesQuotation = () => {
             const itemAmount = parseFloat(item.amount) || 0;
             subTotal += itemAmount;
 
-            if (item.vatStatus === 'vatable') {
+            if (item.vatStatus === '13') {
                 taxableAmount += itemAmount;
             } else {
                 nonTaxableAmount += itemAmount;
@@ -3599,7 +3599,7 @@ const EditSalesQuotation = () => {
                                 </thead>
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
                                     {items.map((item, index) => (
-                                        <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                        <tr key={index} className={`item ${item.vatStatus === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>
                                                 {item.uniqueNumber}

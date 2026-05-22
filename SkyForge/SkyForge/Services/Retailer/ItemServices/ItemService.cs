@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SkyForge.Data;
 using SkyForge.Dto.RetailerDto.ItemDto;
-using SkyForge.Dto.CompositionDto;
+using SkyForge.Dto.RetailerDto.CompositionDto;
 using SkyForge.Models.Retailer.Items;
 using SkyForge.Models.Retailer.ItemCompanyModel;
 using SkyForge.Models.Retailer.CategoryModel;
@@ -169,8 +169,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                 // 7. Check for duplicate item name in same fiscal year
                 var existingItem = await _context.Items
                     .AnyAsync(i => i.Name.ToLower() == createItemDto.Name.ToLower().Trim()
-                        && i.CompanyId == companyId
-                        && i.FiscalYearId == fiscalYearId);
+                        && i.CompanyId == companyId);
 
                 if (existingItem)
                 {
@@ -211,11 +210,12 @@ namespace SkyForge.Services.Retailer.ItemServices
                     UniqueNumber = uniqueNumber,
                     BarcodeNumber = barcodeNumber,
                     CompanyId = companyId,
-                    FiscalYearId = fiscalYearId,
-                    OriginalFiscalYearId = fiscalYearId,
                     Status = createItemDto.Status ?? "active",
                     CreatedAt = DateTime.UtcNow,
-                    Date = DateTime.UtcNow,
+                    // FiscalYearId = fiscalYearId,
+                    OriginalFiscalYearId = fiscalYearId,
+                    Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow,
+                    NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     UpdatedAt = DateTime.UtcNow
                 };
 
@@ -242,6 +242,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     SalesPrice = createItemDto.InitialOpeningStock?.SalesPrice ?? salesPrice,
                     Date = createItemDto.InitialOpeningStock?.Date ??
                            (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                    NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -264,10 +265,14 @@ namespace SkyForge.Services.Retailer.ItemServices
                         Id = Guid.NewGuid(),
                         ItemId = newItem.Id,
                         FiscalYearId = fiscalYearId,
+                        CompanyId = companyId,
                         OpeningStock = existingCurrentFiscalYearStock.OpeningStock,
                         OpeningStockValue = existingCurrentFiscalYearStock.OpeningStockValue,
                         PurchasePrice = existingCurrentFiscalYearStock.PurchasePrice,
                         SalesPrice = existingCurrentFiscalYearStock.SalesPrice,
+                        Date = createItemDto.InitialOpeningStock?.Date ??
+                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                        NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -281,10 +286,14 @@ namespace SkyForge.Services.Retailer.ItemServices
                         Id = Guid.NewGuid(),
                         ItemId = newItem.Id,
                         FiscalYearId = fiscalYearId,
+                        CompanyId = companyId,
                         OpeningStock = openingStock,
                         OpeningStockValue = openingStockValue,
                         PurchasePrice = purchasePrice,
                         SalesPrice = salesPrice,
+                        Date = createItemDto.InitialOpeningStock?.Date ??
+                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                        NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -321,10 +330,14 @@ namespace SkyForge.Services.Retailer.ItemServices
                             Id = Guid.NewGuid(),
                             ItemId = newItem.Id,
                             FiscalYearId = openingStockDto.FiscalYearId,
+                            CompanyId = companyId,
                             OpeningStock = openingStockDto.OpeningStock,
                             OpeningStockValue = calculatedOpeningStockValue,
                             PurchasePrice = openingStockDto.PurchasePrice,
                             SalesPrice = openingStockDto.SalesPrice,
+                            Date = createItemDto.InitialOpeningStock?.Date ??
+                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                            NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
                         };
@@ -367,6 +380,9 @@ namespace SkyForge.Services.Retailer.ItemServices
                             ClosingStockValue = calculatedClosingStockValue,
                             PurchasePrice = closingStockDto.PurchasePrice,
                             SalesPrice = closingStockDto.SalesPrice,
+                            Date = createItemDto.InitialOpeningStock?.Date ??
+                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                            NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
                         };
@@ -384,7 +400,6 @@ namespace SkyForge.Services.Retailer.ItemServices
                     {
                         Id = Guid.NewGuid(),
                         ItemId = newItem.Id,
-                        Date = DateTime.UtcNow,
                         WsUnit = createItemDto.WsUnit,
                         Quantity = openingStock,
                         Price = salesPrice,
@@ -400,8 +415,12 @@ namespace SkyForge.Services.Retailer.ItemServices
                         ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
                         ExpiryStatus = "safe",
                         DaysUntilExpiry = 730,
+                        CompanyId = companyId,
                         FiscalYearId = fiscalYearId,
                         UniqueUuid = Guid.NewGuid().ToString(),
+                        Date = createItemDto.InitialOpeningStock?.Date ??
+                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                        NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -492,7 +511,6 @@ namespace SkyForge.Services.Retailer.ItemServices
                     .Include(i => i.Unit)
                     .Include(i => i.MainUnit)
                     .Include(i => i.Company)
-                    .Include(i => i.FiscalYear)
                     .Include(i => i.OriginalFiscalYear)
                     .Include(i => i.ItemCompositions)
                         .ThenInclude(ic => ic.Composition)
@@ -528,7 +546,7 @@ namespace SkyForge.Services.Retailer.ItemServices
             try
             {
                 var items = await _context.Items
-                    .Where(i => i.CompanyId == companyId && i.FiscalYearId == fiscalYearId)
+                    .Where(i => i.CompanyId == companyId)
                     .Include(i => i.Category)
                     .Include(i => i.ItemCompany)
                     .Include(i => i.Unit)
@@ -552,12 +570,21 @@ namespace SkyForge.Services.Retailer.ItemServices
         /// <summary>
         /// Updates an existing item with transaction-aware stock updates
         /// </summary>
-        public async Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid currentFiscalYearId)
+        public async Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
+                // 1. Validate fiscal year exists and belongs to company
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+                if (fiscalYear == null)
+                {
+                    throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
+                }
+
                 // Load the item WITH tracking for updates
                 var existingItem = await _context.Items
                     .Include(i => i.ItemCompositions)
@@ -583,7 +610,6 @@ namespace SkyForge.Services.Retailer.ItemServices
                         .AsNoTracking()
                         .FirstOrDefaultAsync(i => i.Id != itemId
                             && i.CompanyId == existingItem.CompanyId
-                            && i.FiscalYearId == existingItem.FiscalYearId
                             && i.Name.ToLower() == updateItemDto.Name.Trim().ToLower());
 
                     if (duplicateItem != null)
@@ -748,7 +774,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                             {
                                 Id = Guid.NewGuid(),
                                 ItemId = existingItem.Id,
-                                InitialFiscalYearId = updateItemDto.InitialOpeningStock.InitialFiscalYearId ?? currentFiscalYearId,
+                                InitialFiscalYearId = updateItemDto.InitialOpeningStock.InitialFiscalYearId ?? fiscalYearId,
                                 OpeningStock = newOpeningStock,
                                 OpeningStockValue = updateItemDto.InitialOpeningStock.OpeningStockValue,
                                 PurchasePrice = updateItemDto.InitialOpeningStock.PurchasePrice,
@@ -762,7 +788,7 @@ namespace SkyForge.Services.Retailer.ItemServices
 
                         // Update opening stocks by fiscal year for current fiscal year
                         var currentFiscalYearOpeningStock = existingItem.OpeningStocksByFiscalYear?
-                            .FirstOrDefault(os => os.FiscalYearId == currentFiscalYearId);
+                            .FirstOrDefault(os => os.FiscalYearId == fiscalYearId);
 
                         if (currentFiscalYearOpeningStock != null)
                         {
@@ -778,7 +804,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                             {
                                 Id = Guid.NewGuid(),
                                 ItemId = existingItem.Id,
-                                FiscalYearId = currentFiscalYearId,
+                                FiscalYearId = fiscalYearId,
                                 OpeningStock = newOpeningStock,
                                 OpeningStockValue = openingStockBalance,
                                 PurchasePrice = existingItem.PuPrice ?? 0,
@@ -804,7 +830,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                                 {
                                     Id = Guid.NewGuid(),
                                     ItemId = existingItem.Id,
-                                    Date = DateTime.UtcNow,
+                                    CompanyId = existingItem.CompanyId,
                                     WsUnit = existingItem.WsUnit,
                                     Quantity = newOpeningStock,
                                     Price = existingItem.Price ?? 0,
@@ -813,12 +839,17 @@ namespace SkyForge.Services.Retailer.ItemServices
                                     NetPuPrice = existingItem.PuPrice ?? 0,
                                     MainUnitPuPrice = existingItem.MainUnitPuPrice,
                                     Mrp = existingItem.Price ?? 0,
-                                    BatchNumber = "INITIAL",
+                                    BatchNumber = "XXX",
                                     ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
                                     ExpiryStatus = "safe",
                                     DaysUntilExpiry = 730,
-                                    FiscalYearId = currentFiscalYearId,
+                                    FiscalYearId = fiscalYearId,
                                     UniqueUuid = Guid.NewGuid().ToString(),
+                                    // ✅ FIX: Set Date and NepaliDate from fiscal year
+                                    Date = updateItemDto.InitialOpeningStock?.Date ??
+                                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                                    NepaliDate = updateItemDto.InitialOpeningStock?.NepaliDate ??
+                                                (!string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd")),
                                     CreatedAt = DateTime.UtcNow,
                                     UpdatedAt = DateTime.UtcNow
                                 };
@@ -827,7 +858,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                             }
                             // If there's exactly one stock entry and it's an initial entry, update its quantity
                             else if (existingStockEntries.Count == 1 &&
-                                     existingStockEntries.First().BatchNumber == "INITIAL" &&
+                                     existingStockEntries.First().BatchNumber == "XXX" &&
                                      existingStockEntries.First().PurchaseBillId == null &&
                                      existingStockEntries.First().SalesReturnBillId == null)
                             {
@@ -838,12 +869,31 @@ namespace SkyForge.Services.Retailer.ItemServices
                                 initialEntry.PuPrice = existingItem.PuPrice ?? 0;
                                 initialEntry.NetPuPrice = existingItem.PuPrice ?? 0;
                                 initialEntry.UpdatedAt = DateTime.UtcNow;
+                                // ✅ FIX: Update Date and NepaliDate for existing entry
+                                initialEntry.Date = updateItemDto.InitialOpeningStock?.Date ??
+                                                   (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow);
+                                initialEntry.NepaliDate = updateItemDto.InitialOpeningStock?.NepaliDate ??
+                                                        (!string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"));
                             }
                             // If there are existing stock entries from transactions, don't modify them
                             else if (existingStockEntries.Count > 0)
                             {
                                 _logger.LogInformation("Item {ItemId} has {Count} existing stock entries from transactions. Preserving them during update.",
                                     itemId, existingStockEntries.Count);
+
+                                // ✅ FIX: Ensure all existing entries have Date and NepaliDate set
+                                foreach (var entry in existingStockEntries)
+                                {
+                                    if (entry.Date == default || entry.Date == DateTime.MinValue)
+                                    {
+                                        entry.Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow;
+                                    }
+                                    if (string.IsNullOrEmpty(entry.NepaliDate))
+                                    {
+                                        entry.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ?
+                                                          fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                                    }
+                                }
                             }
                         }
                         else if (newOpeningStock == 0 && existingStockEntries.Any())
@@ -852,7 +902,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                             bool hasTransactionLinks = existingStockEntries.Any(se =>
                                 se.PurchaseBillId != null ||
                                 se.SalesReturnBillId != null ||
-                                (se.BatchNumber != "INITIAL" && se.BatchNumber != "XXX"));
+                                (se.BatchNumber != "XXX" && se.BatchNumber != "XXX"));
 
                             if (!hasTransactionLinks)
                             {
@@ -884,16 +934,6 @@ namespace SkyForge.Services.Retailer.ItemServices
                             }
                             else
                             {
-                                // Validate fiscal year exists and belongs to company
-                                var fiscalYear = await _context.FiscalYears
-                                    .AsNoTracking()
-                                    .FirstOrDefaultAsync(f => f.Id == openingStockDto.FiscalYearId && f.CompanyId == existingItem.CompanyId);
-
-                                if (fiscalYear == null)
-                                {
-                                    throw new InvalidOperationException($"Fiscal year {openingStockDto.FiscalYearId} not found");
-                                }
-
                                 var newOpeningStock = new ItemOpeningStockByFiscalYear
                                 {
                                     Id = Guid.NewGuid(),
@@ -930,16 +970,6 @@ namespace SkyForge.Services.Retailer.ItemServices
                             }
                             else
                             {
-                                // Validate fiscal year exists and belongs to company
-                                var fiscalYear = await _context.FiscalYears
-                                    .AsNoTracking()
-                                    .FirstOrDefaultAsync(f => f.Id == closingStockDto.FiscalYearId && f.CompanyId == existingItem.CompanyId);
-
-                                if (fiscalYear == null)
-                                {
-                                    throw new InvalidOperationException($"Fiscal year {closingStockDto.FiscalYearId} not found");
-                                }
-
                                 var newClosingStock = new ItemClosingStockByFiscalYear
                                 {
                                     Id = Guid.NewGuid(),
@@ -980,7 +1010,6 @@ namespace SkyForge.Services.Retailer.ItemServices
                 throw;
             }
         }
-
         public async Task<bool> DeleteItemAsync(Guid itemId, Guid companyId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -1186,13 +1215,13 @@ namespace SkyForge.Services.Retailer.ItemServices
                     BarcodeNumber = item.BarcodeNumber,
                     CompanyId = item.CompanyId,
                     CompanyName = item.Company?.Name,
-                    FiscalYearId = item.FiscalYearId,
-                    FiscalYearName = item.FiscalYear?.Name,
+                    // FiscalYearId = item.FiscalYearId,
+                    // FiscalYearName = item.FiscalYear?.Name,
                     Status = item.Status,
                     CreatedAt = item.CreatedAt,
                     UpdatedAt = item.UpdatedAt,
                     StockValue = currentStock * (item.Price ?? 0),
-                    Compositions = item.ItemCompositions?.Select(ic => new CompositionItemDto
+                    Compositions = item.ItemCompositions?.Select(ic => new CompositionItemDTO
                     {
                         Id = ic.Composition?.Id ?? Guid.Empty,
                         Name = ic.Composition?.Name ?? string.Empty,
@@ -1203,7 +1232,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                         UnitName = item.Unit?.Name,
                         CategoryName = item.Category?.Name,
                         CreatedAt = item.CreatedAt
-                    }).ToList() ?? new List<CompositionItemDto>(),
+                    }).ToList() ?? new List<CompositionItemDTO>(),
                     StockEntriesCount = item.StockEntries?.Count ?? 0,
                     HasTransactions = await CheckItemHasTransactionsAsync(itemId)
                 };
@@ -1227,7 +1256,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                 var currentFiscalYearId = await GetCurrentFiscalYearIdAsync(companyId);
 
                 var items = await _context.Items
-                    .Where(i => i.CompanyId == companyId && i.FiscalYearId == currentFiscalYearId)
+                    .Where(i => i.CompanyId == companyId)
                     .Include(i => i.Category)
                     .Include(i => i.ItemCompany)
                     .Include(i => i.StockEntries)

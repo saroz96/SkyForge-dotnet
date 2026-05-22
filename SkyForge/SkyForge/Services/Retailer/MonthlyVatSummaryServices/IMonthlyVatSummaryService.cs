@@ -6,7 +6,6 @@ namespace SkyForge.Services.Retailer.MonthlyVatSummaryServices
     {
         Task<MonthlyVatSummaryDTO> GetMonthlyVatSummaryAsync(
             Guid companyId,
-            Guid fiscalYearId,
             string? month,
             string? year,
             string? nepaliMonth,

@@ -7,6 +7,7 @@ using SkyForge.Models.FiscalYearModel;
 using SkyForge.Models.RackModel;
 using SkyForge.Models.Retailer.CategoryModel;
 using SkyForge.Models.Retailer.ItemCompanyModel;
+using SkyForge.Models.Retailer.Items;
 using SkyForge.Models.Retailer.MainUnitModel;
 using SkyForge.Models.Retailer.SettingsModel;
 using SkyForge.Models.Retailer.StoreModel;
@@ -76,22 +77,22 @@ namespace SkyForge.Services
                 // // Set default values if not provided
                 // company.CreatedAt = DateTime.UtcNow;
                 // company.UpdatedAt = DateTime.UtcNow;
-                if (!string.IsNullOrEmpty(company.FiscalYearStartDate))
+                if (!string.IsNullOrEmpty(company.FiscalYearStartDateNepali))
                 {
                     // Try to parse the FiscalYearStartDate as a DateTime
                     // Assuming FiscalYearStartDate is in English format like "2024-04-01"
-                    if (DateTime.TryParse(company.FiscalYearStartDate, out DateTime parsedDate))
+                    if (DateTime.TryParse(company.FiscalYearStartDateNepali, out DateTime parsedDate))
                     {
                         company.CreatedAt = parsedDate;
                         _logger.LogInformation("Set CreatedAt to {CreatedAt} from FiscalYearStartDate {Date}",
-                            company.CreatedAt, company.FiscalYearStartDate);
+                            company.CreatedAt, company.FiscalYearStartDateNepali);
                     }
                     else
                     {
                         // If parsing fails, fall back to UtcNow
                         company.CreatedAt = DateTime.UtcNow;
                         _logger.LogWarning("Could not parse FiscalYearStartDate '{Date}' - using UtcNow instead",
-                            company.FiscalYearStartDate);
+                            company.FiscalYearStartDateNepali);
                     }
                 }
                 else
@@ -173,6 +174,134 @@ namespace SkyForge.Services
             }
         }
 
+        // private async Task CreateDefaultFiscalYearAsync(Company company)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("Creating default fiscal year for company {CompanyId}", company.Id);
+
+        //         FiscalYear fiscalYear;
+
+        //         // Generate unique bill prefixes
+        //         var billPrefixes = await _billPrefixService.GenerateUniqueBillPrefixesAsync(company.Id);
+
+        //         _logger.LogInformation("Generated unique bill prefixes for company {CompanyId}", company.Id);
+
+        //         if (company.DateFormat == DateFormatEnum.Nepali &&
+        //             !string.IsNullOrEmpty(company.FiscalYearStartDateNepali))
+        //         {
+        //             // NEPALI FISCAL YEAR
+        //             var parts = company.FiscalYearStartDateNepali.Split('-');
+        //             if (parts.Length >= 3 &&
+        //                 int.TryParse(parts[0], out int nepaliYear) &&
+        //                 int.TryParse(parts[1], out int nepaliMonth) &&
+        //                 int.TryParse(parts[2], out int nepaliDay))
+        //             {
+        //                 string fiscalYearName = $"{nepaliYear}/{(nepaliYear + 1).ToString().Substring(2)}";
+
+        //                 // Calculate Nepali end date
+        //                 int endYear = nepaliYear + 1;
+        //                 int endMonth = nepaliMonth;
+        //                 int endDay = nepaliDay - 1;
+
+        //                 if (endDay < 1)
+        //                 {
+        //                     endMonth -= 1;
+        //                     if (endMonth < 1)
+        //                     {
+        //                         endMonth = 12;
+        //                         endYear -= 1;
+        //                     }
+        //                     int[] nepaliMonthDays = new int[] { 31, 31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30 };
+        //                     endDay = nepaliMonthDays[endMonth - 1];
+        //                 }
+
+        //                 string nepaliEndDate = $"{endYear:0000}-{endMonth:00}-{endDay:00}";
+
+        //                 fiscalYear = new FiscalYear
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     Name = fiscalYearName,
+        //                     DateFormat = DateFormatEnum.Nepali,
+        //                     StartDateNepali = company.FiscalYearStartDateNepali,
+        //                     EndDateNepali = nepaliEndDate,
+        //                     StartDate = DateTime.MinValue,
+        //                     EndDate = DateTime.MinValue,
+        //                     IsActive = true,
+        //                     CompanyId = company.Id,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     BillPrefixes = billPrefixes // Set the generated prefixes
+        //                 };
+
+        //                 _logger.LogInformation("Generated bill prefixes: {BillPrefixes}",
+        //                     string.Join(", ", new string[] {
+        //                     $"Sales: {billPrefixes.Sales}",
+        //                     $"Purchase: {billPrefixes.Purchase}",
+        //                     $"Payment: {billPrefixes.Payment}",
+        //                     $"Receipt: {billPrefixes.Receipt}"
+        //                     }));
+        //             }
+        //             else
+        //             {
+        //                 throw new Exception("Invalid Nepali date format. Expected format: 2082-04-01");
+        //             }
+        //         }
+        //         else
+        //         {
+        //             // ENGLISH FISCAL YEAR (default)
+        //             var startDate = DateTime.UtcNow;
+        //             var endDate = startDate.AddYears(1).AddDays(-1);
+        //             string fiscalYearName = $"{startDate.Year}/{endDate.Year.ToString().Substring(2)}";
+
+        //             fiscalYear = new FiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 Name = fiscalYearName,
+        //                 DateFormat = DateFormatEnum.English,
+        //                 StartDate = startDate,
+        //                 EndDate = endDate,
+        //                 StartDateNepali = null,
+        //                 EndDateNepali = null,
+        //                 IsActive = true,
+        //                 CompanyId = company.Id,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 BillPrefixes = billPrefixes // Set the generated prefixes
+        //             };
+
+        //             _logger.LogInformation("Generated bill prefixes: {BillPrefixes}",
+        //                 string.Join(", ", new string[] {
+        //                 $"Sales: {billPrefixes.Sales}",
+        //                 $"Purchase: {billPrefixes.Purchase}",
+        //                 $"Payment: {billPrefixes.Payment}",
+        //                 $"Receipt: {billPrefixes.Receipt}"
+        //                 }));
+        //         }
+
+        //         // Check if fiscal year already exists
+        //         var existingFiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.CompanyId == company.Id && f.Name == fiscalYear.Name);
+
+        //         if (existingFiscalYear != null)
+        //         {
+        //             _logger.LogInformation("Using existing fiscal year {FiscalYearName} for company {CompanyId}",
+        //                 fiscalYear.Name, company.Id);
+        //             return;
+        //         }
+
+        //         // Save the fiscal year
+        //         _context.FiscalYears.Add(fiscalYear);
+        //         await _context.SaveChangesAsync();
+
+        //         _logger.LogInformation("Created fiscal year {FiscalYearName} (ID: {FiscalYearId}) for company {CompanyId} with bill prefixes",
+        //             fiscalYear.Name, fiscalYear.Id, company.Id);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error creating default fiscal year for company {CompanyId}", company.Id);
+        //         throw;
+        //     }
+        // }
+
         private async Task CreateDefaultFiscalYearAsync(Company company)
         {
             try
@@ -187,18 +316,18 @@ namespace SkyForge.Services
                 _logger.LogInformation("Generated unique bill prefixes for company {CompanyId}", company.Id);
 
                 if (company.DateFormat == DateFormatEnum.Nepali &&
-                    !string.IsNullOrEmpty(company.FiscalYearStartDate))
+                    !string.IsNullOrEmpty(company.FiscalYearStartDateNepali))
                 {
-                    // NEPALI FISCAL YEAR
-                    var parts = company.FiscalYearStartDate.Split('-');
+                    // ===== NEPALI FISCAL YEAR =====
+                    var parts = company.FiscalYearStartDateNepali.Split('-');
                     if (parts.Length >= 3 &&
                         int.TryParse(parts[0], out int nepaliYear) &&
                         int.TryParse(parts[1], out int nepaliMonth) &&
                         int.TryParse(parts[2], out int nepaliDay))
                     {
-                        string fiscalYearName = $"{nepaliYear}/{(nepaliYear + 1).ToString().Substring(2)}";
+                        string fiscalYearName = $"{nepaliYear}/{((nepaliYear + 1) % 100).ToString("D2")}";
 
-                        // Calculate Nepali end date
+                        // Calculate Nepali end date (1 year minus 1 day)
                         int endYear = nepaliYear + 1;
                         int endMonth = nepaliMonth;
                         int endDay = nepaliDay - 1;
@@ -217,40 +346,49 @@ namespace SkyForge.Services
 
                         string nepaliEndDate = $"{endYear:0000}-{endMonth:00}-{endDay:00}";
 
+                        // ===== CRITICAL FIX: Use English dates from the Company object =====
+                        // The Company object already has FiscalYearStartDateEnglish from the frontend
+                        DateTime? englishStartDate = company.FiscalYearStartDateEnglish;
+
+                        // Calculate English end date (1 year minus 1 day from start date)
+                        DateTime? englishEndDate = null;
+                        if (englishStartDate.HasValue)
+                        {
+                            englishEndDate = englishStartDate.Value.AddYears(1).AddDays(-1);
+                        }
+
                         fiscalYear = new FiscalYear
                         {
                             Id = Guid.NewGuid(),
                             Name = fiscalYearName,
                             DateFormat = DateFormatEnum.Nepali,
-                            StartDateNepali = company.FiscalYearStartDate,
+                            // Nepali dates
+                            StartDateNepali = company.FiscalYearStartDateNepali,
                             EndDateNepali = nepaliEndDate,
-                            StartDate = DateTime.MinValue,
-                            EndDate = DateTime.MinValue,
+                            // English dates - USE THE VALUES FROM COMPANY
+                            StartDate = englishStartDate,
+                            EndDate = englishEndDate,
                             IsActive = true,
                             CompanyId = company.Id,
                             CreatedAt = DateTime.UtcNow,
-                            BillPrefixes = billPrefixes // Set the generated prefixes
+                            BillPrefixes = billPrefixes
                         };
 
-                        _logger.LogInformation("Generated bill prefixes: {BillPrefixes}",
-                            string.Join(", ", new string[] {
-                            $"Sales: {billPrefixes.Sales}",
-                            $"Purchase: {billPrefixes.Purchase}",
-                            $"Payment: {billPrefixes.Payment}",
-                            $"Receipt: {billPrefixes.Receipt}"
-                            }));
+                        _logger.LogInformation("Created Nepali fiscal year: StartNepali={StartNepali}, EndNepali={EndNepali}, StartEnglish={StartEnglish}, EndEnglish={EndEnglish}",
+                            fiscalYear.StartDateNepali, fiscalYear.EndDateNepali,
+                            fiscalYear.StartDate?.ToString("yyyy-MM-dd"), fiscalYear.EndDate?.ToString("yyyy-MM-dd"));
                     }
                     else
                     {
-                        throw new Exception("Invalid Nepali date format. Expected format: 2082-04-01");
+                        throw new Exception("Invalid Nepali date format. Expected format: YYYY-MM-DD");
                     }
                 }
                 else
                 {
-                    // ENGLISH FISCAL YEAR (default)
-                    var startDate = DateTime.UtcNow;
-                    var endDate = startDate.AddYears(1).AddDays(-1);
-                    string fiscalYearName = $"{startDate.Year}/{endDate.Year.ToString().Substring(2)}";
+                    // ===== ENGLISH FISCAL YEAR =====
+                    DateTime startDate = company.FiscalYearStartDateEnglish ?? DateTime.UtcNow;
+                    DateTime endDate = startDate.AddYears(1).AddDays(-1);
+                    string fiscalYearName = $"{startDate.Year}/{((startDate.Year + 1) % 100).ToString("D2")}";
 
                     fiscalYear = new FiscalYear
                     {
@@ -264,16 +402,8 @@ namespace SkyForge.Services
                         IsActive = true,
                         CompanyId = company.Id,
                         CreatedAt = DateTime.UtcNow,
-                        BillPrefixes = billPrefixes // Set the generated prefixes
+                        BillPrefixes = billPrefixes
                     };
-
-                    _logger.LogInformation("Generated bill prefixes: {BillPrefixes}",
-                        string.Join(", ", new string[] {
-                        $"Sales: {billPrefixes.Sales}",
-                        $"Purchase: {billPrefixes.Purchase}",
-                        $"Payment: {billPrefixes.Payment}",
-                        $"Receipt: {billPrefixes.Receipt}"
-                        }));
                 }
 
                 // Check if fiscal year already exists
@@ -282,17 +412,15 @@ namespace SkyForge.Services
 
                 if (existingFiscalYear != null)
                 {
-                    _logger.LogInformation("Using existing fiscal year {FiscalYearName} for company {CompanyId}",
-                        fiscalYear.Name, company.Id);
+                    _logger.LogInformation("Using existing fiscal year {FiscalYearName}", fiscalYear.Name);
                     return;
                 }
 
-                // Save the fiscal year
                 _context.FiscalYears.Add(fiscalYear);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Created fiscal year {FiscalYearName} (ID: {FiscalYearId}) for company {CompanyId} with bill prefixes",
-                    fiscalYear.Name, fiscalYear.Id, company.Id);
+                _logger.LogInformation("Created fiscal year {FiscalYearName} for company {CompanyId}",
+                    fiscalYear.Name, company.Id);
             }
             catch (Exception ex)
             {
@@ -300,7 +428,7 @@ namespace SkyForge.Services
                 throw;
             }
         }
-        
+
         public async Task CreateDefaultSettingsAsync(Guid companyId, Guid userId, Guid fiscalYearId)
         {
             try
@@ -661,7 +789,8 @@ namespace SkyForge.Services
                 company.VatEnabled = updatedCompany.VatEnabled;
                 company.StoreManagement = updatedCompany.StoreManagement;
                 company.RenewalDate = updatedCompany.RenewalDate;
-                company.FiscalYearStartDate = updatedCompany.FiscalYearStartDate;
+                company.FiscalYearStartDateNepali = updatedCompany.FiscalYearStartDateNepali;
+                company.FiscalYearStartDateEnglish = updatedCompany.FiscalYearStartDateEnglish;
 
                 company.UpdatedAt = DateTime.UtcNow;
 
@@ -692,6 +821,239 @@ namespace SkyForge.Services
             }
         }
 
+        // public async Task<bool> DeleteCompanyAsync(Guid companyId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         _logger.LogInformation("Starting deletion of company {CompanyId} and all associated data", companyId);
+
+        //         // Get the company with all related data
+        //         var company = await _context.Companies
+        //             .Include(c => c.FiscalYears)
+        //             .Include(c => c.AccountGroups)
+        //             .Include(c => c.Users)
+        //             .FirstOrDefaultAsync(c => c.Id == companyId);
+
+        //         if (company == null)
+        //         {
+        //             _logger.LogWarning("Company {CompanyId} not found for deletion", companyId);
+        //             return false;
+        //         }
+
+        //         // 1. Delete all fiscal years and their associated data
+        //         await DeleteFiscalYearsAndRelatedDataAsync(companyId);
+
+        //         // 2. Delete accounts FIRST (dependents of account groups)
+        //         var accounts = await _context.Accounts
+        //             .Where(a => a.CompanyId == companyId)
+        //             .ToListAsync();
+
+        //         if (accounts.Count > 0)
+        //         {
+        //             _context.Accounts.RemoveRange(accounts);
+        //             _logger.LogInformation("Deleted {Count} accounts for company {CompanyId}",
+        //                 accounts.Count, companyId);
+        //         }
+
+        //         // 3. Now delete account groups (parent of accounts)
+        //         var accountGroups = await _context.AccountGroups
+        //             .Where(ag => ag.CompanyId == companyId)
+        //             .ToListAsync();
+
+        //         if (accountGroups.Count > 0)
+        //         {
+        //             _context.AccountGroups.RemoveRange(accountGroups);
+        //             _logger.LogInformation("Deleted {Count} account groups for company {CompanyId}",
+        //                 accountGroups.Count, companyId);
+        //         }
+
+        //         // 4. Delete categories
+        //         var categories = await _context.Categories
+        //             .Where(c => c.CompanyId == companyId)
+        //             .ToListAsync();
+
+        //         if (categories.Count > 0)
+        //         {
+        //             _context.Categories.RemoveRange(categories);
+        //             _logger.LogInformation("Deleted {Count} categories for company {CompanyId}",
+        //                 categories.Count, companyId);
+        //         }
+
+        //         // 5. Delete item companies
+        //         var itemCompanies = await _context.ItemCompanies
+        //             .Where(ic => ic.CompanyId == companyId)
+        //             .ToListAsync();
+
+        //         if (itemCompanies.Count > 0)
+        //         {
+        //             _context.ItemCompanies.RemoveRange(itemCompanies);
+        //             _logger.LogInformation("Deleted {Count} item companies for company {CompanyId}",
+        //                 itemCompanies.Count, companyId);
+        //         }
+
+        //         // 6. Delete units
+        //         var units = await _context.Units
+        //             .Where(u => u.CompanyId == companyId)
+        //             .ToListAsync();
+
+        //         if (units.Count > 0)
+        //         {
+        //             _context.Units.RemoveRange(units);
+        //             _logger.LogInformation("Deleted {Count} units for company {CompanyId}",
+        //                 units.Count, companyId);
+        //         }
+
+        //         // 7. Delete main units
+        //         var mainUnits = await _context.MainUnits
+        //             .Where(mu => mu.CompanyId == companyId)
+        //             .ToListAsync();
+
+        //         if (mainUnits.Count > 0)
+        //         {
+        //             _context.MainUnits.RemoveRange(mainUnits);
+        //             _logger.LogInformation("Deleted {Count} main units for company {CompanyId}",
+        //                 mainUnits.Count, companyId);
+        //         }
+
+        //         // 8. Delete stores
+        //         var stores = await _context.Stores
+        //             .Where(s => s.CompanyId == companyId)
+        //             .ToListAsync();
+
+        //         if (stores.Count > 0)
+        //         {
+        //             // First delete racks associated with these stores
+        //             var storeIds = stores.Select(s => s.Id).ToList();
+        //             var racks = await _context.Racks
+        //                 .Where(r => storeIds.Contains(r.StoreId))
+        //                 .ToListAsync();
+
+        //             if (racks.Count > 0)
+        //             {
+        //                 _context.Racks.RemoveRange(racks);
+        //                 _logger.LogInformation("Deleted {Count} racks for company {CompanyId}",
+        //                     racks.Count, companyId);
+        //             }
+
+        //             _context.Stores.RemoveRange(stores);
+        //             _logger.LogInformation("Deleted {Count} stores for company {CompanyId}",
+        //                 stores.Count, companyId);
+        //         }
+
+        //         // 10. Remove company from all users (but don't delete users)
+        //         foreach (var user in company.Users.ToList())
+        //         {
+        //             company.Users.Remove(user);
+        //         }
+
+        //         // 11. Finally, delete the company itself
+        //         _context.Companies.Remove(company);
+
+        //         await _context.SaveChangesAsync();
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("Successfully deleted company {CompanyId} and all associated data", companyId);
+        //         return true;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, "Error deleting company {CompanyId}", companyId);
+        //         throw;
+        //     }
+        // }
+
+        // private async Task DeleteFiscalYearsAndRelatedDataAsync(Guid companyId)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("Deleting fiscal years and related data for company {CompanyId}", companyId);
+
+        //         // Get all fiscal years for this company
+        //         var fiscalYears = await _context.FiscalYears
+        //             .Where(f => f.CompanyId == companyId)
+        //             .ToListAsync();
+
+        //         if (fiscalYears.Count == 0)
+        //         {
+        //             _logger.LogInformation("No fiscal years found for company {CompanyId}", companyId);
+        //             return;
+        //         }
+
+        //         foreach (var fiscalYear in fiscalYears)
+        //         {
+        //             // Clear OriginalFiscalYearId from all accounts
+        //             var accountsWithThisFiscalYear = await _context.Accounts
+        //                 .Where(a => a.OriginalFiscalYearId == fiscalYear.Id)
+        //                 .ToListAsync();
+
+        //             if (accountsWithThisFiscalYear.Count > 0)
+        //             {
+        //                 foreach (var account in accountsWithThisFiscalYear)
+        //                 {
+        //                     account.OriginalFiscalYearId = null;
+        //                 }
+        //                 _logger.LogInformation("Cleared OriginalFiscalYearId from {Count} accounts for fiscal year {FiscalYearId}",
+        //                     accountsWithThisFiscalYear.Count, fiscalYear.Id);
+        //             }
+
+        //             // Delete opening balances by fiscal year
+        //             var openingBalances = await _context.OpeningBalances
+        //                 .Where(ob => ob.FiscalYearId == fiscalYear.Id)
+        //                 .ToListAsync();
+
+        //             if (openingBalances.Count > 0)
+        //             {
+        //                 _context.OpeningBalances.RemoveRange(openingBalances);
+        //                 _logger.LogInformation("Deleted {Count} opening balances for fiscal year {FiscalYearId}",
+        //                     openingBalances.Count, fiscalYear.Id);
+        //             }
+
+        //             // Delete closing balances by fiscal year
+        //             var closingBalances = await _context.ClosingBalanceByFiscalYear
+        //                 .Where(cb => cb.FiscalYearId == fiscalYear.Id)
+        //                 .ToListAsync();
+
+        //             if (closingBalances.Count > 0)
+        //             {
+        //                 _context.ClosingBalanceByFiscalYear.RemoveRange(closingBalances);
+        //                 _logger.LogInformation("Deleted {Count} closing balances for fiscal year {FiscalYearId}",
+        //                     closingBalances.Count, fiscalYear.Id);
+        //             }
+
+        //             // Delete opening balance by fiscal year
+        //             var openingBalanceByFiscalYears = await _context.OpeningBalanceByFiscalYear
+        //                 .Where(obf => obf.FiscalYearId == fiscalYear.Id)
+        //                 .ToListAsync();
+
+        //             if (openingBalanceByFiscalYears.Count > 0)
+        //             {
+        //                 _context.OpeningBalanceByFiscalYear.RemoveRange(openingBalanceByFiscalYears);
+        //                 _logger.LogInformation("Deleted {Count} opening balance by fiscal year records for fiscal year {FiscalYearId}",
+        //                     openingBalanceByFiscalYears.Count, fiscalYear.Id);
+        //             }
+        //         }
+
+        //         // Save changes to clear foreign key references BEFORE deleting fiscal years
+        //         await _context.SaveChangesAsync();
+
+        //         // Now it's safe to delete all fiscal years
+        //         _context.FiscalYears.RemoveRange(fiscalYears);
+        //         _logger.LogInformation("Deleted {Count} fiscal years for company {CompanyId}",
+        //             fiscalYears.Count, companyId);
+
+        //         await _context.SaveChangesAsync();
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error deleting fiscal years and related data for company {CompanyId}", companyId);
+        //         throw;
+        //     }
+        // }
+
+
         public async Task<bool> DeleteCompanyAsync(Guid companyId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -700,10 +1062,8 @@ namespace SkyForge.Services
             {
                 _logger.LogInformation("Starting deletion of company {CompanyId} and all associated data", companyId);
 
-                // Get the company with all related data
+                // Get the company
                 var company = await _context.Companies
-                    .Include(c => c.FiscalYears)
-                    .Include(c => c.AccountGroups)
                     .Include(c => c.Users)
                     .FirstOrDefaultAsync(c => c.Id == companyId);
 
@@ -713,116 +1073,48 @@ namespace SkyForge.Services
                     return false;
                 }
 
-                // 1. Delete all fiscal years and their associated data
-                await DeleteFiscalYearsAndRelatedDataAsync(companyId);
+                // STEP 1: Delete all transaction documents (these reference items, accounts, fiscal years)
+                await DeleteTransactionDocumentsAsync(companyId);
 
-                // 2. Delete accounts FIRST (dependents of account groups)
-                var accounts = await _context.Accounts
-                    .Where(a => a.CompanyId == companyId)
-                    .ToListAsync();
+                // STEP 2: Delete inventory transactions and stock data
+                await DeleteInventoryTransactionsAsync(companyId);
 
-                if (accounts.Count > 0)
-                {
-                    _context.Accounts.RemoveRange(accounts);
-                    _logger.LogInformation("Deleted {Count} accounts for company {CompanyId}",
-                        accounts.Count, companyId);
-                }
+                // STEP 3: Delete items and item-related data (these reference fiscal years)
+                await DeleteItemsAndRelatedDataAsync(companyId);
 
-                // 3. Now delete account groups (parent of accounts)
-                var accountGroups = await _context.AccountGroups
-                    .Where(ag => ag.CompanyId == companyId)
-                    .ToListAsync();
+                // STEP 4: Delete account balances (reference accounts and fiscal years)
+                await DeleteAccountBalancesAsync(companyId);
 
-                if (accountGroups.Count > 0)
-                {
-                    _context.AccountGroups.RemoveRange(accountGroups);
-                    _logger.LogInformation("Deleted {Count} account groups for company {CompanyId}",
-                        accountGroups.Count, companyId);
-                }
+                // STEP 5: Delete accounts (reference account groups and fiscal years)
+                await DeleteAccountsAsync(companyId);
 
-                // 4. Delete categories
-                var categories = await _context.Categories
-                    .Where(c => c.CompanyId == companyId)
-                    .ToListAsync();
+                // STEP 6: Delete account groups (reference fiscal years)
+                await DeleteAccountGroupsAsync(companyId);
 
-                if (categories.Count > 0)
-                {
-                    _context.Categories.RemoveRange(categories);
-                    _logger.LogInformation("Deleted {Count} categories for company {CompanyId}",
-                        categories.Count, companyId);
-                }
+                // STEP 7: Delete settings (reference fiscal years)
+                await DeleteSettingsAsync(companyId);
 
-                // 5. Delete item companies
-                var itemCompanies = await _context.ItemCompanies
-                    .Where(ic => ic.CompanyId == companyId)
-                    .ToListAsync();
+                // STEP 8: NOW delete fiscal years (no more dependencies)
+                await DeleteFiscalYearsAsync(companyId);
 
-                if (itemCompanies.Count > 0)
-                {
-                    _context.ItemCompanies.RemoveRange(itemCompanies);
-                    _logger.LogInformation("Deleted {Count} item companies for company {CompanyId}",
-                        itemCompanies.Count, companyId);
-                }
+                // STEP 9: Delete other master data
+                await DeleteMasterDataAsync(companyId);
 
-                // 6. Delete units
-                var units = await _context.Units
-                    .Where(u => u.CompanyId == companyId)
-                    .ToListAsync();
+                // STEP 10: Delete stores and racks
+                await DeleteStoresAndRacksAsync(companyId);
 
-                if (units.Count > 0)
-                {
-                    _context.Units.RemoveRange(units);
-                    _logger.LogInformation("Deleted {Count} units for company {CompanyId}",
-                        units.Count, companyId);
-                }
-
-                // 7. Delete main units
-                var mainUnits = await _context.MainUnits
-                    .Where(mu => mu.CompanyId == companyId)
-                    .ToListAsync();
-
-                if (mainUnits.Count > 0)
-                {
-                    _context.MainUnits.RemoveRange(mainUnits);
-                    _logger.LogInformation("Deleted {Count} main units for company {CompanyId}",
-                        mainUnits.Count, companyId);
-                }
-
-                // 8. Delete stores
-                var stores = await _context.Stores
-                    .Where(s => s.CompanyId == companyId)
-                    .ToListAsync();
-
-                if (stores.Count > 0)
-                {
-                    // First delete racks associated with these stores
-                    var storeIds = stores.Select(s => s.Id).ToList();
-                    var racks = await _context.Racks
-                        .Where(r => storeIds.Contains(r.StoreId))
-                        .ToListAsync();
-
-                    if (racks.Count > 0)
-                    {
-                        _context.Racks.RemoveRange(racks);
-                        _logger.LogInformation("Deleted {Count} racks for company {CompanyId}",
-                            racks.Count, companyId);
-                    }
-
-                    _context.Stores.RemoveRange(stores);
-                    _logger.LogInformation("Deleted {Count} stores for company {CompanyId}",
-                        stores.Count, companyId);
-                }
-
-                // 10. Remove company from all users (but don't delete users)
+                // STEP 11: Remove company from users
                 foreach (var user in company.Users.ToList())
                 {
                     company.Users.Remove(user);
                 }
 
-                // 11. Finally, delete the company itself
-                _context.Companies.Remove(company);
-
                 await _context.SaveChangesAsync();
+
+                // STEP 12: Finally, delete the company itself
+                _context.Companies.Remove(company);
+                await _context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
 
                 _logger.LogInformation("Successfully deleted company {CompanyId} and all associated data", companyId);
@@ -836,93 +1128,464 @@ namespace SkyForge.Services
             }
         }
 
-        private async Task DeleteFiscalYearsAndRelatedDataAsync(Guid companyId)
+        private async Task DeleteTransactionDocumentsAsync(Guid companyId)
         {
-            try
-            {
-                _logger.LogInformation("Deleting fiscal years and related data for company {CompanyId}", companyId);
+            _logger.LogInformation("Deleting transaction documents for company {CompanyId}", companyId);
 
-                // Get all fiscal years for this company
-                var fiscalYears = await _context.FiscalYears
-                    .Where(f => f.CompanyId == companyId)
+            // Delete Sales Bills and their items
+            var salesBills = await _context.SalesBills
+                .Where(sb => sb.CompanyId == companyId)
+                .Include(sb => sb.Items)
+                .ToListAsync();
+
+            if (salesBills.Any())
+            {
+                _context.SalesBills.RemoveRange(salesBills);
+                _logger.LogInformation("Deleted {Count} sales bills", salesBills.Count);
+            }
+
+            // Delete Sales Returns
+            var salesReturns = await _context.SalesReturns
+                .Where(sr => sr.CompanyId == companyId)
+                .Include(sr => sr.Items)
+                .ToListAsync();
+
+            if (salesReturns.Any())
+            {
+                _context.SalesReturns.RemoveRange(salesReturns);
+                _logger.LogInformation("Deleted {Count} sales returns", salesReturns.Count);
+            }
+
+            // Delete Purchase Bills
+            var purchaseBills = await _context.PurchaseBills
+                .Where(pb => pb.CompanyId == companyId)
+                .Include(pb => pb.Items)
+                .ToListAsync();
+
+            if (purchaseBills.Any())
+            {
+                _context.PurchaseBills.RemoveRange(purchaseBills);
+                _logger.LogInformation("Deleted {Count} purchase bills", purchaseBills.Count);
+            }
+
+            // Delete Purchase Returns
+            var purchaseReturns = await _context.PurchaseReturns
+                .Where(pr => pr.CompanyId == companyId)
+                .Include(pr => pr.Items)
+                .ToListAsync();
+
+            if (purchaseReturns.Any())
+            {
+                _context.PurchaseReturns.RemoveRange(purchaseReturns);
+                _logger.LogInformation("Deleted {Count} purchase returns", purchaseReturns.Count);
+            }
+
+            // Delete Payments
+            var payments = await _context.Payments
+                .Where(p => p.CompanyId == companyId)
+                .Include(p => p.PaymentEntries)
+                .ToListAsync();
+
+            if (payments.Any())
+            {
+                _context.Payments.RemoveRange(payments);
+                _logger.LogInformation("Deleted {Count} payments", payments.Count);
+            }
+
+            // Delete Receipts
+            var receipts = await _context.Receipts
+                .Where(r => r.CompanyId == companyId)
+                .Include(r => r.ReceiptEntries)
+                .ToListAsync();
+
+            if (receipts.Any())
+            {
+                _context.Receipts.RemoveRange(receipts);
+                _logger.LogInformation("Deleted {Count} receipts", receipts.Count);
+            }
+
+            // Delete Journal Vouchers
+            var journalVouchers = await _context.JournalVouchers
+                .Where(jv => jv.CompanyId == companyId)
+                .Include(jv => jv.JournalEntries)
+                .ToListAsync();
+
+            if (journalVouchers.Any())
+            {
+                _context.JournalVouchers.RemoveRange(journalVouchers);
+                _logger.LogInformation("Deleted {Count} journal vouchers", journalVouchers.Count);
+            }
+
+            // Delete Credit Notes
+            var creditNotes = await _context.CreditNotes
+                .Where(cn => cn.CompanyId == companyId)
+                .Include(cn => cn.CreditNoteEntries)
+                .ToListAsync();
+
+            if (creditNotes.Any())
+            {
+                _context.CreditNotes.RemoveRange(creditNotes);
+                _logger.LogInformation("Deleted {Count} credit notes", creditNotes.Count);
+            }
+
+            // Delete Debit Notes
+            var debitNotes = await _context.DebitNotes
+                .Where(dn => dn.CompanyId == companyId)
+                .Include(dn => dn.DebitNoteEntries)
+                .ToListAsync();
+
+            if (debitNotes.Any())
+            {
+                _context.DebitNotes.RemoveRange(debitNotes);
+                _logger.LogInformation("Deleted {Count} debit notes", debitNotes.Count);
+            }
+
+            // Delete Sales Quotations
+            var salesQuotations = await _context.SalesQuotations
+                .Where(sq => sq.CompanyId == companyId)
+                .Include(sq => sq.Items)
+                .ToListAsync();
+
+            if (salesQuotations.Any())
+            {
+                _context.SalesQuotations.RemoveRange(salesQuotations);
+                _logger.LogInformation("Deleted {Count} sales quotations", salesQuotations.Count);
+            }
+
+            // Delete Transactions
+            var transactions = await _context.Transactions
+                .Where(t => t.CompanyId == companyId)
+                .Include(t => t.TransactionItems)
+                .ToListAsync();
+
+            if (transactions.Any())
+            {
+                _context.Transactions.RemoveRange(transactions);
+                _logger.LogInformation("Deleted {Count} transactions", transactions.Count);
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Completed deleting transaction documents for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteInventoryTransactionsAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting inventory transactions for company {CompanyId}", companyId);
+
+            // Delete Stock Adjustments
+            var stockAdjustments = await _context.StockAdjustments
+                .Where(sa => sa.CompanyId == companyId)
+                .Include(sa => sa.Items)
+                .ToListAsync();
+
+            if (stockAdjustments.Any())
+            {
+                _context.StockAdjustments.RemoveRange(stockAdjustments);
+                _logger.LogInformation("Deleted {Count} stock adjustments", stockAdjustments.Count);
+            }
+
+            // Delete Stock Entries
+            var stockEntries = await _context.StockEntries
+                .Where(se => se.Item.CompanyId == companyId)
+                .ToListAsync();
+
+            if (stockEntries.Any())
+            {
+                _context.StockEntries.RemoveRange(stockEntries);
+                _logger.LogInformation("Deleted {Count} stock entries", stockEntries.Count);
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Completed deleting inventory transactions for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteItemsAndRelatedDataAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting items and related data for company {CompanyId}", companyId);
+
+            // First, get all items for this company
+            var items = await _context.Items
+                .Where(i => i.CompanyId == companyId)
+                .ToListAsync();
+
+            if (!items.Any())
+            {
+                _logger.LogInformation("No items found for company {CompanyId}", companyId);
+                return;
+            }
+
+            var itemIds = items.Select(i => i.Id).ToList();
+
+            // Delete Item Opening Stock by Fiscal Year
+            var itemOpeningStocks = await _context.ItemOpeningStockByFiscalYear
+                .Where(ios => itemIds.Contains(ios.ItemId))
+                .ToListAsync();
+
+            if (itemOpeningStocks.Any())
+            {
+                _context.ItemOpeningStockByFiscalYear.RemoveRange(itemOpeningStocks);
+                _logger.LogInformation("Deleted {Count} item opening stocks", itemOpeningStocks.Count);
+            }
+
+            // Delete Item Closing Stock by Fiscal Year
+            var itemClosingStocks = await _context.ItemClosingStockByFiscalYear
+                .Where(ics => itemIds.Contains(ics.ItemId))
+                .ToListAsync();
+
+            if (itemClosingStocks.Any())
+            {
+                _context.ItemClosingStockByFiscalYear.RemoveRange(itemClosingStocks);
+                _logger.LogInformation("Deleted {Count} item closing stocks", itemClosingStocks.Count);
+            }
+
+            // Delete Item Initial Opening Stock
+            var initialOpeningStocks = await _context.Set<ItemInitialOpeningStock>()
+                .Where(ios => itemIds.Contains(ios.ItemId))
+                .ToListAsync();
+
+            if (initialOpeningStocks.Any())
+            {
+                _context.Set<ItemInitialOpeningStock>().RemoveRange(initialOpeningStocks);
+                _logger.LogInformation("Deleted {Count} item initial opening stocks", initialOpeningStocks.Count);
+            }
+
+            // Delete Item Compositions
+            var itemCompositions = await _context.ItemCompositions
+                .Where(ic => itemIds.Contains(ic.ItemId))
+                .ToListAsync();
+
+            if (itemCompositions.Any())
+            {
+                _context.ItemCompositions.RemoveRange(itemCompositions);
+                _logger.LogInformation("Deleted {Count} item compositions", itemCompositions.Count);
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Finally, delete the items themselves
+            _context.Items.RemoveRange(items);
+            _logger.LogInformation("Deleted {Count} items", items.Count);
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Completed deleting items for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteAccountBalancesAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting account balances for company {CompanyId}", companyId);
+
+            // Delete Opening Balances by Fiscal Year
+            var openingBalancesByFY = await _context.OpeningBalanceByFiscalYear
+                .Where(ob => ob.CompanyId == companyId)
+                .ToListAsync();
+
+            if (openingBalancesByFY.Any())
+            {
+                _context.OpeningBalanceByFiscalYear.RemoveRange(openingBalancesByFY);
+                _logger.LogInformation("Deleted {Count} opening balances by fiscal year", openingBalancesByFY.Count);
+            }
+
+            // Delete Closing Balances by Fiscal Year
+            var closingBalancesByFY = await _context.ClosingBalanceByFiscalYear
+                .Where(cb => cb.CompanyId == companyId)
+                .ToListAsync();
+
+            if (closingBalancesByFY.Any())
+            {
+                _context.ClosingBalanceByFiscalYear.RemoveRange(closingBalancesByFY);
+                _logger.LogInformation("Deleted {Count} closing balances by fiscal year", closingBalancesByFY.Count);
+            }
+
+            // Delete Opening Balances
+            var openingBalances = await _context.OpeningBalances
+                .Where(ob => ob.CompanyId == companyId)
+                .ToListAsync();
+
+            if (openingBalances.Any())
+            {
+                _context.OpeningBalances.RemoveRange(openingBalances);
+                _logger.LogInformation("Deleted {Count} opening balances", openingBalances.Count);
+            }
+
+            // Delete Initial Opening Balances
+            var initialBalances = await _context.InitialOpeningBalances
+                .Where(ib => ib.Account.CompanyId == companyId)
+                .ToListAsync();
+
+            if (initialBalances.Any())
+            {
+                _context.InitialOpeningBalances.RemoveRange(initialBalances);
+                _logger.LogInformation("Deleted {Count} initial opening balances", initialBalances.Count);
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Completed deleting account balances for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteAccountsAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting accounts for company {CompanyId}", companyId);
+
+            var accounts = await _context.Accounts
+                .Where(a => a.CompanyId == companyId)
+                .ToListAsync();
+
+            if (accounts.Any())
+            {
+                _context.Accounts.RemoveRange(accounts);
+                _logger.LogInformation("Deleted {Count} accounts", accounts.Count);
+                await _context.SaveChangesAsync();
+            }
+
+            _logger.LogInformation("Completed deleting accounts for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteAccountGroupsAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting account groups for company {CompanyId}", companyId);
+
+            var accountGroups = await _context.AccountGroups
+                .Where(ag => ag.CompanyId == companyId)
+                .ToListAsync();
+
+            if (accountGroups.Any())
+            {
+                _context.AccountGroups.RemoveRange(accountGroups);
+                _logger.LogInformation("Deleted {Count} account groups", accountGroups.Count);
+                await _context.SaveChangesAsync();
+            }
+
+            _logger.LogInformation("Completed deleting account groups for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteSettingsAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting settings for company {CompanyId}", companyId);
+
+            var settings = await _context.CompanySettings
+                .Where(s => s.CompanyId == companyId)
+                .ToListAsync();
+
+            if (settings.Any())
+            {
+                _context.CompanySettings.RemoveRange(settings);
+                _logger.LogInformation("Deleted {Count} settings records", settings.Count);
+                await _context.SaveChangesAsync();
+            }
+
+            _logger.LogInformation("Completed deleting settings for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteFiscalYearsAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting fiscal years for company {CompanyId}", companyId);
+
+            var fiscalYears = await _context.FiscalYears
+                .Where(f => f.CompanyId == companyId)
+                .ToListAsync();
+
+            if (fiscalYears.Any())
+            {
+                _context.FiscalYears.RemoveRange(fiscalYears);
+                _logger.LogInformation("Deleted {Count} fiscal years", fiscalYears.Count);
+                await _context.SaveChangesAsync();
+            }
+
+            _logger.LogInformation("Completed deleting fiscal years for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteMasterDataAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting master data for company {CompanyId}", companyId);
+
+            // Delete Categories
+            var categories = await _context.Categories
+                .Where(c => c.CompanyId == companyId)
+                .ToListAsync();
+
+            if (categories.Any())
+            {
+                _context.Categories.RemoveRange(categories);
+                _logger.LogInformation("Deleted {Count} categories", categories.Count);
+            }
+
+            // Delete Item Companies
+            var itemCompanies = await _context.ItemCompanies
+                .Where(ic => ic.CompanyId == companyId)
+                .ToListAsync();
+
+            if (itemCompanies.Any())
+            {
+                _context.ItemCompanies.RemoveRange(itemCompanies);
+                _logger.LogInformation("Deleted {Count} item companies", itemCompanies.Count);
+            }
+
+            // Delete Units
+            var units = await _context.Units
+                .Where(u => u.CompanyId == companyId)
+                .ToListAsync();
+
+            if (units.Any())
+            {
+                _context.Units.RemoveRange(units);
+                _logger.LogInformation("Deleted {Count} units", units.Count);
+            }
+
+            // Delete Main Units
+            var mainUnits = await _context.MainUnits
+                .Where(mu => mu.CompanyId == companyId)
+                .ToListAsync();
+
+            if (mainUnits.Any())
+            {
+                _context.MainUnits.RemoveRange(mainUnits);
+                _logger.LogInformation("Deleted {Count} main units", mainUnits.Count);
+            }
+
+            // Delete Compositions
+            var compositions = await _context.Compositions
+                .Where(c => c.CompanyId == companyId)
+                .ToListAsync();
+
+            if (compositions.Any())
+            {
+                _context.Compositions.RemoveRange(compositions);
+                _logger.LogInformation("Deleted {Count} compositions", compositions.Count);
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Completed deleting master data for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteStoresAndRacksAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting stores and racks for company {CompanyId}", companyId);
+
+            var stores = await _context.Stores
+                .Where(s => s.CompanyId == companyId)
+                .ToListAsync();
+
+            if (stores.Any())
+            {
+                var storeIds = stores.Select(s => s.Id).ToList();
+                var racks = await _context.Racks
+                    .Where(r => storeIds.Contains(r.StoreId))
                     .ToListAsync();
 
-                if (fiscalYears.Count == 0)
+                if (racks.Any())
                 {
-                    _logger.LogInformation("No fiscal years found for company {CompanyId}", companyId);
-                    return;
+                    _context.Racks.RemoveRange(racks);
+                    _logger.LogInformation("Deleted {Count} racks", racks.Count);
                 }
 
-                foreach (var fiscalYear in fiscalYears)
-                {
-                    // Clear OriginalFiscalYearId from all accounts
-                    var accountsWithThisFiscalYear = await _context.Accounts
-                        .Where(a => a.OriginalFiscalYearId == fiscalYear.Id)
-                        .ToListAsync();
-
-                    if (accountsWithThisFiscalYear.Count > 0)
-                    {
-                        foreach (var account in accountsWithThisFiscalYear)
-                        {
-                            account.OriginalFiscalYearId = null;
-                        }
-                        _logger.LogInformation("Cleared OriginalFiscalYearId from {Count} accounts for fiscal year {FiscalYearId}",
-                            accountsWithThisFiscalYear.Count, fiscalYear.Id);
-                    }
-
-                    // Delete opening balances by fiscal year
-                    var openingBalances = await _context.OpeningBalances
-                        .Where(ob => ob.FiscalYearId == fiscalYear.Id)
-                        .ToListAsync();
-
-                    if (openingBalances.Count > 0)
-                    {
-                        _context.OpeningBalances.RemoveRange(openingBalances);
-                        _logger.LogInformation("Deleted {Count} opening balances for fiscal year {FiscalYearId}",
-                            openingBalances.Count, fiscalYear.Id);
-                    }
-
-                    // Delete closing balances by fiscal year
-                    var closingBalances = await _context.ClosingBalanceByFiscalYear
-                        .Where(cb => cb.FiscalYearId == fiscalYear.Id)
-                        .ToListAsync();
-
-                    if (closingBalances.Count > 0)
-                    {
-                        _context.ClosingBalanceByFiscalYear.RemoveRange(closingBalances);
-                        _logger.LogInformation("Deleted {Count} closing balances for fiscal year {FiscalYearId}",
-                            closingBalances.Count, fiscalYear.Id);
-                    }
-
-                    // Delete opening balance by fiscal year
-                    var openingBalanceByFiscalYears = await _context.OpeningBalanceByFiscalYear
-                        .Where(obf => obf.FiscalYearId == fiscalYear.Id)
-                        .ToListAsync();
-
-                    if (openingBalanceByFiscalYears.Count > 0)
-                    {
-                        _context.OpeningBalanceByFiscalYear.RemoveRange(openingBalanceByFiscalYears);
-                        _logger.LogInformation("Deleted {Count} opening balance by fiscal year records for fiscal year {FiscalYearId}",
-                            openingBalanceByFiscalYears.Count, fiscalYear.Id);
-                    }
-                }
-
-                // Save changes to clear foreign key references BEFORE deleting fiscal years
-                await _context.SaveChangesAsync();
-
-                // Now it's safe to delete all fiscal years
-                _context.FiscalYears.RemoveRange(fiscalYears);
-                _logger.LogInformation("Deleted {Count} fiscal years for company {CompanyId}",
-                    fiscalYears.Count, companyId);
-
+                _context.Stores.RemoveRange(stores);
+                _logger.LogInformation("Deleted {Count} stores", stores.Count);
                 await _context.SaveChangesAsync();
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting fiscal years and related data for company {CompanyId}", companyId);
-                throw;
-            }
+
+            _logger.LogInformation("Completed deleting stores and racks for company {CompanyId}", companyId);
         }
+
 
         public async Task<List<string>> GetNotificationEmailsAsync(Guid companyId)
         {

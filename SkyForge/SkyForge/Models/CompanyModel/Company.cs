@@ -75,7 +75,8 @@ namespace SkyForge.Models.CompanyModel
         public string RenewalDate { get; set; } = string.Empty;
 
         [MaxLength(50)]
-        public string FiscalYearStartDate { get; set; } = string.Empty;
+        public string FiscalYearStartDateNepali { get; set; } = string.Empty;
+        public DateTime? FiscalYearStartDateEnglish { get; set; } = DateTime.MinValue;
 
         public bool VatEnabled { get; set; } = false;
 

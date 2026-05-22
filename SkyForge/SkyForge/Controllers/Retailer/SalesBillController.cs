@@ -3691,108 +3691,77 @@ namespace SkyForge.Controllers.Retailer
                     return Ok(new { success = true, data = emptyResponse });
                 }
 
-                // Determine if company uses Nepali date format
-                bool isNepaliFormat = companyDateFormat == "nepali";
-
-                // Parse dates
+                // CRITICAL FIX: Always parse dates as AD dates (frontend sends AD dates)
                 DateTime startDateTime;
                 DateTime endDateTime;
 
-                if (isNepaliFormat)
+                if (!DateTime.TryParse(fromDate, out startDateTime))
                 {
-                    if (!DateTime.TryParse(fromDate, out startDateTime))
-                    {
-                        startDateTime = DateTime.MinValue;
-                    }
-                    if (!DateTime.TryParse(toDate, out endDateTime))
-                    {
-                        endDateTime = DateTime.MaxValue;
-                    }
+                    _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
+                    startDateTime = DateTime.MinValue;
                 }
-                else
+
+                if (!DateTime.TryParse(toDate, out endDateTime))
                 {
-                    if (!DateTime.TryParse(fromDate, out startDateTime))
-                    {
-                        startDateTime = DateTime.MinValue;
-                    }
-                    if (!DateTime.TryParse(toDate, out endDateTime))
-                    {
-                        endDateTime = DateTime.MaxValue;
-                    }
+                    _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
+                    endDateTime = DateTime.MaxValue;
                 }
 
                 // Set end date to end of day
                 endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
 
-                // Build query for sales bills
+                _logger.LogInformation("Searching for bills between {StartDate} and {EndDate} (AD dates)",
+                    startDateTime, endDateTime);
+
+                // Build query for sales bills - ALWAYS use Date field (AD dates) for filtering
                 var query = _context.SalesBills
                     .Where(sb => sb.CompanyId == companyIdGuid &&
-                                sb.FiscalYearId == fiscalYearIdGuid);
+                                sb.Date >= startDateTime &&
+                                sb.Date <= endDateTime);
 
-                // Apply date filter based on company's date format
-                if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
-                {
-                    // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
-                    query = query.Where(sb => string.Compare(sb.NepaliDate, fromDate) >= 0
-                                          && string.Compare(sb.NepaliDate, toDate) <= 0);
-                }
-                else
-                {
-                    query = query.Where(sb => sb.Date >= startDateTime && sb.Date <= endDateTime);
-                }
+                // Log the SQL query for debugging
+                var sql = query.ToQueryString();
+                _logger.LogDebug("SQL Query: {Sql}", sql);
 
-                // Include related data
+                // Include related data and order
                 var bills = await query
                     .Include(sb => sb.Account)
                     .OrderBy(sb => sb.Date)
+                    .ThenBy(sb => sb.BillNumber)
                     .ToListAsync();
 
-                // Build the sales VAT report
-                var salesVatReport = new List<SalesVatEntryDTO>();
+                _logger.LogInformation("Found {Count} bills matching the criteria", bills.Count);
 
-                foreach (var bill in bills)
+                // If no bills found, log sample of all bills to debug
+                if (bills.Count == 0)
                 {
-                    SalesVatEntryDTO entry;
+                    var sampleBills = await _context.SalesBills
+                        .Where(sb => sb.CompanyId == companyIdGuid)
+                        .OrderByDescending(sb => sb.Date)
+                        .Take(5)
+                        .Select(sb => new { sb.Id, sb.BillNumber, sb.Date, sb.NepaliDate })
+                        .ToListAsync();
 
-                    if (bill.Account != null)
-                    {
-                        // Credit sale with account
-                        entry = new SalesVatEntryDTO
-                        {
-                            BillNumber = bill.BillNumber,
-                            Date = bill.Date,
-                            NepaliDate = bill.NepaliDate,
-                            AccountName = bill.Account.Name ?? "",
-                            PanNumber = bill.Account.Pan ?? "",
-                            TotalAmount = bill.TotalAmount,
-                            DiscountAmount = bill.DiscountAmount,
-                            NonVatSales = bill.NonVatSales,
-                            TaxableAmount = bill.TaxableAmount,
-                            VatAmount = bill.VatAmount,
-                            IsCash = false
-                        };
-                    }
-                    else
-                    {
-                        // Cash sale
-                        entry = new SalesVatEntryDTO
-                        {
-                            BillNumber = bill.BillNumber,
-                            Date = bill.Date,
-                            NepaliDate = bill.NepaliDate,
-                            AccountName = bill.CashAccount ?? "Cash Sale",
-                            PanNumber = bill.CashAccountPan ?? "",
-                            TotalAmount = bill.TotalAmount,
-                            DiscountAmount = bill.DiscountAmount,
-                            NonVatSales = bill.NonVatSales,
-                            TaxableAmount = bill.TaxableAmount,
-                            VatAmount = bill.VatAmount,
-                            IsCash = true
-                        };
-                    }
-
-                    salesVatReport.Add(entry);
+                    _logger.LogInformation("Sample of recent bills (Date vs NepaliDate): {SampleBills}",
+                        string.Join(", ", sampleBills.Select(b => $"{b.BillNumber} - Date: {b.Date}, NepaliDate: {b.NepaliDate}")));
                 }
+
+                // Build the sales VAT report
+                var salesVatReport = bills.Select(bill => new SalesVatEntryDTO
+                {
+                    BillNumber = bill.BillNumber,
+                    Date = bill.Date,
+                    NepaliDate = bill.NepaliDate,
+                    TransactionDateNepali = bill.TransactionDateNepali,
+                    AccountName = bill.Account != null ? bill.Account.Name ?? "" : bill.CashAccount ?? "Cash Sale",
+                    PanNumber = bill.Account != null ? bill.Account.Pan ?? "" : bill.CashAccountPan ?? "",
+                    TotalAmount = bill.TotalAmount,
+                    DiscountAmount = bill.DiscountAmount,
+                    NonVatSales = bill.NonVatSales,
+                    TaxableAmount = bill.TaxableAmount,
+                    VatAmount = bill.VatAmount,
+                    IsCash = bill.Account == null
+                }).ToList();
 
                 var response = new SalesVatReportDTO
                 {
@@ -3836,6 +3805,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-
+    
     }
 }

@@ -32,6 +32,86 @@ namespace SkyForge.Services.ItemCompanyServices
                     throw new KeyNotFoundException($"Company with ID {itemCompany.CompanyId} not found");
                 }
 
+                if (itemCompany.FiscalYearId != Guid.Empty)
+                {
+                    var fiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == itemCompany.FiscalYearId && f.CompanyId == itemCompany.CompanyId);
+
+                    if (fiscalYear != null)
+                    {
+                        // Set Date and NepaliDate from fiscal year if they are not already set
+                        if (itemCompany.Date == default(DateTime))
+                        {
+                            itemCompany.Date = fiscalYear.StartDate.HasValue
+                                ? fiscalYear.StartDate.Value.ToUniversalTime()
+                                : DateTime.UtcNow;
+                        }
+
+                        if (string.IsNullOrEmpty(itemCompany.NepaliDate))
+                        {
+                            itemCompany.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                                ? fiscalYear.StartDateNepali
+                                : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                        }
+                    }
+                }
+
+                // Handle FiscalYearId if empty
+                if (itemCompany.FiscalYearId == Guid.Empty)
+                {
+                    // If no fiscal year provided, get the active one
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == itemCompany.CompanyId && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        throw new InvalidOperationException($"No active fiscal year found for company {itemCompany.CompanyId}");
+                    }
+
+                    itemCompany.FiscalYearId = activeFiscalYear.Id;
+                    itemCompany.OriginalFiscalYearId = activeFiscalYear.Id;
+
+                    // Set Date and NepaliDate from active fiscal year
+                    itemCompany.Date = activeFiscalYear.StartDate.HasValue
+                        ? activeFiscalYear.StartDate.Value.ToUniversalTime()
+                        : DateTime.UtcNow;
+                    itemCompany.NepaliDate = !string.IsNullOrEmpty(activeFiscalYear.StartDateNepali)
+                        ? activeFiscalYear.StartDateNepali
+                        : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                }
+                else
+                {
+                    // Verify the provided fiscal year exists and belongs to the company
+                    var fiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == itemCompany.FiscalYearId && f.CompanyId == itemCompany.CompanyId);
+
+                    if (fiscalYear == null)
+                    {
+                        throw new KeyNotFoundException($"Fiscal year {itemCompany.FiscalYearId} not found for company {itemCompany.CompanyId}");
+                    }
+
+                    // Also set OriginalFiscalYearId if not set
+                    if (itemCompany.OriginalFiscalYearId == Guid.Empty)
+                    {
+                        itemCompany.OriginalFiscalYearId = itemCompany.FiscalYearId;
+                    }
+
+                    // Set Date and NepaliDate from fiscal year if not already set
+                    if (itemCompany.Date == default(DateTime))
+                    {
+                        itemCompany.Date = fiscalYear.StartDate.HasValue
+                            ? fiscalYear.StartDate.Value.ToUniversalTime()
+                            : DateTime.UtcNow;
+                    }
+
+                    if (string.IsNullOrEmpty(itemCompany.NepaliDate))
+                    {
+                        itemCompany.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                            ? fiscalYear.StartDateNepali
+                            : DateTime.UtcNow.ToString("yyyy-MM-dd");
+                    }
+                }
+
                 // Check if item company with same name already exists for this company
                 var existingItemCompany = await _context.ItemCompanies
                     .FirstOrDefaultAsync(ic => ic.CompanyId == itemCompany.CompanyId &&
@@ -163,7 +243,7 @@ namespace SkyForge.Services.ItemCompanyServices
                     _logger.LogWarning("Item company {ItemCompanyId} not found for deletion", id);
                     return false;
                 }
-                
+
                 _context.ItemCompanies.Remove(itemCompany);
                 await _context.SaveChangesAsync();
 
@@ -191,6 +271,24 @@ namespace SkyForge.Services.ItemCompanyServices
                     throw new KeyNotFoundException($"Company with ID {companyId} not found");
                 }
 
+                var activeFiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+                if (activeFiscalYear == null)
+                {
+                    activeFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyId)
+                        .OrderByDescending(f => f.CreatedAt)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (activeFiscalYear == null)
+                {
+                    _logger.LogError("No fiscal year found for company {CompanyId}", companyId);
+                    throw new InvalidOperationException($"Cannot create default item company: No fiscal year exists for company {companyId}");
+                }
+
+
                 // Check if default item company already exists for this company
                 var existingItemCompany = await _context.ItemCompanies
                     .FirstOrDefaultAsync(ic => ic.CompanyId == companyId &&
@@ -207,6 +305,10 @@ namespace SkyForge.Services.ItemCompanyServices
                 {
                     Name = "General",
                     CompanyId = companyId,
+                    FiscalYearId = activeFiscalYear.Id,           // *** ADD THIS ***
+                    OriginalFiscalYearId = activeFiscalYear.Id,    // *** ADD THIS ***
+                    Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,  // Optional but recommended
+                    NepaliDate = activeFiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -280,10 +382,19 @@ namespace SkyForge.Services.ItemCompanyServices
             }
         }
 
-        public async Task<ItemCompany> GetOrCreateItemCompanyAsync(Guid companyId, string name)
+        public async Task<ItemCompany> GetOrCreateItemCompanyAsync(Guid companyId, string name, Guid fiscalYearId)
         {
             try
             {
+                // 1. Validate fiscal year exists and belongs to company
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+                if (fiscalYear == null)
+                {
+                    throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
+                }
+
                 var itemCompany = await GetItemCompanyByNameAsync(companyId, name);
 
                 if (itemCompany == null)
@@ -292,6 +403,10 @@ namespace SkyForge.Services.ItemCompanyServices
                     {
                         Name = name,
                         CompanyId = companyId,
+                        FiscalYearId = fiscalYearId,
+                        OriginalFiscalYearId = fiscalYearId,
+                        Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow,
+                        NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow
                     };
 

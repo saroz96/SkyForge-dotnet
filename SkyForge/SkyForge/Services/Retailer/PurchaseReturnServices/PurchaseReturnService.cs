@@ -192,7 +192,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         NetPuPrice = netPuPrice,
                         BatchNumber = itemDto.BatchNumber,
                         ExpiryDate = itemDto.ExpiryDate,
-                        VatStatus = item.VatStatus ?? "vatable",
+                        VatStatus = item.VatStatus ?? "13",
                         UniqueUuid = itemDto.UniqueUuid,
                         Date = dto.Date,
                         TransactionDate = dto.TransactionDate,
@@ -716,194 +716,6 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "purchaseReturn");
         }
 
-        // public async Task<PurchaseReturnRegisterDataDTO> GetPurchaseReturnRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("GetPurchaseReturnRegisterAsync called with companyId: {CompanyId}, fiscalYearId: {FiscalYearId}, fromDate: {FromDate}, toDate: {ToDate}",
-        //             companyId, fiscalYearId, fromDate, toDate);
-
-        //         // Get company information including date format
-        //         var company = await _context.Companies
-        //             .Where(c => c.Id == companyId)
-        //             .Select(c => new CompanyInfoDTO
-        //             {
-        //                 Id = c.Id,
-        //                 Name = c.Name,
-        //                 Address = c.Address,
-        //                 City = c.City,
-        //                 Phone = c.Phone,
-        //                 Pan = c.Pan,
-        //                 RenewalDate = c.RenewalDate,
-        //                 DateFormat = c.DateFormat.ToString(),
-        //                 VatEnabled = c.VatEnabled,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         if (company == null)
-        //             throw new ArgumentException("Company not found");
-
-        //         // Determine if company uses Nepali date format
-        //         bool isNepaliFormat = company.DateFormat?.ToLower() == "nepali";
-
-        //         _logger.LogInformation("Company date format: {DateFormat}, IsNepaliFormat: {IsNepaliFormat}",
-        //             company.DateFormat, isNepaliFormat);
-
-        //         // Get fiscal year
-        //         var fiscalYear = await _context.FiscalYears
-        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-        //             .Select(f => new FiscalYearDTO
-        //             {
-        //                 Id = f.Id,
-        //                 Name = f.Name,
-        //                 StartDate = f.StartDate,
-        //                 EndDate = f.EndDate,
-        //                 StartDateNepali = f.StartDateNepali,
-        //                 EndDateNepali = f.EndDateNepali,
-        //                 IsActive = f.IsActive,
-        //             })
-        //             .FirstOrDefaultAsync();
-
-        //         // If no date range provided, return empty bill list
-        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
-        //         {
-        //             _logger.LogInformation("No date range provided, returning empty bill list");
-        //             return new PurchaseReturnRegisterDataDTO
-        //             {
-        //                 Company = company,
-        //                 CurrentFiscalYear = fiscalYear,
-        //                 Bills = new List<PurchaseReturnResponseDTO>(),
-        //                 FromDate = fromDate,
-        //                 ToDate = toDate,
-        //                 CurrentCompanyName = company.Name,
-        //                 CompanyDateFormat = company.DateFormat,
-        //                 VatEnabled = company.VatEnabled,
-        //             };
-        //         }
-
-        //         // Parse dates based on company format
-        //         DateTime startDateTime;
-        //         DateTime endDateTime;
-
-        //         if (isNepaliFormat)
-        //         {
-        //             // For Nepali dates, we need to convert the Nepali date string to DateTime for comparison
-        //             // Note: This assumes the Nepali date is stored as DateTime in the database
-        //             // You might need to adjust this based on how you store Nepali dates
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format for Nepali date: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format for Nepali date: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-        //         else
-        //         {
-        //             // For English dates, parse normally
-        //             if (!DateTime.TryParse(fromDate, out startDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
-        //                 startDateTime = DateTime.MinValue;
-        //             }
-
-        //             if (!DateTime.TryParse(toDate, out endDateTime))
-        //             {
-        //                 _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
-        //                 endDateTime = DateTime.MaxValue;
-        //             }
-        //         }
-
-        //         // Set end date to end of day
-        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
-
-        //         _logger.LogInformation("Searching for bills between {StartDate} and {EndDate} using {DateFormat} format",
-        //             startDateTime, endDateTime, isNepaliFormat ? "Nepali" : "English");
-
-        //         // First, check if there are any purchase bills for this company and fiscal year
-        //         var totalBillsCount = await _context.PurchaseReturns
-        //             .CountAsync(pb => pb.CompanyId == companyId && pb.FiscalYearId == fiscalYearId);
-
-        //         _logger.LogInformation("Total bills for company {CompanyId} and fiscal year {FiscalYearId}: {Count}",
-        //             companyId, fiscalYearId, totalBillsCount);
-
-        //         // Build query with date filter based on company date format
-        //         var query = _context.PurchaseReturns
-        //             .Include(pb => pb.Company)
-        //             .Include(pb => pb.Account)
-        //             .Include(pb => pb.User)
-        //             .Include(pb => pb.FiscalYear)
-        //             .Include(pb => pb.Items)
-        //                 .ThenInclude(i => i.Item)
-        //             .Where(pb => pb.CompanyId == companyId &&
-        //                         pb.FiscalYearId == fiscalYearId);
-
-        //         // Apply date filter based on company's date format
-        //         if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
-        //         {
-        //             // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
-        //             query = query.Where(pb => string.Compare(pb.NepaliDate, fromDate) >= 0
-        //                                   && string.Compare(pb.NepaliDate, toDate) <= 0);
-        //         }
-        //         else
-        //         {
-        //             // Use Date field for filtering
-        //             query = query.Where(pb => pb.Date >= startDateTime && pb.Date <= endDateTime);
-        //             _logger.LogInformation("Using Date field for filtering");
-        //         }
-
-        //         // Log the SQL query (optional - for debugging)
-        //         var sql = query.ToQueryString();
-        //         _logger.LogDebug("SQL Query: {Sql}", sql);
-
-        //         // Get bills ordered by date and bill number
-        //         var PurchaseReturns = await query
-        //             .OrderBy(pb => pb.Date)
-        //             .ThenBy(pb => pb.BillNumber)
-        //             .ToListAsync();
-
-        //         _logger.LogInformation("Found {Count} bills matching the criteria", PurchaseReturns.Count);
-
-        //         // If no bills found, log sample of all bills to debug
-        //         if (PurchaseReturns.Count == 0)
-        //         {
-        //             var sampleBills = await _context.PurchaseReturns
-        //                 .Where(pb => pb.CompanyId == companyId)
-        //                 .OrderByDescending(pb => pb.Date)
-        //                 .Take(5)
-        //                 .Select(pb => new { pb.Id, pb.BillNumber, pb.Date, pb.NepaliDate })
-        //                 .ToListAsync();
-
-        //             _logger.LogInformation("Sample of recent bills (Date vs NepaliDate): {SampleBills}",
-        //                 string.Join(", ", sampleBills.Select(b => $"{b.BillNumber} - Date: {b.Date}, NepaliDate: {b.NepaliDate}")));
-        //         }
-
-        //         // Map to response DTOs
-        //         var billDtos = PurchaseReturns.Select(bill => MapToResponseDTO(bill, company.DateFormat)).ToList();
-
-        //         return new PurchaseReturnRegisterDataDTO
-        //         {
-        //             Company = company,
-        //             CurrentFiscalYear = fiscalYear,
-        //             Bills = billDtos,
-        //             FromDate = fromDate,
-        //             ToDate = toDate,
-        //             CurrentCompanyName = company.Name,
-        //             CompanyDateFormat = company.DateFormat,
-        //             VatEnabled = company.VatEnabled,
-        //             IsAdminOrSupervisor = true
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error getting purchase register for company {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
 
         public async Task<PurchaseReturnRegisterDataDTO> GetPurchaseReturnRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
@@ -994,7 +806,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
 
                 // Check if there are any purchase returns for this company and fiscal year
                 var totalBillsCount = await _context.PurchaseReturns
-                    .CountAsync(pb => pb.CompanyId == companyId && pb.FiscalYearId == fiscalYearId);
+                    .CountAsync(pb => pb.CompanyId == companyId);
 
                 _logger.LogInformation("Total purchase returns for company {CompanyId} and fiscal year {FiscalYearId}: {Count}",
                     companyId, fiscalYearId, totalBillsCount);
@@ -1008,7 +820,6 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                     .Include(pb => pb.Items)
                         .ThenInclude(i => i.Item)
                     .Where(pb => pb.CompanyId == companyId &&
-                                pb.FiscalYearId == fiscalYearId &&
                                 pb.Date >= startDateTime &&
                                 pb.Date <= endDateTime);
 
@@ -2165,7 +1976,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         AltPuPrice = itemDto.PuPrice,
                         BatchNumber = itemDto.BatchNumber ?? "XXX",
                         ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
-                        VatStatus = itemDto.VatStatus ?? product.VatStatus ?? "vatable",
+                        VatStatus = itemDto.VatStatus ?? product.VatStatus ?? "13",
                         UniqueUuid = uniqueUuid,
                         CcPercentage = itemDto.CcPercentage ?? 0,     // ADD THIS
                         ItemCcAmount = itemDto.ItemCcAmount ?? 0,      // ADD THIS
@@ -2795,148 +2606,171 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
             }
         }
 
-        public async Task<PurchaseReturnVatReportDTO> GetPurchaseReturnVatReportAsync(Guid companyId, Guid fiscalYearId, string? fromDate, string? toDate)
-        {
-            try
-            {
-                _logger.LogInformation("GetPurchaseReturnVatReportAsync called for Company: {CompanyId}, FiscalYear: {FiscalYearId}, FromDate: {FromDate}, ToDate: {ToDate}",
-                    companyId, fiscalYearId, fromDate, toDate);
+        // public async Task<PurchaseReturnVatReportDTO> GetPurchaseReturnVatReportAsync(Guid companyId, Guid fiscalYearId, string? fromDate, string? toDate)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("GetPurchaseReturnVatReportAsync called for Company: {CompanyId}, FiscalYear: {FiscalYearId}, FromDate: {FromDate}, ToDate: {ToDate}",
+        //             companyId, fiscalYearId, fromDate, toDate);
 
-                // Get company details
-                var company = await _context.Companies
-                    .Where(c => c.Id == companyId)
-                    .Select(c => new CompanyInfoDTO
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        Address = c.Address,
-                        City = c.City,
-                        Phone = c.Phone,
-                        Pan = c.Pan,
-                        RenewalDate = c.RenewalDate,
-                        DateFormat = c.DateFormat.ToString(),
-                        VatEnabled = c.VatEnabled,
-                    })
-                    .FirstOrDefaultAsync();
+        //         // Get company details
+        //         var company = await _context.Companies
+        //             .Where(c => c.Id == companyId)
+        //             .Select(c => new CompanyInfoDTO
+        //             {
+        //                 Id = c.Id,
+        //                 Name = c.Name,
+        //                 Address = c.Address,
+        //                 City = c.City,
+        //                 Phone = c.Phone,
+        //                 Pan = c.Pan,
+        //                 RenewalDate = c.RenewalDate,
+        //                 DateFormat = c.DateFormat.ToString(),
+        //                 VatEnabled = c.VatEnabled,
+        //             })
+        //             .FirstOrDefaultAsync();
 
-                if (company == null)
-                    throw new ArgumentException("Company not found");
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
 
-                // Get fiscal year
-                var currentFiscalYear = await _context.FiscalYears
-                    .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
-                    .Select(f => new FiscalYearDTO
-                    {
-                        Id = f.Id,
-                        Name = f.Name,
-                        StartDate = f.StartDate,
-                        EndDate = f.EndDate,
-                        StartDateNepali = f.StartDateNepali,
-                        EndDateNepali = f.EndDateNepali,
-                        IsActive = f.IsActive,
-                    })
-                    .FirstOrDefaultAsync();
+        //         // Get fiscal year
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .Where(f => f.Id == fiscalYearId && f.CompanyId == companyId)
+        //             .Select(f => new FiscalYearDTO
+        //             {
+        //                 Id = f.Id,
+        //                 Name = f.Name,
+        //                 StartDate = f.StartDate,
+        //                 EndDate = f.EndDate,
+        //                 StartDateNepali = f.StartDateNepali,
+        //                 EndDateNepali = f.EndDateNepali,
+        //                 IsActive = f.IsActive,
+        //             })
+        //             .FirstOrDefaultAsync();
 
-                string companyDateFormat = company.DateFormat?.ToLower() ?? "english";
-                string nepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        //         string companyDateFormat = company.DateFormat?.ToLower() ?? "english";
+        //         string nepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
 
-                // If no date range provided, return empty report
-                if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
-                {
-                    return new PurchaseReturnVatReportDTO
-                    {
-                        Company = company,
-                        CurrentFiscalYear = currentFiscalYear,
-                        PurchaseReturnVatReport = new List<PurchaseReturnVatEntryDTO>(),
-                        CompanyDateFormat = companyDateFormat,
-                        NepaliDate = nepaliDate,
-                        CurrentCompany = company,
-                        FromDate = fromDate ?? "",
-                        ToDate = toDate ?? "",
-                        CurrentCompanyName = company.Name
-                    };
-                }
+        //         // If no date range provided, return empty report
+        //         if (string.IsNullOrEmpty(fromDate) || string.IsNullOrEmpty(toDate))
+        //         {
+        //             _logger.LogInformation("No date range provided, returning empty report");
+        //             return new PurchaseReturnVatReportDTO
+        //             {
+        //                 Company = company,
+        //                 CurrentFiscalYear = currentFiscalYear,
+        //                 PurchaseReturnVatReport = new List<PurchaseReturnVatEntryDTO>(),
+        //                 CompanyDateFormat = companyDateFormat,
+        //                 NepaliDate = nepaliDate,
+        //                 CurrentCompany = company,
+        //                 FromDate = fromDate ?? "",
+        //                 ToDate = toDate ?? "",
+        //                 CurrentCompanyName = company.Name
+        //             };
+        //         }
 
-                // Determine if company uses Nepali date format
-                bool isNepaliFormat = companyDateFormat == "nepali";
+        //         // Parse dates as AD dates (frontend sends AD dates)
+        //         DateTime startDateTime;
+        //         DateTime endDateTime;
 
-                // Parse dates
-                DateTime startDateTime;
-                DateTime endDateTime;
+        //         if (!DateTime.TryParse(fromDate, out startDateTime))
+        //         {
+        //             _logger.LogWarning("Invalid fromDate format: {FromDate}", fromDate);
+        //             startDateTime = DateTime.MinValue;
+        //         }
 
-                if (isNepaliFormat)
-                {
-                    if (!DateTime.TryParse(fromDate, out startDateTime))
-                        startDateTime = DateTime.MinValue;
-                    if (!DateTime.TryParse(toDate, out endDateTime))
-                        endDateTime = DateTime.MaxValue;
-                }
-                else
-                {
-                    if (!DateTime.TryParse(fromDate, out startDateTime))
-                        startDateTime = DateTime.MinValue;
-                    if (!DateTime.TryParse(toDate, out endDateTime))
-                        endDateTime = DateTime.MaxValue;
-                }
+        //         if (!DateTime.TryParse(toDate, out endDateTime))
+        //         {
+        //             _logger.LogWarning("Invalid toDate format: {ToDate}", toDate);
+        //             endDateTime = DateTime.MaxValue;
+        //         }
 
-                endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
+        //         // Set end date to end of day
+        //         endDateTime = endDateTime.Date.AddDays(1).AddTicks(-1);
 
-                // Build query for purchase returns
-                var query = _context.PurchaseReturns
-                    .Where(pr => pr.CompanyId == companyId &&
-                                pr.FiscalYearId == fiscalYearId);
+        //         _logger.LogInformation("Searching for purchase returns between {StartDate} and {EndDate} (AD dates)",
+        //             startDateTime, endDateTime);
 
-                // Apply date filter based on company's date format
-                if (isNepaliFormat && !string.IsNullOrEmpty(fromDate) && !string.IsNullOrEmpty(toDate))
-                {
-                    // Use string comparison for Nepali dates (YYYY-MM-DD format works lexicographically)
-                    query = query.Where(pr => string.Compare(pr.NepaliDate, fromDate) >= 0
-                                          && string.Compare(pr.NepaliDate, toDate) <= 0);
-                }
-                else
-                    query = query.Where(pr => pr.Date >= startDateTime && pr.Date <= endDateTime);
+        //         // Check if there are any purchase returns for this company and fiscal year
+        //         var totalReturnsCount = await _context.PurchaseReturns
+        //             .CountAsync(pr => pr.CompanyId == companyId && pr.FiscalYearId == fiscalYearId);
 
-                var purchaseReturns = await query
-                    .Include(pr => pr.Account)
-                    .OrderBy(pr => pr.Date)
-                    .ToListAsync();
+        //         _logger.LogInformation("Total purchase returns for company {CompanyId} and fiscal year {FiscalYearId}: {Count}",
+        //             companyId, fiscalYearId, totalReturnsCount);
 
-                // Build the purchase return VAT report
-                var purchaseReturnVatReport = purchaseReturns.Select(purchaseReturn => new PurchaseReturnVatEntryDTO
-                {
-                    BillNumber = purchaseReturn.BillNumber,
-                    PartyBillNumber = purchaseReturn.PartyBillNumber ?? "",
-                    Date = purchaseReturn.Date,
-                    NepaliDate = purchaseReturn.NepaliDate,
-                    AccountName = purchaseReturn.Account?.Name ?? "",
-                    PanNumber = purchaseReturn.Account?.Pan ?? "",
-                    TotalAmount = purchaseReturn.TotalAmount ?? 0,
-                    DiscountAmount = purchaseReturn.DiscountAmount ?? 0,
-                    NonVatPurchaseReturn = purchaseReturn.NonVatPurchaseReturn ?? 0,
-                    TaxableAmount = purchaseReturn.TaxableAmount ?? 0,
-                    VatAmount = purchaseReturn.VatAmount ?? 0
-                }).ToList();
+        //         // Build query with date filter - ALWAYS use Date field (AD dates)
+        //         var query = _context.PurchaseReturns
+        //             .Include(pr => pr.Account)
+        //             .Where(pr => pr.CompanyId == companyId &&
+        //                         pr.FiscalYearId == fiscalYearId &&
+        //                         pr.Date >= startDateTime &&
+        //                         pr.Date <= endDateTime);
 
-                return new PurchaseReturnVatReportDTO
-                {
-                    Company = company,
-                    CurrentFiscalYear = currentFiscalYear,
-                    PurchaseReturnVatReport = purchaseReturnVatReport,
-                    CompanyDateFormat = companyDateFormat,
-                    NepaliDate = nepaliDate,
-                    CurrentCompany = company,
-                    FromDate = fromDate,
-                    ToDate = toDate,
-                    CurrentCompanyName = company.Name
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in GetPurchaseReturnVatReportAsync for Company: {CompanyId}", companyId);
-                throw;
-            }
-        }
+        //         // Log the SQL query for debugging
+        //         var sql = query.ToQueryString();
+        //         _logger.LogDebug("SQL Query: {Sql}", sql);
 
+        //         // Get purchase returns ordered by date and bill number
+        //         var purchaseReturns = await query
+        //             .OrderBy(pr => pr.Date)
+        //             .ThenBy(pr => pr.BillNumber)
+        //             .ToListAsync();
+
+        //         _logger.LogInformation("Found {Count} purchase returns matching the criteria", purchaseReturns.Count);
+
+        //         // If no purchase returns found, log sample of all purchase returns to debug
+        //         if (purchaseReturns.Count == 0)
+        //         {
+        //             var sampleReturns = await _context.PurchaseReturns
+        //                 .Where(pr => pr.CompanyId == companyId)
+        //                 .OrderByDescending(pr => pr.Date)
+        //                 .Take(5)
+        //                 .Select(pr => new { pr.Id, pr.BillNumber, pr.Date, pr.NepaliDate })
+        //                 .ToListAsync();
+
+        //             _logger.LogInformation("Sample of recent purchase returns (Date vs NepaliDate): {SampleReturns}",
+        //                 string.Join(", ", sampleReturns.Select(r => $"{r.BillNumber} - Date: {r.Date}, NepaliDate: {r.NepaliDate}")));
+        //         }
+
+        //         // Build the purchase return VAT report
+        //         var purchaseReturnVatReport = purchaseReturns.Select(purchaseReturn => new PurchaseReturnVatEntryDTO
+        //         {
+        //             BillNumber = purchaseReturn.BillNumber,
+        //             PartyBillNumber = purchaseReturn.PartyBillNumber ?? "",
+        //             Date = purchaseReturn.Date,
+        //             NepaliDate = purchaseReturn.NepaliDate,
+        //             TransactionDateNepali = purchaseReturn.TransactionDateNepali,
+        //             AccountName = purchaseReturn.Account?.Name ?? "",
+        //             PanNumber = purchaseReturn.Account?.Pan ?? "",
+        //             TotalAmount = purchaseReturn.TotalAmount ?? 0,
+        //             DiscountAmount = purchaseReturn.DiscountAmount ?? 0,
+        //             NonVatPurchaseReturn = purchaseReturn.NonVatPurchaseReturn ?? 0,
+        //             TaxableAmount = purchaseReturn.TaxableAmount ?? 0,
+        //             VatAmount = purchaseReturn.VatAmount ?? 0
+        //         }).ToList();
+
+        //         return new PurchaseReturnVatReportDTO
+        //         {
+        //             Company = company,
+        //             CurrentFiscalYear = currentFiscalYear,
+        //             PurchaseReturnVatReport = purchaseReturnVatReport,
+        //             CompanyDateFormat = companyDateFormat,
+        //             NepaliDate = nepaliDate,
+        //             CurrentCompany = company,
+        //             FromDate = fromDate,
+        //             ToDate = toDate,
+        //             CurrentCompanyName = company.Name,
+        //             IsAdminOrSupervisor = true
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetPurchaseReturnVatReportAsync for Company: {CompanyId}", companyId);
+        //         throw;
+        //     }
+        // }
+    
+    
     }
 }
 

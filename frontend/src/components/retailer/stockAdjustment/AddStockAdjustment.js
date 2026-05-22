@@ -1527,7 +1527,7 @@ const AddStockAdjustment = () => {
             const amount = parseFloat(item.amount) || 0;
             subTotal += amount;
 
-            if (item.vatStatus?.toLowerCase() === 'vatable') {
+            if (item.vatStatus?.toLowerCase() === '13') {
                 taxableAmount += amount;
             } else {
                 nonTaxableAmount += amount;
@@ -3300,7 +3300,7 @@ const AddStockAdjustment = () => {
                                 </thead>
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
                                     {items.map((item, index) => (
-                                        <tr key={index} className={`item ${item.vatStatus?.toLowerCase() === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                        <tr key={index} className={`item ${item.vatStatus?.toLowerCase() === '13' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
                                             <td style={{ padding: '3px', fontSize: '0.75rem' }}>

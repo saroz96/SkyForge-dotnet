@@ -61,7 +61,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseReturnDto
 
         [Required]
         [StringLength(20)]
-        [RegularExpression("^(vatable|vatExempt)$")]
+        [RegularExpression("^(13|vatExempt)$")]
         public string VatStatus { get; set; } = string.Empty;
 
         [StringLength(100)]

@@ -5,6 +5,7 @@ using SkyForge.Models.Retailer.StoreModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using SkyForge.Models.Retailer.SalesReturnModel;
+using SkyForge.Models.CompanyModel;
 
 namespace SkyForge.Models.Retailer.Items
 {
@@ -102,6 +103,11 @@ namespace SkyForge.Models.Retailer.Items
         [StringLength(10)]
         public string? Currency { get; set; }
 
+        [Required]
+        [ForeignKey("Company")]
+        public Guid CompanyId { get; set; }
+        public virtual Company Company { get; set; } = null!;
+
         [Column("fiscal_year_id")]
         public Guid? FiscalYearId { get; set; }
 
@@ -152,7 +158,7 @@ namespace SkyForge.Models.Retailer.Items
 
         [Column("source_transfer_date")]
         public DateTime? SourceTransferDate { get; set; }
-        
+
         public string? NepaliDate { get; set; }
 
         [Column("created_at")]
@@ -162,6 +168,6 @@ namespace SkyForge.Models.Retailer.Items
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation property back to Item
-        public Item? ParentItem { get; set; }
+        // public Item? ParentItem { get; set; }
     }
 }

@@ -69,7 +69,7 @@ namespace SkyForge.Middleware
                     }
 
                     _logger.LogInformation("Company: {Name}, DateFormat: {DateFormat}, RenewalDate: '{RenewalDate}', FiscalYearStartDate: '{FiscalYearStartDate}'",
-                        company.Name, company.DateFormat, company.RenewalDate ?? "NULL", company.FiscalYearStartDate ?? "NULL");
+                        company.Name, company.DateFormat, company.RenewalDate ?? "NULL", company.FiscalYearStartDateNepali ?? "NULL");
 
                     // Read the request body to get the bill date
                     context.Request.EnableBuffering();
@@ -153,17 +153,17 @@ namespace SkyForge.Middleware
                         string startDate;
                         if (company.DateFormat == DateFormatEnum.Nepali)
                         {
-                            if (string.IsNullOrEmpty(company.FiscalYearStartDate))
+                            if (string.IsNullOrEmpty(company.FiscalYearStartDateNepali))
                             {
                                 _logger.LogError("Company fiscal year start date is not set");
                                 await _next(context);
                                 return;
                             }
-                            startDate = company.FiscalYearStartDate;
+                            startDate = company.FiscalYearStartDateNepali;
                         }
                         else
                         {
-                            startDate = company.CreatedAt.ToString("yyyy-MM-dd");
+                            startDate = company.FiscalYearStartDateEnglish?.ToString("yyyy-MM-dd");
                         }
 
                         _logger.LogInformation("Company start date: {StartDate}", startDate);

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiEye, FiCheck, FiPrinter, FiArrowLeft, FiPlus, FiRefreshCw, FiX } from 'react-icons/fi';
@@ -14,9 +13,7 @@ import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import ProductModal from '../dashboard/modals/ProductModal';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
-
 import * as XLSX from 'xlsx';
 
 const Items = () => {
@@ -44,6 +41,14 @@ const Items = () => {
         theme: 'light',
         isAdminOrSupervisor: false
     });
+
+    const [paginatedItems, setPaginatedItems] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMoreItems, setHasMoreItems] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [totalFilteredItems, setTotalFilteredItems] = useState(0);
+    const tableContainerRef = useRef(null);
+
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showPrintModal, setShowPrintModal] = useState(false);
@@ -186,6 +191,39 @@ const Items = () => {
         localStorage.setItem('itemsTableColumnWidths', JSON.stringify(columnWidths));
     }, [columnWidths]);
 
+    // Filtered items with memoization
+    const filteredItems = useMemo(() => {
+        const items = (data.items)  // Always use data.items as primary source
+            .filter(item => {
+                const itemName = item.name?.toLowerCase() || '';
+                const companyName = item.itemsCompanyName?.toLowerCase() || '';
+                const categoryName = item.categoryName?.toLowerCase() || '';
+                const searchTermLower = searchTerm.toLowerCase();
+
+                return itemName.includes(searchTermLower) ||
+                    companyName.includes(searchTermLower) ||
+                    categoryName.includes(searchTermLower);
+            })
+            .sort((a, b) => a.name?.localeCompare(b.name));
+        return items;
+    }, [data.items, searchTerm]);
+
+    const processedFilteredItems = useMemo(() => {
+        return filteredItems.map(item => {
+            return {
+                ...item,
+                _id: item.id || item._id,
+                categoryId: item.categoryId,
+                itemsCompanyId: item.itemsCompanyId,
+                mainUnitId: item.mainUnitId,
+                unitId: item.unitId,
+                hasTransactions: item.hasTransactions || itemsWithTransactions[item.id || item._id] || false,
+                currentStock: item.totalStock || item.currentStock || 0
+            };
+        });
+    }, [filteredItems, itemsWithTransactions]);
+
+
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -210,38 +248,62 @@ const Items = () => {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Filtered items with memoization
-const filteredItems = useMemo(() => {
-    const items = (data.items)  // Always use data.items as primary source
-        .filter(item => {
-            const itemName = item.name?.toLowerCase() || '';
-            const companyName = item.itemsCompanyName?.toLowerCase() || '';
-            const categoryName = item.categoryName?.toLowerCase() || '';
-            const searchTermLower = searchTerm.toLowerCase();
-            
-            return itemName.includes(searchTermLower) ||
-                   companyName.includes(searchTermLower) ||
-                   categoryName.includes(searchTermLower);
-        })
-        .sort((a, b) => a.name?.localeCompare(b.name));
-    return items;
-}, [data.items, searchTerm]);
+    // Replace the paginateItems function with this:
+    const paginateItems = useCallback((itemsList, pageNum, itemsPerPage = 25) => {
+        const startIndex = 0; // Always start from beginning
+        // For first page, we want 15 items, not 25
+        const actualLimit = pageNum === 1 ? 15 : (pageNum - 1) * itemsPerPage + itemsPerPage;
+        const endIndex = actualLimit;
+        return itemsList.slice(startIndex, endIndex);
+    }, []);
 
-// Process filtered items for display
-const processedFilteredItems = useMemo(() => {
-    return filteredItems.map(item => {
-        return {
-            ...item,
-            _id: item.id || item._id,
-            categoryId: item.categoryId,
-            itemsCompanyId: item.itemsCompanyId,
-            mainUnitId: item.mainUnitId,
-            unitId: item.unitId,
-            hasTransactions: item.hasTransactions || itemsWithTransactions[item.id || item._id] || false,
-            currentStock: item.totalStock || item.currentStock || 0
+    // Replace the loadMoreItems function with this:
+    const loadMoreItems = useCallback(() => {
+        if (!hasMoreItems || isLoadingMore) return;
+
+        setIsLoadingMore(true);
+
+        // Use setTimeout to simulate async loading and prevent UI freezing
+        setTimeout(() => {
+            const nextPage = currentPage + 1;
+            // Calculate how many items we should have after loading more
+            const itemsPerPage = 25;
+            const newLimit = nextPage === 1 ? 15 : 15 + ((nextPage - 1) * itemsPerPage);
+            const newPaginatedItems = processedFilteredItems.slice(0, newLimit);
+
+            if (newPaginatedItems.length === paginatedItems.length) {
+                setHasMoreItems(false);
+            } else {
+                setPaginatedItems(newPaginatedItems);
+                setCurrentPage(nextPage);
+            }
+
+            setIsLoadingMore(false);
+        }, 100); // Reduced timeout for better responsiveness
+    }, [hasMoreItems, isLoadingMore, currentPage, processedFilteredItems, paginatedItems]);
+
+    // Add this after your other useEffect hooks (around line 200-250)
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!tableContainerRef.current) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = tableContainerRef.current;
+
+            // Load more when scrolled to 80% of the way down
+            const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+            if (scrollPercentage > 0.8 && hasMoreItems && !isLoadingMore) {
+                loadMoreItems();
+            }
         };
-    });
-}, [filteredItems, itemsWithTransactions]);
+
+        const tableContainer = tableContainerRef.current;
+        if (tableContainer) {
+            tableContainer.addEventListener('scroll', handleScroll);
+            return () => tableContainer.removeEventListener('scroll', handleScroll);
+        }
+    }, [hasMoreItems, isLoadingMore, loadMoreItems]);
+
 
     // Resizable Table Header Component
     const TableHeader = React.memo(() => {
@@ -288,36 +350,30 @@ const processedFilteredItems = useMemo(() => {
                 }}
             >
                 <div className="d-flex align-items-center justify-content-center px-2 border-end border-white"
-                     style={{ width: '50px', flexShrink: 0 }}>
+                    style={{ width: '50px', flexShrink: 0 }}>
                     <strong style={{ fontSize: '0.8rem' }}>S.N.</strong>
                 </div>
 
                 <div className="d-flex align-items-center ps-2 border-end border-white position-relative"
-                     style={{ width: `${columnWidths.name}px`, flexShrink: 0, minWidth: '100px' }}>
+                    style={{ width: `${columnWidths.name}px`, flexShrink: 0, minWidth: '100px' }}>
                     <strong style={{ fontSize: '0.8rem' }}>Item Name</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.name - 2} columnName="name" />
                 </div>
 
-                {/* <div className="d-flex align-items-center px-2 border-end border-white position-relative"
-                     style={{ width: `${columnWidths.company}px`, flexShrink: 0, minWidth: '100px' }}>
-                    <strong style={{ fontSize: '0.8rem' }}>Company</strong>
-                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.company - 2} columnName="company" />
-                </div> */}
-
                 <div className="d-flex align-items-center px-2 border-end border-white position-relative"
-                     style={{ width: `${columnWidths.category}px`, flexShrink: 0, minWidth: '100px' }}>
+                    style={{ width: `${columnWidths.category}px`, flexShrink: 0, minWidth: '100px' }}>
                     <strong style={{ fontSize: '0.8rem' }}>Category</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.category - 2} columnName="category" />
                 </div>
 
                 <div className="d-flex align-items-center justify-content-center px-2 border-end border-white position-relative"
-                     style={{ width: `${columnWidths.vat}px`, flexShrink: 0, minWidth: '60px' }}>
+                    style={{ width: `${columnWidths.vat}px`, flexShrink: 0, minWidth: '60px' }}>
                     <strong style={{ fontSize: '0.8rem' }}>VAT</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.vat - 2} columnName="vat" />
                 </div>
 
                 <div className="d-flex align-items-center justify-content-end px-2"
-                     style={{ width: `${columnWidths.actions}px`, flexShrink: 0, minWidth: '120px' }}>
+                    style={{ width: `${columnWidths.actions}px`, flexShrink: 0, minWidth: '120px' }}>
                     <strong style={{ fontSize: '0.8rem' }}>Actions</strong>
                 </div>
 
@@ -351,7 +407,7 @@ const processedFilteredItems = useMemo(() => {
         const itemName = item.name || 'N/A';
         const companyName = item.itemsCompanyName || 'N/A';
         const categoryName = item.categoryName || 'N/A';
-        const isVatable = item.vatStatus === 'vatable';
+        const isVatable = item.vatStatus === '13';
 
         return (
             <div
@@ -360,14 +416,14 @@ const processedFilteredItems = useMemo(() => {
                 onDoubleClick={handleView}
             >
                 <div className="d-flex align-items-center justify-content-center px-0 border-end"
-                     style={{ width: '50px', flexShrink: 0, height: '100%' }}>
-                    <span className="text-muted" style={{ fontSize: '0.75rem' }}>{index + 1}</span>
+                    style={{ width: '50px', flexShrink: 0, height: '100%' }}>
+                    <span className="text-muted" style={{ fontSize: '0.67rem' }}>{index + 1}</span>
                 </div>
 
                 <div className="d-flex align-items-center ps-2 border-end"
-                     style={{ width: `${columnWidths.name}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
-                     title={itemName}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    style={{ width: `${columnWidths.name}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
+                    title={itemName}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {itemName}
                     </span>
                 </div>
@@ -378,43 +434,43 @@ const processedFilteredItems = useMemo(() => {
                 </div> */}
 
                 <div className="px-2 border-end d-flex flex-column justify-content-center"
-                     style={{ width: `${columnWidths.category}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.8rem' }}>{categoryName}</span>
+                    style={{ width: `${columnWidths.category}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.7rem' }}>{categoryName}</span>
                 </div>
 
                 <div className="px-2 border-end d-flex align-items-center justify-content-center"
-                     style={{ width: `${columnWidths.vat}px`, flexShrink: 0, height: '100%' }}>
-                    <Badge bg={isVatable ? 'success' : 'warning'} style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                    style={{ width: `${columnWidths.vat}px`, flexShrink: 0, height: '100%' }}>
+                    <Badge bg={isVatable ? 'success' : 'warning'} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>
                         {isVatable ? '13%' : 'Exempt'}
                     </Badge>
                 </div>
 
                 <div className="px-2 d-flex align-items-center justify-content-end gap-1"
-                     style={{ width: `${columnWidths.actions}px`, flexShrink: 0, height: '100%' }}>
+                    style={{ width: `${columnWidths.actions}px`, flexShrink: 0, height: '100%' }}>
                     <Button variant="outline-info" size="sm" className="p-0 d-flex align-items-center justify-content-center"
-                            style={{ width: '24px', height: '24px', minWidth: '24px' }} onClick={handleView}
-                            title={`View ${itemName}`}>
+                        style={{ width: '24px', height: '24px', minWidth: '24px' }} onClick={handleView}
+                        title={`View ${itemName}`}>
                         <FiEye size={12} />
                     </Button>
 
                     {isAdminOrSupervisor && (
                         <>
                             <Button variant="outline-warning" size="sm" className="p-0 d-flex align-items-center justify-content-center"
-                                    style={{ width: '24px', height: '24px', minWidth: '24px' }} onClick={handleEditClick}
-                                    title={`Edit ${itemName}`} disabled={!!currentItem}>
+                                style={{ width: '24px', height: '24px', minWidth: '24px' }} onClick={handleEditClick}
+                                title={`Edit ${itemName}`} disabled={!!currentItem}>
                                 <FiEdit2 size={12} />
                             </Button>
                             <Button variant="outline-danger" size="sm" className="p-0 d-flex align-items-center justify-content-center"
-                                    style={{ width: '24px', height: '24px', minWidth: '24px' }} onClick={handleDeleteClick}
-                                    title={`Delete ${itemName}`} disabled={!!currentItem}>
+                                style={{ width: '24px', height: '24px', minWidth: '24px' }} onClick={handleDeleteClick}
+                                title={`Delete ${itemName}`} disabled={!!currentItem}>
                                 <FiTrash2 size={12} />
                             </Button>
                         </>
                     )}
 
                     <Button variant="outline-success" size="sm" className="p-0 d-flex align-items-center justify-content-center"
-                            style={{ width: '24px', height: '24px', minWidth: '24px' }} onClick={handleSelect}
-                            title={`Select ${itemName}`}>
+                        style={{ width: '24px', height: '24px', minWidth: '24px' }} onClick={handleSelect}
+                        title={`Select ${itemName}`}>
                         <FiCheck size={12} />
                     </Button>
                 </div>
@@ -534,10 +590,10 @@ const processedFilteredItems = useMemo(() => {
             if (response.data.success) {
                 const itemsArray = response.data.items || [];
                 const transactionsMap = {};
-                
+
                 itemsArray.forEach(item => {
-                    transactionsMap[item.id || item._id] = 
-                        item.hasTransactions === 'true' || 
+                    transactionsMap[item.id || item._id] =
+                        item.hasTransactions === 'true' ||
                         item.hasTransactions === true;
                 });
 
@@ -575,7 +631,7 @@ const processedFilteredItems = useMemo(() => {
             }
         } catch (err) {
             console.error('Error in fetchItems:', err);
-            
+
             if (itemsTableDraftSave) {
                 setData(prev => ({
                     ...prev,
@@ -590,6 +646,17 @@ const processedFilteredItems = useMemo(() => {
         }
     };
 
+
+    // Reset pagination when filtered items change
+    useEffect(() => {
+        // Reset pagination state when filtered items change
+        const initialItems = paginateItems(processedFilteredItems, 1);
+        setPaginatedItems(initialItems);
+        setCurrentPage(1);
+        setHasMoreItems(processedFilteredItems.length > initialItems.length);
+        setTotalFilteredItems(processedFilteredItems.length);
+    }, [processedFilteredItems, paginateItems]);
+
     const handleSearch = (e) => {
         setSearchTerm(e.target.value.toLowerCase());
     };
@@ -598,15 +665,15 @@ const processedFilteredItems = useMemo(() => {
         setCurrentItem(item);
 
         // Set search term to the item name so it shows in the list
-    setSearchTerm(item.name?.toLowerCase() || '');
+        setSearchTerm(item.name?.toLowerCase() || '');
 
         // Extract composition IDs from item.compositions
-        const compositionIds = item.compositions 
+        const compositionIds = item.compositions
             ? item.compositions.map(c => c.id || c._id)
             : [];
 
         // Find the selected composition objects from data.composition
-        const selectedCompositionObjs = data.composition.filter(comp => 
+        const selectedCompositionObjs = data.composition.filter(comp =>
             compositionIds.includes(comp.id || comp._id)
         );
 
@@ -653,15 +720,15 @@ const processedFilteredItems = useMemo(() => {
 
     const handleSelectItem = (item) => {
 
-     setSearchTerm(item.name?.toLowerCase() || '');
+        setSearchTerm(item.name?.toLowerCase() || '');
 
         // Extract composition IDs from item.compositions
-        const compositionIds = item.compositions 
+        const compositionIds = item.compositions
             ? item.compositions.map(c => c.id || c._id)
             : [];
 
         // Find the selected composition objects from data.composition
-        const selectedCompositionObjs = data.composition.filter(comp => 
+        const selectedCompositionObjs = data.composition.filter(comp =>
             compositionIds.includes(comp.id || comp._id)
         );
 
@@ -719,88 +786,88 @@ const processedFilteredItems = useMemo(() => {
     };
 
     const handleSubmit = async (e) => {
-    if (e) {
-        e.preventDefault();
-    }
+        if (e) {
+            e.preventDefault();
+        }
 
-    setIsSaving(true);
+        setIsSaving(true);
 
-    try {
-        // Prepare the data - match backend CreateItemDTO structure
-        const requestData = {
-            name: formData.name.trim(),
-            hscode: formData.hscode,
-            categoryId: formData.categoryId,
-            itemsCompanyId: formData.itemsCompanyId,
-            mainUnitId: formData.mainUnitId || null,
-            wsUnit: formData.wsUnit ? parseFloat(formData.wsUnit) : 0,
-            unitId: formData.unitId,
-            vatStatus: formData.vatStatus,
-            reorderLevel: formData.reorderLevel ? parseFloat(formData.reorderLevel) : 0,
-            price: formData.price ? parseFloat(formData.price) : null,
-            puPrice: formData.puPrice ? parseFloat(formData.puPrice) : null,
-            openingStock: formData.openingStock ? parseFloat(formData.openingStock) : 0,
-            compositionIds: selectedCompositions.map(comp => comp.id || comp._id)
-        };
+        try {
+            // Prepare the data - match backend CreateItemDTO structure
+            const requestData = {
+                name: formData.name.trim(),
+                hscode: formData.hscode,
+                categoryId: formData.categoryId,
+                itemsCompanyId: formData.itemsCompanyId,
+                mainUnitId: formData.mainUnitId || null,
+                wsUnit: formData.wsUnit ? parseFloat(formData.wsUnit) : 0,
+                unitId: formData.unitId,
+                vatStatus: formData.vatStatus,
+                reorderLevel: formData.reorderLevel ? parseFloat(formData.reorderLevel) : 0,
+                price: formData.price ? parseFloat(formData.price) : null,
+                puPrice: formData.puPrice ? parseFloat(formData.puPrice) : null,
+                openingStock: formData.openingStock ? parseFloat(formData.openingStock) : 0,
+                compositionIds: selectedCompositions.map(comp => comp.id || comp._id)
+            };
 
-        // Validate required fields
-        if (!requestData.name || !requestData.categoryId || !requestData.itemsCompanyId || 
-            !requestData.unitId || !requestData.vatStatus) {
-            showNotificationMessage('Please fill all required fields', 'error');
+            // Validate required fields
+            if (!requestData.name || !requestData.categoryId || !requestData.itemsCompanyId ||
+                !requestData.unitId || !requestData.vatStatus) {
+                showNotificationMessage('Please fill all required fields', 'error');
+                setIsSaving(false);
+                return;
+            }
+
+            if (currentItem) {
+                // Update existing item
+                const response = await api.put(`/api/retailer/items/${currentItem._id}`, requestData);
+
+                if (response.data?.success) {
+                    showNotificationMessage('Item updated successfully!', 'success');
+
+                    // Refresh items list
+                    await fetchItems();
+
+                    // Reset form
+                    resetForm();
+                    handleCancel();
+                } else {
+                    showNotificationMessage(response.data?.error || 'Failed to update item', 'error');
+                }
+            } else {
+                // Create new item
+                const response = await api.post('/api/retailer/items/create', requestData);
+
+                if (response.data?.success) {
+                    showNotificationMessage('Item created successfully!', 'success');
+
+                    // Clear search to show all items
+                    // setSearchTerm('');
+
+                    // Clear form
+                    resetForm();
+
+                    // Refresh items list - this will show all items
+                    await fetchItems();
+                } else {
+                    showNotificationMessage(response.data?.error || 'Failed to create item', 'error');
+                }
+            }
+        } catch (err) {
+            console.error('Submit error:', err);
+
+            if (err.response?.data?.errors) {
+                const validationErrors = Object.entries(err.response.data.errors)
+                    .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
+                    .join('; ');
+                showNotificationMessage(`Validation errors: ${validationErrors}`, 'error');
+            } else {
+                handleApiError(err);
+            }
+        } finally {
             setIsSaving(false);
-            return;
         }
-
-        if (currentItem) {
-            // Update existing item
-            const response = await api.put(`/api/retailer/items/${currentItem._id}`, requestData);
-            
-            if (response.data?.success) {
-                showNotificationMessage('Item updated successfully!', 'success');
-                                
-                // Refresh items list
-                await fetchItems();
-                
-                // Reset form
-                resetForm();
-                handleCancel();
-            } else {
-                showNotificationMessage(response.data?.error || 'Failed to update item', 'error');
-            }
-        } else {
-            // Create new item
-            const response = await api.post('/api/retailer/items/create', requestData);
-            
-            if (response.data?.success) {
-                showNotificationMessage('Item created successfully!', 'success');
-                
-                // Clear search to show all items
-                // setSearchTerm('');
-                
-                // Clear form
-                resetForm();
-                
-                // Refresh items list - this will show all items
-                await fetchItems();
-            } else {
-                showNotificationMessage(response.data?.error || 'Failed to create item', 'error');
-            }
-        }
-    } catch (err) {
-        console.error('Submit error:', err);
-        
-        if (err.response?.data?.errors) {
-            const validationErrors = Object.entries(err.response.data.errors)
-                .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
-                .join('; ');
-            showNotificationMessage(`Validation errors: ${validationErrors}`, 'error');
-        } else {
-            handleApiError(err);
-        }
-    } finally {
-        setIsSaving(false);
-    }
-};
+    };
     const filteredCompositions = data.composition.filter(comp =>
         comp.name?.toLowerCase().includes(compositionSearch.toLowerCase()) ||
         (comp.uniqueNumber && comp.uniqueNumber.toString().includes(compositionSearch))
@@ -819,8 +886,8 @@ const processedFilteredItems = useMemo(() => {
             case 'active':
                 itemsToPrint = itemsToPrint.filter(item => item.status === 'active');
                 break;
-            case 'vatable':
-                itemsToPrint = itemsToPrint.filter(item => item.vatStatus === 'vatable');
+            case '13':
+                itemsToPrint = itemsToPrint.filter(item => item.vatStatus === '13');
                 break;
             case 'vatExempt':
                 itemsToPrint = itemsToPrint.filter(item => item.vatStatus === 'vatExempt');
@@ -839,106 +906,169 @@ const processedFilteredItems = useMemo(() => {
         }
 
         const printWindow = window.open("", "_blank");
+
+        const printHeader = `
+        <div class="print-header">
+            <h1 style="font-size: 14px; margin: 0;">${data.company?.companyName || data.currentCompanyName || 'Company Name'}</h1>
+            <p style="font-size: 8px; margin: 2px 0;">
+                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''},
+                PAN: ${data.company?.pan || ''}<br>
+            </p>
+            <hr style="margin: 2px 0;">
+        </div>
+    `;
+
         let tableContent = `
-            <style>
-                @page { size: A4 landscape; margin: 10mm; }
-                body { font-family: Arial, sans-serif; font-size: 10px; margin: 0; padding: 10mm; }
-                table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
-                tr { page-break-inside: avoid; page-break-after: auto; }
-                th, td { border: 1px solid #000; padding: 4px; text-align: left; white-space: nowrap; }
-                th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; }
-                .print-header { text-align: center; margin-bottom: 15px; }
-                .nowrap { white-space: nowrap; }
-                .badge { padding: 3px 6px; border-radius: 3px; font-size: 10px; display: inline-block; }
-                .badge-success { background-color: #28a745; color: white; }
-                .badge-warning { background-color: #ffc107; color: black; }
-                .footer-note { margin-top: 20px; font-size: 0.9em; color: #666; text-align: center; }
-                .header-info { text-align: center; margin-bottom: 10px; font-size: 11px; }
-                .report-title { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 5px; text-decoration: underline; }
-                .filter-info { text-align: center; font-size: 11px; margin-bottom: 15px; color: #666; }
-            </style>
-            <div class="print-header">
-                <h1>${data.company?.companyName || data.currentCompanyName || 'Company Name'}</h1>
-                <hr>
-            </div>
-            
-            <div class="report-title">Items Report</div>
-            
-            <div class="header-info">
-                <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
-                <strong>Total Items:</strong> ${itemsToPrint.length}
-            </div>
-            
-            <div class="filter-info">
-                ${printOption !== 'all' ? `<strong>Filter:</strong> ${printOption.charAt(0).toUpperCase() + printOption.slice(1)} | ` : ''}
-                <strong>Printed on:</strong> ${data.companyDateFormat === 'nepali' ?
+        <style>
+            @page {
+                margin: 3mm;
+            }
+            body { 
+                font-family: Arial, sans-serif; 
+                font-size: 7px; 
+                margin: 0;
+                padding: 2mm;
+            }
+            table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                page-break-inside: auto;
+                font-size: 6px;
+            }
+            tr { 
+                page-break-inside: avoid; 
+                page-break-after: auto; 
+            }
+            th, td { 
+                border: 1px solid #000; 
+                padding: 2px 3px; 
+                text-align: left; 
+                white-space: nowrap;
+            }
+            th { 
+                background-color: #f2f2f2 !important; 
+                -webkit-print-color-adjust: exact;
+                font-size: 10px;
+                font-weight: bold;
+                padding: 3px 3px;
+            }
+            td {
+                font-size: 8px;
+                padding: 2px 3px;
+            }
+            .print-header { 
+                text-align: center; 
+                margin-bottom: 5px; 
+            }
+            .nowrap {
+                white-space: nowrap;
+            }
+            h1 {
+                font-size: 14px;
+                margin: 0;
+            }
+            .report-title {
+                text-align: center;
+                text-decoration: underline;
+                font-size: 11px;
+                font-weight: bold;
+                margin: 3px 0;
+            }
+            .grand-total-row td {
+                font-weight: bold;
+                border-top: 2px solid #000;
+                font-size: 7px;
+            }
+            .header-info {
+                text-align: center;
+                margin-bottom: 5px;
+                font-size: 8px;
+            }
+            .filter-info {
+                text-align: center;
+                margin-bottom: 8px;
+                font-size: 7px;
+                color: #666;
+            }
+        </style>
+        ${printHeader}
+        <div class="report-title">Items Report</div>
+        
+        <div class="header-info">
+            <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
+            <strong>Total Items:</strong> ${itemsToPrint.length}
+        </div>
+        
+        <div class="filter-info">
+            ${printOption !== 'all' ? `<strong>Filter:</strong> ${printOption.charAt(0).toUpperCase() + printOption.slice(1)} | ` : ''}
+            <strong>Printed on:</strong> ${data.companyDateFormat === 'nepali' ?
                 (data.nepaliDate || new NepaliDate().format('YYYY-MM-DD')) :
                 new Date().toLocaleDateString()}
-            </div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th class="nowrap">S.N.</th>
-                        <th class="nowrap">Item Name</th>
-                        <th class="nowrap">Company</th>
-                        <th class="nowrap">Category</th>
-                        <th class="nowrap">VAT</th>
-                        <th class="nowrap">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap">S.N.</th>
+                    <th class="nowrap">Item Name</th>
+                    <th class="nowrap">Company</th>
+                    <th class="nowrap">Category</th>
+                    <th class="nowrap">VAT</th>
+                    <th class="nowrap">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
 
         itemsToPrint.forEach((item, index) => {
             const companyName = item.itemsCompanyName || 'N/A';
             const categoryName = item.categoryName || 'N/A';
-            
+
             tableContent += `
-                <tr>
-                    <td class="nowrap">${index + 1}</td>
-                    <td class="nowrap">${item.name || 'N/A'}</td>
-                    <td class="nowrap">${companyName}</td>
-                    <td class="nowrap">${categoryName}</td>
-                    <td class="nowrap">
-                        <span class="nowrap">${item.vatStatus === 'vatable' ? '13%' : 'Exempt'}</span>
-                    </td>
-                    <td class="nowrap">
-                        <span class="nowrap">${item.status || 'N/A'}</span>
-                    </td>
-                </tr>
-            `;
+            <tr>
+                <td class="nowrap">${index + 1}</td>
+                <td class="nowrap">${item.name || 'N/A'}</td>
+                <td class="nowrap">${companyName}</td>
+                <td class="nowrap">${categoryName}</td>
+                <td class="nowrap" style="text-align: center;">
+                    ${item.vatStatus === '13' ? '13%' : 'Exempt'}
+                </td>
+                <td class="nowrap" style="text-align: center;">
+                    ${item.status || 'N/A'}
+                </td>
+            </tr>
+        `;
         });
 
         tableContent += `
-                </tbody>
-            </table>
-            
-            <div class="footer-note">
-                <br>
-                ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
-            </div>
-        `;
+            </tbody>
+        </table>
+        
+        <div class="footer-note" style="margin-top: 10px; font-size: 7px; color: #666; text-align: center;">
+            ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
+        </div>
+    `;
 
         printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Items Report - ${data.company?.companyName || data.currentCompanyName || 'Items Report'}</title>
-                </head>
-                <body>${tableContent}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.onafterprint = function() {
-                                    window.close();
-                                };
-                            }, 200);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Items Report - ${data.company?.companyName || data.currentCompanyName || 'Items Report'}</title>
+                <meta charset="UTF-8">
+            </head>
+            <body>
+                ${tableContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 200);
+                    };
+                <\/script>
+            </body>
+        </html>
+    `);
         printWindow.document.close();
     };
 
@@ -957,8 +1087,8 @@ const processedFilteredItems = useMemo(() => {
                 const categoryName = item.categoryName || 'N/A';
                 const mainUnitName = item.mainUnitName || 'N/A';
                 const unitName = item.unitName || 'N/A';
-                const compositions = item.compositions 
-                    ? item.compositions.map(c => c.name).join(', ') 
+                const compositions = item.compositions
+                    ? item.compositions.map(c => c.name).join(', ')
                     : '';
 
                 return {
@@ -971,7 +1101,7 @@ const processedFilteredItems = useMemo(() => {
                     'Main Unit': mainUnitName,
                     'Unit': unitName,
                     'WS Unit': item.wsUnit || '',
-                    'VAT Status': item.vatStatus === 'vatable' ? '13%' : 'Exempt',
+                    'VAT Status': item.vatStatus === '13' ? '13%' : 'Exempt',
                     'Purchase Price': item.puPrice || 0,
                     'Sales Price': item.price || 0,
                     'Opening Stock': item.openingStock || 0,
@@ -1012,7 +1142,7 @@ const processedFilteredItems = useMemo(() => {
                 onClose={() => setShowNotification(false)}
             />
             <div className="card mt-2">
-                <div className="row g-3">
+                <div className="row g-1">
                     {/* Left Column - Add Item Form */}
                     <div className="col-lg-6">
                         <div className="card h-100 shadow-lg">
@@ -1036,7 +1166,7 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem' }}
                                                 />
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Item Name <span className="text-danger">*</span>
                                                 </label>
                                             </div>
@@ -1059,7 +1189,7 @@ const processedFilteredItems = useMemo(() => {
                                                     ))}
                                                 </Form.Select>
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Company <span className="text-danger">*</span>
                                                 </label>
                                             </div>
@@ -1077,7 +1207,7 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem' }}
                                                 />
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     HSN Code
                                                 </label>
                                             </div>
@@ -1102,7 +1232,7 @@ const processedFilteredItems = useMemo(() => {
                                                     ))}
                                                 </Form.Select>
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Category <span className="text-danger">*</span>
                                                 </label>
                                             </div>
@@ -1111,7 +1241,7 @@ const processedFilteredItems = useMemo(() => {
                                         <div className="col-md-8">
                                             <div className="position-relative">
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500', zIndex: 5 }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500', zIndex: 5 }}>
                                                     Composition
                                                 </label>
                                                 <div className="input-group">
@@ -1129,7 +1259,7 @@ const processedFilteredItems = useMemo(() => {
                                                         style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem', backgroundColor: '#f8f9fa' }}
                                                     />
                                                     <Button variant="outline-secondary" onClick={() => setShowCompositionModal(true)}
-                                                            style={{ height: '35px', padding: '0 8px', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
+                                                        style={{ height: '35px', padding: '0 8px', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
                                                         <FiPlus size={14} />
                                                     </Button>
                                                 </div>
@@ -1154,7 +1284,7 @@ const processedFilteredItems = useMemo(() => {
                                                     ))}
                                                 </Form.Select>
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Main Unit
                                                 </label>
                                             </div>
@@ -1172,7 +1302,7 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem' }}
                                                 />
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     WS Unit
                                                 </label>
                                             </div>
@@ -1195,7 +1325,7 @@ const processedFilteredItems = useMemo(() => {
                                                     ))}
                                                 </Form.Select>
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Unit <span className="text-danger">*</span>
                                                 </label>
                                             </div>
@@ -1213,11 +1343,11 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.5rem', paddingBottom: '0' }}
                                                 >
                                                     <option value="" disabled>Select VAT</option>
-                                                    {data.vatEnabled && <option value="vatable">Vatable</option>}
+                                                    {data.vatEnabled && <option value="13">13%</option>}
                                                     <option value="vatExempt">VAT Exempt</option>
                                                 </Form.Select>
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     VAT <span className="text-danger">*</span>
                                                 </label>
                                             </div>
@@ -1235,7 +1365,7 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem' }}
                                                 />
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Re-Order Level
                                                 </label>
                                             </div>
@@ -1254,7 +1384,7 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem' }}
                                                 />
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Sales Price
                                                 </label>
                                             </div>
@@ -1284,7 +1414,7 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem' }}
                                                 />
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Purchase Price
                                                 </label>
                                             </div>
@@ -1312,7 +1442,7 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem', backgroundColor: currentItem && itemsWithTransactions[currentItem._id] ? '#f8f9fa' : 'white' }}
                                                 />
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: currentItem && itemsWithTransactions[currentItem._id] ? '#f8f9fa' : 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: currentItem && itemsWithTransactions[currentItem._id] ? '#f8f9fa' : 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Opening Stock
                                                 </label>
                                             </div>
@@ -1332,7 +1462,7 @@ const processedFilteredItems = useMemo(() => {
                                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem', backgroundColor: currentItem && itemsWithTransactions[currentItem._id] ? '#f8f9fa' : 'white' }}
                                                 />
                                                 <label className="position-absolute"
-                                                       style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: currentItem && itemsWithTransactions[currentItem._id] ? '#f8f9fa' : 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: currentItem && itemsWithTransactions[currentItem._id] ? '#f8f9fa' : 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Opening Value
                                                 </label>
                                             </div>
@@ -1342,14 +1472,14 @@ const processedFilteredItems = useMemo(() => {
                                     <div className="d-flex justify-content-between align-items-center">
                                         {currentItem ? (
                                             <Button variant="secondary" onClick={handleCancel} disabled={isSaving}
-                                                    className="d-flex align-items-center" style={{ height: '28px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}>
+                                                className="d-flex align-items-center" style={{ height: '28px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}>
                                                 <FiX className="me-1" size={14} /> Cancel
                                             </Button>
                                         ) : <div></div>}
                                         <div className="d-flex align-items-center">
                                             <Button variant="primary" type="submit" disabled={isSaving}
-                                                    className="d-flex align-items-center" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(e); } }}
-                                                    style={{ height: '28px', padding: '0 16px', fontSize: '0.8rem', fontWeight: '500' }}>
+                                                className="d-flex align-items-center" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(e); } }}
+                                                style={{ height: '28px', padding: '0 16px', fontSize: '0.8rem', fontWeight: '500' }}>
                                                 {isSaving ? (
                                                     <>
                                                         <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2" />
@@ -1371,29 +1501,29 @@ const processedFilteredItems = useMemo(() => {
 
                     {/* Right Column - Items List */}
                     <div className="col-lg-6">
-                        <div className="card h-100 shadow-lg">
+                        <div className="card h-100 shadow-sm">
                             <div className="card-body">
                                 <h3 className="text-center" style={{ textDecoration: 'underline' }}>Existing Items</h3>
 
                                 <div className="row g-1 mb-2 align-items-center">
                                     <div className="col-auto">
                                         <Button variant="primary" onClick={() => navigate(-1)} className="d-flex align-items-center p-1"
-                                                title="Go back" style={{ height: '24px', minWidth: '24px', fontSize: '0.7rem' }}>
+                                            title="Go back" style={{ height: '24px', minWidth: '24px', fontSize: '0.7rem' }}>
                                             <FiArrowLeft size={10} />
                                             <span className="ms-1 d-none d-sm-inline" style={{ fontSize: '0.7rem' }}>Back</span>
                                         </Button>
                                     </div>
                                     <div className="col-auto">
                                         <Button variant="primary" onClick={() => setShowPrintModal(true)} className="d-flex align-items-center p-1"
-                                                title="Print report" style={{ height: '24px', minWidth: '24px', fontSize: '0.7rem' }}>
+                                            title="Print report" style={{ height: '24px', minWidth: '24px', fontSize: '0.7rem' }}>
                                             <FiPrinter size={10} />
                                             <span className="ms-1 d-none d-sm-inline" style={{ fontSize: '0.7rem' }}>Print</span>
                                         </Button>
                                     </div>
                                     <div className="col-auto">
                                         <Button variant="success" onClick={() => exportToExcel(true)} disabled={exporting || data.items.length === 0}
-                                                title="Export all items to Excel" className="d-flex align-items-center p-1"
-                                                style={{ height: '24px', minWidth: '24px', fontSize: '0.7rem' }}>
+                                            title="Export all items to Excel" className="d-flex align-items-center p-1"
+                                            style={{ height: '24px', minWidth: '24px', fontSize: '0.7rem' }}>
                                             {exporting ? (
                                                 <Spinner animation="border" size="sm" className="me-1" style={{ width: '10px', height: '10px' }} />
                                             ) : <i className="fas fa-file-excel" style={{ fontSize: '0.7rem' }}></i>}
@@ -1403,17 +1533,17 @@ const processedFilteredItems = useMemo(() => {
                                     <div className="col">
                                         <div style={{ position: 'relative' }}>
                                             <Form.Control type="text" placeholder=" " value={searchTerm} onChange={handleSearch} className="w-100"
-                                                          style={{ height: '24px', fontSize: '0.75rem', paddingTop: '0.6rem', paddingLeft: '0.5rem' }} />
+                                                style={{ height: '24px', fontSize: '0.75rem', paddingTop: '0.6rem', paddingLeft: '0.5rem' }} />
                                             <label className="position-absolute"
-                                                   style={{ top: '-6px', left: '0.5rem', fontSize: '0.65rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                style={{ top: '-6px', left: '0.5rem', fontSize: '0.65rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                 Search items...
                                             </label>
                                         </div>
                                     </div>
                                     <div className="col-auto">
                                         <Button variant="outline-secondary" size="sm" onClick={resetColumnWidths}
-                                                title="Reset column widths to default" className="d-flex align-items-center p-1"
-                                                style={{ height: '24px', minWidth: '24px', fontSize: '0.7rem' }}>
+                                            title="Reset column widths to default" className="d-flex align-items-center p-1"
+                                            style={{ height: '24px', minWidth: '24px', fontSize: '0.7rem' }}>
                                             <FiRefreshCw size={10} />
                                             <span className="ms-1 d-none d-sm-inline" style={{ fontSize: '0.7rem' }}>Reset</span>
                                         </Button>
@@ -1425,7 +1555,7 @@ const processedFilteredItems = useMemo(() => {
                                             <Spinner animation="border" variant="primary" size="sm" style={{ width: '1.5rem', height: '1.5rem' }} />
                                             <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>Loading items...</p>
                                         </div>
-                                    ) : filteredItems.length === 0 ? (
+                                    ) : paginatedItems.length === 0 ? (
                                         <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                             <i className="bi bi-package text-muted" style={{ fontSize: '1.5rem' }}></i>
                                             <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>No items found</h6>
@@ -1438,18 +1568,60 @@ const processedFilteredItems = useMemo(() => {
                                             {({ height, width }) => {
                                                 const totalWidth = 50 + columnWidths.name + columnWidths.company + columnWidths.category + columnWidths.vat + columnWidths.actions;
                                                 return (
-                                                    <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth), overflowX: 'auto' }}>
+                                                    <div
+                                                        ref={tableContainerRef}
+                                                        style={{
+                                                            position: 'relative',
+                                                            height: height,
+                                                            width: Math.max(width, totalWidth),
+                                                            overflowX: 'auto',
+                                                            overflowY: 'auto'
+                                                        }}
+                                                    >
                                                         <TableHeader />
                                                         <List
-                                                        key={`items-list-${filteredItems.length}-${data.items.length}-${lastUpdated}`}
-                                                         height={height - 60} itemCount={filteredItems.length} itemSize={26}
-                                                              width={Math.max(width, totalWidth)}
-                                                              itemData={{ items: processedFilteredItems, isAdminOrSupervisor: data.isAdminOrSupervisor }}>
+                                                            key={`items-list-${paginatedItems.length}-${currentPage}`}
+                                                            height={height - 60}
+                                                            itemCount={paginatedItems.length}
+                                                            itemSize={26}
+                                                            width={Math.max(width, totalWidth)}
+                                                            itemData={{ items: paginatedItems, isAdminOrSupervisor: data.isAdminOrSupervisor }}
+                                                        >
                                                             {TableRow}
                                                         </List>
+
+                                                        {/* Loading More Indicator */}
+                                                        {isLoadingMore && (
+                                                            <div className="text-center py-2">
+                                                                <Spinner animation="border" size="sm" className="me-2" />
+                                                                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Loading more items...</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* No More Items Indicator */}
+                                                        {/* {!hasMoreItems && paginatedItems.length > 0 && (
+                                                            <div className="text-center py-2">
+                                                                <span className="text-muted small">End of items list</span>
+                                                            </div>
+                                                        )} */}
+
                                                         <div className="mt-2 text-muted small">
-                                                            Showing {filteredItems.length} of {data.items.length} items
-                                                            {searchTerm && ` (filtered)`}
+                                                            Showing {paginatedItems.length} of {totalFilteredItems} items
+                                                            {/* {searchTerm && ` (filtered)`} */}
+                                                            {hasMoreItems && paginatedItems.length < totalFilteredItems && (
+                                                                <span className="ms-2">
+                                                                    <Button
+                                                                        variant="link"
+                                                                        size="sm"
+                                                                        className="p-0 ms-2"
+                                                                        onClick={loadMoreItems}
+                                                                        disabled={isLoadingMore}
+                                                                        style={{ fontSize: '0.7rem' }}
+                                                                    >
+                                                                        Load more...
+                                                                    </Button>
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );
@@ -1480,7 +1652,7 @@ const processedFilteredItems = useMemo(() => {
                         <div className="d-flex gap-2 mb-3">
                             <Button variant={printOption === 'all' ? 'primary' : 'outline-primary'} onClick={() => setPrintOption('all')} size="sm">All Items</Button>
                             <Button variant={printOption === 'active' ? 'success' : 'outline-success'} onClick={() => setPrintOption('active')} size="sm">Active Only</Button>
-                            <Button variant={printOption === 'vatable' ? 'warning' : 'outline-warning'} onClick={() => setPrintOption('vatable')} size="sm">VAT Items</Button>
+                            <Button variant={printOption === '13' ? 'warning' : 'outline-warning'} onClick={() => setPrintOption('13')} size="sm">VAT Items</Button>
                         </div>
                         <div className="d-flex gap-2 mb-3">
                             <Button variant={printOption === 'vatExempt' ? 'info' : 'outline-info'} onClick={() => setPrintOption('vatExempt')} size="sm">Exempt Only</Button>
@@ -1518,7 +1690,7 @@ const processedFilteredItems = useMemo(() => {
                         <Button variant="outline-secondary" onClick={() => setShowPrintModal(false)} size="sm" className="px-3">Cancel</Button>
                         <div className="d-flex gap-2">
                             <Button variant="outline-primary" onClick={() => { setPrintOption('all'); setSelectedCategory(''); setSelectedCompany(''); }}
-                                    size="sm" disabled={printOption === 'all' && !selectedCategory && !selectedCompany}>Reset</Button>
+                                size="sm" disabled={printOption === 'all' && !selectedCategory && !selectedCompany}>Reset</Button>
                             <Button variant="primary" onClick={() => { printItems(); setShowPrintModal(false); }} size="sm" className="px-4">
                                 <FiPrinter className="me-1" /> Print Report
                             </Button>
@@ -1537,15 +1709,15 @@ const processedFilteredItems = useMemo(() => {
                         <div className="input-group">
                             <span className="input-group-text bg-white"><i className="bi bi-search"></i></span>
                             <Form.Control type="search" placeholder="Search compositions by name or code..." value={compositionSearch}
-                                          onChange={(e) => setCompositionSearch(e.target.value)} autoFocus className="border-start-0" />
+                                onChange={(e) => setCompositionSearch(e.target.value)} autoFocus className="border-start-0" />
                         </div>
                     </div>
 
                     <div className="d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
                         <small className="text-muted">Showing {filteredCompositions.length} of {data.composition.length} compositions</small>
                         <Form.Check type="checkbox" label="Select All"
-                                    checked={selectedCompositions.length === filteredCompositions.length && filteredCompositions.length > 0}
-                                    onChange={handleSelectAllCompositions} className="ms-2" />
+                            checked={selectedCompositions.length === filteredCompositions.length && filteredCompositions.length > 0}
+                            onChange={handleSelectAllCompositions} className="ms-2" />
                     </div>
 
                     <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
@@ -1559,11 +1731,11 @@ const processedFilteredItems = useMemo(() => {
                             <div className="list-group list-group-flush">
                                 {filteredCompositions.map(comp => (
                                     <div key={comp.id || comp._id}
-                                         className={`list-group-item list-group-item-action ${selectedCompositions.some(c => (c.id || c._id) === (comp.id || comp._id)) ? 'active' : ''}`}
-                                         onClick={() => handleCompositionSelect(comp)}>
+                                        className={`list-group-item list-group-item-action ${selectedCompositions.some(c => (c.id || c._id) === (comp.id || comp._id)) ? 'active' : ''}`}
+                                        onClick={() => handleCompositionSelect(comp)}>
                                         <div className="d-flex align-items-center">
                                             <Form.Check type="checkbox" checked={selectedCompositions.some(c => (c.id || c._id) === (comp.id || comp._id))}
-                                                        onChange={() => handleCompositionSelect(comp)} className="me-3 flex-shrink-0" />
+                                                onChange={() => handleCompositionSelect(comp)} className="me-3 flex-shrink-0" />
                                             <div className="flex-grow-1">
                                                 <div className="d-flex justify-content-between">
                                                     <strong>{comp.name}</strong>

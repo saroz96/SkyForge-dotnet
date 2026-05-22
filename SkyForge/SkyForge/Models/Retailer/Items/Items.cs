@@ -136,13 +136,6 @@ namespace SkyForge.Models.Retailer.Items
         [ForeignKey("CompanyId")]
         public Company Company { get; set; } = null!;
 
-        [Required]
-        [Column("fiscal_year_id")]
-        public Guid FiscalYearId { get; set; }
-
-        [ForeignKey("FiscalYearId")]
-        public FiscalYear FiscalYear { get; set; } = null!;
-
         [Column("original_fiscal_year_id")]
         public Guid? OriginalFiscalYearId { get; set; }
 
@@ -159,12 +152,10 @@ namespace SkyForge.Models.Retailer.Items
 
         [Column("date")]
         public DateTime Date { get; set; } = DateTime.UtcNow;
+        public string? NepaliDate { get; set; }
 
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-        [Column("Nepali_Date")]
-        public DateTime? NepaliDate { get; set; }
 
 
         // Navigation properties

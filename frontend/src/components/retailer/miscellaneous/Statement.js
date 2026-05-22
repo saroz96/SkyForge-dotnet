@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../Header';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
-
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import '../../../stylesheet/noDateIcon.css';
 import Loader from '../../Loader';
@@ -14,6 +12,102 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
+
+// Helper functions for date conversion
+const convertBsToAd = (bsDate) => {
+    if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+
+    try {
+        const nepaliDate = new NepaliDate(bsDate);
+        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
+            console.error('Invalid NepaliDate object or missing getDateObject method');
+            return null;
+        }
+
+        const jsDate = nepaliDate.getDateObject();
+        if (!jsDate || isNaN(jsDate.getTime())) {
+            console.error('Invalid AD date generated from BS date:', bsDate);
+            return null;
+        }
+
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
+        return null;
+    }
+};
+
+const convertAdToBs = (adDate) => {
+    if (!adDate) return null;
+
+    try {
+        let date;
+        if (typeof adDate === 'string') {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+                date = new Date(adDate + 'T00:00:00');
+            } else {
+                date = new Date(adDate);
+            }
+        } else if (adDate instanceof Date) {
+            date = adDate;
+        } else {
+            return null;
+        }
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid AD date:', adDate);
+            return null;
+        }
+
+        const nepaliDate = new NepaliDate(date);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            console.error('Invalid NepaliDate object');
+            return null;
+        }
+
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth();
+        const day = nepaliDate.getDate();
+
+        if (!year || month === undefined || !day) {
+            console.error('Invalid BS components generated');
+            return null;
+        }
+
+        return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
+        return null;
+    }
+};
+
+const isValidNepaliDate = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    try {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 32) return false;
+
+        const nepaliDate = new NepaliDate(dateStr);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            return false;
+        }
+
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch (error) {
+        console.warn('Invalid Nepali date:', dateStr, error.message);
+        return false;
+    }
+};
 
 const Statement = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
@@ -52,9 +146,45 @@ const Statement = () => {
         fiscalYear: {}
     });
 
+    // SPLIT STATE: Separate date range from other data
+    const [dateRange, setDateRange] = useState(() => {
+        if (draftSave && draftSave.statementData) {
+            return {
+                fromDate: draftSave.statementData.fromDate || '',
+                toDate: draftSave.statementData.toDate || '',
+                fromDateAd: draftSave.statementData.fromDateAd || '',
+                toDateAd: draftSave.statementData.toDateAd || ''
+            };
+        }
+        return {
+            fromDate: '',
+            toDate: '',
+            fromDateAd: '',
+            toDateAd: ''
+        };
+    });
+
     const [data, setData] = useState(() => {
         if (draftSave && draftSave.statementData) {
-            return draftSave.statementData;
+            return {
+                company: draftSave.statementData.company || null,
+                currentFiscalYear: draftSave.statementData.currentFiscalYear || null,
+                statement: draftSave.statementData.statement || [],
+                itemwiseStatement: draftSave.statementData.itemwiseStatement || [],
+                accounts: draftSave.statementData.accounts || [],
+                selectedCompany: draftSave.statementData.selectedCompany || null,
+                partyName: draftSave.statementData.partyName || '',
+                paymentMode: draftSave.statementData.paymentMode || 'all',
+                totalDebit: draftSave.statementData.totalDebit || 0,
+                totalCredit: draftSave.statementData.totalCredit || 0,
+                openingBalance: draftSave.statementData.openingBalance || 0,
+                currentCompanyName: draftSave.statementData.currentCompanyName || '',
+                companyDateFormat: draftSave.statementData.companyDateFormat || 'english',
+                nepaliDate: draftSave.statementData.nepaliDate || '',
+                user: draftSave.statementData.user || null,
+                selectedAccountUniqueNumber: draftSave.statementData.selectedAccountUniqueNumber || null,
+                selectedAccountName: draftSave.statementData.selectedAccountName || null
+            };
         }
         return {
             company: null,
@@ -64,8 +194,6 @@ const Statement = () => {
             accounts: [],
             selectedCompany: null,
             partyName: '',
-            fromDate: '',
-            toDate: '',
             paymentMode: 'all',
             totalDebit: 0,
             totalCredit: 0,
@@ -100,9 +228,10 @@ const Statement = () => {
         return 0;
     });
 
-    // Column resizing state
+    // Column resizing state - Updated with BS Date and AD Date columns
     const [columnWidths, setColumnWidths] = useState({
-        date: 90,
+        bsDate: 90,
+        adDate: 90,
         voucherNo: 100,
         voucherType: 80,
         payMode: 80,
@@ -228,18 +357,24 @@ const Statement = () => {
     useEffect(() => {
         setDraftSave({
             ...draftSave,
-            statementData: data,
+            statementData: {
+                ...data,
+                fromDate: dateRange.fromDate,
+                toDate: dateRange.toDate,
+                fromDateAd: dateRange.fromDateAd,
+                toDateAd: dateRange.toDateAd
+            },
             statementViewMode: viewMode,
             statementSearch: {
                 searchQuery,
                 selectedRowIndex,
-                fromDate: data.fromDate,
-                toDate: data.toDate,
+                fromDate: dateRange.fromDate,
+                toDate: dateRange.toDate,
                 paymentMode: data.paymentMode,
                 selectedCompany: data.selectedCompany
             }
         });
-    }, [data, viewMode, searchQuery, selectedRowIndex]);
+    }, [data, viewMode, searchQuery, selectedRowIndex, dateRange.fromDate, dateRange.toDate, dateRange.fromDateAd, dateRange.toDateAd]);
 
     // Save/load column widths
     useEffect(() => {
@@ -270,36 +405,6 @@ const Statement = () => {
         }
     }, [showAccountModal]);
 
-    // Function to format date for display in input fields based on company date format
-    const formatDateForInput = useCallback((dateString) => {
-        if (!dateString) return '';
-        try {
-            if (company.dateFormat === 'nepali') {
-                return new NepaliDate(dateString).format('YYYY-MM-DD');
-            } else {
-                return new Date(dateString).toISOString().split('T')[0];
-            }
-        } catch (error) {
-            return dateString;
-        }
-    }, [company.dateFormat]);
-
-    // Function to convert input date to backend format (UTC)
-    const convertToBackendDate = useCallback((dateString) => {
-        if (!dateString) return '';
-        try {
-            if (company.dateFormat === 'nepali') {
-                // Nepali date - keep as is for backend
-                return dateString;
-            } else {
-                // English date - convert to ISO format
-                return new Date(dateString).toISOString().split('T')[0];
-            }
-        } catch (error) {
-            return dateString;
-        }
-    }, [company.dateFormat]);
-
     // Fetch initial data (accounts list)
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -312,6 +417,7 @@ const Statement = () => {
 
                     // Set company date format
                     const dateFormat = responseData.company?.dateFormat?.toLowerCase() || 'english';
+                    const isNepaliFormat = dateFormat === 'nepali';
 
                     setCompany({
                         ...responseData.company,
@@ -321,43 +427,57 @@ const Statement = () => {
 
                     // Get fiscal year dates and format them for display
                     const currentFiscalYear = responseData.currentFiscalYear;
+                    const hasDraftDates = draftSave?.statementData?.fromDate && draftSave?.statementData?.toDate;
 
-                    if (currentFiscalYear) {
+                    if (!hasDraftDates && currentFiscalYear) {
                         let fromDateFormatted = '';
                         let toDateFormatted = '';
+                        let fromDateAd = '';
+                        let toDateAd = '';
 
-                        if (dateFormat === 'nepali') {
+                        if (isNepaliFormat) {
                             fromDateFormatted = currentFiscalYear.startDateNepali || currentNepaliDate;
                             toDateFormatted = currentNepaliDate;
+                            fromDateAd = convertBsToAd(fromDateFormatted);
+                            toDateAd = convertBsToAd(toDateFormatted);
                         } else {
                             fromDateFormatted = currentFiscalYear.startDate
                                 ? new Date(currentFiscalYear.startDate).toISOString().split('T')[0]
                                 : currentEnglishDate;
                             toDateFormatted = currentEnglishDate;
+                            fromDateAd = fromDateFormatted;
+                            toDateAd = toDateFormatted;
                         }
 
-                        setData(prev => ({
-                            ...prev,
-                            company: responseData.company,
-                            currentFiscalYear: currentFiscalYear,
-                            companyDateFormat: responseData.companyDateFormat,
-                            nepaliDate: responseData.nepaliDate,
-                            currentCompanyName: responseData.currentCompanyName,
-                            user: responseData.user,
+                        setDateRange({
                             fromDate: fromDateFormatted,
-                            toDate: toDateFormatted
-                        }));
-                    } else {
-                        setData(prev => ({
+                            toDate: toDateFormatted,
+                            fromDateAd: fromDateAd,
+                            toDateAd: toDateAd
+                        });
+                    } else if (hasDraftDates) {
+                        let fromDateAd = dateRange.fromDate;
+                        let toDateAd = dateRange.toDate;
+                        if (isNepaliFormat && dateRange.fromDate) {
+                            fromDateAd = convertBsToAd(dateRange.fromDate);
+                            toDateAd = convertBsToAd(dateRange.toDate);
+                        }
+                        setDateRange(prev => ({
                             ...prev,
-                            company: responseData.company,
-                            currentFiscalYear: responseData.currentFiscalYear,
-                            companyDateFormat: responseData.companyDateFormat,
-                            nepaliDate: responseData.nepaliDate,
-                            currentCompanyName: responseData.currentCompanyName,
-                            user: responseData.user
+                            fromDateAd: fromDateAd || prev.fromDateAd,
+                            toDateAd: toDateAd || prev.toDateAd
                         }));
                     }
+
+                    setData(prev => ({
+                        ...prev,
+                        company: responseData.company,
+                        currentFiscalYear: currentFiscalYear,
+                        companyDateFormat: responseData.companyDateFormat,
+                        nepaliDate: responseData.nepaliDate,
+                        currentCompanyName: responseData.currentCompanyName,
+                        user: responseData.user
+                    }));
                 }
             } catch (err) {
                 console.error('Error fetching initial data:', err);
@@ -386,9 +506,9 @@ const Statement = () => {
                 // IMPORTANT: Send the date format to backend
                 params.append('dateFormat', company.dateFormat);
 
-                // Send dates as-is - backend will interpret based on dateFormat
-                if (data.fromDate) params.append('fromDate', data.fromDate);
-                if (data.toDate) params.append('toDate', data.toDate);
+                // Use AD dates for API call
+                if (dateRange.fromDateAd) params.append('fromDate', dateRange.fromDateAd);
+                if (dateRange.toDateAd) params.append('toDate', dateRange.toDateAd);
                 if (data.selectedCompany) params.append('account', data.selectedCompany);
                 if (data.paymentMode && data.paymentMode !== 'all') params.append('paymentMode', data.paymentMode);
                 if (viewMode === 'itemwise') params.append('includeItems', 'true');
@@ -447,7 +567,7 @@ const Statement = () => {
         };
 
         fetchStatementData();
-    }, [shouldFetch, viewMode, company.dateFormat]);
+    }, [shouldFetch, viewMode, company.dateFormat, dateRange.fromDateAd, dateRange.toDateAd, data.selectedCompany, data.paymentMode]);
 
     // Filter statement based on search query
     useEffect(() => {
@@ -519,8 +639,8 @@ const Statement = () => {
     }, []);
 
     const paymentModeOptions = [
-        { value: 'all', label: 'All (Include Cash)' },
-        { value: 'exclude-cash', label: 'All (Exclude Cash)' },
+        { value: 'all', label: 'All (Inc. Cash)' },
+        { value: 'exclude-cash', label: 'All (Exc. Cash)' },
         { value: 'cash', label: 'Cash' },
         { value: 'credit', label: 'Credit' }
     ];
@@ -531,8 +651,8 @@ const Statement = () => {
             ...prev,
             selectedCompany: account.id,
             partyName: formattedName,
-            selectedAccountUniqueNumber: account.uniqueNumber, // Store unique number separately
-            selectedAccountName: account.name // Store name separately
+            selectedAccountUniqueNumber: account.uniqueNumber,
+            selectedAccountName: account.name
         }));
         setShowAccountModal(false);
         setAccountSearchQuery('');
@@ -544,11 +664,6 @@ const Statement = () => {
         }, 50);
     };
 
-    const handleDateChange = (e) => {
-        const { name, value } = e.target;
-        setData(prev => ({ ...prev, [name]: value }));
-    };
-
     const handlePaymentModeChange = (e) => {
         setData(prev => ({ ...prev, paymentMode: e.target.value }));
     };
@@ -558,7 +673,7 @@ const Statement = () => {
     };
 
     const handleGenerateReport = () => {
-        if (!data.fromDate || !data.toDate) {
+        if (!dateRange.fromDate || !dateRange.toDate) {
             setError('Please select both from and to dates');
             setNotification({
                 show: true,
@@ -638,7 +753,6 @@ const Statement = () => {
                     nextField.focus();
                 }
             } else {
-                // If no nextFieldId provided, try to find the next focusable element
                 const focusableElements = Array.from(
                     document.querySelectorAll('input, select, button, [tabindex]:not([tabindex="-1"])')
                 ).filter(el => !el.disabled && el.offsetParent !== null);
@@ -652,11 +766,34 @@ const Statement = () => {
         }
     };
 
+    // Validate and auto-correct Nepali date
+    const validateAndCorrectNepaliDate = (dateStr) => {
+        if (!dateStr) return null;
+        if (isValidNepaliDate(dateStr)) return dateStr;
+
+        const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (match) {
+            let [_, year, month, day] = match;
+            month = parseInt(month, 10);
+            day = parseInt(day, 10);
+
+            if (month < 1) month = 1;
+            if (month > 12) month = 12;
+            if (day < 1) day = 1;
+            if (day > 32) day = 32;
+
+            const correctedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            if (isValidNepaliDate(correctedDate)) {
+                return correctedDate;
+            }
+        }
+        return null;
+    };
+
     const handlePrint = () => {
         // Determine which data to print based on view mode
         let rowsToPrint;
         if (viewMode === 'regular') {
-            // Use filteredStatement if available (has search filter), otherwise use data.statement
             rowsToPrint = filteredStatement.length > 0 ? filteredStatement : data.statement;
         } else {
             rowsToPrint = data.itemwiseStatement;
@@ -695,13 +832,13 @@ const Statement = () => {
                     <title>Statement - ${viewMode === 'regular' ? 'Regular' : 'Itemwise'}</title>
                     <style>
                         @page { 
-                            margin: 10mm; 
+                            margin: 3mm;
                         }
                         body { 
                             font-family: Arial, sans-serif; 
-                            font-size: 10px; 
+                            font-size: 7px; 
                             margin: 0;
-                            padding: 10mm;
+                            padding: 2mm;
                         }
                         table { 
                             width: 100%; 
@@ -714,7 +851,7 @@ const Statement = () => {
                         }
                         th, td { 
                             border: 1px solid #000; 
-                            padding: 4px; 
+                            padding: 2px 3px; 
                             text-align: left; 
                             white-space: nowrap;
                         }
@@ -722,16 +859,32 @@ const Statement = () => {
                             background-color: #f2f2f2 !important; 
                             -webkit-print-color-adjust: exact; 
                             print-color-adjust: exact;
+                            font-size: 9px;
+                            font-weight: bold;
+                        }
+                        td {
+                            font-size: 7px;
                         }
                         .print-header { 
                             text-align: center; 
-                            margin-bottom: 15px; 
+                            margin-bottom: 5px; 
                         }
                         .text-end { 
                             text-align: right; 
                         }
                         .nowrap {
                             white-space: nowrap;
+                        }
+                        .report-title {
+                            text-align: center;
+                            text-decoration: underline;
+                            font-size: 10px;
+                            font-weight: bold;
+                            margin: 3px 0;
+                        }
+                        .grand-total-row td {
+                            font-weight: bold;
+                            border-top: 2px solid #000;
                         }
                     </style>
                 </head>
@@ -760,44 +913,46 @@ const Statement = () => {
         // Calculate totals
         let totalDebit = 0;
         let totalCredit = 0;
+        const isNepaliFormat = company.dateFormat === 'nepali';
 
         let tableContent = `
         <div class="print-header">
-            <h2 style="margin:0; padding:0;">${data.currentCompanyName || 'Company Name'}</h2>
-            <p style="margin:2px 0; font-size:8px;">
+            <h2 style="margin:0; padding:0; font-size: 14px;">${data.currentCompanyName || 'Company Name'}</h2>
+            <p style="margin:2px 0; font-size: 8px;">
                 ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
                 PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
             </p>
-            <hr style="margin:5px 0;">
-            <h3 style="margin:5px 0; text-decoration:underline;">Statement of Account</h3>
-            <p style="margin:2px 0; font-size:9px;">
+            <hr style="margin:2px 0;">
+            <div class="report-title">Statement of Account</div>
+            <p style="margin:2px 0; font-size: 8px;">
                 <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
-                <strong>From Date:</strong> ${data.fromDate} &nbsp;|&nbsp;
-                <strong>To Date:</strong> ${data.toDate} &nbsp;|&nbsp;
-                <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode} &nbsp;|&nbsp;
-                <strong>View Mode:</strong> Regular
+                <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
+                <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
+                <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
+                <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
+                <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
             </p>
         </div>
         <table cellspacing="0">
             <thead>
                 <tr>
-                    <th class="col-date">Date</th>
-                    <th class="col-vch-no">Vch No.</th>
-                    <th class="col-type">Type</th>
-                    <th class="col-pay-mode">Pay Mode</th>
-                    <th class="col-account">Account</th>
-                    <th class="col-debit text-end">Debit (Rs.)</th>
-                    <th class="col-credit text-end">Credit (Rs.)</th>
-                    <th class="col-balance text-end">Balance (Rs.)</th>
+                    <th class="nowrap">Miti</th>
+                    <th class="nowrap">Date</th>
+                    <th class="nowrap">Vch No.</th>
+                    <th class="nowrap">Type</th>
+                    <th class="nowrap">Pay Mode</th>
+                    <th class="nowrap">Account</th>
+                    <th class="nowrap text-end">Debit (Rs.)</th>
+                    <th class="nowrap text-end">Credit (Rs.)</th>
+                    <th class="nowrap text-end">Balance (Rs.)</th>
                 </tr>
             </thead>
             <tbody>
     `;
 
         statement.forEach((item, index) => {
-            const formattedDate = company.dateFormat === 'nepali'
-                ? new NepaliDate(item.date).format('YYYY-MM-DD')
-                : new Date(item.date).toISOString().split('T')[0];
+            const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+            const adDate = item.date ? new Date(item.date).toLocaleDateString() : '';
 
             const debitAmount = parseFloat(item.debit) || 0;
             const creditAmount = parseFloat(item.credit) || 0;
@@ -808,7 +963,6 @@ const Statement = () => {
             totalDebit += debitAmount;
             totalCredit += creditAmount;
 
-            const rowClass = index % 2 === 0 ? 'even-row' : '';
             const balanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
 
             // Get the account name
@@ -822,15 +976,16 @@ const Statement = () => {
             }
 
             tableContent += `
-            <tr class="${rowClass}">
-                <td class="col-date nowrap">${formattedDate}</td>
-                <td class="col-vch-no nowrap">${item.billNumber || ''}</td>
-                <td class="col-type nowrap">${item.type || ''}</td>
-                <td class="col-pay-mode nowrap">${item.paymentMode || ''}</td>
-                <td class="col-account" style="white-space: normal; word-wrap: break-word;">${accountName}</td>
-                <td class="col-debit text-end">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
-                <td class="col-credit text-end">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
-                <td class="col-balance text-end">${balanceText}</td>
+            <tr>
+                <td class="nowrap">${bsDate}</td>
+                <td class="nowrap">${adDate}</td>
+                <td class="nowrap">${item.billNumber || ''}</td>
+                <td class="nowrap">${item.type || ''}</td>
+                <td class="nowrap">${item.paymentMode || ''}</td>
+                <td style="white-space: normal; word-wrap: break-word;">${accountName}</td>
+                <td class="text-end">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
+                <td class="text-end">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
+                <td class="text-end">${balanceText}</td>
             </tr>
         `;
         });
@@ -838,15 +993,15 @@ const Statement = () => {
         const finalBalanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
 
         tableContent += `
-            <tr class="footer-total">
-                <td colspan="5" class="text-end"><strong>TOTALS</strong></td>
+            <tr class="grand-total-row">
+                <td colspan="6" class="text-end"><strong>TOTALS</strong></td>
                 <td class="text-end"><strong>${formatCurrencyForPrint(totalDebit)}</strong></td>
                 <td class="text-end"><strong>${formatCurrencyForPrint(totalCredit)}</strong></td>
                 <td class="text-end"><strong>${finalBalanceText}</strong></td>
             </tr>
             </tbody>
         </table>
-        <div style="margin-top: 15px; font-size: 8px; text-align: center; border-top: 1px solid #ccc; padding-top: 5px;">
+        <div style="margin-top: 10px; font-size: 7px; text-align: center; border-top: 1px solid #ccc; padding-top: 3px;">
             <p>Generated on: ${new Date().toLocaleString()} | Powered by SkyForge</p>
         </div>
     `;
@@ -856,6 +1011,7 @@ const Statement = () => {
 
     const generateItemwisePrintContent = (statementData) => {
         const itemwiseData = statementData;
+        const isNepaliFormat = company.dateFormat === 'nepali';
 
         if (!itemwiseData || itemwiseData.length === 0) {
             return '<div class="alert alert-warning">No itemwise statement data available</div>';
@@ -863,23 +1019,26 @@ const Statement = () => {
 
         let tableContent = `
             <div class="print-header">
-                <h2 style="margin:0; padding:0;">${data.currentCompanyName || 'Company Name'}</h2>
-                <p style="margin:2px 0; font-size:8px;">
+                <h2 style="margin:0; padding:0; font-size: 14px;">${data.currentCompanyName || 'Company Name'}</h2>
+                <p style="margin:2px 0; font-size: 8px;">
                     ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
                     PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
                 </p>
-                <hr style="margin:5px 0;">
-                <h3 style="margin:5px 0; text-decoration:underline;">Itemwise Statement</h3>
-                <p style="margin:2px 0; font-size:9px;">
+                <hr style="margin:2px 0;">
+                <div class="report-title">Itemwise Statement</div>
+                <p style="margin:2px 0; font-size: 8px;">
                     <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
-                    <strong>From Date:</strong> ${data.fromDate} &nbsp;|&nbsp;
-                    <strong>To Date:</strong> ${data.toDate} &nbsp;|&nbsp;
+                    <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
+                    <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
+                    <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
+                    <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
                     <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
                 </p>
             </div>
             <table cellspacing="0">
                 <thead>
                     <tr>
+                        <th class="nowrap">Miti</th>
                         <th class="nowrap">Date</th>
                         <th class="nowrap">Vch No.</th>
                         <th class="nowrap">Type</th>
@@ -905,17 +1064,16 @@ const Statement = () => {
 
         itemwiseData.forEach((bill) => {
             if (bill.items && bill.items.length > 0) {
-                bill.items.forEach((item) => {
-                    const formattedDate = company.dateFormat === 'nepali'
-                        ? new NepaliDate(bill.date).format('YYYY-MM-DD')
-                        : new Date(bill.date).toISOString().split('T')[0];
+                const bsDate = bill.nepaliDate || (isNepaliFormat ? new NepaliDate(bill.date).format('YYYY-MM-DD') : '');
+                const adDate = bill.date ? new Date(bill.date).toLocaleDateString() : '';
 
+                bill.items.forEach((item) => {
                     const quantity = item.quantity ? parseFloat(item.quantity) : 0;
                     const rate = item.puPrice || item.price || 0;
                     const discount = item.discountAmountPerItem || 0;
-                    const taxable = (item.taxableAmount || 0) * quantity;
-                    const vat = bill.vatAmount || 0;
-                    const total = bill.totalAmount || 0;
+                    const taxable = item.taxableAmount || 0;
+                    const vat = item.vatAmount || 0;
+                    const total = item.totalAmount || (taxable + vat);
 
                     grandTotalQty += quantity;
                     grandTotalAmount += total;
@@ -925,11 +1083,12 @@ const Statement = () => {
 
                     tableContent += `
                         <tr>
-                            <td class="nowrap">${formattedDate}</td>
+                            <td class="nowrap">${bsDate}</td>
+                            <td class="nowrap">${adDate}</td>
                             <td class="nowrap">${bill.billNumber || ''}</td>
                             <td class="nowrap">${bill.type || ''}</td>
                             <td class="nowrap">${bill.paymentMode || ''}</td>
-                            <td class="nowrap" style="white-space: normal; word-wrap: break-word;">${item.item?.name || item.productName || 'N/A'}</td>
+                            <td style="white-space: normal; word-wrap: break-word;">${item.item?.name || item.productName || 'N/A'}</td>
                             <td class="text-end">${quantity.toFixed(2)}</td>
                             <td class="nowrap">${item.unit?.name || ''}</td>
                             <td class="text-end">${formatCurrencyForPrint(rate)}</td>
@@ -944,8 +1103,8 @@ const Statement = () => {
         });
 
         tableContent += `
-            <tr class="footer-total">
-                <td colspan="5" class="text-end"><strong>GRAND TOTALS</strong></td>
+            <tr class="grand-total-row">
+                <td colspan="6" class="text-end"><strong>GRAND TOTALS</strong></td>
                 <td class="text-end"><strong>${grandTotalQty.toFixed(2)}</strong></td>
                 <td></td>
                 <td></td>
@@ -956,7 +1115,7 @@ const Statement = () => {
             </tr>
             </tbody>
         </table>
-        <div style="margin-top: 15px; font-size: 8px; text-align: center; border-top: 1px solid #ccc; padding-top: 5px;">
+        <div style="margin-top: 10px; font-size: 7px; text-align: center; border-top: 1px solid #ccc; padding-top: 3px;">
             <p>Generated on: ${new Date().toLocaleString()} | Powered by SkyForge</p>
         </div>
     `;
@@ -1002,13 +1161,16 @@ const Statement = () => {
         try {
             let excelData = [];
             const currentDate = new Date().toISOString().split('T')[0];
+            const isNepaliFormat = company.dateFormat === 'nepali';
 
             excelData.push(['Company Name:', data.currentCompanyName || 'N/A']);
             excelData.push(['Report Type:', 'Statement Report']);
             excelData.push(['View Mode:', viewMode === 'regular' ? 'Regular Statement' : 'Itemwise Statement']);
             excelData.push(['Party Name:', data.partyName || 'N/A']);
-            excelData.push(['From Date:', data.fromDate]);
-            excelData.push(['To Date:', data.toDate]);
+            excelData.push(['From Date (BS):', dateRange.fromDate]);
+            excelData.push(['To Date (BS):', dateRange.toDate]);
+            excelData.push(['From Date (AD):', dateRange.fromDateAd]);
+            excelData.push(['To Date (AD):', dateRange.toDateAd]);
             excelData.push(['Payment Mode:', data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode]);
             excelData.push(['Export Date:', currentDate]);
             excelData.push([]);
@@ -1018,7 +1180,7 @@ const Statement = () => {
                 excelData.push([]);
 
                 const headers = [
-                    'Date', 'Voucher No.', 'Voucher Type', 'Payment Mode',
+                    'Miti', 'Date', 'Voucher No.', 'Voucher Type', 'Payment Mode',
                     'Account', 'Debit Amount', 'Credit Amount', 'Balance'
                 ];
                 excelData.push(headers);
@@ -1030,16 +1192,14 @@ const Statement = () => {
                 const statementToExport = filteredStatement.length > 0 ? filteredStatement : data.statement;
 
                 statementToExport.forEach((item) => {
+                    const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+                    const adDate = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
                     const debitAmount = parseFloat(item.debit) || 0;
                     const creditAmount = parseFloat(item.credit) || 0;
 
                     balance = balance + debitAmount - creditAmount;
                     totalDebit += debitAmount;
                     totalCredit += creditAmount;
-
-                    const formattedDate = company.dateFormat === 'nepali'
-                        ? new NepaliDate(item.date).format('YYYY-MM-DD')
-                        : new Date(item.date).toISOString().split('T')[0];
 
                     let accountName = '';
                     if (item.type === 'Pymt') {
@@ -1053,7 +1213,8 @@ const Statement = () => {
                     const balanceText = balance > 0 ? `${formatCurrencyForExport(Math.abs(balance))} Dr` : `${formatCurrencyForExport(Math.abs(balance))} Cr`;
 
                     const rowData = [
-                        formattedDate,
+                        bsDate,
+                        adDate,
                         item.billNumber || '',
                         item.type || '',
                         item.paymentMode || '',
@@ -1071,11 +1232,11 @@ const Statement = () => {
                     'TOTALS', '', '', '', '',
                     formatCurrencyForExport(totalDebit),
                     formatCurrencyForExport(totalCredit),
-                    finalBalanceText
+                    finalBalanceText, ''
                 ]);
             } else {
                 const headers = [
-                    'Date', 'Voucher No.', 'Voucher Type', 'Payment Mode',
+                    'Miti', 'Date', 'Voucher No.', 'Voucher Type', 'Payment Mode',
                     'Item Name', 'Quantity', 'Unit', 'Rate (Rs.)', 'Discount (Rs.)',
                     'Taxable Amount (Rs.)', 'VAT Amount (Rs.)', 'Total Amount (Rs.)'
                 ];
@@ -1089,17 +1250,16 @@ const Statement = () => {
 
                 data.itemwiseStatement.forEach((bill) => {
                     if (bill.items && bill.items.length > 0) {
-                        const formattedDate = company.dateFormat === 'nepali'
-                            ? new NepaliDate(bill.date).format('YYYY-MM-DD')
-                            : new Date(bill.date).toISOString().split('T')[0];
+                        const bsDate = bill.nepaliDate || (isNepaliFormat ? new NepaliDate(bill.date).format('YYYY-MM-DD') : '');
+                        const adDate = bill.date ? new Date(bill.date).toISOString().split('T')[0] : '';
 
                         bill.items.forEach((item) => {
                             const quantity = item.quantity ? parseFloat(item.quantity) : 0;
                             const rate = item.puPrice || item.price || 0;
                             const discount = item.discountAmountPerItem || 0;
-                            const taxable = (item.netPrice || 0) * quantity;
-                            const vat = bill.vatAmount || 0;
-                            const total = bill.totalAmount || 0;
+                            const taxable = item.taxableAmount || 0;
+                            const vat = item.vatAmount || 0;
+                            const total = item.totalAmount || (taxable + vat);
 
                             grandTotalQty += quantity;
                             grandTotalAmount += total;
@@ -1108,7 +1268,8 @@ const Statement = () => {
                             grandTotalDiscount += discount;
 
                             const rowData = [
-                                formattedDate,
+                                bsDate,
+                                adDate,
                                 bill.billNumber,
                                 bill.type,
                                 bill.paymentMode,
@@ -1134,20 +1295,20 @@ const Statement = () => {
                     formatCurrencyForExport(grandTotalDiscount),
                     formatCurrencyForExport(grandTotalTaxable),
                     formatCurrencyForExport(grandTotalVat),
-                    formatCurrencyForExport(grandTotalAmount)
+                    formatCurrencyForExport(grandTotalAmount), ''
                 ]);
             }
 
             const ws = XLSX.utils.aoa_to_sheet(excelData);
 
             ws['!cols'] = viewMode === 'regular'
-                ? [{ wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
-                : [{ wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 15 }];
+                ? [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
+                : [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 15 }];
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Statement Report');
 
-            const fileName = `Statement_${data.partyName}_${data.fromDate}_to_${data.toDate}_${viewMode}.xlsx`;
+            const fileName = `Statement_${data.partyName}_${dateRange.fromDate}_to_${dateRange.toDate}_${viewMode}.xlsx`;
             XLSX.writeFile(wb, fileName);
 
             setNotification({
@@ -1169,17 +1330,11 @@ const Statement = () => {
 
     const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
-        if (company.dateFormat === 'nepali') {
-            return number.toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-        return number.toLocaleString('en-US', {
+        return number.toLocaleString('en-IN', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
-    }, [company.dateFormat]);
+    }, []);
 
     const formatBalance = (amount) => {
         return amount > 0 ? `${formatCurrency(amount)} Dr` : `${formatCurrency(Math.abs(amount))} Cr`;
@@ -1187,7 +1342,8 @@ const Statement = () => {
 
     const resetColumnWidths = () => {
         setColumnWidths({
-            date: 90,
+            bsDate: 90,
+            adDate: 90,
             voucherNo: 100,
             voucherType: 80,
             payMode: 80,
@@ -1222,11 +1378,11 @@ const Statement = () => {
         );
     });
 
-    // Table Header Component
+    // Table Header Component - Updated with BS Date and AD Date columns
     const TableHeader = React.memo(() => {
-        const totalWidth = columnWidths.date + columnWidths.voucherNo + columnWidths.voucherType +
-            columnWidths.payMode + columnWidths.account + columnWidths.debit +
-            columnWidths.credit + columnWidths.balance;
+        const totalWidth = columnWidths.bsDate + columnWidths.adDate + columnWidths.voucherNo +
+            columnWidths.voucherType + columnWidths.payMode + columnWidths.account +
+            columnWidths.debit + columnWidths.credit + columnWidths.balance;
 
         const handleResizeStart = (e, columnName) => {
             setIsResizing(true);
@@ -1268,34 +1424,55 @@ const Statement = () => {
                     }
                 }}
             >
-                <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.date}px`, flexShrink: 0, minWidth: '60px' }}>
-                    <strong style={{ fontSize: '0.75rem' }}>Date</strong>
-                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.date - 2} columnName="date" />
+                {/* BS Date */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, minWidth: '80px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Miti</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.bsDate - 2} columnName="bsDate" />
                 </div>
+
+                {/* AD Date */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, minWidth: '80px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Date</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.adDate - 2} columnName="adDate" />
+                </div>
+
+                {/* Voucher No */}
                 <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, minWidth: '60px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Vch No.</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.voucherNo - 3} columnName="voucherNo" />
                 </div>
+
+                {/* Type */}
                 <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, minWidth: '60px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Type</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.voucherType - 3} columnName="voucherType" />
                 </div>
+
+                {/* Pay Mode */}
                 <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, minWidth: '60px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Pay Mode</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.payMode - 3} columnName="payMode" />
                 </div>
+
+                {/* Account */}
                 <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.account}px`, flexShrink: 0, minWidth: '100px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Account</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.account - 3} columnName="account" />
                 </div>
+
+                {/* Debit */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Debit</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.debit - 2} columnName="debit" />
                 </div>
+
+                {/* Credit */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Credit</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.credit - 2} columnName="credit" />
                 </div>
+
+                {/* Balance */}
                 <div className="d-flex align-items-center justify-content-end px-1 position-relative" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Balance</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.balance - 2} columnName="balance" />
@@ -1308,92 +1485,35 @@ const Statement = () => {
         );
     });
 
-    // Table Row Component
-    // const TableRow = React.memo(({ index, style, data: rowData }) => {
-    //     const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
-    //     const item = statement[index];
-
-    //     if (!item) return null;
-
-    //     const isSelected = selectedRowIndex === index;
-
-    //     return (
-    //         <div
-    //             style={{
-    //                 ...style,
-    //                 display: 'flex',
-    //                 alignItems: 'center',
-    //                 height: '28px',
-    //                 minHeight: '28px',
-    //                 padding: '0',
-    //                 borderBottom: '1px solid #dee2e6',
-    //                 cursor: 'pointer',
-    //                 backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
-    //             }}
-    //             onClick={() => handleRowClick(index)}
-    //             onDoubleClick={() => handleRowDoubleClick(item)}
-    //         >
-    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.date}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{item.date ? (company.dateFormat === 'nepali'
-    //                     ? new NepaliDate(item.date).format('YYYY-MM-DD')
-    //                     : new Date(item.date).toISOString().split('T')[0]) : ''}</span>
-    //             </div>
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{item.billNumber || ''}</span>
-    //             </div>
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{item.type || ''}</span>
-    //             </div>
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
-    //             </div>
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.PaymentReceiptType || item.journalAccountType || 'Opening'}>
-    //                 <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-    //                     {item.accountType || item.purchaseSalesType || item.PaymentReceiptType || item.journalAccountType || 'Opening'}
-    //                 </span>
-    //             </div>
-    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.debit)}</span>
-    //             </div>
-    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.credit)}</span>
-    //             </div>
-    //             <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{formatBalance(item.balance)}</span>
-    //             </div>
-    //         </div>
-    //     );
-    // });
-
-    // Table Row Component - Update the account column display
+    // Table Row Component - Updated with BS Date and AD Date columns
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
         const item = statement[index];
+        const isNepaliFormat = company.dateFormat === 'nepali';
 
         if (!item) return null;
 
         const isSelected = selectedRowIndex === index;
 
-        // *** ADD THIS FUNCTION TO FORMAT ACCOUNT NAME WITH PARTY BILL NUMBER ***
         const getFormattedAccountName = (item) => {
-            // For Purchase transactions
             if (item.type === 'Purc') {
                 if (item.partyBillNumber) {
                     return `Purchase ${item.partyBillNumber}`;
                 }
                 return item.accountType || item.purchaseSalesType || 'Purchase';
             }
-            // For Purchase Return transactions
             if (item.type === 'PrRt') {
                 if (item.partyBillNumber) {
                     return `Purchase Return ${item.partyBillNumber}`;
                 }
                 return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
             }
-            // For other transaction types
             return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
                 item.PaymentReceiptType || item.journalAccountType || 'Opening';
         };
+
+        const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+        const adDate = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
 
         return (
             <div
@@ -1411,11 +1531,14 @@ const Statement = () => {
                 onClick={() => handleRowClick(index)}
                 onDoubleClick={() => handleRowDoubleClick(item)}
             >
-                {/* Date Column */}
-                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.date}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{item.date ? (company.dateFormat === 'nepali'
-                        ? new NepaliDate(item.date).format('YYYY-MM-DD')
-                        : new Date(item.date).toISOString().split('T')[0]) : ''}</span>
+                {/* BS Date Column */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{bsDate}</span>
+                </div>
+
+                {/* AD Date Column */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{adDate}</span>
                 </div>
 
                 {/* Voucher No Column */}
@@ -1433,7 +1556,7 @@ const Statement = () => {
                     <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
                 </div>
 
-                {/* Account Column - MODIFIED HERE */}
+                {/* Account Column */}
                 <div
                     className="d-flex align-items-center px-1 border-end"
                     style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
@@ -1467,10 +1590,9 @@ const Statement = () => {
     return (
         <div className="container-fluid">
             <Header />
-            <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
-                <div className="card-header bg-white py-0">
-                    <h1 className="h4 mb-0 text-center text-primary">Statement</h1>
-                </div>
+            <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact" style={{ height: '580px', display: 'flex', flexDirection: 'column' }}>                <div className="card-header bg-white py-0">
+                <h1 className="h4 mb-0 text-center text-primary">Statement</h1>
+            </div>
 
                 <div className="card-body p-2 p-md-3">
                     {/* Filter Row */}
@@ -1484,9 +1606,10 @@ const Statement = () => {
                                     name="account"
                                     className="form-control form-control-sm"
                                     value={data.partyName}
-                                    onClick={() => setShowAccountModal(true)}
+                                    onFocus={() => setShowAccountModal(true)}
+                                    autoFocus
                                     readOnly
-                                    style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', cursor: 'pointer' }}
+                                    style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', cursor: 'pointer', width: '100%' }}
                                 />
                                 <label
                                     className="position-absolute"
@@ -1505,8 +1628,8 @@ const Statement = () => {
                             </div>
                         </div>
 
-                        {/* From Date */}
-                        <div className="col-12 col-md-2">
+                        {/* From Date BS Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -1514,160 +1637,91 @@ const Statement = () => {
                                     id="fromDate"
                                     ref={fromDateRef}
                                     className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
-                                    value={data.fromDate}
+                                    value={dateRange.fromDate}
                                     onChange={(e) => {
                                         const value = e.target.value;
-                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-                                        if (sanitizedValue.length <= 10) {
-                                            setData(prev => ({ ...prev, fromDate: sanitizedValue }));
-                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                        }
+                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+                                        const adDate = convertBsToAd(sanitizedValue);
+                                        setDateRange(prev => ({
+                                            ...prev,
+                                            fromDate: sanitizedValue,
+                                            fromDateAd: adDate || prev.fromDateAd
+                                        }));
+                                        setDateErrors(prev => ({ ...prev, fromDate: '' }));
                                     }}
-                                    onKeyDown={(e) => handleKeyDown(e, 'toDate')}
-                                    onPaste={(e) => {
-                                        e.preventDefault();
-                                        const pastedData = e.clipboardData.getData('text');
-                                        const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                        const newValue = data.fromDate + cleanedData;
-                                        if (newValue.length <= 10) {
-                                            setData(prev => ({ ...prev, fromDate: newValue }));
+                                    onKeyDown={(e) => {
+                                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+                                        if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && e.key !== '/' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
+                                            e.preventDefault();
+                                        }
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const dateStr = e.target.value.trim();
+                                            if (!dateStr) {
+                                                const correctedDate = company.dateFormat === 'nepali' ? currentNepaliDate : currentEnglishDate;
+                                                const adDate = company.dateFormat === 'nepali' ? convertBsToAd(correctedDate) : correctedDate;
+                                                setDateRange(prev => ({ ...prev, fromDate: correctedDate, fromDateAd: adDate }));
+                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
+                                                setNotification({ show: true, message: 'Date required. Auto-corrected to current date.', type: 'warning', duration: 3000 });
+                                                handleKeyDown(e, 'fromDateAd');
+                                            } else if (dateErrors.fromDate) {
+                                                e.target.focus();
+                                            } else {
+                                                handleKeyDown(e, 'fromDateAd');
+                                            }
                                         }
                                     }}
                                     onBlur={(e) => {
-                                        // Date validation logic
-                                        try {
-                                            const dateStr = e.target.value.trim();
-                                            if (!dateStr) {
-                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                                return;
-                                            }
-
-                                            if (company.dateFormat === 'nepali') {
-                                                const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                if (!nepaliDateFormat.test(dateStr)) {
-                                                    const currentDate = new NepaliDate();
-                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid date format. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                    return;
-                                                }
-
-                                                const normalizedDateStr = dateStr.replace(/-/g, '/');
-                                                const [year, month, day] = normalizedDateStr.split('/').map(Number);
-
-                                                if (month < 1 || month > 12) {
-                                                    throw new Error("Month must be between 1-12");
-                                                }
-                                                if (day < 1 || day > 32) {
-                                                    throw new Error("Day must be between 1-32");
-                                                }
-
-                                                const nepaliDate = new NepaliDate(year, month - 1, day);
-
-                                                if (
-                                                    nepaliDate.getYear() !== year ||
-                                                    nepaliDate.getMonth() + 1 !== month ||
-                                                    nepaliDate.getDate() !== day
-                                                ) {
-                                                    const currentDate = new NepaliDate();
-                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                } else {
-                                                    setData(prev => ({
-                                                        ...prev,
-                                                        fromDate: nepaliDate.format('YYYY-MM-DD')
-                                                    }));
-                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                                }
-                                            } else {
-                                                const englishDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                if (!englishDateFormat.test(dateStr)) {
-                                                    const currentDate = new Date();
-                                                    const correctedDate = currentDate.toISOString().split('T')[0];
-                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid date format. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                    return;
-                                                }
-
-                                                const dateObj = new Date(dateStr);
-                                                if (isNaN(dateObj.getTime())) {
-                                                    throw new Error("Invalid English date");
-                                                }
-
-                                                setData(prev => ({
-                                                    ...prev,
-                                                    fromDate: dateObj.toISOString().split('T')[0]
-                                                }));
-                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                            }
-                                        } catch (error) {
-                                            const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-                                            const correctedDate = company.dateFormat === 'nepali'
-                                                ? currentDate.format('YYYY-MM-DD')
-                                                : currentDate.toISOString().split('T')[0];
-                                            setData(prev => ({ ...prev, fromDate: correctedDate }));
-                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                            setNotification({
-                                                show: true,
-                                                message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
-                                                type: 'warning',
-                                                duration: 3000
-                                            });
+                                        const dateStr = e.target.value.trim();
+                                        if (!dateStr) return;
+                                        const correctedDate = validateAndCorrectNepaliDate(dateStr);
+                                        if (!correctedDate) {
+                                            const fallbackDate = currentNepaliDate;
+                                            const adDate = convertBsToAd(fallbackDate);
+                                            setDateRange(prev => ({ ...prev, fromDate: fallbackDate, fromDateAd: adDate }));
+                                            setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected to current date.', type: 'warning', duration: 3000 });
                                         }
                                     }}
-                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    placeholder="YYYY-MM-DD (BS)"
                                     required
                                     autoComplete="off"
-                                    style={{
-                                        height: '26px',
-                                        fontSize: '0.875rem',
-                                        paddingTop: '0.75rem',
-                                        width: '100%'
-                                    }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                 />
-                                <label
-                                    className="position-absolute"
-                                    style={{
-                                        top: '-0.5rem',
-                                        left: '0.75rem',
-                                        fontSize: '0.75rem',
-                                        backgroundColor: 'white',
-                                        padding: '0 0.25rem',
-                                        color: '#6c757d',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    From Date: <span className="text-danger">*</span>
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    From (BS): <span className="text-danger">*</span>
                                 </label>
-                                {dateErrors.fromDate && (
-                                    <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
-                                        {dateErrors.fromDate}
-                                    </div>
-                                )}
                             </div>
                         </div>
 
-                        {/* To Date */}
-                        <div className="col-12 col-md-2">
+                        {/* From Date AD Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
+                            <div className="position-relative">
+                                <input
+                                    type="date"
+                                    name="fromDateAd"
+                                    id="fromDateAd"
+                                    className="form-control form-control-sm"
+                                    value={dateRange.fromDateAd}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        const bsDate = convertAdToBs(value);
+                                        setDateRange(prev => ({
+                                            ...prev,
+                                            fromDateAd: value,
+                                            fromDate: bsDate || prev.fromDate
+                                        }));
+                                    }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'toDate'); }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    From (AD):
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* To Date BS Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -1675,160 +1729,91 @@ const Statement = () => {
                                     id="toDate"
                                     ref={toDateRef}
                                     className={`form-control form-control-sm no-date-icon ${dateErrors.toDate ? 'is-invalid' : ''}`}
-                                    value={data.toDate}
+                                    value={dateRange.toDate}
                                     onChange={(e) => {
                                         const value = e.target.value;
-                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-                                        if (sanitizedValue.length <= 10) {
-                                            setData(prev => ({ ...prev, toDate: sanitizedValue }));
-                                            setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                        }
+                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+                                        const adDate = convertBsToAd(sanitizedValue);
+                                        setDateRange(prev => ({
+                                            ...prev,
+                                            toDate: sanitizedValue,
+                                            toDateAd: adDate || prev.toDateAd
+                                        }));
+                                        setDateErrors(prev => ({ ...prev, toDate: '' }));
                                     }}
-                                    onKeyDown={(e) => handleKeyDown(e, 'paymentMode')}
-                                    onPaste={(e) => {
-                                        e.preventDefault();
-                                        const pastedData = e.clipboardData.getData('text');
-                                        const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                        const newValue = data.toDate + cleanedData;
-                                        if (newValue.length <= 10) {
-                                            setData(prev => ({ ...prev, toDate: newValue }));
+                                    onKeyDown={(e) => {
+                                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+                                        if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && e.key !== '/' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
+                                            e.preventDefault();
+                                        }
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const dateStr = e.target.value.trim();
+                                            if (!dateStr) {
+                                                const correctedDate = company.dateFormat === 'nepali' ? currentNepaliDate : currentEnglishDate;
+                                                const adDate = company.dateFormat === 'nepali' ? convertBsToAd(correctedDate) : correctedDate;
+                                                setDateRange(prev => ({ ...prev, toDate: correctedDate, toDateAd: adDate }));
+                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
+                                                setNotification({ show: true, message: 'Date required. Auto-corrected to current date.', type: 'warning', duration: 3000 });
+                                                handleKeyDown(e, 'toDateAd');
+                                            } else if (dateErrors.toDate) {
+                                                e.target.focus();
+                                            } else {
+                                                handleKeyDown(e, 'toDateAd');
+                                            }
                                         }
                                     }}
                                     onBlur={(e) => {
-                                        // Similar validation as fromDate
-                                        try {
-                                            const dateStr = e.target.value.trim();
-                                            if (!dateStr) {
-                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                                return;
-                                            }
-
-                                            if (company.dateFormat === 'nepali') {
-                                                const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                if (!nepaliDateFormat.test(dateStr)) {
-                                                    const currentDate = new NepaliDate();
-                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid date format. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                    return;
-                                                }
-
-                                                const normalizedDateStr = dateStr.replace(/-/g, '/');
-                                                const [year, month, day] = normalizedDateStr.split('/').map(Number);
-
-                                                if (month < 1 || month > 12) {
-                                                    throw new Error("Month must be between 1-12");
-                                                }
-                                                if (day < 1 || day > 32) {
-                                                    throw new Error("Day must be between 1-32");
-                                                }
-
-                                                const nepaliDate = new NepaliDate(year, month - 1, day);
-
-                                                if (
-                                                    nepaliDate.getYear() !== year ||
-                                                    nepaliDate.getMonth() + 1 !== month ||
-                                                    nepaliDate.getDate() !== day
-                                                ) {
-                                                    const currentDate = new NepaliDate();
-                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                } else {
-                                                    setData(prev => ({
-                                                        ...prev,
-                                                        toDate: nepaliDate.format('YYYY-MM-DD')
-                                                    }));
-                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                                }
-                                            } else {
-                                                const englishDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
-                                                if (!englishDateFormat.test(dateStr)) {
-                                                    const currentDate = new Date();
-                                                    const correctedDate = currentDate.toISOString().split('T')[0];
-                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
-                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                                    setNotification({
-                                                        show: true,
-                                                        message: 'Invalid date format. Auto-corrected to current date.',
-                                                        type: 'warning',
-                                                        duration: 3000
-                                                    });
-                                                    return;
-                                                }
-
-                                                const dateObj = new Date(dateStr);
-                                                if (isNaN(dateObj.getTime())) {
-                                                    throw new Error("Invalid English date");
-                                                }
-
-                                                setData(prev => ({
-                                                    ...prev,
-                                                    toDate: dateObj.toISOString().split('T')[0]
-                                                }));
-                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                            }
-                                        } catch (error) {
-                                            const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-                                            const correctedDate = company.dateFormat === 'nepali'
-                                                ? currentDate.format('YYYY-MM-DD')
-                                                : currentDate.toISOString().split('T')[0];
-                                            setData(prev => ({ ...prev, toDate: correctedDate }));
-                                            setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                            setNotification({
-                                                show: true,
-                                                message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
-                                                type: 'warning',
-                                                duration: 3000
-                                            });
+                                        const dateStr = e.target.value.trim();
+                                        if (!dateStr) return;
+                                        const correctedDate = validateAndCorrectNepaliDate(dateStr);
+                                        if (!correctedDate) {
+                                            const fallbackDate = currentNepaliDate;
+                                            const adDate = convertBsToAd(fallbackDate);
+                                            setDateRange(prev => ({ ...prev, toDate: fallbackDate, toDateAd: adDate }));
+                                            setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected to current date.', type: 'warning', duration: 3000 });
                                         }
                                     }}
-                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    placeholder="YYYY-MM-DD (BS)"
                                     required
-                                    autoComplete='off'
-                                    style={{
-                                        height: '26px',
-                                        fontSize: '0.875rem',
-                                        paddingTop: '0.75rem',
-                                        width: '100%'
-                                    }}
+                                    autoComplete="off"
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                 />
-                                <label
-                                    className="position-absolute"
-                                    style={{
-                                        top: '-0.5rem',
-                                        left: '0.75rem',
-                                        fontSize: '0.75rem',
-                                        backgroundColor: 'white',
-                                        padding: '0 0.25rem',
-                                        color: '#6c757d',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    To Date: <span className="text-danger">*</span>
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    To (BS): <span className="text-danger">*</span>
                                 </label>
-                                {dateErrors.toDate && (
-                                    <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
-                                        {dateErrors.toDate}
-                                    </div>
-                                )}
+                            </div>
+                        </div>
+
+                        {/* To Date AD Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
+                            <div className="position-relative">
+                                <input
+                                    type="date"
+                                    name="toDateAd"
+                                    id="toDateAd"
+                                    className="form-control form-control-sm"
+                                    value={dateRange.toDateAd}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        const bsDate = convertAdToBs(value);
+                                        setDateRange(prev => ({
+                                            ...prev,
+                                            toDateAd: value,
+                                            toDate: bsDate || prev.toDate
+                                        }));
+                                    }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'paymentMode'); }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    To (AD):
+                                </label>
                             </div>
                         </div>
 
                         {/* Payment Mode */}
-                        <div className="col-12 col-md-2">
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <select
                                     className="form-select form-select-sm"
@@ -1855,7 +1840,7 @@ const Statement = () => {
                                         fontWeight: '500'
                                     }}
                                 >
-                                    Payment Mode
+                                    Pay. Mode
                                 </label>
                             </div>
                         </div>
@@ -1892,7 +1877,7 @@ const Statement = () => {
                         </div>
 
                         {/* Search */}
-                        <div className="col-12 col-md-2">
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -1904,7 +1889,7 @@ const Statement = () => {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     disabled={data.statement.length === 0}
                                     autoComplete="off"
-                                    style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', width: '100%' }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                 />
                                 <label
                                     className="position-absolute"
@@ -1933,7 +1918,7 @@ const Statement = () => {
                                 onClick={handleGenerateReport}
                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
                             >
-                                <i className="fas fa-chart-line me-1"></i>Generate
+                                <i className="bi bi-search"></i>Generate
                             </button>
                             <button
                                 className="btn btn-success btn-sm"
@@ -1941,8 +1926,7 @@ const Statement = () => {
                                 disabled={(viewMode === 'regular' && data.statement.length === 0) || (viewMode === 'itemwise' && data.itemwiseStatement.length === 0) || exporting}
                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
                             >
-                                {exporting ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="fas fa-file-excel me-1"></i>}
-                                Excel
+                                {exporting ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-file-excel me-1"></i>}
                             </button>
                             <button
                                 className="btn btn-secondary btn-sm"
@@ -1950,15 +1934,15 @@ const Statement = () => {
                                 disabled={(viewMode === 'regular' && data.statement.length === 0) || (viewMode === 'itemwise' && data.itemwiseStatement.length === 0)}
                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
                             >
-                                <i className="fas fa-print me-1"></i>Print
+                                <i className="bi bi-printer"></i>
                             </button>
                             <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={resetColumnWidths}
-                                title="Reset column widths"
+                                title="Reset column widths to default"
                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500' }}
                             >
-                                <i className="fas fa-redo me-1"></i>Reset
+                                <i className="bi bi-x-circle"></i>
                             </button>
                         </div>
                     </div>
@@ -1977,21 +1961,22 @@ const Statement = () => {
                                         <div className="spinner-border spinner-border-sm text-primary" role="status">
                                             <span className="visually-hidden">Loading...</span>
                                         </div>
-                                        <p className="mt-2 small text-muted">Loading statement...</p>
+                                        <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>Loading statement...</p>
                                     </div>
                                 ) : viewMode === 'regular' ? (
                                     filteredStatement.length === 0 ? (
                                         <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                             <i className="bi bi-search text-muted" style={{ fontSize: '1.5rem' }}></i>
-                                            <h6 className="mt-2 text-muted">No transactions found</h6>
-                                            <p className="text-muted small">{searchQuery ? 'Try a different search term' : 'No data for the selected criteria'}</p>
+                                            <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>No transactions found</h6>
+                                            <p className="text-muted small" style={{ fontSize: '0.75rem' }}>{searchQuery ? 'Try a different search term' : 'No data for the selected criteria'}</p>
                                         </div>
                                     ) : (
                                         <AutoSizer>
                                             {({ height, width }) => {
-                                                const totalWidth = columnWidths.date + columnWidths.voucherNo + columnWidths.voucherType +
-                                                    columnWidths.payMode + columnWidths.account + columnWidths.debit +
-                                                    columnWidths.credit + columnWidths.balance;
+                                                const totalWidth = columnWidths.bsDate + columnWidths.adDate +
+                                                    columnWidths.voucherNo + columnWidths.voucherType +
+                                                    columnWidths.payMode + columnWidths.account +
+                                                    columnWidths.debit + columnWidths.credit + columnWidths.balance;
 
                                                 return (
                                                     <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
@@ -2022,14 +2007,15 @@ const Statement = () => {
                                     data.itemwiseStatement.length === 0 ? (
                                         <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                             <i className="bi bi-box-seam text-muted" style={{ fontSize: '1.5rem' }}></i>
-                                            <h6 className="mt-2 text-muted">No items found</h6>
-                                            <p className="text-muted small">No item transactions for the selected criteria</p>
+                                            <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>No items found</h6>
+                                            <p className="text-muted small" style={{ fontSize: '0.75rem' }}>No item transactions for the selected criteria</p>
                                         </div>
                                     ) : (
                                         <div style={{ height: "100%", overflow: 'auto' }}>
                                             <table className="table table-sm table-bordered table-hover mb-0" style={{ fontSize: '0.75rem', minWidth: '1200px' }}>
                                                 <thead className="bg-light sticky-top" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                                                     <tr>
+                                                        <th style={{ width: '8%' }}>Miti</th>
                                                         <th style={{ width: '8%' }}>Date</th>
                                                         <th style={{ width: '10%' }}>Vch No.</th>
                                                         <th style={{ width: '8%' }}>Type</th>
@@ -2038,62 +2024,30 @@ const Statement = () => {
                                                         <th style={{ width: '6%' }} className="text-end">Qty</th>
                                                         <th style={{ width: '6%' }}>Unit</th>
                                                         <th style={{ width: '8%' }} className="text-end">Rate (Rs.)</th>
-                                                        <th style={{ width: '8%' }} className="text-end">Discount (Rs.)</th>
+                                                        <th style={{ width: '8%' }} className="text-end">Disc. (Rs.)</th>
                                                         <th style={{ width: '8%' }} className="text-end">Taxable (Rs.)</th>
                                                         <th style={{ width: '6%' }} className="text-end">VAT (Rs.)</th>
                                                         <th style={{ width: '9%' }} className="text-end">Total (Rs.)</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {/* {data.itemwiseStatement.map((bill, billIndex) => (
-                                                        bill.items && bill.items.map((item, itemIndex) => {
-                                                            const formattedDate = company.dateFormat === 'nepali'
-                                                                ? new NepaliDate(bill.date).format('YYYY-MM-DD')
-                                                                : new Date(bill.date).toISOString().split('T')[0];
-
-                                                            const quantity = item.quantity ? parseFloat(item.quantity) : 0;
-                                                            const rate = item.puPrice || item.price || 0;
-                                                            const discount = item.discountAmountPerItem || 0;
-                                                            const taxable = (item.taxableAmount || 0);
-                                                            const vat = bill.vatAmount || 0;
-                                                            const total = bill.totalAmount || 0;
-
-                                                            return (
-                                                                <tr key={`${bill.billNumber}-${itemIndex}`} style={{ backgroundColor: (billIndex + itemIndex) % 2 === 0 ? '#f8f9fa' : 'white' }}>
-                                                                    <td className="nowrap">{formattedDate}</td>
-                                                                    <td className="nowrap">{bill.billNumber || ''}</td>
-                                                                    <td className="nowrap">{bill.type || ''}</td>
-                                                                    <td className="nowrap">{bill.paymentMode || ''}</td>
-                                                                    <td style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>{item.item?.name || item.productName || 'N/A'}</td>
-                                                                    <td className="text-end">{quantity.toFixed(2)}</td>
-                                                                    <td>{item.unit?.name || ''}</td>
-                                                                    <td className="text-end">{formatCurrency(rate)}</td>
-                                                                    <td className="text-end">{formatCurrency(discount)}</td>
-                                                                    <td className="text-end">{formatCurrency(taxable)}</td>
-                                                                    <td className="text-end">{formatCurrency(vat)}</td>
-                                                                    <td className="text-end">{formatCurrency(total)}</td>
-                                                                </tr>
-                                                            );
-                                                        })
-                                                    ))} */}
-
                                                     {data.itemwiseStatement.map((bill, billIndex) => (
                                                         bill.items && bill.items.map((item, itemIndex) => {
-                                                            const formattedDate = company.dateFormat === 'nepali'
-                                                                ? new NepaliDate(bill.date).format('YYYY-MM-DD')
-                                                                : new Date(bill.date).toISOString().split('T')[0];
+                                                            const isNepaliFormatLocal = company.dateFormat === 'nepali';
+                                                            const bsDate = bill.nepaliDate || (isNepaliFormatLocal ? new NepaliDate(bill.date).format('YYYY-MM-DD') : '');
+                                                            const adDate = bill.date ? new Date(bill.date).toLocaleDateString() : '';
 
                                                             const quantity = item.quantity ? parseFloat(item.quantity) : 0;
                                                             const rate = item.puPrice || item.price || 0;
                                                             const discount = item.discountAmountPerItem || 0;
-                                                            // Use item.taxableAmount and item.vatAmount from backend
                                                             const taxable = item.taxableAmount || 0;
                                                             const vat = item.vatAmount || 0;
                                                             const total = item.totalAmount || (taxable + vat);
 
                                                             return (
                                                                 <tr key={`${bill.billNumber}-${itemIndex}`} style={{ backgroundColor: (billIndex + itemIndex) % 2 === 0 ? '#f8f9fa' : 'white' }}>
-                                                                    <td className="nowrap">{formattedDate}</td>
+                                                                    <td className="nowrap">{bsDate}</td>
+                                                                    <td className="nowrap">{adDate}</td>
                                                                     <td className="nowrap">{bill.billNumber || ''}</td>
                                                                     <td className="nowrap">{bill.type || ''}</td>
                                                                     <td className="nowrap">{bill.paymentMode || ''}</td>
@@ -2122,9 +2076,9 @@ const Statement = () => {
                                                             bill.items.forEach((item) => {
                                                                 const quantity = item.quantity ? parseFloat(item.quantity) : 0;
                                                                 const discount = item.discountAmountPerItem || 0;
-                                                                const taxable = (item.netPrice || 0) * quantity;
-                                                                const vat = bill.vatAmount || 0;
-                                                                const total = bill.totalAmount || 0;
+                                                                const taxable = item.taxableAmount || 0;
+                                                                const vat = item.vatAmount || 0;
+                                                                const total = item.totalAmount || (taxable + vat);
 
                                                                 grandTotalQty += quantity;
                                                                 grandTotalAmount += total;
@@ -2138,7 +2092,7 @@ const Statement = () => {
                                                     return (
                                                         <tfoot>
                                                             <tr style={{ fontWeight: 'bold', borderTop: '2px solid #dee2e6', backgroundColor: '#f8f9fa' }}>
-                                                                <td colSpan="5" className="text-end"><strong>Grand Totals:</strong></td>
+                                                                <td colSpan="6" className="text-end"><strong>Grand Totals:</strong></td>
                                                                 <td className="text-end"><strong>{grandTotalQty.toFixed(2)}</strong></td>
                                                                 <td></td>
                                                                 <td></td>
@@ -2159,7 +2113,7 @@ const Statement = () => {
                             {/* Footer with totals - only for regular view */}
                             {viewMode === 'regular' && filteredStatement.length > 0 && (
                                 <div className="d-flex bg-light border-top sticky-bottom" style={{ zIndex: 2, height: '28px', borderTop: '2px solid #dee2e6' }}>
-                                    <div className="d-flex align-items-center px-1" style={{ width: `${columnWidths.date + columnWidths.voucherNo + columnWidths.voucherType + columnWidths.payMode + columnWidths.account}px`, flexShrink: 0, height: '100%' }}>
+                                    <div className="d-flex align-items-center px-1" style={{ width: `${columnWidths.bsDate + columnWidths.adDate + columnWidths.voucherNo + columnWidths.voucherType + columnWidths.payMode + columnWidths.account}px`, flexShrink: 0, height: '100%' }}>
                                         <strong style={{ fontSize: '0.75rem' }}>Totals:</strong>
                                     </div>
                                     <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
@@ -2169,7 +2123,7 @@ const Statement = () => {
                                         <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(data.totalCredit)}</strong>
                                     </div>
                                     <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
-                                        <strong style={{ fontSize: '0.75rem' }}>{formatBalance(filteredStatement.length > 0 ? filteredStatement[filteredStatement.length - 1].balance : 0)}</strong>
+                                        <strong style={{ fontSize: '0.75rem' }}>{formatBalance(filteredStatement.length > 0 ? filteredStatement[filteredStatement.length - 1]?.balance : 0)}</strong>
                                     </div>
                                 </div>
                             )}

@@ -1,5 +1,5 @@
 ﻿using SkyForge.Dto.RetailerDto.ItemDto;
-using SkyForge.Dto.CompositionDto;
+using SkyForge.Dto.RetailerDto.CompositionDto;
 using SkyForge.Models.Retailer.Items;
 using System;
 using System.Collections.Generic;
@@ -16,7 +16,7 @@ namespace SkyForge.Services.Retailer.ItemServices
         Task<List<Item>> GetItemsByCompanyAsync(Guid companyId, Guid fiscalYearId);
 
         // Update this method signature to include currentFiscalYearId parameter
-        Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid currentFiscalYearId);
+        Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid CompanyId, Guid FiscalYearId);
 
         Task<bool> DeleteItemAsync(Guid itemId, Guid companyId);
         Task<List<Item>> SearchItemsAsync(Guid companyId, string searchTerm);

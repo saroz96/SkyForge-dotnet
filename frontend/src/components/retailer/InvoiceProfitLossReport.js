@@ -1,15 +1,109 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
-
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { usePageNotRefreshContext } from './PageNotRefreshContext';
 import Loader from '../Loader';
 import Header from './Header';
 import ProductModal from './dashboard/modals/ProductModal';
+
+// Helper functions for date conversion
+const convertBsToAd = (bsDate) => {
+    if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+
+    try {
+        const nepaliDate = new NepaliDate(bsDate);
+        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
+            console.error('Invalid NepaliDate object or missing getDateObject method');
+            return null;
+        }
+
+        const jsDate = nepaliDate.getDateObject();
+        if (!jsDate || isNaN(jsDate.getTime())) {
+            console.error('Invalid AD date generated from BS date:', bsDate);
+            return null;
+        }
+
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
+        return null;
+    }
+};
+
+const convertAdToBs = (adDate) => {
+    if (!adDate) return null;
+
+    try {
+        let date;
+        if (typeof adDate === 'string') {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+                date = new Date(adDate + 'T00:00:00');
+            } else {
+                date = new Date(adDate);
+            }
+        } else if (adDate instanceof Date) {
+            date = adDate;
+        } else {
+            return null;
+        }
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid AD date:', adDate);
+            return null;
+        }
+
+        const nepaliDate = new NepaliDate(date);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            console.error('Invalid NepaliDate object');
+            return null;
+        }
+
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth();
+        const day = nepaliDate.getDate();
+
+        if (!year || month === undefined || !day) {
+            console.error('Invalid BS components generated');
+            return null;
+        }
+
+        return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
+        return null;
+    }
+};
+
+const isValidNepaliDate = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+    try {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 32) return false;
+
+        const nepaliDate = new NepaliDate(dateStr);
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
+            return false;
+        }
+
+        const bsYear = nepaliDate.getYear();
+        const bsMonth = nepaliDate.getMonth() + 1;
+        const bsDay = nepaliDate.getDate();
+
+        return (bsYear === year && bsMonth === month && bsDay === day);
+    } catch (error) {
+        console.warn('Invalid Nepali date:', dateStr, error.message);
+        return false;
+    }
+};
 
 const InvoiceWiseProfitLossReport = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
@@ -36,6 +130,14 @@ const InvoiceWiseProfitLossReport = () => {
         fiscalYear: {}
     });
 
+    // SPLIT STATE: Separate date range from report data
+    const [dateRange, setDateRange] = useState({
+        fromDate: '',
+        toDate: '',
+        fromDateAd: '',
+        toDateAd: ''
+    });
+
     const [data, setData] = useState(() => {
         if (draftSave && draftSave.profitLossData) {
             return draftSave.profitLossData;
@@ -44,8 +146,6 @@ const InvoiceWiseProfitLossReport = () => {
             company: null,
             currentFiscalYear: null,
             results: [],
-            fromDate: '',
-            toDate: '',
             billNumber: '',
             currentCompanyName: '',
             companyDateFormat: 'english',
@@ -74,6 +174,7 @@ const InvoiceWiseProfitLossReport = () => {
 
     // Column resizing state
     const [columnWidths, setColumnWidths] = useState({
+        nepaliDate: 90,
         date: 90,
         invNo: 100,
         account: 180,
@@ -99,6 +200,8 @@ const InvoiceWiseProfitLossReport = () => {
 
     const fromDateRef = useRef(null);
     const toDateRef = useRef(null);
+    const fromDateAdRef = useRef(null);
+    const toDateAdRef = useRef(null);
     const billNumberRef = useRef(null);
     const searchInputRef = useRef(null);
     const generateReportRef = useRef(null);
@@ -126,16 +229,40 @@ const InvoiceWiseProfitLossReport = () => {
         }
     );
 
+    // Validate and auto-correct Nepali date
+    const validateAndCorrectNepaliDate = (dateStr) => {
+        if (!dateStr) return null;
+        if (isValidNepaliDate(dateStr)) return dateStr;
+
+        const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (match) {
+            let [_, year, month, day] = match;
+            month = parseInt(month, 10);
+            day = parseInt(day, 10);
+
+            if (month < 1) month = 1;
+            if (month > 12) month = 12;
+            if (day < 1) day = 1;
+            if (day > 32) day = 32;
+
+            const correctedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            if (isValidNepaliDate(correctedDate)) {
+                return correctedDate;
+            }
+        }
+        return null;
+    };
+
     // Fetch initial data - using existing endpoint that returns company info
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
                 const response = await api.get('/api/retailer/invoice-wise-profit-loss');
-                
+
                 if (response.data.success) {
                     const responseData = response.data.data;
                     const dateFormat = responseData.companyDateFormat?.toLowerCase() || 'english';
-                    
+
                     setCompany({
                         dateFormat: dateFormat,
                         vatEnabled: responseData.company?.vatEnabled || true,
@@ -144,14 +271,18 @@ const InvoiceWiseProfitLossReport = () => {
 
                     const isNepaliFormat = dateFormat === 'nepali';
                     const currentFiscalYear = responseData.currentFiscalYear;
-                    
+
                     if (currentFiscalYear) {
                         let fromDateFormatted = '';
                         let toDateFormatted = '';
+                        let fromDateAd = '';
+                        let toDateAd = '';
 
                         if (isNepaliFormat) {
                             fromDateFormatted = currentFiscalYear.startDateNepali || currentNepaliDate;
                             toDateFormatted = currentNepaliDate;
+                            fromDateAd = convertBsToAd(fromDateFormatted);
+                            toDateAd = convertBsToAd(toDateFormatted);
                         } else {
                             fromDateFormatted = currentFiscalYear.startDate
                                 ? new Date(currentFiscalYear.startDate).toISOString().split('T')[0]
@@ -159,12 +290,19 @@ const InvoiceWiseProfitLossReport = () => {
                             toDateFormatted = currentFiscalYear.endDate
                                 ? new Date(currentFiscalYear.endDate).toISOString().split('T')[0]
                                 : currentEnglishDate;
+                            fromDateAd = fromDateFormatted;
+                            toDateAd = toDateFormatted;
                         }
+
+                        setDateRange({
+                            fromDate: fromDateFormatted,
+                            toDate: toDateFormatted,
+                            fromDateAd: fromDateAd,
+                            toDateAd: toDateAd
+                        });
 
                         setData(prev => ({
                             ...prev,
-                            fromDate: fromDateFormatted,
-                            toDate: toDateFormatted,
                             company: responseData.company,
                             currentFiscalYear: currentFiscalYear,
                             currentCompanyName: responseData.currentCompanyName || '',
@@ -174,10 +312,18 @@ const InvoiceWiseProfitLossReport = () => {
                 }
             } catch (err) {
                 console.error('Error fetching initial data:', err);
+                const defaultFromDate = currentEnglishDate;
+                const defaultToDate = currentEnglishDate;
+                setDateRange({
+                    fromDate: defaultFromDate,
+                    toDate: defaultToDate,
+                    fromDateAd: defaultFromDate,
+                    toDateAd: defaultToDate
+                });
                 setData(prev => ({
                     ...prev,
-                    fromDate: currentEnglishDate,
-                    toDate: currentEnglishDate
+                    fromDate: defaultFromDate,
+                    toDate: defaultToDate
                 }));
                 setNotification({
                     show: true,
@@ -198,12 +344,12 @@ const InvoiceWiseProfitLossReport = () => {
             profitLossSearch: {
                 searchQuery,
                 selectedRowIndex,
-                fromDate: data.fromDate,
-                toDate: data.toDate,
+                fromDate: dateRange.fromDate,
+                toDate: dateRange.toDate,
                 billNumber: data.billNumber
             }
         });
-    }, [data, searchQuery, selectedRowIndex]);
+    }, [data, searchQuery, selectedRowIndex, dateRange]);
 
     // Save/load column widths
     useEffect(() => {
@@ -229,8 +375,9 @@ const InvoiceWiseProfitLossReport = () => {
             try {
                 setLoading(true);
                 const params = new URLSearchParams();
-                if (data.fromDate) params.append('fromDate', data.fromDate);
-                if (data.toDate) params.append('toDate', data.toDate);
+                // Use AD dates for API call
+                if (dateRange.fromDateAd) params.append('fromDate', dateRange.fromDateAd);
+                if (dateRange.toDateAd) params.append('toDate', dateRange.toDateAd);
                 if (data.billNumber) params.append('billNumber', data.billNumber);
 
                 const response = await api.get(`/api/retailer/invoice-wise-profit-loss?${params.toString()}`);
@@ -270,7 +417,7 @@ const InvoiceWiseProfitLossReport = () => {
         };
 
         fetchData();
-    }, [shouldFetch, data.fromDate, data.toDate, data.billNumber]);
+    }, [shouldFetch, dateRange.fromDateAd, dateRange.toDateAd, data.billNumber]);
 
     // Filter results based on search query
     useEffect(() => {
@@ -359,13 +506,29 @@ const InvoiceWiseProfitLossReport = () => {
         }));
     };
 
-    const handleDateChange = (e) => {
+    const handleBsDateChange = (e) => {
         const { name, value } = e.target;
-        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-        if (sanitizedValue.length <= 10) {
-            setData(prev => ({ ...prev, [name]: sanitizedValue }));
-            setDateErrors(prev => ({ ...prev, [name]: '' }));
-        }
+        const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+        const adDate = convertBsToAd(sanitizedValue);
+
+        setDateRange(prev => ({
+            ...prev,
+            [name]: sanitizedValue,
+            [`${name}Ad`]: adDate || prev[`${name}Ad`]
+        }));
+        setDateErrors(prev => ({ ...prev, [name]: '' }));
+    };
+
+    const handleAdDateChange = (e) => {
+        const { name, value } = e.target;
+        const bsDate = convertAdToBs(value);
+        const fieldName = name.replace('Ad', '');
+
+        setDateRange(prev => ({
+            ...prev,
+            [name]: value,
+            [fieldName]: bsDate || prev[fieldName]
+        }));
     };
 
     const handleBillNumberChange = (e) => {
@@ -377,7 +540,7 @@ const InvoiceWiseProfitLossReport = () => {
     };
 
     const handleGenerateReport = () => {
-        if (!data.fromDate || !data.toDate) {
+        if (!dateRange.fromDate || !dateRange.toDate) {
             setError('Please select both from and to dates');
             setNotification({
                 show: true,
@@ -389,14 +552,45 @@ const InvoiceWiseProfitLossReport = () => {
         setShouldFetch(true);
     };
 
+    const handleBsDateBlur = (e) => {
+        const fieldName = e.target.name;
+        const dateStr = e.target.value.trim();
+
+        if (!dateStr) {
+            setDateErrors(prev => ({ ...prev, [fieldName]: '' }));
+            return;
+        }
+
+        const correctedDate = validateAndCorrectNepaliDate(dateStr);
+        if (!correctedDate) {
+            const fallbackDate = currentNepaliDate;
+            const adDate = convertBsToAd(fallbackDate);
+            setDateRange(prev => ({
+                ...prev,
+                [fieldName]: fallbackDate,
+                [`${fieldName}Ad`]: adDate
+            }));
+            setNotification({
+                show: true,
+                message: 'Invalid Nepali date. Auto-corrected to current date.',
+                type: 'warning',
+                duration: 3000
+            });
+        }
+    };
+
     const handleReset = () => {
         const isNepaliFormat = company.dateFormat === 'nepali';
         let fromDateFormatted = '';
         let toDateFormatted = '';
+        let fromDateAd = '';
+        let toDateAd = '';
 
         if (isNepaliFormat) {
             fromDateFormatted = data.currentFiscalYear?.startDateNepali || currentNepaliDate;
             toDateFormatted = currentNepaliDate;
+            fromDateAd = convertBsToAd(fromDateFormatted);
+            toDateAd = convertBsToAd(toDateFormatted);
         } else {
             fromDateFormatted = data.currentFiscalYear?.startDate
                 ? new Date(data.currentFiscalYear.startDate).toISOString().split('T')[0]
@@ -404,12 +598,19 @@ const InvoiceWiseProfitLossReport = () => {
             toDateFormatted = data.currentFiscalYear?.endDate
                 ? new Date(data.currentFiscalYear.endDate).toISOString().split('T')[0]
                 : currentEnglishDate;
+            fromDateAd = fromDateFormatted;
+            toDateAd = toDateFormatted;
         }
+
+        setDateRange({
+            fromDate: fromDateFormatted,
+            toDate: toDateFormatted,
+            fromDateAd: fromDateAd,
+            toDateAd: toDateAd
+        });
 
         setData(prev => ({
             ...prev,
-            fromDate: fromDateFormatted,
-            toDate: toDateFormatted,
             billNumber: ''
         }));
         setSearchQuery('');
@@ -449,23 +650,46 @@ const InvoiceWiseProfitLossReport = () => {
     }, []);
 
     const handleKeyDown = (e, nextFieldId) => {
+        const allowedKeys = [
+            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+            'Home', 'End'
+        ];
+
+        if (!allowedKeys.includes(e.key) &&
+            !/^\d$/.test(e.key) &&
+            e.key !== '/' &&
+            e.key !== '-' &&
+            !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+        }
+
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (nextFieldId) {
-                const nextField = document.getElementById(nextFieldId);
-                if (nextField) {
-                    nextField.focus();
-                }
-            } else {
-                const focusableElements = Array.from(
-                    document.querySelectorAll('input, select, button, [tabindex]:not([tabindex="-1"])')
-                ).filter(el => !el.disabled && el.offsetParent !== null);
+            const dateStr = e.target.value.trim();
+            const fieldName = e.target.name;
 
-                const currentIndex = focusableElements.findIndex(el => el === e.target);
+            if (!dateStr) {
+                const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
+                const correctedDate = company.dateFormat === 'nepali'
+                    ? currentDate.format('YYYY-MM-DD')
+                    : currentDate.toISOString().split('T')[0];
+                const adDate = company.dateFormat === 'nepali' ? convertBsToAd(correctedDate) : correctedDate;
 
-                if (currentIndex > -1 && currentIndex < focusableElements.length - 1) {
-                    focusableElements[currentIndex + 1].focus();
+                setDateRange(prev => ({
+                    ...prev,
+                    [fieldName]: correctedDate,
+                    [`${fieldName}Ad`]: adDate
+                }));
+                setDateErrors(prev => ({ ...prev, [fieldName]: '' }));
+
+                if (nextFieldId) {
+                    document.getElementById(nextFieldId)?.focus();
                 }
+            } else if (dateErrors[fieldName]) {
+                e.target.focus();
+            } else if (nextFieldId) {
+                document.getElementById(nextFieldId)?.focus();
             }
         }
     };
@@ -478,137 +702,186 @@ const InvoiceWiseProfitLossReport = () => {
 
         const printWindow = window.open("", "_blank");
         const printHeader = `
-        <div class="print-header">
-            <h1>${data.currentCompanyName || 'Company Name'}</h1>
-            <p>
-                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''},
-                PAN: ${data.company?.pan || ''}<br>
-            </p>
-            <hr>
-        </div>
-        `;
+    <div class="print-header">
+        <h1 style="font-size: 14px; margin: 0;">${data.currentCompanyName || 'Company Name'}</h1>
+        <p style="font-size: 8px; margin: 2px 0;">
+            ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''},
+            PAN: ${data.company?.pan || ''}<br>
+        </p>
+        <hr style="margin: 2px 0;">
+    </div>
+    `;
 
         let tableContent = `
-        <style>
-            @page {
-                size: A4 landscape;
-                margin: 10mm;
-            }
-            body { 
-                font-family: Arial, sans-serif; 
-                font-size: 10px; 
-                margin: 0;
-                padding: 10mm;
-            }
-            table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                page-break-inside: auto;
-            }
-            tr { 
-                page-break-inside: avoid; 
-                page-break-after: auto; 
-            }
-            th, td { 
-                border: 1px solid #000; 
-                padding: 4px; 
-                text-align: left; 
-                white-space: nowrap;
-            }
-            th { 
-                background-color: #f2f2f2 !important; 
-                -webkit-print-color-adjust: exact; 
-            }
-            .print-header { 
-                text-align: center; 
-                margin-bottom: 15px; 
-            }
-            .text-end {
-                text-align: right;
-            }
-            .profit-positive {
-                color: green;
-            }
-            .profit-negative {
-                color: red;
-            }
-        </style>
-        ${printHeader}
-        <h2 style="text-align:center;text-decoration:underline;">Invoice Wise Profit/Loss Report</h2>
-        <p style="text-align:center;"><strong>From Date:</strong> ${data.fromDate} | <strong>To Date:</strong> ${data.toDate}</p>
-        <table>
-            <thead>
-                <tr>
-                    <th>S.N</th>
-                    <th>Date</th>
-                    <th>Inv No.</th>
-                    <th>Account</th>
-                    <th class="text-end">Cost</th>
-                    <th class="text-end">Sales</th>
-                    <th class="text-end">C.P(%)</th>
-                    <th class="text-end">S.P(%)</th>
-                    <th class="text-end">Profit</th>
-                </tr>
-            </thead>
-            <tbody>
-        `;
+    <style>
+        @page {
+            margin: 3mm;
+        }
+        body { 
+            font-family: Arial, sans-serif; 
+            font-size: 7px; 
+            margin: 0;
+            padding: 2mm;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            page-break-inside: auto;
+            font-size: 6px;
+        }
+        tr { 
+            page-break-inside: avoid; 
+            page-break-after: auto; 
+        }
+        th, td { 
+            border: 1px solid #000; 
+            padding: 2px 3px; 
+            text-align: left; 
+            white-space: nowrap;
+        }
+        th { 
+            background-color: #f2f2f2 !important; 
+            -webkit-print-color-adjust: exact;
+            font-size: 8px;
+            font-weight: bold;
+            padding: 3px 3px;
+        }
+        td {
+            font-size: 7px;
+            padding: 2px 3px;
+        }
+        .print-header { 
+            text-align: center; 
+            margin-bottom: 5px; 
+        }
+        .nowrap {
+            white-space: nowrap;
+        }
+        .text-end {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .profit-positive {
+            color: green;
+        }
+        .profit-negative {
+            color: red;
+        }
+        h1 {
+            font-size: 14px;
+            margin: 0;
+        }
+        .report-title {
+            text-align: center;
+            text-decoration: underline;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 3px 0;
+        }
+        .date-range {
+            text-align: center;
+            font-size: 8px;
+            margin: 2px 0;
+        }
+        .grand-total-row td {
+            font-weight: bold;
+            border-top: 2px solid #000;
+            font-size: 7px;
+        }
+    </style>
+    ${printHeader}
+    <div class="report-title">Invoice Wise Profit/Loss Report</div>
+    <div class="date-range">Period: ${dateRange.fromDate} (${company.dateFormat === 'nepali' ? 'BS' : 'AD'}) to ${dateRange.toDate} (${company.dateFormat === 'nepali' ? 'BS' : 'AD'})</div>
+    <table>
+        <thead>
+            <tr>
+                <th class="nowrap text-center">S.N</th>
+                <th class="nowrap">Miti</th>
+                <th class="nowrap">Date</th>
+                <th class="nowrap">Inv No.</th>
+                <th class="nowrap">Account</th>
+                <th class="nowrap text-end">Cost</th>
+                <th class="nowrap text-end">Sales</th>
+                <th class="nowrap text-end">C.P(%)</th>
+                <th class="nowrap text-end">S.P(%)</th>
+                <th class="nowrap text-end">Profit</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
 
         filteredResults.forEach((bill, index) => {
+            const nepaliDateDisplay = bill.nepaliDate || formatDate(bill.date);
+            const englishDateDisplay = new Date(bill.date).toLocaleDateString();
+            const profitClass = bill.totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
+
             tableContent += `
-            <tr>
-                <td class="text-center">${index + 1}</td>
-                <td class="nowrap">${formatDate(bill.date)}</td>
-                <td class="nowrap">${bill.billNumber || ''}</td>
-                <td>${bill.accountName || bill.cashAccount || 'N/A'}</td>
-                <td class="text-end">${formatCurrency(bill.totalCost)}</td>
-                <td class="text-end">${formatCurrency(bill.totalSales)}</td>
-                <td class="text-end">${formatPercentage(bill.totalProfit, bill.totalCost)}</td>
-                <td class="text-end">${formatPercentage(bill.totalProfit, bill.totalSales)}</td>
-                <td class="text-end ${bill.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
-                    ${formatCurrency(bill.totalProfit)}
-                </td>
-            </tr>
-            `;
+        <tr>
+            <td class="text-center">${index + 1}</td>
+            <td class="nowrap">${nepaliDateDisplay}</td>
+            <td class="nowrap">${englishDateDisplay}</td>
+            <td class="nowrap">${bill.billNumber || ''}</td>
+            <td class="nowrap">${bill.accountName || bill.cashAccount || 'N/A'}</td>
+            <td class="text-end">${formatCurrency(bill.totalCost)}</td>
+            <td class="text-end">${formatCurrency(bill.totalSales)}</td>
+            <td class="text-end">${formatPercentage(bill.totalProfit, bill.totalCost)}</td>
+            <td class="text-end">${formatPercentage(bill.totalProfit, bill.totalSales)}</td>
+            <td class="text-end ${profitClass}">${formatCurrency(bill.totalProfit)}</td>
+        </tr>
+        `;
         });
 
         tableContent += `
-            <tr style="font-weight:bold; border-top: 2px solid #000;">
-                <td colspan="4">Grand Total</td>
-                <td class="text-end">${formatCurrency(totals.totalCost)}</td>
-                <td class="text-end">${formatCurrency(totals.totalSales)}</td>
-                <td class="text-end">${formatPercentage(totals.totalProfit, totals.totalCost)}</td>
-                <td class="text-end">${formatPercentage(totals.totalProfit, totals.totalSales)}</td>
-                <td class="text-end ${totals.totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
-                    ${formatCurrency(totals.totalProfit)}
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        `;
+        <tr class="grand-total-row">
+            <td colspan="5" class="text-end" style="font-weight: bold;">Grand Total</td>
+            <td class="text-end" style="font-weight: bold;">${formatCurrency(totals.totalCost)}</td>
+            <td class="text-end" style="font-weight: bold;">${formatCurrency(totals.totalSales)}</td>
+            <td class="text-end" style="font-weight: bold;">${formatPercentage(totals.totalProfit, totals.totalCost)}</td>
+            <td class="text-end" style="font-weight: bold;">${formatPercentage(totals.totalProfit, totals.totalSales)}</td>
+            <td class="text-end" style="font-weight: bold; ${totals.totalProfit >= 0 ? 'color: green;' : 'color: red;'}">
+                ${formatCurrency(totals.totalProfit)}
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    `;
 
         printWindow.document.write(`
-        <html>
-            <head>
-                <title>Invoice Wise Profit/Loss Report</title>
-            </head>
-            <body>
-                ${tableContent}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                        }, 200);
-                    };
-                <\/script>
-            </body>
-        </html>
-        `);
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Invoice Wise Profit/Loss Report</title>
+            <meta charset="UTF-8">
+        </head>
+        <body>
+            ${tableContent}
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                        window.close();
+                    }, 200);
+                };
+            <\/script>
+        </body>
+    </html>
+    `);
         printWindow.document.close();
     };
 
-    // Reset column widths
+    // Helper function to escape HTML special characters
+    const escapeHtml = (text) => {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
     const resetColumnWidths = () => {
         setColumnWidths({
+            nepaliDate: 90,
             date: 90,
             invNo: 100,
             account: 180,
@@ -670,7 +943,7 @@ const InvoiceWiseProfitLossReport = () => {
 
     // Table Header Component
     const TableHeader = React.memo(() => {
-        const totalWidth = columnWidths.date + columnWidths.invNo + columnWidths.account +
+        const totalWidth = columnWidths.nepaliDate + columnWidths.date + columnWidths.invNo + columnWidths.account +
             columnWidths.cost + columnWidths.sales + columnWidths.cpPercentage +
             columnWidths.spPercentage + columnWidths.profit + columnWidths.actions;
 
@@ -714,6 +987,10 @@ const InvoiceWiseProfitLossReport = () => {
                     }
                 }}
             >
+                <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.date}px`, flexShrink: 0, minWidth: '60px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Miti</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.date - 2} columnName="nepaliDate" />
+                </div>
                 <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.date}px`, flexShrink: 0, minWidth: '60px' }}>
                     <strong style={{ fontSize: '0.75rem' }}>Date</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.date - 2} columnName="date" />
@@ -804,7 +1081,10 @@ const InvoiceWiseProfitLossReport = () => {
                 onClick={() => handleRowClick(index)}
             >
                 <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.date}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{formatDate(bill.date)}</span>
+                    <span style={{ fontSize: '0.75rem' }}>{formatDate(bill.nepaliDate)}</span>
+                </div>
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.date}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{new Date(bill.date).toLocaleDateString()}</span>
                 </div>
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.invNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ fontSize: '0.75rem' }}>{bill.billNumber || ''}</span>
@@ -849,15 +1129,17 @@ const InvoiceWiseProfitLossReport = () => {
     }, (prevProps, nextProps) => {
         if (prevProps.index !== nextProps.index) return false;
         if (prevProps.style !== nextProps.style) return false;
-        
+
         const prevBill = prevProps.data.bills[prevProps.index];
         const nextBill = nextProps.data.bills[nextProps.index];
-        
-        return shallowEqual(prevBill, nextBill) && 
-               prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex;
+
+        return shallowEqual(prevBill, nextBill) &&
+            prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex;
     });
 
     if (loading && !data.results.length) return <Loader />;
+
+    const isNepaliFormat = company.dateFormat === 'nepali';
 
     return (
         <div className="container-fluid">
@@ -870,7 +1152,8 @@ const InvoiceWiseProfitLossReport = () => {
                 <div className="card-body p-2 p-md-3">
                     {/* Filter Row */}
                     <div className="row g-2 mb-3">
-                        <div className="col-12 col-md-2">
+                        {/* From Date BS Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -878,8 +1161,8 @@ const InvoiceWiseProfitLossReport = () => {
                                     id="fromDate"
                                     ref={fromDateRef}
                                     className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
-                                    value={data.fromDate}
-                                    onChange={handleDateChange}
+                                    value={dateRange.fromDate || ''}
+                                    onChange={handleBsDateChange}
                                     onKeyDown={(e) => {
                                         const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
                                             'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
@@ -887,33 +1170,43 @@ const InvoiceWiseProfitLossReport = () => {
                                             e.preventDefault();
                                         }
                                         if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            if (dateErrors.fromDate) {
-                                                e.target.focus();
-                                            } else {
-                                                document.getElementById('toDate')?.focus();
-                                            }
+                                            handleKeyDown(e, 'fromDateAd');
                                         }
                                     }}
-                                    onBlur={(e) => {
-                                        const dateStr = e.target.value.trim();
-                                        if (!dateStr) {
-                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                            return;
-                                        }
-                                    }}
-                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    onBlur={handleBsDateBlur}
+                                    placeholder={isNepaliFormat ? "YYYY-MM-DD (BS)" : "YYYY-MM-DD"}
                                     required
                                     autoComplete="off"
                                     style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                 />
                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                    From Date: <span className="text-danger">*</span>
+                                    From (BS): <span className="text-danger">*</span>
                                 </label>
                             </div>
                         </div>
 
-                        <div className="col-12 col-md-2">
+                        {/* From Date AD Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
+                            <div className="position-relative">
+                                <input
+                                    type="date"
+                                    name="fromDateAd"
+                                    id="fromDateAd"
+                                    ref={fromDateAdRef}
+                                    className="form-control form-control-sm"
+                                    value={dateRange.fromDateAd || ''}
+                                    onChange={handleAdDateChange}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'toDate'); }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    From (AD):
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* To Date BS Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -921,8 +1214,8 @@ const InvoiceWiseProfitLossReport = () => {
                                     id="toDate"
                                     ref={toDateRef}
                                     className={`form-control form-control-sm no-date-icon ${dateErrors.toDate ? 'is-invalid' : ''}`}
-                                    value={data.toDate}
-                                    onChange={handleDateChange}
+                                    value={dateRange.toDate || ''}
+                                    onChange={handleBsDateChange}
                                     onKeyDown={(e) => {
                                         const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
                                             'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
@@ -930,27 +1223,42 @@ const InvoiceWiseProfitLossReport = () => {
                                             e.preventDefault();
                                         }
                                         if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            if (dateErrors.toDate) {
-                                                e.target.focus();
-                                            } else {
-                                                document.getElementById('billNumber')?.focus();
-                                            }
+                                            handleKeyDown(e, 'toDateAd');
                                         }
                                     }}
-                                    onBlur={(e) => {}}
-                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    onBlur={handleBsDateBlur}
+                                    placeholder={isNepaliFormat ? "YYYY-MM-DD (BS)" : "YYYY-MM-DD"}
                                     required
                                     autoComplete="off"
                                     style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                 />
                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                    To Date: <span className="text-danger">*</span>
+                                    To (BS): <span className="text-danger">*</span>
                                 </label>
                             </div>
                         </div>
 
-                        <div className="col-12 col-md-2">
+                        {/* To Date AD Field */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
+                            <div className="position-relative">
+                                <input
+                                    type="date"
+                                    name="toDateAd"
+                                    id="toDateAd"
+                                    ref={toDateAdRef}
+                                    className="form-control form-control-sm"
+                                    value={dateRange.toDateAd || ''}
+                                    onChange={handleAdDateChange}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'billNumber'); }}
+                                    style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+                                />
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    To (AD):
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
                             <div className="position-relative">
                                 <input
                                     type="text"
@@ -961,12 +1269,12 @@ const InvoiceWiseProfitLossReport = () => {
                                     value={data.billNumber}
                                     onChange={handleBillNumberChange}
                                     onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
-                                    placeholder="Bill Number"
+                                    placeholder="Search invoice"
                                     autoComplete="off"
                                     style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                 />
                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                    Bill No.
+                                    Inv. No.
                                 </label>
                             </div>
                         </div>
@@ -980,18 +1288,7 @@ const InvoiceWiseProfitLossReport = () => {
                                 onClick={handleGenerateReport}
                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 6px', fontWeight: '500' }}
                             >
-                                <i className="fas fa-chart-line me-1"></i>Generate
-                            </button>
-                        </div>
-
-                        <div className="col-12 col-md-1">
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm w-100"
-                                onClick={handleReset}
-                                style={{ height: '30px', fontSize: '0.8rem', padding: '0 6px', fontWeight: '500' }}
-                            >
-                                <i className="fas fa-sync me-1"></i>Reset
+                                <i className="bi bi-search"></i>Generate
                             </button>
                         </div>
 
@@ -1024,7 +1321,7 @@ const InvoiceWiseProfitLossReport = () => {
                                 disabled={data.results.length === 0}
                                 style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}
                             >
-                                <i className="fas fa-print me-1"></i>Print
+                                <i className="bi bi-printer"></i>
                             </button>
                             <button
                                 className="btn btn-secondary btn-sm d-flex align-items-center"
@@ -1032,7 +1329,7 @@ const InvoiceWiseProfitLossReport = () => {
                                 title="Reset column widths"
                                 style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}
                             >
-                                <i className="fas fa-redo me-1" style={{ fontSize: '0.6rem' }}></i>Reset
+                                <i className="bi bi-x-circle"></i>
                             </button>
                         </div>
                     </div>
@@ -1107,7 +1404,7 @@ const InvoiceWiseProfitLossReport = () => {
                                     className="d-flex bg-light border-top sticky-bottom"
                                     style={{ zIndex: 2, height: '28px', borderTop: '2px solid #dee2e6' }}
                                 >
-                                    <div className="d-flex align-items-center px-1" style={{ width: `${columnWidths.date + columnWidths.invNo + columnWidths.account}px`, flexShrink: 0, height: '100%' }}>
+                                    <div className="d-flex align-items-center px-1" style={{ width: `${columnWidths.nepaliDate + columnWidths.date + columnWidths.invNo + columnWidths.account}px`, flexShrink: 0, height: '100%' }}>
                                         <strong style={{ fontSize: '0.75rem' }}>Grand Total:</strong>
                                     </div>
 
@@ -1140,7 +1437,7 @@ const InvoiceWiseProfitLossReport = () => {
                 </div>
             </div>
 
-            {/* Item Details Modal */}
+            {/* Item Details Modal
             {showItemModal && selectedBill && (
                 <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
                     <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -1214,11 +1511,104 @@ const InvoiceWiseProfitLossReport = () => {
                         </div>
                     </div>
                 </div>
+            )} */}
+
+            {/* Item Details Modal */}
+            {showItemModal && selectedBill && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header bg-primary text-white py-2">
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
+                                    <i className="fas fa-box me-2"></i>
+                                    Item Details - Invoice: {selectedBill.billNumber}
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    onClick={() => setShowItemModal(false)}
+                                    style={{ fontSize: '0.7rem' }}
+                                ></button>
+                            </div>
+                            <div className="modal-body p-0">
+                                <div className="table-responsive" style={{ maxHeight: '400px' }}>
+                                    <table className="table table-sm table-bordered mb-0" style={{ fontSize: '0.75rem' }}>
+                                        <thead className="table-light">
+                                            <tr style={{ fontSize: '0.7rem' }}>
+                                                <th style={{ width: '5%' }} className="text-center">S.N</th>
+                                                <th style={{ width: '30%' }}>Item Name</th>
+                                                <th style={{ width: '8%' }} className="text-end">Qty</th>
+                                                <th style={{ width: '12%' }} className="text-end">Cost Price</th>
+                                                <th style={{ width: '12%' }} className="text-end">Sale Price</th>
+                                                <th style={{ width: '12%' }} className="text-end">Profit/Unit</th>
+                                                <th style={{ width: '15%' }} className="text-end">Total Profit</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedBill.items.map((item, idx) => {
+                                                const profitPerUnit = item.price - (item.puPrice || 0);
+                                                const itemProfit = profitPerUnit * item.quantity;
+                                                return (
+                                                    <tr key={idx} style={{ fontSize: '0.7rem' }}>
+                                                        <td className="text-center">{idx + 1}</td>
+                                                        <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{item.itemName || 'N/A'}</td>
+                                                        <td className="text-end">{item.quantity.toFixed(2)}</td>
+                                                        <td className="text-end">{formatCurrency(item.puPrice)}</td>
+                                                        <td className="text-end">{formatCurrency(item.price)}</td>
+                                                        <td className={`text-end ${profitPerUnit >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                            {formatCurrency(profitPerUnit)}
+                                                        </td>
+                                                        <td className={`text-end fw-bold ${itemProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                            {formatCurrency(itemProfit)}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot className="table-secondary">
+                                            <tr style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                <td colSpan="4" className="text-end">Total Profit:</td>
+                                                <td colSpan="3" className={`text-end fw-bold ${selectedBill.totalProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                    {formatCurrency(selectedBill.totalProfit)}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            <div className="modal-footer py-2">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => setShowItemModal(false)}
+                                    style={{ fontSize: '0.7rem', padding: '4px 10px' }}
+                                >
+                                    <i className="fas fa-times me-1"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Product modal */}
             {showProductModal && (
                 <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
+
+            {/* Notification Toast */}
+            {notification.show && (
+                <div className={`toast-notification toast-${notification.type}`} style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
+                    <div className="toast-header">
+                        <strong className="me-auto">
+                            {notification.type === 'success' ? 'Success' : notification.type === 'error' ? 'Error' : 'Warning'}
+                        </strong>
+                        <button type="button" className="btn-close btn-sm" onClick={() => setNotification(prev => ({ ...prev, show: false }))}></button>
+                    </div>
+                    <div className="toast-body">
+                        {notification.message}
+                    </div>
+                </div>
             )}
         </div>
     );

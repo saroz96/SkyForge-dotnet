@@ -26,6 +26,7 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public decimal SalesPrice { get; set; } = 0;
 
         public DateTime? Date { get; set; }
+        public string? NepaliDate { get; set; }
     }
 
     public class UpdateInitialOpeningStockDTO
