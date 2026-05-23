@@ -275,7 +275,7 @@ const RegisterForm = () => {
 
                   <div className="form-check d-flex justify-content-start mb-4">
                     <input
-                      className="form-check-input me-2"
+                      className="form-check-input me-4"
                       type="checkbox"
                       id="termsCheck"
                       checked={acceptedTerms}
