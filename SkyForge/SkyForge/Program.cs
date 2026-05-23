@@ -92,7 +92,8 @@ builder.Services.AddCors(options =>
                                "https://localhost:3000",
                                 "http://localhost:5142",
                                 "https://localhost:7101",
-                                "http://localhost:5000")
+                                "http://localhost:5000",
+                                "https://www.amsacc.com", "https://amsacc.com")
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials()
