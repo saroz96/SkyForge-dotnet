@@ -221,6 +221,14 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    // This ensures the database and all tables are created based on your models
+    dbContext.Database.EnsureCreated();
+    Console.WriteLine("Database ensured created with all tables");
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -247,28 +255,6 @@ await SeedInitialDataAsync(app.Services);
 
 app.Run();
 
-// async Task SeedInitialDataAsync(IServiceProvider serviceProvider)
-// {
-//     using var scope = serviceProvider.CreateScope();
-//     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-
-//     var adminUser = await userService.GetUserByEmailAsync("admin@example.com");
-//     if (adminUser == null)
-//     {
-//         var admin = new User
-//         {
-//             Name = "Administrator",
-//             Email = "admin@example.com",
-//             IsAdmin = true,
-//             IsEmailVerified = true,
-//             CreatedAt = DateTime.UtcNow,
-//             UpdatedAt = DateTime.UtcNow
-//         };
-
-//         await userService.CreateUserAsync(admin, "Admin@123");
-//         Console.WriteLine("Default admin user created");
-//     }
-// }
 
 
 async Task SeedInitialDataAsync(IServiceProvider serviceProvider)

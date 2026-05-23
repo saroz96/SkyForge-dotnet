@@ -115,3 +115,10 @@ C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\obj\Debug\net8.0\ref\SkyForg
 C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\package-lock.json
 C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\package.json
 C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\NepDate.dll
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\publish\web.config
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\publish\appsettings.Development.json
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\publish\appsettings.json
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\publish\package-lock.json
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\publish\package.json
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\publish\SkyForge.deps.json
+C:\Project\Dotnet\SkyForge-dotnet\SkyForge\SkyForge\bin\Debug\net8.0\publish\SkyForge.runtimeconfig.json
