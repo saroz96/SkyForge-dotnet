@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiEye, FiCheck, FiPrinter, FiArrowLeft, FiRefreshCw, FiX } from 'react-icons/fi';
@@ -42,20 +42,28 @@ const Accounts = () => {
     const [showNotification, setShowNotification] = useState(false);
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationType, setNotificationType] = useState('');
-
+    const accountNameInputRef = useRef(null);
     // Print modal states
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [printOption, setPrintOption] = useState('all');
     const [selectedAccountGroup, setSelectedAccountGroup] = useState(''); // Changed from selectedCompanyGroup
+
+    // Add these state variables for pagination
+    const [paginatedAccounts, setPaginatedAccounts] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMoreItems, setHasMoreItems] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [totalFilteredAccounts, setTotalFilteredAccounts] = useState(0);
+    const tableContainerRef = useRef(null);
 
     // Excel export state
     const [exporting, setExporting] = useState(false);
 
     // Column resizing state
     const [columnWidths, setColumnWidths] = useState({
-        name: 200,
-        group: 200,
-        actions: 140
+        name: 160,
+        group: 180,
+        actions: 120
     });
 
     const [isResizing, setIsResizing] = useState(false);
@@ -264,28 +272,14 @@ const Accounts = () => {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Shallow equal function for memoization
-    function shallowEqual(objA, objB) {
-        if (objA === objB) return true;
-
-        if (typeof objA !== 'object' || objA === null ||
-            typeof objB !== 'object' || objB === null) {
-            return false;
-        }
-
-        const keysA = Object.keys(objA);
-        const keysB = Object.keys(objB);
-
-        if (keysA.length !== keysB.length) return false;
-
-        for (let i = 0; i < keysA.length; i++) {
-            if (!objB.hasOwnProperty(keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    // Pagination function - initially 15 items, then 25 on each load
+    const paginateAccounts = useCallback((accountsList, pageNum, itemsPerPage = 25) => {
+        const startIndex = 0; // Always start from beginning
+        // For first page, we want 15 items, not 25
+        const actualLimit = pageNum === 1 ? 15 : (pageNum - 1) * itemsPerPage + itemsPerPage;
+        const endIndex = actualLimit;
+        return accountsList.slice(startIndex, endIndex);
+    }, []);
 
     // Filtered accounts with memoization
     const filteredAccounts = useMemo(() => {
@@ -308,6 +302,98 @@ const Accounts = () => {
             })
             .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [data.accounts, searchTerm]);
+
+
+    const processedFilteredAccounts = useMemo(() => {
+        return filteredAccounts.map(account => {
+            return {
+                ...account,
+                _id: account._id || account.id,
+                accountGroups: account.accountGroups,
+                openingBalance: account.openingBalance || { amount: 0, type: 'Dr' }
+            };
+        });
+    }, [filteredAccounts]);
+
+    // Load more items on scroll
+    const loadMoreItems = useCallback(() => {
+        if (!hasMoreItems || isLoadingMore) return;
+
+        setIsLoadingMore(true);
+
+        // Use setTimeout to prevent UI freezing
+        setTimeout(() => {
+            const nextPage = currentPage + 1;
+            const itemsPerPage = 25;
+            const newLimit = nextPage === 1 ? 15 : 15 + ((nextPage - 1) * itemsPerPage);
+            const newPaginatedAccounts = processedFilteredAccounts.slice(0, newLimit);
+
+            if (newPaginatedAccounts.length === paginatedAccounts.length) {
+                setHasMoreItems(false);
+            } else {
+                setPaginatedAccounts(newPaginatedAccounts);
+                setCurrentPage(nextPage);
+            }
+
+            setIsLoadingMore(false);
+        }, 100);
+    }, [hasMoreItems, isLoadingMore, currentPage, processedFilteredAccounts, paginatedAccounts]);
+
+
+    // Handle scroll to load more items
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!tableContainerRef.current) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = tableContainerRef.current;
+
+            // Load more when scrolled to 80% of the way down
+            const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+            if (scrollPercentage > 0.8 && hasMoreItems && !isLoadingMore) {
+                loadMoreItems();
+            }
+        };
+
+        const tableContainer = tableContainerRef.current;
+        if (tableContainer) {
+            tableContainer.addEventListener('scroll', handleScroll);
+            return () => tableContainer.removeEventListener('scroll', handleScroll);
+        }
+    }, [hasMoreItems, isLoadingMore, loadMoreItems]);
+
+    // Reset pagination when filtered items change
+    useEffect(() => {
+        const initialAccounts = paginateAccounts(processedFilteredAccounts, 1);
+        setPaginatedAccounts(initialAccounts);
+        setCurrentPage(1);
+        setHasMoreItems(processedFilteredAccounts.length > initialAccounts.length);
+        setTotalFilteredAccounts(processedFilteredAccounts.length);
+    }, [processedFilteredAccounts, paginateAccounts]);
+
+
+    // Shallow equal function for memoization
+    function shallowEqual(objA, objB) {
+        if (objA === objB) return true;
+
+        if (typeof objA !== 'object' || objA === null ||
+            typeof objB !== 'object' || objB === null) {
+            return false;
+        }
+
+        const keysA = Object.keys(objA);
+        const keysB = Object.keys(objB);
+
+        if (keysA.length !== keysB.length) return false;
+
+        for (let i = 0; i < keysA.length; i++) {
+            if (!objB.hasOwnProperty(keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     // Resizable Table Header Component
     const TableHeader = React.memo(() => {
@@ -802,81 +888,306 @@ const Accounts = () => {
         }
     };
 
-const handleSubmit = async (e) => {
-    if (e) {
-        e.preventDefault();
-    }
+    const handleSubmit = async (e) => {
+        if (e) {
+            e.preventDefault();
+        }
 
-    setIsSaving(true);
+        setIsSaving(true);
 
-    try {
-        // Prepare the data in the format expected by backend
-        const requestData = {
-            name: formData.name.trim(),
-            address: formData.address?.trim() || '',
-            phone: formData.phone?.trim() || '',
-            ward: formData.ward ? parseInt(formData.ward) : null,
-            pan: formData.pan?.trim() || null, // Send null if empty
-            email: formData.email?.trim()?.toLowerCase() || '',
-            creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : 0,
-            contactPerson: formData.contactPerson?.trim() || '',
-            accountGroups: formData.accountGroups, // Guid as string
-            openingBalance: {
-                amount: parseFloat(formData.openingBalance.amount) || 0,
-                type: formData.openingBalance.type || 'Dr'
-            },
-            isActive: true
-        };
+        try {
+            // Prepare the data in the format expected by backend
+            const requestData = {
+                name: formData.name.trim(),
+                address: formData.address?.trim() || '',
+                phone: formData.phone?.trim() || '',
+                ward: formData.ward ? parseInt(formData.ward) : null,
+                pan: formData.pan?.trim() || null, // Send null if empty
+                email: formData.email?.trim()?.toLowerCase() || '',
+                creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : 0,
+                contactPerson: formData.contactPerson?.trim() || '',
+                accountGroups: formData.accountGroups, // Guid as string
+                openingBalance: {
+                    amount: parseFloat(formData.openingBalance.amount) || 0,
+                    type: formData.openingBalance.type || 'Dr'
+                },
+                isActive: true
+            };
 
-        // Validate required fields
-        if (!requestData.name || !requestData.accountGroups) {
-            showNotificationMessage('Account name and account group are required', 'error');
+            // Validate required fields
+            if (!requestData.name || !requestData.accountGroups) {
+                showNotificationMessage('Account name and account group are required', 'error');
+                setIsSaving(false);
+                return;
+            }
+
+            console.log('=== SENDING DATA TO BACKEND ===');
+            console.log('Request Data:', JSON.stringify(requestData, null, 2));
+            console.log('===============================');
+
+            if (currentAccount) {
+                // Update existing account
+                await api.put(`/api/retailer/companies/${currentAccount._id}`, requestData);
+                showNotificationMessage('Account updated successfully!', 'success');
+            } else {
+                // Create new account
+                await api.post('/api/retailer/companies', requestData);
+                showNotificationMessage('Account created successfully!', 'success');
+                resetForm();
+
+                setTimeout(() => {
+                    if (accountNameInputRef.current) {
+                        accountNameInputRef.current.focus();
+                    }
+                }, 50);
+            }
+            fetchAccounts();
+        } catch (err) {
+            console.error('=== SUBMIT ERROR DETAILS ===');
+            console.error('Error:', err);
+            console.error('Response:', err.response?.data);
+
+            if (err.response?.data?.errors) {
+                console.error('Validation Errors:', err.response.data.errors);
+                const validationErrors = Object.entries(err.response.data.errors)
+                    .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
+                    .join('; ');
+                showNotificationMessage(`Validation errors: ${validationErrors}`, 'error');
+            } else {
+                handleApiError(err);
+            }
+        } finally {
             setIsSaving(false);
-            return;
         }
-
-        console.log('=== SENDING DATA TO BACKEND ===');
-        console.log('Request Data:', JSON.stringify(requestData, null, 2));
-        console.log('===============================');
-
-        if (currentAccount) {
-            // Update existing account
-            await api.put(`/api/retailer/companies/${currentAccount._id}`, requestData);
-            showNotificationMessage('Account updated successfully!', 'success');
-        } else {
-            // Create new account
-            await api.post('/api/retailer/companies', requestData);
-            showNotificationMessage('Account created successfully!', 'success');
-            resetForm();
-        }
-        fetchAccounts();
-    } catch (err) {
-        console.error('=== SUBMIT ERROR DETAILS ===');
-        console.error('Error:', err);
-        console.error('Response:', err.response?.data);
-        
-        if (err.response?.data?.errors) {
-            console.error('Validation Errors:', err.response.data.errors);
-            const validationErrors = Object.entries(err.response.data.errors)
-                .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
-                .join('; ');
-            showNotificationMessage(`Validation errors: ${validationErrors}`, 'error');
-        } else {
-            handleApiError(err);
-        }
-    } finally {
-        setIsSaving(false);
-    }
-};
+    };
 
     // Print function
+    // const printAccounts = () => {
+    //     let accountsToPrint = [...data.accounts];
+
+    //     // Apply filters
+    //     if (printOption === 'group' && selectedAccountGroup) { // Changed from selectedCompanyGroup
+    //         accountsToPrint = accountsToPrint.filter(account =>
+    //             account.accountGroups?._id === selectedAccountGroup // Changed from companyGroups
+    //         );
+    //     }
+
+    //     if (accountsToPrint.length === 0) {
+    //         alert("No accounts to print");
+    //         return;
+    //     }
+
+    //     const printWindow = window.open("", "_blank");
+
+    //     const printHeader = `
+    //         <div class="print-header">
+    //             <h1>${data.company?.companyName || data.currentCompanyName || 'Company Name'}</h1>
+    //             <hr>
+    //         </div>
+    //     `;
+
+    //     let tableContent = `
+    //         <style>
+    //             @page {
+    //                 size: A4 landscape;
+    //                 margin: 10mm;
+    //             }
+    //             body { 
+    //                 font-family: Arial, sans-serif; 
+    //                 font-size: 10px; 
+    //                 margin: 0;
+    //                 padding: 10mm;
+    //             }
+    //             table { 
+    //                 width: 100%; 
+    //                 border-collapse: collapse; 
+    //                 page-break-inside: auto;
+    //             }
+    //             tr { 
+    //                 page-break-inside: avoid; 
+    //                 page-break-after: auto; 
+    //             }
+    //             th, td { 
+    //                 border: 1px solid #000; 
+    //                 padding: 4px; 
+    //                 text-align: left; 
+    //                 white-space: nowrap;
+    //             }
+    //             th { 
+    //                 background-color: #f2f2f2 !important; 
+    //                 -webkit-print-color-adjust: exact; 
+    //             }
+    //             .print-header { 
+    //                 text-align: center; 
+    //                 margin-bottom: 15px; 
+    //             }
+    //             .nowrap {
+    //                 white-space: nowrap;
+    //             }
+    //             .badge { 
+    //                 padding: 3px 6px; 
+    //                 border-radius: 3px; 
+    //                 font-size: 10px; 
+    //                 display: inline-block;
+    //             }
+    //             .badge-danger { 
+    //                 background-color: #dc3545; 
+    //                 color: white; 
+    //             }
+    //             .badge-success { 
+    //                 background-color: #28a745; 
+    //                 color: white; 
+    //             }
+    //             .badge-info { 
+    //                 background-color: #17a2b8; 
+    //                 color: white; 
+    //             }
+    //             .footer-note {
+    //                 margin-top: 20px; 
+    //                 font-size: 0.9em; 
+    //                 color: #666;
+    //                 text-align: center;
+    //             }
+    //             .header-info {
+    //                 text-align: center;
+    //                 margin-bottom: 10px;
+    //                 font-size: 11px;
+    //             }
+    //             .report-title {
+    //                 text-align: center;
+    //                 font-size: 16px;
+    //                 font-weight: bold;
+    //                 margin-bottom: 5px;
+    //                 text-decoration: underline;
+    //             }
+    //             .filter-info {
+    //                 text-align: center;
+    //                 font-size: 11px;
+    //                 margin-bottom: 15px;
+    //                 color: #666;
+    //             }
+    //             .summary-row {
+    //                 background-color: #f8f9fa;
+    //                 font-weight: bold;
+    //             }
+    //         </style>
+    //         ${printHeader}
+
+    //         <div class="report-title">Accounts Report</div>
+
+    //         <div class="header-info">
+    //             <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
+    //             <strong>Total Accounts:</strong> ${accountsToPrint.length}
+    //         </div>
+
+    //         <div class="filter-info">
+    //             ${printOption !== 'all' && selectedAccountGroup ?
+    //             `<strong>Filter:</strong> Account Group: ${data.accountGroups.find(g => g._id === selectedAccountGroup)?.name || 'N/A'} | ` : ''
+    //         }
+    //             <strong>Printed on:</strong> ${data.companyDateFormat === 'nepali' ?
+    //             (data.nepaliDate || new NepaliDate().format('YYYY-MM-DD')) :
+    //             new Date().toLocaleDateString()}
+    //         </div>
+
+    //         <table>
+    //             <thead>
+    //                 <tr>
+    //                     <th class="nowrap">S.N.</th>
+    //                     <th class="nowrap">Account Name</th>
+    //                     <th class="nowrap">Account Group</th>
+    //                     <th class="nowrap">Opening Balance</th>
+    //                     <th class="nowrap">Credit Limit</th>
+    //                     <th class="nowrap">Phone</th>
+    //                     <th class="nowrap">Email</th>
+    //                 </tr>
+    //             </thead>
+    //             <tbody>
+    //     `;
+
+    //     // Calculate totals
+    //     let totalDr = 0;
+    //     let totalCr = 0;
+    //     let totalCreditLimit = 0;
+
+    //     accountsToPrint.forEach((account, index) => {
+    //         const balance = account.openingBalance?.amount || 0;
+    //         const balanceType = account.openingBalance?.type || 'Dr';
+    //         const creditLimit = parseFloat(account.creditLimit) || 0;
+
+    //         if (balanceType === 'Dr') {
+    //             totalDr += balance;
+    //         } else {
+    //             totalCr += balance;
+    //         }
+    //         totalCreditLimit += creditLimit;
+
+    //         tableContent += `
+    //             <tr>
+    //                 <td class="nowrap">${index + 1}</td>
+    //                 <td class="nowrap">${account.name || 'N/A'}</td>
+    //                 <td class="nowrap">${account.accountGroups?.name || 'N/A'}</td> <!-- Changed from companyGroups -->
+    //                 <td class="nowrap">
+    //                         ${balance.toFixed(2)} ${balanceType}
+    //                 </td>
+    //                 <td class="nowrap">${creditLimit.toFixed(2)}</td>
+    //                 <td class="nowrap">${account.phone || 'N/A'}</td>
+    //                 <td class="nowrap">${account.email || 'N/A'}</td>
+    //             </tr>
+    //         `;
+    //     });
+
+    //     // Add summary row
+    //     tableContent += `
+    //             </tbody>
+    //             <tfoot>
+    //                 <tr class="summary-row">
+    //                     <td colspan="3" class="nowrap"><strong>Summary</strong></td>
+    //                     <td class="nowrap">
+    //                         <strong>Dr: ${totalDr.toFixed(2)} | Cr: ${totalCr.toFixed(2)}</strong>
+    //                     </td>
+    //                     <td class="nowrap"><strong>Total Credit Limit: ${totalCreditLimit.toFixed(2)}</strong></td>
+    //                     <td colspan="2"></td>
+    //                 </tr>
+    //             </tfoot>
+    //         </table>
+
+    //         <div class="footer-note">
+    //             <br>
+    //             ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
+    //         </div>
+    //     `;
+
+    //     printWindow.document.write(`
+    //         <html>
+    //             <head>
+    //                 <title>Accounts Report - ${data.company?.companyName || data.currentCompanyName || 'Accounts Report'}</title>
+    //             </head>
+    //             <body>
+    //                 ${tableContent}
+    //                 <script>
+    //                     window.onload = function() {
+    //                         setTimeout(function() {
+    //                             window.print();
+    //                             window.onafterprint = function() {
+    //                                 window.close();
+    //                             };
+    //                         }, 200);
+    //                     };
+    //                 <\/script>
+    //             </body>
+    //         </html>
+    //     `);
+    //     printWindow.document.close();
+    // };
+
+    // Print function - Updated to match Items component style
     const printAccounts = () => {
         let accountsToPrint = [...data.accounts];
 
         // Apply filters
-        if (printOption === 'group' && selectedAccountGroup) { // Changed from selectedCompanyGroup
+        if (printOption === 'group' && selectedAccountGroup) {
             accountsToPrint = accountsToPrint.filter(account =>
-                account.accountGroups?._id === selectedAccountGroup // Changed from companyGroups
+                account.accountGroups?._id === selectedAccountGroup
             );
         }
 
@@ -888,129 +1199,140 @@ const handleSubmit = async (e) => {
         const printWindow = window.open("", "_blank");
 
         const printHeader = `
-            <div class="print-header">
-                <h1>${data.company?.companyName || data.currentCompanyName || 'Company Name'}</h1>
-                <hr>
-            </div>
-        `;
+        <div class="print-header">
+            <h1 style="font-size: 14px; margin: 0;">${data.company?.companyName || data.currentCompanyName || 'Company Name'}</h1>
+            <p style="font-size: 8px; margin: 2px 0;">
+                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''},
+                PAN: ${data.company?.pan || ''}<br>
+            </p>
+            <hr style="margin: 2px 0;">
+        </div>
+    `;
 
         let tableContent = `
-            <style>
-                @page {
-                    size: A4 landscape;
-                    margin: 10mm;
-                }
-                body { 
-                    font-family: Arial, sans-serif; 
-                    font-size: 10px; 
-                    margin: 0;
-                    padding: 10mm;
-                }
-                table { 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    page-break-inside: auto;
-                }
-                tr { 
-                    page-break-inside: avoid; 
-                    page-break-after: auto; 
-                }
-                th, td { 
-                    border: 1px solid #000; 
-                    padding: 4px; 
-                    text-align: left; 
-                    white-space: nowrap;
-                }
-                th { 
-                    background-color: #f2f2f2 !important; 
-                    -webkit-print-color-adjust: exact; 
-                }
-                .print-header { 
-                    text-align: center; 
-                    margin-bottom: 15px; 
-                }
-                .nowrap {
-                    white-space: nowrap;
-                }
-                .badge { 
-                    padding: 3px 6px; 
-                    border-radius: 3px; 
-                    font-size: 10px; 
-                    display: inline-block;
-                }
-                .badge-danger { 
-                    background-color: #dc3545; 
-                    color: white; 
-                }
-                .badge-success { 
-                    background-color: #28a745; 
-                    color: white; 
-                }
-                .badge-info { 
-                    background-color: #17a2b8; 
-                    color: white; 
-                }
-                .footer-note {
-                    margin-top: 20px; 
-                    font-size: 0.9em; 
-                    color: #666;
-                    text-align: center;
-                }
-                .header-info {
-                    text-align: center;
-                    margin-bottom: 10px;
-                    font-size: 11px;
-                }
-                .report-title {
-                    text-align: center;
-                    font-size: 16px;
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                    text-decoration: underline;
-                }
-                .filter-info {
-                    text-align: center;
-                    font-size: 11px;
-                    margin-bottom: 15px;
-                    color: #666;
-                }
-                .summary-row {
-                    background-color: #f8f9fa;
-                    font-weight: bold;
-                }
-            </style>
-            ${printHeader}
-            
-            <div class="report-title">Accounts Report</div>
-            
-            <div class="header-info">
-                <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
-                <strong>Total Accounts:</strong> ${accountsToPrint.length}
-            </div>
-            
-            <div class="filter-info">
-                ${printOption !== 'all' && selectedAccountGroup ?
+        <style>
+            @page {
+                margin: 3mm;
+            }
+            body { 
+                font-family: Arial, sans-serif; 
+                font-size: 7px; 
+                margin: 0;
+                padding: 2mm;
+            }
+            table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                page-break-inside: auto;
+                font-size: 6px;
+            }
+            tr { 
+                page-break-inside: avoid; 
+                page-break-after: auto; 
+            }
+            th, td { 
+                border: 1px solid #000; 
+                padding: 2px 3px; 
+                text-align: left; 
+                white-space: nowrap;
+            }
+            th { 
+                background-color: #f2f2f2 !important; 
+                -webkit-print-color-adjust: exact;
+                font-size: 10px;
+                font-weight: bold;
+                padding: 3px 3px;
+            }
+            td {
+                font-size: 8px;
+                padding: 2px 3px;
+            }
+            .print-header { 
+                text-align: center; 
+                margin-bottom: 5px; 
+            }
+            .nowrap {
+                white-space: nowrap;
+            }
+            h1 {
+                font-size: 14px;
+                margin: 0;
+            }
+            .report-title {
+                text-align: center;
+                text-decoration: underline;
+                font-size: 11px;
+                font-weight: bold;
+                margin: 3px 0;
+            }
+            .grand-total-row td {
+                font-weight: bold;
+                border-top: 2px solid #000;
+                font-size: 7px;
+            }
+            .header-info {
+                text-align: center;
+                margin-bottom: 5px;
+                font-size: 8px;
+            }
+            .filter-info {
+                text-align: center;
+                margin-bottom: 8px;
+                font-size: 7px;
+                color: #666;
+            }
+            .balance-dr {
+                color: #dc3545;
+                font-weight: bold;
+            }
+            .balance-cr {
+                color: #28a745;
+                font-weight: bold;
+            }
+            .summary-row {
+                background-color: #f8f9fa;
+                font-weight: bold;
+            }
+            .footer-note {
+                margin-top: 10px;
+                font-size: 7px;
+                color: #666;
+                text-align: center;
+            }
+        </style>
+        ${printHeader}
+        <div class="report-title">Accounts Report</div>
+        
+        <div class="header-info">
+            <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
+            <strong>Total Accounts:</strong> ${accountsToPrint.length}
+        </div>
+        
+        <div class="filter-info">
+            ${printOption !== 'all' && selectedAccountGroup ?
                 `<strong>Filter:</strong> Account Group: ${data.accountGroups.find(g => g._id === selectedAccountGroup)?.name || 'N/A'} | ` : ''
             }
-                <strong>Printed on:</strong> ${data.companyDateFormat === 'nepali' ?
+            <strong>Printed on:</strong> ${data.companyDateFormat === 'nepali' ?
                 (data.nepaliDate || new NepaliDate().format('YYYY-MM-DD')) :
                 new Date().toLocaleDateString()}
-            </div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th class="nowrap">S.N.</th>
-                        <th class="nowrap">Account Name</th>
-                        <th class="nowrap">Account Group</th>
-                        <th class="nowrap">Opening Balance</th>
-                        <th class="nowrap">Credit Limit</th>
-                        <th class="nowrap">Phone</th>
-                        <th class="nowrap">Email</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap">S.N.</th>
+                    <th class="nowrap">Account Name</th>
+                    <th class="nowrap">Account Group</th>
+                    <th class="nowrap">Opening Balance</th>
+                    <th class="nowrap">Credit Limit</th>
+                    <th class="nowrap">Phone</th>
+                    <th class="nowrap">Email</th>
+                    <th class="nowrap">PAN/VAT</th>
+                    <th class="nowrap">Address</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
 
         // Calculate totals
         let totalDr = 0;
@@ -1029,63 +1351,74 @@ const handleSubmit = async (e) => {
             }
             totalCreditLimit += creditLimit;
 
+            const balanceClass = balanceType === 'Dr' ? 'balance-dr' : 'balance-cr';
+
             tableContent += `
-                <tr>
-                    <td class="nowrap">${index + 1}</td>
-                    <td class="nowrap">${account.name || 'N/A'}</td>
-                    <td class="nowrap">${account.accountGroups?.name || 'N/A'}</td> <!-- Changed from companyGroups -->
-                    <td class="nowrap">
-                            ${balance.toFixed(2)} ${balanceType}
-                    </td>
-                    <td class="nowrap">${creditLimit.toFixed(2)}</td>
-                    <td class="nowrap">${account.phone || 'N/A'}</td>
-                    <td class="nowrap">${account.email || 'N/A'}</td>
-                </tr>
-            `;
+            <tr>
+                <td class="nowrap">${index + 1}</td>
+                <td class="nowrap">${escapeHtml(account.name || 'N/A')}</td>
+                <td class="nowrap">${escapeHtml(account.accountGroups?.name || 'N/A')}</td>
+                <td class="nowrap ${balanceClass}">
+                    ${balance.toFixed(2)} ${balanceType}
+                </td>
+                <td class="nowrap">${creditLimit.toFixed(2)}</td>
+                <td class="nowrap">${escapeHtml(account.phone || 'N/A')}</td>
+                <td class="nowrap">${escapeHtml(account.email || 'N/A')}</td>
+                <td class="nowrap">${escapeHtml(account.pan || 'N/A')}</td>
+                <td class="nowrap">${escapeHtml(account.address || 'N/A')}</td>
+            </tr>
+        `;
         });
 
         // Add summary row
         tableContent += `
-                </tbody>
-                <tfoot>
-                    <tr class="summary-row">
-                        <td colspan="3" class="nowrap"><strong>Summary</strong></td>
-                        <td class="nowrap">
-                            <strong>Dr: ${totalDr.toFixed(2)} | Cr: ${totalCr.toFixed(2)}</strong>
-                        </td>
-                        <td class="nowrap"><strong>Total Credit Limit: ${totalCreditLimit.toFixed(2)}</strong></td>
-                        <td colspan="2"></td>
-                    </tr>
-                </tfoot>
-            </table>
-            
-            <div class="footer-note">
-                <br>
-                ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
-            </div>
-        `;
+            </tbody>
+            <tfoot>
+                <tr class="summary-row grand-total-row">
+                    <td colspan="3" class="nowrap"><strong>Summary</strong></td>
+                    <td class="nowrap">
+                        <strong>Dr: ${totalDr.toFixed(2)} | Cr: ${totalCr.toFixed(2)}</strong>
+                    </td>
+                    <td class="nowrap"><strong>${totalCreditLimit.toFixed(2)}</strong></td>
+                    <td colspan="4"></td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <div class="footer-note">
+            ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
+        </div>
+    `;
 
         printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Accounts Report - ${data.company?.companyName || data.currentCompanyName || 'Accounts Report'}</title>
-                </head>
-                <body>
-                    ${tableContent}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.onafterprint = function() {
-                                    window.close();
-                                };
-                            }, 200);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Accounts Report - ${data.company?.companyName || data.currentCompanyName || 'Accounts Report'}</title>
+                <meta charset="UTF-8">
+            </head>
+            <body>
+                ${tableContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 200);
+                    };
+                <\/script>
+            </body>
+        </html>
+    `);
         printWindow.document.close();
+    };
+
+    // Helper function to escape HTML special characters (add this before the printAccounts function)
+    const escapeHtml = (text) => {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     };
 
     // Export to Excel function
@@ -1235,6 +1568,7 @@ const handleSubmit = async (e) => {
                                         <div className="col-md-5">
                                             <div className="position-relative">
                                                 <Form.Control
+                                                    ref={accountNameInputRef}
                                                     type="text"
                                                     name="name"
                                                     value={formData.name}
@@ -1783,7 +2117,7 @@ const handleSubmit = async (e) => {
                                         </Button>
                                     </div>
                                 </div>
-                                <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
+                                {/* <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
                                     {loading ? (
                                         <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                             <Spinner
@@ -1834,6 +2168,94 @@ const handleSubmit = async (e) => {
                                                         <div className="mt-2 text-muted small">
                                                             Showing {filteredAccounts.length} of {data.accounts.length} accounts
                                                             {searchTerm && ` (filtered)`}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }}
+                                        </AutoSizer>
+                                    )}
+                                </div> */}
+
+                                <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
+                                    {loading ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <Spinner
+                                                animation="border"
+                                                variant="primary"
+                                                size="sm"
+                                                style={{ width: '1.5rem', height: '1.5rem' }}
+                                            />
+                                            <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>
+                                                Loading accounts...
+                                            </p>
+                                        </div>
+                                    ) : paginatedAccounts.length === 0 ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <i className="bi bi-people text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                            <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>
+                                                No accounts found
+                                            </h6>
+                                            <p className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                                                {searchTerm ? 'Try a different search term' : 'Create your first account using the form'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <AutoSizer>
+                                            {({ height, width }) => {
+                                                const totalWidth = 50 + columnWidths.name + columnWidths.group + columnWidths.actions;
+
+                                                return (
+                                                    <div
+                                                        ref={tableContainerRef}
+                                                        style={{
+                                                            position: 'relative',
+                                                            height: height,
+                                                            width: Math.max(width, totalWidth),
+                                                            overflowX: 'auto',
+                                                            overflowY: 'auto'
+                                                        }}
+                                                    >
+                                                        <TableHeader />
+                                                        <List
+                                                            key={`accounts-list-${paginatedAccounts.length}-${currentPage}`}
+                                                            height={height - 60}
+                                                            itemCount={paginatedAccounts.length}
+                                                            itemSize={26}
+                                                            width={Math.max(width, totalWidth)}
+                                                            itemData={{
+                                                                accounts: paginatedAccounts,
+                                                                isAdminOrSupervisor: data.isAdminOrSupervisor
+                                                            }}
+                                                        >
+                                                            {TableRow}
+                                                        </List>
+
+                                                        {/* Loading More Indicator */}
+                                                        {isLoadingMore && (
+                                                            <div className="text-center py-2">
+                                                                <Spinner animation="border" size="sm" className="me-2" />
+                                                                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Loading more accounts...</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Footer with item count and load more button */}
+                                                        <div className="mt-2 text-muted small">
+                                                            Showing {paginatedAccounts.length} of {totalFilteredAccounts} accounts
+                                                            {searchTerm && ` (filtered)`}
+                                                            {hasMoreItems && paginatedAccounts.length < totalFilteredAccounts && (
+                                                                <span className="ms-2">
+                                                                    <Button
+                                                                        variant="link"
+                                                                        size="sm"
+                                                                        className="p-0 ms-2"
+                                                                        onClick={loadMoreItems}
+                                                                        disabled={isLoadingMore}
+                                                                        style={{ fontSize: '0.7rem' }}
+                                                                    >
+                                                                        Load more...
+                                                                    </Button>
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );

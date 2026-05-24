@@ -1606,8 +1606,7 @@ const Statement = () => {
                                     name="account"
                                     className="form-control form-control-sm"
                                     value={data.partyName}
-                                    onFocus={() => setShowAccountModal(true)}
-                                    autoFocus
+                                    onClick={() => setShowAccountModal(true)}
                                     readOnly
                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', cursor: 'pointer', width: '100%' }}
                                 />

@@ -378,6 +378,11 @@ const AgeingReportAllAccounts = () => {
                 }
                 setHasGenerated(true);
                 setNotification({ show: true, message: 'Report generated successfully!', type: 'success', duration: 3000 });
+                setTimeout(() => {
+                    if (asOnDateRef.current) {
+                        asOnDateRef.current.focus();
+                    }
+                }, 100);
             }
         } catch (err) {
             if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
