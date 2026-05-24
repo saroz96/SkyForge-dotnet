@@ -115,11 +115,11 @@ const LoginForm = () => {
                             <div className="login-card">
                                 <div className="login-header text-center">
                                     <img
-                                        src="/logo/logo.jpg"
+                                        src="/logo/logo.png"
                                         alt="Company Logo"
                                         className="login-logo"
                                     />
-                                    <h1 className="login-title">Welcome to Skyforge</h1>
+                                    <h1 className="login-title">Ams Login</h1>
                                 </div>
 
                                 <div className="login-body">

@@ -67,7 +67,7 @@ const Items = () => {
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationType, setNotificationType] = useState('');
     const [showProductModal, setShowProductModal] = useState(false);
-
+    const itemNameRef = useRef(null);
     // Column resizing state
     const [columnWidths, setColumnWidths] = useState({
         name: 160,
@@ -841,11 +841,14 @@ const Items = () => {
                 if (response.data?.success) {
                     showNotificationMessage('Item created successfully!', 'success');
 
-                    // Clear search to show all items
-                    // setSearchTerm('');
-
                     // Clear form
                     resetForm();
+
+                    setTimeout(() => {
+                        if (itemNameRef.current) {
+                            itemNameRef.current.focus();
+                        }
+                    }, 50);
 
                     // Refresh items list - this will show all items
                     await fetchItems();
@@ -1155,6 +1158,7 @@ const Items = () => {
                                         <div className="col-md-5">
                                             <div className="position-relative">
                                                 <Form.Control
+                                                    ref={itemNameRef}
                                                     type="text"
                                                     name="name"
                                                     value={formData.name}
