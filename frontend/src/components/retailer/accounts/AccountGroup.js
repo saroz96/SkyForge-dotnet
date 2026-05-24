@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiCheck, FiPrinter, FiArrowLeft, FiRefreshCw, FiX } from 'react-icons/fi';
@@ -38,6 +38,15 @@ const AccountGroups = () => {
     const [showNotification, setShowNotification] = useState(false);
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationType, setNotificationType] = useState('');
+    const accountGroupInputRef = useRef(null);
+
+    // Add these state variables for pagination
+    const [paginatedGroups, setPaginatedGroups] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMoreItems, setHasMoreItems] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [totalFilteredGroups, setTotalFilteredGroups] = useState(0);
+    const tableContainerRef = useRef(null);
 
     // Print modal states
     const [showPrintModal, setShowPrintModal] = useState(false);
@@ -51,7 +60,7 @@ const AccountGroups = () => {
     const [columnWidths, setColumnWidths] = useState({
         name: 160,
         primaryGroup: 80,
-        type: 130,
+        type: 100,
         actions: 100
     });
 
@@ -249,6 +258,92 @@ const AccountGroups = () => {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, []);
 
+    // Filtered groups with memoization
+    const filteredGroups = useMemo(() => {
+        return data.groups
+            .filter(group =>
+                group?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (group.type && group.type.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (group.primaryGroup && group.primaryGroup.toLowerCase().includes(searchTerm.toLowerCase()))
+            )
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [data.groups, searchTerm]);
+
+    // Process filtered groups for display
+    const processedFilteredGroups = useMemo(() => {
+        return filteredGroups.map(group => {
+            return {
+                ...group,
+                _id: group._id || group.id
+            };
+        });
+    }, [filteredGroups]);
+
+    // Load more items on scroll
+    const loadMoreItems = useCallback(() => {
+        if (!hasMoreItems || isLoadingMore) return;
+
+        setIsLoadingMore(true);
+
+        // Use setTimeout to prevent UI freezing
+        setTimeout(() => {
+            const nextPage = currentPage + 1;
+            const itemsPerPage = 25;
+            const newLimit = nextPage === 1 ? 15 : 15 + ((nextPage - 1) * itemsPerPage);
+            const newPaginatedGroups = processedFilteredGroups.slice(0, newLimit);
+
+            if (newPaginatedGroups.length === paginatedGroups.length) {
+                setHasMoreItems(false);
+            } else {
+                setPaginatedGroups(newPaginatedGroups);
+                setCurrentPage(nextPage);
+            }
+
+            setIsLoadingMore(false);
+        }, 100);
+    }, [hasMoreItems, isLoadingMore, currentPage, processedFilteredGroups, paginatedGroups]);
+
+
+    // Handle scroll to load more items
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!tableContainerRef.current) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = tableContainerRef.current;
+
+            // Load more when scrolled to 80% of the way down
+            const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+            if (scrollPercentage > 0.8 && hasMoreItems && !isLoadingMore) {
+                loadMoreItems();
+            }
+        };
+
+        const tableContainer = tableContainerRef.current;
+        if (tableContainer) {
+            tableContainer.addEventListener('scroll', handleScroll);
+            return () => tableContainer.removeEventListener('scroll', handleScroll);
+        }
+    }, [hasMoreItems, isLoadingMore, loadMoreItems]);
+
+    // Pagination function - initially 15 items, then 25 on each load
+    const paginateGroups = useCallback((groupsList, pageNum, itemsPerPage = 25) => {
+        const startIndex = 0; // Always start from beginning
+        // For first page, we want 15 items, not 25
+        const actualLimit = pageNum === 1 ? 15 : (pageNum - 1) * itemsPerPage + itemsPerPage;
+        const endIndex = actualLimit;
+        return groupsList.slice(startIndex, endIndex);
+    }, []);
+
+    // Reset pagination when filtered items change
+    useEffect(() => {
+        const initialGroups = paginateGroups(processedFilteredGroups, 1);
+        setPaginatedGroups(initialGroups);
+        setCurrentPage(1);
+        setHasMoreItems(processedFilteredGroups.length > initialGroups.length);
+        setTotalFilteredGroups(processedFilteredGroups.length);
+    }, [processedFilteredGroups, paginateGroups]);
+
     // Shallow equal function for memoization
     function shallowEqual(objA, objB) {
         if (objA === objB) return true;
@@ -271,17 +366,6 @@ const AccountGroups = () => {
 
         return true;
     }
-
-    // Filtered groups with memoization
-    const filteredGroups = useMemo(() => {
-        return data.groups
-            .filter(group =>
-                group?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (group.type && group.type.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (group.primaryGroup && group.primaryGroup.toLowerCase().includes(searchTerm.toLowerCase()))
-            )
-            .sort((a, b) => a.name.localeCompare(b.name));
-    }, [data.groups, searchTerm]);
 
     // Filter group types based on primary group selection
     const getFilteredGroupTypes = useCallback(() => {
@@ -636,7 +720,7 @@ const AccountGroups = () => {
         setColumnWidths({
             name: 160,
             primaryGroup: 80,
-            type: 130,
+            type: 100,
             actions: 100
         });
         showNotificationMessage('Column widths reset to default', 'success');
@@ -777,7 +861,7 @@ const AccountGroups = () => {
             if (currentGroup) {
                 // Update existing group
                 const response = await api.put(`/api/retailer/account-group/${currentGroup._id}`, requestData);
-                
+
                 if (response.data?.success) {
                     showNotificationMessage('Account group updated successfully!', 'success');
                     fetchAccountGroups();
@@ -788,11 +872,17 @@ const AccountGroups = () => {
             } else {
                 // Create new group
                 const response = await api.post('/api/retailer/account-group', requestData);
-                
+
                 if (response.data?.success) {
                     showNotificationMessage('Account group created successfully!', 'success');
                     fetchAccountGroups();
                     resetForm();
+
+                    setTimeout(() => {
+                        if (accountGroupInputRef.current) {
+                            accountGroupInputRef.current.focus();
+                        }
+                    }, 50);
                 } else {
                     showNotificationMessage(response.data?.error || 'Failed to create account group', 'error');
                 }
@@ -801,7 +891,7 @@ const AccountGroups = () => {
             console.error('=== SUBMIT ERROR DETAILS ===');
             console.error('Error:', err);
             console.error('Response:', err.response?.data);
-            
+
             if (err.response?.data?.errors) {
                 console.error('Validation Errors:', err.response.data.errors);
                 const validationErrors = Object.entries(err.response.data.errors)
@@ -816,7 +906,7 @@ const AccountGroups = () => {
         }
     };
 
-    // Print function
+    // Print function - Updated to match Accounts component style
     const printGroups = () => {
         let groupsToPrint = [...data.groups];
 
@@ -833,121 +923,161 @@ const AccountGroups = () => {
         const printWindow = window.open("", "_blank");
 
         const printHeader = `
-            <div class="print-header">
-                <h1>${data.company?.companyName || data.currentCompanyName || 'Company Name'}</h1>
-                <hr>
-            </div>
-        `;
+        <div class="print-header">
+            <h1 style="font-size: 14px; margin: 0;">${data.company?.companyName || data.currentCompanyName || 'Company Name'}</h1>
+            <p style="font-size: 8px; margin: 2px 0;">
+                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''},
+                PAN: ${data.company?.pan || ''}<br>
+            </p>
+            <hr style="margin: 2px 0;">
+        </div>
+    `;
 
         let tableContent = `
-            <style>
-                @page {
-                    size: A4 landscape;
-                    margin: 10mm;
-                }
-                body { 
-                    font-family: Arial, sans-serif; 
-                    font-size: 10px; 
-                    margin: 0;
-                    padding: 10mm;
-                }
-                table { 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    page-break-inside: auto;
-                }
-                tr { 
-                    page-break-inside: avoid; 
-                    page-break-after: auto; 
-                }
-                th, td { 
-                    border: 1px solid #000; 
-                    padding: 4px; 
-                    text-align: left; 
-                    white-space: nowrap;
-                }
-                th { 
-                    background-color: #f2f2f2 !important; 
-                    -webkit-print-color-adjust: exact; 
-                }
-                .print-header { 
-                    text-align: center; 
-                    margin-bottom: 15px; 
-                }
-                .nowrap {
-                    white-space: nowrap;
-                }
-                .footer-note {
-                    margin-top: 20px; 
-                    font-size: 0.9em; 
-                    color: #666;
-                    text-align: center;
-                }
-                .header-info {
-                    text-align: center;
-                    margin-bottom: 10px;
-                    font-size: 11px;
-                }
-                .report-title {
-                    text-align: center;
-                    font-size: 16px;
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                    text-decoration: underline;
-                }
-                .filter-info {
-                    text-align: center;
-                    font-size: 11px;
-                    margin-bottom: 15px;
-                    color: #666;
-                }
-                .summary-row {
-                    background-color: #f8f9fa;
-                    font-weight: bold;
-                }
-            </style>
-            ${printHeader}
-            
-            <div class="report-title">Account Groups Report</div>
-            
-            <div class="header-info">
-                <strong>Total Groups:</strong> ${groupsToPrint.length}
-            </div>
-            
-            <div class="filter-info">
-                ${printOption !== 'all' && selectedType ?
+        <style>
+            @page {
+                margin: 3mm;
+            }
+            body { 
+                font-family: Arial, sans-serif; 
+                font-size: 7px; 
+                margin: 0;
+                padding: 2mm;
+            }
+            table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                page-break-inside: auto;
+                font-size: 6px;
+            }
+            tr { 
+                page-break-inside: avoid; 
+                page-break-after: auto; 
+            }
+            th, td { 
+                border: 1px solid #000; 
+                padding: 2px 3px; 
+                text-align: left; 
+                white-space: nowrap;
+            }
+            th { 
+                background-color: #f2f2f2 !important; 
+                -webkit-print-color-adjust: exact;
+                font-size: 10px;
+                font-weight: bold;
+                padding: 3px 3px;
+            }
+            td {
+                font-size: 8px;
+                padding: 2px 3px;
+            }
+            .print-header { 
+                text-align: center; 
+                margin-bottom: 5px; 
+            }
+            .nowrap {
+                white-space: nowrap;
+            }
+            h1 {
+                font-size: 14px;
+                margin: 0;
+            }
+            .report-title {
+                text-align: center;
+                text-decoration: underline;
+                font-size: 11px;
+                font-weight: bold;
+                margin: 3px 0;
+            }
+            .grand-total-row td {
+                font-weight: bold;
+                border-top: 2px solid #000;
+                font-size: 7px;
+            }
+            .header-info {
+                text-align: center;
+                margin-bottom: 5px;
+                font-size: 8px;
+            }
+            .filter-info {
+                text-align: center;
+                margin-bottom: 8px;
+                font-size: 7px;
+                color: #666;
+            }
+            .badge {
+                padding: 2px 4px;
+                border-radius: 3px;
+                font-size: 7px;
+                display: inline-block;
+            }
+            .badge-primary {
+                background-color: #007bff;
+                color: white;
+            }
+            .badge-success {
+                background-color: #28a745;
+                color: white;
+            }
+            .badge-secondary {
+                background-color: #6c757d;
+                color: white;
+            }
+            .footer-note {
+                margin-top: 10px;
+                font-size: 7px;
+                color: #666;
+                text-align: center;
+            }
+            .text-center {
+                text-align: center;
+            }
+        </style>
+        ${printHeader}
+        <div class="report-title">Account Groups Report</div>
+        
+        <div class="header-info">
+            <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
+            <strong>Total Groups:</strong> ${groupsToPrint.length}
+        </div>
+        
+        <div class="filter-info">
+            ${printOption !== 'all' && selectedType ?
                 `<strong>Filter:</strong> Group Type: ${selectedType} | ` : ''
             }
-                <strong>Printed on:</strong> ${data.companyDateFormat === 'nepali' ?
+            <strong>Printed on:</strong> ${data.companyDateFormat === 'nepali' ?
                 (data.nepaliDate || new NepaliDate().format('YYYY-MM-DD')) :
                 new Date().toLocaleDateString()}
-            </div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th class="nowrap">S.N.</th>
-                        <th class="nowrap">Group Name</th>
-                        <th class="nowrap">Primary Group</th>
-                        <th class="nowrap">Group Type</th>
-                        <th class="nowrap">Created Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap">S.N.</th>
+                    <th class="nowrap">Group Name</th>
+                    <th class="nowrap">Primary Group</th>
+                    <th class="nowrap">Group Type</th>
+                    <th class="nowrap">Created Date</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
 
         groupsToPrint.forEach((group, index) => {
             const createdDate = group.createdAt ? new Date(group.createdAt).toLocaleDateString() : 'N/A';
+            const primaryBadgeClass = group.primaryGroup === 'Yes' ? 'badge-success' : 'badge-secondary';
 
             tableContent += `
-                <tr>
-                    <td class="nowrap">${index + 1}</td>
-                    <td class="nowrap">${group.name || 'N/A'}</td>
-                    <td class="nowrap">${group.primaryGroup || 'N/A'}</td>
-                    <td class="nowrap">${group.type || 'N/A'}</td>
-                    <td class="nowrap">${createdDate}</td>
-                </tr>
-            `;
+            <tr>
+                <td class="nowrap">${index + 1}</td>
+                <td class="nowrap">${escapeHtml(group.name || 'N/A')}</td>
+                <td class="nowrap text-center">
+                    <span class="badge ${primaryBadgeClass}">${group.primaryGroup || 'N/A'}</span>
+                </td>
+                <td class="nowrap">${escapeHtml(group.type || 'N/A')}</td>
+                <td class="nowrap">${createdDate}</td>
+            </tr>
+        `;
         });
 
         // Add summary row
@@ -955,46 +1085,53 @@ const AccountGroups = () => {
         const nonPrimaryGroupsCount = groupsToPrint.filter(g => g.primaryGroup === 'No').length;
 
         tableContent += `
-                </tbody>
-                <tfoot>
-                    <tr class="summary-row">
-                        <td colspan="2" class="nowrap"><strong>Summary</strong></td>
-                        <td class="nowrap">
-                            <strong>Primary: ${primaryGroupsCount} | Non-Primary: ${nonPrimaryGroupsCount}</strong>
-                        </td>
-                        <td class="nowrap"><strong>Total: ${groupsToPrint.length}</strong></td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
-            
-            <div class="footer-note">
-                <br>
-                ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
-            </div>
-        `;
+            </tbody>
+            <tfoot>
+                <tr class="grand-total-row">
+                    <td colspan="2" class="nowrap"><strong>Summary</strong></td>
+                    <td class="nowrap">
+                        <strong>Primary: ${primaryGroupsCount} | Non-Primary: ${nonPrimaryGroupsCount}</strong>
+                    </td>
+                    <td class="nowrap"><strong>Total: ${groupsToPrint.length}</strong></td>
+                    <td class="nowrap"></td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <div class="footer-note">
+            ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
+        </div>
+    `;
 
         printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Account Groups Report - ${data.company?.companyName || data.currentCompanyName || 'Account Groups Report'}</title>
-                </head>
-                <body>
-                    ${tableContent}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.onafterprint = function() {
-                                    window.close();
-                                };
-                            }, 200);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Account Groups Report - ${data.company?.companyName || data.currentCompanyName || 'Account Groups Report'}</title>
+                <meta charset="UTF-8">
+            </head>
+            <body>
+                ${tableContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 200);
+                    };
+                <\/script>
+            </body>
+        </html>
+    `);
         printWindow.document.close();
+    };
+
+    // Helper function to escape HTML special characters
+    const escapeHtml = (text) => {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     };
 
     // Export to Excel function
@@ -1115,6 +1252,7 @@ const AccountGroups = () => {
                                         <div className="col-md-4">
                                             <div className="position-relative">
                                                 <Form.Control
+                                                    ref={accountGroupInputRef}
                                                     type="text"
                                                     name="Name" // Changed to match API
                                                     value={formData.Name}
@@ -1397,7 +1535,8 @@ const AccountGroups = () => {
                                         </Button>
                                     </div>
                                 </div>
-                                <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
+
+                                {/* <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
                                     {loading ? (
                                         <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                             <Spinner
@@ -1448,6 +1587,94 @@ const AccountGroups = () => {
                                                         <div className="mt-2 text-muted small">
                                                             Showing {filteredGroups.length} of {data.groups.length} groups
                                                             {searchTerm && ` (filtered)`}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }}
+                                        </AutoSizer>
+                                    )}
+                                </div> */}
+
+                                <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
+                                    {loading ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <Spinner
+                                                animation="border"
+                                                variant="primary"
+                                                size="sm"
+                                                style={{ width: '1.5rem', height: '1.5rem' }}
+                                            />
+                                            <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>
+                                                Loading account groups...
+                                            </p>
+                                        </div>
+                                    ) : paginatedGroups.length === 0 ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <i className="bi bi-folder text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                            <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>
+                                                No account groups found
+                                            </h6>
+                                            <p className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                                                {searchTerm ? 'Try a different search term' : 'Create your first group using the form'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <AutoSizer>
+                                            {({ height, width }) => {
+                                                const totalWidth = 60 + columnWidths.name + columnWidths.primaryGroup + columnWidths.type + columnWidths.actions;
+
+                                                return (
+                                                    <div
+                                                        ref={tableContainerRef}
+                                                        style={{
+                                                            position: 'relative',
+                                                            height: height,
+                                                            width: Math.max(width, totalWidth),
+                                                            overflowX: 'auto',
+                                                            overflowY: 'auto'
+                                                        }}
+                                                    >
+                                                        <TableHeader />
+                                                        <List
+                                                            key={`groups-list-${paginatedGroups.length}-${currentPage}`}
+                                                            height={height - 60}
+                                                            itemCount={paginatedGroups.length}
+                                                            itemSize={26}
+                                                            width={Math.max(width, totalWidth)}
+                                                            itemData={{
+                                                                groups: paginatedGroups,
+                                                                isAdminOrSupervisor: data.isAdminOrSupervisor
+                                                            }}
+                                                        >
+                                                            {TableRow}
+                                                        </List>
+
+                                                        {/* Loading More Indicator */}
+                                                        {isLoadingMore && (
+                                                            <div className="text-center py-2">
+                                                                <Spinner animation="border" size="sm" className="me-2" />
+                                                                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Loading more groups...</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Footer with item count and load more button */}
+                                                        <div className="mt-2 text-muted small">
+                                                            Showing {paginatedGroups.length} of {totalFilteredGroups} groups
+                                                            {searchTerm && ` (filtered)`}
+                                                            {hasMoreItems && paginatedGroups.length < totalFilteredGroups && (
+                                                                <span className="ms-2">
+                                                                    <Button
+                                                                        variant="link"
+                                                                        size="sm"
+                                                                        className="p-0 ms-2"
+                                                                        onClick={loadMoreItems}
+                                                                        disabled={isLoadingMore}
+                                                                        style={{ fontSize: '0.7rem' }}
+                                                                    >
+                                                                        Load more...
+                                                                    </Button>
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );

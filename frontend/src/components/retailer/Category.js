@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPrinter, FiArrowLeft, FiX, FiCheck, FiRefreshCw } from 'react-icons/fi';
@@ -42,6 +42,15 @@ const Categories = () => {
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [showProductModal, setShowProductModal] = useState(false);
     const [printOption, setPrintOption] = useState('all');
+    const categoryNameRef = useRef(null);
+
+    // Add these state variables for pagination
+    const [paginatedCategories, setPaginatedCategories] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMoreItems, setHasMoreItems] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [totalFilteredCategories, setTotalFilteredCategories] = useState(0);
+    const tableContainerRef = useRef(null);
 
     // Column resizing state
     const [columnWidths, setColumnWidths] = useState({
@@ -133,6 +142,91 @@ const Categories = () => {
         };
     }, []);
 
+    // Filtered categories with memoization
+    const filteredCategories = useMemo(() => {
+        return data.categories
+            .filter(category =>
+                category.name.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [data.categories, searchTerm]);
+
+
+    // Process filtered categories for display
+    const processedFilteredCategories = useMemo(() => {
+        return filteredCategories.map(category => {
+            return {
+                ...category,
+                _id: category.id || category._id
+            };
+        });
+    }, [filteredCategories]);
+
+    // Load more items on scroll
+    const loadMoreItems = useCallback(() => {
+        if (!hasMoreItems || isLoadingMore) return;
+
+        setIsLoadingMore(true);
+
+        // Use setTimeout to prevent UI freezing
+        setTimeout(() => {
+            const nextPage = currentPage + 1;
+            const itemsPerPage = 25;
+            const newLimit = nextPage === 1 ? 15 : 15 + ((nextPage - 1) * itemsPerPage);
+            const newPaginatedCategories = processedFilteredCategories.slice(0, newLimit);
+
+            if (newPaginatedCategories.length === paginatedCategories.length) {
+                setHasMoreItems(false);
+            } else {
+                setPaginatedCategories(newPaginatedCategories);
+                setCurrentPage(nextPage);
+            }
+
+            setIsLoadingMore(false);
+        }, 100);
+    }, [hasMoreItems, isLoadingMore, currentPage, processedFilteredCategories, paginatedCategories]);
+
+    // Handle scroll to load more items
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!tableContainerRef.current) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = tableContainerRef.current;
+
+            // Load more when scrolled to 80% of the way down
+            const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+            if (scrollPercentage > 0.8 && hasMoreItems && !isLoadingMore) {
+                loadMoreItems();
+            }
+        };
+
+        const tableContainer = tableContainerRef.current;
+        if (tableContainer) {
+            tableContainer.addEventListener('scroll', handleScroll);
+            return () => tableContainer.removeEventListener('scroll', handleScroll);
+        }
+    }, [hasMoreItems, isLoadingMore, loadMoreItems]);
+
+
+    // Pagination function - initially 15 items, then 25 on each load
+    const paginateCategories = useCallback((categoriesList, pageNum, itemsPerPage = 25) => {
+        const startIndex = 0; // Always start from beginning
+        // For first page, we want 15 items, not 25
+        const actualLimit = pageNum === 1 ? 15 : (pageNum - 1) * itemsPerPage + itemsPerPage;
+        const endIndex = actualLimit;
+        return categoriesList.slice(startIndex, endIndex);
+    }, []);
+
+    // Reset pagination when filtered items change
+    useEffect(() => {
+        const initialCategories = paginateCategories(processedFilteredCategories, 1);
+        setPaginatedCategories(initialCategories);
+        setCurrentPage(1);
+        setHasMoreItems(processedFilteredCategories.length > initialCategories.length);
+        setTotalFilteredCategories(processedFilteredCategories.length);
+    }, [processedFilteredCategories, paginateCategories]);
+
     // Shallow equal function for memoization
     function shallowEqual(objA, objB) {
         if (objA === objB) return true;
@@ -155,15 +249,6 @@ const Categories = () => {
 
         return true;
     }
-
-    // Filtered categories with memoization
-    const filteredCategories = useMemo(() => {
-        return data.categories
-            .filter(category =>
-                category.name.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-            .sort((a, b) => a.name.localeCompare(b.name));
-    }, [data.categories, searchTerm]);
 
     // Resizable Table Header Component
     const TableHeader = React.memo(() => {
@@ -269,334 +354,171 @@ const Categories = () => {
 
     // Table Row Component
     // Table Row Component
-const TableRow = React.memo(({ index, style, data }) => {
-    const { categories, isAdminOrSupervisor } = data;
-    const category = categories[index];
+    const TableRow = React.memo(({ index, style, data }) => {
+        const { categories, isAdminOrSupervisor } = data;
+        const category = categories[index];
 
-    const handleEditClick = useCallback(() => category && handleEdit(category), [category]);
-    const handleDeleteClick = useCallback(() => category?._id && handleDelete(category._id), [category?._id]);
-    const handleSelect = useCallback(() => category && handleSelectCategory(category), [category]);
+        const handleEditClick = useCallback(() => category && handleEdit(category), [category]);
+        const handleDeleteClick = useCallback(() => category?._id && handleDelete(category._id), [category?._id]);
+        const handleSelect = useCallback(() => category && handleSelectCategory(category), [category]);
 
-    if (!category) return null;
+        if (!category) return null;
 
-    // Use id instead of _id for ASP.NET
-    const categoryId = category.id || category._id;
-    const categoryName = category.name || 'N/A';
-    const isDefault = category.name === 'General'; // Check if this is the default category
-    const isActive = category.status === 'active';
+        // Use id instead of _id for ASP.NET
+        const categoryId = category.id || category._id;
+        const categoryName = category.name || 'N/A';
+        const isDefault = category.name === 'General'; // Check if this is the default category
+        const isActive = category.status === 'active';
 
-    return (
-        <div
-            style={{
-                ...style,
-                display: 'flex',
-                alignItems: 'center',
-                height: '26px',
-                minHeight: '26px',
-                padding: '0',
-                borderBottom: '1px solid #dee2e6',
-                cursor: 'pointer',
-            }}
-            className={index % 1 === 0 ? 'bg-light' : 'bg-white'}
-        >
-            {/* S.N. */}
+        return (
             <div
-                className="d-flex align-items-center justify-content-center px-0 border-end"
                 style={{
-                    width: '50px',
-                    flexShrink: 0,
-                    height: '100%'
+                    ...style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '26px',
+                    minHeight: '26px',
+                    padding: '0',
+                    borderBottom: '1px solid #dee2e6',
+                    cursor: 'pointer',
                 }}
+                className={index % 1 === 0 ? 'bg-light' : 'bg-white'}
             >
-                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    {index + 1}
-                </span>
-            </div>
+                {/* S.N. */}
+                <div
+                    className="d-flex align-items-center justify-content-center px-0 border-end"
+                    style={{
+                        width: '50px',
+                        flexShrink: 0,
+                        height: '100%'
+                    }}
+                >
+                    <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                        {index + 1}
+                    </span>
+                </div>
 
-            {/* Category Name */}
-            <div
-                className="d-flex align-items-center ps-2 border-end"
-                style={{
-                    width: `${columnWidths.name}px`,
-                    flexShrink: 0,
-                    height: '100%',
-                    overflow: 'hidden'
-                }}
-                title={`${categoryName}`}
-            >
-                <div className="d-flex flex-column justify-content-center" style={{ height: '100%', minWidth: 0 }}>
-                    <div className="d-flex align-items-center">
-                        <span
-                            style={{
-                                fontSize: '0.8rem',
-                                fontWeight: '500',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                display: 'block',
-                                maxWidth: '100%'
-                            }}
-                        >
-                            {categoryName}
-                        </span>
-                        {isDefault && (
-                            <Badge bg="info" className="ms-2" style={{
-                                fontSize: '0.6rem',
-                                padding: '1px 4px'
-                            }}>
-                                Default
-                            </Badge>
-                        )}
-                        {isActive && !isDefault && (
-                            <Badge bg="success" className="ms-2" style={{
-                                fontSize: '0.6rem',
-                                padding: '1px 4px'
-                            }}>
-                                Active
-                            </Badge>
-                        )}
+                {/* Category Name */}
+                <div
+                    className="d-flex align-items-center ps-2 border-end"
+                    style={{
+                        width: `${columnWidths.name}px`,
+                        flexShrink: 0,
+                        height: '100%',
+                        overflow: 'hidden'
+                    }}
+                    title={`${categoryName}`}
+                >
+                    <div className="d-flex flex-column justify-content-center" style={{ height: '100%', minWidth: 0 }}>
+                        <div className="d-flex align-items-center">
+                            <span
+                                style={{
+                                    fontSize: '0.8rem',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: 'block',
+                                    maxWidth: '100%'
+                                }}
+                            >
+                                {categoryName}
+                            </span>
+                            {isDefault && (
+                                <Badge bg="info" className="ms-2" style={{
+                                    fontSize: '0.6rem',
+                                    padding: '1px 4px'
+                                }}>
+                                    Default
+                                </Badge>
+                            )}
+                            {isActive && !isDefault && (
+                                <Badge bg="success" className="ms-2" style={{
+                                    fontSize: '0.6rem',
+                                    padding: '1px 4px'
+                                }}>
+                                    Active
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Actions */}
-            <div
-                className="px-2 d-flex align-items-center justify-content-end gap-1"
-                style={{
-                    width: `${columnWidths.actions}px`,
-                    flexShrink: 0,
-                    height: '100%'
-                }}
-            >
-                {isAdminOrSupervisor && !isDefault && (
-                    <>
-                        <Button
-                            variant="outline-warning"
-                            size="sm"
-                            className="p-0 d-flex align-items-center justify-content-center"
-                            style={{
-                                width: '24px',
-                                height: '24px',
-                                minWidth: '24px'
-                            }}
-                            onClick={handleEditClick}
-                            title={`Edit ${categoryName}`}
-                            disabled={!!currentCategory}
-                        >
-                            <FiEdit2 size={12} />
-                        </Button>
-                        <Button
-                            variant="outline-danger"
-                            size="sm"
-                            className="p-0 d-flex align-items-center justify-content-center"
-                            style={{
-                                width: '24px',
-                                height: '24px',
-                                minWidth: '24px'
-                            }}
-                            onClick={handleDeleteClick}
-                            title={`Delete ${categoryName}`}
-                            disabled={!!currentCategory}
-                        >
-                            <FiTrash2 size={12} />
-                        </Button>
-                    </>
-                )}
-
-                <Button
-                    variant="outline-success"
-                    size="sm"
-                    className="p-0 d-flex align-items-center justify-content-center"
+                {/* Actions */}
+                <div
+                    className="px-2 d-flex align-items-center justify-content-end gap-1"
                     style={{
-                        width: '24px',
-                        height: '24px',
-                        minWidth: '24px'
+                        width: `${columnWidths.actions}px`,
+                        flexShrink: 0,
+                        height: '100%'
                     }}
-                    onClick={handleSelect}
-                    title={`Select ${categoryName}`}
                 >
-                    <FiCheck size={12} />
-                </Button>
+                    {isAdminOrSupervisor && !isDefault && (
+                        <>
+                            <Button
+                                variant="outline-warning"
+                                size="sm"
+                                className="p-0 d-flex align-items-center justify-content-center"
+                                style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    minWidth: '24px'
+                                }}
+                                onClick={handleEditClick}
+                                title={`Edit ${categoryName}`}
+                                disabled={!!currentCategory}
+                            >
+                                <FiEdit2 size={12} />
+                            </Button>
+                            <Button
+                                variant="outline-danger"
+                                size="sm"
+                                className="p-0 d-flex align-items-center justify-content-center"
+                                style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    minWidth: '24px'
+                                }}
+                                onClick={handleDeleteClick}
+                                title={`Delete ${categoryName}`}
+                                disabled={!!currentCategory}
+                            >
+                                <FiTrash2 size={12} />
+                            </Button>
+                        </>
+                    )}
+
+                    <Button
+                        variant="outline-success"
+                        size="sm"
+                        className="p-0 d-flex align-items-center justify-content-center"
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            minWidth: '24px'
+                        }}
+                        onClick={handleSelect}
+                        title={`Select ${categoryName}`}
+                    >
+                        <FiCheck size={12} />
+                    </Button>
+                </div>
             </div>
-        </div>
-    );
-}, (prevProps, nextProps) => {
-    if (prevProps.index !== nextProps.index) return false;
-    if (prevProps.style !== nextProps.style) return false;
+        );
+    }, (prevProps, nextProps) => {
+        if (prevProps.index !== nextProps.index) return false;
+        if (prevProps.style !== nextProps.style) return false;
 
-    const prevCategory = prevProps.data.categories[prevProps.index];
-    const nextCategory = nextProps.data.categories[nextProps.index];
+        const prevCategory = prevProps.data.categories[prevProps.index];
+        const nextCategory = nextProps.data.categories[nextProps.index];
 
-    return (
-        shallowEqual(prevCategory, nextCategory) &&
-        prevProps.data.isAdminOrSupervisor === nextProps.data.isAdminOrSupervisor
-    );
-});
-    // const TableRow = React.memo(({ index, style, data }) => {
-    //     const { categories, isAdminOrSupervisor } = data;
-    //     const category = categories[index];
+        return (
+            shallowEqual(prevCategory, nextCategory) &&
+            prevProps.data.isAdminOrSupervisor === nextProps.data.isAdminOrSupervisor
+        );
+    });
 
-    //     const handleEditClick = useCallback(() => category && handleEdit(category), [category]);
-    //     const handleDeleteClick = useCallback(() => category?._id && handleDelete(category._id), [category?._id]);
-    //     const handleSelect = useCallback(() => category && handleSelectCategory(category), [category]);
 
-    //     if (!category) return null;
-
-    //     // Use id instead of _id for ASP.NET
-    //     const categoryId = category.id || category._id;
-    //     const categoryName = category.name || 'N/A';
-    //     const isDefault = category.name === 'General';
-    //     const isActive = category.status === 'active';
-
-    //     return (
-    //         <div
-    //             style={{
-    //                 ...style,
-    //                 display: 'flex',
-    //                 alignItems: 'center',
-    //                 height: '26px',
-    //                 minHeight: '26px',
-    //                 padding: '0',
-    //                 borderBottom: '1px solid #dee2e6',
-    //                 cursor: 'pointer',
-    //             }}
-    //             className={index % 1 === 0 ? 'bg-light' : 'bg-white'}
-    //         >
-    //             {/* S.N. */}
-    //             <div
-    //                 className="d-flex align-items-center justify-content-center px-0 border-end"
-    //                 style={{
-    //                     width: '50px',
-    //                     flexShrink: 0,
-    //                     height: '100%'
-    //                 }}
-    //             >
-    //                 <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-    //                     {index + 1}
-    //                 </span>
-    //             </div>
-
-    //             {/* Category Name */}
-    //             <div
-    //                 className="d-flex align-items-center ps-2 border-end"
-    //                 style={{
-    //                     width: `${columnWidths.name}px`,
-    //                     flexShrink: 0,
-    //                     height: '100%',
-    //                     overflow: 'hidden'
-    //                 }}
-    //                 title={`${categoryName}`}
-    //             >
-    //                 <div className="d-flex flex-column justify-content-center" style={{ height: '100%', minWidth: 0 }}>
-    //                     <div className="d-flex align-items-center">
-    //                         <span
-    //                             style={{
-    //                                 fontSize: '0.8rem',
-    //                                 fontWeight: '500',
-    //                                 whiteSpace: 'nowrap',
-    //                                 overflow: 'hidden',
-    //                                 textOverflow: 'ellipsis',
-    //                                 display: 'block',
-    //                                 maxWidth: '100%'
-    //                             }}
-    //                         >
-    //                             {categoryName}
-    //                         </span>
-    //                        {isDefault && (
-    //                         <Badge bg="info" className="ms-2" style={{
-    //                             fontSize: '0.6rem',
-    //                             padding: '1px 4px'
-    //                         }}>
-    //                             Default
-    //                         </Badge>
-    //                     )}
-    //                     {isActive && !isDefault && (
-    //                         <Badge bg="success" className="ms-2" style={{
-    //                             fontSize: '0.6rem',
-    //                             padding: '1px 4px'
-    //                         }}>
-    //                             Active
-    //                         </Badge>
-    //                     )}
-    //                     </div>
-    //                 </div>
-    //             </div>
-
-    //             {/* Actions */}
-    //             <div
-    //                 className="px-2 d-flex align-items-center justify-content-end gap-1"
-    //                 style={{
-    //                     width: `${columnWidths.actions}px`,
-    //                     flexShrink: 0,
-    //                     height: '100%'
-    //                 }}
-    //             >
-    //                 {isAdminOrSupervisor && (
-    //                     <>
-    //                         <Button
-    //                             variant="outline-warning"
-    //                             size="sm"
-    //                             className="p-0 d-flex align-items-center justify-content-center"
-    //                             style={{
-    //                                 width: '24px',
-    //                                 height: '24px',
-    //                                 minWidth: '24px'
-    //                             }}
-    //                             onClick={handleEditClick}
-    //                             title={`Edit ${categoryName}`}
-    //                             disabled={!!currentCategory}
-    //                         >
-    //                             <FiEdit2 size={12} />
-    //                         </Button>
-    //                         <Button
-    //                             variant="outline-danger"
-    //                             size="sm"
-    //                             className="p-0 d-flex align-items-center justify-content-center"
-    //                             style={{
-    //                                 width: '24px',
-    //                                 height: '24px',
-    //                                 minWidth: '24px'
-    //                             }}
-    //                             onClick={handleDeleteClick}
-    //                             title={`Delete ${categoryName}`}
-    //                             disabled={!!currentCategory}
-    //                         >
-    //                             <FiTrash2 size={12} />
-    //                         </Button>
-    //                     </>
-    //                 )}
-
-    //                 <Button
-    //                     variant="outline-success"
-    //                     size="sm"
-    //                     className="p-0 d-flex align-items-center justify-content-center"
-    //                     style={{
-    //                         width: '24px',
-    //                         height: '24px',
-    //                         minWidth: '24px'
-    //                     }}
-    //                     onClick={handleSelect}
-    //                     title={`Select ${categoryName}`}
-    //                 >
-    //                     <FiCheck size={12} />
-    //                 </Button>
-    //             </div>
-    //         </div>
-    //     );
-    // }, (prevProps, nextProps) => {
-    //     if (prevProps.index !== nextProps.index) return false;
-    //     if (prevProps.style !== nextProps.style) return false;
-
-    //     const prevCategory = prevProps.data.categories[prevProps.index];
-    //     const nextCategory = nextProps.data.categories[nextProps.index];
-
-    //     return (
-    //         shallowEqual(prevCategory, nextCategory) &&
-    //         prevProps.data.isAdminOrSupervisor === nextProps.data.isAdminOrSupervisor
-    //     );
-    // });
-
-    // Resize Handle Component
     const ResizeHandle = React.memo(({ onResizeStart, left, columnName }) => {
         return (
             <div
@@ -789,11 +711,6 @@ const TableRow = React.memo(({ index, style, data }) => {
             return;
         }
 
-        if (!formData.companyId) {
-            showNotificationMessage('Company ID is missing', 'error');
-            return;
-        }
-
         setIsSaving(true);
         try {
             if (currentCategory) {
@@ -823,6 +740,12 @@ const TableRow = React.memo(({ index, style, data }) => {
                         name: '',
                         companyId: data.companyId
                     });
+
+                    setTimeout(() => {
+                        if (categoryNameRef.current) {
+                            categoryNameRef.current.focus();
+                        }
+                    }, 50);
                 } else {
                     throw new Error(response.data.error || 'Failed to create category');
                 }
@@ -836,9 +759,12 @@ const TableRow = React.memo(({ index, style, data }) => {
     };
 
     const printCategories = () => {
-        const categoriesToPrint = printOption === 'all'
-            ? data.categories
-            : data.categories.filter(cat => cat.status === 'active');
+        let categoriesToPrint = [...data.categories];
+
+        // Apply filters
+        if (printOption === 'active') {
+            categoriesToPrint = categoriesToPrint.filter(cat => cat.status === 'active');
+        }
 
         if (categoriesToPrint.length === 0) {
             alert("No categories to print");
@@ -848,176 +774,208 @@ const TableRow = React.memo(({ index, style, data }) => {
         const printWindow = window.open("", "_blank");
 
         const printHeader = `
-            <div class="print-header">
-                <h1>${data.company?.name || data.currentCompanyName || 'Company Name'}</h1>
-                <hr>
-            </div>
-        `;
+        <div class="print-header">
+            <h1 style="font-size: 14px; margin: 0;">${data.company?.name || data.currentCompanyName || 'Company Name'}</h1>
+            <p style="font-size: 8px; margin: 2px 0;">
+                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''},
+                PAN: ${data.company?.pan || ''}<br>
+            </p>
+            <hr style="margin: 2px 0;">
+        </div>
+    `;
 
         let tableContent = `
-            <style>
-                @page {
-                    size: A4 landscape;
-                    margin: 10mm;
-                }
-                body { 
-                    font-family: Arial, sans-serif; 
-                    font-size: 10px; 
-                    margin: 0;
-                    padding: 10mm;
-                }
-                table { 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    page-break-inside: auto;
-                }
-                tr { 
-                    page-break-inside: avoid; 
-                    page-break-after: auto; 
-                }
-                th, td { 
-                    border: 1px solid #000; 
-                    padding: 4px; 
-                    text-align: left; 
-                    white-space: nowrap;
-                }
-                th { 
-                    background-color: #f2f2f2 !important; 
-                    -webkit-print-color-adjust: exact; 
-                }
-                .print-header { 
-                    text-align: center; 
-                    margin-bottom: 15px; 
-                }
-                .nowrap {
-                    white-space: nowrap;
-                }
-                .badge { 
-                    padding: 3px 6px; 
-                    border-radius: 3px; 
-                    font-size: 10px; 
-                    display: inline-block;
-                }
-                .badge-success { 
-                    background-color: #28a745; 
-                    color: white; 
-                }
-                .badge-danger { 
-                    background-color: #dc3545; 
-                    color: white; 
-                }
-                .footer-note {
-                    margin-top: 20px; 
-                    font-size: 0.9em; 
-                    color: #666;
-                    text-align: center;
-                }
-                .header-info {
-                    text-align: center;
-                    margin-bottom: 10px;
-                    font-size: 11px;
-                }
-                .report-title {
-                    text-align: center;
-                    font-size: 16px;
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                    text-decoration: underline;
-                }
-                .filter-info {
-                    text-align: center;
-                    font-size: 11px;
-                    margin-bottom: 15px;
-                    color: #666;
-                }
-            </style>
-            ${printHeader}
-            
-            <div class="report-title">Categories Report</div>
-            
-            <div class="header-info">
-                <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
-                <strong>Total Categories:</strong> ${categoriesToPrint.length}
-            </div>
-            
-            <div class="filter-info">
-                ${printOption !== 'all' ?
-                `<strong>Filter:</strong> ${printOption.charAt(0).toUpperCase() + printOption.slice(1)} | ` : ''
+        <style>
+            @page {
+                margin: 3mm;
             }
-                <strong>Printed on:</strong> ${new Date().toLocaleDateString()}
-            </div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th class="nowrap">S.N.</th>
-                        <th class="nowrap">Category Name</th>
-                        <th class="nowrap">Status</th>
-                        <th class="nowrap">Total Items</th>
-                        <th class="nowrap">Unique Number</th>
-                        <th class="nowrap">Created Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+            body { 
+                font-family: Arial, sans-serif; 
+                font-size: 7px; 
+                margin: 0;
+                padding: 2mm;
+            }
+            table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                page-break-inside: auto;
+                font-size: 6px;
+            }
+            tr { 
+                page-break-inside: avoid; 
+                page-break-after: auto; 
+            }
+            th, td { 
+                border: 1px solid #000; 
+                padding: 2px 3px; 
+                text-align: left; 
+                white-space: nowrap;
+            }
+            th { 
+                background-color: #f2f2f2 !important; 
+                -webkit-print-color-adjust: exact;
+                font-size: 10px;
+                font-weight: bold;
+                padding: 3px 3px;
+            }
+            td {
+                font-size: 8px;
+                padding: 2px 3px;
+            }
+            .print-header { 
+                text-align: center; 
+                margin-bottom: 5px; 
+            }
+            .nowrap {
+                white-space: nowrap;
+            }
+            h1 {
+                font-size: 14px;
+                margin: 0;
+            }
+            .report-title {
+                text-align: center;
+                text-decoration: underline;
+                font-size: 11px;
+                font-weight: bold;
+                margin: 3px 0;
+            }
+            .grand-total-row td {
+                font-weight: bold;
+                border-top: 2px solid #000;
+                font-size: 7px;
+            }
+            .header-info {
+                text-align: center;
+                margin-bottom: 5px;
+                font-size: 8px;
+            }
+            .filter-info {
+                text-align: center;
+                margin-bottom: 8px;
+                font-size: 7px;
+                color: #666;
+            }
+            .badge {
+                padding: 2px 4px;
+                border-radius: 3px;
+                font-size: 7px;
+                display: inline-block;
+            }
+            .badge-success {
+                background-color: #28a745;
+                color: white;
+            }
+            .badge-secondary {
+                background-color: #6c757d;
+                color: white;
+            }
+            .footer-note {
+                margin-top: 10px;
+                font-size: 7px;
+                color: #666;
+                text-align: center;
+            }
+        </style>
+        ${printHeader}
+        <div class="report-title">Categories Report</div>
+        
+        <div class="header-info">
+            <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
+            <strong>Total Categories:</strong> ${categoriesToPrint.length}
+        </div>
+        
+        <div class="filter-info">
+            ${printOption !== 'all' ? `<strong>Filter:</strong> ${printOption === 'active' ? 'Active Only' : 'All Categories'} | ` : ''}
+            <strong>Printed on:</strong> ${new Date().toLocaleDateString()}
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap">S.N.</th>
+                    <th class="nowrap">Category Name</th>
+                    <th class="nowrap">Status</th>
+                    <th class="nowrap">Total Items</th>
+                    <th class="nowrap">Unique Number</th>
+                    <th class="nowrap">Created Date</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
 
         categoriesToPrint.forEach((category, index) => {
+            const statusClass = category.status === 'active' ? 'badge-success' : 'badge-secondary';
+            const statusText = category.status === 'active' ? 'Active' : (category.status || 'N/A');
+
             tableContent += `
-                <tr>
-                    <td class="nowrap">${index + 1}</td>
-                    <td class="nowrap">${category.name || 'N/A'}</td>
-                    <td class="nowrap">
-                        <span class="nowrap badge ${category.status === 'active' ? 'badge-success' : 'badge-danger'}">
-                            ${category.status || 'N/A'}
-                        </span>
-                    </td>
-                    <td class="nowrap">
-                        <span class="nowrap">
-                            ${category.itemCount || 0}
-                        </span>
-                    </td>
-                    <td class="nowrap">
-                        ${category.uniqueNumber || 'N/A'}
-                    </td>
-                    <td class="nowrap">
-                        ${category.createdAt ? new Date(category.createdAt).toLocaleDateString() : 'N/A'}
-                    </td>
-                </tr>
-            `;
+            <tr>
+                <td class="nowrap">${index + 1}</td>
+                <td class="nowrap">${escapeHtml(category.name || 'N/A')}</td>
+                <td class="nowrap">
+                    <span class="badge ${statusClass}">${statusText}</span>
+                </td>
+                <td class="nowrap text-end">${category.itemCount || 0}</td>
+                <td class="nowrap">${escapeHtml(category.uniqueNumber || 'N/A')}</td>
+                <td class="nowrap">${category.createdAt ? new Date(category.createdAt).toLocaleDateString() : 'N/A'}</td>
+            </tr>
+        `;
         });
 
+        // Add summary row
+        const activeCount = categoriesToPrint.filter(c => c.status === 'active').length;
+        const inactiveCount = categoriesToPrint.length - activeCount;
+
         tableContent += `
-                </tbody>
-            </table>
-            
-            <div class="footer-note">
-                <br>
-                ${data.company?.name ? `© ${new Date().getFullYear()} ${data.company.name}` : ''}
-            </div>
-        `;
+            </tbody>
+            <tfoot>
+                <tr class="grand-total-row">
+                    <td colspan="2" class="nowrap"><strong>Summary</strong></td>
+                    <td class="nowrap">
+                        <strong>Active: ${activeCount} | Inactive: ${inactiveCount}</strong>
+                    </td>
+                    <td class="nowrap"><strong>${categoriesToPrint.reduce((sum, c) => sum + (c.itemCount || 0), 0)}</strong></td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <div class="footer-note">
+            ${data.company?.name ? `© ${new Date().getFullYear()} ${data.company.name}` : ''}
+        </div>
+    `;
 
         printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Categories Report - ${data.company?.name || data.currentCompanyName || 'Categories Report'}</title>
-                </head>
-                <body>
-                    ${tableContent}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.onafterprint = function() {
-                                    window.close();
-                                };
-                            }, 200);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Categories Report - ${data.company?.name || data.currentCompanyName || 'Categories Report'}</title>
+                <meta charset="UTF-8">
+            </head>
+            <body>
+                ${tableContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 200);
+                    };
+                <\/script>
+            </body>
+        </html>
+    `);
         printWindow.document.close();
     };
+
+    // Helper function to escape HTML special characters
+    const escapeHtml = (text) => {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
 
     const exportToExcel = async (exportAll = false) => {
         setExporting(true);
@@ -1119,6 +1077,7 @@ const TableRow = React.memo(({ index, style, data }) => {
                                     <Form.Group style={{ marginBottom: '12px' }}>
                                         <div className="position-relative">
                                             <Form.Control
+                                                ref={categoryNameRef}
                                                 type="text"
                                                 name="name"
                                                 value={formData.name}
@@ -1334,7 +1293,8 @@ const TableRow = React.memo(({ index, style, data }) => {
                                         </Button>
                                     </div>
                                 </div>
-                                <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
+
+                                {/* <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
                                     {loading ? (
                                         <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                             <Spinner
@@ -1385,6 +1345,94 @@ const TableRow = React.memo(({ index, style, data }) => {
                                                         <div className="mt-2 text-muted small">
                                                             Showing {filteredCategories.length} of {data.categories.length} categories
                                                             {searchTerm && ` (filtered)`}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }}
+                                        </AutoSizer>
+                                    )}
+                                </div> */}
+
+                                <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
+                                    {loading ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <Spinner
+                                                animation="border"
+                                                variant="primary"
+                                                size="sm"
+                                                style={{ width: '1.5rem', height: '1.5rem' }}
+                                            />
+                                            <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>
+                                                Loading categories...
+                                            </p>
+                                        </div>
+                                    ) : paginatedCategories.length === 0 ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <i className="bi bi-tags text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                            <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>
+                                                No categories found
+                                            </h6>
+                                            <p className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                                                {searchTerm ? 'Try a different search term' : 'Create your first category using the form'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <AutoSizer>
+                                            {({ height, width }) => {
+                                                const totalWidth = 50 + columnWidths.name + columnWidths.actions;
+
+                                                return (
+                                                    <div
+                                                        ref={tableContainerRef}
+                                                        style={{
+                                                            position: 'relative',
+                                                            height: height,
+                                                            width: Math.max(width, totalWidth),
+                                                            overflowX: 'auto',
+                                                            overflowY: 'auto'
+                                                        }}
+                                                    >
+                                                        <TableHeader />
+                                                        <List
+                                                            key={`categories-list-${paginatedCategories.length}-${currentPage}`}
+                                                            height={height - 60}
+                                                            itemCount={paginatedCategories.length}
+                                                            itemSize={26}
+                                                            width={Math.max(width, totalWidth)}
+                                                            itemData={{
+                                                                categories: paginatedCategories,
+                                                                isAdminOrSupervisor: data.isAdminOrSupervisor
+                                                            }}
+                                                        >
+                                                            {TableRow}
+                                                        </List>
+
+                                                        {/* Loading More Indicator */}
+                                                        {isLoadingMore && (
+                                                            <div className="text-center py-2">
+                                                                <Spinner animation="border" size="sm" className="me-2" />
+                                                                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Loading more categories...</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Footer with item count and load more button */}
+                                                        <div className="mt-2 text-muted small">
+                                                            Showing {paginatedCategories.length} of {totalFilteredCategories} categories
+                                                            {searchTerm && ` (filtered)`}
+                                                            {hasMoreItems && paginatedCategories.length < totalFilteredCategories && (
+                                                                <span className="ms-2">
+                                                                    <Button
+                                                                        variant="link"
+                                                                        size="sm"
+                                                                        className="p-0 ms-2"
+                                                                        onClick={loadMoreItems}
+                                                                        disabled={isLoadingMore}
+                                                                        style={{ fontSize: '0.7rem' }}
+                                                                    >
+                                                                        Load more...
+                                                                    </Button>
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );

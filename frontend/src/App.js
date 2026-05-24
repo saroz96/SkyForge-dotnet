@@ -134,6 +134,10 @@ import EditCashSalesReturn from './components/retailer/salesReturn/EditCashSales
 import CashSalesReturnVoucherNumber from './components/retailer/salesReturn/CashVoucherNumber';
 import ClientDetails from './components/systemOwner/pages/ClientDetails';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
+  (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
+
+
 function AppContent() {
   const { currentUser } = useAuth();
   const { showLoading, hideLoading, updateProgress } = useLoading();
@@ -147,7 +151,10 @@ function AppContent() {
   return (
 
     <Router>
-      <NetworkStatus pingUrl="/api/health/ping" pingInterval={10000} />
+      <NetworkStatus
+        pingUrl="/api/health/ping"
+        apiBaseUrl={API_BASE_URL}
+      />
       <BackgroundWrapper>
         <PageNotRefreshProvider>
           <Routes>

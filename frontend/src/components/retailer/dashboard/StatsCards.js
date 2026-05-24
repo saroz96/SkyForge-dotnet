@@ -1,4 +1,4 @@
-// import React, { useState, useEffect } from 'react';
+// import React, { useState, useEffect, useRef, useCallback } from 'react';
 // import axios from 'axios';
 // import { useAuth } from '../../../context/AuthContext';
 // import { usePageNotRefreshContext } from '../PageNotRefreshContext';
@@ -18,7 +18,10 @@
 //         error: null,
 //         isFresh: false
 //     });
-
+    
+//     const [isFetching, setIsFetching] = useState(false);
+//     const intervalRef = useRef(null);
+//     const abortControllerRef = useRef(null);
 //     const { currentCompany } = useAuth();
 
 //     const getDynamicFontSize = (num) => {
@@ -49,82 +52,103 @@
 //         });
 //     };
 
+//     const fetchFreshData = useCallback(async (isBackground = false) => {
+//         // Prevent multiple simultaneous requests
+//         if (isFetching) return;
+        
+//         // Cancel previous request if exists
+//         if (abortControllerRef.current) {
+//             abortControllerRef.current.abort();
+//         }
+        
+//         abortControllerRef.current = new AbortController();
+//         setIsFetching(true);
+        
+//         try {
+//             // Build query parameters
+//             const params = new URLSearchParams();
+//             params.append('companyId', companyId);
+//             if (companyName) params.append('companyName', companyName);
+//             if (fiscalYearJson) params.append('fiscalYearJson', fiscalYearJson);
+
+//             const response = await axios.get(`/api/retailer/retailerDashboard/indexv1?${params.toString()}`, {
+//                 headers: { 
+//                     'Content-Type': 'application/json',
+//                     'Authorization': `Bearer ${localStorage.getItem('token')}`
+//                 },
+//                 withCredentials: true,
+//                 signal: abortControllerRef.current.signal
+//             });
+
+//             if (response.data.success) {
+//                 const { financialSummary } = response.data.data;
+//                 const freshData = {
+//                     cashBalance: financialSummary.cashBalance,
+//                     netSales: financialSummary.netSales,
+//                     bankBalance: financialSummary.bankBalance,
+//                     totalStock: financialSummary.totalStockValue,
+//                     error: null,
+//                     isFresh: true
+//                 };
+
+//                 setStats(freshData);
+//                 setStatsCardDraftSave({
+//                     cashBalance: financialSummary.cashBalance,
+//                     netSales: financialSummary.netSales,
+//                     bankBalance: financialSummary.bankBalance,
+//                     totalStock: financialSummary.totalStockValue,
+//                     lastUpdated: new Date().toISOString() // Add timestamp
+//                 });
+//             } else {
+//                 throw new Error(response.data.error || 'Failed to load dashboard data');
+//             }
+//         } catch (error) {
+//             // Don't show error if request was aborted
+//             if (error.name === 'AbortError') {
+//                 console.log('Fetch aborted');
+//                 return;
+//             }
+            
+//             console.error('Background refresh failed:', error);
+//             if (!statsCardDraftSave) {
+//                 setStats(prev => ({
+//                     ...prev,
+//                     error: error.response?.data?.error || error.message,
+//                     isFresh: false
+//                 }));
+//             }
+//         } finally {
+//             setIsFetching(false);
+//         }
+//     }, [companyId, companyName, fiscalYearJson, statsCardDraftSave, setStatsCardDraftSave]);
+
 //     useEffect(() => {
+//         // Don't fetch if no companyId
 //         if (!companyId) return;
 
-//         const fetchFreshData = async () => {
-//             try {
-//                 // Build query parameters
-//                 const params = new URLSearchParams();
-//                 params.append('companyId', companyId);
-//                 if (companyName) params.append('companyName', companyName);
-//                 if (fiscalYearJson) params.append('fiscalYearJson', fiscalYearJson);
-
-//                 const response = await axios.get(`/api/retailer/retailerDashboard/indexv1?${params.toString()}`, {
-//                     headers: { 
-//                         'Content-Type': 'application/json',
-//                         'Authorization': `Bearer ${localStorage.getItem('token')}`
-//                     },
-//                     withCredentials: true
-//                 });
-
-//                 if (response.data.success) {
-//                     const { financialSummary } = response.data.data;
-//                     const freshData = {
-//                         cashBalance: financialSummary.cashBalance,
-//                         netSales: financialSummary.netSales,
-//                         bankBalance: financialSummary.bankBalance,
-//                         totalStock: financialSummary.totalStockValue,
-//                         error: null,
-//                         isFresh: true
-//                     };
-
-//                     setStats(freshData);
-//                     setStatsCardDraftSave({
-//                         cashBalance: financialSummary.cashBalance,
-//                         netSales: financialSummary.netSales,
-//                         bankBalance: financialSummary.bankBalance,
-//                         totalStock: financialSummary.totalStockValue
-//                     });
-//                 } else {
-//                     throw new Error(response.data.error || 'Failed to load dashboard data');
-//                 }
-//             } catch (error) {
-//                 console.error('Background refresh failed:', error);
-//                 if (!statsCardDraftSave) {
-//                     setStats(prev => ({
-//                         ...prev,
-//                         error: error.response?.data?.error || error.message,
-//                         isFresh: false
-//                     }));
-//                 }
-//             }
-//         };
-
+//         // Initial fetch
 //         if (statsCardDraftSave) {
-//             fetchFreshData().catch(e => console.log('Background update failed:', e));
+//             // Use cached data first, then fetch in background
+//             fetchFreshData(true).catch(e => console.log('Background update failed:', e));
 //         } else {
-//             fetchFreshData();
+//             fetchFreshData(false);
 //         }
 
-//         const interval = setInterval(fetchFreshData, 300000);
-//         return () => clearInterval(interval);
-//     }, [companyId, statsCardDraftSave, setStatsCardDraftSave, companyName, fiscalYearJson]);
+//         // Set up interval for auto-refresh (5 minutes)
+//         intervalRef.current = setInterval(() => {
+//             fetchFreshData(true); // Background refresh
+//         }, 300000); // 5 minutes
 
-//     if (stats.error && !statsCardDraftSave) {
-//         return (
-//             <div className="alert alert-danger">
-//                 <i className="bi bi-exclamation-triangle-fill me-2"></i>
-//                 {stats.error}
-//                 <button
-//                     className="btn btn-sm btn-outline-danger ms-3"
-//                     onClick={() => setStats(prev => ({ ...prev, error: null }))}
-//                 >
-//                     Retry
-//                 </button>
-//             </div>
-//         );
-//     }
+//         // Cleanup
+//         return () => {
+//             if (intervalRef.current) {
+//                 clearInterval(intervalRef.current);
+//             }
+//             if (abortControllerRef.current) {
+//                 abortControllerRef.current.abort();
+//             }
+//         };
+//     }, [companyId]); // Only depend on companyId, not on statsCardDraftSave
 
 //     const displayData = stats.isFresh ? stats : statsCardDraftSave || stats;
 
@@ -247,7 +271,7 @@
 
 // export default StatsCards;
 
-//---------------------------------------------------------------------end
+//-----------------------------------------------end
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
@@ -256,6 +280,10 @@ import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 
 const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
     const { statsCardDraftSave, setStatsCardDraftSave } = usePageNotRefreshContext();
+    
+    // Get API base URL from environment variable
+    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142';
+    
     const [company] = useState({
         dateFormat: 'nepali',
         vatEnabled: true,
@@ -274,6 +302,28 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
     const intervalRef = useRef(null);
     const abortControllerRef = useRef(null);
     const { currentCompany } = useAuth();
+
+    // Create axios instance with base URL
+    const api = useCallback(() => {
+        const instance = axios.create({
+            baseURL: API_BASE_URL,
+            withCredentials: true,
+        });
+        
+        // Add request interceptor for token
+        instance.interceptors.request.use(
+            (config) => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+                return config;
+            },
+            (error) => Promise.reject(error)
+        );
+        
+        return instance;
+    }, []);
 
     const getDynamicFontSize = (num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
@@ -322,7 +372,12 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
             if (companyName) params.append('companyName', companyName);
             if (fiscalYearJson) params.append('fiscalYearJson', fiscalYearJson);
 
-            const response = await axios.get(`/api/retailer/retailerDashboard/indexv1?${params.toString()}`, {
+            // Use full URL with API base
+            const url = `${API_BASE_URL}/api/retailer/retailerDashboard/indexv1?${params.toString()}`;
+            
+            console.log('Fetching stats from:', url); // Debug log
+            
+            const response = await axios.get(url, {
                 headers: { 
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -348,7 +403,7 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
                     netSales: financialSummary.netSales,
                     bankBalance: financialSummary.bankBalance,
                     totalStock: financialSummary.totalStockValue,
-                    lastUpdated: new Date().toISOString() // Add timestamp
+                    lastUpdated: new Date().toISOString()
                 });
             } else {
                 throw new Error(response.data.error || 'Failed to load dashboard data');
@@ -371,7 +426,7 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
         } finally {
             setIsFetching(false);
         }
-    }, [companyId, companyName, fiscalYearJson, statsCardDraftSave, setStatsCardDraftSave]);
+    }, [companyId, companyName, fiscalYearJson, statsCardDraftSave, setStatsCardDraftSave, API_BASE_URL, isFetching]);
 
     useEffect(() => {
         // Don't fetch if no companyId

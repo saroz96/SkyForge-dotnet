@@ -718,9 +718,9 @@ const Accounts = () => {
     // Reset column widths
     const resetColumnWidths = () => {
         setColumnWidths({
-            name: 200,
-            group: 200,
-            actions: 140
+            name: 160,
+            group: 180,
+            actions: 120
         });
         showNotificationMessage('Column widths reset to default', 'success');
     };

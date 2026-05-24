@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPrinter, FiArrowLeft, FiX, FiCheck, FiRefreshCw } from 'react-icons/fi';
@@ -42,6 +42,16 @@ const ItemsCompany = () => {
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [showProductModal, setShowProductModal] = useState(false);
     const [printOption, setPrintOption] = useState('all');
+
+    const itemCompanyNameInputRef = useRef(null);
+
+    // Add these state variables for pagination
+    const [paginatedCompanies, setPaginatedCompanies] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMoreItems, setHasMoreItems] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [totalFilteredCompanies, setTotalFilteredCompanies] = useState(0);
+    const tableContainerRef = useRef(null);
 
     // Column resizing state
     const [columnWidths, setColumnWidths] = useState({
@@ -133,6 +143,15 @@ const ItemsCompany = () => {
         };
     }, []);
 
+    // Pagination function - initially 15 items, then 25 on each load
+    const paginateCompanies = useCallback((companiesList, pageNum, itemsPerPage = 25) => {
+        const startIndex = 0; // Always start from beginning
+        // For first page, we want 15 items, not 25
+        const actualLimit = pageNum === 1 ? 15 : (pageNum - 1) * itemsPerPage + itemsPerPage;
+        const endIndex = actualLimit;
+        return companiesList.slice(startIndex, endIndex);
+    }, []);
+
     // Shallow equal function for memoization
     function shallowEqual(objA, objB) {
         if (objA === objB) return true;
@@ -165,6 +184,70 @@ const ItemsCompany = () => {
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [data.itemsCompanies, searchTerm]);
 
+    // Process filtered item companies for display
+    const processedFilteredCompanies = useMemo(() => {
+        return filteredItemCompanies.map(company => {
+            return {
+                ...company,
+                _id: company.id || company._id
+            };
+        });
+    }, [filteredItemCompanies]);
+
+    // Load more items on scroll
+    const loadMoreItems = useCallback(() => {
+        if (!hasMoreItems || isLoadingMore) return;
+
+        setIsLoadingMore(true);
+
+        // Use setTimeout to prevent UI freezing
+        setTimeout(() => {
+            const nextPage = currentPage + 1;
+            const itemsPerPage = 25;
+            const newLimit = nextPage === 1 ? 15 : 15 + ((nextPage - 1) * itemsPerPage);
+            const newPaginatedCompanies = processedFilteredCompanies.slice(0, newLimit);
+
+            if (newPaginatedCompanies.length === paginatedCompanies.length) {
+                setHasMoreItems(false);
+            } else {
+                setPaginatedCompanies(newPaginatedCompanies);
+                setCurrentPage(nextPage);
+            }
+
+            setIsLoadingMore(false);
+        }, 100);
+    }, [hasMoreItems, isLoadingMore, currentPage, processedFilteredCompanies, paginatedCompanies]);
+
+    // Handle scroll to load more items
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!tableContainerRef.current) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = tableContainerRef.current;
+
+            // Load more when scrolled to 80% of the way down
+            const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+            if (scrollPercentage > 0.8 && hasMoreItems && !isLoadingMore) {
+                loadMoreItems();
+            }
+        };
+
+        const tableContainer = tableContainerRef.current;
+        if (tableContainer) {
+            tableContainer.addEventListener('scroll', handleScroll);
+            return () => tableContainer.removeEventListener('scroll', handleScroll);
+        }
+    }, [hasMoreItems, isLoadingMore, loadMoreItems]);
+
+    // Reset pagination when filtered items change
+    useEffect(() => {
+        const initialCompanies = paginateCompanies(processedFilteredCompanies, 1);
+        setPaginatedCompanies(initialCompanies);
+        setCurrentPage(1);
+        setHasMoreItems(processedFilteredCompanies.length > initialCompanies.length);
+        setTotalFilteredCompanies(processedFilteredCompanies.length);
+    }, [processedFilteredCompanies, paginateCompanies]);
     // Resizable Table Header Component
     const TableHeader = React.memo(() => {
         const totalWidth = 50 + columnWidths.name + columnWidths.actions;
@@ -273,8 +356,8 @@ const ItemsCompany = () => {
         const company = itemsCompanies[index];
 
         const handleEditClick = useCallback(() => company && handleEdit(company), [company]);
-                const handleDeleteClick = useCallback(() => company?._id && handleDelete(company._id), [company?._id]);
-        
+        const handleDeleteClick = useCallback(() => company?._id && handleDelete(company._id), [company?._id]);
+
         const handleSelect = useCallback(() => company && handleSelectCompany(company), [company]);
 
         if (!company) return null;
@@ -578,23 +661,23 @@ const ItemsCompany = () => {
 
     // FIXED: Remove the confirmation dialog from here - it should be in the click handler
     const handleDelete = async (id) => {
-         if (window.confirm('Are you sure you want to delete this company?')) 
-        try {
-            const response = await api.delete(`/api/retailer/items-company/${id}`);
+        if (window.confirm('Are you sure you want to delete this company?'))
+            try {
+                const response = await api.delete(`/api/retailer/items-company/${id}`);
 
-            if (response.data.success) {
-                showNotificationMessage('Item company deleted successfully', 'success');
-                fetchItemCompanies();
-            } else {
-                showNotificationMessage(response.data.error || 'Failed to delete item company', 'error');
+                if (response.data.success) {
+                    showNotificationMessage('Item company deleted successfully', 'success');
+                    fetchItemCompanies();
+                } else {
+                    showNotificationMessage(response.data.error || 'Failed to delete item company', 'error');
+                }
+            } catch (err) {
+                if (err.response && (err.response.status === 409 || err.response.status === 403)) {
+                    showNotificationMessage(err.response.data.error || 'Item company cannot be deleted as it has related items', 'error');
+                } else {
+                    handleApiError(err);
+                }
             }
-        } catch (err) {
-            if (err.response && (err.response.status === 409 || err.response.status === 403)) {
-                showNotificationMessage(err.response.data.error || 'Item company cannot be deleted as it has related items', 'error');
-            } else {
-                handleApiError(err);
-            }
-        }
     };
 
     const handleFormChange = (e) => {
@@ -633,11 +716,6 @@ const ItemsCompany = () => {
             return;
         }
 
-        if (!formData.companyId) {
-            showNotificationMessage('Company ID is missing', 'error');
-            return;
-        }
-
         setIsSaving(true);
         try {
             if (currentItemCompany) {
@@ -667,6 +745,12 @@ const ItemsCompany = () => {
                         name: '',
                         companyId: data.companyId
                     });
+
+                    setTimeout(() => {
+                        if (itemCompanyNameInputRef.current) {
+                            itemCompanyNameInputRef.current.focus();
+                        }
+                    }, 50);
                 } else {
                     throw new Error(response.data.error || 'Failed to create item company');
                 }
@@ -976,6 +1060,7 @@ const ItemsCompany = () => {
                                     <Form.Group style={{ marginBottom: '12px' }}>
                                         <div className="position-relative">
                                             <Form.Control
+                                                ref={itemCompanyNameInputRef}
                                                 type="text"
                                                 name="name"
                                                 value={formData.name}
@@ -1191,7 +1276,7 @@ const ItemsCompany = () => {
                                         </Button>
                                     </div>
                                 </div>
-                                <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
+                                {/* <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
                                     {loading ? (
                                         <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                             <Spinner
@@ -1242,6 +1327,94 @@ const ItemsCompany = () => {
                                                         <div className="mt-2 text-muted small">
                                                             Showing {filteredItemCompanies.length} of {data.itemsCompanies.length} item companies
                                                             {searchTerm && ` (filtered)`}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }}
+                                        </AutoSizer>
+                                    )}
+                                </div> */}
+
+                                <div style={{ height: 'calc(100vh - 300px)', width: '100%' }}>
+                                    {loading ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <Spinner
+                                                animation="border"
+                                                variant="primary"
+                                                size="sm"
+                                                style={{ width: '1.5rem', height: '1.5rem' }}
+                                            />
+                                            <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>
+                                                Loading item companies...
+                                            </p>
+                                        </div>
+                                    ) : paginatedCompanies.length === 0 ? (
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <i className="bi bi-building text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                            <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>
+                                                No item companies found
+                                            </h6>
+                                            <p className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                                                {searchTerm ? 'Try a different search term' : 'Create your first item company using the form'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <AutoSizer>
+                                            {({ height, width }) => {
+                                                const totalWidth = 50 + columnWidths.name + columnWidths.actions;
+
+                                                return (
+                                                    <div
+                                                        ref={tableContainerRef}
+                                                        style={{
+                                                            position: 'relative',
+                                                            height: height,
+                                                            width: Math.max(width, totalWidth),
+                                                            overflowX: 'auto',
+                                                            overflowY: 'auto'
+                                                        }}
+                                                    >
+                                                        <TableHeader />
+                                                        <List
+                                                            key={`companies-list-${paginatedCompanies.length}-${currentPage}`}
+                                                            height={height - 60}
+                                                            itemCount={paginatedCompanies.length}
+                                                            itemSize={26}
+                                                            width={Math.max(width, totalWidth)}
+                                                            itemData={{
+                                                                itemsCompanies: paginatedCompanies,
+                                                                isAdminOrSupervisor: data.isAdminOrSupervisor
+                                                            }}
+                                                        >
+                                                            {TableRow}
+                                                        </List>
+
+                                                        {/* Loading More Indicator */}
+                                                        {isLoadingMore && (
+                                                            <div className="text-center py-2">
+                                                                <Spinner animation="border" size="sm" className="me-2" />
+                                                                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Loading more companies...</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Footer with item count and load more button */}
+                                                        <div className="mt-2 text-muted small">
+                                                            Showing {paginatedCompanies.length} of {totalFilteredCompanies} item companies
+                                                            {searchTerm && ` (filtered)`}
+                                                            {hasMoreItems && paginatedCompanies.length < totalFilteredCompanies && (
+                                                                <span className="ms-2">
+                                                                    <Button
+                                                                        variant="link"
+                                                                        size="sm"
+                                                                        className="p-0 ms-2"
+                                                                        onClick={loadMoreItems}
+                                                                        disabled={isLoadingMore}
+                                                                        style={{ fontSize: '0.7rem' }}
+                                                                    >
+                                                                        Load more...
+                                                                    </Button>
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );
