@@ -345,7 +345,7 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
 
                     // Calculate account total from buckets
                     buckets.Total = buckets.Range0To30 + buckets.Range30To60 + buckets.Range60To90 +
-                                    buckets.Range90To120+buckets.Range120To150 + buckets.Over150;
+                                    buckets.Range90To120 + buckets.Range120To150 + buckets.Over150;
 
                     bool isReceivable = buckets.Total > 0;
 
@@ -481,12 +481,271 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
             };
         }
 
-        public async Task<object> GetDayCountAgingForAccountAsync(Guid companyId, Guid fiscalYearId, Guid accountId, DateTime asOnDate)
+        // public async Task<object> GetDayCountAgingForAccountAsync(Guid companyId, Guid fiscalYearId, Guid accountId, DateTime asOnDate)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("GetDayCountAgingForAccountAsync called for Company: {CompanyId}, Account: {AccountId}, AsOnDate: {AsOnDate}",
+        //             companyId, accountId, asOnDate);
+
+        //         // Get company details
+        //         var company = await _context.Companies
+        //             .FirstOrDefaultAsync(c => c.Id == companyId);
+
+        //         if (company == null)
+        //         {
+        //             throw new ArgumentException("Company not found");
+        //         }
+
+        //         var companyDateFormat = company.DateFormat?.ToString().ToLower() ?? "english";
+
+        //         // Get account details
+        //         var account = await _context.Accounts
+        //             .Include(a => a.InitialOpeningBalance)
+        //             .FirstOrDefaultAsync(a => a.Id == accountId && a.CompanyId == companyId);
+
+        //         if (account == null)
+        //         {
+        //             throw new ArgumentException("Account not found");
+        //         }
+
+        //         // Get initial fiscal year
+        //         var initialFiscalYear = await _context.FiscalYears
+        //             .Where(f => f.CompanyId == companyId)
+        //             .OrderBy(f => f.StartDate)
+        //             .FirstOrDefaultAsync();
+
+        //         // Get current fiscal year
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         // Use initialOpeningBalance if available
+        //         var initialOpeningBalance = account.InitialOpeningBalance;
+        //         decimal openingBalance = 0;
+        //         string openingBalanceType = "Dr";
+        //         DateTime openingBalanceDate = DateTime.UtcNow;
+        //         string openingBalanceNepaliDate = "";
+
+        //         if (initialOpeningBalance != null && initialOpeningBalance.InitialFiscalYearId == initialFiscalYear?.Id)
+        //         {
+        //             if (initialOpeningBalance.Date <= asOnDate)
+        //             {
+        //                 openingBalance = initialOpeningBalance.Amount;
+        //                 openingBalanceType = initialOpeningBalance.Type;
+        //                 openingBalanceDate = initialOpeningBalance.Date;
+        //                 openingBalanceNepaliDate = initialOpeningBalance.NepaliDate?.ToString() ?? "";
+        //             }
+        //         }
+
+        //         // Calculate initial running balance correctly
+        //         decimal initialRunningBalance = openingBalanceType == "Dr" ? openingBalance : -openingBalance;
+
+        //         _logger.LogInformation($"Initial opening balance for {account.Name}: {openingBalance} {openingBalanceType}");
+        //         _logger.LogInformation($"Initial running balance: {initialRunningBalance}");
+
+        //         // Get ALL transactions up to asOnDate (using AD date only)
+        //         var allTransactions = await GetTransactionsAsync(companyId, accountId, null, asOnDate, includePopulations: true);
+
+        //         _logger.LogInformation($"Found {allTransactions.Count} total transactions");
+
+        //         // Process transactions in chronological order to calculate running balance
+        //         decimal runningBalance = initialRunningBalance;
+        //         var transactionList = new List<object>();
+        //         decimal totalOutstanding = 0;
+        //         decimal current = 0, oneToThirty = 0, thirtyOneToSixty = 0, sixtyOneToNinety = 0, ninetyPlus = 0;
+
+        //         // Order transactions by date
+        //         var orderedTransactions = allTransactions
+        //             .OrderBy(t => t.Date)
+        //             .ThenBy(t => t.CreatedAt)
+        //             .ToList();
+
+        //         var processedVoucherIds = new HashSet<string>();
+
+        //         foreach (var transaction in orderedTransactions)
+        //         {
+        //             var voucherIdentifier = GetVoucherIdentifier(transaction);
+
+        //             if (processedVoucherIds.Contains(voucherIdentifier))
+        //                 continue;
+
+        //             processedVoucherIds.Add(voucherIdentifier);
+
+        //             // Get all transactions for this voucher
+        //             var voucherTransactions = allTransactions.Where(t => GetVoucherIdentifier(t) == voucherIdentifier).ToList();
+        //             var amounts = CalculateVoucherAmounts(voucherTransactions);
+        //             var mainTransaction = IdentifyMainTransaction(voucherTransactions);
+
+        //             // Calculate age in days using standard DateTime
+        //             var transactionDate = mainTransaction.Date;
+        //             var ageInDays = (int)(asOnDate - transactionDate).TotalDays;
+        //             if (ageInDays < 0) ageInDays = 0;
+
+        //             // Update running balance correctly
+        //             runningBalance = runningBalance + amounts.totalDebit - amounts.totalCredit;
+
+        //             // Calculate net amount for aging categorization
+        //             var netAmount = amounts.totalDebit - amounts.totalCredit;
+
+        //             if (netAmount > 0)
+        //             {
+        //                 totalOutstanding += netAmount;
+
+        //                 // Categorize by age
+        //                 if (ageInDays <= 30)
+        //                     current += netAmount;
+        //                 else if (ageInDays <= 60)
+        //                     oneToThirty += netAmount;
+        //                 else if (ageInDays <= 90)
+        //                     thirtyOneToSixty += netAmount;
+        //                 else
+        //                     ninetyPlus += netAmount;
+        //             }
+
+        //             // Get Nepali date from the transaction's NepaliDate property (stored as string)
+        //             string nepaliDate = "";
+        //             if (mainTransaction.NepaliDate != null)
+        //             {
+        //                 nepaliDate = mainTransaction.NepaliDate.ToString();
+        //             }
+
+        //             // Prepare transaction data with both AD and BS dates
+        //             transactionList.Add(new
+        //             {
+        //                 id = mainTransaction.Id,
+        //                 date = mainTransaction.Date.ToString("yyyy-MM-dd"),
+        //                 nepaliDate = nepaliDate,
+        //                 debit = amounts.totalDebit,
+        //                 credit = amounts.totalCredit,
+        //                 balance = runningBalance,
+        //                 age = ageInDays,
+        //                 ageCategory = ageInDays <= 30 ? "0-30 days" :
+        //                              ageInDays <= 60 ? "31-60 days" :
+        //                              ageInDays <= 90 ? "61-90 days" : "90+ days",
+        //                 description = GetTransactionDescription(mainTransaction),
+        //                 referenceNumber = GetReferenceNumber(mainTransaction),
+        //                 type = GetTransactionType(mainTransaction),
+        //                 voucherIdentifier = voucherIdentifier,
+        //                 isGrouped = true,
+        //                 totalItems = voucherTransactions.Count,
+        //                 hasMainTransaction = amounts.isMainTransaction
+        //             });
+        //         }
+
+        //         // Get all accounts for the response
+        //         var debtorGroup = await _context.AccountGroups
+        //             .FirstOrDefaultAsync(g => g.Name == "Sundry Debtors" && g.CompanyId == companyId);
+
+        //         var creditorGroup = await _context.AccountGroups
+        //             .FirstOrDefaultAsync(g => g.Name == "Sundry Creditors" && g.CompanyId == companyId);
+
+        //         var relevantGroupIds = new List<Guid>();
+        //         if (debtorGroup != null) relevantGroupIds.Add(debtorGroup.Id);
+        //         if (creditorGroup != null) relevantGroupIds.Add(creditorGroup.Id);
+
+        //         var allAccounts = await _context.Accounts
+        //             .Where(a => a.CompanyId == companyId &&
+        //                    relevantGroupIds.Contains(a.AccountGroupsId) &&
+        //                    a.IsActive)
+        //             .OrderBy(a => a.Name)
+        //             .Select(a => new
+        //             {
+        //                 id = a.Id,
+        //                 name = a.Name,
+        //                 address = a.Address,
+        //                 phone = a.Phone,
+        //                 email = a.Email,
+        //                 companyGroups = a.AccountGroupsId,
+        //             })
+        //             .ToListAsync();
+
+        //         return new
+        //         {
+        //             account = new
+        //             {
+        //                 id = account.Id,
+        //                 name = account.Name,
+        //                 address = account.Address,
+        //                 phone = account.Phone,
+        //                 email = account.Email,
+        //                 companyGroups = account.AccountGroupsId,
+        //                 openingBalance = openingBalance,
+        //                 openingBalanceType = openingBalanceType,
+        //                 openingBalanceDate = openingBalanceDate.ToString("yyyy-MM-dd"),
+        //                 openingBalanceNepaliDate = openingBalanceNepaliDate,
+        //                 initialFiscalYear = initialFiscalYear?.Id,
+        //                 initialOpeningBalance = account.InitialOpeningBalance != null ? new
+        //                 {
+        //                     amount = account.InitialOpeningBalance.Amount,
+        //                     type = account.InitialOpeningBalance.Type,
+        //                     date = account.InitialOpeningBalance.Date.ToString("yyyy-MM-dd"),
+        //                     nepaliDate = account.InitialOpeningBalance.NepaliDate?.ToString() ?? "",
+        //                     initialFiscalYearId = account.InitialOpeningBalance.InitialFiscalYearId
+        //                 } : null
+        //             },
+        //             agingData = new
+        //             {
+        //                 totalOutstanding = totalOutstanding,
+        //                 agingBreakdown = new
+        //                 {
+        //                     current = current,
+        //                     oneToThirty = oneToThirty,
+        //                     thirtyOneToSixty = thirtyOneToSixty,
+        //                     sixtyOneToNinety = sixtyOneToNinety,
+        //                     ninetyPlus = ninetyPlus
+        //                 },
+        //                 transactions = transactionList,
+        //                 summary = new
+        //                 {
+        //                     totalTransactions = transactionList.Count,
+        //                     asOnDate = asOnDate.ToString("yyyy-MM-dd"),
+        //                     initialBalanceUsed = new
+        //                     {
+        //                         amount = openingBalance,
+        //                         type = openingBalanceType,
+        //                         date = openingBalanceDate.ToString("yyyy-MM-dd"),
+        //                         nepaliDate = openingBalanceNepaliDate
+        //                     }
+        //                 }
+        //             },
+        //             company = new
+        //             {
+        //                 id = company.Id,
+        //                 name = company.Name,
+        //                 address = company.Address,
+        //                 city = company.City,
+        //                 pan = company.Pan,
+        //                 dateFormat = company.DateFormat.ToString()
+        //             },
+        //             currentFiscalYear = currentFiscalYear != null ? new
+        //             {
+        //                 id = currentFiscalYear.Id,
+        //                 name = currentFiscalYear.Name,
+        //                 startDate = currentFiscalYear.StartDate,
+        //                 endDate = currentFiscalYear.EndDate,
+        //                 startDateNepali = currentFiscalYear.StartDateNepali,
+        //                 endDateNepali = currentFiscalYear.EndDateNepali
+        //             } : null,
+        //             accounts = allAccounts,
+        //             currentCompanyName = company.Name,
+        //             asOnDate = asOnDate.ToString("yyyy-MM-dd"),
+        //             companyDateFormat = companyDateFormat,
+        //             hasDateFilter = true
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetDayCountAgingForAccountAsync");
+        //         throw;
+        //     }
+        // }
+
+        public async Task<object> GetDayCountAgingForAccountAsync(Guid companyId, Guid fiscalYearId, Guid accountId, DateTime fromDate, DateTime toDate)
         {
             try
             {
-                _logger.LogInformation("GetDayCountAgingForAccountAsync called for Company: {CompanyId}, Account: {AccountId}, AsOnDate: {AsOnDate}",
-                    companyId, accountId, asOnDate);
+                _logger.LogInformation("GetDayCountAgingForAccountAsync called for Company: {CompanyId}, Account: {AccountId}, FromDate: {FromDate}, ToDate: {ToDate}",
+                    companyId, accountId, fromDate, toDate);
 
                 // Get company details
                 var company = await _context.Companies
@@ -519,43 +778,27 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                 var currentFiscalYear = await _context.FiscalYears
                     .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
 
-                // Use initialOpeningBalance if available
-                var initialOpeningBalance = account.InitialOpeningBalance;
-                decimal openingBalance = 0;
-                string openingBalanceType = "Dr";
-                DateTime openingBalanceDate = DateTime.UtcNow;
-                string openingBalanceNepaliDate = "";
+                // Calculate opening balance BEFORE the fromDate
+                var openingBalanceBeforeFromDate = await CalculateOpeningBalanceBeforeDateAsync(companyId, accountId, fromDate, account.InitialOpeningBalance, initialFiscalYear?.Id);
+                decimal openingBalanceType = openingBalanceBeforeFromDate >= 0 ? 1 : -1;
+                string openingBalanceTypeStr = openingBalanceBeforeFromDate >= 0 ? "Dr" : "Cr";
 
-                if (initialOpeningBalance != null && initialOpeningBalance.InitialFiscalYearId == initialFiscalYear?.Id)
-                {
-                    if (initialOpeningBalance.Date <= asOnDate)
-                    {
-                        openingBalance = initialOpeningBalance.Amount;
-                        openingBalanceType = initialOpeningBalance.Type;
-                        openingBalanceDate = initialOpeningBalance.Date;
-                        openingBalanceNepaliDate = initialOpeningBalance.NepaliDate?.ToString() ?? "";
-                    }
-                }
+                _logger.LogInformation($"Opening balance before {fromDate} for {account.Name}: {Math.Abs(openingBalanceBeforeFromDate)} {openingBalanceTypeStr}");
+                _logger.LogInformation($"Initial running balance: {openingBalanceBeforeFromDate}");
 
-                // Calculate initial running balance correctly
-                decimal initialRunningBalance = openingBalanceType == "Dr" ? openingBalance : -openingBalance;
+                // Get ALL transactions between fromDate and toDate (inclusive)
+                var transactionsInRange = await GetTransactionsInDateRangeAsync(companyId, accountId, fromDate, toDate, includePopulations: true);
 
-                _logger.LogInformation($"Initial opening balance for {account.Name}: {openingBalance} {openingBalanceType}");
-                _logger.LogInformation($"Initial running balance: {initialRunningBalance}");
-
-                // Get ALL transactions up to asOnDate (using AD date only)
-                var allTransactions = await GetTransactionsAsync(companyId, accountId, null, asOnDate, includePopulations: true);
-
-                _logger.LogInformation($"Found {allTransactions.Count} total transactions");
+                _logger.LogInformation($"Found {transactionsInRange.Count} transactions between {fromDate} and {toDate}");
 
                 // Process transactions in chronological order to calculate running balance
-                decimal runningBalance = initialRunningBalance;
+                decimal runningBalance = openingBalanceBeforeFromDate;
                 var transactionList = new List<object>();
                 decimal totalOutstanding = 0;
                 decimal current = 0, oneToThirty = 0, thirtyOneToSixty = 0, sixtyOneToNinety = 0, ninetyPlus = 0;
 
                 // Order transactions by date
-                var orderedTransactions = allTransactions
+                var orderedTransactions = transactionsInRange
                     .OrderBy(t => t.Date)
                     .ThenBy(t => t.CreatedAt)
                     .ToList();
@@ -572,13 +815,13 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     processedVoucherIds.Add(voucherIdentifier);
 
                     // Get all transactions for this voucher
-                    var voucherTransactions = allTransactions.Where(t => GetVoucherIdentifier(t) == voucherIdentifier).ToList();
+                    var voucherTransactions = transactionsInRange.Where(t => GetVoucherIdentifier(t) == voucherIdentifier).ToList();
                     var amounts = CalculateVoucherAmounts(voucherTransactions);
                     var mainTransaction = IdentifyMainTransaction(voucherTransactions);
 
-                    // Calculate age in days using standard DateTime
+                    // Calculate age in days using toDate as reference
                     var transactionDate = mainTransaction.Date;
-                    var ageInDays = (int)(asOnDate - transactionDate).TotalDays;
+                    var ageInDays = (int)(toDate - transactionDate).TotalDays;
                     if (ageInDays < 0) ageInDays = 0;
 
                     // Update running balance correctly
@@ -602,12 +845,8 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                             ninetyPlus += netAmount;
                     }
 
-                    // Get Nepali date from the transaction's NepaliDate property (stored as string)
-                    string nepaliDate = "";
-                    if (mainTransaction.NepaliDate != null)
-                    {
-                        nepaliDate = mainTransaction.NepaliDate.ToString();
-                    }
+                    // Get Nepali date from the transaction's NepaliDate property
+                    string nepaliDate = mainTransaction.NepaliDate?.ToString() ?? "";
 
                     // Prepare transaction data with both AD and BS dates
                     transactionList.Add(new
@@ -669,10 +908,10 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                         phone = account.Phone,
                         email = account.Email,
                         companyGroups = account.AccountGroupsId,
-                        openingBalance = openingBalance,
-                        openingBalanceType = openingBalanceType,
-                        openingBalanceDate = openingBalanceDate.ToString("yyyy-MM-dd"),
-                        openingBalanceNepaliDate = openingBalanceNepaliDate,
+                        openingBalance = Math.Abs(openingBalanceBeforeFromDate),
+                        openingBalanceType = openingBalanceTypeStr,
+                        openingBalanceDate = fromDate.ToString("yyyy-MM-dd"),
+                        openingBalanceNepaliDate = "", // Will be set by frontend
                         initialFiscalYear = initialFiscalYear?.Id,
                         initialOpeningBalance = account.InitialOpeningBalance != null ? new
                         {
@@ -686,6 +925,8 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     agingData = new
                     {
                         totalOutstanding = totalOutstanding,
+                        openingBalanceBeforeFromDate = openingBalanceBeforeFromDate,
+                        openingBalanceType = openingBalanceTypeStr,
                         agingBreakdown = new
                         {
                             current = current,
@@ -698,13 +939,14 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                         summary = new
                         {
                             totalTransactions = transactionList.Count,
-                            asOnDate = asOnDate.ToString("yyyy-MM-dd"),
+                            fromDate = fromDate.ToString("yyyy-MM-dd"),
+                            toDate = toDate.ToString("yyyy-MM-dd"),
                             initialBalanceUsed = new
                             {
-                                amount = openingBalance,
-                                type = openingBalanceType,
-                                date = openingBalanceDate.ToString("yyyy-MM-dd"),
-                                nepaliDate = openingBalanceNepaliDate
+                                amount = Math.Abs(openingBalanceBeforeFromDate),
+                                type = openingBalanceTypeStr,
+                                date = fromDate.ToString("yyyy-MM-dd"),
+                                nepaliDate = ""
                             }
                         }
                     },
@@ -728,7 +970,8 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
                     } : null,
                     accounts = allAccounts,
                     currentCompanyName = company.Name,
-                    asOnDate = asOnDate.ToString("yyyy-MM-dd"),
+                    fromDate = fromDate.ToString("yyyy-MM-dd"),
+                    toDate = toDate.ToString("yyyy-MM-dd"),
                     companyDateFormat = companyDateFormat,
                     hasDateFilter = true
                 };
@@ -740,6 +983,97 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
             }
         }
 
+        private async Task<decimal> CalculateOpeningBalanceBeforeDateAsync(Guid companyId, Guid accountId, DateTime beforeDate, InitialOpeningBalance? initialOpeningBalance, Guid? initialFiscalYearId)
+        {
+            decimal openingBalance = 0;
+
+            // Get initial fiscal year if not provided
+            if (!initialFiscalYearId.HasValue)
+            {
+                var initialFiscalYear = await _context.FiscalYears
+                    .Where(f => f.CompanyId == companyId)
+                    .OrderBy(f => f.StartDate)
+                    .FirstOrDefaultAsync();
+                initialFiscalYearId = initialFiscalYear?.Id;
+            }
+
+            // Use initial opening balance if available
+            if (initialOpeningBalance != null && initialOpeningBalance.InitialFiscalYearId == initialFiscalYearId)
+            {
+                if (initialOpeningBalance.Date <= beforeDate)
+                {
+                    openingBalance = initialOpeningBalance.Type == "Dr"
+                        ? initialOpeningBalance.Amount
+                        : -initialOpeningBalance.Amount;
+                }
+            }
+
+            // Get all transactions BEFORE the fromDate
+            var transactionsBeforeDate = await _context.Transactions
+                .Where(t => t.CompanyId == companyId &&
+                       t.AccountId == accountId &&
+                       t.IsActive &&
+                       t.Status == TransactionStatus.Active &&
+                       t.PaymentMode != PaymentMode.Cash && // Exclude cash transactions
+                       t.Date < beforeDate)
+                .OrderBy(t => t.Date)
+                .ThenBy(t => t.CreatedAt)
+                .ToListAsync();
+
+            var processedVoucherIds = new HashSet<string>();
+
+            foreach (var transaction in transactionsBeforeDate)
+            {
+                var voucherIdentifier = GetVoucherIdentifier(transaction);
+
+                if (processedVoucherIds.Contains(voucherIdentifier))
+                    continue;
+
+                processedVoucherIds.Add(voucherIdentifier);
+
+                // Get all transactions for this voucher
+                var voucherTransactions = transactionsBeforeDate.Where(t => GetVoucherIdentifier(t) == voucherIdentifier).ToList();
+                var amounts = CalculateVoucherAmounts(voucherTransactions);
+                var mainTransaction = IdentifyMainTransaction(voucherTransactions);
+
+                // Update running balance
+                openingBalance = openingBalance + amounts.totalDebit - amounts.totalCredit;
+            }
+
+            return openingBalance;
+        }
+
+        private async Task<List<Transaction>> GetTransactionsInDateRangeAsync(Guid companyId, Guid accountId, DateTime fromDate, DateTime toDate, bool includePopulations = false)
+        {
+            var query = _context.Transactions
+                .Where(t => t.CompanyId == companyId &&
+                       t.AccountId == accountId &&
+                       t.IsActive &&
+                       t.Status == TransactionStatus.Active);
+
+            // Exclude cash transactions
+            query = query.Where(t => t.PaymentMode != PaymentMode.Cash);
+
+            // Apply date range filter - use standard DateTime comparison (AD date only)
+            query = query.Where(t => t.Date >= fromDate && t.Date <= toDate);
+
+            if (includePopulations)
+            {
+                query = query
+                    .Include(t => t.PurchaseBill)
+                    .Include(t => t.PurchaseReturn)
+                    .Include(t => t.SalesBill)
+                    .Include(t => t.SalesReturn)
+                    .Include(t => t.JournalVoucher)
+                    .Include(t => t.DebitNote)
+                    .Include(t => t.CreditNote)
+                    .Include(t => t.Payment)
+                    .Include(t => t.Receipt)
+                    .Include(t => t.TransactionItems);
+            }
+
+            return await query.ToListAsync();
+        }
         private async Task<List<Transaction>> GetTransactionsAsync(Guid companyId, Guid accountId, DateTime? fromDate, DateTime toDate, bool includePopulations = false)
         {
             var query = _context.Transactions

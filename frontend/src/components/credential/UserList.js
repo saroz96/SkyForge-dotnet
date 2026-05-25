@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../retailer/Header';
 import NotificationToast from '../NotificationToast';
-import { FaUsers, FaUserPlus, FaSearch, FaEye, FaLock, FaEdit, FaUserSlash, FaUserCheck, FaSave } from 'react-icons/fa';
+import { FaUsers, FaUserPlus, FaSearch, FaEye, FaLock, FaEdit, FaUserSlash, FaUserCheck, FaSave, FaBuilding } from 'react-icons/fa';
 import { Tooltip, OverlayTrigger } from 'react-bootstrap';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -12,13 +12,15 @@ const UserList = () => {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [company, setCompany] = useState(null);
+    const [currentFiscalYear, setCurrentFiscalYear] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [notification, setNotification] = useState({
         show: false,
         message: '',
-        type: 'success'
+        type: 'success',
+        duration: 3000
     });
     const [currentUser, setCurrentUser] = useState({
         isAdminOrSupervisor: false,
@@ -31,13 +33,30 @@ const UserList = () => {
         withCredentials: true,
     });
 
+    // Add authorization header to all requests
+    api.interceptors.request.use(
+        (config) => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        },
+        (error) => {
+            return Promise.reject(error);
+        }
+    );
+
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const response = await api.get('/api/auth/admin/users/list');
+                setLoading(true);
+                const response = await api.get('/api/user/admin/users/list');
+                
                 if (response.data.success) {
                     setUsers(response.data.data.users);
                     setCompany(response.data.data.company);
+                    setCurrentFiscalYear(response.data.data.currentFiscalYear);
                     setCurrentUser({
                         isAdminOrSupervisor: response.data.data.isAdminOrSupervisor,
                         theme: response.data.data.currentUser.theme
@@ -45,13 +64,17 @@ const UserList = () => {
                 } else {
                     setError(response.data.error);
                     if (response.status === 403) {
-                        navigate('/dashboard');
+                        setTimeout(() => navigate('/dashboard'), 2000);
                     }
                 }
             } catch (err) {
-                setError(err.response?.data?.error || 'Failed to load users');
+                console.error('Error fetching users:', err);
+                const errorMessage = err.response?.data?.error || 'Failed to load users';
+                setError(errorMessage);
                 if (err.response?.status === 403) {
-                    navigate('/dashboard');
+                    setTimeout(() => navigate('/dashboard'), 2000);
+                } else if (err.response?.status === 401) {
+                    setTimeout(() => navigate('/login'), 2000);
                 }
             } finally {
                 setLoading(false);
@@ -59,11 +82,11 @@ const UserList = () => {
         };
 
         fetchUsers();
-    }, []);
+    }, [navigate]);
 
     const handleRoleChange = async (userId, newRole) => {
         try {
-            const response = await api.post(`/api/auth/admin/users/${userId}/role`, { role: newRole });
+            const response = await api.put(`/api/user/admin/users/${userId}/role`, { role: newRole });
             if (response.data.success) {
                 setUsers(users.map(user => 
                     user.id === userId ? { ...user, role: newRole } : user
@@ -82,7 +105,7 @@ const UserList = () => {
         }
 
         try {
-            const response = await api.post(`/api/auth/admin/users/${userId}/${action}`);
+            const response = await api.post(`/api/user/admin/users/${userId}/${action}`);
             if (response.data.success) {
                 setUsers(users.map(user => 
                     user.id === userId ? { ...user, isActive: activate } : user
@@ -98,7 +121,8 @@ const UserList = () => {
         setNotification({
             show: true,
             message,
-            type
+            type,
+            duration: 3000
         });
     };
 
@@ -138,17 +162,35 @@ const UserList = () => {
         return sortConfig.direction === 'ascending' ? '↑' : '↓';
     };
 
+    const getRoleBadgeClass = (role) => {
+        switch (role?.toLowerCase()) {
+            case 'admin':
+            case 'administrator':
+                return 'bg-danger';
+            case 'supervisor':
+                return 'bg-warning text-dark';
+            case 'account':
+                return 'bg-info text-dark';
+            case 'sales':
+                return 'bg-success';
+            case 'purchase':
+                return 'bg-primary';
+            default:
+                return 'bg-secondary';
+        }
+    };
+
     if (loading) {
         return (
-            <div className='Container-fluid'>
+            <div className='container-fluid'>
                 <Header />
                 <div className="container user-management-container mt-4">
-                    <div className="card user-management-card">
-                        <div className="card-header">
+                    <div className="card user-management-card shadow-sm">
+                        <div className="card-header bg-white py-0">
                             <Skeleton height={30} width={200} />
                         </div>
-                        <div className="card-body">
-                            <Skeleton count={5} height={50} />
+                        <div className="card-body p-2 p-md-3">
+                            <Skeleton count={5} height={50} className="mb-2" />
                         </div>
                     </div>
                 </div>
@@ -158,14 +200,12 @@ const UserList = () => {
 
     if (error) {
         return (
-            <div className='Container-fluid'>
+            <div className='container-fluid'>
                 <Header />
                 <div className="container mt-4">
-                    <div className="alert alert-danger">
-                        <div className="d-flex align-items-center">
-                            <i className="fas fa-exclamation-circle me-2"></i>
-                            <div>{error}</div>
-                        </div>
+                    <div className="alert alert-danger text-center py-1 mb-2 small" style={{ fontSize: '0.75rem' }}>
+                        <i className="fas fa-exclamation-circle me-2"></i>
+                        {error}
                         <button 
                             className="btn btn-sm btn-outline-danger mt-2"
                             onClick={() => window.location.reload()}
@@ -179,268 +219,300 @@ const UserList = () => {
     }
 
     return (
-        <div className='Container-fluid'>
+        <div className='container-fluid'>
             <Header />
-            <div className="container user-management-container mt-4">
-                <div className="card user-management-card shadow-sm">
-                    <div className="card-header bg-white border-bottom-0">
-                        <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                            <h1 className="card-title mb-0">
-                                <FaUsers className="me-2" />
-                                User Management
-                                {company && (
-                                    <small className="text-muted ms-2">
-                                        {company.name}
-                                    </small>
-                                )}
-                            </h1>
+            <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+                <div className="card-header bg-white py-0">
+                    <h1 className="h4 mb-0 text-center text-primary">
+                        <FaUsers className="me-2" />
+                        User Management
+                    </h1>
+                </div>
+
+                <div className="card-body p-2 p-md-3">
+                    {/* Header with company info and search */}
+                    <div className="row g-2 mb-3">
+                        <div className="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
                             <div className="d-flex gap-2">
-                                <div className="search-container flex-grow-1">
-                                    <div className="input-group">
-                                        <span className="input-group-text bg-white">
-                                            <FaSearch />
+                                <div className="position-relative">
+                                    <div className="input-group" style={{ width: '250px' }}>
+                                        <span className="input-group-text bg-white border-end-0" style={{ padding: '0 8px' }}>
+                                            <FaSearch className="text-muted" size={12} />
                                         </span>
                                         <input
                                             type="text"
-                                            className="form-control border-start-0"
+                                            className="form-control form-control-sm border-start-0"
                                             placeholder="Search users..."
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
+                                            style={{ height: '26px', fontSize: '0.75rem' }}
                                         />
                                     </div>
                                 </div>
-                                <Link 
-                                    to="/auth/admin/create-user/new" 
-                                    className="btn btn-primary d-flex align-items-center"
-                                >
-                                    <FaUserPlus className="me-2" />
-                                    Add User
-                                </Link>
+                                {currentUser.isAdminOrSupervisor && (
+                                    <Link 
+                                        to="/auth/admin/create-user/new" 
+                                        className="btn btn-primary btn-sm d-flex align-items-center"
+                                        style={{ height: '26px', padding: '0 12px', fontSize: '0.75rem' }}
+                                    >
+                                        <FaUserPlus className="me-1" size={12} />
+                                        Add User
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    <div className="card-body p-0">
-                        {filteredUsers.length === 0 ? (
-                            <div className="empty-state text-center py-5">
-                                <div className="mb-3">
-                                    <FaUsers size={48} className="text-muted" />
-                                </div>
-                                <h4 className="mb-2">No Users Found</h4>
-                                <p className="text-muted mb-4">
-                                    {searchTerm ? 
-                                        'No users match your search criteria' : 
-                                        'There are currently no users in the system'}
-                                </p>
+                    {/* Users Table */}
+                    {filteredUsers.length === 0 ? (
+                        <div className="empty-state text-center py-5">
+                            <div className="mb-3">
+                                <FaUsers size={48} className="text-muted" />
+                            </div>
+                            <h4 className="mb-2" style={{ fontSize: '1rem' }}>No Users Found</h4>
+                            <p className="text-muted mb-4" style={{ fontSize: '0.75rem' }}>
+                                {searchTerm ? 
+                                    'No users match your search criteria' : 
+                                    'There are currently no users in the system'}
+                            </p>
+                            {currentUser.isAdminOrSupervisor && (
                                 <Link 
                                     to="/auth/admin/create-user/new" 
-                                    className="btn btn-primary"
+                                    className="btn btn-primary btn-sm"
+                                    style={{ fontSize: '0.75rem' }}
                                 >
-                                    <FaUserPlus className="me-2" />
+                                    <FaUserPlus className="me-2" size={12} />
                                     Create New User
                                 </Link>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="table-responsive">
-                                    <table className="table table-hover mb-0">
-                                        <thead className="table-light">
-                                            <tr>
-                                                <th 
-                                                    className="cursor-pointer"
-                                                    onClick={() => requestSort('name')}
-                                                >
-                                                    User {renderSortIcon('name')}
-                                                </th>
-                                                <th 
-                                                    className="cursor-pointer"
-                                                    onClick={() => requestSort('email')}
-                                                >
-                                                    Email {renderSortIcon('email')}
-                                                </th>
-                                                <th 
-                                                    className="cursor-pointer"
-                                                    onClick={() => requestSort('role')}
-                                                >
-                                                    Role {renderSortIcon('role')}
-                                                </th>
-                                                <th 
-                                                    className="cursor-pointer"
-                                                    onClick={() => requestSort('isActive')}
-                                                >
-                                                    Status {renderSortIcon('isActive')}
-                                                </th>
-                                                <th className="text-end">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredUsers.map(user => (
-                                                <tr key={user.id} className={!user.isActive ? 'opacity-75' : ''}>
-                                                    <td>
-                                                        <div className="d-flex align-items-center">
-                                                            <div 
-                                                                className="user-avatar d-flex align-items-center justify-content-center"
-                                                                style={{ 
-                                                                    backgroundColor: user.isOwner ? '#6f42c1' : '#0d6efd',
-                                                                    color: 'white'
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            <div className="table-responsive" style={{ maxHeight: '500px', overflow: 'auto' }}>
+                                <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.75rem' }}>
+                                    <thead className="table-light" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                                        <tr>
+                                            <th 
+                                                className="cursor-pointer"
+                                                onClick={() => requestSort('name')}
+                                                style={{ cursor: 'pointer', padding: '6px 8px' }}
+                                            >
+                                                User {renderSortIcon('name')}
+                                            </th>
+                                            <th 
+                                                className="cursor-pointer"
+                                                onClick={() => requestSort('email')}
+                                                style={{ cursor: 'pointer', padding: '6px 8px' }}
+                                            >
+                                                Email {renderSortIcon('email')}
+                                            </th>
+                                            <th 
+                                                className="cursor-pointer"
+                                                onClick={() => requestSort('role')}
+                                                style={{ cursor: 'pointer', padding: '6px 8px' }}
+                                            >
+                                                Role {renderSortIcon('role')}
+                                            </th>
+                                            <th 
+                                                className="cursor-pointer"
+                                                onClick={() => requestSort('isActive')}
+                                                style={{ cursor: 'pointer', padding: '6px 8px' }}
+                                            >
+                                                Status {renderSortIcon('isActive')}
+                                            </th>
+                                            <th className="text-end" style={{ padding: '6px 8px' }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredUsers.map(user => (
+                                            <tr key={user.id} className={!user.isActive ? 'opacity-75' : ''}>
+                                                <td style={{ padding: '6px 8px' }}>
+                                                    <div className="d-flex align-items-center">
+                                                        <div 
+                                                            className="user-avatar d-flex align-items-center justify-content-center rounded-circle me-2"
+                                                            style={{ 
+                                                                width: '28px',
+                                                                height: '28px',
+                                                                backgroundColor: user.isOwner ? '#6f42c1' : '#0d6efd',
+                                                                color: 'white',
+                                                                fontWeight: 'bold',
+                                                                fontSize: '12px'
+                                                            }}
+                                                        >
+                                                            {user.name.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <div className="fw-semibold" style={{ fontSize: '0.75rem' }}>
+                                                                {user.name}
+                                                                {user.isOwner && (
+                                                                    <span className="badge bg-primary ms-1" style={{ fontSize: '0.65rem' }}>Owner</span>
+                                                                )}
+                                                            </div>
+                                                            <small className="text-muted" style={{ fontSize: '0.65rem' }}>
+                                                                Joined {new Date(user.createdAt).toLocaleDateString()}
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '6px 8px' }}>
+                                                    <div className="d-flex align-items-center">
+                                                        <span className="text-truncate" style={{ maxWidth: '180px', fontSize: '0.75rem' }}>
+                                                            {user.email}
+                                                        </span>
+                                                        {user.isEmailVerified ? (
+                                                            <span className="badge bg-success ms-1" style={{ fontSize: '0.65rem' }}>Verified</span>
+                                                        ) : (
+                                                            <span className="badge bg-warning text-dark ms-1" style={{ fontSize: '0.65rem' }}>Pending</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '6px 8px' }}>
+                                                    {user.isOwner ? (
+                                                        <span className="badge bg-primary" style={{ fontSize: '0.7rem' }}>Owner</span>
+                                                    ) : currentUser.isAdminOrSupervisor ? (
+                                                        <div className="d-flex align-items-center gap-1">
+                                                            <select
+                                                                className="form-select form-select-sm"
+                                                                style={{ width: '110px', fontSize: '0.7rem', height: '30px' }}
+                                                                value={user.role}
+                                                                onChange={(e) => {
+                                                                    const newRole = e.target.value;
+                                                                    setUsers(users.map(u => 
+                                                                        u.id === user.id ? { ...u, role: newRole } : u
+                                                                    ));
                                                                 }}
                                                             >
-                                                                {user.name.charAt(0).toUpperCase()}
-                                                            </div>
-                                                            <div>
-                                                                <div className="fw-medium">
-                                                                    {user.name}
-                                                                    {user.isOwner && (
-                                                                        <span className="badge bg-primary ms-2">Owner</span>
-                                                                    )}
-                                                                </div>
-                                                                <small className="text-muted d-block">
-                                                                    Joined {new Date(user.createdAt).toLocaleDateString()}
-                                                                </small>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="d-flex align-items-center">
-                                                            <span className="text-truncate" style={{ maxWidth: '200px' }}>
-                                                                {user.email}
-                                                            </span>
-                                                            {user.isEmailVerified ? (
-                                                                <span className="badge bg-success ms-2">Verified</span>
-                                                            ) : (
-                                                                <span className="badge bg-warning text-dark ms-2">Not Verified</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        {user.isOwner ? (
-                                                            <span className="badge bg-primary">Owner</span>
-                                                        ) : currentUser.isAdminOrSupervisor ? (
-                                                            <div className="d-flex align-items-center">
-                                                                <select
-                                                                    className="form-select form-select-sm me-2"
-                                                                    value={user.role}
-                                                                    onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                                                                <option value="User">User</option>
+                                                                <option value="Sales">Sales</option>
+                                                                <option value="Purchase">Purchase</option>
+                                                                <option value="Account">Account</option>
+                                                                <option value="Supervisor">Supervisor</option>
+                                                                <option value="Admin">Admin</option>
+                                                            </select>
+                                                            <OverlayTrigger
+                                                                placement="top"
+                                                                overlay={renderTooltip('Save Role')}
+                                                            >
+                                                                <button 
+                                                                    className="btn btn-primary btn-sm"
+                                                                    style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                                                                    onClick={() => handleRoleChange(user.id, user.role)}
                                                                 >
-                                                                    <option value="User">User</option>
-                                                                    <option value="Sales">Sales</option>
-                                                                    <option value="Purchase">Purchase</option>
-                                                                    <option value="Account">Account</option>
-                                                                    <option value="Supervisor">Supervisor</option>
-                                                                    <option value="ADMINISTRATOR">ADMINISTRATOR</option>
-                                                                </select>
+                                                                    <FaSave size={10} />
+                                                                </button>
+                                                            </OverlayTrigger>
+                                                        </div>
+                                                    ) : (
+                                                        <span className={`badge ${getRoleBadgeClass(user.role)}`} style={{ fontSize: '0.7rem' }}>
+                                                            {user.role}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '6px 8px' }}>
+                                                    <span className={`badge ${user.isActive ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: '0.7rem' }}>
+                                                        {user.isActive ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </td>
+                                                <td className="text-end" style={{ padding: '6px 8px' }}>
+                                                    <div className="d-flex justify-content-end gap-1">
+                                                        <OverlayTrigger
+                                                            placement="top"
+                                                            overlay={renderTooltip('View User')}
+                                                        >
+                                                            <Link 
+                                                                to={`/auth/users/view/${user.id}`} 
+                                                                className="btn btn-outline-primary btn-sm"
+                                                                style={{ padding: '2px 6px' }}
+                                                            >
+                                                                <FaEye size={10} />
+                                                            </Link>
+                                                        </OverlayTrigger>
+                                                        {currentUser.isAdminOrSupervisor && (
+                                                            <>
                                                                 <OverlayTrigger
                                                                     placement="top"
-                                                                    overlay={renderTooltip('Save Role')}
+                                                                    overlay={renderTooltip('Permissions')}
                                                                 >
-                                                                    <button 
-                                                                        className="btn btn-primary btn-sm"
-                                                                        onClick={() => handleRoleChange(user.id, user.role)}
+                                                                    <Link
+                                                                        to={`/auth/admin/users/user-permissions/${user.id}`}
+                                                                        className="btn btn-outline-primary btn-sm"
+                                                                        style={{ padding: '2px 6px' }}
                                                                     >
-                                                                        <FaSave size={12} />
-                                                                    </button>
+                                                                        <FaLock size={10} />
+                                                                    </Link>
                                                                 </OverlayTrigger>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="badge bg-secondary">
-                                                                {user.role}
-                                                            </span>
+                                                                {!user.isOwner && (
+                                                                    <>
+                                                                        <OverlayTrigger
+                                                                            placement="top"
+                                                                            overlay={renderTooltip('Edit User')}
+                                                                        >
+                                                                            <Link
+                                                                                to={`/auth/admin/users/edit/${user.id}`}
+                                                                                className="btn btn-outline-warning btn-sm"
+                                                                                style={{ padding: '2px 6px' }}
+                                                                            >
+                                                                                <FaEdit size={10} />
+                                                                            </Link>
+                                                                        </OverlayTrigger>
+                                                                        {user.isActive ? (
+                                                                            <OverlayTrigger
+                                                                                placement="top"
+                                                                                overlay={renderTooltip('Deactivate User')}
+                                                                            >
+                                                                                <button
+                                                                                    className="btn btn-outline-danger btn-sm"
+                                                                                    style={{ padding: '2px 6px' }}
+                                                                                    onClick={() => toggleUserStatus(user.id, false)}
+                                                                                >
+                                                                                    <FaUserSlash size={10} />
+                                                                                </button>
+                                                                            </OverlayTrigger>
+                                                                        ) : (
+                                                                            <OverlayTrigger
+                                                                                placement="top"
+                                                                                overlay={renderTooltip('Activate User')}
+                                                                            >
+                                                                                <button
+                                                                                    className="btn btn-outline-success btn-sm"
+                                                                                    style={{ padding: '2px 6px' }}
+                                                                                    onClick={() => toggleUserStatus(user.id, true)}
+                                                                                >
+                                                                                    <FaUserCheck size={10} />
+                                                                                </button>
+                                                                            </OverlayTrigger>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </>
                                                         )}
-                                                    </td>
-                                                    <td>
-                                                        <span className={`badge ${user.isActive ? 'bg-success' : 'bg-danger'}`}>
-                                                            {user.isActive ? 'Active' : 'Inactive'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="text-end">
-                                                        <div className="d-flex justify-content-end gap-1">
-                                                            <OverlayTrigger
-                                                                placement="top"
-                                                                overlay={renderTooltip('View User')}
-                                                            >
-                                                                <Link 
-                                                                    to={`/auth/users/view/${user.id}`} 
-                                                                    className="btn btn-sm btn-outline-primary"
-                                                                >
-                                                                    <FaEye />
-                                                                </Link>
-                                                            </OverlayTrigger>
-                                                            <OverlayTrigger
-                                                                placement="top"
-                                                                overlay={renderTooltip('Permissions')}
-                                                            >
-                                                                <Link
-                                                                    to={`/auth/admin/users/user-permissions/${user.id}`}
-                                                                    className="btn btn-sm btn-outline-primary"
-                                                                >
-                                                                    <FaLock />
-                                                                </Link>
-                                                            </OverlayTrigger>
-                                                            {currentUser.isAdminOrSupervisor && !user.isOwner && (
-                                                                <>
-                                                                    <OverlayTrigger
-                                                                        placement="top"
-                                                                        overlay={renderTooltip('Edit User')}
-                                                                    >
-                                                                        <Link
-                                                                            to={`/admin/users/edit/${user.id}`}
-                                                                            className="btn btn-sm btn-outline-warning"
-                                                                        >
-                                                                            <FaEdit />
-                                                                        </Link>
-                                                                    </OverlayTrigger>
-                                                                    {user.isActive ? (
-                                                                        <OverlayTrigger
-                                                                            placement="top"
-                                                                            overlay={renderTooltip('Deactivate User')}
-                                                                        >
-                                                                            <button
-                                                                                className="btn btn-sm btn-outline-danger"
-                                                                                onClick={() => toggleUserStatus(user.id, false)}
-                                                                            >
-                                                                                <FaUserSlash />
-                                                                            </button>
-                                                                        </OverlayTrigger>
-                                                                    ) : (
-                                                                        <OverlayTrigger
-                                                                            placement="top"
-                                                                            overlay={renderTooltip('Activate User')}
-                                                                        >
-                                                                            <button
-                                                                                className="btn btn-sm btn-outline-success"
-                                                                                onClick={() => toggleUserStatus(user.id, true)}
-                                                                            >
-                                                                                <FaUserCheck />
-                                                                            </button>
-                                                                        </OverlayTrigger>
-                                                                    )}
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {/* Footer with counts */}
+                            <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                                <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                    Showing <span className="fw-semibold">{filteredUsers.length}</span> of{' '}
+                                    <span className="fw-semibold">{users.length}</span> user{users.length !== 1 ? 's' : ''}
                                 </div>
-                                <div className="p-3 border-top">
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <div className="text-muted">
-                                            Showing <span className="fw-semibold">{filteredUsers.length}</span> of{' '}
-                                            <span className="fw-semibold">{users.length}</span> user{users.length !== 1 ? 's' : ''}
-                                        </div>
-                                        <Link 
-                                            to="/auth/admin/create-user/new" 
-                                            className="btn btn-outline-primary btn-sm"
-                                        >
-                                            <FaUserPlus className="me-2" />
-                                            Add Another User
-                                        </Link>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                                {currentUser.isAdminOrSupervisor && (
+                                    <Link 
+                                        to="/auth/admin/create-user/new" 
+                                        className="btn btn-outline-primary btn-sm"
+                                        style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+                                    >
+                                        <FaUserPlus className="me-1" size={10} />
+                                        Add New User
+                                    </Link>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -448,6 +520,7 @@ const UserList = () => {
                 show={notification.show}
                 message={notification.message}
                 type={notification.type}
+                duration={notification.duration}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
         </div>

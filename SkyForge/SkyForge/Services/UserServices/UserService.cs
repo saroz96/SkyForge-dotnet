@@ -25,12 +25,218 @@ namespace SkyForge.Services.UserServices
             _logger = logger;
         }
 
-        public async Task<User> CreateUserAsync(User user, string password, Guid? roleId = null)
+        // public async Task<User> CreateUserAsync(User user, string password, Guid? roleId = null, Guid? assignedById = null)
+        // {
+        //     _logger.LogInformation("=== CREATE USER STARTED ===");
+        //     _logger.LogInformation($"User email: {user.Email}");
+        //     _logger.LogInformation($"User name: {user.Name}");
+        //     _logger.LogInformation($"Role ID to assign: {(roleId.HasValue ? roleId.Value.ToString() : "None")}");
+        //     _logger.LogInformation($"Assigned By ID: {(assignedById.HasValue ? assignedById.Value.ToString() : "None")}");
+
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         // Validate email uniqueness
+        //         _logger.LogInformation("Checking email uniqueness...");
+        //         var emailLower = user.Email.ToLower();
+        //         var existingUser = await _context.Users
+        //             .FirstOrDefaultAsync(u => u.Email.ToLower() == emailLower);
+
+        //         if (existingUser != null)
+        //         {
+        //             _logger.LogError($"Email {user.Email} already exists");
+        //             throw new Exception($"Email '{user.Email}' already exists");
+        //         }
+        //         _logger.LogInformation("Email is unique ✓");
+
+        //         // Hash password
+        //         _logger.LogInformation("Hashing password...");
+        //         try
+        //         {
+        //             user.PasswordHash = _passwordService.HashPassword(password);
+        //             _logger.LogInformation("Password hashed successfully ✓");
+        //         }
+        //         catch (Exception hashEx)
+        //         {
+        //             _logger.LogError($"Password hashing error: {hashEx.Message}");
+        //             throw new Exception($"Password hashing failed: {hashEx.Message}");
+        //         }
+
+        //         user.Email = user.Email.ToLower().Trim();
+
+        //         // Generate email verification token
+        //         _logger.LogInformation("Generating email verification token...");
+        //         try
+        //         {
+        //             user.EmailVerificationToken = _passwordService.HashToken(Guid.NewGuid().ToString());
+        //             user.EmailVerificationExpires = DateTime.UtcNow.AddDays(1);
+        //             _logger.LogInformation("Email verification token generated ✓");
+        //         }
+        //         catch (Exception tokenEx)
+        //         {
+        //             _logger.LogError($"Token generation error: {tokenEx.Message}");
+        //             throw;
+        //         }
+
+        //         // Set default menu permissions
+        //         _logger.LogInformation("Setting default menu permissions...");
+        //         try
+        //         {
+        //             user.MenuPermissions = GetDefaultMenuPermissions();
+        //             _logger.LogInformation("Default menu permissions set ✓");
+        //         }
+        //         catch (Exception permEx)
+        //         {
+        //             _logger.LogError($"Menu permissions error: {permEx.Message}");
+        //             throw;
+        //         }
+
+        //         // Set timestamps
+        //         user.CreatedAt = DateTime.UtcNow;
+        //         user.UpdatedAt = DateTime.UtcNow;
+        //         user.IsActive = true;
+        //         user.IsEmailVerified = false;
+        //         _logger.LogInformation("Timestamps set ✓");
+
+        //         // Save user first to get ID
+        //         _logger.LogInformation("Saving user to database...");
+        //         _context.Users.Add(user);
+        //         await _context.SaveChangesAsync();
+        //         _logger.LogInformation($"User saved successfully with ID: {user.Id}");
+
+        //         // Assign role if specified
+        //         if (roleId.HasValue)
+        //         {
+        //             _logger.LogInformation($"Assigning role ID {roleId.Value} to user...");
+
+        //             // Check if role exists
+        //             var role = await _context.Roles.FindAsync(roleId.Value);
+        //             if (role == null)
+        //             {
+        //                 _logger.LogWarning($"Role ID {roleId.Value} not found. Skipping role assignment.");
+        //             }
+        //             else if (!role.IsActive || !role.IsAssignable)
+        //             {
+        //                 _logger.LogWarning($"Role '{role.Name}' is not active or assignable. Skipping role assignment.");
+        //             }
+        //             else
+        //             {
+        //                 _logger.LogInformation($"Found role: {role.Name}");
+
+        //                 // Check if user already has this role
+        //                 var existingUserRole = await _context.UserRoles
+        //                     .FirstOrDefaultAsync(ur => ur.UserId == user.Id && ur.RoleId == roleId.Value);
+
+        //                 if (existingUserRole != null)
+        //                 {
+        //                     _logger.LogInformation($"User already has role '{role.Name}'. Marking as primary.");
+        //                     existingUserRole.IsPrimary = true;
+        //                     existingUserRole.UpdatedAt = DateTime.UtcNow;
+        //                 }
+        //                 else
+        //                 {
+        //                     // Create new UserRole - FIX: Use assignedById instead of user.Id
+        //                     var userRole = new UserRole
+        //                     {
+        //                         UserId = user.Id,
+        //                         RoleId = roleId.Value,
+        //                         AssignedById = assignedById, // Use the admin/supervisor's ID, not the new user's ID
+        //                         IsPrimary = true,
+        //                         AssignedAt = DateTime.UtcNow,
+        //                         CreatedAt = DateTime.UtcNow,
+        //                         UpdatedAt = DateTime.UtcNow
+        //                     };
+
+        //                     _context.UserRoles.Add(userRole);
+        //                     _logger.LogInformation($"Role '{role.Name}' assigned to user by {assignedById}");
+        //                 }
+
+        //                 await _context.SaveChangesAsync();
+        //             }
+        //         }
+        //         else
+        //         {
+        //             _logger.LogInformation("No role specified, skipping role assignment");
+        //         }
+
+        //         // Commit transaction
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("=== CREATE USER COMPLETED SUCCESSFULLY ===");
+
+        //         // Reload the user with roles
+        //         var createdUser = await _context.Users
+        //             .Include(u => u.UserRoles)
+        //                 .ThenInclude(ur => ur.Role)
+        //             .FirstOrDefaultAsync(u => u.Id == user.Id);
+
+        //         if (createdUser != null && createdUser.UserRoles != null)
+        //         {
+        //             _logger.LogInformation($"User created with ID: {createdUser.Id}");
+        //             _logger.LogInformation($"User has {createdUser.UserRoles.Count} roles");
+
+        //             foreach (var ur in createdUser.UserRoles)
+        //             {
+        //                 _logger.LogInformation($"  - Role: {ur.Role?.Name ?? "Unknown"} (ID: {ur.RoleId}, Primary: {ur.IsPrimary}, AssignedBy: {ur.AssignedById})");
+        //             }
+        //         }
+
+        //         return createdUser ?? user;
+        //     }
+        //     catch (DbUpdateException dbEx)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError($"Database update error: {dbEx.Message}");
+        //         _logger.LogError($"Inner exception: {dbEx.InnerException?.Message}");
+
+        //         if (dbEx.InnerException is PostgresException pgEx)
+        //         {
+        //             _logger.LogError($"PostgreSQL error code: {pgEx.SqlState}");
+        //             _logger.LogError($"PostgreSQL error message: {pgEx.MessageText}");
+        //             _logger.LogError($"PostgreSQL detail: {pgEx.Detail}");
+
+        //             if (pgEx.SqlState == "23505") // Unique violation
+        //             {
+        //                 throw new Exception($"Email '{user.Email}' already exists");
+        //             }
+        //             else if (pgEx.SqlState == "23514") // Check violation
+        //             {
+        //                 throw new Exception($"Data validation failed: {pgEx.MessageText}");
+        //             }
+        //             else if (pgEx.SqlState == "23503") // Foreign key violation
+        //             {
+        //                 throw new Exception($"Referenced data not found: {pgEx.MessageText}");
+        //             }
+        //             else if (pgEx.SqlState == "23502") // Not null violation
+        //             {
+        //                 throw new Exception($"Required field missing: {pgEx.MessageText}");
+        //             }
+        //         }
+        //         throw;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError($"=== CREATE USER FAILED ===");
+        //         _logger.LogError($"Error: {ex.Message}");
+        //         _logger.LogError($"Stack trace: {ex.StackTrace}");
+        //         if (ex.InnerException != null)
+        //         {
+        //             _logger.LogError($"Inner error: {ex.InnerException.Message}");
+        //             _logger.LogError($"Inner stack trace: {ex.InnerException.StackTrace}");
+        //         }
+        //         throw;
+        //     }
+        // }
+
+        public async Task<User> CreateUserAsync(User user, string password, Guid? roleId = null, Guid? assignedById = null)
         {
             _logger.LogInformation("=== CREATE USER STARTED ===");
             _logger.LogInformation($"User email: {user.Email}");
             _logger.LogInformation($"User name: {user.Name}");
             _logger.LogInformation($"Role ID to assign: {(roleId.HasValue ? roleId.Value.ToString() : "None")}");
+            _logger.LogInformation($"Assigned By ID: {(assignedById.HasValue ? assignedById.Value.ToString() : "None")}");
 
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -64,20 +270,6 @@ namespace SkyForge.Services.UserServices
 
                 user.Email = user.Email.ToLower().Trim();
 
-                // Generate email verification token
-                _logger.LogInformation("Generating email verification token...");
-                try
-                {
-                    user.EmailVerificationToken = _passwordService.HashToken(Guid.NewGuid().ToString());
-                    user.EmailVerificationExpires = DateTime.UtcNow.AddDays(1);
-                    _logger.LogInformation("Email verification token generated ✓");
-                }
-                catch (Exception tokenEx)
-                {
-                    _logger.LogError($"Token generation error: {tokenEx.Message}");
-                    throw;
-                }
-
                 // Set default menu permissions
                 _logger.LogInformation("Setting default menu permissions...");
                 try
@@ -96,6 +288,8 @@ namespace SkyForge.Services.UserServices
                 user.UpdatedAt = DateTime.UtcNow;
                 user.IsActive = true;
                 user.IsEmailVerified = false;
+                user.EmailVerificationToken = null;  // Initialize as null
+                user.EmailVerificationExpires = null; // Initialize as null
                 _logger.LogInformation("Timestamps set ✓");
 
                 // Save user first to get ID
@@ -140,7 +334,7 @@ namespace SkyForge.Services.UserServices
                             {
                                 UserId = user.Id,
                                 RoleId = roleId.Value,
-                                AssignedById = user.Id, // Self-assigned for now
+                                AssignedById = assignedById,
                                 IsPrimary = true,
                                 AssignedAt = DateTime.UtcNow,
                                 CreatedAt = DateTime.UtcNow,
@@ -148,7 +342,7 @@ namespace SkyForge.Services.UserServices
                             };
 
                             _context.UserRoles.Add(userRole);
-                            _logger.LogInformation($"Role '{role.Name}' assigned to user");
+                            _logger.LogInformation($"Role '{role.Name}' assigned to user by {assignedById}");
                         }
 
                         await _context.SaveChangesAsync();
@@ -177,7 +371,7 @@ namespace SkyForge.Services.UserServices
 
                     foreach (var ur in createdUser.UserRoles)
                     {
-                        _logger.LogInformation($"  - Role: {ur.Role?.Name ?? "Unknown"} (ID: {ur.RoleId}, Primary: {ur.IsPrimary})");
+                        _logger.LogInformation($"  - Role: {ur.Role?.Name ?? "Unknown"} (ID: {ur.RoleId}, Primary: {ur.IsPrimary}, AssignedBy: {ur.AssignedById})");
                     }
                 }
 
@@ -583,6 +777,7 @@ namespace SkyForge.Services.UserServices
             }
         }
 
+       
         public async Task<string> GeneratePasswordResetTokenAsync(string email)
         {
             try
@@ -591,13 +786,26 @@ namespace SkyForge.Services.UserServices
                 if (user == null)
                     throw new Exception("User not found");
 
-                var token = _passwordService.GenerateResetToken();
-                user.ResetPasswordToken = _passwordService.HashToken(token);
-                user.ResetPasswordExpires = DateTime.UtcNow.AddMinutes(10);
+                // IMPORTANT: Clear any existing reset tokens for this user
+                user.ResetPasswordToken = null;
+                user.ResetPasswordExpires = null;
 
+                // Generate new token
+                var token = _passwordService.GenerateResetToken();
+
+                _logger.LogInformation($"=== TOKEN GENERATION ===");
+                _logger.LogInformation($"Raw token (will send to email): {token}");
+                _logger.LogInformation($"Raw token length: {token.Length}");
+
+                var hashedToken = _passwordService.HashToken(token);
+                _logger.LogInformation($"Hashed token (stored in DB): {hashedToken}");
+                _logger.LogInformation($"Hashed token length: {hashedToken.Length}");
+
+                user.ResetPasswordToken = hashedToken;
+                user.ResetPasswordExpires = DateTime.UtcNow.AddMinutes(10);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Password reset token generated for user {UserId}", user.Id);
+                // Return RAW token - NOT hashed
                 return token;
             }
             catch (Exception ex)
@@ -611,32 +819,82 @@ namespace SkyForge.Services.UserServices
         {
             try
             {
-                var hashedToken = _passwordService.HashToken(token);
+                _logger.LogInformation($"=== ResetPasswordAsync STARTED ===");
+                _logger.LogInformation($"Raw token received: '{token}'");
+                _logger.LogInformation($"Raw token length: {token?.Length}");
 
+                if (string.IsNullOrEmpty(token))
+                {
+                    _logger.LogWarning("Token is null or empty");
+                    return false;
+                }
+
+                // CRITICAL: Hash the incoming token to compare with stored hash
+                var hashedToken = _passwordService.HashToken(token);
+                _logger.LogInformation($"Hashed token for DB comparison: '{hashedToken}'");
+                _logger.LogInformation($"Hashed token length: {hashedToken?.Length}");
+
+                // Find user by the HASHED token
                 var user = await _context.Users
                     .FirstOrDefaultAsync(u => u.ResetPasswordToken == hashedToken &&
                                              u.ResetPasswordExpires > DateTime.UtcNow);
 
                 if (user == null)
                 {
-                    _logger.LogWarning("Invalid or expired password reset token");
+                    // Debug: Check if token exists but expired
+                    var expiredUser = await _context.Users
+                        .FirstOrDefaultAsync(u => u.ResetPasswordToken == hashedToken);
+
+                    if (expiredUser != null)
+                    {
+                        _logger.LogWarning($"Token found but EXPIRED for user {expiredUser.Email}. Expiry: {expiredUser.ResetPasswordExpires}, Current UTC: {DateTime.UtcNow}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"No user found with token hash: '{hashedToken}'");
+
+                        // Check what's actually in the database for this user
+                        var anyUser = await _context.Users.FirstOrDefaultAsync();
+                        if (anyUser != null)
+                        {
+                            var userWithToken = await _context.Users
+                                .Where(u => u.ResetPasswordToken != null)
+                                .Select(u => new { u.Email, u.ResetPasswordToken, u.ResetPasswordExpires })
+                                .ToListAsync();
+
+                            _logger.LogInformation($"Users with reset tokens in DB: {userWithToken.Count}");
+                            foreach (var u in userWithToken)
+                            {
+                                _logger.LogInformation($"  - {u.Email}: Token={u.ResetPasswordToken}, Expires={u.ResetPasswordExpires}");
+                            }
+                        }
+                    }
+
                     return false;
                 }
 
-                user.PasswordHash = _passwordService.HashPassword(newPassword);
+                _logger.LogInformation($"Found user: {user.Email} with valid token");
+                _logger.LogInformation($"Token expires at: {user.ResetPasswordExpires}");
+
+                // Hash the new password
+                var newPasswordHash = _passwordService.HashPassword(newPassword);
+                _logger.LogInformation($"New password hashed successfully");
+
+                // Update password
+                user.PasswordHash = newPasswordHash;
                 user.ResetPasswordToken = null;
                 user.ResetPasswordExpires = null;
                 user.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Password reset successfully for user {UserId}", user.Id);
+                _logger.LogInformation($"Password reset successfully for user {user.Email}");
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error resetting password with token");
-                throw;
+                _logger.LogError(ex, "Error resetting password");
+                return false;
             }
         }
 
@@ -644,17 +902,34 @@ namespace SkyForge.Services.UserServices
         {
             try
             {
-                var user = await GetUserByIdAsync(userId);
+                _logger.LogInformation($"Generating email verification token for user {userId}");
+
+                var user = await _context.Users.FindAsync(userId);
                 if (user == null)
                     throw new Exception("User not found");
 
-                var token = Guid.NewGuid().ToString();
-                user.EmailVerificationToken = _passwordService.HashToken(token);
+                // Generate a random token
+                var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+                    .Replace("+", "")
+                    .Replace("/", "")
+                    .Replace("=", "");
+
+                _logger.LogInformation($"Generated raw token: {token}");
+
+                // Hash the token before storing
+                var hashedToken = _passwordService.HashToken(token);
+                _logger.LogInformation($"Hashed token to store: {hashedToken}");
+
+                // Store ONLY the hashed version (overwrite any existing token)
+                user.EmailVerificationToken = hashedToken;
                 user.EmailVerificationExpires = DateTime.UtcNow.AddDays(1);
+                user.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Email verification token generated for user {UserId}", userId);
+                _logger.LogInformation($"Token saved successfully for user {user.Email}");
+
+                // Return the RAW token (not hashed) to send in email
                 return token;
             }
             catch (Exception ex)
@@ -663,7 +938,6 @@ namespace SkyForge.Services.UserServices
                 throw;
             }
         }
-
         public async Task<bool> VerifyEmailAsync(string token)
         {
             try
@@ -693,52 +967,6 @@ namespace SkyForge.Services.UserServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error verifying email with token");
-                throw;
-            }
-        }
-
-        public async Task<bool> DeactivateUserAsync(Guid userId)
-        {
-            try
-            {
-                var user = await GetUserByIdAsync(userId);
-                if (user == null)
-                    return false;
-
-                user.IsActive = false;
-                user.UpdatedAt = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("User {UserId} deactivated", userId);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deactivating user {UserId}", userId);
-                throw;
-            }
-        }
-
-        public async Task<bool> ActivateUserAsync(Guid userId)
-        {
-            try
-            {
-                var user = await _context.Users.FindAsync(userId);
-                if (user == null)
-                    return false;
-
-                user.IsActive = true;
-                user.UpdatedAt = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("User {UserId} activated", userId);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error activating user {UserId}", userId);
                 throw;
             }
         }
@@ -1082,5 +1310,61 @@ namespace SkyForge.Services.UserServices
                 ["attendance"] = false
             };
         }
+
+
+
+        public async Task<User> GetUserWithCompanyAccessAsync(Guid userId, Guid companyId)
+        {
+            try
+            {
+                var user = await _context.Users
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .Include(u => u.AccessibleCompanies)
+                    .Include(u => u.OwnedCompanies)
+                    .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+
+                if (user == null)
+                    return null;
+
+                // Check if user has access to the company
+                var hasAccess = user.OwnedCompanies.Any(c => c.Id == companyId) ||
+                                user.AccessibleCompanies.Any(c => c.Id == companyId);
+
+                if (!hasAccess)
+                    return null;
+
+                return user;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user with company access {UserId} for company {CompanyId}", userId, companyId);
+                throw;
+            }
+        }
+
+        public async Task<bool> UserHasRoleAsync(Guid userId, string roleName)
+        {
+            try
+            {
+                var user = await _context.Users
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
+
+                if (user == null)
+                    return false;
+
+                return user.UserRoles?.Any(ur => ur.Role != null &&
+                                                ur.Role.Name == roleName &&
+                                                (ur.ExpiresAt == null || ur.ExpiresAt > DateTime.UtcNow)) ?? false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if user {UserId} has role {RoleName}", userId, roleName);
+                throw;
+            }
+        }
     }
+
 }

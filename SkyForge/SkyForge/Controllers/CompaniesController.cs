@@ -84,6 +84,65 @@ namespace SkyForge.Controllers
         /// <summary>
         /// Get companies for the authenticated user
         /// </summary>
+        // [HttpGet("user-companies")]
+        // [ProducesResponseType(typeof(List<CompaniesResponseDTO>), StatusCodes.Status200OK)]
+        // [ProducesResponseType(typeof(ErrorResponseDTO), StatusCodes.Status500InternalServerError)]
+        // public async Task<IActionResult> GetUserCompanies()
+        // {
+        //     try
+        //     {
+        //         // Get current user from JWT token
+        //         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
+        //         {
+        //             return Unauthorized(new ErrorResponseDTO
+        //             {
+        //                 Success = false,
+        //                 Error = "Invalid user token",
+        //                 Type = "AuthenticationError"
+        //             });
+        //         }
+
+        //         // Check if user is admin
+        //         var isAdminClaim = User.FindFirst("isAdmin")?.Value;
+        //         bool isAdmin = bool.TryParse(isAdminClaim, out bool admin) && admin;
+
+        //         List<Company> companies;
+
+        //         if (isAdmin)
+        //         {
+        //             // Admin sees all companies they own
+        //             _logger.LogInformation("Fetching companies for admin user {UserId}", userId);
+        //             companies = await _companyService.GetCompaniesByOwnerAsync(userId);
+        //         }
+        //         else
+        //         {
+        //             // Regular users see companies they're associated with
+        //             _logger.LogInformation("Fetching companies for regular user {UserId}", userId);
+        //             companies = await _companyService.GetCompaniesByUserAsync(userId);
+        //         }
+
+        //         // Map to DTO
+        //         var companyDTOs = companies.Select(c => MapToCompanyResponseDTO(c)).ToList();
+
+        //         _logger.LogInformation("Returning {Count} companies for user {UserId}", companyDTOs.Count, userId);
+        //         return Ok(companyDTOs);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error fetching user companies");
+        //         return StatusCode(500, new ErrorResponseDTO
+        //         {
+        //             Success = false,
+        //             Error = "Failed to fetch companies",
+        //             Type = "ServerError"
+        //         });
+        //     }
+        // }
+
+        /// <summary>
+        /// Get companies for the authenticated user
+        /// </summary>
         [HttpGet("user-companies")]
         [ProducesResponseType(typeof(List<CompaniesResponseDTO>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ErrorResponseDTO), StatusCodes.Status500InternalServerError)]
@@ -103,17 +162,40 @@ namespace SkyForge.Controllers
                     });
                 }
 
-                // Check if user is admin
-                var isAdminClaim = User.FindFirst("isAdmin")?.Value;
-                bool isAdmin = bool.TryParse(isAdminClaim, out bool admin) && admin;
+                // Get user from database to check actual role (don't rely only on JWT claim)
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return Unauthorized(new ErrorResponseDTO
+                    {
+                        Success = false,
+                        Error = "User not found",
+                        Type = "AuthenticationError"
+                    });
+                }
 
                 List<Company> companies;
 
-                if (isAdmin)
+                // FIX: For Admin users, get BOTH owned companies AND accessible companies
+                if (user.IsAdmin)
                 {
-                    // Admin sees all companies they own
-                    _logger.LogInformation("Fetching companies for admin user {UserId}", userId);
-                    companies = await _companyService.GetCompaniesByOwnerAsync(userId);
+                    _logger.LogInformation("Fetching ALL companies for admin user {UserId} (both owned and accessible)", userId);
+
+                    // Get companies owned by admin
+                    var ownedCompanies = await _companyService.GetCompaniesByOwnerAsync(userId);
+
+                    // Get companies where admin is added as a regular user
+                    var accessibleCompanies = await _companyService.GetCompaniesByUserAsync(userId);
+
+                    // Combine both lists and remove duplicates
+                    var allCompanies = ownedCompanies.Concat(accessibleCompanies)
+                        .GroupBy(c => c.Id)
+                        .Select(g => g.First())
+                        .ToList();
+
+                    companies = allCompanies;
+
+                    _logger.LogInformation($"Admin user {userId} has {ownedCompanies.Count} owned + {accessibleCompanies.Count} accessible = {companies.Count} total companies");
                 }
                 else
                 {

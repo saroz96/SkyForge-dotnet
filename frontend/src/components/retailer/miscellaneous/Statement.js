@@ -1512,8 +1512,47 @@ const Statement = () => {
                 item.PaymentReceiptType || item.journalAccountType || 'Opening';
         };
 
-        const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+        // const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
         const adDate = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+
+        const subtractDaysFromNepaliDate = (nepaliDateStr, days) => {
+            if (!nepaliDateStr || !isNepaliFormat) return nepaliDateStr;
+            try {
+                const nepaliDate = new NepaliDate(nepaliDateStr);
+                const jsDate = nepaliDate.getDateObject();
+                jsDate.setDate(jsDate.getDate() - days);
+                const newNepaliDate = new NepaliDate(jsDate);
+                return newNepaliDate.format('YYYY-MM-DD');
+            } catch (error) {
+                console.error('Error subtracting days from Nepali date:', error);
+                return nepaliDateStr;
+            }
+        };
+
+        // FIX: Check if this is an opening balance entry
+        const isOpeningBalance = item.accountType === 'Opening' ||
+            item.type === 'Opening' ||
+            (!item.type && item.accountType === 'Opening') ||
+            (item.accountType === 'Opening Balance');
+
+        let bsDate = '';
+        let adDateDisplay = '';
+
+        if (isOpeningBalance) {
+            // For opening balance, show date as "Before fromDate" or fromDate - 1 day
+            if (isNepaliFormat && dateRange.fromDate) {
+                // Subtract 1 day from fromDate for Nepali date
+                bsDate = subtractDaysFromNepaliDate(dateRange.fromDate, 1);
+            } else if (dateRange.fromDateAd) {
+                // For AD date, subtract 1 day
+                const adDate = new Date(dateRange.fromDateAd);
+                adDate.setDate(adDate.getDate() - 1);
+                adDateDisplay = adDate.toISOString().split('T')[0];
+            }
+        } else {
+            bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+            adDateDisplay = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+        }
 
         return (
             <div
@@ -2033,7 +2072,7 @@ const Statement = () => {
                                                     {data.itemwiseStatement.map((bill, billIndex) => (
                                                         bill.items && bill.items.map((item, itemIndex) => {
                                                             const isNepaliFormatLocal = company.dateFormat === 'nepali';
-                                                            const bsDate = bill.nepaliDate || (isNepaliFormatLocal ? new NepaliDate(bill.date).format('YYYY-MM-DD') : '');
+                                                            const bsDate = bill.nepaliDate || (isNepaliFormatLocal ? new NepaliDate(bill.nepaliDate).format('YYYY-MM-DD') : '');
                                                             const adDate = bill.date ? new Date(bill.date).toLocaleDateString() : '';
 
                                                             const quantity = item.quantity ? parseFloat(item.quantity) : 0;

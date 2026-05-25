@@ -7,6 +7,8 @@ namespace SkyForge.Services.Retailer.AgeingReportServices
     public interface IAgeingReportService
     {
         Task<AgeingReportDataDto> GetAgeingReportAsync(Guid companyId, Guid fiscalYearId, DateTime asOnDate);
-        Task<object> GetDayCountAgingForAccountAsync(Guid companyId, Guid fiscalYearId, Guid accountId, DateTime asOnDate);
+        // Task<object> GetDayCountAgingForAccountAsync(Guid companyId, Guid fiscalYearId, Guid accountId, DateTime asOnDate);
+
+        Task<object> GetDayCountAgingForAccountAsync(Guid companyId, Guid fiscalYearId, Guid accountId, DateTime fromDate, DateTime toDate);
     }
 }

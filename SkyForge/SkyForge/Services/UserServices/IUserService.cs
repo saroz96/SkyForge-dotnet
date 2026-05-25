@@ -9,8 +9,7 @@ namespace SkyForge.Services.UserServices
 {
     public interface IUserService
     {
-        // User CRUD
-        Task<User> CreateUserAsync(User user, string password, Guid? roleId = null);
+        Task<User> CreateUserAsync(User user, string password, Guid? roleId = null, Guid? assignedById = null);
         Task<User> GetUserByIdAsync(Guid id);
         Task<User> GetUserByEmailAsync(string email);
         Task<List<User>> GetAllUsersAsync();
@@ -28,10 +27,6 @@ namespace SkyForge.Services.UserServices
         // Email Verification
         Task<string> GenerateEmailVerificationTokenAsync(Guid userId);
         Task<bool> VerifyEmailAsync(string token);
-
-        // User Management
-        Task<bool> DeactivateUserAsync(Guid userId);
-        Task<bool> ActivateUserAsync(Guid userId);
 
         // Role & Permissions
         Task<UserRole> UpdateUserRoleAsync(Guid userId, Guid roleId, bool isPrimary = false);
@@ -53,5 +48,9 @@ namespace SkyForge.Services.UserServices
         // Utility
         Task<bool> IsEmailUniqueAsync(string email, Guid? excludeUserId = null);
         Task<bool> IsUserActiveAsync(Guid userId);
+
+
+        Task<User> GetUserWithCompanyAccessAsync(Guid userId, Guid companyId);
+        Task<bool> UserHasRoleAsync(Guid userId, string roleName);
     }
 }
