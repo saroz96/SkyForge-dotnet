@@ -820,8 +820,8 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-        
-        
+
+
         [HttpDelete("items/{id}")]
         public async Task<IActionResult> DeleteItem(Guid id)
         {
@@ -1937,6 +1937,249 @@ namespace SkyForge.Controllers.Retailer
                 {
                     success = false,
                     error = "Internal server error while updating batch",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+
+
+        /// <summary>
+        /// Get items that need reordering (below reorder level or above max stock)
+        /// GET: api/retailer/items/reorder
+        /// </summary>
+        [HttpGet("items/reorder")]
+        public async Task<IActionResult> GetItemsForReorder()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetItemsForReorder Started ===");
+
+                // 1. Extract required info from JWT claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+                var isAdminClaim = User.FindFirst("isAdmin")?.Value;
+                var roleName = User.FindFirst(ClaimTypes.Role)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var companyName = User.FindFirst("currentCompanyName")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("currentFiscalYear")?.Value;
+
+                // 2. Parse boolean claims
+                bool isAdmin = bool.TryParse(isAdminClaim, out bool admin) && admin;
+
+                // 3. Validate required claims exist
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    _logger.LogError("Invalid or missing userId claim");
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again.",
+                        redirectTo = "/login"
+                    });
+                }
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    _logger.LogError("No company selected in JWT token");
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first.",
+                        redirectTo = "/user-dashboard"
+                    });
+                }
+
+                // 4. Validate trade type is Retailer
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    _logger.LogWarning($"Access denied: TradeType is {tradeTypeClaim}, not Retailer");
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access denied for this trade type. This is a Retailer-only feature.",
+                        redirectTo = "/user-dashboard"
+                    });
+                }
+
+                // 5. Get company details with renewalDate and fiscalYear
+                var company = await _context.Companies
+                    .Where(c => c.Id == companyIdGuid)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.Name,
+                        c.RenewalDate,
+                        c.DateFormat,
+                        c.VatEnabled,
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (company == null)
+                {
+                    _logger.LogError($"Company not found: {companyIdGuid}");
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Company not found",
+                        redirectTo = "/user-dashboard"
+                    });
+                }
+
+                // 6. Get current fiscal year
+                Models.FiscalYearModel.FiscalYear? currentFiscalYear = null;
+                Guid? fiscalYearId = null;
+
+                // First try from JWT claim
+                if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid fiscalYearIdFromClaim))
+                {
+                    currentFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == fiscalYearIdFromClaim && f.CompanyId == companyIdGuid);
+                    if (currentFiscalYear != null)
+                    {
+                        fiscalYearId = currentFiscalYear.Id;
+                    }
+                }
+
+                // Fallback to active fiscal year
+                if (currentFiscalYear == null)
+                {
+                    currentFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (currentFiscalYear != null)
+                    {
+                        fiscalYearId = currentFiscalYear.Id;
+                    }
+                }
+
+                // Fallback to any fiscal year
+                if (currentFiscalYear == null)
+                {
+                    currentFiscalYear = await _context.FiscalYears
+                        .Where(f => f.CompanyId == companyIdGuid)
+                        .OrderByDescending(f => f.StartDate)
+                        .FirstOrDefaultAsync();
+                    if (currentFiscalYear != null)
+                    {
+                        fiscalYearId = currentFiscalYear.Id;
+                    }
+                }
+
+                if (fiscalYearId == null || currentFiscalYear == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No fiscal year found for this company",
+                        redirectTo = "/fiscal-years"
+                    });
+                }
+
+                // 7. Fetch items with their stock entries and units
+                var items = await _context.Items
+                    .Where(i => i.CompanyId == companyIdGuid)
+                    .Include(i => i.Unit)
+                    .Include(i => i.StockEntries)
+                    .Select(i => new
+                    {
+                        i.Id,
+                        i.Name,
+                        i.ReorderLevel,
+                        i.MaxStock,
+                        i.Unit,
+                        StockEntries = i.StockEntries != null ? i.StockEntries.ToList() : new List<StockEntry>()
+                    })
+                    .ToListAsync();
+
+                _logger.LogInformation($"Items fetched: {items.Count} items");
+
+                // 8. Calculate current stock and needed stock for each item
+                var itemsWithNeededStock = items.Select(item =>
+                {
+                    // Calculate current stock by summing quantities from stock entries
+                    decimal currentStock = item.StockEntries.Sum(entry => entry.Quantity);
+
+                    // Calculate needed stock (cannot be negative)
+                    decimal neededStock = Math.Max(0, item.ReorderLevel - currentStock);
+
+                    // Calculate overstock (if current stock exceeds max stock)
+                    decimal overStock = 0;
+                    if (item.MaxStock > 0 && currentStock > item.MaxStock)
+                    {
+                        overStock = currentStock - item.MaxStock;
+                    }
+
+                    return new ReorderItemResponseDTO
+                    {
+                        Name = item.Name,
+                        CurrentStock = currentStock,
+                        ReorderLevel = item.ReorderLevel,
+                        MaxStock = item.MaxStock,
+                        NeededStock = neededStock,
+                        OverStock = overStock,
+                        Unit = item.Unit?.Name ?? "N/A",
+                        FiscalYearId = fiscalYearId.Value
+                    };
+                })
+                // Filter to show items where stock is below reorder level OR above max stock
+                .Where(item => item.CurrentStock < item.ReorderLevel || item.CurrentStock > item.MaxStock)
+                .ToList();
+
+                // 9. Prepare company response object
+                var companyResponse = new
+                {
+                    renewalDate = company.RenewalDate,
+                    fiscalYear = currentFiscalYear.Id,
+                    dateFormat = company.DateFormat?.ToString()?.ToLower() ?? "english",
+                    vatEnabled = company.VatEnabled,
+                    name = company.Name,
+                    id = company.Id
+                };
+
+                // 10. Prepare fiscal year response
+                var fiscalYearResponse = new
+                {
+                    _id = currentFiscalYear.Id,
+                    id = currentFiscalYear.Id,
+                    name = currentFiscalYear.Name,
+                    startDate = currentFiscalYear.StartDate,
+                    endDate = currentFiscalYear.EndDate,
+                    startDateNepali = currentFiscalYear.StartDateNepali,
+                    endDateNepali = currentFiscalYear.EndDateNepali,
+                    dateFormat = currentFiscalYear.DateFormat?.ToString()?.ToLower() ?? "english",
+                    isActive = currentFiscalYear.IsActive
+                };
+
+                // 11. Determine if user is admin or supervisor
+                bool isAdminOrSupervisor = isAdmin || (roleName == "Supervisor" || roleName == "Admin");
+
+                // 12. Prepare and return response
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        company = companyResponse,
+                        items = itemsWithNeededStock,
+                        currentCompanyName = companyName ?? company.Name,
+                        currentFiscalYear = fiscalYearResponse,
+                        isAdminOrSupervisor = isAdminOrSupervisor
+                    }
+                };
+
+                _logger.LogInformation($"Successfully fetched {itemsWithNeededStock.Count} items that need reordering for company {company.Name}");
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching items for reorder");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Failed to fetch reorder items",
                     details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
                 });
             }

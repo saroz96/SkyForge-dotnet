@@ -581,12 +581,12 @@ const Header = () => {
                       <Link to="/retailer/items/reorder">Re Order Level</Link>
                     </li>
                   )}
-                {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Purchase' ||
+                {/* {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Purchase' ||
                   finalUser?.isAdmin || finalUser?.menuPermissions?.get('itemSalesReport')) && (
                     <li className="menu-item">
                       <Link to="/sold-items">Item Sales Report</Link>
                     </li>
-                  )}
+                  )} */}
               </ul>
             </div>
           </li>

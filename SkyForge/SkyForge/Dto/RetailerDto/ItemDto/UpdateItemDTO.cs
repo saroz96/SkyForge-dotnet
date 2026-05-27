@@ -33,7 +33,7 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public Guid? UnitId { get; set; }
 
         [StringLength(20)]
-        [RegularExpression("^(all|vatable|vatExempt)$")]
+        [RegularExpression("^(all|13|vatExempt)$")]
         public string? VatStatus { get; set; }
 
         [Range(0, double.MaxValue)]

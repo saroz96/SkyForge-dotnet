@@ -15,7 +15,6 @@ namespace SkyForge.Services.Retailer.ItemServices
         Task<Item> GetItemByIdAsync(Guid itemId);
         Task<List<Item>> GetItemsByCompanyAsync(Guid companyId, Guid fiscalYearId);
 
-        // Update this method signature to include currentFiscalYearId parameter
         Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid CompanyId, Guid FiscalYearId);
 
         Task<bool> DeleteItemAsync(Guid itemId, Guid companyId);
