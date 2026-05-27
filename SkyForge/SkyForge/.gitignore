@@ -2,3 +2,4 @@ echo "bin/" >> .gitignore
 echo "obj/" >> .gitignore
 echo ".env" >> .gitignore
 echo "appsettings.Production.json" >> .gitignore
+echo ".env" >> .gitignore
