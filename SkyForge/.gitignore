@@ -2,3 +2,12 @@ echo "bin/" >> .gitignore
 echo "obj/" >> .gitignore
 echo ".env" >> .gitignore
 echo "appsettings.Production.json" >> .gitignore
+
+# Add to .gitignore
+echo "bin/" >> .gitignore
+echo "obj/" >> .gitignore
+echo "*.env" >> .gitignore
+echo "appsettings.json" >> .gitignore
+
+# Stage the .gitignore
+git add .gitignore

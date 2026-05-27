@@ -46,15 +46,15 @@ const ProductDetailsModal = ({ product: initialProduct, onClose, onBatchUpdate }
     // Function to fetch latest product data
     const fetchLatestProductData = async () => {
         if (!product?._id && !product?.id) return;
-        
+
         try {
             const productId = product._id || product.id;
             const response = await api.get(`/api/retailer/items/${productId}`);
-            
+
             if (response.data.success && response.data.data) {
                 const latestProduct = response.data.data.item;
                 setProduct(latestProduct);
-                
+
                 // Call the onBatchUpdate callback if provided to refresh parent
                 if (onBatchUpdate && typeof onBatchUpdate === 'function') {
                     onBatchUpdate();
@@ -69,7 +69,7 @@ const ProductDetailsModal = ({ product: initialProduct, onClose, onBatchUpdate }
     const handleBatchUpdate = (batchIndex) => {
         const stockEntries = product.stockEntries || [];
         const batch = stockEntries[batchIndex];
-        
+
         if (batch) {
             setSelectedBatch({
                 index: batchIndex,
@@ -201,7 +201,7 @@ const ProductDetailsModal = ({ product: initialProduct, onClose, onBatchUpdate }
                                                     </span>
                                                 </td>
                                                 <td className="px-2 py-1 text-end">{entry.quantity}</td>
-                                                <td className="px-2 py-1">{product?.unit?.name || product?.unit || ''}</td>
+                                                <td className="px-2 py-1">{product?.unitName || product?.unit || ''}</td>
                                                 <td className="px-2 py-1 text-end">{numberFormatter.format(entry.puPrice || 0)}</td>
                                                 <td className="px-2 py-1 text-end">{numberFormatter.format(entry.price || 0)}</td>
                                                 <td className="px-2 py-1 text-end">{numberFormatter.format(entry.mrp || 0)}</td>

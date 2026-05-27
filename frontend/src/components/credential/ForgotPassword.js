@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FaEnvelope, FaArrowLeft, FaPaperPlane } from 'react-icons/fa';
 import NotificationToast from '../NotificationToast';
-import Header from '../retailer/Header';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
@@ -113,7 +112,6 @@ const ForgotPassword = () => {
   if (submitted) {
     return (
       <div className='container-fluid'>
-        <Header />
         <div className="container mt-4">
           <div className="row justify-content-center">
             <div className="col-lg-6 col-md-8 col-sm-10">
@@ -165,7 +163,6 @@ const ForgotPassword = () => {
 
   return (
     <div className='container-fluid'>
-      <Header />
       <div className="container mt-4">
         <div className="row justify-content-center">
           <div className="col-lg-6 col-md-8 col-sm-10">

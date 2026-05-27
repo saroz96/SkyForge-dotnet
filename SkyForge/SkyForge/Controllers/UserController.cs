@@ -327,210 +327,210 @@ namespace SkyForge.Controllers
         }
 
         // GET: api/user/admin/users/view/{id}
-        [HttpGet("admin/users/view/{id}")]
-        public async Task<IActionResult> GetUserDetailsForAdmin(Guid id, [FromQuery] Guid companyId)
-        {
-            try
-            {
-                _logger.LogInformation("=== GetUserDetailsForAdmin Started ===");
-                _logger.LogInformation($"Target User ID: {id}, Company ID: {companyId}");
+        // [HttpGet("admin/users/view/{id}")]
+        // public async Task<IActionResult> GetUserDetailsForAdmin(Guid id, [FromQuery] Guid companyId)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetUserDetailsForAdmin Started ===");
+        //         _logger.LogInformation($"Target User ID: {id}, Company ID: {companyId}");
 
-                // Extract claims from JWT token
-                var currentUserIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var tokenCompanyId = User.FindFirst("currentCompany")?.Value;
-                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
-                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         // Extract claims from JWT token
+        //         var currentUserIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var tokenCompanyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
 
-                // Validate user ID
-                if (string.IsNullOrEmpty(currentUserIdClaim) || !Guid.TryParse(currentUserIdClaim, out Guid currentUserId))
-                {
-                    return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
-                }
+        //         // Validate user ID
+        //         if (string.IsNullOrEmpty(currentUserIdClaim) || !Guid.TryParse(currentUserIdClaim, out Guid currentUserId))
+        //         {
+        //             return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
+        //         }
 
-                // Use companyId from query param or from token claim
-                Guid effectiveCompanyId;
-                if (companyId != Guid.Empty)
-                {
-                    effectiveCompanyId = companyId;
-                }
-                else if (!string.IsNullOrEmpty(tokenCompanyId) && Guid.TryParse(tokenCompanyId, out Guid claimCompanyId))
-                {
-                    effectiveCompanyId = claimCompanyId;
-                }
-                else
-                {
-                    return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
-                }
+        //         // Use companyId from query param or from token claim
+        //         Guid effectiveCompanyId;
+        //         if (companyId != Guid.Empty)
+        //         {
+        //             effectiveCompanyId = companyId;
+        //         }
+        //         else if (!string.IsNullOrEmpty(tokenCompanyId) && Guid.TryParse(tokenCompanyId, out Guid claimCompanyId))
+        //         {
+        //             effectiveCompanyId = claimCompanyId;
+        //         }
+        //         else
+        //         {
+        //             return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
+        //         }
 
-                _logger.LogInformation($"Current User ID: {currentUserId}, Effective Company ID: {effectiveCompanyId}");
+        //         _logger.LogInformation($"Current User ID: {currentUserId}, Effective Company ID: {effectiveCompanyId}");
 
-                // Get current user with roles
-                var currentUser = await _userService.GetUserByIdAsync(currentUserId);
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, error = "User not found" });
-                }
+        //         // Get current user with roles
+        //         var currentUser = await _userService.GetUserByIdAsync(currentUserId);
+        //         if (currentUser == null)
+        //         {
+        //             return Unauthorized(new { success = false, error = "User not found" });
+        //         }
 
-                // Check if user has access to the company
-                var hasAccess = await _userService.UserHasAccessToCompanyAsync(currentUserId, effectiveCompanyId);
-                if (!hasAccess)
-                {
-                    return StatusCode(403, new { success = false, error = "You do not have access to this company" });
-                }
+        //         // Check if user has access to the company
+        //         var hasAccess = await _userService.UserHasAccessToCompanyAsync(currentUserId, effectiveCompanyId);
+        //         if (!hasAccess)
+        //         {
+        //             return StatusCode(403, new { success = false, error = "You do not have access to this company" });
+        //         }
 
-                // Check if user is Admin or Supervisor
-                var isAdmin = currentUser.IsAdmin;
-                var isSupervisor = await _userService.UserHasRoleAsync(currentUserId, "Supervisor");
+        //         // Check if user is Admin or Supervisor
+        //         var isAdmin = currentUser.IsAdmin;
+        //         var isSupervisor = await _userService.UserHasRoleAsync(currentUserId, "Supervisor");
 
-                if (!isAdmin && !isSupervisor)
-                {
-                    return StatusCode(403, new { success = false, error = "You do not have permission to view this page" });
-                }
+        //         if (!isAdmin && !isSupervisor)
+        //         {
+        //             return StatusCode(403, new { success = false, error = "You do not have permission to view this page" });
+        //         }
 
-                // Get company details with fiscal years
-                var company = await _context.Companies
-                    .Include(c => c.FiscalYears)  // Include the fiscal years collection
-                    .FirstOrDefaultAsync(c => c.Id == effectiveCompanyId);
+        //         // Get company details with fiscal years
+        //         var company = await _context.Companies
+        //             .Include(c => c.FiscalYears)  // Include the fiscal years collection
+        //             .FirstOrDefaultAsync(c => c.Id == effectiveCompanyId);
 
-                if (company == null)
-                {
-                    return NotFound(new { success = false, error = "Company not found" });
-                }
+        //         if (company == null)
+        //         {
+        //             return NotFound(new { success = false, error = "Company not found" });
+        //         }
 
-                // Get fiscal year - from claim first, then get active one from company's fiscal years
-                FiscalYearDTO currentFiscalYear = null;
-                Guid? fiscalYearId = null;
+        //         // Get fiscal year - from claim first, then get active one from company's fiscal years
+        //         FiscalYearDTO currentFiscalYear = null;
+        //         Guid? fiscalYearId = null;
 
-                // Try from claim first
-                if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid claimFyId))
-                {
-                    var fiscalYear = company.FiscalYears?.FirstOrDefault(f => f.Id == claimFyId);
-                    if (fiscalYear != null)
-                    {
-                        currentFiscalYear = new FiscalYearDTO
-                        {
-                            Id = fiscalYear.Id,
-                            StartDate = fiscalYear.StartDate,
-                            EndDate = fiscalYear.EndDate,
-                            Name = fiscalYear.Name,
-                            DateFormat = fiscalYear.DateFormat?.ToString() ?? "English",
-                            IsActive = fiscalYear.IsActive
-                        };
-                        fiscalYearId = fiscalYear.Id;
-                    }
-                }
+        //         // Try from claim first
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid claimFyId))
+        //         {
+        //             var fiscalYear = company.FiscalYears?.FirstOrDefault(f => f.Id == claimFyId);
+        //             if (fiscalYear != null)
+        //             {
+        //                 currentFiscalYear = new FiscalYearDTO
+        //                 {
+        //                     Id = fiscalYear.Id,
+        //                     StartDate = fiscalYear.StartDate,
+        //                     EndDate = fiscalYear.EndDate,
+        //                     Name = fiscalYear.Name,
+        //                     DateFormat = fiscalYear.DateFormat?.ToString() ?? "English",
+        //                     IsActive = fiscalYear.IsActive
+        //                 };
+        //                 fiscalYearId = fiscalYear.Id;
+        //             }
+        //         }
 
-                // If no fiscal year in claim, get the active fiscal year from company's collection
-                if (currentFiscalYear == null && company.FiscalYears != null)
-                {
-                    var activeFiscalYear = company.FiscalYears.FirstOrDefault(f => f.IsActive);
+        //         // If no fiscal year in claim, get the active fiscal year from company's collection
+        //         if (currentFiscalYear == null && company.FiscalYears != null)
+        //         {
+        //             var activeFiscalYear = company.FiscalYears.FirstOrDefault(f => f.IsActive);
 
-                    // If no active, get the most recent one
-                    if (activeFiscalYear == null)
-                    {
-                        activeFiscalYear = company.FiscalYears
-                            .OrderByDescending(f => f.StartDate)
-                            .FirstOrDefault();
-                    }
+        //             // If no active, get the most recent one
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 activeFiscalYear = company.FiscalYears
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefault();
+        //             }
 
-                    if (activeFiscalYear != null)
-                    {
-                        currentFiscalYear = new FiscalYearDTO
-                        {
-                            Id = activeFiscalYear.Id,
-                            StartDate = activeFiscalYear.StartDate,
-                            EndDate = activeFiscalYear.EndDate,
-                            Name = activeFiscalYear.Name,
-                            DateFormat = activeFiscalYear.DateFormat?.ToString() ?? "English",
-                            IsActive = activeFiscalYear.IsActive
-                        };
-                        fiscalYearId = activeFiscalYear.Id;
-                    }
-                }
+        //             if (activeFiscalYear != null)
+        //             {
+        //                 currentFiscalYear = new FiscalYearDTO
+        //                 {
+        //                     Id = activeFiscalYear.Id,
+        //                     StartDate = activeFiscalYear.StartDate,
+        //                     EndDate = activeFiscalYear.EndDate,
+        //                     Name = activeFiscalYear.Name,
+        //                     DateFormat = activeFiscalYear.DateFormat?.ToString() ?? "English",
+        //                     IsActive = activeFiscalYear.IsActive
+        //                 };
+        //                 fiscalYearId = activeFiscalYear.Id;
+        //             }
+        //         }
 
-                if (fiscalYearId == null)
-                {
-                    return BadRequest(new { success = false, error = "No fiscal year found for this company." });
-                }
+        //         if (fiscalYearId == null)
+        //         {
+        //             return BadRequest(new { success = false, error = "No fiscal year found for this company." });
+        //         }
 
-                // Fetch the target user
-                var targetUser = await _userService.GetUserByIdAsync(id);
-                if (targetUser == null)
-                {
-                    return NotFound(new { success = false, error = "User not found." });
-                }
+        //         // Fetch the target user
+        //         var targetUser = await _userService.GetUserByIdAsync(id);
+        //         if (targetUser == null)
+        //         {
+        //             return NotFound(new { success = false, error = "User not found." });
+        //         }
 
-                // Get user's primary role
-                var primaryRole = targetUser.PrimaryRole;
-                var userRole = primaryRole?.Name ?? "User";
+        //         // Get user's primary role
+        //         var primaryRole = targetUser.PrimaryRole;
+        //         var userRole = primaryRole?.Name ?? "User";
 
-                // Get company name from claim or company
-                var currentCompanyName = User.FindFirst("currentCompanyName")?.Value ?? company.Name;
+        //         // Get company name from claim or company
+        //         var currentCompanyName = User.FindFirst("currentCompanyName")?.Value ?? company.Name;
 
-                // Get fiscal year reference for company response (active or first one)
-                var companyFiscalYearRef = company.FiscalYears?.FirstOrDefault(f => f.IsActive) ?? company.FiscalYears?.FirstOrDefault();
+        //         // Get fiscal year reference for company response (active or first one)
+        //         var companyFiscalYearRef = company.FiscalYears?.FirstOrDefault(f => f.IsActive) ?? company.FiscalYears?.FirstOrDefault();
 
-                // Build the response matching the frontend expected structure
-                var response = new
-                {
-                    success = true,
-                    data = new
-                    {
-                        company = new
-                        {
-                            renewalDate = company.RenewalDate,
-                            fiscalYear = companyFiscalYearRef != null ? new
-                            {
-                                id = companyFiscalYearRef.Id,
-                                name = companyFiscalYearRef.Name,
-                                startDate = companyFiscalYearRef.StartDate,
-                                endDate = companyFiscalYearRef.EndDate
-                            } : null,
-                            dateFormat = company.DateFormat?.ToString() ?? "English"
-                        },
-                        currentFiscalYear = currentFiscalYear != null ? new
-                        {
-                            id = currentFiscalYear.Id,
-                            startDate = currentFiscalYear.StartDate,
-                            endDate = currentFiscalYear.EndDate,
-                            name = currentFiscalYear.Name,
-                            dateFormat = currentFiscalYear.DateFormat,
-                            isActive = currentFiscalYear.IsActive
-                        } : null,
-                        user = new
-                        {
-                            id = targetUser.Id,
-                            name = targetUser.Name,
-                            email = targetUser.Email,
-                            role = userRole,
-                            isActive = targetUser.IsActive,
-                            preferences = new
-                            {
-                                theme = targetUser.Preferences?.Theme.ToString() ?? "Light"
-                            },
-                            lastLogin = (DateTime?)null,
-                            createdAt = targetUser.CreatedAt,
-                            updatedAt = targetUser.UpdatedAt
-                        },
-                        currentCompanyName = currentCompanyName,
-                        isAdminOrSupervisor = isAdmin || isSupervisor
-                    }
-                };
+        //         // Build the response matching the frontend expected structure
+        //         var response = new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 company = new
+        //                 {
+        //                     renewalDate = company.RenewalDate,
+        //                     fiscalYear = companyFiscalYearRef != null ? new
+        //                     {
+        //                         id = companyFiscalYearRef.Id,
+        //                         name = companyFiscalYearRef.Name,
+        //                         startDate = companyFiscalYearRef.StartDate,
+        //                         endDate = companyFiscalYearRef.EndDate
+        //                     } : null,
+        //                     dateFormat = company.DateFormat?.ToString() ?? "English"
+        //                 },
+        //                 currentFiscalYear = currentFiscalYear != null ? new
+        //                 {
+        //                     id = currentFiscalYear.Id,
+        //                     startDate = currentFiscalYear.StartDate,
+        //                     endDate = currentFiscalYear.EndDate,
+        //                     name = currentFiscalYear.Name,
+        //                     dateFormat = currentFiscalYear.DateFormat,
+        //                     isActive = currentFiscalYear.IsActive
+        //                 } : null,
+        //                 user = new
+        //                 {
+        //                     id = targetUser.Id,
+        //                     name = targetUser.Name,
+        //                     email = targetUser.Email,
+        //                     role = userRole,
+        //                     isActive = targetUser.IsActive,
+        //                     preferences = new
+        //                     {
+        //                         theme = targetUser.Preferences?.Theme.ToString() ?? "Light"
+        //                     },
+        //                     lastLogin = (DateTime?)null,
+        //                     createdAt = targetUser.CreatedAt,
+        //                     updatedAt = targetUser.UpdatedAt
+        //                 },
+        //                 currentCompanyName = currentCompanyName,
+        //                 isAdminOrSupervisor = isAdmin || isSupervisor
+        //             }
+        //         };
 
-                _logger.LogInformation($"Successfully fetched user details for User ID: {id}");
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in GetUserDetailsForAdmin for User ID: {UserId}", id);
-                return StatusCode(500, new
-                {
-                    success = false,
-                    error = "An error occurred while fetching user details.",
-                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
-                });
-            }
-        }
+        //         _logger.LogInformation($"Successfully fetched user details for User ID: {id}");
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetUserDetailsForAdmin for User ID: {UserId}", id);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "An error occurred while fetching user details.",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
 
         // GET: api/user/admin/create-user/new
         [HttpGet("admin/create-user/new")]
@@ -938,6 +938,431 @@ namespace SkyForge.Controllers
         }
 
 
+        // // GET: api/user/users/view/{id}
+        // [HttpGet("users/view/{id}")]
+        // public async Task<IActionResult> GetUserById(Guid id)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetUserById Started ===");
+        //         _logger.LogInformation($"Target User ID: {id}");
+
+        //         // Extract claims from JWT token
+        //         var currentUserIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var tokenCompanyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user ID
+        //         if (string.IsNullOrEmpty(currentUserIdClaim) || !Guid.TryParse(currentUserIdClaim, out Guid currentUserId))
+        //         {
+        //             return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
+        //         }
+
+        //         // Get company ID from claim
+        //         if (string.IsNullOrEmpty(tokenCompanyId) || !Guid.TryParse(tokenCompanyId, out Guid companyId))
+        //         {
+        //             return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
+        //         }
+
+        //         _logger.LogInformation($"Current User ID: {currentUserId}, Company ID: {companyId}");
+
+        //         // Get current user to check permissions
+        //         var currentUser = await _userService.GetUserByIdAsync(currentUserId);
+        //         if (currentUser == null)
+        //         {
+        //             return Unauthorized(new { success = false, error = "User not found" });
+        //         }
+
+        //         // Authorization check - only Admin or Supervisor can view user details
+        //         var isAdmin = currentUser.IsAdmin;
+        //         var isSupervisor = await _userService.UserHasRoleAsync(currentUserId, "Supervisor");
+
+        //         if (!isAdmin && !isSupervisor)
+        //         {
+        //             return StatusCode(403, new { success = false, error = "You do not have permission to view this page" });
+        //         }
+
+        //         // Get company details with owner and fiscal years
+        //         var company = await _context.Companies
+        //             .Include(c => c.Owner)
+        //             .Include(c => c.FiscalYears)
+        //             .FirstOrDefaultAsync(c => c.Id == companyId);
+
+        //         if (company == null)
+        //         {
+        //             return NotFound(new { success = false, error = "Company not found" });
+        //         }
+
+        //         // Handle fiscal year
+        //         FiscalYearDTO currentFiscalYear = null;
+        //         Guid? fiscalYearId = null;
+
+        //         // Try from claim first
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid claimFyId))
+        //         {
+        //             var fiscalYear = company.FiscalYears?.FirstOrDefault(f => f.Id == claimFyId);
+        //             if (fiscalYear != null)
+        //             {
+        //                 currentFiscalYear = new FiscalYearDTO
+        //                 {
+        //                     Id = fiscalYear.Id,
+        //                     StartDate = fiscalYear.StartDate,
+        //                     EndDate = fiscalYear.EndDate,
+        //                     Name = fiscalYear.Name,
+        //                     DateFormat = fiscalYear.DateFormat?.ToString() ?? "English",
+        //                     IsActive = fiscalYear.IsActive
+        //                 };
+        //                 fiscalYearId = fiscalYear.Id;
+        //             }
+        //         }
+
+        //         // If no fiscal year in claim, get active one
+        //         if (currentFiscalYear == null && company.FiscalYears != null)
+        //         {
+        //             var activeFiscalYear = company.FiscalYears.FirstOrDefault(f => f.IsActive);
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 activeFiscalYear = company.FiscalYears.OrderByDescending(f => f.StartDate).FirstOrDefault();
+        //             }
+
+        //             if (activeFiscalYear != null)
+        //             {
+        //                 currentFiscalYear = new FiscalYearDTO
+        //                 {
+        //                     Id = activeFiscalYear.Id,
+        //                     StartDate = activeFiscalYear.StartDate,
+        //                     EndDate = activeFiscalYear.EndDate,
+        //                     Name = activeFiscalYear.Name,
+        //                     DateFormat = activeFiscalYear.DateFormat?.ToString() ?? "English",
+        //                     IsActive = activeFiscalYear.IsActive
+        //                 };
+        //                 fiscalYearId = activeFiscalYear.Id;
+        //             }
+        //         }
+
+        //         if (fiscalYearId == null)
+        //         {
+        //             return BadRequest(new { success = false, error = "No fiscal year found for this company." });
+        //         }
+
+        //         // Fetch the target user details
+        //         var targetUser = await _context.Users
+        //             .Include(u => u.UserRoles)
+        //                 .ThenInclude(ur => ur.Role)
+        //             .Include(u => u.FiscalYear)
+        //             .FirstOrDefaultAsync(u => u.Id == id);
+
+        //         if (targetUser == null)
+        //         {
+        //             return NotFound(new { success = false, error = "User not found" });
+        //         }
+
+        //         // Get user's primary role
+        //         var primaryRole = targetUser.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
+        //         var userRole = primaryRole?.Name ?? "User";
+
+        //         // Get user's associated companies (if any)
+        //         var userCompanies = await _context.Users
+        //             .Where(u => u.Id == id)
+        //             .SelectMany(u => u.AccessibleCompanies.Select(c => new { c.Id, c.Name }))
+        //             .ToListAsync();
+
+        //         var userCompany = userCompanies.FirstOrDefault();
+
+        //         // Get current user's theme preference
+        //         var currentUserTheme = currentUser.Preferences?.Theme.ToString() ?? "light";
+
+        //         // Prepare response
+        //         var response = new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 user = new
+        //                 {
+        //                     id = targetUser.Id,
+        //                     name = targetUser.Name,
+        //                     email = targetUser.Email,
+        //                     role = userRole,
+        //                     isActive = targetUser.IsActive,
+        //                     isAdmin = targetUser.IsAdmin,
+        //                     createdAt = targetUser.CreatedAt,
+        //                     lastLogin = (DateTime?)null, // Add last login tracking if you have it
+        //                     company = userCompany != null ? new
+        //                     {
+        //                         id = userCompany.Id,
+        //                         name = userCompany.Name
+        //                     } : null,
+        //                     fiscalYear = targetUser.FiscalYear != null ? new
+        //                     {
+        //                         id = targetUser.FiscalYear.Id,
+        //                         name = targetUser.FiscalYear.Name
+        //                     } : null
+        //                 },
+        //                 company = new
+        //                 {
+        //                     id = company.Id,
+        //                     name = company.Name,
+        //                     renewalDate = company.RenewalDate,
+        //                     dateFormat = company.DateFormat?.ToString() ?? "English",
+        //                     owner = company.Owner != null ? new
+        //                     {
+        //                         id = company.Owner.Id,
+        //                         name = company.Owner.Name
+        //                     } : null
+        //                 },
+        //                 currentFiscalYear = currentFiscalYear != null ? new
+        //                 {
+        //                     id = currentFiscalYear.Id,
+        //                     name = currentFiscalYear.Name,
+        //                     startDate = currentFiscalYear.StartDate,
+        //                     endDate = currentFiscalYear.EndDate,
+        //                     dateFormat = currentFiscalYear.DateFormat,
+        //                     isActive = currentFiscalYear.IsActive
+        //                 } : null,
+        //                 currentCompanyName = company.Name,
+        //                 currentUser = new
+        //                 {
+        //                     id = currentUser.Id,
+        //                     name = currentUser.Name,
+        //                     role = currentUser.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User",
+        //                     isAdmin = currentUser.IsAdmin,
+        //                     theme = currentUserTheme
+        //                 },
+        //                 isAdminOrSupervisor = isAdmin || isSupervisor
+        //             }
+        //         };
+
+        //         _logger.LogInformation($"Successfully fetched user details for User ID: {id}");
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetUserById for User ID: {UserId}", id);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "An error occurred while fetching user details",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // GET: api/user/users/view/{id}
+        // [HttpGet("users/view/{id}")]
+        // public async Task<IActionResult> GetUserById(Guid id)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetUserById Started ===");
+        //         _logger.LogInformation($"Target User ID: {id}");
+
+        //         // Extract claims from JWT token
+        //         var currentUserIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var tokenCompanyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user ID
+        //         if (string.IsNullOrEmpty(currentUserIdClaim) || !Guid.TryParse(currentUserIdClaim, out Guid currentUserId))
+        //         {
+        //             return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
+        //         }
+
+        //         // Get company ID from claim
+        //         if (string.IsNullOrEmpty(tokenCompanyId) || !Guid.TryParse(tokenCompanyId, out Guid companyId))
+        //         {
+        //             return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
+        //         }
+
+        //         _logger.LogInformation($"Current User ID: {currentUserId}, Company ID: {companyId}");
+
+        //         // Get current user to check permissions
+        //         var currentUser = await _userService.GetUserByIdAsync(currentUserId);
+        //         if (currentUser == null)
+        //         {
+        //             return Unauthorized(new { success = false, error = "User not found" });
+        //         }
+
+        //         // Authorization check - Allow if:
+        //         // 1. User is Admin or Supervisor, OR
+        //         // 2. User is viewing their own profile
+        //         var isAdmin = currentUser.IsAdmin;
+        //         var isSupervisor = await _userService.UserHasRoleAsync(currentUserId, "Supervisor");
+        //         var isViewingOwnProfile = currentUserId == id;
+
+        //         if (!isAdmin && !isSupervisor && !isViewingOwnProfile)
+        //         {
+        //             return StatusCode(403, new { success = false, error = "You do not have permission to view this page" });
+        //         }
+
+        //         // Get company details with owner and fiscal years
+        //         var company = await _context.Companies
+        //             .Include(c => c.Owner)
+        //             .Include(c => c.FiscalYears)
+        //             .FirstOrDefaultAsync(c => c.Id == companyId);
+
+        //         if (company == null)
+        //         {
+        //             return NotFound(new { success = false, error = "Company not found" });
+        //         }
+
+        //         // Handle fiscal year
+        //         FiscalYearDTO currentFiscalYear = null;
+        //         Guid? fiscalYearId = null;
+
+        //         // Try from claim first
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid claimFyId))
+        //         {
+        //             var fiscalYear = company.FiscalYears?.FirstOrDefault(f => f.Id == claimFyId);
+        //             if (fiscalYear != null)
+        //             {
+        //                 currentFiscalYear = new FiscalYearDTO
+        //                 {
+        //                     Id = fiscalYear.Id,
+        //                     StartDate = fiscalYear.StartDate,
+        //                     EndDate = fiscalYear.EndDate,
+        //                     Name = fiscalYear.Name,
+        //                     DateFormat = fiscalYear.DateFormat?.ToString() ?? "English",
+        //                     IsActive = fiscalYear.IsActive
+        //                 };
+        //                 fiscalYearId = fiscalYear.Id;
+        //             }
+        //         }
+
+        //         // If no fiscal year in claim, get active one
+        //         if (currentFiscalYear == null && company.FiscalYears != null)
+        //         {
+        //             var activeFiscalYear = company.FiscalYears.FirstOrDefault(f => f.IsActive);
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 activeFiscalYear = company.FiscalYears.OrderByDescending(f => f.StartDate).FirstOrDefault();
+        //             }
+
+        //             if (activeFiscalYear != null)
+        //             {
+        //                 currentFiscalYear = new FiscalYearDTO
+        //                 {
+        //                     Id = activeFiscalYear.Id,
+        //                     StartDate = activeFiscalYear.StartDate,
+        //                     EndDate = activeFiscalYear.EndDate,
+        //                     Name = activeFiscalYear.Name,
+        //                     DateFormat = activeFiscalYear.DateFormat?.ToString() ?? "English",
+        //                     IsActive = activeFiscalYear.IsActive
+        //                 };
+        //                 fiscalYearId = activeFiscalYear.Id;
+        //             }
+        //         }
+
+        //         if (fiscalYearId == null)
+        //         {
+        //             return BadRequest(new { success = false, error = "No fiscal year found for this company." });
+        //         }
+
+        //         // Fetch the target user details
+        //         var targetUser = await _context.Users
+        //             .Include(u => u.UserRoles)
+        //                 .ThenInclude(ur => ur.Role)
+        //             .Include(u => u.FiscalYear)
+        //             .FirstOrDefaultAsync(u => u.Id == id);
+
+        //         if (targetUser == null)
+        //         {
+        //             return NotFound(new { success = false, error = "User not found" });
+        //         }
+
+        //         // Get user's primary role
+        //         var primaryRole = targetUser.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
+        //         var userRole = primaryRole?.Name ?? "User";
+
+        //         // Get user's associated companies (if any)
+        //         var userCompanies = await _context.Users
+        //             .Where(u => u.Id == id)
+        //             .SelectMany(u => u.AccessibleCompanies.Select(c => new { c.Id, c.Name }))
+        //             .ToListAsync();
+
+        //         var userCompany = userCompanies.FirstOrDefault();
+
+        //         // Get current user's theme preference
+        //         var currentUserTheme = currentUser.Preferences?.Theme.ToString() ?? "light";
+
+        //         // Prepare response
+        //         var response = new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 user = new
+        //                 {
+        //                     id = targetUser.Id,
+        //                     name = targetUser.Name,
+        //                     email = targetUser.Email,
+        //                     role = userRole,
+        //                     isActive = targetUser.IsActive,
+        //                     isAdmin = targetUser.IsAdmin,
+        //                     createdAt = targetUser.CreatedAt,
+        //                     lastLogin = (DateTime?)null, // Add last login tracking if you have it
+        //                     company = userCompany != null ? new
+        //                     {
+        //                         id = userCompany.Id,
+        //                         name = userCompany.Name
+        //                     } : null,
+        //                     fiscalYear = targetUser.FiscalYear != null ? new
+        //                     {
+        //                         id = targetUser.FiscalYear.Id,
+        //                         name = targetUser.FiscalYear.Name
+        //                     } : null
+        //                 },
+        //                 company = new
+        //                 {
+        //                     id = company.Id,
+        //                     name = company.Name,
+        //                     renewalDate = company.RenewalDate,
+        //                     dateFormat = company.DateFormat?.ToString() ?? "English",
+        //                     owner = company.Owner != null ? new
+        //                     {
+        //                         id = company.Owner.Id,
+        //                         name = company.Owner.Name
+        //                     } : null
+        //                 },
+        //                 currentFiscalYear = currentFiscalYear != null ? new
+        //                 {
+        //                     id = currentFiscalYear.Id,
+        //                     name = currentFiscalYear.Name,
+        //                     startDate = currentFiscalYear.StartDate,
+        //                     endDate = currentFiscalYear.EndDate,
+        //                     dateFormat = currentFiscalYear.DateFormat,
+        //                     isActive = currentFiscalYear.IsActive
+        //                 } : null,
+        //                 currentCompanyName = company.Name,
+        //                 currentUser = new
+        //                 {
+        //                     id = currentUser.Id,
+        //                     name = currentUser.Name,
+        //                     role = currentUser.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role?.Name ?? "User",
+        //                     isAdmin = currentUser.IsAdmin,
+        //                     theme = currentUserTheme
+        //                 },
+        //                 isAdminOrSupervisor = isAdmin || isSupervisor
+        //             }
+        //         };
+
+        //         _logger.LogInformation($"Successfully fetched user details for User ID: {id}");
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetUserById for User ID: {UserId}", id);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "An error occurred while fetching user details",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         // GET: api/user/users/view/{id}
         [HttpGet("users/view/{id}")]
         public async Task<IActionResult> GetUserById(Guid id)
@@ -974,11 +1399,14 @@ namespace SkyForge.Controllers
                     return Unauthorized(new { success = false, error = "User not found" });
                 }
 
-                // Authorization check - only Admin or Supervisor can view user details
+                // Authorization check - Allow if:
+                // 1. User is Admin or Supervisor, OR
+                // 2. User is viewing their own profile
                 var isAdmin = currentUser.IsAdmin;
                 var isSupervisor = await _userService.UserHasRoleAsync(currentUserId, "Supervisor");
+                var isViewingOwnProfile = currentUserId == id;
 
-                if (!isAdmin && !isSupervisor)
+                if (!isAdmin && !isSupervisor && !isViewingOwnProfile)
                 {
                     return StatusCode(403, new { success = false, error = "You do not have permission to view this page" });
                 }
@@ -1046,11 +1474,13 @@ namespace SkyForge.Controllers
                     return BadRequest(new { success = false, error = "No fiscal year found for this company." });
                 }
 
-                // Fetch the target user details
+                // Fetch the target user details with all associated companies
                 var targetUser = await _context.Users
                     .Include(u => u.UserRoles)
                         .ThenInclude(ur => ur.Role)
                     .Include(u => u.FiscalYear)
+                    .Include(u => u.AccessibleCompanies) // Include all accessible companies
+                    .Include(u => u.OwnedCompanies) // Include owned companies
                     .FirstOrDefaultAsync(u => u.Id == id);
 
                 if (targetUser == null)
@@ -1062,18 +1492,48 @@ namespace SkyForge.Controllers
                 var primaryRole = targetUser.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
                 var userRole = primaryRole?.Name ?? "User";
 
-                // Get user's associated companies (if any)
-                var userCompanies = await _context.Users
-                    .Where(u => u.Id == id)
-                    .SelectMany(u => u.AccessibleCompanies.Select(c => new { c.Id, c.Name }))
-                    .ToListAsync();
+                // Get ALL associated companies (both accessible and owned)
+                var allCompanies = new List<object>();
 
-                var userCompany = userCompanies.FirstOrDefault();
+                // Add accessible companies
+                if (targetUser.AccessibleCompanies != null && targetUser.AccessibleCompanies.Any())
+                {
+                    foreach (var comp in targetUser.AccessibleCompanies)
+                    {
+                        allCompanies.Add(new
+                        {
+                            id = comp.Id,
+                            name = comp.Name,
+                            type = "Accessible",
+                            role = comp.OwnerId == targetUser.Id ? "Owner" : "Member"
+                        });
+                    }
+                }
+
+                // Add owned companies (if not already in accessible list)
+                if (targetUser.OwnedCompanies != null && targetUser.OwnedCompanies.Any())
+                {
+                    foreach (var comp in targetUser.OwnedCompanies)
+                    {
+                        // Check if already added
+                        if (!allCompanies.Any(c =>
+                            ((dynamic)c).id == comp.Id))
+                        {
+                            allCompanies.Add(new
+                            {
+                                id = comp.Id,
+                                name = comp.Name,
+                                type = "Owned",
+                                role = "Owner"
+                            });
+                        }
+                    }
+                }
 
                 // Get current user's theme preference
                 var currentUserTheme = currentUser.Preferences?.Theme.ToString() ?? "light";
 
-                // Prepare response
+                // Prepare response with multiple companies
                 var response = new
                 {
                     success = true,
@@ -1088,12 +1548,8 @@ namespace SkyForge.Controllers
                             isActive = targetUser.IsActive,
                             isAdmin = targetUser.IsAdmin,
                             createdAt = targetUser.CreatedAt,
-                            lastLogin = (DateTime?)null, // Add last login tracking if you have it
-                            company = userCompany != null ? new
-                            {
-                                id = userCompany.Id,
-                                name = userCompany.Name
-                            } : null,
+                            lastLogin = (DateTime?)null,
+                            companies = allCompanies, // Return all companies as array
                             fiscalYear = targetUser.FiscalYear != null ? new
                             {
                                 id = targetUser.FiscalYear.Id,
@@ -1134,7 +1590,7 @@ namespace SkyForge.Controllers
                     }
                 };
 
-                _logger.LogInformation($"Successfully fetched user details for User ID: {id}");
+                _logger.LogInformation($"Successfully fetched user details for User ID: {id} with {allCompanies.Count} companies");
                 return Ok(response);
             }
             catch (Exception ex)
@@ -1144,6 +1600,233 @@ namespace SkyForge.Controllers
                 {
                     success = false,
                     error = "An error occurred while fetching user details",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // GET: api/user/users/edit-name/{id}
+        [HttpGet("users/edit-name/{id}")]
+        public async Task<IActionResult> GetEditNameForm(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetEditNameForm Started ===");
+                _logger.LogInformation($"Target User ID: {id}");
+
+                // Extract claims from JWT token
+                var currentUserIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var tokenCompanyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                // Validate user ID
+                if (string.IsNullOrEmpty(currentUserIdClaim) || !Guid.TryParse(currentUserIdClaim, out Guid currentUserId))
+                {
+                    return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
+                }
+
+                // Get company ID from claim
+                if (string.IsNullOrEmpty(tokenCompanyId) || !Guid.TryParse(tokenCompanyId, out Guid companyId))
+                {
+                    return BadRequest(new { success = false, error = "No company selected. Please select a company first." });
+                }
+
+                _logger.LogInformation($"Current User ID: {currentUserId}, Company ID: {companyId}");
+
+                // Authorization check - Only the user themselves can edit their name
+                if (currentUserId != id)
+                {
+                    return StatusCode(403, new { success = false, error = "You can only edit your own name" });
+                }
+
+                // Fetch the target user
+                var targetUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Id == id);
+
+                if (targetUser == null)
+                {
+                    return NotFound(new { success = false, error = "User not found" });
+                }
+
+                // Get company details
+                var company = await _context.Companies
+                    .Include(c => c.FiscalYears)
+                    .FirstOrDefaultAsync(c => c.Id == companyId);
+
+                if (company == null)
+                {
+                    return NotFound(new { success = false, error = "Company not found" });
+                }
+
+                // Handle fiscal year
+                FiscalYearDTO currentFiscalYear = null;
+                Guid? fiscalYearId = null;
+
+                if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid claimFyId))
+                {
+                    var fiscalYear = company.FiscalYears?.FirstOrDefault(f => f.Id == claimFyId);
+                    if (fiscalYear != null)
+                    {
+                        currentFiscalYear = new FiscalYearDTO
+                        {
+                            Id = fiscalYear.Id,
+                            StartDate = fiscalYear.StartDate,
+                            EndDate = fiscalYear.EndDate,
+                            Name = fiscalYear.Name,
+                            DateFormat = fiscalYear.DateFormat?.ToString() ?? "English",
+                            IsActive = fiscalYear.IsActive
+                        };
+                        fiscalYearId = fiscalYear.Id;
+                    }
+                }
+
+                if (currentFiscalYear == null && company.FiscalYears != null)
+                {
+                    var activeFiscalYear = company.FiscalYears.FirstOrDefault(f => f.IsActive);
+                    if (activeFiscalYear == null)
+                    {
+                        activeFiscalYear = company.FiscalYears.OrderByDescending(f => f.StartDate).FirstOrDefault();
+                    }
+
+                    if (activeFiscalYear != null)
+                    {
+                        currentFiscalYear = new FiscalYearDTO
+                        {
+                            Id = activeFiscalYear.Id,
+                            StartDate = activeFiscalYear.StartDate,
+                            EndDate = activeFiscalYear.EndDate,
+                            Name = activeFiscalYear.Name,
+                            DateFormat = activeFiscalYear.DateFormat?.ToString() ?? "English",
+                            IsActive = activeFiscalYear.IsActive
+                        };
+                        fiscalYearId = activeFiscalYear.Id;
+                    }
+                }
+
+                // Prepare response
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        user = new
+                        {
+                            id = targetUser.Id,
+                            name = targetUser.Name,
+                            email = targetUser.Email
+                        },
+                        company = new
+                        {
+                            id = company.Id,
+                            name = company.Name,
+                            dateFormat = company.DateFormat?.ToString() ?? "English"
+                        },
+                        currentFiscalYear = currentFiscalYear != null ? new
+                        {
+                            id = currentFiscalYear.Id,
+                            name = currentFiscalYear.Name,
+                            startDate = currentFiscalYear.StartDate,
+                            endDate = currentFiscalYear.EndDate
+                        } : null,
+                        currentCompanyName = company.Name,
+                        isOwnProfile = true
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetEditNameForm for User ID: {UserId}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "An error occurred while loading the edit form",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // PUT: api/user/users/edit-name/{id}
+        [HttpPut("users/edit-name/{id}")]
+        public async Task<IActionResult> UpdateUserName(Guid id, [FromBody] UpdateUserNameRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("=== UpdateUserName Started ===");
+                _logger.LogInformation($"Target User ID: {id}, New Name: {request.Name}");
+
+                // Extract claims from JWT token
+                var currentUserIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                // Validate user ID
+                if (string.IsNullOrEmpty(currentUserIdClaim) || !Guid.TryParse(currentUserIdClaim, out Guid currentUserId))
+                {
+                    return Unauthorized(new { success = false, error = "Invalid user token. Please login again." });
+                }
+
+                // Authorization check - Only the user themselves can edit their name
+                if (currentUserId != id)
+                {
+                    return StatusCode(403, new { success = false, error = "You can only edit your own name" });
+                }
+
+                // Validate request
+                if (request == null || string.IsNullOrWhiteSpace(request.Name))
+                {
+                    return BadRequest(new { success = false, error = "Name is required" });
+                }
+
+                // Trim and validate name length
+                var newName = request.Name.Trim();
+                if (newName.Length < 2)
+                {
+                    return BadRequest(new { success = false, error = "Name must be at least 2 characters long" });
+                }
+
+                if (newName.Length > 100)
+                {
+                    return BadRequest(new { success = false, error = "Name cannot exceed 100 characters" });
+                }
+
+                // Fetch the user
+                var user = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Id == id);
+
+                if (user == null)
+                {
+                    return NotFound(new { success = false, error = "User not found" });
+                }
+
+                // Update the name
+                var oldName = user.Name;
+                user.Name = newName;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"User {user.Email} changed name from '{oldName}' to '{newName}'");
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Name updated successfully",
+                    data = new
+                    {
+                        id = user.Id,
+                        name = user.Name,
+                        email = user.Email,
+                        updatedAt = user.UpdatedAt
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in UpdateUserName for User ID: {UserId}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "An error occurred while updating the name",
                     details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
                 });
             }
@@ -2413,8 +3096,8 @@ namespace SkyForge.Controllers
         //         });
         //     }
         // }
-       
-       
+
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUser(Guid id)
         {
@@ -2939,13 +3622,10 @@ namespace SkyForge.Controllers
         public required string Email { get; set; }
     }
 
-    // public class ResetPasswordRequest
-    // {
-    //     public required string Token { get; set; }
-    //     public required string Password { get; set; }
-    //     public required string Password2 { get; set; }
-    // }
-
+    public class UpdateUserNameRequest
+    {
+        public required string Name { get; set; }
+    }
     public class UpdateUserRequest
     {
         public string? Name { get; set; }

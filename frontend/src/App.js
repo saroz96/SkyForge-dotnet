@@ -784,14 +784,14 @@ function AppContent() {
             />
 
             {/**View Admin Details */}
-            <Route
+            {/* <Route
               path="/auth/admin/users/view/:id"
               element={
                 <ProtectedRoute>
                   <ViewAdmin />
                 </ProtectedRoute>
               }
-            />
+            /> */}
 
             {/**Miscellaneous */}
             <Route

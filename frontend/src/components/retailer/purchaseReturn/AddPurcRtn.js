@@ -5035,71 +5035,117 @@ const AddPurcRtn = () => {
                                         <tbody>
                                             {transactions.length > 0 ? (
                                                 transactions.map((transaction, index) => {
-                                                    // FIX: Use the correct date field based on company format
+                                                    // Helper function to format Nepali date
+                                                    const formatNepaliDate = (dateValue) => {
+                                                        if (!dateValue) return null;
+
+                                                        try {
+                                                            // If it's a string in YYYY-MM-DD format
+                                                            if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                                                                // Validate it's a valid Nepali date
+                                                                const nepaliDate = new NepaliDate(dateValue);
+                                                                if (nepaliDate && typeof nepaliDate.getYear === 'function') {
+                                                                    const year = nepaliDate.getYear();
+                                                                    const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+                                                                    const day = String(nepaliDate.getDate()).padStart(2, '0');
+
+                                                                    // Verify the date is valid by checking if components match
+                                                                    if (year && month && day &&
+                                                                        year === parseInt(dateValue.split('-')[0]) &&
+                                                                        month === dateValue.split('-')[1] &&
+                                                                        day === dateValue.split('-')[2]) {
+                                                                        return `${year}-${month}-${day}`;
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            // Try to create NepaliDate from string or Date object
+                                                            const nepaliDate = new NepaliDate(dateValue);
+                                                            if (nepaliDate && typeof nepaliDate.getYear === 'function') {
+                                                                const year = nepaliDate.getYear();
+                                                                const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+                                                                const day = String(nepaliDate.getDate()).padStart(2, '0');
+
+                                                                if (year && month && day) {
+                                                                    return `${year}-${month}-${day}`;
+                                                                }
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error formatting Nepali date:', error);
+                                                        }
+
+                                                        return null;
+                                                    };
+
+                                                    // Helper function to format English date
+                                                    const formatEnglishDate = (dateValue) => {
+                                                        if (!dateValue) return null;
+
+                                                        try {
+                                                            if (typeof dateValue === 'string') {
+                                                                if (dateValue.includes('T')) {
+                                                                    return dateValue.split('T')[0];
+                                                                } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                                                                    return dateValue;
+                                                                } else {
+                                                                    const dateObj = new Date(dateValue);
+                                                                    if (!isNaN(dateObj.getTime())) {
+                                                                        return dateObj.toISOString().split('T')[0];
+                                                                    }
+                                                                }
+                                                            } else if (dateValue instanceof Date) {
+                                                                if (!isNaN(dateValue.getTime())) {
+                                                                    return dateValue.toISOString().split('T')[0];
+                                                                }
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error formatting English date:', error);
+                                                        }
+
+                                                        return null;
+                                                    };
+
                                                     let formattedDate = '';
                                                     const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
 
                                                     if (isNepaliFormat) {
-                                                        // For Nepali format, use the NepaliDate field
-                                                        if (transaction.nepaliDate) {
+                                                        // Priority 1: Use transactionDateNepali (same as voucher input)
+                                                        if (transaction.transactionDateNepali) {
+                                                            formattedDate = formatNepaliDate(transaction.transactionDateNepali);
+                                                        }
+
+                                                        // Priority 2: Use nepaliDate field (fallback)
+                                                        if (!formattedDate && transaction.nepaliDate) {
+                                                            formattedDate = formatNepaliDate(transaction.nepaliDate);
+                                                        }
+
+                                                        // Priority 3: Convert from AD date as last resort
+                                                        if (!formattedDate && transaction.date) {
                                                             try {
-                                                                // If nepaliDate is a string, extract just the date part
-                                                                if (typeof transaction.nepaliDate === 'string') {
-                                                                    if (transaction.nepaliDate.includes('T')) {
-                                                                        formattedDate = transaction.nepaliDate.split('T')[0];
-                                                                    } else if (/^\d{4}-\d{2}-\d{2}$/.test(transaction.nepaliDate)) {
-                                                                        formattedDate = transaction.nepaliDate;
-                                                                    } else {
-                                                                        const dateObj = new Date(transaction.nepaliDate);
-                                                                        if (!isNaN(dateObj.getTime())) {
-                                                                            const nepaliDate = new NepaliDate(dateObj);
-                                                                            formattedDate = nepaliDate.format('YYYY-MM-DD');
-                                                                        }
-                                                                    }
-                                                                } else if (transaction.nepaliDate instanceof Date) {
-                                                                    const nepaliDate = new NepaliDate(transaction.nepaliDate);
-                                                                    formattedDate = nepaliDate.format('YYYY-MM-DD');
-                                                                }
-                                                            } catch (error) {
-                                                                console.error('Error formatting Nepali date:', error);
-                                                                // Fallback to using Date field
                                                                 const dateObj = new Date(transaction.date);
                                                                 if (!isNaN(dateObj.getTime())) {
                                                                     const nepaliDate = new NepaliDate(dateObj);
-                                                                    formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                                    if (nepaliDate && typeof nepaliDate.getYear === 'function') {
+                                                                        const year = nepaliDate.getYear();
+                                                                        const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+                                                                        const day = String(nepaliDate.getDate()).padStart(2, '0');
+                                                                        formattedDate = `${year}-${month}-${day}`;
+                                                                    }
                                                                 }
-                                                            }
-                                                        } else if (transaction.date) {
-                                                            // Fallback to date field
-                                                            const dateObj = new Date(transaction.date);
-                                                            if (!isNaN(dateObj.getTime())) {
-                                                                const nepaliDate = new NepaliDate(dateObj);
-                                                                formattedDate = nepaliDate.format('YYYY-MM-DD');
+                                                            } catch (error) {
+                                                                console.error('Error converting AD to BS:', error);
                                                             }
                                                         }
                                                     } else {
-                                                        // For English format, use the Date field
-                                                        if (transaction.date) {
-                                                            try {
-                                                                if (typeof transaction.date === 'string') {
-                                                                    if (transaction.date.includes('T')) {
-                                                                        formattedDate = transaction.date.split('T')[0];
-                                                                    } else if (/^\d{4}-\d{2}-\d{2}$/.test(transaction.date)) {
-                                                                        formattedDate = transaction.date;
-                                                                    } else {
-                                                                        const dateObj = new Date(transaction.date);
-                                                                        if (!isNaN(dateObj.getTime())) {
-                                                                            formattedDate = dateObj.toISOString().split('T')[0];
-                                                                        }
-                                                                    }
-                                                                } else if (transaction.date instanceof Date) {
-                                                                    formattedDate = transaction.date.toISOString().split('T')[0];
-                                                                }
-                                                            } catch (error) {
-                                                                console.error('Error formatting English date:', error);
-                                                                formattedDate = 'N/A';
-                                                            }
-                                                        }
+                                                        // For English format
+                                                        formattedDate = formatEnglishDate(transaction.date) ||
+                                                            formatEnglishDate(transaction.transactionDateRoman) ||
+                                                            'N/A';
+                                                    }
+
+                                                    // If still no date, show N/A
+                                                    if (!formattedDate) {
+                                                        formattedDate = 'N/A';
                                                     }
 
                                                     return (

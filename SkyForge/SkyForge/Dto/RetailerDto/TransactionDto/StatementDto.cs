@@ -56,7 +56,8 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public DateTime StartDate { get; set; }
+        public string? StartDateNepali { get; set; }
+        public DateTime? StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public string DateFormat { get; set; } = string.Empty;
         public bool IsActive { get; set; }

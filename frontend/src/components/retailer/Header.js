@@ -889,19 +889,19 @@ const Header = () => {
         </Link>
         <div className="sub-menu-wrapper slideInUp">
           <ul className="sub-menu">
-            {isAdminOrSupervisor ? (
+            {/* {isAdminOrSupervisor ? (
               <li className="menu-item">
-                <Link to={`/auth/admin/users/view/${finalUser?._id || finalUser?.id}`}>
+                <Link to={`/auth/users/view/${finalUser?._id || finalUser?.id}`}>
                   {finalUser?.name || finalUser?.Name || 'User'}
                 </Link>
               </li>
-            ) : (
+            ) : ( */}
               <li className="menu-item">
-                <Link to={`/auth/account/users/view/${finalUser?._id || finalUser?.id}`}>
+                <Link to={`/auth/users/view/${finalUser?._id || finalUser?.id}`}>
                   {finalUser?.name || finalUser?.Name || 'User'}
                 </Link>
               </li>
-            )}
+            {/* )} */}
             <li className="menu-item">
               <Link to="/auth/user/change-password">Change Password</Link>
             </li>

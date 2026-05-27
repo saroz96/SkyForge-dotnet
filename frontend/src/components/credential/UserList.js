@@ -52,7 +52,7 @@ const UserList = () => {
             try {
                 setLoading(true);
                 const response = await api.get('/api/user/admin/users/list');
-                
+
                 if (response.data.success) {
                     setUsers(response.data.data.users);
                     setCompany(response.data.data.company);
@@ -88,7 +88,7 @@ const UserList = () => {
         try {
             const response = await api.put(`/api/user/admin/users/${userId}/role`, { role: newRole });
             if (response.data.success) {
-                setUsers(users.map(user => 
+                setUsers(users.map(user =>
                     user.id === userId ? { ...user, role: newRole } : user
                 ));
                 showNotification('User role updated successfully', 'success');
@@ -107,7 +107,7 @@ const UserList = () => {
         try {
             const response = await api.post(`/api/user/admin/users/${userId}/${action}`);
             if (response.data.success) {
-                setUsers(users.map(user => 
+                setUsers(users.map(user =>
                     user.id === userId ? { ...user, isActive: activate } : user
                 ));
                 showNotification(`User ${activate ? 'activated' : 'deactivated'} successfully`, 'success');
@@ -180,17 +180,104 @@ const UserList = () => {
         }
     };
 
+    // if (loading) {
+    //     return (
+    //         <div className='container-fluid'>
+    //             <Header />
+    //             <div className="container user-management-container mt-4">
+    //                 <div className="card user-management-card shadow-sm">
+    //                     <div className="card-header bg-white py-0">
+    //                         <Skeleton height={30} width={200} />
+    //                     </div>
+    //                     <div className="card-body p-2 p-md-3">
+    //                         <Skeleton count={5} height={50} className="mb-2" />
+    //                     </div>
+    //                 </div>
+    //             </div>
+    //         </div>
+    //     );
+    // }
+
     if (loading) {
         return (
             <div className='container-fluid'>
                 <Header />
-                <div className="container user-management-container mt-4">
-                    <div className="card user-management-card shadow-sm">
-                        <div className="card-header bg-white py-0">
-                            <Skeleton height={30} width={200} />
+                <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+                    <div className="card-header bg-white py-0">
+                        <h1 className="h4 mb-0 text-center text-primary">
+                            <FaUsers className="me-2" />
+                            User Management
+                        </h1>
+                    </div>
+
+                    <div className="card-body p-2 p-md-3">
+                        {/* Search and Add User Skeleton */}
+                        <div className="row g-2 mb-3">
+                            <div className="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div className="d-flex gap-2">
+                                    <div className="position-relative">
+                                        <Skeleton width={250} height={26} />
+                                    </div>
+                                    <Skeleton width={80} height={26} />
+                                </div>
+                            </div>
                         </div>
-                        <div className="card-body p-2 p-md-3">
-                            <Skeleton count={5} height={50} className="mb-2" />
+
+                        {/* Table Header Skeleton */}
+                        <div className="table-responsive" style={{ maxHeight: '500px', overflow: 'auto' }}>
+                            <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.75rem' }}>
+                                <thead className="table-light" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                                    <tr>
+                                        <th style={{ padding: '6px 8px', width: '25%' }}><Skeleton height={20} /></th>
+                                        <th style={{ padding: '6px 8px', width: '25%' }}><Skeleton height={20} /></th>
+                                        <th style={{ padding: '6px 8px', width: '20%' }}><Skeleton height={20} /></th>
+                                        <th style={{ padding: '6px 8px', width: '15%' }}><Skeleton height={20} /></th>
+                                        <th style={{ padding: '6px 8px', width: '15%' }} className="text-end"><Skeleton height={20} /></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {/* Show 5-7 skeleton rows to match typical display */}
+                                    {[1, 2, 3, 4, 5, 6, 7].map((item) => (
+                                        <tr key={item}>
+                                            <td style={{ padding: '6px 8px' }}>
+                                                <div className="d-flex align-items-center">
+                                                    <Skeleton circle width={28} height={28} className="me-2" />
+                                                    <div>
+                                                        <Skeleton width={120} height={16} className="mb-1" />
+                                                        <Skeleton width={80} height={12} />
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '6px 8px' }}>
+                                                <div>
+                                                    <Skeleton width={150} height={16} className="mb-1" />
+                                                    <Skeleton width={60} height={12} />
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '6px 8px' }}>
+                                                <Skeleton width={100} height={30} />
+                                            </td>
+                                            <td style={{ padding: '6px 8px' }}>
+                                                <Skeleton width={60} height={20} />
+                                            </td>
+                                            <td className="text-end" style={{ padding: '6px 8px' }}>
+                                                <div className="d-flex justify-content-end gap-1">
+                                                    <Skeleton width={24} height={24} />
+                                                    <Skeleton width={24} height={24} />
+                                                    <Skeleton width={24} height={24} />
+                                                    <Skeleton width={24} height={24} />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Footer Skeleton */}
+                        <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                            <Skeleton width={200} height={16} />
+                            <Skeleton width={100} height={24} />
                         </div>
                     </div>
                 </div>
@@ -206,7 +293,7 @@ const UserList = () => {
                     <div className="alert alert-danger text-center py-1 mb-2 small" style={{ fontSize: '0.75rem' }}>
                         <i className="fas fa-exclamation-circle me-2"></i>
                         {error}
-                        <button 
+                        <button
                             className="btn btn-sm btn-outline-danger mt-2"
                             onClick={() => window.location.reload()}
                         >
@@ -250,8 +337,8 @@ const UserList = () => {
                                     </div>
                                 </div>
                                 {currentUser.isAdminOrSupervisor && (
-                                    <Link 
-                                        to="/auth/admin/create-user/new" 
+                                    <Link
+                                        to="/auth/admin/create-user/new"
                                         className="btn btn-primary btn-sm d-flex align-items-center"
                                         style={{ height: '26px', padding: '0 12px', fontSize: '0.75rem' }}
                                     >
@@ -271,13 +358,13 @@ const UserList = () => {
                             </div>
                             <h4 className="mb-2" style={{ fontSize: '1rem' }}>No Users Found</h4>
                             <p className="text-muted mb-4" style={{ fontSize: '0.75rem' }}>
-                                {searchTerm ? 
-                                    'No users match your search criteria' : 
+                                {searchTerm ?
+                                    'No users match your search criteria' :
                                     'There are currently no users in the system'}
                             </p>
                             {currentUser.isAdminOrSupervisor && (
-                                <Link 
-                                    to="/auth/admin/create-user/new" 
+                                <Link
+                                    to="/auth/admin/create-user/new"
                                     className="btn btn-primary btn-sm"
                                     style={{ fontSize: '0.75rem' }}
                                 >
@@ -292,28 +379,28 @@ const UserList = () => {
                                 <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.75rem' }}>
                                     <thead className="table-light" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                                         <tr>
-                                            <th 
+                                            <th
                                                 className="cursor-pointer"
                                                 onClick={() => requestSort('name')}
                                                 style={{ cursor: 'pointer', padding: '6px 8px' }}
                                             >
                                                 User {renderSortIcon('name')}
                                             </th>
-                                            <th 
+                                            <th
                                                 className="cursor-pointer"
                                                 onClick={() => requestSort('email')}
                                                 style={{ cursor: 'pointer', padding: '6px 8px' }}
                                             >
                                                 Email {renderSortIcon('email')}
                                             </th>
-                                            <th 
+                                            <th
                                                 className="cursor-pointer"
                                                 onClick={() => requestSort('role')}
                                                 style={{ cursor: 'pointer', padding: '6px 8px' }}
                                             >
                                                 Role {renderSortIcon('role')}
                                             </th>
-                                            <th 
+                                            <th
                                                 className="cursor-pointer"
                                                 onClick={() => requestSort('isActive')}
                                                 style={{ cursor: 'pointer', padding: '6px 8px' }}
@@ -328,9 +415,9 @@ const UserList = () => {
                                             <tr key={user.id} className={!user.isActive ? 'opacity-75' : ''}>
                                                 <td style={{ padding: '6px 8px' }}>
                                                     <div className="d-flex align-items-center">
-                                                        <div 
+                                                        <div
                                                             className="user-avatar d-flex align-items-center justify-content-center rounded-circle me-2"
-                                                            style={{ 
+                                                            style={{
                                                                 width: '28px',
                                                                 height: '28px',
                                                                 backgroundColor: user.isOwner ? '#6f42c1' : '#0d6efd',
@@ -377,7 +464,7 @@ const UserList = () => {
                                                                 value={user.role}
                                                                 onChange={(e) => {
                                                                     const newRole = e.target.value;
-                                                                    setUsers(users.map(u => 
+                                                                    setUsers(users.map(u =>
                                                                         u.id === user.id ? { ...u, role: newRole } : u
                                                                     ));
                                                                 }}
@@ -393,7 +480,7 @@ const UserList = () => {
                                                                 placement="top"
                                                                 overlay={renderTooltip('Save Role')}
                                                             >
-                                                                <button 
+                                                                <button
                                                                     className="btn btn-primary btn-sm"
                                                                     style={{ padding: '2px 6px', fontSize: '0.7rem' }}
                                                                     onClick={() => handleRoleChange(user.id, user.role)}
@@ -419,8 +506,8 @@ const UserList = () => {
                                                             placement="top"
                                                             overlay={renderTooltip('View User')}
                                                         >
-                                                            <Link 
-                                                                to={`/auth/users/view/${user.id}`} 
+                                                            <Link
+                                                                to={`/auth/users/view/${user.id}`}
                                                                 className="btn btn-outline-primary btn-sm"
                                                                 style={{ padding: '2px 6px' }}
                                                             >
@@ -493,7 +580,7 @@ const UserList = () => {
                                     </tbody>
                                 </table>
                             </div>
-                            
+
                             {/* Footer with counts */}
                             <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
                                 <div className="text-muted" style={{ fontSize: '0.7rem' }}>
@@ -501,8 +588,8 @@ const UserList = () => {
                                     <span className="fw-semibold">{users.length}</span> user{users.length !== 1 ? 's' : ''}
                                 </div>
                                 {currentUser.isAdminOrSupervisor && (
-                                    <Link 
-                                        to="/auth/admin/create-user/new" 
+                                    <Link
+                                        to="/auth/admin/create-user/new"
                                         className="btn btn-outline-primary btn-sm"
                                         style={{ fontSize: '0.7rem', padding: '2px 8px' }}
                                     >

@@ -88,16 +88,6 @@ namespace SkyForge.Services
             await SendEmailAsync(toEmail, "Welcome to Ams Software!", body);
         }
 
-        // public async Task SendPasswordResetEmailAsync(string toEmail, string resetToken)
-        // {
-        //     var appUrl = _configuration["AppUrl"] ?? "https://localhost:3000"; // Your frontend URL
-        //                                                                        // Use path parameter format instead of query parameter
-        //     var resetLink = $"{appUrl}/reset-password/{resetToken}";
-
-        //     var body = GetPasswordResetEmailTemplate(resetLink);
-        //     await SendEmailAsync(toEmail, "Reset Your Password", body);
-        // }
-
         public async Task SendPasswordResetEmailAsync(string toEmail, string resetToken)
         {
             // IMPORTANT: Use the new PUBLIC endpoint instead of the old one

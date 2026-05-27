@@ -52,7 +52,7 @@ const ProductModal = ({ onClose }) => {
                 params: {
                     search: searchTerm,
                     page: page,
-                    limit: 25, // Using fixed limit as in ASP.NET endpoint
+                    limit: 15, // Using fixed limit as in ASP.NET endpoint
                     vatStatus: vatStatusFilter
                 }
             });

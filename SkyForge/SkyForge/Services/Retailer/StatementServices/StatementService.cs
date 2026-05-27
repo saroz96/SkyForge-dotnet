@@ -63,6 +63,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                         Name = f.Name,
                         DateFormat = f.DateFormat.ToString(),
                         IsActive = f.IsActive,
+                        StartDate = f.StartDate,           // Add this
+                        StartDateNepali = f.StartDateNepali, // Add this
                     })
                     .FirstOrDefaultAsync();
 
