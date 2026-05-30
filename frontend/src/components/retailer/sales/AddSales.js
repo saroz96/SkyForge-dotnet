@@ -1658,174 +1658,6 @@ const AddSales = () => {
     //     }, 0);
     // };
 
-    // const insertSelectedItem = () => {
-    //     if (showTransactionModal) {
-    //         setShowTransactionModal(false);
-    //     }
-
-    //     if (!selectedItemForInsert) {
-    //         setNotification({
-    //             show: true,
-    //             message: 'Please select an item first',
-    //             type: 'error'
-    //         });
-    //         return;
-    //     }
-
-    //     // Parse quantity
-    //     const requestedQuantity = parseFloat(selectedItemQuantity) || 0;
-
-    //     if (requestedQuantity <= 0) {
-    //         setNotification({
-    //             show: true,
-    //             message: 'Please enter a valid quantity greater than 0',
-    //             type: 'error'
-    //         });
-    //         setTimeout(() => {
-    //             const quantityInput = document.getElementById('selectedItemQuantity');
-    //             if (quantityInput) {
-    //                 quantityInput.focus();
-    //                 quantityInput.select();
-    //             }
-    //         }, 100);
-    //         return;
-    //     }
-
-    //     // Get FIFO batches
-    //     const { batches, fullfilled, remainingQuantity } = getFifoStockEntries(
-    //         selectedItemForInsert,
-    //         requestedQuantity
-    //     );
-
-    //     if (batches.length === 0) {
-    //         setNotification({
-    //             show: true,
-    //             message: `No stock available for "${selectedItemForInsert.name}"`,
-    //             type: 'error'
-    //         });
-    //         return;
-    //     }
-
-    //     if (!fullfilled) {
-    //         setNotification({
-    //             show: true,
-    //             message: `Insufficient stock! Only ${requestedQuantity - remainingQuantity} units available out of ${requestedQuantity} requested.`,
-    //             type: 'warning'
-    //         });
-    //         // Optionally continue with available stock or return
-    //         // For now, we'll continue with available stock
-    //     }
-
-    //     // Create new items for each batch
-    //     const newItems = [];
-
-    //     batches.forEach((batch, batchIndex) => {
-    //         const takenQty = batch.takenQuantity;
-
-    //         // Format expiry date
-    //         let expiryDate = '';
-    //         if (batch.expiryDate) {
-    //             if (batch.expiryDate instanceof Date) {
-    //                 expiryDate = batch.expiryDate.toISOString().split('T')[0];
-    //             } else if (typeof batch.expiryDate === 'string') {
-    //                 try {
-    //                     const parsedDate = new Date(batch.expiryDate);
-    //                     if (!isNaN(parsedDate.getTime())) {
-    //                         expiryDate = parsedDate.toISOString().split('T')[0];
-    //                     } else {
-    //                         expiryDate = batch.expiryDate;
-    //                     }
-    //                 } catch (error) {
-    //                     console.error('Error parsing expiry date:', error);
-    //                     expiryDate = batch.expiryDate;
-    //                 }
-    //             }
-    //         } else {
-    //             // Use first expiry date from item if available
-    //             expiryDate = selectedItemForInsert.firstExpiryDate || '';
-    //         }
-
-    //         // Get unit name
-    //         const unitName = selectedItemForInsert.unit?.name ||
-    //             selectedItemForInsert.unitName ||
-    //             '';
-
-    //         const newItem = {
-    //             itemId: selectedItemForInsert.id,
-    //             uniqueNumber: selectedItemForInsert.uniqueNumber || 'N/A',
-    //             hscode: selectedItemForInsert.hscode,
-    //             name: selectedItemForInsert.name,
-    //             category: selectedItemForInsert.category?.name || 'No Category',
-    //             batchNumber: batch.batchNumber || '',
-    //             expiryDate: expiryDate,
-    //             quantity: takenQty,
-    //             unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
-    //             unitName: unitName,
-    //             price: selectedItemRate || Math.round((batch.price || 0) * 100) / 100,
-    //             puPrice: batch.puPrice || 0,
-    //             netPuPrice: batch.netPuPrice || 0,
-    //             mrp: batch.mrp || 0,
-    //             amount: takenQty * (selectedItemRate || Math.round((batch.price || 0) * 100) / 100),
-    //             vatStatus: selectedItemForInsert.vatStatus,
-    //             uniqueUuid: batch.uniqueUuid || `temp-${Date.now()}-${batchIndex}`
-    //         };
-
-    //         newItems.push(newItem);
-    //     });
-
-    //     // Add all new items to the items list
-    //     const updatedItems = [...items, ...newItems];
-    //     setItems(updatedItems);
-
-    //     // Show notification if quantity couldn't be fully fulfilled
-    //     if (!fullfilled) {
-    //         setNotification({
-    //             show: true,
-    //             message: `Added ${requestedQuantity - remainingQuantity} units from ${batches.length} batch(es). ${remainingQuantity} units not available.`,
-    //             type: 'warning',
-    //             duration: 5000
-    //         });
-    //     } else {
-    //         setNotification({
-    //             show: true,
-    //             message: `Added ${requestedQuantity} units from ${batches.length} batch(es)`,
-    //             type: 'success',
-    //             duration: 2000
-    //         });
-    //     }
-
-    //     // Reset header fields
-    //     setSelectedItemForInsert(null);
-    //     setSelectedItemQuantity(0);
-    //     setSelectedItemRate(0);
-    //     setSelectedItemBatchNumber('');
-    //     setSelectedItemExpiryDate('');
-    //     setHeaderQuantityError('');
-    //     setHeaderSearchQuery('');
-
-    //     // Focus back on search input
-    //     setTimeout(() => {
-    //         const searchInput = document.getElementById('headerItemSearch');
-    //         if (searchInput) {
-    //             searchInput.focus();
-    //             searchInput.select();
-    //         }
-    //     }, 50);
-
-    //     // Scroll to bottom of items table
-    //     setTimeout(() => {
-    //         if (itemsTableRef.current) {
-    //             itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
-    //         }
-    //     }, 50);
-
-    //     // Validate all quantities after adding
-    //     setTimeout(() => {
-    //         validateAllQuantities(updatedItems);
-    //     }, 0);
-    // };
-
-
     const insertSelectedItem = () => {
         if (showTransactionModal) {
             setShowTransactionModal(false);
@@ -1837,6 +1669,25 @@ const AddSales = () => {
                 message: 'Please select an item first',
                 type: 'error'
             });
+            return;
+        }
+
+        // Parse quantity
+        const requestedQuantity = parseFloat(selectedItemQuantity) || 0;
+
+        if (requestedQuantity <= 0) {
+            setNotification({
+                show: true,
+                message: 'Please enter a valid quantity greater than 0',
+                type: 'error'
+            });
+            setTimeout(() => {
+                const quantityInput = document.getElementById('selectedItemQuantity');
+                if (quantityInput) {
+                    quantityInput.focus();
+                    quantityInput.select();
+                }
+            }, 100);
             return;
         }
 
@@ -1874,60 +1725,90 @@ const AddSales = () => {
             return;
         }
 
-        // YOUR EXISTING STOCK VALIDATION LOGIC
-        const totalStock = selectedItemForInsert.stockEntries?.reduce((sum, entry) => sum + (entry.quantity || 0), 0) || 0;
+        // Get all stock entries with positive quantity
+        let availableStockEntries = (selectedItemForInsert.stockEntries || [])
+            .filter(entry => entry.quantity > 0);
 
-        if (selectedItemQuantity > totalStock) {
+        // CRITICAL FIX: Sort for proper FIFO
+        // First by date, then by createdAt timestamp or ID for same-date entries
+        availableStockEntries = availableStockEntries.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+
+            // Compare by date first
+            if (dateA.getTime() !== dateB.getTime()) {
+                return dateA - dateB; // Older date first
+            }
+
+            // If same date, sort by createdAt (when the purchase was created)
+            // This ensures FIFO even for same-day purchases
+            if (a.createdAt && b.createdAt) {
+                return new Date(a.createdAt) - new Date(b.createdAt);
+            }
+
+            // If no createdAt, sort by uniqueUuid or batch number as fallback
+            // (assuming older entries have smaller IDs)
+            if (a.uniqueUuid && b.uniqueUuid) {
+                return a.uniqueUuid.localeCompare(b.uniqueUuid);
+            }
+
+            // Fallback to batch number or index
+            if (a.batchNumber && b.batchNumber) {
+                return a.batchNumber.localeCompare(b.batchNumber);
+            }
+
+            return 0;
+        });
+
+        if (availableStockEntries.length === 0) {
             setNotification({
                 show: true,
-                message: `Quantity (${selectedItemQuantity}) exceeds available stock (${totalStock}) for "${selectedItemForInsert.name}"`,
+                message: `No stock available for "${selectedItemForInsert.name}"`,
                 type: 'error'
             });
-            setTimeout(() => {
-                const quantityInput = document.getElementById('selectedItemQuantity');
-                if (quantityInput) {
-                    quantityInput.focus();
-                    quantityInput.select();
-                }
-            }, 100);
             return;
         }
 
-        // YOUR EXISTING STOCK CHECK FOR EXISTING ITEMS
-        if (selectedItemQuantity > 0) {
-            const existingItems = items.filter(item => item.itemId === selectedItemForInsert.id);
-            if (existingItems.length > 0) {
-                const totalExistingQuantity = existingItems.reduce((sum, item) => {
-                    return sum + (parseFloat(item.quantity) || 0);
-                }, 0);
+        // Calculate total available stock
+        const totalStock = availableStockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
 
-                const combinedQuantity = totalExistingQuantity + parseFloat(selectedItemQuantity);
+        if (requestedQuantity > totalStock) {
+            setNotification({
+                show: true,
+                message: `Insufficient stock! Only ${totalStock} units available out of ${requestedQuantity} requested.`,
+                type: 'warning'
+            });
+            return;
+        }
 
-                if (combinedQuantity > totalStock) {
-                    setNotification({
-                        show: true,
-                        message: `Stock exceeded (${combinedQuantity}/${totalStock})`,
-                        type: 'error'
-                    });
-                    setTimeout(() => {
-                        const quantityInput = document.getElementById('selectedItemQuantity');
-                        if (quantityInput) {
-                            quantityInput.focus();
-                            quantityInput.select();
-                        }
-                    }, 100);
-                    return;
-                }
+        // Check existing items stock
+        const existingItems = items.filter(item => item.itemId === selectedItemForInsert.id);
+        if (existingItems.length > 0) {
+            const totalExistingQuantity = existingItems.reduce((sum, item) => {
+                return sum + (parseFloat(item.quantity) || 0);
+            }, 0);
+
+            const combinedQuantity = totalExistingQuantity + requestedQuantity;
+
+            if (combinedQuantity > totalStock) {
+                setNotification({
+                    show: true,
+                    message: `Stock exceeded! Available: ${totalStock}, Already added: ${totalExistingQuantity}, Requested: ${requestedQuantity}`,
+                    type: 'error'
+                });
+                setTimeout(() => {
+                    const quantityInput = document.getElementById('selectedItemQuantity');
+                    if (quantityInput) {
+                        quantityInput.focus();
+                        quantityInput.select();
+                    }
+                }, 100);
+                return;
             }
         }
 
-        // --- NEW: FIFO Batch Splitting Logic ---
-        // Get all stock entries with positive quantity
-        const availableStockEntries = (selectedItemForInsert.stockEntries || [])
-            .filter(entry => entry.quantity > 0)
-            .sort((a, b) => new Date(a.date) - new Date(b.date)); // FIFO: oldest first
-
-        let remainingQty = selectedItemQuantity;
+        // --- FIFO Batch Splitting Logic with PROPER ORDERING ---
+        let remainingQty = requestedQuantity;
         const batchesToInsert = [];
 
         for (const entry of availableStockEntries) {
@@ -1936,31 +1817,43 @@ const AddSales = () => {
             const availableQty = entry.quantity;
             const takenQty = Math.min(availableQty, remainingQty);
 
+            // Format expiry date
+            let expiryDate = '';
+            if (entry.expiryDate) {
+                if (entry.expiryDate instanceof Date) {
+                    expiryDate = entry.expiryDate.toISOString().split('T')[0];
+                } else if (typeof entry.expiryDate === 'string') {
+                    expiryDate = entry.expiryDate.split('T')[0];
+                } else {
+                    expiryDate = entry.expiryDate;
+                }
+            } else {
+                expiryDate = selectedItemExpiryDate;
+            }
+
             batchesToInsert.push({
-                ...entry,
-                takenQuantity: takenQty
+                batchNumber: entry.batchNumber || '',
+                expiryDate: expiryDate,
+                takenQuantity: takenQty,
+                purchaseDate: entry.date,
+                purchaseTime: entry.createdAt,
+                // Use price directly from the batch stock entry (NOT header rate)
+                price: entry.price || 0,
+                puPrice: entry.puPrice || 0,
+                netPuPrice: entry.netPuPrice || 0,
+                mrp: entry.mrp || 0,
+                uniqueUuid: entry.uniqueUuid || `temp-${Date.now()}-${Math.random()}`
             });
 
             remainingQty -= takenQty;
         }
 
-        // Create new items for each batch
+        // Create new items for each batch with batch-specific prices
         const newItems = [];
 
         for (const batch of batchesToInsert) {
-            // Format expiry date
-            let expiryDate = '';
-            if (batch.expiryDate) {
-                if (batch.expiryDate instanceof Date) {
-                    expiryDate = batch.expiryDate.toISOString().split('T')[0];
-                } else if (typeof batch.expiryDate === 'string') {
-                    expiryDate = batch.expiryDate.split('T')[0];
-                } else {
-                    expiryDate = batch.expiryDate;
-                }
-            } else {
-                expiryDate = selectedItemExpiryDate;
-            }
+            // Calculate amount using batch's own price (NOT header rate)
+            const amount = batch.takenQuantity * batch.price;
 
             const newItem = {
                 itemId: selectedItemForInsert.id,
@@ -1968,29 +1861,43 @@ const AddSales = () => {
                 hscode: selectedItemForInsert.hscode,
                 name: selectedItemForInsert.name,
                 category: selectedItemForInsert.category?.name || 'No Category',
-                batchNumber: batch.batchNumber || selectedItemBatchNumber,
-                expiryDate: expiryDate,
+                batchNumber: batch.batchNumber,
+                expiryDate: batch.expiryDate,
                 quantity: batch.takenQuantity,
                 unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
                 unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
-                price: selectedItemRate || Math.round((batch.price || 0) * 100) / 100,
-                puPrice: batch.puPrice || 0,
-                netPuPrice: batch.netPuPrice || 0,
-                mrp: batch.mrp || 0,
-                amount: batch.takenQuantity * (selectedItemRate || Math.round((batch.price || 0) * 100) / 100),
+                // Use batch-specific price (NOT header rate)
+                price: batch.price,
+                puPrice: batch.puPrice,
+                netPuPrice: batch.netPuPrice,
+                mrp: batch.mrp,
+                // Amount calculated from batch price
+                amount: amount,
                 vatStatus: selectedItemForInsert.vatStatus,
-                uniqueUuid: batch.uniqueUuid || `temp-${Date.now()}-${Math.random()}`
+                uniqueUuid: batch.uniqueUuid
             };
 
             newItems.push(newItem);
+
+            // Debug log to verify FIFO order and prices
+            console.log(`FIFO Batch: Purchase Date: ${batch.purchaseDate}, Purchase Time: ${batch.purchaseTime}, Batch: ${batch.batchNumber}, Qty: ${batch.takenQuantity}, Price: ${batch.price}, Amount: ${amount}`);
         }
 
         // Add all new items to the items list
         const updatedItems = [...items, ...newItems];
         setItems(updatedItems);
-        // --- END of FIFO Batch Splitting Logic ---
 
-        // Reset header fields (keep your existing reset logic)
+        // Show detailed success notification
+        if (batchesToInsert.length === 1) {
+            setNotification({
+                show: true,
+                message: `Added ${requestedQuantity} ${selectedItemForInsert.unit?.name || 'item'}(s) from batch ${batchesToInsert[0].batchNumber} at Rs. ${batchesToInsert[0].price.toFixed(2)} each`,
+                type: 'success',
+                duration: 2000
+            });
+        }
+
+        // Reset header fields
         setSelectedItemForInsert(null);
         setSelectedItemQuantity(0);
         setSelectedItemRate(0);
@@ -1999,7 +1906,7 @@ const AddSales = () => {
         setHeaderQuantityError('');
         setHeaderSearchQuery('');
 
-        // Focus back on search input (keep your existing focus logic)
+        // Focus back on search input
         setTimeout(() => {
             const searchInput = document.getElementById('headerItemSearch');
             if (searchInput) {
@@ -2008,19 +1915,18 @@ const AddSales = () => {
             }
         }, 50);
 
-        // Scroll to bottom of items table (keep your existing scroll logic)
+        // Scroll to bottom of items table
         setTimeout(() => {
             if (itemsTableRef.current) {
                 itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
             }
         }, 50);
 
-        // Validate all quantities after adding (keep your existing validation)
+        // Validate all quantities after adding
         setTimeout(() => {
             validateAllQuantities(updatedItems);
         }, 0);
     };
-
 
     const updateItemField = (index, field, value) => {
         const updatedItems = [...items];
