@@ -222,13 +222,21 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    // This ensures the database and all tables are created based on your models
-    dbContext.Database.EnsureCreated();
-    Console.WriteLine("Database ensured created with all tables");
-}
+// using (var scope = app.Services.CreateScope())
+// {
+//     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+//     // This ensures the database and all tables are created based on your models
+//     dbContext.Database.EnsureCreated();
+//     Console.WriteLine("Database ensured created with all tables");
+// }
+
+// using (var scope = app.Services.CreateScope())
+// {
+//     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+//     // Use migrations instead of EnsureCreated
+//     dbContext.Database.Migrate(); // This applies all pending migrations
+//     Console.WriteLine("Database migrations applied successfully");
+// }
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

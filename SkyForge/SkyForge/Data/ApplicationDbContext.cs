@@ -1592,60 +1592,6 @@ namespace SkyForge.Data
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 
-            // Configure StockEntry
-            modelBuilder.Entity<StockEntry>(entity =>
-            {
-                entity.ToTable("stock_entries");
-
-                // Relationships
-                entity.HasOne(e => e.Item)
-                    .WithMany(e => e.StockEntries)
-                    .HasForeignKey(e => e.ItemId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(e => e.FiscalYear)
-                    .WithMany()
-                    .HasForeignKey(e => e.FiscalYearId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                // CORRECTED: Add PurchaseBill navigation property relationship
-                entity.HasOne(e => e.PurchaseBill)
-                    .WithMany() // Add if PurchaseBill has StockEntries collection, otherwise keep WithMany()
-                    .HasForeignKey(e => e.PurchaseBillId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(e => e.Store)
-                    .WithMany()
-                    .HasForeignKey(e => e.StoreId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(e => e.Rack)
-                    .WithMany()
-                    .HasForeignKey(e => e.RackId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                // Check constraint for expiry_status
-                entity.HasCheckConstraint("CK_StockEntry_ExpiryStatus",
-                    "expiry_status IN ('safe', 'warning', 'danger', 'expired')");
-
-                // Default values
-                entity.Property(e => e.BatchNumber).HasDefaultValue("XXX");
-                entity.Property(e => e.Price).HasDefaultValue(0);
-                entity.Property(e => e.NetPrice).HasDefaultValue(0);
-                entity.Property(e => e.PuPrice).HasDefaultValue(0);
-                entity.Property(e => e.ItemCcAmount).HasDefaultValue(0);
-                entity.Property(e => e.DiscountPercentagePerItem).HasDefaultValue(0);
-                entity.Property(e => e.DiscountAmountPerItem).HasDefaultValue(0);
-                entity.Property(e => e.MainUnitPuPrice).HasDefaultValue(0);
-                entity.Property(e => e.Mrp).HasDefaultValue(0);
-                entity.Property(e => e.MarginPercentage).HasDefaultValue(0);
-                entity.Property(e => e.ExpiryStatus).HasDefaultValue("safe");
-                entity.Property(e => e.DaysUntilExpiry).HasDefaultValue(730);
-                entity.Property(e => e.Date).HasDefaultValueSql("CURRENT_TIMESTAMP");
-                entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            });
 
             // Add indexes for performance
             modelBuilder.Entity<Item>()

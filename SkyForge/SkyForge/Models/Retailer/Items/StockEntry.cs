@@ -96,7 +96,7 @@ namespace SkyForge.Models.Retailer.Items
         public decimal Mrp { get; set; } = 0;
 
         [Column("margin_percentage")]
-        [Precision(5, 2)]
+        [Precision(10, 4)]
         public decimal MarginPercentage { get; set; } = 0;
 
         [Column("currency")]

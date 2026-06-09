@@ -111,4 +111,78 @@ namespace SkyForge.Dto
         public double? Value { get; set; }
         public object Data { get; set; }
     }
+
+    //-----------split fiscalyear----------------------------
+
+    public class SplitFiscalYearRequestDto
+    {
+        public Guid SourceCompanyId { get; set; }
+
+        public Guid FiscalYearId { get; set; }
+
+        public string NewCompanyName { get; set; } = string.Empty;
+
+        public bool DeleteAfterSplit { get; set; } = false;
+    }
+
+    public class SplitFiscalYearProgressEventDto
+    {
+        public string Type { get; set; } = string.Empty; // progress, error, complete, log
+        public int? Value { get; set; }
+        public string? Message { get; set; }
+        public string? Error { get; set; }
+        public string? Details { get; set; }
+        public SplitFiscalYearResultDto? Data { get; set; }
+    }
+
+    public class SplitFiscalYearResultDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public SplitFiscalYearDataDto? Data { get; set; }
+    }
+
+    public class SplitFiscalYearDataDto
+    {
+        public NewCompanyInfoDto NewCompany { get; set; } = new();
+        public NewFiscalYearInfoDto NewFiscalYear { get; set; } = new();
+        public SplitStatisticsDto Statistics { get; set; } = new();
+    }
+
+    public class NewCompanyInfoDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class NewFiscalYearInfoDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class SplitStatisticsDto
+    {
+        public int UsersCopied { get; set; }
+        public int CompanyGroupsCopied { get; set; }
+        public int CategoriesCopied { get; set; }
+        public int ItemsCompaniesCopied { get; set; }
+        public int MainUnitsCopied { get; set; }
+        public int UnitsCopied { get; set; }
+        public int CompositionsCopied { get; set; }
+        public int ItemsCopied { get; set; }
+        public int AccountsCopied { get; set; }
+        public int TransactionsFoundForCopy { get; set; }
+    }
+
+    public class DeletionStatsDto
+    {
+        public int ItemsDeleted { get; set; }
+        public int AccountsDeleted { get; set; }
+        public int TransactionsDeleted { get; set; }
+        public int FiscalYearsDeleted { get; set; }
+        public int SettingsDeleted { get; set; }
+        public int BillCountersDeleted { get; set; }
+        public int UsersUpdated { get; set; }
+    }
 }

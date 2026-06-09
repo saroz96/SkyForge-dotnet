@@ -41,7 +41,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         [Range(0, double.MaxValue)]
         public decimal NetPuPrice { get; set; }
 
-        [Range(0, 100)]
+        [Range(0, 1000)]
         public decimal CcPercentage { get; set; } = 0;
 
         [Range(0, double.MaxValue)]
@@ -50,7 +50,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         [Range(0, double.MaxValue)]
         public decimal Mrp { get; set; } = 0;
 
-        [Range(0, 100)]
+        [Range(0, 1000)]
         public decimal MarginPercentage { get; set; } = 0;
 
         [StringLength(10)]

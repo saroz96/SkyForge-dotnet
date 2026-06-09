@@ -1887,16 +1887,6 @@ const AddSales = () => {
         const updatedItems = [...items, ...newItems];
         setItems(updatedItems);
 
-        // Show detailed success notification
-        if (batchesToInsert.length === 1) {
-            setNotification({
-                show: true,
-                message: `Added ${requestedQuantity} ${selectedItemForInsert.unit?.name || 'item'}(s) from batch ${batchesToInsert[0].batchNumber} at Rs. ${batchesToInsert[0].price.toFixed(2)} each`,
-                type: 'success',
-                duration: 2000
-            });
-        }
-
         // Reset header fields
         setSelectedItemForInsert(null);
         setSelectedItemQuantity(0);

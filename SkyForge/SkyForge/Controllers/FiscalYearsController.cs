@@ -264,159 +264,6 @@ namespace SkyForge.Controllers
             }
         }
 
-        // [HttpPost("create-next")]
-        // public async Task<IActionResult> CreateNextFiscalYear([FromBody] CreateNextFiscalYearRequest request)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("=== CreateNextFiscalYear Started ===");
-
-        //         var companyIdClaim = User.FindFirst("currentCompany")?.Value;
-        //         if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyIdGuid))
-        //         {
-        //             return BadRequest(new { success = false, error = "No company selected" });
-        //         }
-
-        //         var company = await _context.Companies
-        //             .Include(c => c.FiscalYears)
-        //             .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
-
-        //         if (company == null)
-        //         {
-        //             return NotFound(new { success = false, error = "Company not found" });
-        //         }
-
-        //         // Get current active fiscal year
-        //         var currentFiscalYear = company.FiscalYears?.FirstOrDefault(f => f.IsActive);
-        //         if (currentFiscalYear == null)
-        //         {
-        //             return BadRequest(new { success = false, error = "No active fiscal year found" });
-        //         }
-
-        //         // Get dates from request (sent from frontend)
-        //         DateTime? nextStartDate = null;
-        //         DateTime? nextEndDate = null;
-        //         string? nextStartDateNepali = null;
-        //         string? nextEndDateNepali = null;
-        //         string nextYearName = string.Empty;
-
-        //         var isNepaliFormat = currentFiscalYear.DateFormat == DateFormatEnum.Nepali;
-
-        //         if (isNepaliFormat)
-        //         {
-        //             // For Nepali format, use Nepali dates from request
-        //             nextStartDateNepali = request.StartDateNepali;
-        //             nextEndDateNepali = request.EndDateNepali;
-
-        //             // English dates can be stored as null or approximate
-        //             nextStartDate = null;
-        //             nextEndDate = null;
-
-        //             // Generate name from Nepali start year (e.g., 2082/83)
-        //             if (!string.IsNullOrEmpty(nextStartDateNepali))
-        //             {
-        //                 var parts = nextStartDateNepali.Split('-');
-        //                 if (parts.Length == 3)
-        //                 {
-        //                     int startYear = int.Parse(parts[0]);
-        //                     int endYear = startYear + 1;
-        //                     nextYearName = $"{startYear}/{endYear % 100:D2}";
-        //                 }
-        //                 else
-        //                 {
-        //                     nextYearName = $"FY {DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1) % 100}";
-        //                 }
-        //             }
-        //             else
-        //             {
-        //                 nextYearName = $"FY {DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1) % 100}";
-        //             }
-        //         }
-        //         else
-        //         {
-        //             // For English format, use English dates from request
-        //             nextStartDate = request.StartDate;
-        //             nextEndDate = request.EndDate;
-
-        //             // Nepali dates can be stored as null
-        //             nextStartDateNepali = null;
-        //             nextEndDateNepali = null;
-
-        //             // Generate name from English start year (e.g., 2024/25)
-        //             if (nextStartDate.HasValue)
-        //             {
-        //                 int startYear = nextStartDate.Value.Year;
-        //                 int endYear = startYear + 1;
-        //                 nextYearName = $"{startYear}/{endYear % 100:D2}";
-        //             }
-        //             else
-        //             {
-        //                 nextYearName = $"FY {DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1) % 100}";
-        //             }
-        //         }
-
-        //         // Create new fiscal year
-        //         var newFiscalYear = new FiscalYear
-        //         {
-        //             Id = Guid.NewGuid(),
-        //             Name = nextYearName,
-        //             StartDate = nextStartDate,
-        //             EndDate = nextEndDate,
-        //             StartDateNepali = nextStartDateNepali,
-        //             EndDateNepali = nextEndDateNepali,
-        //             DateFormat = currentFiscalYear.DateFormat,
-        //             CompanyId = companyIdGuid,
-        //             IsActive = false, // Not active until transfer is done
-        //             BillPrefixes = new BillPrefixes
-        //             {
-        //                 Sales = GenerateUniquePrefix(),
-        //                 SalesQuotation = GenerateUniquePrefix(),
-        //                 SalesReturn = GenerateUniquePrefix(),
-        //                 Purchase = GenerateUniquePrefix(),
-        //                 PurchaseReturn = GenerateUniquePrefix(),
-        //                 Payment = GenerateUniquePrefix(),
-        //                 Receipt = GenerateUniquePrefix(),
-        //                 StockAdjustment = GenerateUniquePrefix(),
-        //                 DebitNote = GenerateUniquePrefix(),
-        //                 CreditNote = GenerateUniquePrefix(),
-        //                 JournalVoucher = GenerateUniquePrefix()
-        //             },
-        //             CreatedAt = DateTime.UtcNow
-        //         };
-
-        //         _context.FiscalYears.Add(newFiscalYear);
-        //         await _context.SaveChangesAsync();
-
-        //         _logger.LogInformation("Created new fiscal year: {Name} for company: {CompanyName}", newFiscalYear.Name, company.Name);
-
-        //         return Ok(new
-        //         {
-        //             success = true,
-        //             message = "New fiscal year created successfully",
-        //             data = new
-        //             {
-        //                 fiscalYear = new
-        //                 {
-        //                     newFiscalYear.Id,
-        //                     newFiscalYear.Name,
-        //                     newFiscalYear.StartDate,
-        //                     newFiscalYear.EndDate,
-        //                     newFiscalYear.StartDateNepali,
-        //                     newFiscalYear.EndDateNepali,
-        //                     newFiscalYear.DateFormat
-        //                 },
-        //                 sourceFiscalYearId = currentFiscalYear.Id,
-        //                 targetFiscalYearId = newFiscalYear.Id
-        //             }
-        //         });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error creating next fiscal year");
-        //         return StatusCode(500, new { success = false, error = ex.Message });
-        //     }
-        // }
-
         [HttpPost("create-next")]
         public async Task<IActionResult> CreateNextFiscalYear([FromBody] CreateNextFiscalYearRequest request)
         {
@@ -862,176 +709,6 @@ namespace SkyForge.Controllers
             };
         }
 
-        // [HttpPost("switch-fiscal-year")]
-        // public async Task<IActionResult> SwitchFiscalYear([FromBody] SwitchFiscalYearRequestDto request)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("=== SwitchFiscalYear Started ===");
-
-        //         // Validate request
-        //         if (request.FiscalYearId == Guid.Empty)
-        //         {
-        //             return BadRequest(new ApiResponse<object>
-        //             {
-        //                 Success = false,
-        //                 Message = "Fiscal Year ID is required"
-        //             });
-        //         }
-
-        //         // Extract existing claims from current JWT token
-        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        //         var companyIdClaim = User.FindFirst("currentCompany")?.Value;
-        //         var currentCompanyName = User.FindFirst("currentCompanyName")?.Value;
-        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
-        //         var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        //         var isAdminClaim = User.FindFirst("isAdmin")?.Value;
-        //         var isEmailVerifiedClaim = User.FindFirst("isEmailVerified")?.Value;
-
-        //         // Validate user
-        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
-        //         {
-        //             return Unauthorized(new ApiResponse<object>
-        //             {
-        //                 Success = false,
-        //                 Message = "Invalid user token"
-        //             });
-        //         }
-
-        //         // Validate company
-        //         if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyIdGuid))
-        //         {
-        //             return BadRequest(new ApiResponse<object>
-        //             {
-        //                 Success = false,
-        //                 Message = "No company selected"
-        //             });
-        //         }
-
-        //         // Fetch the selected fiscal year
-        //         var fiscalYear = await _context.FiscalYears
-        //             .FirstOrDefaultAsync(f => f.Id == request.FiscalYearId && f.CompanyId == companyIdGuid);
-
-        //         if (fiscalYear == null)
-        //         {
-        //             return NotFound(new ApiResponse<object>
-        //             {
-        //                 Success = false,
-        //                 Message = "Fiscal Year not found"
-        //             });
-        //         }
-
-        //         // Get the user for token generation
-        //         var user = await _context.Users
-        //             .Include(u => u.UserRoles)
-        //                 .ThenInclude(ur => ur.Role)
-        //             .FirstOrDefaultAsync(u => u.Id == userGuid);
-
-        //         if (user == null)
-        //         {
-        //             return NotFound(new ApiResponse<object>
-        //             {
-        //                 Success = false,
-        //                 Message = "User not found"
-        //             });
-        //         }
-
-        //         // Get company details with fiscal years
-        //         var company = await _context.Companies
-        //             .Include(c => c.FiscalYears)
-        //             .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
-
-        //         if (company == null)
-        //         {
-        //             return NotFound(new ApiResponse<object>
-        //             {
-        //                 Success = false,
-        //                 Message = "Company not found"
-        //             });
-        //         }
-
-        //         // Get user's primary role
-        //         var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
-
-        //         // Prepare ALL claims - MUST include all required claims for the middleware
-        //         var allClaims = new Dictionary<string, string>
-        //         {
-        //             // User claims
-        //             ["userId"] = user.Id.ToString(),
-        //             ["isAdmin"] = user.IsAdmin.ToString(),
-        //             ["isEmailVerified"] = user.IsEmailVerified.ToString(),
-
-        //             // Company claims
-        //             ["currentCompany"] = company.Id.ToString(),
-        //             ["currentCompanyName"] = company.Name,
-        //             ["tradeType"] = company.TradeType.ToString(),
-
-        //             // Fiscal year claims (CRITICAL for EnsureFiscalYearMiddleware)
-        //             ["fiscalYearId"] = fiscalYear.Id.ToString(),
-        //             ["fiscalYearName"] = fiscalYear.Name,
-        //             ["fiscalYearStartDate"] = GetFormattedDateForClaim(fiscalYear.StartDate, fiscalYear.DateFormat, fiscalYear.StartDateNepali),
-        //             ["fiscalYearEndDate"] = GetFormattedDateForClaim(fiscalYear.EndDate, fiscalYear.DateFormat, fiscalYear.EndDateNepali),
-        //             ["fiscalYearDateFormat"] = fiscalYear.DateFormat?.ToString() ?? "English"
-        //         };
-
-        //         // Add role claim if exists
-        //         if (primaryRole != null)
-        //         {
-        //             allClaims[ClaimTypes.Role] = primaryRole.Name;
-        //             allClaims["roleId"] = primaryRole.Id.ToString();
-        //         }
-        //         else if (!string.IsNullOrEmpty(userRole))
-        //         {
-        //             allClaims[ClaimTypes.Role] = userRole;
-        //         }
-
-        //         // Generate new JWT token with all claims
-        //         var newToken = _jwtService.GenerateTokenWithClaims(user, allClaims, primaryRole);
-
-        //         // Return success response with new token
-        //         return Ok(new ApiResponse<object>
-        //         {
-        //             Success = true,
-        //             Message = $"Switched to fiscal year: {fiscalYear.Name}",
-        //             Data = new
-        //             {
-        //                 token = newToken,
-        //                 sessionData = new
-        //                 {
-        //                     company = new
-        //                     {
-        //                         id = company.Id,
-        //                         name = company.Name,
-        //                         tradeType = company.TradeType.ToString(),
-        //                         dateFormat = company.DateFormat?.ToString() ?? "English"
-        //                     },
-        //                     fiscalYear = new
-        //                     {
-        //                         id = fiscalYear.Id,
-        //                         name = fiscalYear.Name,
-        //                         startDate = fiscalYear.StartDate?.ToString("yyyy-MM-dd"),
-        //                         endDate = fiscalYear.EndDate?.ToString("yyyy-MM-dd"),
-        //                         startDateNepali = fiscalYear.StartDateNepali,
-        //                         endDateNepali = fiscalYear.EndDateNepali,
-        //                         dateFormat = fiscalYear.DateFormat?.ToString() ?? "English",
-        //                         isActive = fiscalYear.IsActive
-        //                     }
-        //                 }
-        //             }
-        //         });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error switching fiscal year");
-        //         return StatusCode(500, new ApiResponse<object>
-        //         {
-        //             Success = false,
-        //             Message = "Failed to switch fiscal year: " + ex.Message
-        //         });
-        //     }
-        // }
-
-
         [HttpPost("switch-fiscal-year")]
         public async Task<IActionResult> SwitchFiscalYear([FromBody] SwitchFiscalYearRequestDto request)
         {
@@ -1306,17 +983,146 @@ namespace SkyForge.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
-    }
 
-    public class CreateFiscalYearRequest
-    {
-        public string Name { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-        public string? StartDateNepali { get; set; }
-        public string? EndDateNepali { get; set; }
-        public DateFormatEnum? DateFormat { get; set; } = DateFormatEnum.English;
-        public Guid CompanyId { get; set; }
-        public BillPrefixes BillPrefixes { get; set; }
+
+        // Controllers/FiscalYearsController.cs - Add this method
+
+        [HttpGet("split-fiscal-year")]
+        public async Task SplitFiscalYear(CancellationToken cancellationToken)
+        {
+            try
+            {
+                _logger.LogInformation("Split fiscal year SSE endpoint hit");
+
+                // Set SSE headers
+                Response.Headers.Append("Content-Type", "text/event-stream");
+                Response.Headers.Append("Cache-Control", "no-cache");
+                Response.Headers.Append("Connection", "keep-alive");
+                Response.Headers.Append("Access-Control-Allow-Origin", "*");
+
+                // Get parameters from query string
+                var sourceCompanyIdParam = Request.Query["sourceCompanyId"].ToString();
+                var fiscalYearIdParam = Request.Query["fiscalYearId"].ToString();
+                var newCompanyName = Request.Query["newCompanyName"].ToString();
+                var deleteAfterSplitParam = Request.Query["deleteAfterSplit"].ToString();
+
+                _logger.LogInformation("SSE Split request params: SourceCompanyId={SourceCompanyId}, FiscalYearId={FiscalYearId}, NewCompanyName={NewCompanyName}, DeleteAfterSplit={DeleteAfterSplit}",
+                    sourceCompanyIdParam, fiscalYearIdParam, newCompanyName, deleteAfterSplitParam);
+
+                // Validate input
+                if (string.IsNullOrEmpty(sourceCompanyIdParam) || !Guid.TryParse(sourceCompanyIdParam, out var sourceCompanyId))
+                {
+                    await SendSseEvent("error", new { error = "Valid source company ID is required" });
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(fiscalYearIdParam) || !Guid.TryParse(fiscalYearIdParam, out var fiscalYearId))
+                {
+                    await SendSseEvent("error", new { error = "Valid fiscal year ID is required" });
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(newCompanyName))
+                {
+                    await SendSseEvent("error", new { error = "New company name is required" });
+                    return;
+                }
+
+                // Extract user ID from claims
+                var userIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                {
+                    await SendSseEvent("error", new { error = "User not authenticated" });
+                    return;
+                }
+
+                var deleteAfterSplit = deleteAfterSplitParam?.ToLower() == "true";
+
+                var request = new SplitFiscalYearRequestDto
+                {
+                    SourceCompanyId = sourceCompanyId,
+                    FiscalYearId = fiscalYearId,
+                    NewCompanyName = newCompanyName,
+                    DeleteAfterSplit = deleteAfterSplit
+                };
+
+                // Flag to track if operation completed successfully
+                var operationCompleted = false;
+
+                // Setup progress handler
+                var progressHandler = new Func<SplitFiscalYearProgressEventDto, Task>(async (progress) =>
+                {
+                    await SendSseEvent(progress.Type, new
+                    {
+                        progress.Value,
+                        progress.Message,
+                        error = progress.Error,
+                        details = progress.Details,
+                        data = progress.Data
+                    });
+
+                    if (progress.Type == "complete" || progress.Type == "error")
+                    {
+                        operationCompleted = true;
+                    }
+                });
+
+                try
+                {
+                    await _fiscalYearService.SplitFiscalYearAsync(request, userId, progressHandler, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogWarning("Split operation was cancelled by client disconnect");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unhandled error in SplitFiscalYear SSE endpoint");
+                    await SendSseEvent("error", new { error = ex.Message, details = ex.StackTrace });
+                }
+                finally
+                {
+                    if (!operationCompleted)
+                    {
+                        await SendSseEvent("error", new { error = "Operation terminated unexpectedly" });
+                    }
+                    await Response.Body.FlushAsync(cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SplitFiscalYear SSE endpoint");
+            }
+
+            // Helper function to send SSE events
+            async Task SendSseEvent(string eventType, object data)
+            {
+                try
+                {
+                    var jsonData = System.Text.Json.JsonSerializer.Serialize(data);
+                    await Response.WriteAsync($"data: {jsonData}\n\n");
+                    await Response.Body.FlushAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending SSE event");
+                }
+            }
+
+
+        }
+
+
+        public class CreateFiscalYearRequest
+        {
+            public string Name { get; set; }
+            public DateTime? StartDate { get; set; }
+            public DateTime? EndDate { get; set; }
+            public string? StartDateNepali { get; set; }
+            public string? EndDateNepali { get; set; }
+            public DateFormatEnum? DateFormat { get; set; } = DateFormatEnum.English;
+            public Guid CompanyId { get; set; }
+            public BillPrefixes BillPrefixes { get; set; }
+        }
     }
 }
