@@ -63,7 +63,7 @@ const ChangePassword = () => {
         const fetchFormData = async () => {
             try {
                 setLoading(true);
-                const response = await api.get('/api/User/user/change-password');
+                const response = await api.get('/api/user/user/change-password');
                 
                 if (response.data.success) {
                     const data = response.data.data;
@@ -156,7 +156,7 @@ const ChangePassword = () => {
         }
 
         try {
-            const response = await api.post('/api/User/user/change-password', formData);
+            const response = await api.post('/api/user/user/change-password', formData);
             
             if (response.data.success) {
                 setNotification({
