@@ -180,6 +180,9 @@ const getNepaliMonthDays = (year, month) => {
 
 const AddStockAdjustment = () => {
     const navigate = useNavigate();
+    const headerSearchInputRef = useRef(null);
+    const [showItemsModal, setShowItemsModal] = useState(false);
+
     const transactionDateRef = useRef(null);
     const nepaliDateRef = useRef(null);
     const marginPercentageRef = useRef(null);
@@ -2841,6 +2844,7 @@ const AddStockAdjustment = () => {
                                                 <input
                                                     type="text"
                                                     id="headerItemSearch"
+                                                    ref={headerSearchInputRef}
                                                     className="form-control form-control-sm"
                                                     placeholder="Search..."
                                                     value={headerSearchQuery}
@@ -2855,15 +2859,15 @@ const AddStockAdjustment = () => {
                                                             if (!headerSearchQuery.trim()) {
                                                                 setShowHeaderItemModal(false);
                                                                 setTimeout(() => {
-                                                                    document.getElementById('note')?.focus();
+                                                                    const discountInput = document.getElementById('discountPercentage');
+                                                                    if (discountInput) {
+                                                                        discountInput.focus();
+                                                                        discountInput.select();
+                                                                    }
                                                                 }, 50);
                                                             } else {
                                                                 setShowHeaderItemModal(true);
                                                             }
-                                                        } else if (e.key === 'F6') {
-                                                            e.preventDefault();
-                                                            setShowProductModal(true);
-                                                            setShowHeaderItemModal(false);
                                                         } else if (e.key === 'Escape') {
                                                             e.preventDefault();
                                                             setShowHeaderItemModal(false);
@@ -4660,8 +4664,11 @@ const AddStockAdjustment = () => {
                                                     }
                                                 } else if (e.key === 'F6') {
                                                     e.preventDefault();
-                                                    setShowProductModal(true);
+                                                    setShowItemsModal(true);
                                                     setShowHeaderItemModal(false);
+                                                    setHeaderSearchQuery('');
+                                                    setHeaderShouldShowLastSearchResults(false);
+                                                    setHeaderLastSearchQuery('');
                                                 } else if (e.key === 'Escape') {
                                                     e.preventDefault();
                                                     setShowHeaderItemModal(false);
@@ -4745,6 +4752,118 @@ const AddStockAdjustment = () => {
                                         )}
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showItemsModal && (
+                <div
+                    className="modal fade show"
+                    tabIndex="-1"
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        zIndex: 1060
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowItemsModal(false);
+                            setTimeout(() => {
+                                if (headerSearchInputRef.current) {
+                                    headerSearchInputRef.current.focus();
+                                    headerSearchInputRef.current.select();
+                                }
+                                sessionStorage.removeItem('returnToHeaderModal');
+                            }, 100);
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            {/* Minimized Header */}
+                            <div className="modal-header py-1 px-2 bg-primary text-white" style={{ minHeight: '32px', position: 'relative' }}>
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                    <i className="bi bi-plus-circle me-1" style={{ fontSize: '0.8rem' }}></i>
+                                    Create New Item
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    style={{
+                                        fontSize: '0.6rem',
+                                        margin: '0',
+                                        padding: '0.5rem',
+                                        position: 'relative',
+                                        right: '0'
+                                    }}
+                                    onClick={() => {
+                                        setShowItemsModal(false);
+                                        setTimeout(() => {
+                                            if (headerSearchInputRef.current) {
+                                                headerSearchInputRef.current.focus();
+                                                headerSearchInputRef.current.select();
+                                            }
+                                            sessionStorage.removeItem('returnToHeaderModal');
+                                        }, 100);
+                                    }}
+                                />
+                            </div>
+
+                            {/* Body - with Escape key handler for iframe */}
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                    onLoad={(e) => {
+                                        // Add Escape key listener to iframe content
+                                        const iframe = e.target;
+                                        const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                                        if (iframeDocument) {
+                                            iframeDocument.addEventListener('keydown', (event) => {
+                                                if (event.key === 'Escape') {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    setShowItemsModal(false);
+                                                    setTimeout(() => {
+                                                        if (headerSearchInputRef.current) {
+                                                            headerSearchInputRef.current.focus();
+                                                            headerSearchInputRef.current.select();
+                                                        }
+                                                        sessionStorage.removeItem('returnToHeaderModal');
+                                                    }, 100);
+                                                }
+                                            });
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {/* Minimized Footer */}
+                            <div className="modal-footer py-1 px-2 bg-light" style={{ minHeight: '36px', borderTop: '1px solid #dee2e6' }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                                    onClick={() => {
+                                        setShowItemsModal(false);
+                                        setTimeout(() => {
+                                            if (headerSearchInputRef.current) {
+                                                headerSearchInputRef.current.focus();
+                                                headerSearchInputRef.current.select();
+                                            }
+                                            sessionStorage.removeItem('returnToHeaderModal');
+                                        }, 100);
+                                    }}
+                                >
+                                    <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.7rem' }}></i>
+                                    Close
+                                </button>
                             </div>
                         </div>
                     </div>

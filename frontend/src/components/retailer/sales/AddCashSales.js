@@ -223,6 +223,7 @@ const safeParseNepaliDate = (dateStr) => {
 
 const AddCashSales = () => {
     const navigate = useNavigate();
+    const headerSearchInputRef = useRef(null);
     const [quantityErrors, setQuantityErrors] = useState({});
     const [stockValidation, setStockValidation] = useState({
         itemStockMap: new Map(),
@@ -3607,6 +3608,7 @@ const AddCashSales = () => {
                                             <div className="position-relative">
                                                 <input
                                                     type="text"
+                                                    ref={headerSearchInputRef}
                                                     id="headerItemSearch"
                                                     className="form-control form-control-sm"
                                                     placeholder="Search..."
@@ -4845,35 +4847,111 @@ const AddCashSales = () => {
                 </div>
             )}
 
-            {/* Items Modal */}
             {showItemsModal && (
-                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                <div
+                    className="modal fade show"
+                    tabIndex="-1"
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        zIndex: 1060
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowItemsModal(false);
+                            setTimeout(() => {
+                                if (headerSearchInputRef.current) {
+                                    headerSearchInputRef.current.focus();
+                                    headerSearchInputRef.current.select();
+                                }
+                                sessionStorage.removeItem('returnToHeaderModal');
+                            }, 100);
+                        }
+                    }}
+                >
                     <div className="modal-dialog modal-fullscreen">
                         <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
-                            <div className="modal-header bg-primary text-white">
-                                <h5 className="modal-title">Create New Item</h5>
-                                <div className="d-flex align-items-center">
-                                    <button
-                                        type="button"
-                                        className="btn-close btn-close-white"
-                                        onClick={() => setShowItemsModal(false)}
-                                    ></button>
-                                </div>
+                            {/* Minimized Header */}
+                            <div className="modal-header py-1 px-2 bg-primary text-white" style={{ minHeight: '32px', position: 'relative' }}>
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                    <i className="bi bi-plus-circle me-1" style={{ fontSize: '0.8rem' }}></i>
+                                    Create New Item
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    style={{
+                                        fontSize: '0.6rem',
+                                        margin: '0',
+                                        padding: '0.5rem',
+                                        position: 'relative',
+                                        right: '0'
+                                    }}
+                                    onClick={() => {
+                                        setShowItemsModal(false);
+                                        setTimeout(() => {
+                                            if (headerSearchInputRef.current) {
+                                                headerSearchInputRef.current.focus();
+                                                headerSearchInputRef.current.select();
+                                            }
+                                            sessionStorage.removeItem('returnToHeaderModal');
+                                        }, 100);
+                                    }}
+                                />
                             </div>
+
+                            {/* Body - with Escape key handler for iframe */}
                             <div className="modal-body p-0">
                                 <iframe
                                     src="/retailer/items"
                                     title="Item Creation"
                                     style={{ width: '100%', height: '100%', border: 'none' }}
+                                    onLoad={(e) => {
+                                        // Add Escape key listener to iframe content
+                                        const iframe = e.target;
+                                        const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                                        if (iframeDocument) {
+                                            iframeDocument.addEventListener('keydown', (event) => {
+                                                if (event.key === 'Escape') {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    setShowItemsModal(false);
+                                                    setTimeout(() => {
+                                                        if (headerSearchInputRef.current) {
+                                                            headerSearchInputRef.current.focus();
+                                                            headerSearchInputRef.current.select();
+                                                        }
+                                                        sessionStorage.removeItem('returnToHeaderModal');
+                                                    }, 100);
+                                                }
+                                            });
+                                        }
+                                    }}
                                 />
                             </div>
-                            <div className="modal-footer bg-light">
+
+                            {/* Minimized Footer */}
+                            <div className="modal-footer py-1 px-2 bg-light" style={{ minHeight: '36px', borderTop: '1px solid #dee2e6' }}>
                                 <button
                                     type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => setShowItemsModal(false)}
+                                    className="btn btn-sm btn-secondary"
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                                    onClick={() => {
+                                        setShowItemsModal(false);
+                                        setTimeout(() => {
+                                            if (headerSearchInputRef.current) {
+                                                headerSearchInputRef.current.focus();
+                                                headerSearchInputRef.current.select();
+                                            }
+                                            sessionStorage.removeItem('returnToHeaderModal');
+                                        }, 100);
+                                    }}
                                 >
-                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                    <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.7rem' }}></i>
+                                    Close
                                 </button>
                             </div>
                         </div>
