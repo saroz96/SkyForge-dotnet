@@ -2398,5 +2398,370 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
+
+        // [HttpGet("contacts")]
+        // public async Task<IActionResult> GetContacts()
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetContacts Started ===");
+
+        //         // 1. Extract user and company info from JWT claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         // 2. Validate required claims exist
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // 3. Check if company is selected
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // 4. Check if trade type is Retailer
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // 5. Get company details with renewalDate, fiscalYear, dateFormat
+        //         var company = await _context.Companies
+        //             .Where(c => c.Id == companyIdGuid)
+        //             .Select(c => new
+        //             {
+        //                 c.Id,
+        //                 c.RenewalDate,
+        //                 c.DateFormat,
+        //                 FiscalYear = _context.FiscalYears
+        //                     .FirstOrDefault(f => f.CompanyId == companyIdGuid && f.IsActive)
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         if (company == null)
+        //         {
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Company not found"
+        //             });
+        //         }
+
+        //         // 6. Get fiscal year from session or company
+        //         Guid? fiscalYearId = null;
+        //         FiscalYear currentFiscalYear = null;
+
+        //         // Check if fiscal year exists in claims (session equivalent)
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid parsedFiscalYearId))
+        //         {
+        //             fiscalYearId = parsedFiscalYearId;
+        //             currentFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyIdGuid);
+        //         }
+
+        //         // If no fiscal year in session, use company's fiscal year
+        //         if (currentFiscalYear == null && company.FiscalYear != null)
+        //         {
+        //             currentFiscalYear = company.FiscalYear;
+        //             fiscalYearId = currentFiscalYear.Id;
+
+        //             // Note: In ASP.NET Core, we would update the user's claims/token here
+        //             // Since JWT tokens are immutable, you might need to:
+        //             // 1. Store fiscal year in a separate session store (Redis, Memory cache)
+        //             // 2. Or return a new token with updated claim
+        //             // 3. Or store in HttpContext.Items for the current request only
+        //             HttpContext.Items["CurrentFiscalYear"] = new
+        //             {
+        //                 Id = currentFiscalYear.Id,
+        //                 StartDate = currentFiscalYear.StartDate,
+        //                 EndDate = currentFiscalYear.EndDate,
+        //                 Name = currentFiscalYear.Name,
+        //                 DateFormat = currentFiscalYear.DateFormat,
+        //                 IsActive = currentFiscalYear.IsActive
+        //             };
+        //         }
+
+        //         // 7. Validate fiscal year exists
+        //         if (!fiscalYearId.HasValue)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No fiscal year found in session or company."
+        //             });
+        //         }
+
+        //         // 8. Get relevant account groups (Sundry Debtors, Sundry Creditors)
+        //         var relevantGroupNames = new[] { "Sundry Debtors", "Sundry Creditors" };
+        //         var relevantGroupIds = await _context.AccountGroups
+        //             .Where(ag => ag.CompanyId == companyIdGuid && relevantGroupNames.Contains(ag.Name))
+        //             .Select(ag => ag.Id)
+        //             .ToListAsync();
+
+        //         if (!relevantGroupIds.Any())
+        //         {
+        //             return Ok(new List<object>());
+        //         }
+
+        //         // 9. Get accounts matching the criteria
+        //         var accountContacts = await _context.Accounts
+        //             .Where(a => a.CompanyId == companyIdGuid &&
+        //                        a.OriginalFiscalYearId == fiscalYearId.Value &&
+        //                        a.IsActive &&
+        //                        relevantGroupIds.Contains(a.AccountGroupsId))
+        //             .Select(a => new
+        //             {
+        //                 a.Id,
+        //                 a.Name,
+        //                 a.Address,
+        //                 a.Phone,
+        //                 a.Email,
+        //                 ContactPerson = a.ContactPerson ?? "",
+        //                 a.CreditLimit,
+        //                 a.Pan
+        //             })
+        //             .OrderBy(a => a.Name)
+        //             .ToListAsync();
+
+        //         _logger.LogInformation($"Successfully fetched {accountContacts.Count} contacts for company {companyIdGuid}");
+
+        //         return Ok(accountContacts);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetContacts");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Failed to fetch contacts",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+
+        [HttpGet("contacts")]
+        public async Task<IActionResult> GetContacts([FromQuery] string search = "", [FromQuery] int page = 1, [FromQuery] int limit = 15)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetContacts Started ===");
+
+                // 1. Extract user and company info from JWT claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                // 2. Validate required claims exist
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // 3. Check if company is selected
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // 4. Check if trade type is Retailer
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // 5. Get company details with renewalDate, fiscalYear, dateFormat
+                var company = await _context.Companies
+                    .Where(c => c.Id == companyIdGuid)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.RenewalDate,
+                        c.DateFormat,
+                        FiscalYear = _context.FiscalYears
+                            .FirstOrDefault(f => f.CompanyId == companyIdGuid && f.IsActive)
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (company == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Company not found"
+                    });
+                }
+
+                // 6. Get fiscal year from session or company
+                Guid? fiscalYearId = null;
+                FiscalYear currentFiscalYear = null;
+
+                // Check if fiscal year exists in claims (session equivalent)
+                if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out Guid parsedFiscalYearId))
+                {
+                    fiscalYearId = parsedFiscalYearId;
+                    currentFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyIdGuid);
+                }
+
+                // If no fiscal year in session, use company's fiscal year
+                if (currentFiscalYear == null && company.FiscalYear != null)
+                {
+                    currentFiscalYear = company.FiscalYear;
+                    fiscalYearId = currentFiscalYear.Id;
+
+                    HttpContext.Items["CurrentFiscalYear"] = new
+                    {
+                        Id = currentFiscalYear.Id,
+                        StartDate = currentFiscalYear.StartDate,
+                        EndDate = currentFiscalYear.EndDate,
+                        Name = currentFiscalYear.Name,
+                        DateFormat = currentFiscalYear.DateFormat,
+                        IsActive = currentFiscalYear.IsActive
+                    };
+                }
+
+                // 7. Validate fiscal year exists
+                if (!fiscalYearId.HasValue)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No fiscal year found in session or company."
+                    });
+                }
+
+                // 8. Get relevant account groups (Sundry Debtors, Sundry Creditors)
+                var relevantGroupNames = new[] { "Sundry Debtors", "Sundry Creditors" };
+                var relevantGroupIds = await _context.AccountGroups
+                    .Where(ag => ag.CompanyId == companyIdGuid && relevantGroupNames.Contains(ag.Name))
+                    .Select(ag => ag.Id)
+                    .ToListAsync();
+
+                if (!relevantGroupIds.Any())
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new List<object>(),
+                        pagination = new
+                        {
+                            currentPage = page,
+                            pageSize = limit,
+                            totalItems = 0,
+                            totalPages = 0,
+                            hasNextPage = false,
+                            hasPreviousPage = false
+                        }
+                    });
+                }
+
+                // 9. Build the base query
+                var baseQuery = _context.Accounts
+                    .Where(a => a.CompanyId == companyIdGuid &&
+                               a.OriginalFiscalYearId == fiscalYearId.Value &&
+                               a.IsActive &&
+                               relevantGroupIds.Contains(a.AccountGroupsId));
+
+                // 10. Apply search filter if provided
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var searchLower = search.ToLower();
+                    baseQuery = baseQuery.Where(a =>
+                        a.Name.ToLower().Contains(searchLower) ||
+                        (a.Address != null && a.Address.ToLower().Contains(searchLower)) ||
+                        (a.Phone != null && a.Phone.ToLower().Contains(searchLower)) ||
+                        (a.Email != null && a.Email.ToLower().Contains(searchLower)) ||
+                        (a.ContactPerson != null && a.ContactPerson.ToLower().Contains(searchLower))
+                    );
+                }
+
+                // 11. Get total count for pagination
+                var totalItems = await baseQuery.CountAsync();
+
+                // 12. Apply pagination
+                var skip = (page - 1) * limit;
+                var accountContacts = await baseQuery
+                    .OrderBy(a => a.Name)
+                    .Skip(skip)
+                    .Take(limit)
+                    .Select(a => new
+                    {
+                        a.Id,
+                        a.Name,
+                        a.Address,
+                        a.Phone,
+                        a.Email,
+                        ContactPerson = a.ContactPerson ?? "",
+                        a.CreditLimit,
+                        a.Pan,
+                    })
+                    .ToListAsync();
+
+                // 13. Calculate pagination metadata
+                var totalPages = (int)Math.Ceiling(totalItems / (double)limit);
+                var hasNextPage = page < totalPages;
+                var hasPreviousPage = page > 1;
+
+                _logger.LogInformation($"Successfully fetched {accountContacts.Count} contacts for company {companyIdGuid} (Page {page} of {totalPages}, Total: {totalItems})");
+
+                return Ok(new
+                {
+                    success = true,
+                    data = accountContacts,
+                    pagination = new
+                    {
+                        currentPage = page,
+                        pageSize = limit,
+                        totalItems = totalItems,
+                        totalPages = totalPages,
+                        hasNextPage = hasNextPage,
+                        hasPreviousPage = hasPreviousPage
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetContacts");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Failed to fetch contacts",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
     }
 }

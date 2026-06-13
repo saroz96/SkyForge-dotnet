@@ -1,396 +1,152 @@
-// import React, { useState, useEffect, useRef } from 'react';
-// import { Modal, Button, Form } from 'react-bootstrap';
-// import axios from 'axios';
-// import '../../../../stylesheet/retailer/dashboard/modals/ContactModal.css';
-// import { usePageNotRefreshContext } from '../../PageNotRefreshContext';
-
-// const ContactModal = ({ show, onHide }) => {
-//     const { contactDraftSave, setContactDraftSave } = usePageNotRefreshContext();
-//     const [contacts, setContacts] = useState([]);
-//     const [filteredContacts, setFilteredContacts] = useState([]);
-//     const [searchQuery, setSearchQuery] = useState('');
-//     const [currentFocus, setCurrentFocus] = useState(0);
-//     const [loadingState, setLoadingState] = useState({
-//         isLoading: !contactDraftSave,
-//         error: null,
-//         isFresh: false
-//     });
-//     const listRef = useRef(null);
-//     const rowRefs = useRef([]);
-//     const searchInputRef = useRef(null);
-
-//     useEffect(() => {
-//         if (!loadingState.isLoading && contactDraftSave && contactDraftSave.contacts) {
-//             setContacts(contactDraftSave.contacts);
-//             setFilteredContacts(contactDraftSave.contacts);
-//         }
-//     }, [loadingState.isLoading, contactDraftSave]);
-
-//     useEffect(() => {
-//         if (show) {
-//             fetchContacts();
-//             const interval = setInterval(fetchContacts, 300000); // 5 minutes
-//             return () => clearInterval(interval);
-//         }
-//     }, [show]);
-
-//     const fetchContacts = async () => {
-//         if (!contactDraftSave) {
-//             setLoadingState(prev => ({ ...prev, isLoading: true }));
-//         }
-
-//         try {
-//             const response = await axios.get('/api/retailer/contacts');
-//             // Handle both response formats - check if data has success property
-//             const responseData = response.data;
-
-//             if (responseData.success) {
-//                 // Format: { success: true, data: [...] }
-//                 const freshContacts = responseData.data || [];
-//                 setContacts(freshContacts);
-//                 // Only update filteredContacts if there's no active search
-//                 if (!searchQuery) {
-//                     setFilteredContacts(freshContacts);
-//                 }
-//                 setContactDraftSave({ contacts: freshContacts });
-//                 setLoadingState({ isLoading: false, error: null, isFresh: true });
-//             } else {
-//                 // Format: direct array response
-//                 const freshContacts = Array.isArray(responseData) ? responseData : [];
-//                 setContacts(freshContacts);
-//                 if (!searchQuery) {
-//                     setFilteredContacts(freshContacts);
-//                 }
-//                 setContactDraftSave({ contacts: freshContacts });
-//                 setLoadingState({ isLoading: false, error: null, isFresh: true });
-//             }
-//         } catch (error) {
-//             console.error('Error fetching contacts:', error);
-//             if (!contactDraftSave) {
-//                 setLoadingState({
-//                     isLoading: false,
-//                     error: error.response?.data?.error || 'Error fetching contacts. Please try again.',
-//                     isFresh: false
-//                 });
-//             }
-//         }
-//     };
-
-//     const handleSearch = (e) => {
-//         const query = e.target.value.toLowerCase();
-//         setSearchQuery(query);
-
-//         // Determine which data source to use for filtering
-//         const sourceContacts = loadingState.isFresh ? contacts :
-//             (contactDraftSave?.contacts || contacts);
-
-//         const filtered = (sourceContacts || []).filter(contact =>
-//             (contact.name && contact.name.toLowerCase().includes(query)) ||
-//             (contact.address && contact.address.toLowerCase().includes(query)) ||
-//             (contact.phone && contact.phone.toLowerCase().includes(query)) ||
-//             (contact.email && contact.email.toLowerCase().includes(query)) ||
-//             (contact.contactperson && contact.contactperson.toLowerCase().includes(query))
-//         );
-//         setFilteredContacts(filtered);
-//         setCurrentFocus(0);
-//     };
-
-//     const handleKeyDown = (e) => {
-//         const currentFilteredContacts = filteredContacts || [];
-//         if (currentFilteredContacts.length === 0) return;
-
-//         if (e.key === 'ArrowDown') {
-//             e.preventDefault();
-//             const nextFocus = (currentFocus + 1) % currentFilteredContacts.length;
-//             setCurrentFocus(nextFocus);
-//             // Ensure the focused item is visible
-//             scrollToItem(nextFocus);
-//         } else if (e.key === 'ArrowUp') {
-//             e.preventDefault();
-//             const nextFocus = (currentFocus - 1 + currentFilteredContacts.length) % currentFilteredContacts.length;
-//             setCurrentFocus(nextFocus);
-//             // Ensure the focused item is visible
-//             scrollToItem(nextFocus);
-//         } else if (e.key === 'Enter' && currentFilteredContacts[currentFocus]) {
-//             e.preventDefault();
-//             selectContact(currentFilteredContacts[currentFocus]);
-//         } else if (e.key === 'Escape') {
-//             onHide();
-//         }
-//     };
-
-//     // Scroll to ensure the focused item is visible
-//     const scrollToItem = (index) => {
-//         if (rowRefs.current[index] && listRef.current) {
-//             const rowElement = rowRefs.current[index];
-//             const listContainer = listRef.current;
-
-//             // Calculate positions
-//             const rowTop = rowElement.offsetTop;
-//             const rowBottom = rowTop + rowElement.offsetHeight;
-//             const containerTop = listContainer.scrollTop;
-//             const containerBottom = containerTop + listContainer.clientHeight;
-
-//             // Check if the row is not fully visible
-//             if (rowTop < containerTop) {
-//                 // Row is above the visible area
-//                 listContainer.scrollTop = rowTop;
-//             } else if (rowBottom > containerBottom) {
-//                 // Row is below the visible area
-//                 listContainer.scrollTop = rowBottom - listContainer.clientHeight;
-//             }
-//         }
-//     };
-
-//     const selectContact = (contact) => {
-//         console.log('Selected contact:', contact);
-//         onHide();
-//     };
-
-//     // Determine which data to display with proper null checks
-//     const displayContacts = loadingState.isFresh ? contacts :
-//         (contactDraftSave?.contacts || contacts || []);
-
-//     const displayFilteredContacts = loadingState.isFresh ?
-//         (searchQuery ? (filteredContacts || []) : (contacts || [])) :
-//         (contactDraftSave?.contacts ?
-//             (searchQuery ?
-//                 (contactDraftSave.contacts || []).filter(contact =>
-//                     (contact.name && contact.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-//                     (contact.address && contact.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
-//                     (contact.phone && contact.phone.toLowerCase().includes(searchQuery.toLowerCase())) ||
-//                     (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-//                     (contact.contactperson && contact.contactperson.toLowerCase().includes(searchQuery.toLowerCase()))
-//                 ) :
-//                 (contactDraftSave.contacts || [])
-//             ) :
-//             (filteredContacts || []));
-
-//     // Safe length check
-//     const displayCount = displayFilteredContacts ? displayFilteredContacts.length : 0;
-
-//     if (loadingState.isLoading && !contactDraftSave) {
-//         return (
-//             <Modal show={show} onHide={onHide} size="lg" centered backdrop="static" dialogClassName="modal-custom-width">
-//                 <Modal.Header closeButton className="bg-primary text-white">
-//                     <Modal.Title>Contact Details</Modal.Title>
-//                 </Modal.Header>
-//                 <Modal.Body className="d-flex justify-content-center align-items-center" style={{ height: '600px' }}>
-//                     <div className="text-center">
-//                         <div className="spinner-border text-primary" role="status">
-//                             <span className="visually-hidden">Loading...</span>
-//                         </div>
-//                         <p className="mt-2">Loading contacts...</p>
-//                     </div>
-//                 </Modal.Body>
-//             </Modal>
-//         );
-//     }
-
-//     if (loadingState.error && !contactDraftSave) {
-//         return (
-//             <Modal show={show} onHide={onHide} size="lg" centered backdrop="static" dialogClassName="modal-custom-width">
-//                 <Modal.Header closeButton className="bg-primary text-white">
-//                     <Modal.Title>Contact Details</Modal.Title>
-//                 </Modal.Header>
-//                 <Modal.Body className="d-flex justify-content-center align-items-center" style={{ height: '600px' }}>
-//                     <div className="alert alert-danger">
-//                         {loadingState.error}
-//                         <button className="btn btn-sm btn-danger ms-2" onClick={fetchContacts}>
-//                             Retry
-//                         </button>
-//                     </div>
-//                 </Modal.Body>
-//             </Modal>
-//         );
-//     }
-
-//     return (
-//         <Modal
-//             show={show}
-//             onHide={onHide}
-//             size="lg"
-//             onKeyDown={handleKeyDown}
-//             centered
-//             backdrop="static"
-//             dialogClassName="modal-custom-width"
-//         >
-//             <Modal.Header closeButton className="bg-primary text-white">
-//                 <Modal.Title>Contact Details</Modal.Title>
-//             </Modal.Header>
-//             <Modal.Body style={{
-//                 overflowY: 'auto',
-//                 height: '600px',
-//                 display: 'flex',
-//                 flexDirection: 'column'
-//             }}>
-//                 <Form.Group className="mb-4">
-//                     <Form.Control
-//                         ref={searchInputRef}
-//                         type="text"
-//                         placeholder="Search contacts by name, address, phone, email or contact person..."
-//                         value={searchQuery}
-//                         onChange={handleSearch}
-//                         autoFocus
-//                         className="search-input"
-//                         autoComplete='off'
-//                         onKeyDown={handleKeyDown}
-//                     />
-//                 </Form.Group>
-
-//                 <div
-//                     style={{
-//                         overflow: 'hidden',
-//                         flex: '1',
-//                         minHeight: '200px',
-//                         position: 'relative'
-//                     }}
-//                     tabIndex="0"
-//                     onKeyDown={handleKeyDown}
-//                 >
-//                     <div className="contacts-container">
-//                         <div className="contacts-header">
-//                             <div className="contact-cell header-cell">Name</div>
-//                             <div className="contact-cell header-cell">Address</div>
-//                             <div className="contact-cell header-cell">Phone</div>
-//                             <div className="contact-cell header-cell">Email</div>
-//                             <div className="contact-cell header-cell">Contact Person</div>
-//                         </div>
-//                         <div
-//                             className="contacts-list"
-//                             ref={listRef}
-//                             style={{
-//                                 maxHeight: '400px',
-//                                 overflowY: 'auto',
-//                                 position: 'relative'
-//                             }}
-//                         >
-//                             {displayCount === 0 ? (
-//                                 <div className="contact-row text-center py-4 text-muted">
-//                                     {searchQuery ? 'No contacts match your search' : 'No contacts available'}
-//                                 </div>
-//                             ) : (
-//                                 displayFilteredContacts.map((contact, index) => (
-//                                     <div
-//                                         key={index}
-//                                         ref={el => rowRefs.current[index] = el}
-//                                         className={`contact-row ${index === currentFocus ? 'active' : ''}`}
-//                                         onClick={() => selectContact(contact)}
-//                                     >
-//                                         <div className="contact-cell">{contact.name || 'N/A'}</div>
-//                                         <div className="contact-cell">{contact.address || 'N/A'}</div>
-//                                         <div className="contact-cell">{contact.phone || 'N/A'}</div>
-//                                         <div className="contact-cell">{contact.email || 'N/A'}</div>
-//                                         <div className="contact-cell">{contact.contactperson || 'N/A'}</div>
-//                                     </div>
-//                                 ))
-//                             )}
-//                         </div>
-//                     </div>
-//                 </div>
-//             </Modal.Body>
-//             <Modal.Footer className="d-flex justify-content-between">
-//                 <div className="text-muted small">
-//                     {displayCount} contact{displayCount !== 1 ? 's' : ''} found
-//                     {contactDraftSave && !loadingState.isFresh && (
-//                         <span className="ms-2 text-info">
-//                             • Using saved data
-//                         </span>
-//                     )}
-//                 </div>
-//                 <Button variant="danger" onClick={onHide}>
-//                     Close
-//                 </Button>
-//             </Modal.Footer>
-//         </Modal>
-//     );
-// };
-
-// export default ContactModal;
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button, Form, Card, Row, Col, Badge } from 'react-bootstrap';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Modal, Button, Card, Row, Col, Badge } from 'react-bootstrap';
 import axios from 'axios';
-import '../../../../stylesheet/retailer/dashboard/modals/ContactModal.css';
-import { usePageNotRefreshContext } from '../../PageNotRefreshContext';
 
 const ContactModal = ({ show, onHide }) => {
-    const { contactDraftSave, setContactDraftSave } = usePageNotRefreshContext();
     const [contacts, setContacts] = useState([]);
     const [filteredContacts, setFilteredContacts] = useState([]);
+    const [displayedContacts, setDisplayedContacts] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [currentFocus, setCurrentFocus] = useState(0);
-    const [loadingState, setLoadingState] = useState({
-        isLoading: !contactDraftSave,
-        error: null,
-        isFresh: false
-    });
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchPage, setSearchPage] = useState(1);
+    const [hasMoreResults, setHasMoreResults] = useState(false);
+    const [totalContacts, setTotalContacts] = useState(0);
     const [selectedAccount, setSelectedAccount] = useState(null);
     const [showAccountModal, setShowAccountModal] = useState(false);
     const [accountDetails, setAccountDetails] = useState(null);
     const [accountLoading, setAccountLoading] = useState(false);
-    
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
     const listRef = useRef(null);
     const rowRefs = useRef([]);
     const searchInputRef = useRef(null);
+    const loadingRef = useRef(false);
 
-    useEffect(() => {
-        if (!loadingState.isLoading && contactDraftSave && contactDraftSave.contacts) {
-            setContacts(contactDraftSave.contacts);
-            setFilteredContacts(contactDraftSave.contacts);
+    // Create axios instance with auth interceptor
+    const api = useMemo(() => {
+        const instance = axios.create({
+            baseURL: process.env.REACT_APP_API_BASE_URL || '',
+            withCredentials: true,
+        });
+        
+        instance.interceptors.request.use(
+            (config) => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+                return config;
+            },
+            (error) => Promise.reject(error)
+        );
+        
+        return instance;
+    }, []);
+
+    // Fetch contacts from backend with pagination - USING CORRECT ENDPOINT
+    const fetchContacts = useCallback(async (searchTerm = '', page = 1, append = false) => {
+        try {
+            setIsSearching(true);
+            setError(null);
+            
+            // Use the correct endpoint - /api/retailer/contacts (not /search)
+            const response = await api.get('/api/retailer/contacts', {
+                params: {
+                    search: searchTerm,
+                    page: page,
+                    limit: 15
+                }
+            });
+
+            if (response.data.success) {
+                const newContacts = response.data.data || [];
+                
+                if (append) {
+                    setContacts(prev => [...prev, ...newContacts]);
+                    setDisplayedContacts(prev => [...prev, ...newContacts]);
+                } else {
+                    setContacts(newContacts);
+                    setFilteredContacts(newContacts);
+                    setDisplayedContacts(newContacts);
+                }
+                
+                setHasMoreResults(response.data.pagination?.hasNextPage || false);
+                setTotalContacts(response.data.pagination?.totalItems || newContacts.length);
+                setSearchPage(page);
+            } else {
+                throw new Error(response.data.error || 'Failed to fetch contacts');
+            }
+        } catch (err) {
+            console.error('Error fetching contacts:', err);
+            setError(err.response?.data?.error || 'Error fetching contacts. Please try again.');
+        } finally {
+            setIsSearching(false);
         }
-    }, [loadingState.isLoading, contactDraftSave]);
+    }, [api]);
 
+    // Load more contacts for infinite scrolling
+    const loadMoreContacts = useCallback(() => {
+        if (!isSearching && hasMoreResults && !loadingRef.current && !searchQuery) {
+            loadingRef.current = true;
+            fetchContacts(searchQuery, searchPage + 1, true);
+            setTimeout(() => {
+                loadingRef.current = false;
+            }, 500);
+        }
+    }, [isSearching, hasMoreResults, searchQuery, searchPage, fetchContacts]);
+
+    // Debounced search effect
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery) {
+                fetchContacts(searchQuery, 1, false);
+            } else {
+                fetchContacts('', 1, false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, fetchContacts]);
+
+    // Load initial contacts when modal opens
     useEffect(() => {
         if (show) {
-            fetchContacts();
-            const interval = setInterval(fetchContacts, 300000); // 5 minutes
-            return () => clearInterval(interval);
+            fetchContacts('', 1, false);
         }
-    }, [show]);
+    }, [show, fetchContacts]);
 
-    const fetchContacts = async () => {
-        if (!contactDraftSave) {
-            setLoadingState(prev => ({ ...prev, isLoading: true }));
-        }
-
-        try {
-            const response = await axios.get('/api/retailer/contacts');
-            const responseData = response.data;
-
-            if (responseData.success) {
-                const freshContacts = responseData.data || [];
-                setContacts(freshContacts);
-                if (!searchQuery) {
-                    setFilteredContacts(freshContacts);
+    // Handle scroll for infinite loading
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!listRef.current) return;
+            
+            const container = listRef.current;
+            const scrollTop = container.scrollTop;
+            const clientHeight = container.clientHeight;
+            const scrollHeight = container.scrollHeight;
+            
+            // Load more when scrolled near bottom (90% threshold)
+            if (!isSearching && hasMoreResults && !searchQuery) {
+                const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+                if (scrollPercentage > 0.9) {
+                    loadMoreContacts();
                 }
-                setContactDraftSave({ contacts: freshContacts });
-                setLoadingState({ isLoading: false, error: null, isFresh: true });
-            } else {
-                const freshContacts = Array.isArray(responseData) ? responseData : [];
-                setContacts(freshContacts);
-                if (!searchQuery) {
-                    setFilteredContacts(freshContacts);
-                }
-                setContactDraftSave({ contacts: freshContacts });
-                setLoadingState({ isLoading: false, error: null, isFresh: true });
             }
-        } catch (error) {
-            console.error('Error fetching contacts:', error);
-            if (!contactDraftSave) {
-                setLoadingState({
-                    isLoading: false,
-                    error: error.response?.data?.error || 'Error fetching contacts. Please try again.',
-                    isFresh: false
-                });
-            }
+        };
+        
+        const container = listRef.current;
+        if (container && !searchQuery) {
+            container.addEventListener('scroll', handleScroll);
+            return () => container.removeEventListener('scroll', handleScroll);
         }
-    };
+    }, [hasMoreResults, isSearching, searchQuery, loadMoreContacts]);
 
     const fetchAccountDetails = async (accountId) => {
         setAccountLoading(true);
         try {
-            const response = await axios.get(`/api/retailer/companies/${accountId}`);
+            const response = await api.get(`/api/retailer/companies/${accountId}`);
             
             if (response.data.success) {
                 setAccountDetails(response.data.data);
@@ -407,40 +163,28 @@ const ContactModal = ({ show, onHide }) => {
     };
 
     const handleSearch = (e) => {
-        const query = e.target.value.toLowerCase();
+        const query = e.target.value;
         setSearchQuery(query);
-
-        const sourceContacts = loadingState.isFresh ? contacts :
-            (contactDraftSave?.contacts || contacts);
-
-        const filtered = (sourceContacts || []).filter(contact =>
-            (contact.name && contact.name.toLowerCase().includes(query)) ||
-            (contact.address && contact.address.toLowerCase().includes(query)) ||
-            (contact.phone && contact.phone.toLowerCase().includes(query)) ||
-            (contact.email && contact.email.toLowerCase().includes(query)) ||
-            (contact.contactperson && contact.contactperson.toLowerCase().includes(query))
-        );
-        setFilteredContacts(filtered);
         setCurrentFocus(0);
     };
 
     const handleKeyDown = (e) => {
-        const currentFilteredContacts = filteredContacts || [];
-        if (currentFilteredContacts.length === 0) return;
+        const currentContacts = searchQuery ? displayedContacts : contacts;
+        if (currentContacts.length === 0) return;
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            const nextFocus = (currentFocus + 1) % currentFilteredContacts.length;
+            const nextFocus = (currentFocus + 1) % currentContacts.length;
             setCurrentFocus(nextFocus);
             scrollToItem(nextFocus);
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            const nextFocus = (currentFocus - 1 + currentFilteredContacts.length) % currentFilteredContacts.length;
+            const nextFocus = (currentFocus - 1 + currentContacts.length) % currentContacts.length;
             setCurrentFocus(nextFocus);
             scrollToItem(nextFocus);
-        } else if (e.key === 'Enter' && currentFilteredContacts[currentFocus]) {
+        } else if (e.key === 'Enter' && currentContacts[currentFocus]) {
             e.preventDefault();
-            selectContact(currentFilteredContacts[currentFocus]);
+            selectContact(currentContacts[currentFocus]);
         } else if (e.key === 'Escape') {
             onHide();
         }
@@ -450,7 +194,6 @@ const ContactModal = ({ show, onHide }) => {
         if (rowRefs.current[index] && listRef.current) {
             const rowElement = rowRefs.current[index];
             const listContainer = listRef.current;
-
             const rowTop = rowElement.offsetTop;
             const rowBottom = rowTop + rowElement.offsetHeight;
             const containerTop = listContainer.scrollTop;
@@ -465,14 +208,10 @@ const ContactModal = ({ show, onHide }) => {
     };
 
     const selectContact = async (contact) => {
-        console.log('Selected contact:', contact);
         setSelectedAccount(contact);
-        
-        // Fetch full account details using the correct endpoint
-        if (contact._id) {
-            await fetchAccountDetails(contact._id);
-        } else {
-            console.warn('Contact does not have an ID');
+        if (contact.id || contact._id) {
+            const accountId = contact.id || contact._id;
+            await fetchAccountDetails(accountId);
         }
     };
 
@@ -482,258 +221,290 @@ const ContactModal = ({ show, onHide }) => {
         setSelectedAccount(null);
     };
 
-    // Format date for display
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString();
     };
 
-    // Format balance display
     const formatBalance = (amount, type) => {
         if (!amount && amount !== 0) return 'N/A';
         return `${amount} ${type || 'Dr'}`;
     };
 
-    // Helper to get current opening balance
     const getCurrentOpeningBalance = () => {
         if (!accountDetails?.financialInfo?.currentOpeningBalance) return null;
         return accountDetails.financialInfo.currentOpeningBalance;
     };
 
-    // Determine which data to display with proper null checks
-    const displayContacts = loadingState.isFresh ? contacts :
-        (contactDraftSave?.contacts || contacts || []);
+    const compressText = (text, maxLength = 30) => {
+        if (!text) return '';
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength - 3) + '...';
+    };
 
-    const displayFilteredContacts = loadingState.isFresh ?
-        (searchQuery ? (filteredContacts || []) : (contacts || [])) :
-        (contactDraftSave?.contacts ?
-            (searchQuery ?
-                (contactDraftSave.contacts || []).filter(contact =>
-                    (contact.name && contact.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                    (contact.address && contact.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                    (contact.phone && contact.phone.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                    (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                    (contact.contactperson && contact.contactperson.toLowerCase().includes(searchQuery.toLowerCase()))
-                ) :
-                (contactDraftSave.contacts || [])
-            ) :
-            (filteredContacts || []));
-
-    const displayCount = displayFilteredContacts ? displayFilteredContacts.length : 0;
-
-    if (loadingState.isLoading && !contactDraftSave) {
-        return (
-            <Modal show={show} onHide={onHide} size="lg" centered backdrop="static" dialogClassName="modal-custom-width">
-                <Modal.Header closeButton className="bg-primary text-white">
-                    <Modal.Title>Contact Details</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="d-flex justify-content-center align-items-center" style={{ height: '600px' }}>
-                    <div className="text-center">
-                        <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="mt-2">Loading contacts...</p>
-                    </div>
-                </Modal.Body>
-            </Modal>
-        );
-    }
-
-    if (loadingState.error && !contactDraftSave) {
-        return (
-            <Modal show={show} onHide={onHide} size="lg" centered backdrop="static" dialogClassName="modal-custom-width">
-                <Modal.Header closeButton className="bg-primary text-white">
-                    <Modal.Title>Contact Details</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="d-flex justify-content-center align-items-center" style={{ height: '600px' }}>
-                    <div className="alert alert-danger">
-                        {loadingState.error}
-                        <button className="btn btn-sm btn-danger ms-2" onClick={fetchContacts}>
-                            Retry
-                        </button>
-                    </div>
-                </Modal.Body>
-            </Modal>
-        );
-    }
+    const displayedContactList = searchQuery ? displayedContacts : contacts;
+    const displayCount = displayedContactList.length;
 
     return (
         <>
+            {/* Main Contact Modal */}
             <Modal
                 show={show}
                 onHide={onHide}
-                size="lg"
-                onKeyDown={handleKeyDown}
+                size="xl"
                 centered
                 backdrop="static"
-                dialogClassName="modal-custom-width"
+                style={{ zIndex: 1050 }}
             >
-                <Modal.Header closeButton className="bg-primary text-white">
-                    <Modal.Title>Contact Details</Modal.Title>
-                </Modal.Header>
-                <Modal.Body style={{
-                    overflowY: 'auto',
-                    height: '600px',
-                    display: 'flex',
-                    flexDirection: 'column'
-                }}>
-                    <Form.Group className="mb-4">
-                        <Form.Control
-                            ref={searchInputRef}
-                            type="text"
-                            placeholder="Search contacts by name, address, phone, email or contact person..."
-                            value={searchQuery}
-                            onChange={handleSearch}
-                            autoFocus
-                            className="search-input"
-                            autoComplete='off'
-                            onKeyDown={handleKeyDown}
-                        />
-                    </Form.Group>
+                <Modal.Body className="p-0">
+                    <div className="modal-content" style={{ height: '440px', border: 'none' }}>
+                        <div className="modal-header py-1 border-bottom">
+                            <p className="modal-title mb-0" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                Contact Details
+                            </p>
+                            <button
+                                type="button"
+                                className="btn-close"
+                                onClick={onHide}
+                                style={{ fontSize: '0.7rem' }}
+                            ></button>
+                        </div>
 
-                    <div
-                        style={{
-                            overflow: 'hidden',
-                            flex: '1',
-                            minHeight: '200px',
-                            position: 'relative'
-                        }}
-                        tabIndex="0"
-                        onKeyDown={handleKeyDown}
-                    >
-                        <div className="contacts-container">
-                            <div className="contacts-header">
-                                <div className="contact-cell header-cell">Name</div>
-                                <div className="contact-cell header-cell">Address</div>
-                                <div className="contact-cell header-cell">Phone</div>
-                                <div className="contact-cell header-cell">Email</div>
-                                <div className="contact-cell header-cell">Contact Person</div>
+                        {/* Search Input */}
+                        <div className="p-2 bg-white sticky-top border-bottom">
+                            <div className="row g-2 align-items-center">
+                                <div className="col-md-12">
+                                    <input
+                                        ref={searchInputRef}
+                                        type="text"
+                                        id="searchContact"
+                                        className="form-control form-control-sm"
+                                        placeholder="Search contacts by name, address, phone, email or contact person..."
+                                        autoFocus
+                                        autoComplete="off"
+                                        value={searchQuery}
+                                        onChange={handleSearch}
+                                        onKeyDown={handleKeyDown}
+                                        style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                                    />
+                                </div>
                             </div>
+                        </div>
+
+                        {/* Contacts Table */}
+                        <div style={{ height: 'calc(440px - 100px)' }}>
                             <div
-                                className="contacts-list"
-                                ref={listRef}
+                                className="w-100 h-100"
                                 style={{
-                                    maxHeight: '400px',
-                                    overflowY: 'auto',
-                                    position: 'relative'
+                                    border: '1px solid #dee2e6',
+                                    borderRadius: '0.25rem',
+                                    overflow: 'hidden'
                                 }}
                             >
-                                {displayCount === 0 ? (
-                                    <div className="contact-row text-center py-4 text-muted">
-                                        {searchQuery ? 'No contacts match your search' : 'No contacts available'}
-                                    </div>
-                                ) : (
-                                    displayFilteredContacts.map((contact, index) => (
-                                        <div
-                                            key={index}
-                                            ref={el => rowRefs.current[index] = el}
-                                            className={`contact-row ${index === currentFocus ? 'active' : ''}`}
-                                            onClick={() => selectContact(contact)}
-                                        >
-                                            <div className="contact-cell">{contact.name || 'N/A'}</div>
-                                            <div className="contact-cell">{contact.address || 'N/A'}</div>
-                                            <div className="contact-cell">{contact.phone || 'N/A'}</div>
-                                            <div className="contact-cell">{contact.email || 'N/A'}</div>
-                                            <div className="contact-cell">{contact.contactperson || 'N/A'}</div>
+                                {/* Table Header */}
+                                <div className="dropdown-header" style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '2fr 2fr 1.5fr 2fr 1.5fr',
+                                    alignItems: 'center',
+                                    padding: '0 8px',
+                                    height: '28px',
+                                    background: '#f0f0f0',
+                                    fontWeight: 'bold',
+                                    borderBottom: '1px solid #dee2e6',
+                                    position: 'sticky',
+                                    top: 0,
+                                    zIndex: 1,
+                                    fontSize: '0.7rem'
+                                }}>
+                                    <div><strong>Name</strong></div>
+                                    <div><strong>Address</strong></div>
+                                    <div><strong>Phone</strong></div>
+                                    <div><strong>Email</strong></div>
+                                    <div><strong>Contact Person</strong></div>
+                                </div>
+
+                                {/* Contacts List with infinite scroll */}
+                                <div
+                                    ref={listRef}
+                                    style={{
+                                        height: 'calc(100% - 28px)',
+                                        overflowY: 'auto',
+                                        position: 'relative'
+                                    }}
+                                    onKeyDown={handleKeyDown}
+                                    tabIndex={0}
+                                >
+                                    {isSearching && displayCount === 0 ? (
+                                        <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+                                            Loading contacts...
                                         </div>
-                                    ))
-                                )}
+                                    ) : error ? (
+                                        <div className="text-center py-3 text-danger" style={{ fontSize: '0.75rem' }}>
+                                            {error}
+                                            <button className="btn btn-sm btn-danger ms-2" onClick={() => fetchContacts(searchQuery, 1, false)}>
+                                                Retry
+                                            </button>
+                                        </div>
+                                    ) : displayCount === 0 ? (
+                                        <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+                                            {searchQuery ? 'No contacts match your search' : 'No contacts available'}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {displayedContactList.map((contact, index) => (
+                                                <div
+                                                    key={contact.id || contact._id || index}
+                                                    ref={el => rowRefs.current[index] = el}
+                                                    className={`dropdown-item ${index === currentFocus ? 'active' : ''}`}
+                                                    onClick={() => selectContact(contact)}
+                                                    style={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: '2fr 2fr 1.5fr 2fr 1.5fr',
+                                                        alignItems: 'center',
+                                                        padding: '6px 8px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.75rem',
+                                                        borderBottom: '1px solid #f0f0f0',
+                                                        margin: 0,
+                                                        gap: 0
+                                                    }}
+                                                    tabIndex={0}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            selectContact(contact);
+                                                        }
+                                                    }}
+                                                >
+                                                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={contact.name}>
+                                                        {compressText(contact.name, 30) || 'N/A'}
+                                                    </div>
+                                                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={contact.address}>
+                                                        {compressText(contact.address, 30) || 'N/A'}
+                                                    </div>
+                                                    <div>{contact.phone || 'N/A'}</div>
+                                                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={contact.email}>
+                                                        {compressText(contact.email, 25) || 'N/A'}
+                                                    </div>
+                                                    <div>{contact.contactPerson || contact.contactperson || 'N/A'}</div>
+                                                </div>
+                                            ))}
+                                            
+                                            {/* Loading indicator for infinite scroll */}
+                                            {hasMoreResults && !searchQuery && (
+                                                <div style={{
+                                                    height: '28px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '0.7rem',
+                                                    color: '#666'
+                                                }}>
+                                                    Loading more...
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="modal-footer py-1 border-top" style={{ fontSize: '0.75rem' }}>
+                            <div className="d-flex justify-content-between w-100">
+                                <div>
+                                    Showing {displayCount} of {totalContacts} contact{totalContacts !== 1 ? 's' : ''}
+                                    {searchQuery && searchPage > 1 && ` (Page ${searchPage})`}
+                                </div>
+                                <div className="text-muted">
+                                    {searchQuery ? 'Press ESC to close' : 'Scroll for more'}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </Modal.Body>
-                <Modal.Footer className="d-flex justify-content-between">
-                    <div className="text-muted small">
-                        {displayCount} contact{displayCount !== 1 ? 's' : ''} found
-                        {contactDraftSave && !loadingState.isFresh && (
-                            <span className="ms-2 text-info">
-                                • Using saved data
-                            </span>
-                        )}
-                    </div>
-                    <Button variant="danger" onClick={onHide}>
-                        Close
-                    </Button>
-                </Modal.Footer>
             </Modal>
 
-            {/* Account Details Modal */}
-            <Modal 
-                show={showAccountModal} 
-                onHide={handleAccountModalClose} 
-                size="lg" 
+            {/* Account Details Modal - Keep same as before */}
+            <Modal
+                show={showAccountModal}
+                onHide={handleAccountModalClose}
+                size="lg"
                 centered
                 backdrop="static"
-                dialogClassName="modal-account-details"
             >
-                <Modal.Header closeButton className="bg-info text-white">
-                    <Modal.Title>
+                <Modal.Header closeButton className="py-2">
+                    <Modal.Title style={{ fontSize: '0.9rem' }}>
                         {accountLoading ? 'Loading Account Details...' : `Account Details - ${accountDetails?.account?.name || 'N/A'}`}
                     </Modal.Title>
                 </Modal.Header>
-                <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <Modal.Body style={{ fontSize: '0.8rem', maxHeight: '60vh', overflowY: 'auto' }}>
                     {accountLoading ? (
                         <div className="text-center py-4">
                             <div className="spinner-border text-primary" role="status">
                                 <span className="visually-hidden">Loading...</span>
                             </div>
-                            <p className="mt-2">Loading account details...</p>
+                            <p className="mt-2 text-muted">Loading account details...</p>
                         </div>
                     ) : accountDetails ? (
                         <div className="account-details">
-                            {/* Basic Account Information */}
-                            <Row className="mb-3">
+                            {/* Basic Information - Two column layout */}
+                            <Row className="g-3 mb-4">
                                 <Col md={6}>
-                                    <Card className="h-100">
-                                        <Card.Header className="bg-light">
-                                            <h6 className="mb-0">Basic Information</h6>
+                                    <Card className="h-100 shadow-sm border-0">
+                                        <Card.Header className="bg-light py-2">
+                                            <h6 className="mb-0 fw-semibold" style={{ fontSize: '0.85rem' }}>Basic Information</h6>
                                         </Card.Header>
-                                        <Card.Body>
-                                            <div className="mb-2">
-                                                <strong>Account Name:</strong> {accountDetails.account?.name || 'N/A'}
+                                        <Card.Body className="py-3" style={{ fontSize: '0.85rem' }}>
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Account Name:</span>
+                                                <span className="fw-medium">{accountDetails.account?.name || 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Unique Number:</strong> {accountDetails.account?.uniqueNumber || 'N/A'}
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Unique Number:</span>
+                                                <span className="fw-medium">{accountDetails.account?.uniqueNumber || 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Contact Person:</strong> {accountDetails.account?.contactperson || 'N/A'}
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Contact Person:</span>
+                                                <span className="fw-medium">{accountDetails.account?.contactperson || 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Email:</strong> {accountDetails.account?.email || 'N/A'}
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Email:</span>
+                                                <span className="fw-medium">{accountDetails.account?.email || 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Phone:</strong> {accountDetails.account?.phone || 'N/A'}
+                                            <div className="mb-0 d-flex justify-content-between">
+                                                <span className="text-muted">Phone:</span>
+                                                <span className="fw-medium">{accountDetails.account?.phone || 'N/A'}</span>
                                             </div>
                                         </Card.Body>
                                     </Card>
                                 </Col>
                                 <Col md={6}>
-                                    <Card className="h-100">
-                                        <Card.Header className="bg-light">
-                                            <h6 className="mb-0">Address & Status</h6>
+                                    <Card className="h-100 shadow-sm border-0">
+                                        <Card.Header className="bg-light py-2">
+                                            <h6 className="mb-0 fw-semibold" style={{ fontSize: '0.85rem' }}>Address & Status</h6>
                                         </Card.Header>
-                                        <Card.Body>
+                                        <Card.Body className="py-3" style={{ fontSize: '0.85rem' }}>
                                             <div className="mb-2">
-                                                <strong>Address:</strong> 
-                                                <div className="mt-1 text-muted">
-                                                    {accountDetails.account?.address || 'N/A'}
-                                                </div>
+                                                <span className="text-muted">Address:</span>
+                                                <div className="mt-1 text-dark">{accountDetails.account?.address || 'N/A'}</div>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Ward:</strong> {accountDetails.account?.ward || 'N/A'}
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Ward:</span>
+                                                <span className="fw-medium">{accountDetails.account?.ward || 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>PAN:</strong> {accountDetails.account?.pan || 'N/A'}
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">PAN:</span>
+                                                <span className="fw-medium">{accountDetails.account?.pan || 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Status:</strong>{' '}
-                                                <Badge bg={accountDetails.account?.isActive ? 'success' : 'danger'}>
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Status:</span>
+                                                <Badge bg={accountDetails.account?.isActive ? 'success' : 'danger'} className="px-2 py-1">
                                                     {accountDetails.account?.isActive ? 'Active' : 'Inactive'}
                                                 </Badge>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Default Cash Account:</strong>{' '}
-                                                <Badge bg={accountDetails.account?.defaultCashAccount ? 'primary' : 'secondary'}>
+                                            <div className="mb-0 d-flex justify-content-between">
+                                                <span className="text-muted">Default Cash Account:</span>
+                                                <Badge bg={accountDetails.account?.defaultCashAccount ? 'primary' : 'secondary'} className="px-2 py-1">
                                                     {accountDetails.account?.defaultCashAccount ? 'Yes' : 'No'}
                                                 </Badge>
                                             </div>
@@ -743,53 +514,53 @@ const ContactModal = ({ show, onHide }) => {
                             </Row>
 
                             {/* Financial Information */}
-                            <Row className="mb-3">
+                            <Row className="g-3 mb-4">
                                 <Col md={6}>
-                                    <Card>
-                                        <Card.Header className="bg-light">
-                                            <h6 className="mb-0">Current Financial Information</h6>
+                                    <Card className="shadow-sm border-0">
+                                        <Card.Header className="bg-light py-2">
+                                            <h6 className="mb-0 fw-semibold" style={{ fontSize: '0.85rem' }}>Financial Information</h6>
                                         </Card.Header>
-                                        <Card.Body>
-                                            <div className="mb-2">
-                                                <strong>Credit Limit:</strong> {accountDetails.account?.creditLimit ? `₹${accountDetails.account.creditLimit}` : 'N/A'}
+                                        <Card.Body className="py-3" style={{ fontSize: '0.85rem' }}>
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Credit Limit:</span>
+                                                <span className="fw-medium">{accountDetails.account?.creditLimit ? `₹${accountDetails.account.creditLimit}` : 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Current Opening Balance:</strong>{' '}
-                                                {getCurrentOpeningBalance() ? 
-                                                    formatBalance(getCurrentOpeningBalance().amount, getCurrentOpeningBalance().type) : 
-                                                    'N/A'
-                                                }
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Current Opening Balance:</span>
+                                                <span className="fw-medium">{getCurrentOpeningBalance() ? formatBalance(getCurrentOpeningBalance().amount, getCurrentOpeningBalance().type) : 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Current Fiscal Year:</strong> {accountDetails.financialInfo?.fiscalYear?.name || 'N/A'}
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Current Fiscal Year:</span>
+                                                <span className="fw-medium">{accountDetails.financialInfo?.fiscalYear?.name || 'N/A'}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Fiscal Year Period:</strong>{' '}
-                                                {accountDetails.financialInfo?.fiscalYear ? 
-                                                    `${formatDate(accountDetails.financialInfo.fiscalYear.startDate)} - ${formatDate(accountDetails.financialInfo.fiscalYear.endDate)}` : 
-                                                    'N/A'
-                                                }
+                                            <div className="mb-0">
+                                                <span className="text-muted">Fiscal Year Period:</span>
+                                                <div className="mt-1 text-dark">{accountDetails.financialInfo?.fiscalYear ? `${formatDate(accountDetails.financialInfo.fiscalYear.startDate)} - ${formatDate(accountDetails.financialInfo.fiscalYear.endDate)}` : 'N/A'}</div>
                                             </div>
                                         </Card.Body>
                                     </Card>
                                 </Col>
                                 <Col md={6}>
-                                    <Card>
-                                        <Card.Header className="bg-light">
-                                            <h6 className="mb-0">Account History</h6>
+                                    <Card className="shadow-sm border-0">
+                                        <Card.Header className="bg-light py-2">
+                                            <h6 className="mb-0 fw-semibold" style={{ fontSize: '0.85rem' }}>Account History</h6>
                                         </Card.Header>
-                                        <Card.Body>
-                                            <div className="mb-2">
-                                                <strong>Created Date:</strong> {formatDate(accountDetails.account?.createdAt)}
+                                        <Card.Body className="py-3" style={{ fontSize: '0.85rem' }}>
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Created Date:</span>
+                                                <span className="fw-medium">{formatDate(accountDetails.account?.createdAt)}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Last Updated:</strong> {formatDate(accountDetails.account?.date)}
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Last Updated:</span>
+                                                <span className="fw-medium">{formatDate(accountDetails.account?.date)}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Opening Balance Date:</strong> {formatDate(accountDetails.account?.openingBalanceDate)}
+                                            <div className="mb-2 d-flex justify-content-between">
+                                                <span className="text-muted">Opening Balance Date:</span>
+                                                <span className="fw-medium">{formatDate(accountDetails.account?.openingBalanceDate)}</span>
                                             </div>
-                                            <div className="mb-2">
-                                                <strong>Transactions Count:</strong> {accountDetails.account?.transactions ? accountDetails.account.transactions.length : 0}
+                                            <div className="mb-0 d-flex justify-content-between">
+                                                <span className="text-muted">Transactions Count:</span>
+                                                <span className="fw-medium">{accountDetails.account?.transactions ? accountDetails.account.transactions.length : 0}</span>
                                             </div>
                                         </Card.Body>
                                     </Card>
@@ -799,36 +570,36 @@ const ContactModal = ({ show, onHide }) => {
                             {/* Opening Balances by Fiscal Year */}
                             {accountDetails.account?.openingBalanceByFiscalYear && 
                              accountDetails.account.openingBalanceByFiscalYear.length > 0 && (
-                                <Card className="mb-3">
-                                    <Card.Header className="bg-light">
-                                        <h6 className="mb-0">Opening Balances by Fiscal Year</h6>
+                                <Card className="mb-3 shadow-sm border-0">
+                                    <Card.Header className="bg-light py-2">
+                                        <h6 className="mb-0 fw-semibold" style={{ fontSize: '0.85rem' }}>Opening Balances by Fiscal Year</h6>
                                     </Card.Header>
-                                    <Card.Body>
+                                    <Card.Body className="p-0">
                                         <div className="table-responsive">
-                                            <table className="table table-sm table-striped">
-                                                <thead>
+                                            <table className="table table-sm table-striped mb-0" style={{ fontSize: '0.8rem' }}>
+                                                <thead className="table-light">
                                                     <tr>
-                                                        <th>Fiscal Year</th>
-                                                        <th>Amount</th>
-                                                        <th>Type</th>
-                                                        <th>Date</th>
+                                                        <th style={{ padding: '8px 10px' }}>Fiscal Year</th>
+                                                        <th style={{ padding: '8px 10px' }} className="text-end">Amount</th>
+                                                        <th style={{ padding: '8px 10px' }} className="text-center">Type</th>
+                                                        <th style={{ padding: '8px 10px' }} className="text-center">Date</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {accountDetails.account.openingBalanceByFiscalYear.map((balance, index) => (
                                                         <tr key={index}>
-                                                            <td>{balance.fiscalYear?.name || 'N/A'}</td>
-                                                            <td>{balance.amount}</td>
-                                                            <td>
-                                                                <Badge bg={balance.type === 'Dr' ? 'primary' : 'success'}>
+                                                            <td style={{ padding: '8px 10px' }}>{balance.fiscalYear?.name || 'N/A'}</td>
+                                                            <td style={{ padding: '8px 10px' }} className="text-end fw-medium">{balance.amount}</td>
+                                                            <td style={{ padding: '8px 10px' }} className="text-center">
+                                                                <Badge bg={balance.type === 'Dr' ? 'primary' : 'success'} className="px-2 py-1" style={{ fontSize: '0.7rem' }}>
                                                                     {balance.type}
                                                                 </Badge>
                                                             </td>
-                                                            <td>{formatDate(balance.date)}</td>
+                                                            <td style={{ padding: '8px 10px' }} className="text-center">{formatDate(balance.date)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
-                                            </table>
+                                             </table>
                                         </div>
                                     </Card.Body>
                                 </Card>
@@ -837,14 +608,14 @@ const ContactModal = ({ show, onHide }) => {
                             {/* Company Groups */}
                             {accountDetails.account?.companyGroups && 
                              accountDetails.account.companyGroups.length > 0 && (
-                                <Card className="mb-3">
-                                    <Card.Header className="bg-light">
-                                        <h6 className="mb-0">Company Groups</h6>
+                                <Card className="shadow-sm border-0">
+                                    <Card.Header className="bg-light py-2">
+                                        <h6 className="mb-0 fw-semibold" style={{ fontSize: '0.85rem' }}>Company Groups</h6>
                                     </Card.Header>
-                                    <Card.Body>
+                                    <Card.Body className="py-3">
                                         <div className="d-flex flex-wrap gap-2">
                                             {accountDetails.account.companyGroups.map((group, index) => (
-                                                <Badge key={index} bg="secondary" className="fs-6">
+                                                <Badge key={index} bg="secondary" className="px-3 py-2" style={{ fontSize: '0.75rem', fontWeight: '500' }}>
                                                     {group.name}
                                                 </Badge>
                                             ))}
@@ -854,13 +625,13 @@ const ContactModal = ({ show, onHide }) => {
                             )}
                         </div>
                     ) : (
-                        <div className="alert alert-warning text-center">
+                        <div className="alert alert-warning text-center py-4">
                             No account details available.
                         </div>
                     )}
                 </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={handleAccountModalClose}>
+                <Modal.Footer className="py-2">
+                    <Button variant="secondary" size="sm" onClick={handleAccountModalClose}>
                         Close
                     </Button>
                 </Modal.Footer>

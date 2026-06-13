@@ -299,7 +299,7 @@ const BatchUpdateModal = ({ product, batch, onClose, onUpdate }) => {
                             <div className="col-md-6">
                                 <Form.Group>
                                     <Form.Label style={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                                        Purchase Price (Rs.) <span className="text-muted">(Read Only)</span>
+                                        Purchase Price (Rs.)
                                     </Form.Label>
                                     <div className="input-group">
                                         <span className="input-group-text" style={{ fontSize: '0.8rem', padding: '0.375rem 0.5rem' }}>Rs.</span>
