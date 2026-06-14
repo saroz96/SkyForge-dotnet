@@ -110,6 +110,9 @@ namespace SkyForge.Models.UserModel
         // Attendance settings as complex type
         public AttendanceSettings AttendanceSettings { get; set; }
 
+        public bool AutoBackupEnabled { get; set; } = false;
+        public string BackupSchedule { get; set; } = "daily";
+        public string BackupFormat { get; set; } = "json";
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

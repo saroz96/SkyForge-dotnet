@@ -186,6 +186,10 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 
 builder.Services.AddScoped<IFiscalYearTransferService, FiscalYearTransferService>();
 
+
+builder.Services.AddScoped<GoogleDriveService>();
+builder.Services.AddScoped<BackupService>();
+
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();
 

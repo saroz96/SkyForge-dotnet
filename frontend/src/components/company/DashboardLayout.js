@@ -19,6 +19,11 @@ const DashboardLayout = ({ children, user, isAdminOrSupervisor }) => {
         <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
           <Nav>
             {isAdminOrSupervisor && (
+              <Nav.Link as={Link} to="/backup">
+                <i className="fas fa-plus-circle me-1"></i>Backup
+              </Nav.Link>
+            )}
+            {isAdminOrSupervisor && (
               <Nav.Link as={Link} to="/split/company">
                 <i className="fas fa-plus-circle me-1"></i>Split Financial Year
               </Nav.Link>

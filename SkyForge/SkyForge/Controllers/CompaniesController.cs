@@ -84,65 +84,6 @@ namespace SkyForge.Controllers
         /// <summary>
         /// Get companies for the authenticated user
         /// </summary>
-        // [HttpGet("user-companies")]
-        // [ProducesResponseType(typeof(List<CompaniesResponseDTO>), StatusCodes.Status200OK)]
-        // [ProducesResponseType(typeof(ErrorResponseDTO), StatusCodes.Status500InternalServerError)]
-        // public async Task<IActionResult> GetUserCompanies()
-        // {
-        //     try
-        //     {
-        //         // Get current user from JWT token
-        //         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        //         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
-        //         {
-        //             return Unauthorized(new ErrorResponseDTO
-        //             {
-        //                 Success = false,
-        //                 Error = "Invalid user token",
-        //                 Type = "AuthenticationError"
-        //             });
-        //         }
-
-        //         // Check if user is admin
-        //         var isAdminClaim = User.FindFirst("isAdmin")?.Value;
-        //         bool isAdmin = bool.TryParse(isAdminClaim, out bool admin) && admin;
-
-        //         List<Company> companies;
-
-        //         if (isAdmin)
-        //         {
-        //             // Admin sees all companies they own
-        //             _logger.LogInformation("Fetching companies for admin user {UserId}", userId);
-        //             companies = await _companyService.GetCompaniesByOwnerAsync(userId);
-        //         }
-        //         else
-        //         {
-        //             // Regular users see companies they're associated with
-        //             _logger.LogInformation("Fetching companies for regular user {UserId}", userId);
-        //             companies = await _companyService.GetCompaniesByUserAsync(userId);
-        //         }
-
-        //         // Map to DTO
-        //         var companyDTOs = companies.Select(c => MapToCompanyResponseDTO(c)).ToList();
-
-        //         _logger.LogInformation("Returning {Count} companies for user {UserId}", companyDTOs.Count, userId);
-        //         return Ok(companyDTOs);
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error fetching user companies");
-        //         return StatusCode(500, new ErrorResponseDTO
-        //         {
-        //             Success = false,
-        //             Error = "Failed to fetch companies",
-        //             Type = "ServerError"
-        //         });
-        //     }
-        // }
-
-        /// <summary>
-        /// Get companies for the authenticated user
-        /// </summary>
         [HttpGet("user-companies")]
         [ProducesResponseType(typeof(List<CompaniesResponseDTO>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ErrorResponseDTO), StatusCodes.Status500InternalServerError)]

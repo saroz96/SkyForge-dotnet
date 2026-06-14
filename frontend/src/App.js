@@ -107,7 +107,7 @@ import ExistingFiscalYears from './components/fiscalYear/ExistingFiscalYears';
 import ChangeNewFiscalYear from './components/fiscalYear/ChangeNewFiscalYear';
 import SplitCompany from './components/company/SplitCompany';
 import DayWiseAgeing from './components/retailer/ageingReport/DayWiseAgeing';
-import BackupPages from './components/backups/BackupPages';
+// import BackupPages from './components/backups/BackupPages';
 import DebitNotePrint from './components/retailer/debitNote/Print';
 import EditDebitNote from './components/retailer/debitNote/EditDebitNote';
 import DebitNoteNumberForm from './components/retailer/debitNote/VoucherNumber';
@@ -133,6 +133,9 @@ import EditSalesReturn from './components/retailer/salesReturn/EditSalesReturn';
 import EditCashSalesReturn from './components/retailer/salesReturn/EditCashSalesReturn';
 import CashSalesReturnVoucherNumber from './components/retailer/salesReturn/CashVoucherNumber';
 import ClientDetails from './components/systemOwner/pages/ClientDetails';
+
+import GoogleDriveBackup from './components/backups/GoogleDriveBackup';
+import BackupHistory from './components/backups/BackupHistory';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
@@ -1070,14 +1073,14 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-            <Route
+            {/* <Route
               path="/backups"
               element={
                 <ProtectedRoute>
                   <BackupPages />
                 </ProtectedRoute>
               }
-            />
+            /> */}
             {/**======================================================*/}
 
             <Route path="/retailer/confirmation-of-vat" element={<VATConfirmationLetter />} />
@@ -1092,6 +1095,12 @@ function AppContent() {
               }
             />
             {/**======================================================*/}
+
+
+            {/* Google Drive Backup */}
+
+            <Route path="/backup" element={<GoogleDriveBackup />} />
+            <Route path="/backup-history" element={<BackupHistory />} />
 
             {/**======================System Owner */}
             <Route

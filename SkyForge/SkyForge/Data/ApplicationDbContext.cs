@@ -93,6 +93,8 @@ namespace SkyForge.Data
         public DbSet<BarcodePreference> BarcodePreferences { get; set; }
         public DbSet<BillCounter> BillCounters { get; set; } = null!;
 
+        public DbSet<BackupHistory> BackupHistories { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -2072,6 +2074,7 @@ namespace SkyForge.Data
                 //    .HasComputedColumnSql("CASE WHEN ws_unit IS NOT NULL AND ws_unit > 0 THEN pu_price / ws_unit ELSE pu_price END", stored: true);
             });
 
+
             // Add indexes for performance
             modelBuilder.Entity<PurchaseReturn>()
                 .HasIndex(pr => pr.CompanyId)
@@ -2104,6 +2107,23 @@ namespace SkyForge.Data
             modelBuilder.Entity<PurchaseReturnItem>()
                 .HasIndex(pri => pri.PurchaseBillId)
                 .HasDatabaseName("IX_PurchaseReturnItem_PurchaseBill");
+
+
+            // Configure BackupHistory table
+            modelBuilder.Entity<BackupHistory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.UserId).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.GoogleDriveFileId).HasMaxLength(500);
+                entity.Property(e => e.FileName).HasMaxLength(500);
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.BackupDate);
+
+                entity.HasOne(e => e.Company)
+                      .WithMany()
+                      .HasForeignKey(e => e.CompanyId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -32,3 +32,10 @@ build/
 .DS_Store
 Thumbs.db
 EOF
+
+echo "# Google Drive Credentials" >> .gitignore
+echo "SkyForge/SkyForge/credentials.json" >> .gitignore
+echo "SkyForge/SkyForge/credentials_web.json" >> .gitignore
+echo "SkyForge/SkyForge/GoogleDriveTokens/" >> .gitignore
+echo "*.token" >> .gitignore
+echo "*.TokenResponse-*" >> .gitignore
