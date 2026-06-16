@@ -1993,7 +1993,7 @@ const Statement = () => {
                         </div>
                     ) : (
                         <>
-                            <div style={{ height: "450px", border: '1px solid #dee2e6', backgroundColor: '#fff', position: 'relative' }} ref={tableBodyRef}>
+                            <div style={{ height: "calc(100vh - 300px)", border: '1px solid #dee2e6', backgroundColor: '#fff', position: 'relative' }} ref={tableBodyRef}>
                                 {loading ? (
                                     <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                         <div className="spinner-border spinner-border-sm text-primary" role="status">
@@ -2188,7 +2188,7 @@ const Statement = () => {
                         }}
                     >
                         <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '70%' }}>
-                            <div className="modal-content" style={{ height: '500px' }}>
+                            <div className="modal-content" style={{ height: '400px' }}>
                                 <div className="modal-header py-1">
                                     <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
                                         Select Account

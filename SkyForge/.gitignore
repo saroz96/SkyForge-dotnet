@@ -12,19 +12,11 @@ echo "appsettings.json" >> .gitignore
 # Stage the .gitignore
 git add .gitignore
 
-echo "# Google Drive Credentials" >> .gitignore
-echo "SkyForge/SkyForge/credentials.json" >> .gitignore
-echo "SkyForge/SkyForge/credentials_web.json" >> .gitignore
-echo "SkyForge/SkyForge/GoogleDriveTokens/" >> .gitignore
-echo "*.token" >> .gitignore
-echo "*.TokenResponse-*" >> .gitignore
+# Google Drive OAuth Tokens
+SkyForge/SkyForge/GoogleDriveTokens/
+SkyForge/SkyForge/GoogleDriveTokens/**/*.json
+SkyForge/SkyForge/GoogleDriveTokens/*/
 
-echo "SkyForge/SkyForge/GoogleDriveTokens/" >> .gitignore
-echo "SkyForge/SkyForge/credentials.json" >> .gitignore
-echo "SkyForge/SkyForge/credentials_web.json" >> .gitignore
-echo "SkyForge/SkyForge/appsettings.json" >> .gitignore
-
-echo "GoogleDriveTokens/" >> .gitignore
-echo "credentials.json" >> .gitignore
-echo "credentials_web.json" >> .gitignore
-echo "appsettings.json" >> .gitignore
+# Google Credentials
+SkyForge/SkyForge/credentials.json
+SkyForge/SkyForge/credentials_web.json
