@@ -373,7 +373,8 @@ namespace SkyForge.Controllers
                     return Unauthorized(new { success = false, message = "User not authenticated" });
                 }
 
-                var redirectUri = $"{Request.Scheme}://{Request.Host}/api/drivebackup/auth-callback";
+                var redirectUri = "https://api.amsacc.com/api/drivebackup/auth-callback";
+
                 var authUrl = _googleDriveService.GetAuthorizationUrl(userId, redirectUri);
 
                 return Ok(new { success = true, authUrl });
@@ -385,53 +386,96 @@ namespace SkyForge.Controllers
         }
 
         [HttpGet("auth-callback")]
-        public async Task<IActionResult> AuthCallback(string code, string state, string error)
+        public async Task<IActionResult> AuthCallback()
         {
             try
             {
-                Console.WriteLine($"Auth Callback - Code: {(string.IsNullOrEmpty(code) ? "NO" : "YES")}, State: {state}, Error: {error}");
+                // Read parameters directly from the query string
+                var code = Request.Query["code"].ToString();
+                var state = Request.Query["state"].ToString();
+                var error = Request.Query["error"].ToString();
+                var errorDescription = Request.Query["error_description"].ToString();
 
+                Console.WriteLine($"=== AUTH CALLBACK RECEIVED ===");
+                Console.WriteLine($"Code: {(string.IsNullOrEmpty(code) ? "NO" : "YES")}");
+                Console.WriteLine($"State: {state}");
+                Console.WriteLine($"Error: {error}");
+
+                // Handle error from Google
                 if (!string.IsNullOrEmpty(error))
                 {
+                    Console.WriteLine($"Google returned error: {error} - {errorDescription}");
                     var errorHtml = $@"
             <html>
             <body>
                 <script>
                     if(window.opener){{
-                        window.opener.postMessage({{ type: 'google-auth-error', error: '{error}' }}, '*');
+                        window.opener.postMessage({{ 
+                            type: 'google-auth-error', 
+                            error: '{error}',
+                            description: '{errorDescription}'
+                        }}, '*');
                         window.close();
                     }}
                 </script>
-                <h3>Error: {error}</h3>
+                <h3>Authentication Error</h3>
+                <p>Error: {error}</p>
+                <p>Description: {errorDescription}</p>
+                <p>Please close this window and try again.</p>
             </body>
             </html>";
                     return Content(errorHtml, "text/html");
                 }
 
+                // Check for missing code
                 if (string.IsNullOrEmpty(code))
                 {
+                    Console.WriteLine("No authorization code received");
                     var errorHtml = @"
             <html>
             <body>
                 <script>
                     if(window.opener){{
-                        window.opener.postMessage({{ type: 'google-auth-error', error: 'No code received' }}, '*');
+                        window.opener.postMessage({ type: 'google-auth-error', error: 'No authorization code received' }, '*');
                         window.close();
                     }}
                 </script>
                 <h3>No authorization code received</h3>
+                <p>Please close this window and try again.</p>
+            </body>
+            </html>";
+                    return Content(errorHtml, "text/html");
+                }
+
+                // Check for missing state (user ID)
+                if (string.IsNullOrEmpty(state))
+                {
+                    Console.WriteLine("No user ID in state parameter");
+                    var errorHtml = @"
+            <html>
+            <body>
+                <script>
+                    if(window.opener){{
+                        window.opener.postMessage({ type: 'google-auth-error', error: 'No user ID found' }, '*');
+                        window.close();
+                    }}
+                </script>
+                <h3>No user ID found</h3>
+                <p>Please close this window and try again.</p>
             </body>
             </html>";
                     return Content(errorHtml, "text/html");
                 }
 
                 var userId = state;
-                var redirectUri = $"{Request.Scheme}://{Request.Host}/api/drivebackup/auth-callback";
+                var redirectUri = "https://api.amsacc.com/api/drivebackup/auth-callback";
 
+                Console.WriteLine($"Exchanging code for user: {userId}");
                 var success = await _googleDriveService.ExchangeCodeForTokensAsync(userId, code, redirectUri);
 
                 if (success)
                 {
+                    Console.WriteLine($"Token exchange successful for user: {userId}");
                     var successHtml = @"
             <html>
             <body>
@@ -442,12 +486,14 @@ namespace SkyForge.Controllers
                     }
                 </script>
                 <h3>Authentication Successful!</h3>
+                <p>You have successfully connected your Google Drive.</p>
                 <p>You can close this window.</p>
             </body>
             </html>";
                     return Content(successHtml, "text/html");
                 }
 
+                Console.WriteLine($"Token exchange failed for user: {userId}");
                 var failHtml = @"
         <html>
         <body>
@@ -458,165 +504,31 @@ namespace SkyForge.Controllers
                 }
             </script>
             <h3>Authentication Failed</h3>
+            <p>Token exchange failed. Please try again.</p>
         </body>
         </html>";
                 return Content(failHtml, "text/html");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"EXCEPTION in AuthCallback: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 var errorHtml = $@"
         <html>
         <body>
             <script>
                 if(window.opener){{
-                    window.opener.postMessage({{ type: 'google-auth-error', error: '{ex.Message}' }}, '*');
+                    window.opener.postMessage({{ type: 'google-auth-error', error: '{ex.Message.Replace("'", "\\'")}' }}, '*');
                     window.close();
                 }}
             </script>
             <h3>Error: {ex.Message}</h3>
+            <p>Please close this window and try again.</p>
         </body>
         </html>";
                 return Content(errorHtml, "text/html");
             }
         }
-
-        // [HttpGet("auth-callback")]
-        // public async Task<IActionResult> AuthCallback()
-        // {
-        //     try
-        //     {
-        //         var code = Request.Query["code"].ToString();
-        //         var state = Request.Query["state"].ToString();
-        //         var error = Request.Query["error"].ToString();
-        //         var errorDescription = Request.Query["error_description"].ToString();
-
-        //         Console.WriteLine($"Auth Callback - Code received: {(string.IsNullOrEmpty(code) ? "NO" : "YES")}, State: {state}");
-
-        //         if (!string.IsNullOrEmpty(error))
-        //         {
-        //             var errorHtml = $@"
-        //             <html>
-        //             <body>
-        //                 <script>
-        //                     if(window.opener){{
-        //                         window.opener.postMessage({{ type: 'google-auth-error', error: '{error}' }}, '*');
-        //                         window.close();
-        //                     }}
-        //                 </script>
-        //                 <h3>Error: {error}</h3>
-        //                 <p>{errorDescription}</p>
-        //             </body>
-        //             </html>";
-        //             return Content(errorHtml, "text/html");
-        //         }
-
-        //         if (string.IsNullOrEmpty(code))
-        //         {
-        //             var errorHtml = @"
-        //             <html>
-        //             <body>
-        //                 <script>
-        //                     if(window.opener){{
-        //                         window.opener.postMessage({{ type: 'google-auth-error', error: 'No code received' }}, '*');
-        //                         window.close();
-        //                     }}
-        //                 </script>
-        //                 <h3>No authorization code received</h3>
-        //             </body>
-        //             </html>";
-        //             return Content(errorHtml, "text/html");
-        //         }
-
-        //         var userId = state;
-        //         var redirectUri = $"{Request.Scheme}://{Request.Host}/api/drivebackup/auth-callback";
-
-        //         Console.WriteLine($"Exchanging code for tokens. Redirect URI: {redirectUri}");
-
-        //         var tokenUrl = "https://oauth2.googleapis.com/token";
-
-        //         using (var httpClient = new HttpClient())
-        //         {
-        //             var tokenRequest = new FormUrlEncodedContent(new[]
-        //             {
-        //                 new KeyValuePair<string, string>("code", code),
-        //                 new KeyValuePair<string, string>("client_id", _clientId),
-        //                 new KeyValuePair<string, string>("client_secret", _clientSecret),
-        //                 new KeyValuePair<string, string>("redirect_uri", redirectUri),
-        //                 new KeyValuePair<string, string>("grant_type", "authorization_code")
-        //             });
-
-        //             var response = await httpClient.PostAsync(tokenUrl, tokenRequest);
-        //             var responseContent = await response.Content.ReadAsStringAsync();
-
-        //             Console.WriteLine($"Token exchange response status: {response.StatusCode}");
-
-        //             if (!response.IsSuccessStatusCode)
-        //             {
-        //                 var errorHtml = $@"
-        //                 <html>
-        //                 <body>
-        //                     <script>
-        //                         if(window.opener){{
-        //                             window.opener.postMessage({{ type: 'google-auth-error', error: 'Token exchange failed' }}, '*');
-        //                             window.close();
-        //                         }}
-        //                     </script>
-        //                     <h3>Token exchange failed</h3>
-        //                     <pre>{responseContent}</pre>
-        //                 </body>
-        //                 </html>";
-        //                 return Content(errorHtml, "text/html");
-        //             }
-
-        //             try
-        //             {
-        //                 Console.WriteLine($"Saving token for user: {userId}");
-        //                 var driveService = await _googleDriveService.GetDriveServiceAsync(userId);
-        //                 Console.WriteLine("Token saved successfully!");
-        //             }
-        //             catch (Exception ex)
-        //             {
-        //                 Console.WriteLine($"Error saving token: {ex.Message}");
-        //             }
-
-        //             var successHtml = @"
-        //             <html>
-        //             <body>
-        //                 <script>
-        //                     if(window.opener){
-        //                         window.opener.postMessage({ type: 'google-auth-success' }, '*');
-        //                         window.close();
-        //                     }
-        //                 </script>
-        //                 <h3>Authentication Successful!</h3>
-        //                 <p>You have successfully connected your Google Drive.</p>
-        //                 <p>You can close this window.</p>
-        //             </body>
-        //             </html>";
-
-        //             return Content(successHtml, "text/html");
-        //         }
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         Console.WriteLine($"Auth callback error: {ex.Message}");
-
-        //         var errorHtml = $@"
-        //         <html>
-        //         <body>
-        //             <script>
-        //                 if(window.opener){{
-        //                     window.opener.postMessage({{ type: 'google-auth-error', error: '{ex.Message.Replace("'", "\\'")}' }}, '*');
-        //                     window.close();
-        //                 }}
-        //             </script>
-        //             <h3>Error: {ex.Message}</h3>
-        //         </body>
-        //         </html>";
-        //         return Content(errorHtml, "text/html");
-        //     }
-        // }
-
 
         [HttpPost("backup-all-with-format")]
         public async Task<IActionResult> BackupAllUserCompaniesWithFormat([FromQuery] string format = "compressed")

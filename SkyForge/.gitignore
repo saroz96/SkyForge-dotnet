@@ -18,3 +18,13 @@ echo "SkyForge/SkyForge/credentials_web.json" >> .gitignore
 echo "SkyForge/SkyForge/GoogleDriveTokens/" >> .gitignore
 echo "*.token" >> .gitignore
 echo "*.TokenResponse-*" >> .gitignore
+
+echo "SkyForge/SkyForge/GoogleDriveTokens/" >> .gitignore
+echo "SkyForge/SkyForge/credentials.json" >> .gitignore
+echo "SkyForge/SkyForge/credentials_web.json" >> .gitignore
+echo "SkyForge/SkyForge/appsettings.json" >> .gitignore
+
+echo "GoogleDriveTokens/" >> .gitignore
+echo "credentials.json" >> .gitignore
+echo "credentials_web.json" >> .gitignore
+echo "appsettings.json" >> .gitignore

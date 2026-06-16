@@ -990,7 +990,7 @@ namespace SkyForge.Services
                 {
                     result.ErrorMessage = "No companies found for this user";
                     result.IsSuccess = false;
-                    await LogBackupToDatabase(Guid.Empty, userId, null, "Backup_Failed", 0, false, result.ErrorMessage);
+                    // await LogBackupToDatabase(Guid.Empty, userId, null, "Backup_Failed", 0, false, result.ErrorMessage);
                     return result;
                 }
 
@@ -1300,67 +1300,200 @@ namespace SkyForge.Services
         /// <summary>
         /// Find pg_dump.exe path on the system
         /// </summary>
+        // private string FindPgDumpPath()
+        // {
+        //     var possiblePaths = new List<string>
+        //     {
+        //         @"C:\Program Files\PostgreSQL\18\bin\pg_dump.exe",
+        //         @"C:\Program Files\PostgreSQL\17\bin\pg_dump.exe",
+        //         @"C:\Program Files\PostgreSQL\16\bin\pg_dump.exe",
+        //         @"C:\Program Files\PostgreSQL\15\bin\pg_dump.exe",
+        //         @"C:\Program Files\PostgreSQL\14\bin\pg_dump.exe",
+        //         @"C:\Program Files\PostgreSQL\13\bin\pg_dump.exe",
+        //         @"C:\Program Files (x86)\PostgreSQL\18\bin\pg_dump.exe",
+        //     };
+
+        //     foreach (var path in possiblePaths)
+        //     {
+        //         if (File.Exists(path))
+        //         {
+        //             Console.WriteLine($"Found pg_dump at: {path}");
+        //             return path;
+        //         }
+        //     }
+
+        //     try
+        //     {
+        //         var startInfo = new System.Diagnostics.ProcessStartInfo
+        //         {
+        //             FileName = "where",
+        //             Arguments = "pg_dump",
+        //             UseShellExecute = false,
+        //             CreateNoWindow = true,
+        //             RedirectStandardOutput = true,
+        //             RedirectStandardError = true
+        //         };
+
+        //         using (var process = System.Diagnostics.Process.Start(startInfo))
+        //         {
+        //             if (process != null)
+        //             {
+        //                 string output = process.StandardOutput.ReadToEnd();
+        //                 process.WaitForExit();
+
+        //                 if (!string.IsNullOrEmpty(output))
+        //                 {
+        //                     var path = output.Trim().Split('\n')[0];
+        //                     if (File.Exists(path))
+        //                     {
+        //                         Console.WriteLine($"Found pg_dump via PATH: {path}");
+        //                         return path;
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Console.WriteLine($"Error finding pg_dump: {ex.Message}");
+        //     }
+
+        //     return null;
+        // }
+
+        /// <summary>
+        /// Find pg_dump.exe path on the system
+        /// </summary>
         private string FindPgDumpPath()
         {
-            var possiblePaths = new List<string>
-            {
-                @"C:\Program Files\PostgreSQL\18\bin\pg_dump.exe",
-                @"C:\Program Files\PostgreSQL\17\bin\pg_dump.exe",
-                @"C:\Program Files\PostgreSQL\16\bin\pg_dump.exe",
-                @"C:\Program Files\PostgreSQL\15\bin\pg_dump.exe",
-                @"C:\Program Files\PostgreSQL\14\bin\pg_dump.exe",
-                @"C:\Program Files\PostgreSQL\13\bin\pg_dump.exe",
-                @"C:\Program Files (x86)\PostgreSQL\18\bin\pg_dump.exe",
-            };
+            Console.WriteLine("=== FindPgDumpPath called ===");
 
-            foreach (var path in possiblePaths)
+            // Check if running on Linux/Unix (Docker)
+            if (Environment.OSVersion.Platform == PlatformID.Unix)
             {
-                if (File.Exists(path))
-                {
-                    Console.WriteLine($"Found pg_dump at: {path}");
-                    return path;
-                }
-            }
+                Console.WriteLine("Detected Linux/Unix environment");
 
-            try
-            {
-                var startInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "where",
-                    Arguments = "pg_dump",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
+                // Linux paths for pg_dump
+                var linuxPaths = new List<string>
+        {
+            "/usr/bin/pg_dump",
+            "/usr/local/bin/pg_dump",
+            "/usr/lib/postgresql/15/bin/pg_dump",
+            "/usr/lib/postgresql/16/bin/pg_dump",
+            "/usr/lib/postgresql/17/bin/pg_dump",
+            "/usr/lib/postgresql/18/bin/pg_dump"
+        };
 
-                using (var process = System.Diagnostics.Process.Start(startInfo))
+                foreach (var path in linuxPaths)
                 {
-                    if (process != null)
+                    if (File.Exists(path))
                     {
-                        string output = process.StandardOutput.ReadToEnd();
-                        process.WaitForExit();
+                        Console.WriteLine($"Found pg_dump at: {path}");
+                        return path;
+                    }
+                }
 
-                        if (!string.IsNullOrEmpty(output))
+                // Try using 'which' command on Linux
+                try
+                {
+                    var startInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "which",
+                        Arguments = "pg_dump",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+
+                    using (var process = System.Diagnostics.Process.Start(startInfo))
+                    {
+                        if (process != null)
                         {
-                            var path = output.Trim().Split('\n')[0];
-                            if (File.Exists(path))
+                            string output = process.StandardOutput.ReadToEnd();
+                            process.WaitForExit();
+                            if (!string.IsNullOrEmpty(output))
                             {
-                                Console.WriteLine($"Found pg_dump via PATH: {path}");
-                                return path;
+                                var path = output.Trim();
+                                if (File.Exists(path))
+                                {
+                                    Console.WriteLine($"Found pg_dump via 'which': {path}");
+                                    return path;
+                                }
                             }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error using 'which': {ex.Message}");
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"Error finding pg_dump: {ex.Message}");
+                Console.WriteLine("Detected Windows environment");
+
+                // Windows paths for pg_dump
+                var windowsPaths = new List<string>
+        {
+            @"C:\Program Files\PostgreSQL\18\bin\pg_dump.exe",
+            @"C:\Program Files\PostgreSQL\17\bin\pg_dump.exe",
+            @"C:\Program Files\PostgreSQL\16\bin\pg_dump.exe",
+            @"C:\Program Files\PostgreSQL\15\bin\pg_dump.exe",
+            @"C:\Program Files\PostgreSQL\14\bin\pg_dump.exe",
+            @"C:\Program Files\PostgreSQL\13\bin\pg_dump.exe",
+            @"C:\Program Files (x86)\PostgreSQL\18\bin\pg_dump.exe",
+        };
+
+                foreach (var path in windowsPaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        Console.WriteLine($"Found pg_dump at: {path}");
+                        return path;
+                    }
+                }
+
+                // Try using 'where' command on Windows
+                try
+                {
+                    var startInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "where",
+                        Arguments = "pg_dump",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+
+                    using (var process = System.Diagnostics.Process.Start(startInfo))
+                    {
+                        if (process != null)
+                        {
+                            string output = process.StandardOutput.ReadToEnd();
+                            process.WaitForExit();
+                            if (!string.IsNullOrEmpty(output))
+                            {
+                                var path = output.Trim().Split('\n')[0];
+                                if (File.Exists(path))
+                                {
+                                    Console.WriteLine($"Found pg_dump via 'where': {path}");
+                                    return path;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error finding pg_dump: {ex.Message}");
+                }
             }
 
+            Console.WriteLine("pg_dump NOT found!");
             return null;
         }
-
         /// <summary>
         /// Generate CSV backup for spreadsheet compatibility
         /// </summary>
@@ -1507,10 +1640,58 @@ namespace SkyForge.Services
         /// <summary>
         /// Log backup information to database
         /// </summary>
+        // private async Task LogBackupToDatabase(Guid companyId, string userId, string driveFileId, string fileName, long fileSize, bool isSuccess, string errorMessage)
+        // {
+        //     try
+        //     {
+        //         Console.WriteLine($"Logging backup to database - CompanyId: {companyId}, UserId: {userId}, Success: {isSuccess}");
+
+        //         var backupLog = new BackupHistory
+        //         {
+        //             CompanyId = companyId,
+        //             UserId = userId,
+        //             GoogleDriveFileId = driveFileId,
+        //             FileName = fileName,
+        //             FileSize = fileSize,
+        //             BackupDate = DateTime.Now,
+        //             IsSuccess = isSuccess,
+        //             ErrorMessage = errorMessage ?? string.Empty
+        //         };
+
+        //         _dbContext.BackupHistories.Add(backupLog);
+        //         int result = await _dbContext.SaveChangesAsync();
+        //         Console.WriteLine($"Backup history saved. Rows affected: {result}, ID: {backupLog.Id}");
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Console.WriteLine($"Failed to log backup: {ex.Message}");
+        //         Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        //     }
+        // }
+
+
+        /// <summary>
+        /// Log backup information to database
+        /// </summary>
         private async Task LogBackupToDatabase(Guid companyId, string userId, string driveFileId, string fileName, long fileSize, bool isSuccess, string errorMessage)
         {
             try
             {
+                // Only log if CompanyId is valid (not empty)
+                if (companyId == Guid.Empty)
+                {
+                    Console.WriteLine($"Skipping backup log - Invalid CompanyId (Empty)");
+                    return;
+                }
+
+                // Verify the company actually exists in the database
+                var companyExists = await _dbContext.Companies.AnyAsync(c => c.Id == companyId);
+                if (!companyExists)
+                {
+                    Console.WriteLine($"Skipping backup log - Company {companyId} not found");
+                    return;
+                }
+
                 Console.WriteLine($"Logging backup to database - CompanyId: {companyId}, UserId: {userId}, Success: {isSuccess}");
 
                 var backupLog = new BackupHistory
@@ -1535,6 +1716,7 @@ namespace SkyForge.Services
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
             }
         }
+
 
         /// <summary>
         /// Clean up old backups (keep only recent ones)

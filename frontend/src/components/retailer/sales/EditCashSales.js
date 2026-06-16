@@ -985,32 +985,32 @@ const EditCashSales = () => {
     };
 
     // Recalculate discount amount when items change (subtotal changes)
-    useEffect(() => {
-        // Calculate subtotal from current items directly
-        let currentSubTotal = 0;
-        items.forEach(item => {
-            currentSubTotal += parseFloat(item.amount) || 0;
-        });
+    // useEffect(() => {
+    //     // Calculate subtotal from current items directly
+    //     let currentSubTotal = 0;
+    //     items.forEach(item => {
+    //         currentSubTotal += parseFloat(item.amount) || 0;
+    //     });
 
-        // Only auto-recalculate if discount percentage is set (not zero)
-        if (formData.discountPercentage > 0 && formData.discountPercentage <= 100) {
-            const discountAmount = (currentSubTotal * formData.discountPercentage) / 100;
+    //     // Only auto-recalculate if discount percentage is set (not zero)
+    //     if (formData.discountPercentage > 0 && formData.discountPercentage <= 100) {
+    //         const discountAmount = (currentSubTotal * formData.discountPercentage) / 100;
 
-            setFormData(prev => ({
-                ...prev,
-                discountAmount: Math.round(discountAmount * 100) / 100
-            }));
-        }
-        // If discount amount is set (not zero), recalculate percentage
-        else if (formData.discountAmount > 0) {
-            const discountPercentage = currentSubTotal > 0 ? (formData.discountAmount / currentSubTotal) * 100 : 0;
+    //         setFormData(prev => ({
+    //             ...prev,
+    //             discountAmount: Math.round(discountAmount * 100) / 100
+    //         }));
+    //     }
+    //     // If discount amount is set (not zero), recalculate percentage
+    //     else if (formData.discountAmount > 0) {
+    //         const discountPercentage = currentSubTotal > 0 ? (formData.discountAmount / currentSubTotal) * 100 : 0;
 
-            setFormData(prev => ({
-                ...prev,
-                discountPercentage: Math.min(Math.max(discountPercentage, 0), 100).toFixed(2)
-            }));
-        }
-    }, [items, formData.discountPercentage, formData.discountAmount]); // This runs whenever items array changes
+    //         setFormData(prev => ({
+    //             ...prev,
+    //             discountPercentage: Math.min(Math.max(discountPercentage, 0), 100).toFixed(2)
+    //         }));
+    //     }
+    // }, [items, formData.discountPercentage, formData.discountAmount]); // This runs whenever items array changes
 
     useEffect(() => {
         if (roundOffSales && !manualRoundOffOverride) {

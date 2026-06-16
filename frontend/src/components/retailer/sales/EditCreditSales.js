@@ -398,93 +398,6 @@ const EditCreditSales = () => {
         }
     };
 
-    // Fetch items from backend
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-    //         const response = await api.get('/api/retailer/items/search', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: searchTerm.trim() ? 15 : 25,
-    //                 vatStatus: formData.isVatExempt,
-    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             const itemsWithPrices = response.data.items.map(item => {
-    //                 let latestPrice = 0;
-    //                 let latestBatchNumber = '';
-    //                 let latestExpiryDate = '';
-    //                 let totalStock = 0;
-
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
-
-    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
-    //                         new Date(b.date) - new Date(a.date)
-    //                     );
-    //                     latestPrice = sortedEntries[0].price || 0;
-    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
-    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     id: item.id,
-    //                     _id: item.id,
-    //                     latestPrice,
-    //                     latestBatchNumber,
-    //                     latestExpiryDate,
-    //                     stock: totalStock,
-    //                     unitName: item.unit?.name || item.unitName || '',
-    //                     unitId: item.unit?.id || item.unitId,
-    //                     stockEntries: item.stockEntries || []
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
-
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
             if (isHeaderModal) {
@@ -1027,6 +940,130 @@ const EditCreditSales = () => {
     }, [items, formData.discountPercentage, formData.discountAmount, formData.roundOffAmount, formData.isVatExempt, formData.vatPercentage]);
 
 
+    // const calculateTotal = (itemsToCalculate = items) => {
+    //     let subTotal = 0;
+    //     let taxableAmount = 0;
+    //     let nonTaxableAmount = 0;
+
+    //     itemsToCalculate.forEach(item => {
+    //         const itemAmount = parseFloat(item.amount) || 0;
+    //         subTotal += itemAmount;
+
+    //         if (item.vatStatus === '13') {
+    //             taxableAmount += itemAmount;
+    //         } else {
+    //             nonTaxableAmount += itemAmount;
+    //         }
+    //     });
+
+    //     // Use current formData values for discount
+    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
+    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
+
+    //     let effectiveDiscount = 0;
+    //     let discountForTaxable = 0;
+    //     let discountForNonTaxable = 0;
+
+    //     if (discountAmount > 0) {
+    //         effectiveDiscount = discountAmount;
+    //         if (subTotal > 0) {
+    //             const taxableRatio = taxableAmount / subTotal;
+    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
+    //             discountForTaxable = effectiveDiscount * taxableRatio;
+    //             discountForNonTaxable = effectiveDiscount * nonTaxableRatio;
+    //         }
+    //     } else if (discountPercentage > 0) {
+    //         discountForTaxable = (taxableAmount * discountPercentage) / 100;
+    //         discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
+    //         effectiveDiscount = discountForTaxable + discountForNonTaxable;
+    //     }
+
+    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
+    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
+
+    //     let vatAmount = 0;
+    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+    //         vatAmount = (finalTaxableAmount * parseFloat(formData.vatPercentage)) / 100;
+    //     }
+
+    //     // Calculate total before round off
+    //     let totalBeforeRoundOff = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
+
+    //     // Calculate auto round-off amount
+    //     let roundOffAmount = 0;
+    //     let autoRoundOffAmount = 0;
+
+    //     // Calculate auto round-off if enabled
+    //     if (roundOffSales) {
+    //         const roundedTotal = Math.round(totalBeforeRoundOff);
+    //         autoRoundOffAmount = roundedTotal - totalBeforeRoundOff;
+    //         autoRoundOffAmount = Math.round(autoRoundOffAmount * 100) / 100;
+    //     }
+
+    //     // Use auto or manual round-off
+    //     if (roundOffSales && !manualRoundOffOverride) {
+    //         roundOffAmount = autoRoundOffAmount;
+    //     } else {
+    //         roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+    //     }
+
+    //     const totalAmount = totalBeforeRoundOff + roundOffAmount;
+
+    //     // Update formData with calculated values
+    //     setFormData(prev => ({
+    //         ...prev,
+    //         subTotal: Math.round(subTotal * 100) / 100,
+    //         taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
+    //         nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
+    //         vatAmount: Math.round(vatAmount * 100) / 100,
+    //         totalAmount: Math.round(totalAmount * 100) / 100,
+    //         discountAmount: Math.round(effectiveDiscount * 100) / 100,
+    //         roundOffAmount: Math.round(roundOffAmount * 100) / 100,
+    //         autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
+    //     }));
+
+    //     // Return values for immediate use
+    //     return {
+    //         subTotal: Math.round(subTotal * 100) / 100,
+    //         taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
+    //         nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
+    //         vatAmount: Math.round(vatAmount * 100) / 100,
+    //         totalAmount: Math.round(totalAmount * 100) / 100,
+    //         discountAmount: Math.round(effectiveDiscount * 100) / 100,
+    //         roundOffAmount: Math.round(roundOffAmount * 100) / 100,
+    //         autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
+    //     };
+    // };
+
+    // Add these precision utility functions at the top of your EditCreditSales component, 
+    // right after the other utility functions (around line 150-200):
+
+    // Precision utility functions
+
+    // REPLACE the calculateTotal function with this version using precise utilities
+    
+    
+    
+    const preciseAdd = (a, b) => {
+        return parseFloat((parseFloat(a) + parseFloat(b)).toFixed(10));
+    };
+
+    const preciseSubtract = (a, b) => {
+        return parseFloat((parseFloat(a) - parseFloat(b)).toFixed(10));
+    };
+
+    const preciseMultiply = (a, b) => {
+        return parseFloat((parseFloat(a) * parseFloat(b)).toFixed(10));
+    };
+
+    const preciseDivide = (a, b) => {
+        return b !== 0 ? parseFloat((parseFloat(a) / parseFloat(b)).toFixed(10)) : 0;
+    };
+
+    const preciseRound = (value, decimals = 2) => {
+        return parseFloat(value.toFixed(decimals));
+    };
+    
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
@@ -1034,12 +1071,12 @@ const EditCreditSales = () => {
 
         itemsToCalculate.forEach(item => {
             const itemAmount = parseFloat(item.amount) || 0;
-            subTotal += itemAmount;
+            subTotal = preciseAdd(subTotal, itemAmount);
 
             if (item.vatStatus === '13') {
-                taxableAmount += itemAmount;
+                taxableAmount = preciseAdd(taxableAmount, itemAmount);
             } else {
-                nonTaxableAmount += itemAmount;
+                nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
             }
         });
 
@@ -1054,27 +1091,27 @@ const EditCreditSales = () => {
         if (discountAmount > 0) {
             effectiveDiscount = discountAmount;
             if (subTotal > 0) {
-                const taxableRatio = taxableAmount / subTotal;
-                const nonTaxableRatio = nonTaxableAmount / subTotal;
-                discountForTaxable = effectiveDiscount * taxableRatio;
-                discountForNonTaxable = effectiveDiscount * nonTaxableRatio;
+                const taxableRatio = preciseDivide(taxableAmount, subTotal);
+                const nonTaxableRatio = preciseDivide(nonTaxableAmount, subTotal);
+                discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
+                discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
             }
         } else if (discountPercentage > 0) {
-            discountForTaxable = (taxableAmount * discountPercentage) / 100;
-            discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-            effectiveDiscount = discountForTaxable + discountForNonTaxable;
+            discountForTaxable = preciseMultiply(taxableAmount, preciseDivide(discountPercentage, 100));
+            discountForNonTaxable = preciseMultiply(nonTaxableAmount, preciseDivide(discountPercentage, 100));
+            effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
         }
 
-        const finalTaxableAmount = taxableAmount - discountForTaxable;
-        const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
+        const finalTaxableAmount = preciseSubtract(taxableAmount, discountForTaxable);
+        const finalNonTaxableAmount = preciseSubtract(nonTaxableAmount, discountForNonTaxable);
 
         let vatAmount = 0;
         if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-            vatAmount = (finalTaxableAmount * parseFloat(formData.vatPercentage)) / 100;
+            vatAmount = preciseMultiply(finalTaxableAmount, preciseDivide(parseFloat(formData.vatPercentage), 100));
         }
 
         // Calculate total before round off
-        let totalBeforeRoundOff = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
+        let totalBeforeRoundOff = preciseAdd(preciseAdd(finalTaxableAmount, finalNonTaxableAmount), vatAmount);
 
         // Calculate auto round-off amount
         let roundOffAmount = 0;
@@ -1083,8 +1120,7 @@ const EditCreditSales = () => {
         // Calculate auto round-off if enabled
         if (roundOffSales) {
             const roundedTotal = Math.round(totalBeforeRoundOff);
-            autoRoundOffAmount = roundedTotal - totalBeforeRoundOff;
-            autoRoundOffAmount = Math.round(autoRoundOffAmount * 100) / 100;
+            autoRoundOffAmount = preciseSubtract(roundedTotal, totalBeforeRoundOff);
         }
 
         // Use auto or manual round-off
@@ -1094,61 +1130,91 @@ const EditCreditSales = () => {
             roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
         }
 
-        const totalAmount = totalBeforeRoundOff + roundOffAmount;
+        const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
 
         // Update formData with calculated values
         setFormData(prev => ({
             ...prev,
-            subTotal: Math.round(subTotal * 100) / 100,
-            taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
-            nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
-            vatAmount: Math.round(vatAmount * 100) / 100,
-            totalAmount: Math.round(totalAmount * 100) / 100,
-            discountAmount: Math.round(effectiveDiscount * 100) / 100,
-            roundOffAmount: Math.round(roundOffAmount * 100) / 100,
-            autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
+            subTotal: preciseRound(subTotal, 2),
+            taxableAmount: preciseRound(finalTaxableAmount, 2),
+            nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
+            vatAmount: preciseRound(vatAmount, 2),
+            totalAmount: preciseRound(totalAmount, 2),
+            discountAmount: preciseRound(effectiveDiscount, 2),
+            roundOffAmount: preciseRound(roundOffAmount, 2),
+            autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
         }));
 
         // Return values for immediate use
         return {
-            subTotal: Math.round(subTotal * 100) / 100,
-            taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
-            nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
-            vatAmount: Math.round(vatAmount * 100) / 100,
-            totalAmount: Math.round(totalAmount * 100) / 100,
-            discountAmount: Math.round(effectiveDiscount * 100) / 100,
-            roundOffAmount: Math.round(roundOffAmount * 100) / 100,
-            autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
+            subTotal: preciseRound(subTotal, 2),
+            taxableAmount: preciseRound(finalTaxableAmount, 2),
+            nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
+            vatAmount: preciseRound(vatAmount, 2),
+            totalAmount: preciseRound(totalAmount, 2),
+            discountAmount: preciseRound(effectiveDiscount, 2),
+            roundOffAmount: preciseRound(roundOffAmount, 2),
+            autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
         };
     };
 
-    // Recalculate discount amount when items change (subtotal changes)
-    useEffect(() => {
-        // Calculate subtotal from current items directly
-        let currentSubTotal = 0;
-        items.forEach(item => {
-            currentSubTotal += parseFloat(item.amount) || 0;
+     const handleDiscountPercentageChange = (e) => {
+        const value = parseFloat(e.target.value) || 0;
+        const validatedValue = Math.min(Math.max(value, 0), 100);
+
+        const subTotal = calculateTotal().subTotal;
+        const discountAmount = preciseMultiply(subTotal, validatedValue / 100);
+
+        setFormData({
+            ...formData,
+            discountPercentage: validatedValue,
+            discountAmount: preciseRound(discountAmount, 2)
         });
+    };
 
-        // Only auto-recalculate if discount percentage is set (not zero)
-        if (formData.discountPercentage > 0 && formData.discountPercentage <= 100) {
-            const discountAmount = (currentSubTotal * formData.discountPercentage) / 100;
+    const handleDiscountAmountChange = (e) => {
+        const value = parseFloat(e.target.value) || 0;
+        const subTotal = calculateTotal().subTotal;
 
-            setFormData(prev => ({
-                ...prev,
-                discountAmount: Math.round(discountAmount * 100) / 100
-            }));
-        }
-        // If discount amount is set (not zero), recalculate percentage
-        else if (formData.discountAmount > 0) {
-            const discountPercentage = currentSubTotal > 0 ? (formData.discountAmount / currentSubTotal) * 100 : 0;
+        const validatedValue = Math.min(Math.max(value, 0), subTotal);
 
-            setFormData(prev => ({
-                ...prev,
-                discountPercentage: Math.min(Math.max(discountPercentage, 0), 100).toFixed(2)
-            }));
-        }
-    }, [items, formData.discountPercentage, formData.discountAmount]); // Add dependencies
+        const discountPercentage = subTotal > 0 ?
+            preciseMultiply(validatedValue / subTotal, 100) : 0;
+
+        setFormData({
+            ...formData,
+            discountAmount: validatedValue,
+            discountPercentage: preciseRound(discountPercentage, 2)
+        });
+    };
+
+    // Recalculate discount amount when items change (subtotal changes)
+    // useEffect(() => {
+    //     // Calculate subtotal from current items directly
+    //     let currentSubTotal = 0;
+    //     items.forEach(item => {
+    //         currentSubTotal += parseFloat(item.amount) || 0;
+    //     });
+
+    //     // Only auto-recalculate if discount percentage is set (not zero)
+    //     if (formData.discountPercentage > 0 && formData.discountPercentage <= 100) {
+    //         const discountAmount = (currentSubTotal * formData.discountPercentage) / 100;
+
+    //         setFormData(prev => ({
+    //             ...prev,
+    //             discountAmount: Math.round(discountAmount * 100) / 100
+    //         }));
+    //     }
+    //     // If discount amount is set (not zero), recalculate percentage
+    //     else if (formData.discountAmount > 0) {
+    //         const discountPercentage = currentSubTotal > 0 ? (formData.discountAmount / currentSubTotal) * 100 : 0;
+
+    //         setFormData(prev => ({
+    //             ...prev,
+    //             discountPercentage: Math.min(Math.max(discountPercentage, 0), 100).toFixed(2)
+    //         }));
+    //     }
+    // }, [items, formData.discountPercentage, formData.discountAmount]); // Add dependencies
 
     useEffect(() => {
         if (roundOffSales && !manualRoundOffOverride) {
@@ -1632,120 +1698,46 @@ const EditCreditSales = () => {
         }
     }, [showTransactionModal]);
 
+
+
     // const handleDiscountPercentageChange = (e) => {
     //     const value = parseFloat(e.target.value) || 0;
     //     const validatedValue = Math.min(Math.max(value, 0), 100);
 
+    //     // Calculate subtotal from current items directly
+    //     let currentSubTotal = 0;
+    //     items.forEach(item => {
+    //         currentSubTotal += parseFloat(item.amount) || 0;
+    //     });
+
+    //     const discountAmount = (currentSubTotal * validatedValue) / 100;
+
     //     setFormData(prev => ({
     //         ...prev,
-    //         discountPercentage: validatedValue
+    //         discountPercentage: validatedValue,
+    //         discountAmount: discountAmount.toFixed(2)
     //     }));
     // };
 
     // const handleDiscountAmountChange = (e) => {
     //     const value = parseFloat(e.target.value) || 0;
-    //     const subTotal = formData.subTotal || 0;
 
-    //     const validatedValue = Math.min(Math.max(value, 0), subTotal);
+    //     // Calculate subtotal from current items directly
+    //     let currentSubTotal = 0;
+    //     items.forEach(item => {
+    //         currentSubTotal += parseFloat(item.amount) || 0;
+    //     });
+
+    //     const validatedValue = Math.min(Math.max(value, 0), currentSubTotal);
+    //     const discountPercentage = currentSubTotal > 0 ? (validatedValue / currentSubTotal) * 100 : 0;
 
     //     setFormData(prev => ({
     //         ...prev,
-    //         discountAmount: validatedValue
+    //         discountAmount: validatedValue,
+    //         discountPercentage: discountPercentage.toFixed(2)
     //     }));
     // };
 
-    const handleDiscountPercentageChange = (e) => {
-        const value = parseFloat(e.target.value) || 0;
-        const validatedValue = Math.min(Math.max(value, 0), 100);
-
-        // Calculate subtotal from current items directly
-        let currentSubTotal = 0;
-        items.forEach(item => {
-            currentSubTotal += parseFloat(item.amount) || 0;
-        });
-
-        const discountAmount = (currentSubTotal * validatedValue) / 100;
-
-        setFormData(prev => ({
-            ...prev,
-            discountPercentage: validatedValue,
-            discountAmount: discountAmount.toFixed(2)
-        }));
-    };
-
-    const handleDiscountAmountChange = (e) => {
-        const value = parseFloat(e.target.value) || 0;
-
-        // Calculate subtotal from current items directly
-        let currentSubTotal = 0;
-        items.forEach(item => {
-            currentSubTotal += parseFloat(item.amount) || 0;
-        });
-
-        const validatedValue = Math.min(Math.max(value, 0), currentSubTotal);
-        const discountPercentage = currentSubTotal > 0 ? (validatedValue / currentSubTotal) * 100 : 0;
-
-        setFormData(prev => ({
-            ...prev,
-            discountAmount: validatedValue,
-            discountPercentage: discountPercentage.toFixed(2)
-        }));
-    };
-
-    // const fetchLastTransactions = async (itemId, index = null) => {
-    //     if (!formData.accountId) {
-    //         setNotification({
-    //             show: true,
-    //             message: 'Please select an account first',
-    //             type: 'error'
-    //         });
-    //         return;
-    //     }
-
-    //     if (index !== null) {
-    //         setSelectedItemIndex(index);
-    //     }
-
-    //     setLoadingItems(prev => new Set(prev).add(itemId));
-    //     setIsLoadingTransactions(true);
-
-    //     try {
-    //         const cacheKey = `${itemId}-${formData.accountId}`;
-
-    //         if (transactionCache.has(cacheKey)) {
-    //             const cachedTransactions = transactionCache.get(cacheKey);
-    //             setTransactions(cachedTransactions);
-    //             setShowTransactionModal(true);
-    //             return;
-    //         }
-
-    //         const controller = new AbortController();
-    //         const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    //         const response = await api.get(`/api/retailer/transactions/${itemId}/${formData.accountId}/Sales`, {
-    //             signal: controller.signal
-    //         });
-
-    //         clearTimeout(timeoutId);
-
-    //         if (response.data.success) {
-    //             setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
-    //             setTransactions(response.data.data.transactions);
-    //             setShowTransactionModal(true);
-    //         }
-    //     } catch (error) {
-    //         if (error.name !== 'AbortError') {
-    //             console.error('Error fetching transactions:', error);
-    //         }
-    //     } finally {
-    //         setLoadingItems(prev => {
-    //             const newSet = new Set(prev);
-    //             newSet.delete(itemId);
-    //             return newSet;
-    //         });
-    //         setIsLoadingTransactions(false);
-    //     }
-    // };
 
     const fetchLastTransactions = async (itemId, index = null) => {
         if (!formData.accountId) {
