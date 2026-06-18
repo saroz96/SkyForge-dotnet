@@ -293,7 +293,7 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using Google.Apis.Util;
 
-namespace SkyForge.Services
+namespace SkyForge.Services.BackupService
 {
     public class GoogleDriveService
     {
@@ -535,3 +535,4 @@ namespace SkyForge.Services
         }
     }
 }
+

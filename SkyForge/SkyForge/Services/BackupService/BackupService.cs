@@ -929,7 +929,7 @@ using SkyForge.Models;
 using System.IO.Compression;
 using Npgsql;
 
-namespace SkyForge.Services
+namespace SkyForge.Services.BackupService
 {
     public enum BackupFormat
     {
@@ -1762,3 +1762,4 @@ namespace SkyForge.Services
         public string ErrorMessage { get; set; }
     }
 }
+

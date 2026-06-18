@@ -44,6 +44,7 @@ using SkyForge.Services.Retailer.StockStatusServices;
 using SkyForge.Services.Retailer.TransactionServices;
 using SkyForge.Models.RoleModel;
 using SkyForge.Services;
+using SkyForge.Services.BackupService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -189,6 +190,7 @@ builder.Services.AddScoped<IFiscalYearTransferService, FiscalYearTransferService
 
 builder.Services.AddScoped<GoogleDriveService>();
 builder.Services.AddScoped<BackupService>();
+builder.Services.AddHostedService<BackupSchedulerService>();
 
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();
