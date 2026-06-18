@@ -168,7 +168,7 @@ const DisasterRecoveryProtocol = () => {
                                 <div className="col-12">
                                     <div className="alert alert-info py-2" style={{ fontSize: '0.8rem' }}>
                                         <i className="bi bi-info-circle me-2"></i>
-                                        <strong>Our Commitment:</strong> We are dedicated to protecting your financial data with enterprise-grade disaster recovery protocols. Your data is backed up, encrypted, and recoverable.
+                                        We are dedicated to protecting your financial data with enterprise-grade disaster recovery protocols. Your data is backed up, encrypted, and recoverable.
                                     </div>
                                 </div>
 

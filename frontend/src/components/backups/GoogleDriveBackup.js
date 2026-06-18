@@ -514,6 +514,14 @@ const GoogleDriveBackup = () => {
                                                         <span className="badge bg-light text-dark ms-1" style={{ fontSize: '0.65rem' }}>{lastBackupCount}</span>
                                                     )}
                                                 </button>
+                                                <button
+                                                    className="btn btn-warning btn-sm"
+                                                    onClick={() => navigate('/disaster-recovery')}
+                                                    style={{ fontSize: '0.75rem' }}
+                                                >
+                                                    <i className="bi bi-shield-check me-1"></i>
+                                                    Disaster Recovery Protocol
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
