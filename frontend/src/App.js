@@ -136,6 +136,7 @@ import ClientDetails from './components/systemOwner/pages/ClientDetails';
 
 import GoogleDriveBackup from './components/backups/GoogleDriveBackup';
 import BackupHistory from './components/backups/BackupHistory';
+import DisasterRecoveryProtocol from './components/backups/DisasterRecoveryProtocol';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
@@ -172,6 +173,8 @@ function AppContent() {
               path="/auth/login"
               element={!currentUser ? <LoginForm /> : <Navigate to="/dashboard" replace />}
             />
+
+            <Route path="/disaster-recovery" element={<DisasterRecoveryProtocol />} />
 
             {/* Protected Routes */}
             <Route path="/dashboard" element={
