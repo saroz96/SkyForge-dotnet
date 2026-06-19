@@ -173,7 +173,7 @@ const DisasterRecoveryProtocol = () => {
                                 </div>
 
                                 {/* Quick Status Cards */}
-                                {/* <div className="col-12 col-md-3">
+                                <div className="col-12 col-md-3">
                                     <div className="card bg-light border">
                                         <div className="card-body text-center py-2">
                                             <h6 className="mb-0 text-muted" style={{ fontSize: '0.7rem' }}>Backup Status</h6>
@@ -182,7 +182,7 @@ const DisasterRecoveryProtocol = () => {
                                             </p>
                                         </div>
                                     </div>
-                                </div> */}
+                                </div>
 
                                 <div className="col-12 col-md-3">
                                     <div className="card bg-light border">
