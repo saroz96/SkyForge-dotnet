@@ -2743,6 +2743,61 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 throw;
             }
         }
+        // private async Task RestoreStockForSalesBillItemsAsync(SalesBill salesBill, Guid companyId)
+        // {
+        //     foreach (var item in salesBill.Items)
+        //     {
+        //         var product = await _context.Items
+        //             .Include(i => i.StockEntries)
+        //             .FirstOrDefaultAsync(i => i.Id == item.ItemId && i.CompanyId == companyId);
+
+        //         if (product == null)
+        //         {
+        //             _logger.LogWarning($"Product with ID {item.ItemId} not found during stock restoration");
+        //             continue;
+        //         }
+
+        //         // Find the batch entry
+        //         var batchEntry = product.StockEntries?
+        //             .FirstOrDefault(e => e.BatchNumber == item.BatchNumber &&
+        //                                 e.UniqueUuid == item.UniqueUuid);
+
+        //         if (batchEntry != null)
+        //         {
+        //             // Restore stock
+        //             batchEntry.Quantity += item.Quantity;
+        //             batchEntry.UpdatedAt = DateTime.UtcNow;
+        //             _context.StockEntries.Update(batchEntry);
+        //             _logger.LogInformation($"Restored {item.Quantity} stock for item {product.Name}, batch {item.BatchNumber}");
+        //         }
+        //         else
+        //         {
+        //             // If batch doesn't exist, create a new one
+        //             var newStockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = product.Id,
+        //                 BatchNumber = item.BatchNumber,
+        //                 UniqueUuid = item.UniqueUuid ?? Guid.NewGuid().ToString(),
+        //                 Quantity = item.Quantity,
+        //                 PuPrice = item.PuPrice ?? 0,
+        //                 Price = item.Price,
+        //                 Mrp = item.Mrp ?? 0,
+        //                 ExpiryDate = item.ExpiryDate ?? default(DateOnly),
+        //                 Date = item.Date,
+        //                 NepaliDate = item.NepaliDate,
+
+        //             };
+        //             await _context.StockEntries.AddAsync(newStockEntry);
+        //             _logger.LogInformation($"Created new stock entry for item {product.Name}, batch {item.BatchNumber} with quantity {item.Quantity}");
+        //         }
+        //     }
+
+        //     await _context.SaveChangesAsync();
+        // }
+
+        // Helper method to reduce stock
+
         private async Task RestoreStockForSalesBillItemsAsync(SalesBill salesBill, Guid companyId)
         {
             foreach (var item in salesBill.Items)
@@ -2777,6 +2832,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     {
                         Id = Guid.NewGuid(),
                         ItemId = product.Id,
+                        CompanyId = companyId,  // <-- CRITICAL FIX: Set CompanyId
                         BatchNumber = item.BatchNumber,
                         UniqueUuid = item.UniqueUuid ?? Guid.NewGuid().ToString(),
                         Quantity = item.Quantity,
@@ -2786,7 +2842,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         ExpiryDate = item.ExpiryDate ?? default(DateOnly),
                         Date = item.Date,
                         NepaliDate = item.NepaliDate,
-
+                        // Add any other required properties
                     };
                     await _context.StockEntries.AddAsync(newStockEntry);
                     _logger.LogInformation($"Created new stock entry for item {product.Name}, batch {item.BatchNumber} with quantity {item.Quantity}");
@@ -2796,7 +2852,6 @@ namespace SkyForge.Services.Retailer.SalesBillServices
             await _context.SaveChangesAsync();
         }
 
-        // Helper method to reduce stock
         private async Task ReduceStockForSalesBillItemAsync(Item product, string batchNumber, decimal quantity, string uniqueUuid)
         {
             if (product.StockEntries == null || !product.StockEntries.Any())
@@ -5808,7 +5863,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
         //         throw;
         //     }
         // }
-    
+
     }
 }
 
