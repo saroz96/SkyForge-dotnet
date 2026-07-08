@@ -177,11 +177,9 @@ namespace SkyForge.Migrations
 
                     b.HasIndex("AccountGroupsId");
 
-                    b.HasIndex("CompanyId");
-
                     b.HasIndex("OriginalFiscalYearId");
 
-                    b.HasIndex("UniqueNumber")
+                    b.HasIndex("CompanyId", "UniqueNumber")
                         .IsUnique();
 
                     b.HasIndex("Name", "CompanyId")
@@ -350,6 +348,101 @@ namespace SkyForge.Migrations
                     b.HasIndex("FiscalYearId");
 
                     b.ToTable("OpeningBalanceByFiscalYear");
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Audit.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Action")
+                        .HasMaxLength(50)
+                        .HasColumnType("integer");
+
+                    b.Property<string>("BillNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ClientVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("EntityName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("EntityType")
+                        .HasMaxLength(50)
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IPAddress")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("NewValues")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("OldValues")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("RequestMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("RequestPath")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("SessionId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Action");
+
+                    b.HasIndex("BillNumber");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("EntityId");
+
+                    b.HasIndex("EntityType");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CreatedAt", "CompanyId");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("SkyForge.Models.BackupHistory", b =>
@@ -1325,10 +1418,6 @@ namespace SkyForge.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BarcodeNumber")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Item_BarcodeNumber");
-
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("ItemsCompanyId");
@@ -1340,11 +1429,11 @@ namespace SkyForge.Migrations
 
                     b.HasIndex("OriginalFiscalYearId");
 
-                    b.HasIndex("UniqueNumber")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Item_UniqueNumber");
-
                     b.HasIndex("UnitId");
+
+                    b.HasIndex("CompanyId", "BarcodeNumber")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Item_Company_BarcodeNumber");
 
                     b.HasIndex("CompanyId", "CategoryId")
                         .HasDatabaseName("IX_Item_Company_Category");
@@ -1356,6 +1445,7 @@ namespace SkyForge.Migrations
                         .HasDatabaseName("IX_Item_Company_Name");
 
                     b.HasIndex("CompanyId", "UniqueNumber")
+                        .IsUnique()
                         .HasDatabaseName("IX_Item_Company_UniqueNumber");
 
                     b.HasIndex("CompanyId", "VatStatus")
@@ -4963,6 +5053,25 @@ namespace SkyForge.Migrations
                     b.Navigation("Company");
 
                     b.Navigation("FiscalYear");
+                });
+
+            modelBuilder.Entity("SkyForge.Models.Audit.AuditLog", b =>
+                {
+                    b.HasOne("SkyForge.Models.CompanyModel.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SkyForge.Models.UserModel.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SkyForge.Models.BackupHistory", b =>

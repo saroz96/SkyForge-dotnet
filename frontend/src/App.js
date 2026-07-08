@@ -96,7 +96,7 @@ import EditJournalVoucher from './components/retailer/journal/EditJournal';
 import JournalVoucherNumberForm from './components/retailer/journal/VoucherNumber';
 import VoucherConfiguration from './components/retailer/settings/VoucherConfiguration';
 import EditPurcRtn from './components/retailer/purchaseReturn/EditPurcRtn';
-import NetworkStatus from './components/NetworkStatus';
+// import NetworkStatus from './components/NetworkStatus';
 import PurchaseReturnVoucherNumber from './components/retailer/purchaseReturn/VoucherNumber';
 import InvoiceWiseProfitLossReport from './components/retailer/InvoiceProfitLossReport';
 import DailyProfit from './components/retailer/dailyProfitAnalysis/DailyProfit';
@@ -137,6 +137,7 @@ import ClientDetails from './components/systemOwner/pages/ClientDetails';
 import GoogleDriveBackup from './components/backups/GoogleDriveBackup';
 import BackupHistory from './components/backups/BackupHistory';
 import DisasterRecoveryProtocol from './components/backups/DisasterRecoveryProtocol';
+import AuditLogs from './components/audit/AuditLogs';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
@@ -155,10 +156,10 @@ function AppContent() {
   return (
 
     <Router>
-      <NetworkStatus
+      {/* <NetworkStatus
         pingUrl="/api/health/ping"
         apiBaseUrl={API_BASE_URL}
-      />
+      /> */}
       <BackgroundWrapper>
         <PageNotRefreshProvider>
           <Routes>
@@ -1105,8 +1106,17 @@ function AppContent() {
             <Route path="/backup" element={<GoogleDriveBackup />} />
             <Route path="/backup-history" element={<BackupHistory />} />
 
+            {/**===================== User Log Activity ================ */}
+
+            < Route path="/user-logs" element={
+              <ProtectedRoute>
+                <AuditLogs />
+              </ProtectedRoute>
+            }
+            />
+
             {/**======================System Owner */}
-            <Route
+            < Route
               path="/admin-clients"
               element={
                 <ProtectedRoute>

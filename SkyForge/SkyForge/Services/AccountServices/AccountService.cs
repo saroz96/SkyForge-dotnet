@@ -761,7 +761,7 @@ namespace SkyForge.Services.AccountServices
                     ("Salary", "Expenses (Indirect/Admn.)", "Revenue Accounts"),
                     ("Salary & Bonus Payable", "Provisions/Expenses Payable", "Current Liabilities"),
                     ("Sales", "Sale", "Revenue Accounts"),
-                    ("Stock", "Stock in hand", "Current Assets"),
+                    ("Stock", "Stock in Hand", "Current Assets"),
                     ("Sales Promotion Expenses", "Expenses (Indirect/Admn.)", "Revenue Accounts"),
                     ("Service Charges Paid", "Expenses (Indirect/Admn.)", "Revenue Accounts"),
                     ("Service Charges Receipts", "Income (Indirect)", "Revenue Accounts"),

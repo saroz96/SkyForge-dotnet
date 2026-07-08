@@ -2743,6 +2743,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 throw;
             }
         }
+
         // private async Task RestoreStockForSalesBillItemsAsync(SalesBill salesBill, Guid companyId)
         // {
         //     foreach (var item in salesBill.Items)
@@ -2777,6 +2778,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
         //             {
         //                 Id = Guid.NewGuid(),
         //                 ItemId = product.Id,
+        //                 CompanyId = companyId,  // <-- CRITICAL FIX: Set CompanyId
         //                 BatchNumber = item.BatchNumber,
         //                 UniqueUuid = item.UniqueUuid ?? Guid.NewGuid().ToString(),
         //                 Quantity = item.Quantity,
@@ -2786,7 +2788,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
         //                 ExpiryDate = item.ExpiryDate ?? default(DateOnly),
         //                 Date = item.Date,
         //                 NepaliDate = item.NepaliDate,
-
+        //                 // Add any other required properties
         //             };
         //             await _context.StockEntries.AddAsync(newStockEntry);
         //             _logger.LogInformation($"Created new stock entry for item {product.Name}, batch {item.BatchNumber} with quantity {item.Quantity}");
@@ -2796,10 +2798,11 @@ namespace SkyForge.Services.Retailer.SalesBillServices
         //     await _context.SaveChangesAsync();
         // }
 
-        // Helper method to reduce stock
-
         private async Task RestoreStockForSalesBillItemsAsync(SalesBill salesBill, Guid companyId)
         {
+            // Get the fiscal year ID from the sales bill
+            var fiscalYearId = salesBill.FiscalYearId;
+
             foreach (var item in salesBill.Items)
             {
                 var product = await _context.Items
@@ -2822,17 +2825,23 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     // Restore stock
                     batchEntry.Quantity += item.Quantity;
                     batchEntry.UpdatedAt = DateTime.UtcNow;
+                    // ✅ Ensure FiscalYearId is set correctly
+                    if (batchEntry.FiscalYearId == Guid.Empty || batchEntry.FiscalYearId == null)
+                    {
+                        batchEntry.FiscalYearId = fiscalYearId;
+                    }
                     _context.StockEntries.Update(batchEntry);
                     _logger.LogInformation($"Restored {item.Quantity} stock for item {product.Name}, batch {item.BatchNumber}");
                 }
                 else
                 {
-                    // If batch doesn't exist, create a new one
+                    // If batch doesn't exist, create a new one with correct FiscalYearId
                     var newStockEntry = new StockEntry
                     {
                         Id = Guid.NewGuid(),
                         ItemId = product.Id,
-                        CompanyId = companyId,  // <-- CRITICAL FIX: Set CompanyId
+                        CompanyId = companyId,
+                        FiscalYearId = fiscalYearId, // ✅ CRITICAL FIX: Set FiscalYearId
                         BatchNumber = item.BatchNumber,
                         UniqueUuid = item.UniqueUuid ?? Guid.NewGuid().ToString(),
                         Quantity = item.Quantity,
@@ -2842,10 +2851,12 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         ExpiryDate = item.ExpiryDate ?? default(DateOnly),
                         Date = item.Date,
                         NepaliDate = item.NepaliDate,
-                        // Add any other required properties
+                        WsUnit = 0, // Set appropriate default
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
                     };
                     await _context.StockEntries.AddAsync(newStockEntry);
-                    _logger.LogInformation($"Created new stock entry for item {product.Name}, batch {item.BatchNumber} with quantity {item.Quantity}");
+                    _logger.LogInformation($"Created new stock entry for item {product.Name}, batch {item.BatchNumber} with quantity {item.Quantity} for fiscal year {fiscalYearId}");
                 }
             }
 

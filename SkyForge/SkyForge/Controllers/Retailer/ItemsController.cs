@@ -1037,7 +1037,7 @@ namespace SkyForge.Controllers.Retailer
                 decimal salesPrice = 0;
                 decimal purchasePrice = 0;
 
-                // Check if item has openingStocksByFiscalYear array
+                // ✅ FIX: Get opening stock from ItemOpeningStockByFiscalYear for current fiscal year
                 if (item.OpeningStocksByFiscalYear != null && item.OpeningStocksByFiscalYear.Any())
                 {
                     var openingStockForFiscalYear = item.OpeningStocksByFiscalYear
@@ -1047,9 +1047,26 @@ namespace SkyForge.Controllers.Retailer
                     {
                         openingStock = openingStockForFiscalYear.OpeningStock;
                         openingStockValue = openingStockForFiscalYear.OpeningStockValue;
-                        salesPrice = openingStockForFiscalYear.SalesPrice;
-                        purchasePrice = openingStockForFiscalYear.PurchasePrice;
+                        salesPrice = openingStockForFiscalYear.SalesPrice;        // ✅ Get from opening stock record
+                        purchasePrice = openingStockForFiscalYear.PurchasePrice;  // ✅ Get from opening stock record
+
+                        _logger.LogInformation($"Using opening stock from fiscal year {currentFiscalYear.Name}: " +
+                            $"OpeningStock={openingStock}, SalesPrice={salesPrice}, PurchasePrice={purchasePrice}");
                     }
+                    else
+                    {
+                        // Fallback to item's default prices if no opening stock record for this fiscal year
+                        salesPrice = item.Price ?? 0;
+                        purchasePrice = item.PuPrice ?? 0;
+                        _logger.LogWarning($"No opening stock for fiscal year {currentFiscalYear.Name}, using default prices");
+                    }
+                }
+                else
+                {
+                    // No opening stock records found, use item's default prices
+                    salesPrice = item.Price ?? 0;
+                    purchasePrice = item.PuPrice ?? 0;
+                    _logger.LogWarning("No OpeningStocksByFiscalYear found for item {ItemId}, using default prices", item.Id);
                 }
 
                 // 10. Process stock entries with null checks
@@ -1181,7 +1198,7 @@ namespace SkyForge.Controllers.Retailer
                     _logger.LogWarning("No OpeningStocksByFiscalYear found for item {ItemId}", item.Id);
                 }
 
-                // 18. Prepare the response
+                // 18. Prepare the response with detailed stock info
                 var responseData = new
                 {
                     success = true,
@@ -1230,6 +1247,7 @@ namespace SkyForge.Controllers.Retailer
                             barcodeNumber = item.BarcodeNumber,
                             uniqueNumber = item.UniqueNumber,
                             reorderLevel = item.ReorderLevel,
+                            openingStock = item.OpeningStock,
                             createdAt = item.CreatedAt,
                             stockEntries = item.StockEntries,
                             compositions = compositions,
@@ -1238,10 +1256,10 @@ namespace SkyForge.Controllers.Retailer
                         hasTransactions = hasTransactions,
                         stockInfo = new
                         {
-                            openingStock,
-                            openingStockValue,
-                            salesPrice,
-                            purchasePrice
+                            openingStock,           // ✅ From opening stock record
+                            openingStockValue,      // ✅ From opening stock record
+                            salesPrice,             // ✅ From opening stock record (or fallback)
+                            purchasePrice           // ✅ From opening stock record (or fallback)
                         },
                         stockEntries,
                         printPreferences,
@@ -1255,6 +1273,7 @@ namespace SkyForge.Controllers.Retailer
                 };
 
                 _logger.LogInformation($"Successfully fetched item details: {item.Name} (ID: {item.Id})");
+                _logger.LogInformation($"Stock Info - OpeningStock: {openingStock}, SalesPrice: {salesPrice}, PurchasePrice: {purchasePrice}");
 
                 return Ok(responseData);
             }

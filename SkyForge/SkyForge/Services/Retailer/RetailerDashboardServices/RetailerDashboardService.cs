@@ -140,7 +140,7 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                 var totalPurchaseReturnResult = await GetTotalPurchaseReturnAsync(companyId, startDate, endDate);
 
                 // FIXED: Get total stock value using proper calculation
-                var totalStockValueResult = await GetTotalStockValueAsync(companyId, fiscalYearGuid);
+                var totalStockValueResult = await GetTotalStockValueAsync(companyId);
 
                 var cashAccount = await GetCashAccountAsync(companyId);
 
@@ -203,11 +203,11 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
         }
 
         // FIXED: Proper stock value calculation using StockEntries
-        private async Task<decimal> GetTotalStockValueAsync(Guid companyId, Guid fiscalYearId)
+        private async Task<decimal> GetTotalStockValueAsync(Guid companyId)
         {
             try
             {
-                _logger.LogInformation("Calculating total stock value for company {CompanyId}, fiscal year {FiscalYearId}", companyId, fiscalYearId);
+                _logger.LogInformation("Calculating total stock value for company {CompanyId}", companyId);
 
                 // Get all stock entries for active items in this fiscal year
                 var stockEntries = await _context.StockEntries
@@ -216,8 +216,7 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                     .Where(se => se.Item != null &&
                                 se.Item.CompanyId == companyId &&
                                 se.Item.Status == "active" &&
-                                se.Quantity > 0 &&
-                                se.FiscalYearId == fiscalYearId)
+                                se.Quantity > 0)
                     .ToListAsync();
 
                 // Calculate total value: Sum of (Quantity × PuPrice)

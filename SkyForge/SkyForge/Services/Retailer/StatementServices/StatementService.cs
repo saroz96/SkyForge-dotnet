@@ -346,6 +346,123 @@ namespace SkyForge.Services.Retailer.StatementServices
             return query;
         }
 
+        // private async Task<decimal> CalculateOpeningBalanceAsync(
+        //     Guid companyId,
+        //     Guid accountId,
+        //     DateTime? fromDate,
+        //     InitialOpeningBalanceDTO initialOpeningBalance,
+        //     string? paymentMode)
+        // {
+        //     // Start with initial opening balance
+        //     decimal openingBalance = initialOpeningBalance.Type == "Dr"
+        //         ? initialOpeningBalance.Amount
+        //         : -initialOpeningBalance.Amount;
+
+        //     if (fromDate.HasValue)
+        //     {
+        //         var fromDateOnly = fromDate.Value.Date;
+
+        //         // Get all transactions before the fromDate - ALWAYS use Date field (AD dates)
+        //         var openingBalanceQuery = _context.Transactions
+        //             .Where(t => t.CompanyId == companyId &&
+        //                        t.IsActive &&
+        //                        t.Date.Date < fromDateOnly &&
+        //                        (t.AccountId == accountId ||
+        //                         t.PaymentAccountId2 == accountId ||
+        //                         t.ReceiptAccountId2 == accountId ||
+        //                         t.DebitAccountId == accountId ||
+        //                         t.CreditAccountId == accountId));
+
+        //         if (paymentMode == "exclude-cash")
+        //         {
+        //             openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
+        //         }
+
+        //         // Order by date
+        //         openingBalanceQuery = openingBalanceQuery.OrderBy(t => t.Date).ThenBy(t => t.CreatedAt);
+
+        //         var transactionsBeforeFromDate = await openingBalanceQuery.ToListAsync();
+
+        //         var processedTransactions = new HashSet<string>();
+
+        //         foreach (var tx in transactionsBeforeFromDate)
+        //         {
+        //             var txIdentifier = $"{tx.Date}-{tx.Type}-{tx.BillNumber}-{tx.TotalDebit}-{tx.TotalCredit}";
+
+        //             if (!processedTransactions.Contains(txIdentifier))
+        //             {
+        //                 processedTransactions.Add(txIdentifier);
+
+        //                 decimal amount = 0;
+
+        //                 if (tx.AccountId == accountId)
+        //                 {
+        //                     amount = tx.TotalDebit - tx.TotalCredit;
+        //                 }
+        //                 else if (tx.PaymentAccountId2 == accountId)
+        //                 {
+        //                     amount = -tx.TotalCredit;
+        //                 }
+        //                 else if (tx.ReceiptAccountId2 == accountId)
+        //                 {
+        //                     amount = tx.TotalDebit;
+        //                 }
+        //                 else if (tx.DebitAccountId == accountId)
+        //                 {
+        //                     amount = tx.TotalDebit;
+        //                 }
+        //                 else if (tx.CreditAccountId == accountId)
+        //                 {
+        //                     amount = -tx.TotalCredit;
+        //                 }
+
+        //                 openingBalance += amount;
+        //             }
+        //         }
+        //     }
+
+        //     return openingBalance;
+        // }
+
+        /// <summary>
+        /// Account groups that should have opening balances from previous fiscal years (Real Accounts)
+        /// These are Balance Sheet accounts that carry forward
+        /// </summary>
+        private static readonly HashSet<string> _realAccountGroups = new HashSet<string>
+    {
+    "Sundry Debtors",
+    "Sundry Creditors",
+    "Cash in Hand",
+    "Bank Accounts",
+    "Bank O/D Account",
+    "Stock in Hand",
+    "Fixed Assets",
+    "Capital Account",
+    "Current Liabilities",
+    "Investments",
+    "Loans(Liability)",
+    "Secured Loans",
+    "Unsecured Loans",
+    "Reserves & Surplus",
+    "Securities & Deposits",
+    "Loans & Advances",
+    "Provisions/Expenses Payable"
+};
+
+        /// <summary>
+        /// Account groups that should NOT have opening balances (Nominal Accounts)
+        /// These are Income Statement accounts that start from zero each fiscal year
+        /// </summary>
+        private static readonly HashSet<string> _nominalAccountGroups = new HashSet<string>
+{
+    "Purchase",
+    "Sale",
+    "Expenses (Direct/Mfg.)",
+    "Expenses (Indirect/Admn.)",
+    "Income (Direct/Opr.)",
+    "Income (Indirect)"
+};
+
         private async Task<decimal> CalculateOpeningBalanceAsync(
             Guid companyId,
             Guid accountId,
@@ -353,75 +470,169 @@ namespace SkyForge.Services.Retailer.StatementServices
             InitialOpeningBalanceDTO initialOpeningBalance,
             string? paymentMode)
         {
-            // Start with initial opening balance
-            decimal openingBalance = initialOpeningBalance.Type == "Dr"
-                ? initialOpeningBalance.Amount
-                : -initialOpeningBalance.Amount;
-
-            if (fromDate.HasValue)
+            try
             {
-                var fromDateOnly = fromDate.Value.Date;
+                // 1. Get the account with its account group
+                var account = await _context.Accounts
+                    .Include(a => a.AccountGroup)
+                    .FirstOrDefaultAsync(a => a.Id == accountId && a.CompanyId == companyId);
 
-                // Get all transactions before the fromDate - ALWAYS use Date field (AD dates)
-                var openingBalanceQuery = _context.Transactions
-                    .Where(t => t.CompanyId == companyId &&
-                               t.IsActive &&
-                               t.Date.Date < fromDateOnly &&
-                               (t.AccountId == accountId ||
-                                t.PaymentAccountId2 == accountId ||
-                                t.ReceiptAccountId2 == accountId ||
-                                t.DebitAccountId == accountId ||
-                                t.CreditAccountId == accountId));
-
-                if (paymentMode == "exclude-cash")
+                if (account == null)
                 {
-                    openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
+                    _logger.LogWarning($"Account {accountId} not found");
+                    return 0;
                 }
 
-                // Order by date
-                openingBalanceQuery = openingBalanceQuery.OrderBy(t => t.Date).ThenBy(t => t.CreatedAt);
+                var accountGroupName = account.AccountGroup?.Name ?? string.Empty;
 
-                var transactionsBeforeFromDate = await openingBalanceQuery.ToListAsync();
-
-                var processedTransactions = new HashSet<string>();
-
-                foreach (var tx in transactionsBeforeFromDate)
+                // 2. Check if this is a nominal account (should NOT have opening balance from previous fiscal year)
+                if (_nominalAccountGroups.Contains(accountGroupName))
                 {
-                    var txIdentifier = $"{tx.Date}-{tx.Type}-{tx.BillNumber}-{tx.TotalDebit}-{tx.TotalCredit}";
+                    _logger.LogInformation($"Account {account.Name} is a nominal account. Opening balance starts from 0.");
 
-                    if (!processedTransactions.Contains(txIdentifier))
+                    // For nominal accounts, opening balance is 0 (they start fresh each fiscal year)
+                    // But if the user has selected a date range within the current fiscal year,
+                    // we need to calculate the balance from the start of the fiscal year to the fromDate
+                    if (fromDate.HasValue)
                     {
-                        processedTransactions.Add(txIdentifier);
+                        // Get the current fiscal year for this company
+                        var currentFiscalYear = await _context.FiscalYears
+                            .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
 
-                        decimal amount = 0;
+                        if (currentFiscalYear != null)
+                        {
+                            // Calculate balance from the start of the fiscal year to the fromDate
+                            var fiscalYearStart = currentFiscalYear.StartDate ?? DateTime.UtcNow;
 
-                        if (tx.AccountId == accountId)
-                        {
-                            amount = tx.TotalDebit - tx.TotalCredit;
-                        }
-                        else if (tx.PaymentAccountId2 == accountId)
-                        {
-                            amount = -tx.TotalCredit;
-                        }
-                        else if (tx.ReceiptAccountId2 == accountId)
-                        {
-                            amount = tx.TotalDebit;
-                        }
-                        else if (tx.DebitAccountId == accountId)
-                        {
-                            amount = tx.TotalDebit;
-                        }
-                        else if (tx.CreditAccountId == accountId)
-                        {
-                            amount = -tx.TotalCredit;
-                        }
+                            var openingBalanceQuery = _context.Transactions
+                                .Where(t => t.CompanyId == companyId &&
+                                           t.IsActive &&
+                                           t.FiscalYearId == currentFiscalYear.Id &&
+                                           t.Date.Date >= fiscalYearStart.Date &&
+                                           t.Date.Date < fromDate.Value.Date &&
+                                           (t.AccountId == accountId ||
+                                            t.PaymentAccountId2 == accountId ||
+                                            t.ReceiptAccountId2 == accountId ||
+                                            t.DebitAccountId == accountId ||
+                                            t.CreditAccountId == accountId));
 
-                        openingBalance += amount;
+                            if (paymentMode == "exclude-cash")
+                            {
+                                openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
+                            }
+
+                            var transactions = await openingBalanceQuery.ToListAsync();
+
+                            decimal balance = 0;
+                            foreach (var tx in transactions)
+                            {
+                                if (tx.AccountId == accountId)
+                                {
+                                    balance += tx.TotalDebit - tx.TotalCredit;
+                                }
+                                else if (tx.PaymentAccountId2 == accountId)
+                                {
+                                    balance -= tx.TotalCredit;
+                                }
+                                else if (tx.ReceiptAccountId2 == accountId)
+                                {
+                                    balance += tx.TotalDebit;
+                                }
+                                else if (tx.DebitAccountId == accountId)
+                                {
+                                    balance += tx.TotalDebit;
+                                }
+                                else if (tx.CreditAccountId == accountId)
+                                {
+                                    balance -= tx.TotalCredit;
+                                }
+                            }
+
+                            return balance;
+                        }
+                    }
+
+                    return 0;
+                }
+
+                // 3. For REAL accounts (Balance Sheet accounts), calculate opening balance
+                // Start with initial opening balance (from previous fiscal year)
+                decimal openingBalance = initialOpeningBalance.Type == "Dr"
+                    ? initialOpeningBalance.Amount
+                    : -initialOpeningBalance.Amount;
+
+                _logger.LogInformation($"Account {account.Name} is a real account. Initial opening balance: {openingBalance}");
+
+                if (fromDate.HasValue)
+                {
+                    var fromDateOnly = fromDate.Value.Date;
+
+                    // Get all transactions before the fromDate
+                    var openingBalanceQuery = _context.Transactions
+                        .Where(t => t.CompanyId == companyId &&
+                                   t.IsActive &&
+                                   t.Date.Date < fromDateOnly &&
+                                   (t.AccountId == accountId ||
+                                    t.PaymentAccountId2 == accountId ||
+                                    t.ReceiptAccountId2 == accountId ||
+                                    t.DebitAccountId == accountId ||
+                                    t.CreditAccountId == accountId));
+
+                    if (paymentMode == "exclude-cash")
+                    {
+                        openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
+                    }
+
+                    var transactionsBeforeFromDate = await openingBalanceQuery
+                        .OrderBy(t => t.Date)
+                        .ThenBy(t => t.CreatedAt)
+                        .ToListAsync();
+
+                    var processedTransactions = new HashSet<string>();
+
+                    foreach (var tx in transactionsBeforeFromDate)
+                    {
+                        var txIdentifier = $"{tx.Date}-{tx.Type}-{tx.BillNumber}-{tx.TotalDebit}-{tx.TotalCredit}";
+
+                        if (!processedTransactions.Contains(txIdentifier))
+                        {
+                            processedTransactions.Add(txIdentifier);
+
+                            decimal amount = 0;
+
+                            if (tx.AccountId == accountId)
+                            {
+                                amount = tx.TotalDebit - tx.TotalCredit;
+                            }
+                            else if (tx.PaymentAccountId2 == accountId)
+                            {
+                                amount = -tx.TotalCredit;
+                            }
+                            else if (tx.ReceiptAccountId2 == accountId)
+                            {
+                                amount = tx.TotalDebit;
+                            }
+                            else if (tx.DebitAccountId == accountId)
+                            {
+                                amount = tx.TotalDebit;
+                            }
+                            else if (tx.CreditAccountId == accountId)
+                            {
+                                amount = -tx.TotalCredit;
+                            }
+
+                            openingBalance += amount;
+                        }
                     }
                 }
-            }
 
-            return openingBalance;
+                return openingBalance;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error calculating opening balance for account {accountId}");
+                return 0;
+            }
         }
 
         private async Task<List<Transaction>> GetFilteredTransactionsAsync(IQueryable<Transaction> query)

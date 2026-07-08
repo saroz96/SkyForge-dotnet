@@ -30,7 +30,7 @@ using SkyForge.Models.UserModel;
 using SkyForge.Models.Retailer.StockAdjustmentModel;
 using System.Text.Json;
 using SkyForge.Models.Retailer.SalesQuotationModel;
-
+using SkyForge.Models.Audit;
 namespace SkyForge.Data
 {
     public class ApplicationDbContext : DbContext
@@ -94,6 +94,8 @@ namespace SkyForge.Data
         public DbSet<BillCounter> BillCounters { get; set; } = null!;
 
         public DbSet<BackupHistory> BackupHistories { get; set; }
+
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -1131,8 +1133,10 @@ namespace SkyForge.Data
                       .IsUnique();
 
                 // Generate unique 4-digit number
-                entity.HasIndex(e => e.UniqueNumber)
-                      .IsUnique();
+                // entity.HasIndex(e => e.UniqueNumber)
+                //       .IsUnique();
+
+                entity.HasIndex(e => new { e.CompanyId, e.UniqueNumber }).IsUnique();
 
                 // Relationships
                 entity.HasOne(e => e.AccountGroup)
@@ -1379,13 +1383,13 @@ namespace SkyForge.Data
                     .HasDatabaseName("IX_Item_Name_Company_FiscalYear");
 
                 // Unique constraints
-                entity.HasIndex(e => e.UniqueNumber)
+                entity.HasIndex(e => new { e.CompanyId, e.UniqueNumber })
                     .IsUnique()
-                    .HasDatabaseName("IX_Item_UniqueNumber");
+                    .HasDatabaseName("IX_Item_Company_UniqueNumber");
 
-                entity.HasIndex(e => e.BarcodeNumber)
+                entity.HasIndex(e => new { e.CompanyId, e.BarcodeNumber })
                     .IsUnique()
-                    .HasDatabaseName("IX_Item_BarcodeNumber");
+                    .HasDatabaseName("IX_Item_Company_BarcodeNumber");
 
                 // Text search index
                 entity.HasIndex(e => e.Name)
@@ -2123,6 +2127,20 @@ namespace SkyForge.Data
                       .WithMany()
                       .HasForeignKey(e => e.CompanyId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // AuditLog configuration
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.CompanyId);
+                entity.HasIndex(e => e.Action);
+                entity.HasIndex(e => e.EntityType);
+                entity.HasIndex(e => e.EntityId);
+                entity.HasIndex(e => e.CreatedAt);
+                entity.HasIndex(e => e.BillNumber);
+                entity.HasIndex(e => new { e.CreatedAt, e.CompanyId });
+                entity.HasIndex(e => new { e.UserId, e.CreatedAt });
             });
         }
 

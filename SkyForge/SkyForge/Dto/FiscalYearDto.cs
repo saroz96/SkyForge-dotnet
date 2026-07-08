@@ -173,6 +173,8 @@ namespace SkyForge.Dto
         public int ItemsCopied { get; set; }
         public int AccountsCopied { get; set; }
         public int TransactionsFoundForCopy { get; set; }
+        public int StockEntriesCopied { get; set; }
+        public int OpeningBalancesCopied { get; set; }
     }
 
     public class DeletionStatsDto

@@ -1,310 +1,14 @@
-// import { useState, useCallback } from 'react';
-
-// const useCompanySplit = () => {
-//     const [loading, setLoading] = useState(false);
-//     const [error, setError] = useState(null);
-//     const [progress, setProgress] = useState(0);
-//     const [processLog, setProcessLog] = useState([]);
-
-//     const addToLog = useCallback((message) => {
-//         const timestamp = new Date().toLocaleTimeString();
-//         setProcessLog(prev => [...prev, { timestamp, message }]);
-//     }, []);
-
-//     // Regular POST request (non-SSE)
-//     const splitCompany = useCallback(async (splitData) => {
-//         setLoading(true);
-//         setError(null);
-//         setProgress(0);
-//         setProcessLog([]);
-
-//         try {
-//             addToLog('Starting company split process...');
-
-//             const response = await fetch('/api/split-fiscal-year', {
-//                 method: 'POST',
-//                 headers: {
-//                     'Content-Type': 'application/json',
-//                 },
-//                 credentials: 'include',
-//                 body: JSON.stringify(splitData)
-//             });
-
-//             if (!response.ok) {
-//                 throw new Error(`HTTP error! status: ${response.status}`);
-//             }
-
-//             const result = await response.json();
-
-//             if (result.success) {
-//                 addToLog('Company split completed successfully!');
-//                 return result;
-//             } else {
-//                 throw new Error(result.error);
-//             }
-//         } catch (err) {
-//             const errorMsg = err.message || 'Failed to split company';
-//             setError(errorMsg);
-//             addToLog(`Error: ${errorMsg}`);
-//             throw err;
-//         } finally {
-//             setLoading(false);
-//         }
-//     }, [addToLog]);
-
-//     // SSE version for GET request
-//     const splitCompanyWithSSE = useCallback((splitData) => {
-//         return new Promise((resolve, reject) => {
-//             setLoading(true);
-//             setError(null);
-//             setProgress(0);
-//             setProcessLog([]);
-
-//             // Create URL with query parameters for GET request
-//             const params = new URLSearchParams();
-//             params.append('sourceCompanyId', splitData.sourceCompanyId);
-//             params.append('fiscalYearId', splitData.fiscalYearId);
-//             params.append('newCompanyName', splitData.newCompanyName);
-//             params.append('deleteAfterSplit', splitData.deleteAfterSplit.toString());
-
-//             const url = `/api/split-fiscal-year?${params.toString()}`;
-
-//             console.log('SSE GET URL:', url);
-
-//             const eventSource = new EventSource(url, {
-//                 withCredentials: true
-//             });
-
-//             eventSource.onopen = () => {
-//                 addToLog('Connected to server, starting company split...');
-//             };
-
-//             eventSource.onmessage = (event) => {
-//                 try {
-//                     const data = JSON.parse(event.data);
-//                     console.log('SSE Data received:', data);
-
-//                     if (data.type === 'progress') {
-//                         setProgress(data.value);
-//                         if (data.message) addToLog(data.message);
-//                     } else if (data.type === 'complete') {
-//                         eventSource.close();
-//                         setLoading(false);
-//                         addToLog('Company split completed successfully!');
-//                         resolve(data);
-//                     } else if (data.type === 'error') {
-//                         eventSource.close();
-//                         setLoading(false);
-//                         setError(data.error);
-//                         addToLog(`Error: ${data.error}`);
-//                         reject(new Error(data.error));
-//                     }
-//                 } catch (parseError) {
-//                     console.error('Error parsing SSE data:', parseError);
-//                 }
-//             };
-
-//             eventSource.onerror = (error) => {
-//                 console.error('SSE Error:', error);
-//                 eventSource.close();
-//                 setLoading(false);
-//                 const errorMsg = 'Connection to server failed';
-//                 setError(errorMsg);
-//                 addToLog(`Error: ${errorMsg}`);
-//                 reject(new Error(errorMsg));
-//             };
-//         });
-//     }, [addToLog]);
-
-//     const reset = useCallback(() => {
-//         setLoading(false);
-//         setError(null);
-//         setProgress(0);
-//         setProcessLog([]);
-//     }, []);
-
-//     return {
-//         loading,
-//         error,
-//         progress,
-//         processLog,
-//         splitCompany,
-//         splitCompanyWithSSE,
-//         reset,
-//         addToLog
-//     };
-// };
-
-// export default useCompanySplit;
-
-//-------------------------------------------------------end
-
-// // hooks/useCompanySplit.js
-// import { useState, useCallback } from 'react';
-// import axios from 'axios';
-
-// const useCompanySplit = () => {
-//     const [loading, setLoading] = useState(false);
-//     const [error, setError] = useState(null);
-//     const [progress, setProgress] = useState(0);
-//     const [processLog, setProcessLog] = useState([]);
-
-//     const addToLog = useCallback((message) => {
-//         const timestamp = new Date().toLocaleTimeString();
-//         setProcessLog(prev => [...prev, { timestamp, message }]);
-//     }, []);
-
-//     const api = axios.create({
-//         baseURL: process.env.REACT_APP_API_BASE_URL,
-//         withCredentials: true,
-//     });
-
-//     // Add Authorization header to all requests
-//     api.interceptors.request.use(config => {
-//         const token = localStorage.getItem('token');
-//         if (token) {
-//             config.headers.Authorization = `Bearer ${token}`;
-//         }
-//         return config;
-//     });
-
-//     // SSE version for GET request (matching backend endpoint)
-//     const splitCompanyWithSSE = useCallback((splitData) => {
-//         return new Promise((resolve, reject) => {
-//             setLoading(true);
-//             setError(null);
-//             setProgress(0);
-//             setProcessLog([]);
-
-//             // Create URL with query parameters for GET request
-//             const params = new URLSearchParams();
-//             params.append('sourceCompanyId', splitData.sourceCompanyId);
-//             params.append('fiscalYearId', splitData.fiscalYearId);
-//             params.append('newCompanyName', splitData.newCompanyName);
-//             params.append('deleteAfterSplit', splitData.deleteAfterSplit.toString());
-
-//             const baseURL = process.env.REACT_APP_API_BASE_URL || '';
-//             const url = `${baseURL}/api/FiscalYears/split-fiscal-year?${params.toString()}`;
-
-//             console.log('SSE GET URL:', url);
-
-//             const eventSource = new EventSource(url, {
-//                 withCredentials: true
-//             });
-
-//             let eventSourceReady = true;
-
-//             eventSource.onopen = () => {
-//                 addToLog('Connected to server, starting company split...');
-//             };
-
-//             eventSource.onmessage = (event) => {
-//                 try {
-//                     const data = JSON.parse(event.data);
-//                     console.log('SSE Data received:', data);
-
-//                     if (data.type === 'progress') {
-//                         setProgress(data.value || 0);
-//                         if (data.message) addToLog(data.message);
-//                     } else if (data.type === 'complete') {
-//                         eventSource.close();
-//                         setLoading(false);
-//                         addToLog('Company split completed successfully!');
-//                         if (data.data && data.data.success) {
-//                             resolve(data.data);
-//                         } else {
-//                             resolve(data);
-//                         }
-//                     } else if (data.type === 'log') {
-//                         if (data.message) addToLog(data.message);
-//                     } else if (data.type === 'error') {
-//                         eventSource.close();
-//                         setLoading(false);
-//                         const errorMsg = data.error || 'An error occurred during company split';
-//                         setError(errorMsg);
-//                         addToLog(`Error: ${errorMsg}`);
-//                         if (data.details) {
-//                             console.error('Error details:', data.details);
-//                         }
-//                         reject(new Error(errorMsg));
-//                     }
-//                 } catch (parseError) {
-//                     console.error('Error parsing SSE data:', parseError);
-//                     addToLog(`Parse error: ${parseError.message}`);
-//                 }
-//             };
-
-//             eventSource.onerror = (error) => {
-//                 console.error('SSE Error:', error);
-                
-//                 // Don't close if we're already processing
-//                 if (eventSourceReady) {
-//                     eventSourceReady = false;
-//                     eventSource.close();
-//                     setLoading(false);
-                    
-//                     // Check if this is just a connection issue after completion
-//                     if (progress < 100) {
-//                         const errorMsg = 'Connection to server lost. Please check your network and try again.';
-//                         setError(errorMsg);
-//                         addToLog(`Error: ${errorMsg}`);
-//                         reject(new Error(errorMsg));
-//                     }
-//                 }
-//             };
-
-//             // Store eventSource in a ref-like variable for cleanup
-//             window.__currentSplitEventSource = eventSource;
-//         });
-//     }, [addToLog, progress]);
-
-//     const cancelSplit = useCallback(() => {
-//         if (window.__currentSplitEventSource) {
-//             window.__currentSplitEventSource.close();
-//             window.__currentSplitEventSource = null;
-//         }
-//         setLoading(false);
-//         addToLog('Split operation cancelled by user');
-//     }, [addToLog]);
-
-//     const reset = useCallback(() => {
-//         if (window.__currentSplitEventSource) {
-//             window.__currentSplitEventSource.close();
-//             window.__currentSplitEventSource = null;
-//         }
-//         setLoading(false);
-//         setError(null);
-//         setProgress(0);
-//         setProcessLog([]);
-//     }, []);
-
-//     return {
-//         loading,
-//         error,
-//         progress,
-//         processLog,
-//         splitCompanyWithSSE,
-//         cancelSplit,
-//         reset,
-//         addToLog
-//     };
-// };
-
-// export default useCompanySplit;
-
-//-------------------------------------------------------end
-
 // hooks/useCompanySplit.js
-import { useState, useCallback } from 'react';
-import axios from 'axios';
+import { useState, useCallback, useRef } from 'react';
 
 const useCompanySplit = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [progress, setProgress] = useState(0);
     const [processLog, setProcessLog] = useState([]);
+    const [splitResult, setSplitResult] = useState(null);
     
-    let eventSourceRef = null;
+    const abortControllerRef = useRef(null);
 
     const addToLog = useCallback((message) => {
         const timestamp = new Date().toLocaleTimeString();
@@ -315,122 +19,178 @@ const useCompanySplit = () => {
         return localStorage.getItem('token');
     };
 
-    // SSE version for GET request
-    const splitCompanyWithSSE = useCallback((splitData) => {
-        return new Promise((resolve, reject) => {
-            setLoading(true);
-            setError(null);
-            setProgress(0);
-            setProcessLog([]);
+    const splitCompanyWithSSE = useCallback(async (splitData) => {
+        setLoading(true);
+        setError(null);
+        setProgress(0);
+        setProcessLog([]);
+        setSplitResult(null);
 
-            // Get auth token
+        try {
             const token = getAuthToken();
-            
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
             // Create URL with query parameters
-            const params = new URLSearchParams();
-            params.append('sourceCompanyId', splitData.sourceCompanyId);
-            params.append('fiscalYearId', splitData.fiscalYearId);
-            params.append('newCompanyName', splitData.newCompanyName);
-            params.append('deleteAfterSplit', splitData.deleteAfterSplit.toString());
+            const params = new URLSearchParams({
+                sourceCompanyId: splitData.sourceCompanyId,
+                fiscalYearId: splitData.fiscalYearId,
+                newCompanyName: splitData.newCompanyName,
+                deleteAfterSplit: splitData.deleteAfterSplit.toString()
+            });
 
             const baseURL = process.env.REACT_APP_API_BASE_URL || '';
             const url = `${baseURL}/api/FiscalYears/split-fiscal-year?${params.toString()}`;
-
             console.log('SSE GET URL:', url);
 
-            // EventSource doesn't support custom headers, so we need to pass token in URL if required
-            // or use fetch API with ReadableStream for better header support
-            const eventSourceUrl = token ? `${url}&token=${encodeURIComponent(token)}` : url;
-            const eventSource = new EventSource(eventSourceUrl, {
-                withCredentials: true
+            // Create abort controller for cancellation
+            abortControllerRef.current = new AbortController();
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'text/event-stream'
+                },
+                credentials: 'include',
+                signal: abortControllerRef.current.signal
             });
-            
-            eventSourceRef = eventSource;
 
-            eventSource.onopen = () => {
-                addToLog('Connected to server, starting company split...');
-            };
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
 
-            eventSource.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    console.log('SSE Data received:', data);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            }
 
-                    if (data.type === 'progress') {
-                        setProgress(data.value || 0);
-                        if (data.message) addToLog(data.message);
-                    } else if (data.type === 'complete') {
-                        eventSource.close();
-                        eventSourceRef = null;
-                        setLoading(false);
-                        addToLog('Company split completed successfully!');
-                        if (data.data && data.data.success) {
-                            resolve(data.data);
-                        } else if (data.success) {
-                            resolve(data);
-                        } else {
-                            resolve(data);
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            let buffer = '';
+            let isComplete = false;
+            let resultData = null;
+
+            addToLog('Connected to server, starting company split...');
+
+            while (!isComplete) {
+                const { value, done } = await reader.read();
+                if (done) {
+                    console.log('Stream ended');
+                    break;
+                }
+
+                const chunk = decoder.decode(value, { stream: true });
+                console.log('Raw chunk received:', chunk);
+                buffer += chunk;
+                
+                // Process SSE events (event: type\ndata: {...}\n\n)
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || '';
+
+                for (const event of events) {
+                    const lines = event.split('\n');
+                    let eventType = 'message';
+                    let eventData = '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event:')) {
+                            eventType = line.substring(6).trim();
+                        } else if (line.startsWith('data:')) {
+                            eventData = line.substring(5).trim();
                         }
-                    } else if (data.type === 'log') {
-                        if (data.message) addToLog(data.message);
-                    } else if (data.type === 'error') {
-                        eventSource.close();
-                        eventSourceRef = null;
-                        setLoading(false);
-                        const errorMsg = data.error || 'An error occurred during company split';
-                        setError(errorMsg);
-                        addToLog(`Error: ${errorMsg}`);
-                        if (data.details) {
-                            console.error('Error details:', data.details);
-                        }
-                        reject(new Error(errorMsg));
                     }
-                } catch (parseError) {
-                    console.error('Error parsing SSE data:', parseError);
-                    addToLog(`Parse error: ${parseError.message}`);
-                }
-            };
 
-            eventSource.onerror = (error) => {
-                console.error('SSE Error:', error);
-                
-                if (eventSourceRef) {
-                    eventSource.close();
-                    eventSourceRef = null;
+                    if (eventData) {
+                        try {
+                            const data = JSON.parse(eventData);
+                            console.log('SSE Data received:', { eventType, data });
+
+                            if (eventType === 'progress') {
+                                const progressValue = data.progress?.value || data.value || 0;
+                                setProgress(progressValue);
+                                if (data.progress?.message || data.message) {
+                                    addToLog(data.progress?.message || data.message);
+                                }
+                            } else if (eventType === 'log') {
+                                if (data.message) {
+                                    addToLog(data.message);
+                                }
+                            } else if (eventType === 'complete') {
+                                isComplete = true;
+                                // The data might be in data.data or directly in data
+                                const responseData = data.data || data;
+                                resultData = responseData;
+                                setSplitResult(resultData);
+                                setProgress(100);
+                                addToLog('✓ Company split completed successfully!');
+                                console.log('Split result data:', resultData);
+                            } else if (eventType === 'error') {
+                                const errorMsg = data.error || data.message || 'An error occurred during company split';
+                                setError(errorMsg);
+                                addToLog(`Error: ${errorMsg}`);
+                                if (data.details) {
+                                    console.error('Error details:', data.details);
+                                }
+                                throw new Error(errorMsg);
+                            } else {
+                                // Default handling for any other events
+                                if (data.message) {
+                                    addToLog(data.message);
+                                }
+                                if (data.progress !== undefined) {
+                                    setProgress(data.progress);
+                                }
+                            }
+                        } catch (parseError) {
+                            console.error('Error parsing SSE data:', parseError);
+                            console.error('Raw event data:', eventData);
+                            // Don't throw, just log
+                        }
+                    }
                 }
-                
-                // Don't show error if we're already at 100% progress
-                if (progress < 100) {
-                    setLoading(false);
-                    const errorMsg = 'Connection to server lost. Please check your network and try again.';
-                    setError(errorMsg);
-                    addToLog(`Error: ${errorMsg}`);
-                    reject(new Error(errorMsg));
-                } else {
-                    setLoading(false);
-                }
-            };
-        });
-    }, [addToLog, progress]);
+            }
+
+            setLoading(false);
+            return resultData || { success: true, message: 'Split completed successfully' };
+
+        } catch (err) {
+            console.error('Split failed:', err);
+            setLoading(false);
+            
+            // Don't show error for abort (user cancelled)
+            if (err.name === 'AbortError') {
+                addToLog('Split operation cancelled by user');
+                return { success: false, cancelled: true };
+            }
+            
+            setError(err.message);
+            addToLog(`Error: ${err.message}`);
+            throw err;
+        }
+    }, [addToLog]);
 
     const cancelSplit = useCallback(() => {
-        if (eventSourceRef) {
-            eventSourceRef.close();
-            eventSourceRef = null;
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
         }
         setLoading(false);
         addToLog('Split operation cancelled by user');
     }, [addToLog]);
 
     const reset = useCallback(() => {
-        if (eventSourceRef) {
-            eventSourceRef.close();
-            eventSourceRef = null;
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
         }
         setLoading(false);
         setError(null);
         setProgress(0);
         setProcessLog([]);
+        setSplitResult(null);
     }, []);
 
     return {
@@ -438,6 +198,7 @@ const useCompanySplit = () => {
         error,
         progress,
         processLog,
+        splitResult,
         splitCompanyWithSSE,
         cancelSplit,
         reset,
@@ -446,3 +207,4 @@ const useCompanySplit = () => {
 };
 
 export default useCompanySplit;
+

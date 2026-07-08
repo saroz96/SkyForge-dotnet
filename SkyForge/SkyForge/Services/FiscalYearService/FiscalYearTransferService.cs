@@ -26,7 +26,83 @@ namespace SkyForge.Services
             _logger = logger;
         }
 
-        // ... (ValidateTransferAsync and GetTransferPreviewAsync remain the same)
+        /// <summary>
+        /// Gets the list of account group names that should NOT be carried forward
+        /// These are nominal accounts that should be closed at year-end
+        /// </summary>
+        private static readonly HashSet<string> _nominalAccountGroups = new HashSet<string>
+{
+    "Purchase",
+    "Sale",
+    "Expenses (Indirect/Admn.)",
+    "Expenses (Direct/Mfg.)",
+    "Income (Direct/Opr.)",
+    "Income (Indirect)",
+};
+
+        /// <summary>
+        /// Ensures the Stock in Hand account group exists for the company
+        /// </summary>
+        private async Task<AccountGroup> EnsureStockInHandGroupExistsAsync(Guid companyId, FiscalYear fiscalYear)
+        {
+            var stockInHandGroup = await _context.AccountGroups
+                .FirstOrDefaultAsync(g => g.Name == "Stock in Hand" && g.CompanyId == companyId);
+
+            if (stockInHandGroup == null)
+            {
+                stockInHandGroup = new AccountGroup
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Stock in Hand",
+                    PrimaryGroup = "No",
+                    Type = "Current Assets",
+                    CompanyId = companyId,
+                    OriginalFiscalYearId = fiscalYear.Id,
+                    Date = fiscalYear.StartDate ?? DateTime.UtcNow,
+                    NepaliDate = fiscalYear.StartDateNepali,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.AccountGroups.Add(stockInHandGroup);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation($"Created Stock in Hand account group for company {companyId}");
+            }
+
+            return stockInHandGroup;
+        }
+
+        /// <summary>
+        /// Ensures the Stock in Hand account exists for the company
+        /// </summary>
+        private async Task<Account> EnsureStockInHandAccountExistsAsync(Guid companyId, FiscalYear fiscalYear, AccountGroup stockInHandGroup)
+        {
+            var stockInHandAccount = await _context.Accounts
+                .FirstOrDefaultAsync(a => a.Name == "Stock in Hand" && a.CompanyId == companyId);
+
+            if (stockInHandAccount == null)
+            {
+                stockInHandAccount = new Account
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Stock in Hand",
+                    AccountGroupsId = stockInHandGroup.Id,
+                    CompanyId = companyId,
+                    OriginalFiscalYearId = fiscalYear.Id,
+                    OpeningBalanceType = "Dr",
+                    IsActive = true,
+                    Date = fiscalYear.StartDate ?? DateTime.UtcNow,
+                    NepaliDate = fiscalYear.StartDateNepali,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.Accounts.Add(stockInHandAccount);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation($"Created Stock in Hand account for company {companyId}");
+            }
+
+            return stockInHandAccount;
+        }
 
         public async Task<FiscalYearTransferResponseDto> ValidateTransferAsync(
            Guid sourceFiscalYearId,
@@ -57,7 +133,6 @@ namespace SkyForge.Services
                     return response;
                 }
 
-                // Check if target fiscal year is after source
                 if (targetFiscalYear.StartDate <= sourceFiscalYear.EndDate)
                 {
                     response.Success = false;
@@ -65,7 +140,6 @@ namespace SkyForge.Services
                     return response;
                 }
 
-                // Check if opening balance already exists for target fiscal year
                 var existingOpeningBalance = await _context.Transactions
                     .AnyAsync(t => t.FiscalYearId == targetFiscalYearId &&
                                    t.Type == TransactionType.OpeningBalance);
@@ -98,16 +172,13 @@ namespace SkyForge.Services
             var targetFiscalYear = await _context.FiscalYears
                 .FirstOrDefaultAsync(f => f.Id == targetFiscalYearId && f.CompanyId == companyId);
 
-            // Get item stock summary from StockEntry for SOURCE fiscal year
             var itemStocks = await GetItemClosingStocksFromStockEntriesAsync(sourceFiscalYearId, companyId);
-
-            // Get account balances from transactions
             var accountBalances = await GetAccountClosingBalancesFromTransactionsAsync(sourceFiscalYearId, companyId);
 
             return new
             {
-                SourceFiscalYear = new { sourceFiscalYear?.Id, sourceFiscalYear?.Name, sourceFiscalYear?.StartDate, sourceFiscalYear?.EndDate },
-                TargetFiscalYear = new { targetFiscalYear?.Id, targetFiscalYear?.Name, targetFiscalYear?.StartDate, targetFiscalYear?.EndDate },
+                SourceFiscalYear = new { sourceFiscalYear?.Id, sourceFiscalYear?.Name, sourceFiscalYear?.StartDate, sourceFiscalYear?.EndDate, sourceFiscalYear?.StartDateNepali, sourceFiscalYear?.EndDateNepali },
+                TargetFiscalYear = new { targetFiscalYear?.Id, targetFiscalYear?.Name, targetFiscalYear?.StartDate, targetFiscalYear?.EndDate, targetFiscalYear?.StartDateNepali, targetFiscalYear?.EndDateNepali },
                 ItemsPreview = new
                 {
                     TotalItems = itemStocks.Count,
@@ -141,7 +212,6 @@ namespace SkyForge.Services
             };
         }
 
-
         public async Task<FiscalYearTransferResponseDto> TransferFiscalYearBalancesAsync(
             FiscalYearTransferRequestDto request,
             Guid companyId)
@@ -155,7 +225,6 @@ namespace SkyForge.Services
                 _logger.LogInformation("Starting fiscal year transfer from {SourceId} to {TargetId}",
                     request.SourceFiscalYearId, request.TargetFiscalYearId);
 
-                // Validate
                 var validation = await ValidateTransferAsync(request.SourceFiscalYearId, request.TargetFiscalYearId, companyId);
                 if (!validation.Success)
                 {
@@ -180,55 +249,71 @@ namespace SkyForge.Services
 
                 decimal totalStockValue = 0;
 
-                // Get transfer dates
                 DateTime transferDateAd = request.TransferDate;
                 string transferDateNepali = request.TransferDateNepali?.ToString() ?? "";
 
-                // 1. Calculate and save CLOSING stock for SOURCE fiscal year
+                // Get fiscal year start and end dates
+                DateTime sourceFiscalYearStartDate = sourceFiscalYear.StartDate ?? DateTime.UtcNow;
+                DateTime sourceFiscalYearEndDate = sourceFiscalYear.EndDate ?? DateTime.UtcNow;
+                DateTime targetFiscalYearStartDate = targetFiscalYear.StartDate ?? DateTime.UtcNow;
+
+                // Get Nepali dates from fiscal year
+                string sourceFiscalYearStartDateNepali = sourceFiscalYear.StartDateNepali ?? transferDateNepali;
+                string sourceFiscalYearEndDateNepali = sourceFiscalYear.EndDateNepali ?? transferDateNepali;
+                string targetFiscalYearStartDateNepali = targetFiscalYear.StartDateNepali ?? transferDateNepali;
+
                 if (request.TransferItems)
                 {
                     var itemSummary = await CalculateAndSaveClosingStockForSourceFiscalYearAsync(
                         request.SourceFiscalYearId,
                         companyId,
-                        transferDateAd,
-                        transferDateNepali);
+                        sourceFiscalYearEndDate,
+                        sourceFiscalYearEndDateNepali,
+                        sourceFiscalYearStartDate,
+                        sourceFiscalYearStartDateNepali);
 
                     summary.ItemsSummary = itemSummary;
                     totalStockValue = itemSummary.TotalClosingStockValue;
 
-                    // 2. Create OPENING stock for TARGET fiscal year (NO duplicate items!)
                     await CreateOpeningStockForTargetFiscalYearAsync(
                         request.SourceFiscalYearId,
                         request.TargetFiscalYearId,
                         companyId,
-                        transferDateAd,
-                        transferDateNepali);
+                        targetFiscalYearStartDate,
+                        targetFiscalYearStartDateNepali);
                 }
 
-                // 3. Get closing account balances from source fiscal year
+                // ✅ Get closing balances (Stock in Hand will be added separately)
                 var closingBalances = await GetAccountClosingBalancesFromTransactionsAsync(
                     request.SourceFiscalYearId,
                     companyId);
 
-                // 4. Add Stock in Hand account balance to closing balances (NO duplicate account!)
+                // ✅ Add Stock in Hand account balance with total stock value
                 await AddStockInHandAccountBalanceAsync(
                     companyId,
                     request.TargetFiscalYearId,
                     totalStockValue,
                     closingBalances);
 
-                // 5. Create Opening Balance Transaction for TARGET fiscal year
+                // Save closing balances for SOURCE fiscal year with END date
+                await SaveClosingBalancesForSourceFiscalYearAsync(
+                    request.SourceFiscalYearId,
+                    companyId,
+                    sourceFiscalYearEndDate,
+                    sourceFiscalYearEndDateNepali,
+                    closingBalances);
+
+                // Create Opening Balance Transaction for TARGET fiscal year with START date
                 var openingBalanceTransaction = await CreateOpeningBalanceTransactionAsync(
                     targetFiscalYear!.Id,
                     companyId,
-                    transferDateAd,
-                    transferDateNepali,
+                    targetFiscalYearStartDate,
+                    targetFiscalYearStartDateNepali,
                     closingBalances);
 
                 summary.OpeningBalanceTransactionId = openingBalanceTransaction.Id;
                 summary.OpeningBalanceVoucherNo = openingBalanceTransaction.BillNumber ?? "OP-BAL-001";
 
-                // Update accounts summary
                 summary.AccountsSummary = new AccountTransferSummaryDto
                 {
                     AccountsProcessed = closingBalances.Count(a => a.DebitAmount > 0 || a.CreditAmount > 0),
@@ -257,37 +342,42 @@ namespace SkyForge.Services
             return response;
         }
 
-        /// <summary>
-        /// Add Stock in Hand account balance to the closing balances (NO duplicate account!)
-        /// </summary>
         private async Task AddStockInHandAccountBalanceAsync(
-            Guid companyId,
-            Guid targetFiscalYearId,
-            decimal totalStockValue,
-            List<AccountBalanceSummaryDto> closingBalances)
+          Guid companyId,
+          Guid targetFiscalYearId,
+          decimal totalStockValue,
+          List<AccountBalanceSummaryDto> closingBalances)
         {
-            if (totalStockValue <= 0) return;
+            if (totalStockValue <= 0)
+            {
+                _logger.LogInformation("Total stock value is 0, skipping Stock in Hand account addition");
+                return;
+            }
 
-            // Get existing Stock in Hand account (DO NOT CREATE NEW ONE)
+            // ✅ Get the account that belongs to "Stock in Hand" account group
             var stockInHandAccount = await _context.Accounts
+                .Include(a => a.AccountGroup)
                 .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
-                                         a.Name == "Stock in Hand" &&
+                                         a.AccountGroup != null &&
+                                         a.AccountGroup.Name == "Stock in Hand" &&
                                          a.IsActive);
 
             if (stockInHandAccount == null)
             {
-                _logger.LogWarning("Stock in Hand account not found");
+                _logger.LogWarning("No account found with AccountGroup 'Stock in Hand'. Please create it first.");
                 return;
             }
 
-            // Check if stock in hand account already exists in closing balances
+            // Check if Stock in Hand account already exists in closing balances
             var existingStockAccount = closingBalances.FirstOrDefault(b => b.AccountId == stockInHandAccount.Id);
 
             if (existingStockAccount != null)
             {
-                // Update existing stock account balance (add to debit)
-                existingStockAccount.DebitAmount += totalStockValue;
+                // Update existing stock account balance
+                existingStockAccount.DebitAmount = totalStockValue;
+                existingStockAccount.CreditAmount = 0;
                 existingStockAccount.BalanceType = "Dr";
+                _logger.LogInformation($"Updated Stock in Hand account balance: {totalStockValue}");
             }
             else
             {
@@ -296,19 +386,17 @@ namespace SkyForge.Services
                 {
                     AccountId = stockInHandAccount.Id,
                     AccountName = stockInHandAccount.Name,
+                    AccountGroupName = stockInHandAccount.AccountGroup?.Name ?? "Stock in Hand",
                     DebitAmount = totalStockValue,
                     CreditAmount = 0,
                     BalanceType = "Dr"
                 });
+                _logger.LogInformation($"Added Stock in Hand account balance: {totalStockValue}");
             }
 
-            _logger.LogInformation("Added Stock in Hand account balance: {TotalStockValue} for account: {AccountName}",
+            _logger.LogInformation("Added/Updated Stock in Hand account balance: {TotalStockValue} for account: {AccountName} (Group: Stock in Hand)",
                 totalStockValue, stockInHandAccount.Name);
         }
-
-        /// <summary>
-        /// Get existing Stock in Hand account (NO creation!)
-        /// </summary>
         private async Task<Account?> GetStockInHandAccountAsync(Guid companyId)
         {
             return await _context.Accounts
@@ -317,14 +405,143 @@ namespace SkyForge.Services
                                          a.IsActive);
         }
 
+        private async Task<(decimal TotalQuantity, decimal TotalValue)> CalculateItemClosingStockFromStockEntriesAsync(
+            Guid itemId,
+            Guid fiscalYearId,
+            Guid companyId)
+        {
+            var stockEntries = await _context.StockEntries
+                .Where(s => s.ItemId == itemId &&
+                           s.FiscalYearId == fiscalYearId)
+                .ToListAsync();
+
+            decimal totalQuantity = 0;
+            decimal totalValue = 0;
+
+            foreach (var entry in stockEntries)
+            {
+                totalQuantity += entry.Quantity;
+                totalValue += entry.Quantity * entry.PuPrice;
+            }
+
+            return (totalQuantity, totalValue);
+        }
+
+        private async Task CreateOpeningStockForTargetFiscalYearAsync(
+            Guid sourceFiscalYearId,
+            Guid targetFiscalYearId,
+            Guid companyId,
+            DateTime targetFiscalYearStartDate,
+            string targetFiscalYearStartDateNepali)
+        {
+            // Get all items with closing stock from source fiscal year
+            var closingStocks = await _context.ItemClosingStockByFiscalYear
+                .Include(cs => cs.Item)
+                .Where(cs => cs.FiscalYearId == sourceFiscalYearId)
+                .ToListAsync();
+
+            var existingOpeningStocks = await _context.ItemOpeningStockByFiscalYear
+                .Where(os => os.FiscalYearId == targetFiscalYearId)
+                .ToDictionaryAsync(os => os.ItemId, os => os);
+
+            foreach (var closingStock in closingStocks)
+            {
+                // ✅ Calculate average purchase price and sales price from stock entries
+                var stockEntryData = await CalculateItemAveragePricesFromStockEntriesAsync(
+                    closingStock.ItemId,
+                    sourceFiscalYearId,
+                    companyId);
+
+                decimal avgPurchasePrice = stockEntryData.AveragePurchasePrice;
+                decimal avgSalesPrice = stockEntryData.AverageSalesPrice;
+
+                if (existingOpeningStocks.TryGetValue(closingStock.ItemId, out var existingRecord))
+                {
+                    // Update existing opening stock record
+                    existingRecord.OpeningStock = closingStock.ClosingStock;
+                    existingRecord.OpeningStockValue = closingStock.ClosingStockValue;
+                    existingRecord.PurchasePrice = avgPurchasePrice; // ✅ Use calculated average
+                    existingRecord.SalesPrice = avgSalesPrice; // ✅ Use calculated average
+                    existingRecord.Date = targetFiscalYearStartDate;
+                    existingRecord.NepaliDate = targetFiscalYearStartDateNepali;
+                    existingRecord.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    // Create new opening stock record
+                    var openingStock = new ItemOpeningStockByFiscalYear
+                    {
+                        Id = Guid.NewGuid(),
+                        ItemId = closingStock.ItemId,
+                        FiscalYearId = targetFiscalYearId,
+                        CompanyId = companyId,
+                        OpeningStock = closingStock.ClosingStock,
+                        OpeningStockValue = closingStock.ClosingStockValue,
+                        PurchasePrice = avgPurchasePrice, // ✅ Use calculated average
+                        SalesPrice = avgSalesPrice, // ✅ Use calculated average
+                        Date = targetFiscalYearStartDate,
+                        NepaliDate = targetFiscalYearStartDateNepali,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    _context.ItemOpeningStockByFiscalYear.Add(openingStock);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
         /// <summary>
-        /// Calculate closing stock from StockEntry records for SOURCE fiscal year using PuPrice
+        /// Calculate average purchase price and sales price from stock entries for an item
         /// </summary>
+        // private async Task<(decimal AveragePurchasePrice, decimal AverageSalesPrice)> CalculateItemAveragePricesFromStockEntriesAsync(
+        //     Guid itemId,
+        //     Guid fiscalYearId,
+        //     Guid companyId)
+        // {
+        //     var stockEntries = await _context.StockEntries
+        //         .Where(s => s.ItemId == itemId &&
+        //                    s.FiscalYearId == fiscalYearId)
+        //         .ToListAsync();
+
+        //     if (stockEntries.Count == 0)
+        //     {
+        //         // If no stock entries, get the item's default prices
+        //         var item = await _context.Items
+        //             .FirstOrDefaultAsync(i => i.Id == itemId && i.CompanyId == companyId);
+
+        //         return (item?.PuPrice ?? 0, item?.Price ?? 0);
+        //     }
+
+        //     decimal totalQuantity = 0;
+        //     decimal totalPurchaseValue = 0;
+        //     decimal totalSalesValue = 0;
+
+        //     foreach (var entry in stockEntries)
+        //     {
+        //         totalQuantity += entry.Quantity;
+        //         totalPurchaseValue += entry.Quantity * entry.PuPrice;
+        //         totalSalesValue += entry.Quantity * entry.Price;
+        //     }
+
+        //     decimal averagePurchasePrice = totalQuantity > 0
+        //         ? totalPurchaseValue / totalQuantity
+        //         : 0;
+
+        //     decimal averageSalesPrice = totalQuantity > 0
+        //         ? totalSalesValue / totalQuantity
+        //         : 0;
+
+        //     return (averagePurchasePrice, averageSalesPrice);
+        // }
+
         private async Task<ItemTransferSummaryDto> CalculateAndSaveClosingStockForSourceFiscalYearAsync(
             Guid sourceFiscalYearId,
             Guid companyId,
-            DateTime transferDateAd,
-            string transferDateNepali)
+            DateTime sourceFiscalYearEndDate,
+            string sourceFiscalYearEndDateNepali,
+            DateTime sourceFiscalYearStartDate,
+            string sourceFiscalYearStartDateNepali)
         {
             var summary = new ItemTransferSummaryDto();
 
@@ -334,20 +551,20 @@ namespace SkyForge.Services
 
             summary.ItemsProcessed = items.Count;
 
-            // Get existing closing stock records for SOURCE fiscal year
             var existingClosingStocks = await _context.ItemClosingStockByFiscalYear
                 .Where(cs => cs.FiscalYearId == sourceFiscalYearId)
                 .ToDictionaryAsync(cs => cs.ItemId, cs => cs);
 
             foreach (var item in items)
             {
-                // Calculate closing stock from StockEntry records for SOURCE fiscal year using PuPrice
+                // Calculate closing stock quantity and value
                 var closingStockData = await CalculateItemClosingStockFromStockEntriesAsync(item.Id, sourceFiscalYearId, companyId);
 
-                // Calculate average purchase price (PuPrice)
-                var avgPurchasePrice = closingStockData.TotalQuantity > 0
-                    ? closingStockData.TotalValue / closingStockData.TotalQuantity
-                    : 0;
+                // ✅ Calculate average purchase price and sales price from stock entries
+                var averagePrices = await CalculateItemAveragePricesFromStockEntriesAsync(item.Id, sourceFiscalYearId, companyId);
+
+                var avgPurchasePrice = averagePrices.AveragePurchasePrice;
+                var avgSalesPrice = averagePrices.AverageSalesPrice;
 
                 if (closingStockData.TotalQuantity > 0)
                 {
@@ -356,21 +573,20 @@ namespace SkyForge.Services
                     summary.TotalClosingStockValue += closingStockData.TotalValue;
                 }
 
-                // Save or update closing stock record for SOURCE fiscal year
                 if (existingClosingStocks.TryGetValue(item.Id, out var existingRecord))
                 {
-                    // Update existing record
+                    // Update existing record with calculated averages
                     existingRecord.ClosingStock = closingStockData.TotalQuantity;
                     existingRecord.ClosingStockValue = closingStockData.TotalValue;
-                    existingRecord.PurchasePrice = avgPurchasePrice;
-                    existingRecord.SalesPrice = item.Price ?? avgPurchasePrice;
-                    existingRecord.Date = transferDateAd;
-                    existingRecord.NepaliDate = transferDateNepali;
+                    existingRecord.PurchasePrice = avgPurchasePrice; // ✅ Use calculated average
+                    existingRecord.SalesPrice = avgSalesPrice; // ✅ Use calculated average
+                    existingRecord.Date = sourceFiscalYearEndDate;
+                    existingRecord.NepaliDate = sourceFiscalYearEndDateNepali;
                     existingRecord.UpdatedAt = DateTime.UtcNow;
                 }
                 else
                 {
-                    // Create new closing stock record for SOURCE fiscal year
+                    // Create new closing stock record with calculated averages
                     var closingStock = new ItemClosingStockByFiscalYear
                     {
                         Id = Guid.NewGuid(),
@@ -378,10 +594,10 @@ namespace SkyForge.Services
                         FiscalYearId = sourceFiscalYearId,
                         ClosingStock = closingStockData.TotalQuantity,
                         ClosingStockValue = closingStockData.TotalValue,
-                        PurchasePrice = avgPurchasePrice,
-                        SalesPrice = item.Price ?? avgPurchasePrice,
-                        Date = transferDateAd,
-                        NepaliDate = transferDateNepali,
+                        PurchasePrice = avgPurchasePrice, // ✅ Use calculated average
+                        SalesPrice = avgSalesPrice, // ✅ Use calculated average
+                        Date = sourceFiscalYearEndDate,
+                        NepaliDate = sourceFiscalYearEndDateNepali,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -394,7 +610,7 @@ namespace SkyForge.Services
                     ItemName = item.Name,
                     ClosingQuantity = closingStockData.TotalQuantity,
                     ClosingValue = closingStockData.TotalValue,
-                    AverageRate = avgPurchasePrice
+                    AverageRate = avgPurchasePrice // Use purchase price as average rate
                 });
             }
 
@@ -402,94 +618,49 @@ namespace SkyForge.Services
             return summary;
         }
 
-
         /// <summary>
-        /// Calculate closing stock directly from StockEntry records using PuPrice
+        /// Calculate average purchase price and sales price from stock entries for an item
         /// </summary>
-        private async Task<(decimal TotalQuantity, decimal TotalValue)> CalculateItemClosingStockFromStockEntriesAsync(
+        private async Task<(decimal AveragePurchasePrice, decimal AverageSalesPrice)> CalculateItemAveragePricesFromStockEntriesAsync(
             Guid itemId,
             Guid fiscalYearId,
             Guid companyId)
         {
-            // Get all stock entries for this item in the fiscal year
             var stockEntries = await _context.StockEntries
                 .Where(s => s.ItemId == itemId &&
                            s.FiscalYearId == fiscalYearId)
                 .ToListAsync();
 
+            if (stockEntries.Count == 0)
+            {
+                // If no stock entries, get the item's default prices
+                var item = await _context.Items
+                    .FirstOrDefaultAsync(i => i.Id == itemId && i.CompanyId == companyId);
+
+                return (item?.PuPrice ?? 0, item?.Price ?? 0);
+            }
+
             decimal totalQuantity = 0;
-            decimal totalValue = 0;
+            decimal totalPurchaseValue = 0;
+            decimal totalSalesValue = 0;
 
             foreach (var entry in stockEntries)
             {
-                // Use PuPrice for stock value calculation, NOT Price
-                // PuPrice is the Purchase Unit Price
                 totalQuantity += entry.Quantity;
-                totalValue += entry.Quantity * entry.PuPrice;
+                totalPurchaseValue += entry.Quantity * entry.PuPrice;
+                totalSalesValue += entry.Quantity * entry.Price;
             }
 
-            return (totalQuantity, totalValue);
+            decimal averagePurchasePrice = totalQuantity > 0
+                ? totalPurchaseValue / totalQuantity
+                : 0;
+
+            decimal averageSalesPrice = totalQuantity > 0
+                ? totalSalesValue / totalQuantity
+                : 0;
+
+            return (averagePurchasePrice, averageSalesPrice);
         }
-
-        /// <summary>
-        /// Create OPENING stock for TARGET fiscal year (NO duplicate items!)
-        /// </summary>
-        private async Task CreateOpeningStockForTargetFiscalYearAsync(
-            Guid sourceFiscalYearId,
-            Guid targetFiscalYearId,
-            Guid companyId,
-            DateTime transferDateAd,
-            string transferDateNepali)
-        {
-            // Get all closing stock records from SOURCE fiscal year
-            var closingStocks = await _context.ItemClosingStockByFiscalYear
-                .Include(cs => cs.Item)
-                .Where(cs => cs.FiscalYearId == sourceFiscalYearId)
-                .ToListAsync();
-
-            // Check for existing opening stock in TARGET fiscal year
-            var existingOpeningStocks = await _context.ItemOpeningStockByFiscalYear
-                .Where(os => os.FiscalYearId == targetFiscalYearId)
-                .ToDictionaryAsync(os => os.ItemId, os => os);
-
-            foreach (var closingStock in closingStocks)
-            {
-                if (existingOpeningStocks.TryGetValue(closingStock.ItemId, out var existingRecord))
-                {
-                    // Update existing opening stock record for TARGET fiscal year
-                    existingRecord.OpeningStock = closingStock.ClosingStock;
-                    existingRecord.OpeningStockValue = closingStock.ClosingStockValue;
-                    existingRecord.PurchasePrice = closingStock.PurchasePrice;
-                    existingRecord.SalesPrice = closingStock.SalesPrice;
-                    existingRecord.Date = transferDateAd;
-                    existingRecord.NepaliDate = transferDateNepali;
-                    existingRecord.UpdatedAt = DateTime.UtcNow;
-                }
-                else
-                {
-                    // Create new opening stock record for TARGET fiscal year (Item remains the same!)
-                    var openingStock = new ItemOpeningStockByFiscalYear
-                    {
-                        Id = Guid.NewGuid(),
-                        ItemId = closingStock.ItemId, // Same Item ID! No duplication
-                        FiscalYearId = targetFiscalYearId,
-                        CompanyId = companyId, // Add CompanyId if your model has it
-                        OpeningStock = closingStock.ClosingStock,
-                        OpeningStockValue = closingStock.ClosingStockValue,
-                        PurchasePrice = closingStock.PurchasePrice,
-                        SalesPrice = closingStock.SalesPrice,
-                        Date = transferDateAd,
-                        NepaliDate = transferDateNepali,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
-                    _context.ItemOpeningStockByFiscalYear.Add(openingStock);
-                }
-            }
-
-            await _context.SaveChangesAsync();
-        }
-
         private async Task<List<ItemClosingStockByFiscalYear>> GetItemClosingStocksFromStockEntriesAsync(
                    Guid fiscalYearId,
                    Guid companyId)
@@ -515,109 +686,161 @@ namespace SkyForge.Services
             return result;
         }
 
-        /// <summary>
-        /// Get account closing balances from transactions (using existing accounts)
-        /// </summary>
         private async Task<List<AccountBalanceSummaryDto>> GetAccountClosingBalancesFromTransactionsAsync(
-            Guid fiscalYearId,
-            Guid companyId)
+        Guid fiscalYearId,
+        Guid companyId)
         {
-            // Get all accounts (NO fiscal year filter!)
-            var accounts = await _context.Accounts
-                .Where(a => a.CompanyId == companyId && a.IsActive)
-                .ToListAsync();
-
-            var result = new List<AccountBalanceSummaryDto>();
-
-            foreach (var account in accounts)
+            try
             {
-                // Skip Stock in Hand account - we'll handle it separately
-                if (account.Name == "Stock in Hand")
+                // Validate inputs
+                if (fiscalYearId == Guid.Empty || companyId == Guid.Empty)
                 {
-                    continue;
+                    _logger.LogError("Invalid fiscal year or company ID provided");
+                    return new List<AccountBalanceSummaryDto>();
                 }
 
-                // Get all transactions for this fiscal year where this account is involved
-                var transactions = await _context.Transactions
-                    .Where(t => t.CompanyId == companyId &&
-                               t.FiscalYearId == fiscalYearId &&
-                               t.Status == TransactionStatus.Active &&
-                               (t.AccountId == account.Id ||
-                                t.PaymentAccountId == account.Id ||
-                                t.ReceiptAccountId == account.Id ||
-                                t.DebitAccountId == account.Id ||
-                                t.CreditAccountId == account.Id))
-                    .Include(t => t.TransactionItems)
+                // Get all active accounts for the company with AccountGroup included
+                var accounts = await _context.Accounts
+                    .Include(a => a.AccountGroup)
+                    .Where(a => a.CompanyId == companyId && a.IsActive)
                     .ToListAsync();
 
-                decimal totalDebit = 0;
-                decimal totalCredit = 0;
-
-                foreach (var transaction in transactions)
+                if (accounts == null || !accounts.Any())
                 {
-                    if (transaction.AccountId == account.Id)
-                    {
-                        totalDebit += transaction.TotalDebit;
-                        totalCredit += transaction.TotalCredit;
-                    }
+                    _logger.LogWarning($"No active accounts found for company {companyId}");
+                    return new List<AccountBalanceSummaryDto>();
+                }
 
-                    if (transaction.PaymentAccountId == account.Id)
-                    {
-                        totalDebit += transaction.TotalDebit;
-                    }
+                var result = new List<AccountBalanceSummaryDto>();
 
-                    if (transaction.ReceiptAccountId == account.Id)
+                foreach (var account in accounts)
+                {
+                    try
                     {
-                        totalCredit += transaction.TotalCredit;
-                    }
+                        if (account == null) continue;
 
-                    if (transaction.DebitAccountId == account.Id)
-                    {
-                        totalDebit += transaction.TotalDebit;
-                    }
+                        // ✅ Get account group name safely
+                        var accountGroupName = account.AccountGroup?.Name ?? string.Empty;
 
-                    if (transaction.CreditAccountId == account.Id)
+                        // ✅ SKIP accounts with AccountGroup "Stock in Hand" - we handle it separately with total stock value
+                        if (!string.IsNullOrEmpty(accountGroupName) &&
+                            accountGroupName.Equals("Stock in Hand", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger.LogInformation($"Skipping account in Stock in Hand group: {account.Name} - will be added with calculated stock value");
+                            continue;
+                        }
+
+                        // ✅ Skip nominal accounts (Purchase, Sale, Expenses, Income)
+                        if (!string.IsNullOrEmpty(accountGroupName) &&
+                            _nominalAccountGroups.Contains(accountGroupName))
+                        {
+                            _logger.LogInformation($"Skipping nominal account: {account.Name} (Group: {accountGroupName})");
+                            continue;
+                        }
+
+                        if (string.IsNullOrEmpty(accountGroupName))
+                        {
+                            _logger.LogWarning($"Account {account.Name} (ID: {account.Id}) has no AccountGroup assigned. Processing anyway.");
+                        }
+
+                        // Get all transactions for this fiscal year where this account is involved
+                        var transactions = await _context.Transactions
+                            .Where(t => t.CompanyId == companyId &&
+                                       t.FiscalYearId == fiscalYearId &&
+                                       t.Status == TransactionStatus.Active &&
+                                       (t.AccountId == account.Id ||
+                                        t.PaymentAccountId == account.Id ||
+                                        t.ReceiptAccountId == account.Id ||
+                                        t.DebitAccountId == account.Id ||
+                                        t.CreditAccountId == account.Id))
+                            .Include(t => t.TransactionItems)
+                            .ToListAsync();
+
+                        decimal totalDebit = 0;
+                        decimal totalCredit = 0;
+
+                        foreach (var transaction in transactions)
+                        {
+                            if (transaction == null) continue;
+
+                            if (transaction.AccountId == account.Id)
+                            {
+                                totalDebit += transaction.TotalDebit;
+                                totalCredit += transaction.TotalCredit;
+                            }
+
+                            if (transaction.PaymentAccountId == account.Id)
+                            {
+                                totalDebit += transaction.TotalDebit;
+                            }
+
+                            if (transaction.ReceiptAccountId == account.Id)
+                            {
+                                totalCredit += transaction.TotalCredit;
+                            }
+
+                            if (transaction.DebitAccountId == account.Id)
+                            {
+                                totalDebit += transaction.TotalDebit;
+                            }
+
+                            if (transaction.CreditAccountId == account.Id)
+                            {
+                                totalCredit += transaction.TotalCredit;
+                            }
+                        }
+
+                        // Check for opening balance from previous fiscal years
+                        var openingBalanceRecord = await _context.OpeningBalanceByFiscalYear
+                            .FirstOrDefaultAsync(o => o.AccountId == account.Id && o.FiscalYearId == fiscalYearId);
+
+                        if (openingBalanceRecord != null)
+                        {
+                            if (openingBalanceRecord.Type == "Dr")
+                                totalDebit += openingBalanceRecord.Amount;
+                            else
+                                totalCredit += openingBalanceRecord.Amount;
+                        }
+
+                        decimal closingBalance = Math.Abs(totalDebit - totalCredit);
+                        string balanceType = totalDebit >= totalCredit ? "Dr" : "Cr";
+
+                        // Only add if there's a balance
+                        if (closingBalance > 0)
+                        {
+                            result.Add(new AccountBalanceSummaryDto
+                            {
+                                AccountId = account.Id,
+                                AccountName = account.Name ?? "Unknown",
+                                AccountGroupName = account.AccountGroup?.Name ?? "Unknown",
+                                DebitAmount = totalDebit >= totalCredit ? closingBalance : 0,
+                                CreditAmount = totalCredit > totalDebit ? closingBalance : 0,
+                                BalanceType = balanceType
+                            });
+                        }
+                    }
+                    catch (Exception ex)
                     {
-                        totalCredit += transaction.TotalCredit;
+                        _logger.LogError(ex, $"Error processing account {account?.Id}");
+                        continue;
                     }
                 }
 
-                // Check OpeningBalanceByFiscalYear table for this fiscal year
-                var openingBalanceRecord = await _context.OpeningBalanceByFiscalYear
-                    .FirstOrDefaultAsync(o => o.AccountId == account.Id && o.FiscalYearId == fiscalYearId);
-
-                if (openingBalanceRecord != null)
-                {
-                    if (openingBalanceRecord.Type == "Dr")
-                        totalDebit += openingBalanceRecord.Amount;
-                    else
-                        totalCredit += openingBalanceRecord.Amount;
-                }
-
-                decimal closingBalance = Math.Abs(totalDebit - totalCredit);
-                string balanceType = totalDebit >= totalCredit ? "Dr" : "Cr";
-
-                result.Add(new AccountBalanceSummaryDto
-                {
-                    AccountId = account.Id,
-                    AccountName = account.Name,
-                    DebitAmount = totalDebit >= totalCredit ? closingBalance : 0,
-                    CreditAmount = totalCredit > totalDebit ? closingBalance : 0,
-                    BalanceType = balanceType
-                });
+                return result;
             }
-
-            return result;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error in GetAccountClosingBalancesFromTransactionsAsync for fiscal year {fiscalYearId}, company {companyId}");
+                return new List<AccountBalanceSummaryDto>();
+            }
         }
-
-        /// <summary>
-        /// Create Opening Balance Transaction (NO duplicate accounts!)
-        /// </summary>
+        
+        
         private async Task<Transaction> CreateOpeningBalanceTransactionAsync(
             Guid fiscalYearId,
             Guid companyId,
-            DateTime transferDateAd,
-            string transferDateNepali,
+            DateTime fiscalYearStartDate,
+            string fiscalYearStartDateNepali,
             List<AccountBalanceSummaryDto> closingBalances)
         {
             var billNumber = await GenerateOpeningBalanceBillNumberAsync(fiscalYearId, companyId);
@@ -625,7 +848,6 @@ namespace SkyForge.Services
             decimal totalDebit = closingBalances.Sum(b => b.DebitAmount);
             decimal totalCredit = closingBalances.Sum(b => b.CreditAmount);
 
-            // Ensure debits equal credits
             if (totalDebit != totalCredit)
             {
                 var difference = Math.Abs(totalDebit - totalCredit);
@@ -664,9 +886,9 @@ namespace SkyForge.Services
                 FiscalYearId = fiscalYearId,
                 Type = TransactionType.OpeningBalance,
                 BillNumber = billNumber,
-                Date = transferDateAd,
-                NepaliDate = transferDateNepali,
-                TransactionDateNepali = transferDateNepali,
+                Date = fiscalYearStartDate,
+                NepaliDate = fiscalYearStartDateNepali,
+                TransactionDateNepali = fiscalYearStartDateNepali,
                 TotalDebit = totalDebit,
                 TotalCredit = totalCredit,
                 Status = TransactionStatus.Active,
@@ -694,27 +916,127 @@ namespace SkyForge.Services
             _context.Transactions.Add(openingBalanceTransaction);
             await _context.SaveChangesAsync();
 
-            // Save to OpeningBalanceByFiscalYear table for TARGET fiscal year (NO duplicate accounts!)
+            // Save to OpeningBalanceByFiscalYear table with START date (multiple per account - one per fiscal year)
             foreach (var balance in closingBalances.Where(b => b.DebitAmount > 0 || b.CreditAmount > 0))
             {
-                var openingBalanceRecord = new OpeningBalanceByFiscalYear
-                {
-                    Id = Guid.NewGuid(),
-                    AccountId = balance.AccountId, // Same Account ID! No duplication
-                    FiscalYearId = fiscalYearId,
-                    CompanyId = companyId,
-                    Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount,
-                    Type = balance.DebitAmount > 0 ? "Dr" : "Cr",
-                    Date = transferDateAd,
-                    NepaliDate = transferDateNepali,
-                };
+                // Check if already exists for this fiscal year
+                var existingByFiscalYear = await _context.OpeningBalanceByFiscalYear
+                    .FirstOrDefaultAsync(ob => ob.AccountId == balance.AccountId
+                                            && ob.FiscalYearId == fiscalYearId);
 
-                _context.OpeningBalanceByFiscalYear.Add(openingBalanceRecord);
+                if (existingByFiscalYear != null)
+                {
+                    existingByFiscalYear.Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount;
+                    existingByFiscalYear.Type = balance.DebitAmount > 0 ? "Dr" : "Cr";
+                    existingByFiscalYear.Date = fiscalYearStartDate;
+                    existingByFiscalYear.NepaliDate = fiscalYearStartDateNepali;
+                }
+                else
+                {
+                    var openingBalanceRecord = new OpeningBalanceByFiscalYear
+                    {
+                        Id = Guid.NewGuid(),
+                        AccountId = balance.AccountId,
+                        FiscalYearId = fiscalYearId,
+                        CompanyId = companyId,
+                        Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount,
+                        Type = balance.DebitAmount > 0 ? "Dr" : "Cr",
+                        Date = fiscalYearStartDate,
+                        NepaliDate = fiscalYearStartDateNepali,
+                    };
+
+                    _context.OpeningBalanceByFiscalYear.Add(openingBalanceRecord);
+                }
+            }
+
+            // *** FIX: Save to OpeningBalance table (MASTER - only ONE per account, not per fiscal year) ***
+            foreach (var balance in closingBalances.Where(b => b.DebitAmount > 0 || b.CreditAmount > 0))
+            {
+                // Check if an OpeningBalance record already exists for this account (MASTER record)
+                var existingMasterOpeningBalance = await _context.OpeningBalances
+                    .FirstOrDefaultAsync(ob => ob.AccountId == balance.AccountId
+                                            && ob.CompanyId == companyId);
+
+                if (existingMasterOpeningBalance != null)
+                {
+                    // UPDATE the master opening balance (only ONE per account)
+                    existingMasterOpeningBalance.Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount;
+                    existingMasterOpeningBalance.Type = balance.DebitAmount > 0 ? "Dr" : "Cr";
+                    existingMasterOpeningBalance.Date = fiscalYearStartDate;
+                    existingMasterOpeningBalance.NepaliDate = fiscalYearStartDateNepali;
+                    // Keep the FiscalYearId as null or update it - this is the MASTER record
+                    existingMasterOpeningBalance.FiscalYearId = null; // Master record doesn't have fiscal year
+                }
+                else
+                {
+                    // CREATE new master opening balance (only ONE per account)
+                    var openingBalanceMaster = new OpeningBalance
+                    {
+                        Id = Guid.NewGuid(),
+                        AccountId = balance.AccountId,
+                        CompanyId = companyId,
+                        Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount,
+                        Type = balance.DebitAmount > 0 ? "Dr" : "Cr",
+                        Date = fiscalYearStartDate,
+                        NepaliDate = fiscalYearStartDateNepali,
+                        FiscalYearId = null // Master record - not tied to a specific fiscal year
+                    };
+
+                    _context.OpeningBalances.Add(openingBalanceMaster);
+                }
             }
 
             await _context.SaveChangesAsync();
 
             return openingBalanceTransaction;
+        }
+
+        /// <summary>
+        /// Save closing balances for the SOURCE fiscal year with END date
+        /// </summary>
+        private async Task SaveClosingBalancesForSourceFiscalYearAsync(
+            Guid sourceFiscalYearId,
+            Guid companyId,
+            DateTime sourceFiscalYearEndDate,
+            string sourceFiscalYearEndDateNepali,
+            List<AccountBalanceSummaryDto> closingBalances)
+        {
+            foreach (var balance in closingBalances.Where(b => b.DebitAmount > 0 || b.CreditAmount > 0))
+            {
+                var existingClosingBalance = await _context.ClosingBalanceByFiscalYear
+                    .FirstOrDefaultAsync(cb => cb.AccountId == balance.AccountId
+                                            && cb.CompanyId == companyId
+                                            && cb.FiscalYearId == sourceFiscalYearId);
+
+                if (existingClosingBalance != null)
+                {
+                    // Update existing closing balance with END date
+                    existingClosingBalance.Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount;
+                    existingClosingBalance.Type = balance.DebitAmount > 0 ? "Dr" : "Cr";
+                    existingClosingBalance.Date = sourceFiscalYearEndDate; // ✅ Use END date
+                    existingClosingBalance.NepaliDate = sourceFiscalYearEndDateNepali; // ✅ Use END Nepali date
+                    existingClosingBalance.FiscalYearId = sourceFiscalYearId;
+                }
+                else
+                {
+                    // Create new closing balance WITH END date
+                    var closingBalanceRecord = new ClosingBalanceByFiscalYear
+                    {
+                        Id = Guid.NewGuid(),
+                        AccountId = balance.AccountId,
+                        CompanyId = companyId,
+                        Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount,
+                        Type = balance.DebitAmount > 0 ? "Dr" : "Cr",
+                        Date = sourceFiscalYearEndDate, // ✅ Use END date
+                        NepaliDate = sourceFiscalYearEndDateNepali, // ✅ Use END Nepali date
+                        FiscalYearId = sourceFiscalYearId
+                    };
+
+                    _context.ClosingBalanceByFiscalYear.Add(closingBalanceRecord);
+                }
+            }
+
+            await _context.SaveChangesAsync();
         }
 
         private async Task<string> GenerateOpeningBalanceBillNumberAsync(Guid fiscalYearId, Guid companyId)
@@ -727,12 +1049,8 @@ namespace SkyForge.Services
             return $"OP-BAL-{(openingBalanceCount + 1):D5}";
         }
 
-        /// <summary>
-        /// Get or create Suspense Account (only once, shared across all fiscal years)
-        /// </summary>
         private async Task<Account> GetOrCreateSuspenseAccountAsync(Guid companyId)
         {
-            // Try to find existing Suspense Account (NO fiscal year filter!)
             var suspenseAccount = await _context.Accounts
                 .FirstOrDefaultAsync(a => a.CompanyId == companyId && a.Name == "Suspense Account");
 
@@ -747,7 +1065,6 @@ namespace SkyForge.Services
                 throw new InvalidOperationException($"Current Assets account group not found for company {companyId}");
             }
 
-            // Get active fiscal year for OriginalFiscalYearId only
             var activeFiscalYear = await _context.FiscalYears
                 .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
 
@@ -756,18 +1073,17 @@ namespace SkyForge.Services
                 throw new InvalidOperationException($"No active fiscal year found for company {companyId}");
             }
 
-            // Create Suspense Account only ONCE (shared across all fiscal years)
             suspenseAccount = new Account
             {
                 Id = Guid.NewGuid(),
                 Name = "Suspense Account",
                 AccountGroupsId = defaultGroup.Id,
                 CompanyId = companyId,
-                OriginalFiscalYearId = activeFiscalYear.Id, // Track when it was created
+                OriginalFiscalYearId = activeFiscalYear.Id,
                 OpeningBalanceType = "Dr",
                 IsActive = true,
-                Date = DateTime.UtcNow,
-                NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,
+                NepaliDate = activeFiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -781,3 +1097,4 @@ namespace SkyForge.Services
         }
     }
 }
+

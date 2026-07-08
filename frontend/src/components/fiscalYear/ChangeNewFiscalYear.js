@@ -200,89 +200,6 @@ const ChangeNewFiscalYear = () => {
         }
     };
 
-    // const getNextFiscalYearDates = () => {
-    //     if (!fiscalData?.currentFiscalYear) {
-    //         return { start: 'N/A', end: 'N/A', startNepali: 'N/A', endNepali: 'N/A', name: 'N/A' };
-    //     }
-
-    //     const isNepaliFormat = fiscalData.companyDateFormat === 'nepali';
-
-    //     if (isNepaliFormat) {
-    //         // Handle Nepali date format with proper 32-day month handling
-    //         const currentEndDateNepali = fiscalData.currentFiscalYear.endDateNepali;
-    //         if (currentEndDateNepali && currentEndDateNepali !== 'N/A') {
-    //             try {
-    //                 const endDate = parseNepaliDate(currentEndDateNepali);
-    //                 if (endDate) {
-    //                     // Next fiscal year start = current end date + 1 day
-    //                     const startDate = addDaysToNepaliDate(endDate.year, endDate.month, endDate.day, 1);
-
-    //                     // Next fiscal year end = start date + 1 year - 1 day
-    //                     // First add 1 year to start date
-    //                     let endYearCalc = startDate.year + 1;
-    //                     let endMonthCalc = startDate.month;
-    //                     let endDayCalc = startDate.day;
-
-    //                     // Then subtract 1 day
-    //                     const endDateResult = subtractDaysFromNepaliDate(endYearCalc, endMonthCalc, endDayCalc, 1);
-
-    //                     // Generate name for Nepali fiscal year (e.g., "2082/2083" or "2082/83")
-    //                     const fiscalStartYear = startDate.year;
-    //                     const fiscalEndYear = startDate.year + 1;
-    //                     const fiscalYearName = `${fiscalStartYear}/${fiscalEndYear}`;
-
-    //                     return {
-    //                         start: formatNepaliDateString(startDate.year, startDate.month, startDate.day),
-    //                         end: formatNepaliDateString(endDateResult.year, endDateResult.month, endDateResult.day),
-    //                         startNepali: formatNepaliDateString(startDate.year, startDate.month, startDate.day),
-    //                         endNepali: formatNepaliDateString(endDateResult.year, endDateResult.month, endDateResult.day),
-    //                         name: fiscalYearName
-    //                     };
-    //                 }
-    //             } catch (e) {
-    //                 console.error('Error calculating Nepali dates:', e);
-    //             }
-    //         }
-
-    //         // Fallback: Use current date for calculation
-    //         const currentDate = new NepaliDate();
-    //         const startNepaliDate = new NepaliDate(currentDate.getYear() + 1, 1, 1);
-    //         const endNepaliDate = new NepaliDate(startNepaliDate.getYear() + 1, startNepaliDate.getMonth(), startNepaliDate.getDate() - 1);
-
-    //         return {
-    //             start: startNepaliDate.format('YYYY-MM-DD'),
-    //             end: endNepaliDate.format('YYYY-MM-DD'),
-    //             startNepali: startNepaliDate.format('YYYY-MM-DD'),
-    //             endNepali: endNepaliDate.format('YYYY-MM-DD'),
-    //             name: `${startNepaliDate.getYear()}/${startNepaliDate.getYear() + 1}`
-    //         };
-    //     } else {
-    //         // Handle English date format
-    //         const currentEndDate = fiscalData.currentFiscalYear.endDate;
-    //         if (currentEndDate) {
-    //             const endDate = new Date(currentEndDate);
-    //             const startDate = new Date(endDate);
-    //             startDate.setDate(startDate.getDate() + 1);
-    //             const nextEndDate = new Date(startDate);
-    //             nextEndDate.setFullYear(nextEndDate.getFullYear() + 1);
-    //             nextEndDate.setDate(nextEndDate.getDate() - 1);
-
-    //             // Generate name for English fiscal year (e.g., "2024/2025" or "2024/25")
-    //             const fiscalYearName = `${startDate.getFullYear()}/${startDate.getFullYear() + 1}`;
-
-    //             return {
-    //                 start: startDate.toISOString().split('T')[0],
-    //                 end: nextEndDate.toISOString().split('T')[0],
-    //                 startNepali: new NepaliDate(startDate).format('YYYY-MM-DD'),
-    //                 endNepali: new NepaliDate(nextEndDate).format('YYYY-MM-DD'),
-    //                 name: fiscalYearName
-    //             };
-    //         }
-    //     }
-
-    //     return { start: 'N/A', end: 'N/A', startNepali: 'N/A', endNepali: 'N/A', name: 'N/A' };
-    // };
-
     const getNextFiscalYearDates = () => {
         if (!fiscalData?.currentFiscalYear) {
             return { start: 'N/A', end: 'N/A', startNepali: 'N/A', endNepali: 'N/A', name: 'N/A' };
@@ -417,66 +334,6 @@ const ChangeNewFiscalYear = () => {
 
         return { start: 'N/A', end: 'N/A', startNepali: 'N/A', endNepali: 'N/A', name: 'N/A' };
     };
-
-    // const handleCreateFiscalYear = async () => {
-    //     setTransferring(true);
-    //     setProgress(0);
-
-    //     try {
-    //         const progressInterval = setInterval(() => {
-    //             setProgress(prev => Math.min(prev + 20, 50));
-    //         }, 500);
-
-    //         const nextDates = getNextFiscalYearDates();
-    //         const isNepaliFormat = fiscalData?.companyDateFormat === 'nepali';
-
-    //         // Prepare request data based on date format
-    //         const requestData = {};
-
-    //         if (isNepaliFormat) {
-    //             requestData.startDateNepali = nextDates.startNepali;
-    //             requestData.endDateNepali = nextDates.endNepali;
-    //             requestData.startDate = null;
-    //             requestData.endDate = null;
-    //         } else {
-    //             requestData.startDate = nextDates.start;
-    //             requestData.endDate = nextDates.end;
-    //             requestData.startDateNepali = nextDates.startNepali;
-    //             requestData.endDateNepali = nextDates.endNepali;
-    //         }
-
-    //         console.log('Creating fiscal year with data:', requestData);
-
-    //         const response = await api.post('/api/FiscalYears/create-next', requestData);
-
-    //         clearInterval(progressInterval);
-    //         setProgress(100);
-
-    //         if (response.data.success) {
-    //             setNewFiscalYear(response.data.data);
-    //             setStep(2);
-    //             setNotification({
-    //                 show: true,
-    //                 message: `New fiscal year ${nextDates.name} created successfully! Now transfer balances.`,
-    //                 type: 'success',
-    //                 duration: 5000
-    //             });
-    //         } else {
-    //             throw new Error(response.data.error || 'Failed to create fiscal year');
-    //         }
-    //     } catch (err) {
-    //         console.error('Create fiscal year error:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: err.response?.data?.error || err.message || 'Failed to create fiscal year',
-    //             type: 'error',
-    //             duration: 5000
-    //         });
-    //     } finally {
-    //         setTransferring(false);
-    //         setTimeout(() => setProgress(0), 500);
-    //     }
-    // };
 
     const handleCreateFiscalYear = async () => {
         setTransferring(true);
@@ -711,36 +568,6 @@ const ChangeNewFiscalYear = () => {
                     </h1>
                 </div>
                 <div className="card-body p-3">
-
-                    {/* Company Info */}
-                    {fiscalData?.currentCompanyName && (
-                        <div className="alert alert-info text-center py-1 mb-3 small">
-                            <strong>{fiscalData.currentCompanyName}</strong>
-                            {fiscalData.companyDateFormat && (
-                                <span className="ms-2">
-                                    (Date Format: {fiscalData.companyDateFormat === 'nepali' ? 'Nepali (BS)' : 'English (AD)'})
-                                </span>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Current Fiscal Year Info */}
-                    {fiscalData?.currentFiscalYear && (
-                        <div className="bg-light p-2 rounded mb-3">
-                            <div className="row text-center small">
-                                <div className="col-md-4">
-                                    <strong>Current Fiscal Year:</strong> {fiscalData.currentFiscalYear.name}
-                                </div>
-                                <div className="col-md-4">
-                                    <strong>Start:</strong> {formatDate(fiscalData.currentFiscalYear.startDate, fiscalData.companyDateFormat, fiscalData.currentFiscalYear.startDateNepali)}
-                                </div>
-                                <div className="col-md-4">
-                                    <strong>End:</strong> {formatDate(fiscalData.currentFiscalYear.endDate, fiscalData.companyDateFormat, fiscalData.currentFiscalYear.endDateNepali)}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Step Progress Indicator */}
                     <div className="d-flex justify-content-between mb-4">
                         <div className={`text-center flex-grow-1 ${step >= 1 ? 'text-primary' : 'text-muted'}`}>
@@ -795,41 +622,22 @@ const ChangeNewFiscalYear = () => {
                     {/* Step 1: Create Fiscal Year */}
                     {step === 1 && !newFiscalYear && (
                         <div className="border rounded p-3">
-                            <h6 className="mb-3">
-                                📅 Next Fiscal Year Details
-                                <small className="text-muted ms-2">
-                                    ({isNepaliFormat ? 'Nepali Calendar BS' : 'English Calendar AD'})
-                                </small>
-                            </h6>
-
                             {isNepaliFormat ? (
                                 <>
                                     <Row className="mb-3">
                                         <Col md={6}>
                                             <div className="bg-info bg-opacity-10 p-2 rounded">
                                                 <small className="text-muted">Start Date (BS)</small>
-                                                <p className="mb-0 fw-bold font-monospace">{nextDates.start}</p>
+                                                <p className="mb-0 fw-bold font-monospace">{nextDates.startNepali}</p>
                                             </div>
                                         </Col>
                                         <Col md={6}>
                                             <div className="bg-info bg-opacity-10 p-2 rounded">
                                                 <small className="text-muted">End Date (BS)</small>
-                                                <p className="mb-0 fw-bold font-monospace">{nextDates.end}</p>
+                                                <p className="mb-0 fw-bold font-monospace">{nextDates.endNepali}</p>
                                             </div>
                                         </Col>
                                     </Row>
-
-                                    <div className="alert alert-secondary py-2 small">
-                                        <i className="fas fa-calendar-alt me-2"></i>
-                                        <strong>New Fiscal Year Name:</strong> {nextDates.name}
-                                    </div>
-
-                                    <div className="alert alert-warning py-2 small">
-                                        <FaInfoCircle className="me-2" />
-                                        <strong>Nepali Calendar Note:</strong>
-                                        The Nepali fiscal year ends in Ashadh (month 3) which has 32 days.
-                                        The new fiscal year starts the day after Ashadh 32, which is Shrawan 1.
-                                    </div>
                                 </>
                             ) : (
                                 <>
@@ -849,16 +657,6 @@ const ChangeNewFiscalYear = () => {
                                             </div>
                                         </Col>
                                     </Row>
-
-                                    <div className="alert alert-secondary py-2 small">
-                                        <i className="fas fa-calendar-alt me-2"></i>
-                                        <strong>New Fiscal Year Name:</strong> {nextDates.name}
-                                    </div>
-
-                                    <div className="alert alert-info py-2 small">
-                                        <FaInfoCircle className="me-2" />
-                                        The new fiscal year starts the day after the current fiscal year ends.
-                                    </div>
                                 </>
                             )}
 
@@ -933,7 +731,7 @@ const ChangeNewFiscalYear = () => {
                                         <li>Item stock balances (closing stock becomes opening stock)</li>
                                         <li>Account balances (debit/credit balances)</li>
                                         <li>Party outstanding balances</li>
-                                        <li>All opening balances will be recorded with date: {isNepaliFormat ? currentNepaliDate : currentEnglishDate} {isNepaliFormat ? '(BS)' : '(AD)'}</li>
+                                        {/* <li>All opening balances will be recorded with date: {isNepaliFormat ? currentNepaliDate : currentEnglishDate} {isNepaliFormat ? '(BS)' : '(AD)'}</li> */}
                                     </ul>
                                 </div>
 
@@ -1006,11 +804,6 @@ const ChangeNewFiscalYear = () => {
                         <FaInfoCircle className="me-1" />
                         <strong>Note:</strong> Fiscal year transition is a critical operation.
                         Please ensure all transactions are completed before proceeding.
-                        {isNepaliFormat ? (
-                            <span className="ms-2">Dates are in Nepali format (BS YYYY-MM-DD). The Nepali month Ashadh has 32 days.</span>
-                        ) : (
-                            <span className="ms-2">Dates are in English format (AD YYYY-MM-DD).</span>
-                        )}
                     </div>
                 </div>
             </div>

@@ -93,6 +93,34 @@ namespace SkyForge.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "AuditLogs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Action = table.Column<int>(type: "integer", maxLength: 50, nullable: false),
+                    EntityType = table.Column<int>(type: "integer", maxLength: 50, nullable: false),
+                    EntityId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    EntityName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    BillNumber = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    OldValues = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: true),
+                    NewValues = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: true),
+                    IPAddress = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    UserAgent = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    SessionId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    RequestPath = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    RequestMethod = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    ClientVersion = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AuditLogs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "BackupHistories",
                 columns: table => new
                 {
@@ -105,7 +133,7 @@ namespace SkyForge.Migrations
                     FileSize = table.Column<long>(type: "bigint", nullable: false),
                     BackupDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     IsSuccess = table.Column<bool>(type: "boolean", nullable: false),
-                    ErrorMessage = table.Column<string>(type: "text", nullable: false)
+                    ErrorMessage = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -611,6 +639,7 @@ namespace SkyForge.Migrations
                     AttendanceSettings_LastAttendanceDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     AutoBackupEnabled = table.Column<bool>(type: "boolean", nullable: false),
                     BackupSchedule = table.Column<string>(type: "text", nullable: false),
+                    BackupFormat = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
                 },
@@ -2448,9 +2477,10 @@ namespace SkyForge.Migrations
                 column: "AccountGroupsId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Accounts_CompanyId",
+                name: "IX_Accounts_CompanyId_UniqueNumber",
                 table: "Accounts",
-                column: "CompanyId");
+                columns: new[] { "CompanyId", "UniqueNumber" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Accounts_Name_CompanyId",
@@ -2464,10 +2494,49 @@ namespace SkyForge.Migrations
                 column: "original_fiscal_year_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Accounts_UniqueNumber",
-                table: "Accounts",
-                column: "UniqueNumber",
-                unique: true);
+                name: "IX_AuditLogs_Action",
+                table: "AuditLogs",
+                column: "Action");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditLogs_BillNumber",
+                table: "AuditLogs",
+                column: "BillNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditLogs_CompanyId",
+                table: "AuditLogs",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditLogs_CreatedAt",
+                table: "AuditLogs",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditLogs_CreatedAt_CompanyId",
+                table: "AuditLogs",
+                columns: new[] { "CreatedAt", "CompanyId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditLogs_EntityId",
+                table: "AuditLogs",
+                column: "EntityId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditLogs_EntityType",
+                table: "AuditLogs",
+                column: "EntityType");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditLogs_UserId",
+                table: "AuditLogs",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditLogs_UserId_CreatedAt",
+                table: "AuditLogs",
+                columns: new[] { "UserId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_BackupHistories_BackupDate",
@@ -2836,9 +2905,9 @@ namespace SkyForge.Migrations
                 column: "original_fiscal_year_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Item_BarcodeNumber",
+                name: "IX_Item_Company_BarcodeNumber",
                 table: "items",
-                column: "barcode_number",
+                columns: new[] { "company_id", "barcode_number" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -2859,7 +2928,8 @@ namespace SkyForge.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Item_Company_UniqueNumber",
                 table: "items",
-                columns: new[] { "company_id", "unique_number" });
+                columns: new[] { "company_id", "unique_number" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Item_Company_VatStatus",
@@ -2875,12 +2945,6 @@ namespace SkyForge.Migrations
                 name: "IX_Item_Name_Company_FiscalYear",
                 table: "items",
                 columns: new[] { "name", "company_id" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Item_UniqueNumber",
-                table: "items",
-                column: "unique_number",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -3864,6 +3928,22 @@ namespace SkyForge.Migrations
                 onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
+                name: "FK_AuditLogs_Companies_CompanyId",
+                table: "AuditLogs",
+                column: "CompanyId",
+                principalTable: "Companies",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_AuditLogs_Users_UserId",
+                table: "AuditLogs",
+                column: "UserId",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
                 name: "FK_BackupHistories_Companies_CompanyId",
                 table: "BackupHistories",
                 column: "CompanyId",
@@ -3965,6 +4045,9 @@ namespace SkyForge.Migrations
             migrationBuilder.DropForeignKey(
                 name: "FK_Accounts_FiscalYears_original_fiscal_year_id",
                 table: "Accounts");
+
+            migrationBuilder.DropTable(
+                name: "AuditLogs");
 
             migrationBuilder.DropTable(
                 name: "BackupHistories");

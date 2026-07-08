@@ -896,11 +896,11 @@ const Header = () => {
                 </Link>
               </li>
             ) : ( */}
-              <li className="menu-item">
-                <Link to={`/auth/users/view/${finalUser?._id || finalUser?.id}`}>
-                  {finalUser?.name || finalUser?.Name || 'User'}
-                </Link>
-              </li>
+            <li className="menu-item">
+              <Link to={`/auth/users/view/${finalUser?._id || finalUser?.id}`}>
+                {finalUser?.name || finalUser?.Name || 'User'}
+              </Link>
+            </li>
             {/* )} */}
             <li className="menu-item">
               <Link to="/auth/user/change-password">Change Password</Link>
@@ -909,6 +909,10 @@ const Header = () => {
               <>
                 <li className="menu-item">
                   <Link to="/auth/admin/users/list">Users</Link>
+                </li>
+
+                <li className="menu-item">
+                  <Link to="/user-logs">Logs & Activity</Link>
                 </li>
               </>
             )}

@@ -132,9 +132,10 @@ namespace SkyForge.Controllers.Retailer
                 var baseQuery = _context.Accounts
                     .Where(a => a.CompanyId == companyIdGuid &&
                                a.IsActive &&
-                               relevantGroups.Contains(a.AccountGroupsId) &&
-                               (a.OriginalFiscalYearId == fiscalYearId ||
-                                _context.FiscalYears.Any(f => f.Id == fiscalYearId && f.Id > a.OriginalFiscalYearId)));
+                               relevantGroups.Contains(a.AccountGroupsId)
+                                //    (a.OriginalFiscalYearId == fiscalYearId ||
+                                // _context.FiscalYears.Any(f => f.Id == fiscalYearId && f.Id > a.OriginalFiscalYearId))
+                                );
 
                 // 8. Apply search if provided
                 if (!string.IsNullOrWhiteSpace(searchDto.Search))
@@ -321,9 +322,7 @@ namespace SkyForge.Controllers.Retailer
                 var baseQuery = _context.Accounts
                     .Where(a => a.CompanyId == companyIdGuid &&
                                a.IsActive &&
-                               relevantGroups.Contains(a.AccountGroupsId) &&
-                               (a.OriginalFiscalYearId == fiscalYearId ||
-                                _context.FiscalYears.Any(f => f.Id == fiscalYearId && f.Id > a.OriginalFiscalYearId)));
+                               relevantGroups.Contains(a.AccountGroupsId));
 
                 // 8. Apply search if provided
                 if (!string.IsNullOrWhiteSpace(searchDto.Search))
@@ -629,6 +628,199 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // [HttpGet("all/accounts/search")]
+        // public async Task<IActionResult> SearchAllAccounts([FromQuery] AccountSearchDTO searchDto)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== SearchAllAccounts Started ===");
+
+        //         // 1. Extract user and company info from JWT claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         // 2. Validate required claims exist
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // 3. Check if company is selected
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // 4. Check if trade type is Retailer
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // 5. Get fiscal year
+        //         Guid fiscalYearIdGuid;
+        //         if (searchDto.FiscalYear.HasValue)
+        //         {
+        //             fiscalYearIdGuid = searchDto.FiscalYear.Value;
+        //         }
+        //         else if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             // Use from claims
+        //         }
+        //         else
+        //         {
+        //             // Get current active fiscal year
+        //             var currentFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (currentFiscalYear == null)
+        //             {
+        //                 return BadRequest(new
+        //                 {
+        //                     success = false,
+        //                     error = "No fiscal year found"
+        //                 });
+        //             }
+        //             fiscalYearIdGuid = currentFiscalYear.Id;
+        //         }
+
+        //         // 6. Build base query - INCLUDE ALL ACCOUNTS (removed group exclusions)
+        //         var baseQuery = _context.Accounts
+        //             .Where(a => a.CompanyId == companyIdGuid &&
+        //                        a.IsActive);
+        //         // 7. Apply search if provided
+        //         if (!string.IsNullOrWhiteSpace(searchDto.Search))
+        //         {
+        //             var searchString = searchDto.Search.Trim();
+
+        //             // Try to parse as number for numeric fields
+        //             bool isNumeric = decimal.TryParse(searchString, out decimal numericValue);
+
+        //             // Build search conditions
+        //             var searchQuery = baseQuery.Where(a =>
+        //                 EF.Functions.ILike(a.Name, $"%{searchString}%") ||
+        //                 EF.Functions.ILike(a.Address ?? "", $"%{searchString}%") ||
+        //                 EF.Functions.ILike(a.Phone ?? "", $"%{searchString}%") ||
+        //                 EF.Functions.ILike(a.Email ?? "", $"%{searchString}%") ||
+        //                 EF.Functions.ILike(a.ContactPerson ?? "", $"%{searchString}%") ||
+        //                 EF.Functions.ILike(a.Pan ?? "", $"%{searchString}%"));
+
+        //             // Add numeric search if applicable
+        //             if (isNumeric)
+        //             {
+        //                 searchQuery = searchQuery.Union(baseQuery.Where(a =>
+        //                     a.UniqueNumber == (int)numericValue));
+        //             }
+
+        //             baseQuery = searchQuery;
+        //         }
+
+        //         // 8. Get total count for pagination
+        //         var totalAccounts = await baseQuery.CountAsync();
+
+        //         // 9. Apply pagination
+        //         var page = searchDto.Page < 1 ? 1 : searchDto.Page;
+        //         var limit = searchDto.Limit < 1 ? 25 : searchDto.Limit;
+        //         var skip = (page - 1) * limit;
+
+        //         var accounts = await baseQuery
+        //             .Include(a => a.AccountGroup)
+        //             .OrderBy(a => a.Name)
+        //             .Skip(skip)
+        //             .Take(limit)
+        //             .Select(a => new
+        //             {
+        //                 a.Id,
+        //                 a.Name,
+        //                 a.UniqueNumber,
+        //                 a.Address,
+        //                 a.Pan,
+        //                 a.ContactPerson,
+        //                 a.Email,
+        //                 a.Phone,
+        //                 a.CreditLimit,
+        //                 a.CreatedAt,
+        //                 a.AccountGroupsId,
+        //                 AccountGroupName = a.AccountGroup != null ? a.AccountGroup.Name : ""
+        //             })
+        //             .ToListAsync();
+
+        //         // 10. Calculate balances for all accounts
+        //         var accountsWithBalances = new List<AccountSearchResultDTO>();
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var balanceData = await _accountBalanceService.CalculateAccountBalanceAsync(
+        //                 account.Id, companyIdGuid, fiscalYearIdGuid);
+
+        //             accountsWithBalances.Add(new AccountSearchResultDTO
+        //             {
+        //                 Id = account.Id,
+        //                 Name = account.Name,
+        //                 UniqueNumber = account.UniqueNumber,
+        //                 Address = account.Address ?? "",
+        //                 Pan = account.Pan,
+        //                 ContactPerson = account.ContactPerson ?? "",
+        //                 Email = account.Email,
+        //                 Phone = account.Phone,
+        //                 CreditLimit = account.CreditLimit,
+        //                 CreatedAt = account.CreatedAt,
+        //                 Balance = balanceData.Balance,
+        //                 BalanceType = balanceData.BalanceType,
+        //                 RawBalance = balanceData.RawBalance,
+        //             });
+        //         }
+
+        //         // 11. Prepare pagination response
+        //         var pagination = new PaginationDTO
+        //         {
+        //             CurrentPage = page,
+        //             TotalPages = (int)Math.Ceiling(totalAccounts / (double)limit),
+        //             TotalAccounts = totalAccounts,
+        //             AccountsPerPage = limit,
+        //             HasNextPage = (page * limit) < totalAccounts,
+        //             HasPreviousPage = page > 1
+        //         };
+
+        //         // 12. Return response
+        //         var response = new AccountSearchResponseDTO
+        //         {
+        //             Success = true,
+        //             Accounts = accountsWithBalances,
+        //             Pagination = pagination
+        //         };
+
+        //         _logger.LogInformation("Successfully fetched {Count} accounts for search: {Search} (including cash and bank accounts)",
+        //             accountsWithBalances.Count, searchDto.Search ?? "all");
+
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in SearchAllAccounts");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while searching accounts",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         [HttpGet("all/accounts/search")]
         public async Task<IActionResult> SearchAllAccounts([FromQuery] AccountSearchDTO searchDto)
         {
@@ -699,12 +891,12 @@ namespace SkyForge.Controllers.Retailer
                     fiscalYearIdGuid = currentFiscalYear.Id;
                 }
 
-                // 6. Build base query - INCLUDE ALL ACCOUNTS (removed group exclusions)
+                // 6. Build base query - EXCLUDE Stock in Hand accounts
                 var baseQuery = _context.Accounts
+                    .Include(a => a.AccountGroup)
                     .Where(a => a.CompanyId == companyIdGuid &&
                                a.IsActive &&
-                               (a.OriginalFiscalYearId == fiscalYearIdGuid ||
-                                _context.FiscalYears.Any(f => f.Id == fiscalYearIdGuid && f.Id > a.OriginalFiscalYearId)));
+                               (a.AccountGroup == null || a.AccountGroup.Name != "Stock in Hand")); // ✅ Exclude Stock in Hand
 
                 // 7. Apply search if provided
                 if (!string.IsNullOrWhiteSpace(searchDto.Search))
@@ -808,7 +1000,7 @@ namespace SkyForge.Controllers.Retailer
                     Pagination = pagination
                 };
 
-                _logger.LogInformation("Successfully fetched {Count} accounts for search: {Search} (including cash and bank accounts)",
+                _logger.LogInformation("Successfully fetched {Count} accounts for search: {Search} (excluding Stock in Hand)",
                     accountsWithBalances.Count, searchDto.Search ?? "all");
 
                 return Ok(response);
@@ -2015,6 +2207,232 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // // GET: api/retailer/companies/{id}
+        // [HttpGet("companies/{id}")]
+        // public async Task<IActionResult> GetAccount(Guid id)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetAccount Started ===");
+
+        //         // 1. Extract user and company info from JWT claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // 2. Validate required claims exist
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // 3. Check if company is selected
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // 4. Check if trade type is Retailer
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // 5. Get the company with fiscal year
+        //         var company = await _context.Companies
+        //             .Include(c => c.FiscalYears)
+        //             .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
+
+        //         if (company == null)
+        //         {
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Company not found"
+        //             });
+        //         }
+
+        //         // 6. Get current active fiscal year
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //         if (currentFiscalYear == null)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No active fiscal year found"
+        //             });
+        //         }
+
+        //         // 7. Get account with all related data
+        //         var account = await _context.Accounts
+        //             .Include(a => a.AccountGroup)
+        //             .Include(a => a.Company)
+        //             .Include(a => a.OpeningBalanceByFiscalYear)
+        //                 .ThenInclude(ob => ob.FiscalYear)
+        //             .Include(a => a.FiscalYears)
+        //             .FirstOrDefaultAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+
+        //         if (account == null)
+        //         {
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Account not found"
+        //             });
+        //         }
+
+        //         // 8. Get company groups (account groups in your schema)
+        //         var companyGroups = await _context.AccountGroups
+        //             .Where(ag => ag.CompanyId == companyIdGuid)
+        //             .ToListAsync();
+
+        //         // 9. Find opening balance for current fiscal year
+        //         var currentOpeningBalance = account.OpeningBalanceByFiscalYear
+        //             .FirstOrDefault(ob => ob.FiscalYearId == currentFiscalYear.Id);
+
+        //         // 10. Prepare company information
+        //         var companyInfo = new
+        //         {
+        //             id = company.Id,
+        //             renewalDate = company.RenewalDate, // Make sure this property exists in your Company model
+        //             dateFormat = company.DateFormat // Make sure this property exists
+        //         };
+
+        //         // 11. Prepare account groups response
+        //         var accountGroupsResponse = account.AccountGroup != null
+        //             ? new[]
+        //             {
+        //         new
+        //         {
+        //             id = account.AccountGroup.Id,
+        //             name = account.AccountGroup.Name
+        //         }
+        //             }
+        //             : Array.Empty<object>();
+
+        //         // 12. Prepare fiscal year information
+        //         var fiscalYearInfo = new
+        //         {
+        //             id = currentFiscalYear.Id,
+        //             name = currentFiscalYear.Name,
+        //             startDate = currentFiscalYear.StartDate,
+        //             endDate = currentFiscalYear.EndDate,
+        //             isActive = currentFiscalYear.IsActive,
+        //             dateFormat = currentFiscalYear.DateFormat
+        //         };
+
+        //         // 13. Prepare company groups list
+        //         var companyGroupsResponse = companyGroups.Select(g => new
+        //         {
+        //             id = g.Id,
+        //             name = g.Name
+        //         }).ToList();
+
+        //         // 14. Prepare the main response
+        //         var response = new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 company = companyInfo,
+        //                 account = new
+        //                 {
+        //                     _id = account.Id,
+        //                     name = account.Name,
+        //                     address = account.Address,
+        //                     phone = account.Phone,
+        //                     ward = account.Ward,
+        //                     pan = account.Pan,
+        //                     email = account.Email,
+        //                     contactPerson = account.ContactPerson,
+        //                     creditLimit = account.CreditLimit,
+        //                     companyGroups = accountGroupsResponse,
+        //                     openingBalance = currentOpeningBalance != null
+        //                         ? new
+        //                         {
+        //                             amount = currentOpeningBalance.Amount,
+        //                             type = currentOpeningBalance.Type,
+        //                             date = currentOpeningBalance.Date
+        //                         }
+        //                         : null,
+        //                     openingBalanceType = account.OpeningBalanceType,
+        //                     // openingBalanceDate = account.OpeningBalanceDate,
+        //                     defaultCashAccount = account.DefaultCashAccount,
+        //                     defaultVatAccount = account.DefaultVatAccount,
+        //                     isDefaultAccount = account.IsDefaultAccount,
+        //                     isActive = account.IsActive,
+        //                     createdAt = account.CreatedAt,
+        //                     updatedAt = account.UpdatedAt,
+        //                     // Include additional properties from your Account model if needed
+        //                     uniqueNumber = account.UniqueNumber,
+        //                     originalFiscalYearId = account.OriginalFiscalYearId,
+        //                     accountGroupsId = account.AccountGroupsId
+        //                 },
+        //                 financialInfo = new
+        //                 {
+        //                     currentOpeningBalance = currentOpeningBalance != null
+        //                         ? new
+        //                         {
+        //                             id = currentOpeningBalance.Id,
+        //                             amount = currentOpeningBalance.Amount,
+        //                             type = currentOpeningBalance.Type,
+        //                             date = currentOpeningBalance.Date,
+        //                             fiscalYearId = currentOpeningBalance.FiscalYearId,
+        //                             fiscalYear = currentOpeningBalance.FiscalYear != null
+        //                                 ? new
+        //                                 {
+        //                                     id = currentOpeningBalance.FiscalYear.Id,
+        //                                     name = currentOpeningBalance.FiscalYear.Name
+        //                                 }
+        //                                 : null
+        //                         }
+        //                         : null,
+        //                     fiscalYear = fiscalYearInfo
+        //                 },
+        //                 companyGroups = companyGroupsResponse,
+        //                 currentCompanyName = company.Name, // Assuming Company has a Name property
+        //                 user = new
+        //                 {
+        //                     id = userIdGuid,
+        //                     // You'll need to fetch user details from database or claims
+        //                     role = User.FindFirst(ClaimTypes.Role)?.Value ?? "User",
+        //                     isAdmin = User.IsInRole("Admin"),
+        //                     preferences = new object() // Add user preferences if available
+        //                 },
+        //                 isAdminOrSupervisor = User.IsInRole("Admin") || User.IsInRole("Supervisor")
+        //             }
+        //         };
+
+        //         _logger.LogInformation($"Successfully retrieved account '{account.Name}'");
+
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetAccount");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while fetching account",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         // GET: api/retailer/companies/{id}
         [HttpGet("companies/{id}")]
         public async Task<IActionResult> GetAccount(Guid id)
@@ -2112,15 +2530,36 @@ namespace SkyForge.Controllers.Retailer
                 var currentOpeningBalance = account.OpeningBalanceByFiscalYear
                     .FirstOrDefault(ob => ob.FiscalYearId == currentFiscalYear.Id);
 
-                // 10. Prepare company information
+                // 10. Determine the correct opening balance type and amount
+                string openingBalanceType = "Dr";
+                decimal openingBalanceAmount = 0;
+
+                if (currentOpeningBalance != null)
+                {
+                    // Use the opening balance from the current fiscal year
+                    openingBalanceAmount = currentOpeningBalance.Amount;
+                    openingBalanceType = currentOpeningBalance.Type ?? "Dr";
+
+                    _logger.LogInformation($"Opening balance for account {account.Name} in fiscal year {currentFiscalYear.Name}: {openingBalanceAmount} ({openingBalanceType})");
+                }
+                else
+                {
+                    // Fallback to account's default opening balance type
+                    openingBalanceType = account.OpeningBalanceType ?? "Dr";
+                    openingBalanceAmount = 0;
+
+                    _logger.LogInformation($"No opening balance found for account {account.Name} in fiscal year {currentFiscalYear.Name}, using default type: {openingBalanceType}");
+                }
+
+                // 11. Prepare company information
                 var companyInfo = new
                 {
                     id = company.Id,
-                    renewalDate = company.RenewalDate, // Make sure this property exists in your Company model
-                    dateFormat = company.DateFormat // Make sure this property exists
+                    renewalDate = company.RenewalDate,
+                    dateFormat = company.DateFormat
                 };
 
-                // 11. Prepare account groups response
+                // 12. Prepare account groups response
                 var accountGroupsResponse = account.AccountGroup != null
                     ? new[]
                     {
@@ -2132,7 +2571,7 @@ namespace SkyForge.Controllers.Retailer
                     }
                     : Array.Empty<object>();
 
-                // 12. Prepare fiscal year information
+                // 13. Prepare fiscal year information
                 var fiscalYearInfo = new
                 {
                     id = currentFiscalYear.Id,
@@ -2143,14 +2582,14 @@ namespace SkyForge.Controllers.Retailer
                     dateFormat = currentFiscalYear.DateFormat
                 };
 
-                // 13. Prepare company groups list
+                // 14. Prepare company groups list
                 var companyGroupsResponse = companyGroups.Select(g => new
                 {
                     id = g.Id,
                     name = g.Name
                 }).ToList();
 
-                // 14. Prepare the main response
+                // 15. Prepare the main response
                 var response = new
                 {
                     success = true,
@@ -2160,6 +2599,7 @@ namespace SkyForge.Controllers.Retailer
                         account = new
                         {
                             _id = account.Id,
+                            id = account.Id,
                             name = account.Name,
                             address = account.Address,
                             phone = account.Phone,
@@ -2169,23 +2609,20 @@ namespace SkyForge.Controllers.Retailer
                             contactPerson = account.ContactPerson,
                             creditLimit = account.CreditLimit,
                             companyGroups = accountGroupsResponse,
-                            openingBalance = currentOpeningBalance != null
-                                ? new
-                                {
-                                    amount = currentOpeningBalance.Amount,
-                                    type = currentOpeningBalance.Type,
-                                    date = currentOpeningBalance.Date
-                                }
-                                : null,
-                            openingBalanceType = account.OpeningBalanceType,
-                            // openingBalanceDate = account.OpeningBalanceDate,
+                            // ✅ FIX: Use the correct opening balance type and amount
+                            openingBalance = new
+                            {
+                                amount = openingBalanceAmount,
+                                type = openingBalanceType,
+                                date = currentOpeningBalance?.Date ?? DateTime.UtcNow
+                            },
+                            openingBalanceType = openingBalanceType, // ✅ This is the key fix
                             defaultCashAccount = account.DefaultCashAccount,
                             defaultVatAccount = account.DefaultVatAccount,
                             isDefaultAccount = account.IsDefaultAccount,
                             isActive = account.IsActive,
                             createdAt = account.CreatedAt,
                             updatedAt = account.UpdatedAt,
-                            // Include additional properties from your Account model if needed
                             uniqueNumber = account.UniqueNumber,
                             originalFiscalYearId = account.OriginalFiscalYearId,
                             accountGroupsId = account.AccountGroupsId
@@ -2212,20 +2649,19 @@ namespace SkyForge.Controllers.Retailer
                             fiscalYear = fiscalYearInfo
                         },
                         companyGroups = companyGroupsResponse,
-                        currentCompanyName = company.Name, // Assuming Company has a Name property
+                        currentCompanyName = company.Name,
                         user = new
                         {
                             id = userIdGuid,
-                            // You'll need to fetch user details from database or claims
                             role = User.FindFirst(ClaimTypes.Role)?.Value ?? "User",
                             isAdmin = User.IsInRole("Admin"),
-                            preferences = new object() // Add user preferences if available
+                            preferences = new object()
                         },
                         isAdminOrSupervisor = User.IsInRole("Admin") || User.IsInRole("Supervisor")
                     }
                 };
 
-                _logger.LogInformation($"Successfully retrieved account '{account.Name}'");
+                _logger.LogInformation($"Successfully retrieved account '{account.Name}' with opening balance: {openingBalanceAmount} ({openingBalanceType})");
 
                 return Ok(response);
             }

@@ -36,13 +36,17 @@ const ViewItems = () => {
             try {
                 setLoading(true);
                 const response = await api.get(`/api/retailer/items/${id}`);
-                
+
+                console.log('Full API Response:', response.data);
+
                 if (!response.data.success) {
                     throw new Error(response.data.error || 'Failed to fetch item');
                 }
 
                 const { data } = response.data;
-                const { item: itemData, stockInfo, hasTransactions } = data;
+                const { item: itemData, stockInfo: stockInfoData, hasTransactions: hasTransactionsData } = data;
+
+                console.log('Stock Info from API:', stockInfoData);
 
                 const processedItem = {
                     _id: itemData.id,
@@ -69,15 +73,25 @@ const ViewItems = () => {
                 };
 
                 setItem(processedItem);
-                setStockInfo(stockInfo || {
-                    openingStock: 0,
-                    openingStockValue: 0,
-                    salesPrice: 0,
-                    purchasePrice: 0
+
+                setStockInfo({
+                    openingStock: stockInfoData?.openingStock || 0,
+                    openingStockValue: stockInfoData?.openingStockValue || 0,
+                    salesPrice: stockInfoData?.salesPrice || 0,
+                    purchasePrice: stockInfoData?.purchasePrice || 0
                 });
-                setHasTransactions(hasTransactions || false);
+
+                setHasTransactions(hasTransactionsData || false);
+
+                console.log('Processed Stock Info:', {
+                    openingStock: stockInfoData?.openingStock,
+                    openingStockValue: stockInfoData?.openingStockValue,
+                    salesPrice: stockInfoData?.salesPrice,
+                    purchasePrice: stockInfoData?.purchasePrice
+                });
 
             } catch (err) {
+                console.error('Error fetching item:', err);
                 setError(err.response?.data?.error || err.message || 'Failed to fetch item details');
             } finally {
                 setLoading(false);
@@ -224,16 +238,28 @@ const ViewItems = () => {
                             <h6 className="fw-bold mb-2">Pricing & Stock</h6>
                             <ListGroup variant="flush" className="small">
                                 <ListGroup.Item className="py-1 px-2">
-                                    <strong>Sales Price:</strong> <span className="ms-2">{item.price?.toFixed(2) || '0.00'}</span>
+                                    <strong>Sales Price:</strong>
+                                    <span className="ms-2 text-primary fw-bold">
+                                        {stockInfo.salesPrice?.toFixed(2) || '0.00'}
+                                    </span>
                                 </ListGroup.Item>
                                 <ListGroup.Item className="py-1 px-2">
-                                    <strong>Purchase Price:</strong> <span className="ms-2">{item.puPrice?.toFixed(2) || '0.00'}</span>
+                                    <strong>Purchase Price:</strong>
+                                    <span className="ms-2 text-success fw-bold">
+                                        {stockInfo.purchasePrice?.toFixed(2) || '0.00'}
+                                    </span>
                                 </ListGroup.Item>
                                 <ListGroup.Item className="py-1 px-2">
-                                    <strong>Opening Stock:</strong> <span className="ms-2">{stockInfo.openingStock || 0}</span>
+                                    <strong>Opening Stock:</strong>
+                                    <span className="ms-2 fw-bold">
+                                        {stockInfo.openingStock || 0}
+                                    </span>
                                 </ListGroup.Item>
                                 <ListGroup.Item className="py-1 px-2">
-                                    <strong>Opening Value:</strong> <span className="ms-2">{(stockInfo.openingStockValue || 0).toFixed(2)}</span>
+                                    <strong>Opening Value:</strong>
+                                    <span className="ms-2 fw-bold">
+                                        {(stockInfo.openingStockValue || 0).toFixed(2)}
+                                    </span>
                                 </ListGroup.Item>
                                 <ListGroup.Item className="py-1 px-2">
                                     <strong>Reorder Level:</strong> <span className="ms-2">{item.reorderLevel || 'N/A'}</span>
@@ -246,23 +272,6 @@ const ViewItems = () => {
 
                         <Col md={4}>
                             <h6 className="fw-bold mb-2">Identification</h6>
-                            <div className="mb-3">
-                                <Button
-                                    size="sm"
-                                    variant={item.status === 'active' ? 'danger' : 'success'}
-                                    onClick={toggleItemStatus}
-                                    className="w-100 mb-2"
-                                    disabled={hasTransactions}
-                                    title={hasTransactions ? "Cannot change status - item has transactions" : ""}
-                                >
-                                    {item.status === 'active' ? 'Deactivate Item' : 'Activate Item'}
-                                </Button>
-                                {hasTransactions && (
-                                    <small className="text-muted d-block">
-                                        <i className="bi bi-info-circle me-1"></i>Status cannot be changed (has transactions)
-                                    </small>
-                                )}
-                            </div>
                             <ListGroup variant="flush" className="small">
                                 <ListGroup.Item className="py-1 px-2 d-flex align-items-center">
                                     <strong>Status:</strong>
@@ -289,9 +298,6 @@ const ViewItems = () => {
                     <hr className="my-3" />
 
                     <Row className="mt-3">
-                         <Button size="sm" variant="outline-primary" onClick={() => navigate(-1)} className="d-flex align-items-center">
-                        <FaArrowLeft className="me-1" /> Back
-                    </Button>
                         <Col>
                             <h6 className="fw-bold mb-2">Compositions</h6>
                             <ListGroup variant="flush" className="small">
@@ -316,58 +322,34 @@ const ViewItems = () => {
                     <Row className="mt-3">
                         <Col>
                             <div className="d-flex justify-content-between align-items-center mb-2">
-                                <h6 className="fw-bold mb-0">Stock Entries</h6>
-                            </div>
-                            {item.stockEntries && item.stockEntries.length > 0 ? (
-                                <div className="table-responsive">
-                                    <table className="table table-sm table-hover mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Batch #</th>
-                                                <th>Quantity</th>
-                                                <th>Purchase Price</th>
-                                                <th>MRP</th>
-                                                <th>Expiry Date</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {item.stockEntries.map(entry => (
-                                                <tr key={entry.id || entry._id}>
-                                                    <td>{entry.batchNumber || 'N/A'}</td>
-                                                    <td>{entry.quantity || 0}</td>
-                                                    <td>{(entry.puPrice || 0).toFixed(2)}</td>
-                                                    <td>{(entry.mrp || 0).toFixed(2)}</td>
-                                                    <td>{entry.expiryDate ? new Date(entry.expiryDate).toLocaleDateString() : 'N/A'}</td>
-                                                    <td>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline-success"
-                                                            onClick={() => handlePrintBarcode(entry)}
-                                                            title="Print Barcode"
-                                                        >
-                                                            <FaBarcode />
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                <Button
+                                    size="sm"
+                                    variant={item.status === 'active' ? 'outline-danger' : 'outline-success'}
+                                    onClick={toggleItemStatus}
+                                    className="me-2"
+                                    disabled={hasTransactions}
+                                    title={hasTransactions ? "Cannot change status - item has transactions" : ""}
+                                >
+                                    {item.status === 'active' ? 'Deactivate' : 'Activate'}
+                                </Button>
+                                <div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline-primary"
+                                        onClick={() => navigate(-1)}
+                                    >
+                                        <FaArrowLeft className="me-1" /> Back
+                                    </Button>
                                 </div>
-                            ) : (
-                                <Alert variant="info" className="small p-2">
-                                    No stock entries found. Add stock entries to track inventory.
-                                </Alert>
+                            </div>
+                            {hasTransactions && (
+                                <small className="text-muted d-block mb-2">
+                                    <i className="bi bi-info-circle me-1"></i>Status cannot be changed (has transactions)
+                                </small>
                             )}
                         </Col>
                     </Row>
                 </Card.Body>
-
-                {/* <Card.Footer className="p-2 d-flex justify-content-between">
-                    <Button size="sm" variant="outline-primary" onClick={() => navigate(-1)} className="d-flex align-items-center">
-                        <FaArrowLeft className="me-1" /> Back to Items
-                    </Button>
-                </Card.Footer> */}
             </Card>
         </Container>
     );

@@ -4,10 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 [Route("api/[controller]")]
 public class HealthController : ControllerBase
 {
-    [HttpGet("ping")]
-    public IActionResult Ping()
-    {
-        // Very lightweight health check
-        return Ok(new { ok = true, time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-    }
+    // [HttpGet("ping")]
+    // public IActionResult Ping()
+    // {
+    //     // Very lightweight health check
+    //     return Ok(new { ok = true, time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+    // }
 }

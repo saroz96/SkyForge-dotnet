@@ -985,7 +985,130 @@ namespace SkyForge.Controllers
         }
 
 
-        // Controllers/FiscalYearsController.cs - Add this method
+        // [HttpGet("split-fiscal-year")]
+        // public async Task SplitFiscalYear(CancellationToken cancellationToken)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("Split fiscal year SSE endpoint hit");
+
+        //         // Set SSE headers
+        //         Response.Headers.Append("Content-Type", "text/event-stream");
+        //         Response.Headers.Append("Cache-Control", "no-cache");
+        //         Response.Headers.Append("Connection", "keep-alive");
+        //         Response.Headers.Append("Access-Control-Allow-Origin", "*");
+
+        //         // Get parameters from query string
+        //         var sourceCompanyIdParam = Request.Query["sourceCompanyId"].ToString();
+        //         var fiscalYearIdParam = Request.Query["fiscalYearId"].ToString();
+        //         var newCompanyName = Request.Query["newCompanyName"].ToString();
+        //         var deleteAfterSplitParam = Request.Query["deleteAfterSplit"].ToString();
+
+        //         _logger.LogInformation("SSE Split request params: SourceCompanyId={SourceCompanyId}, FiscalYearId={FiscalYearId}, NewCompanyName={NewCompanyName}, DeleteAfterSplit={DeleteAfterSplit}",
+        //             sourceCompanyIdParam, fiscalYearIdParam, newCompanyName, deleteAfterSplitParam);
+
+        //         // Validate input
+        //         if (string.IsNullOrEmpty(sourceCompanyIdParam) || !Guid.TryParse(sourceCompanyIdParam, out var sourceCompanyId))
+        //         {
+        //             await SendSseEvent("error", new { error = "Valid source company ID is required" });
+        //             return;
+        //         }
+
+        //         if (string.IsNullOrEmpty(fiscalYearIdParam) || !Guid.TryParse(fiscalYearIdParam, out var fiscalYearId))
+        //         {
+        //             await SendSseEvent("error", new { error = "Valid fiscal year ID is required" });
+        //             return;
+        //         }
+
+        //         if (string.IsNullOrEmpty(newCompanyName))
+        //         {
+        //             await SendSseEvent("error", new { error = "New company name is required" });
+        //             return;
+        //         }
+
+        //         // Extract user ID from claims
+        //         var userIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        //         {
+        //             await SendSseEvent("error", new { error = "User not authenticated" });
+        //             return;
+        //         }
+
+        //         var deleteAfterSplit = deleteAfterSplitParam?.ToLower() == "true";
+
+        //         var request = new SplitFiscalYearRequestDto
+        //         {
+        //             SourceCompanyId = sourceCompanyId,
+        //             FiscalYearId = fiscalYearId,
+        //             NewCompanyName = newCompanyName,
+        //             DeleteAfterSplit = deleteAfterSplit
+        //         };
+
+        //         // Flag to track if operation completed successfully
+        //         var operationCompleted = false;
+
+        //         // Setup progress handler
+        //         var progressHandler = new Func<SplitFiscalYearProgressEventDto, Task>(async (progress) =>
+        //         {
+        //             await SendSseEvent(progress.Type, new
+        //             {
+        //                 progress.Value,
+        //                 progress.Message,
+        //                 error = progress.Error,
+        //                 details = progress.Details,
+        //                 data = progress.Data
+        //             });
+
+        //             if (progress.Type == "complete" || progress.Type == "error")
+        //             {
+        //                 operationCompleted = true;
+        //             }
+        //         });
+
+        //         try
+        //         {
+        //             await _fiscalYearService.SplitFiscalYearAsync(request, userId, progressHandler, cancellationToken);
+        //         }
+        //         catch (OperationCanceledException)
+        //         {
+        //             _logger.LogWarning("Split operation was cancelled by client disconnect");
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Unhandled error in SplitFiscalYear SSE endpoint");
+        //             await SendSseEvent("error", new { error = ex.Message, details = ex.StackTrace });
+        //         }
+        //         finally
+        //         {
+        //             if (!operationCompleted)
+        //             {
+        //                 await SendSseEvent("error", new { error = "Operation terminated unexpectedly" });
+        //             }
+        //             await Response.Body.FlushAsync(cancellationToken);
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in SplitFiscalYear SSE endpoint");
+        //     }
+
+        //     // Helper function to send SSE events
+        //     async Task SendSseEvent(string eventType, object data)
+        //     {
+        //         try
+        //         {
+        //             var jsonData = System.Text.Json.JsonSerializer.Serialize(data);
+        //             await Response.WriteAsync($"data: {jsonData}\n\n");
+        //             await Response.Body.FlushAsync();
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error sending SSE event");
+        //         }
+        //     }
+
+
+        // }
 
         [HttpGet("split-fiscal-year")]
         public async Task SplitFiscalYear(CancellationToken cancellationToken)
@@ -1005,6 +1128,7 @@ namespace SkyForge.Controllers
                 var fiscalYearIdParam = Request.Query["fiscalYearId"].ToString();
                 var newCompanyName = Request.Query["newCompanyName"].ToString();
                 var deleteAfterSplitParam = Request.Query["deleteAfterSplit"].ToString();
+                var tokenFromQuery = Request.Query["token"].ToString();
 
                 _logger.LogInformation("SSE Split request params: SourceCompanyId={SourceCompanyId}, FiscalYearId={FiscalYearId}, NewCompanyName={NewCompanyName}, DeleteAfterSplit={DeleteAfterSplit}",
                     sourceCompanyIdParam, fiscalYearIdParam, newCompanyName, deleteAfterSplitParam);
@@ -1028,11 +1152,62 @@ namespace SkyForge.Controllers
                     return;
                 }
 
-                // Extract user ID from claims
+                // Extract user ID from claims OR from token
+                Guid userId;
                 var userIdClaim = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+
+                // If user ID not found in claims, try to validate the token from query
+                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out userId))
                 {
-                    await SendSseEvent("error", new { error = "User not authenticated" });
+                    // If token is provided in query, validate it
+                    if (!string.IsNullOrEmpty(tokenFromQuery))
+                    {
+                        try
+                        {
+                            var principal = _jwtService.ValidateToken(tokenFromQuery);
+                            if (principal != null)
+                            {
+                                var userIdFromToken = principal.FindFirst("userId")?.Value
+                                    ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                                if (!string.IsNullOrEmpty(userIdFromToken) && Guid.TryParse(userIdFromToken, out userId))
+                                {
+                                    _logger.LogInformation("User authenticated via token from query: {UserId}", userId);
+                                }
+                                else
+                                {
+                                    await SendSseEvent("error", new { error = "Invalid token - user ID not found" });
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                await SendSseEvent("error", new { error = "Invalid token" });
+                                return;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error validating token from query");
+                            await SendSseEvent("error", new { error = "Invalid token" });
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        await SendSseEvent("error", new { error = "User not authenticated" });
+                        return;
+                    }
+                }
+
+                // Validate that the user has access to the source company
+                var hasAccess = await _context.Companies
+                    .AnyAsync(c => c.Id == sourceCompanyId && (c.OwnerId == userId || c.Users.Any(u => u.Id == userId)),
+                        cancellationToken);
+
+                if (!hasAccess)
+                {
+                    await SendSseEvent("error", new { error = "User does not have access to this company" });
                     return;
                 }
 
@@ -1052,18 +1227,68 @@ namespace SkyForge.Controllers
                 // Setup progress handler
                 var progressHandler = new Func<SplitFiscalYearProgressEventDto, Task>(async (progress) =>
                 {
-                    await SendSseEvent(progress.Type, new
+                    try
                     {
-                        progress.Value,
-                        progress.Message,
-                        error = progress.Error,
-                        details = progress.Details,
-                        data = progress.Data
-                    });
-
-                    if (progress.Type == "complete" || progress.Type == "error")
+                        if (progress.Type == "complete")
+                        {
+                            // Send the complete event with proper data structure
+                            await SendSseEvent("complete", new
+                            {
+                                success = true,
+                                message = progress.Message ?? "Company split completed successfully",
+                                data = progress.Data
+                            });
+                            operationCompleted = true;
+                            _logger.LogInformation("Complete event sent successfully");
+                        }
+                        else if (progress.Type == "error")
+                        {
+                            await SendSseEvent("error", new
+                            {
+                                error = progress.Error,
+                                message = progress.Message,
+                                details = progress.Details
+                            });
+                            operationCompleted = true;
+                            _logger.LogError("Error event sent: {Error}", progress.Error);
+                        }
+                        else if (progress.Type == "progress")
+                        {
+                            await SendSseEvent("progress", new
+                            {
+                                progress = new
+                                {
+                                    value = progress.Value,
+                                    message = progress.Message
+                                }
+                            });
+                        }
+                        else if (progress.Type == "log")
+                        {
+                            await SendSseEvent("log", new
+                            {
+                                message = progress.Message
+                            });
+                        }
+                        else
+                        {
+                            // Default handling for any other events
+                            await SendSseEvent(progress.Type, new
+                            {
+                                progress = new
+                                {
+                                    value = progress.Value,
+                                    message = progress.Message
+                                },
+                                error = progress.Error,
+                                details = progress.Details,
+                                data = progress.Data
+                            });
+                        }
+                    }
+                    catch (Exception ex)
                     {
-                        operationCompleted = true;
+                        _logger.LogError(ex, "Error sending SSE event in progress handler");
                     }
                 });
 
@@ -1074,6 +1299,7 @@ namespace SkyForge.Controllers
                 catch (OperationCanceledException)
                 {
                     _logger.LogWarning("Split operation was cancelled by client disconnect");
+                    await SendSseEvent("error", new { error = "Operation cancelled by user" });
                 }
                 catch (Exception ex)
                 {
@@ -1100,6 +1326,7 @@ namespace SkyForge.Controllers
                 try
                 {
                     var jsonData = System.Text.Json.JsonSerializer.Serialize(data);
+                    await Response.WriteAsync($"event: {eventType}\n");
                     await Response.WriteAsync($"data: {jsonData}\n\n");
                     await Response.Body.FlushAsync();
                 }
@@ -1108,10 +1335,7 @@ namespace SkyForge.Controllers
                     _logger.LogError(ex, "Error sending SSE event");
                 }
             }
-
-
         }
-
 
         public class CreateFiscalYearRequest
         {
