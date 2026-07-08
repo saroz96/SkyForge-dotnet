@@ -13,6 +13,7 @@ using SkyForge.Services.UnitServices;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using SkyForge.Dto.CompanyDto;
 namespace SkyForge.Services
 {
     public interface ICompanyService
@@ -28,5 +29,8 @@ namespace SkyForge.Services
         Task<bool> DeleteCompanyAsync(Guid companyId);
         Task<Company> UpdateCompanyAsync(Guid companyId, Company updatedCompany);
         Task<List<string>> GetNotificationEmailsAsync(Guid companyId);
+
+        Task<CompanyDataSizeDTO> GetCompanyDataSizeAsync(Guid companyId);
+        Task<List<CompanyDataSizeDTO>> GetAllCompaniesDataSizeAsync(Guid? userId = null);
     }
 }

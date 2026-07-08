@@ -543,6 +543,66 @@ namespace SkyForge.Controllers
         }
 
         /// <summary>
+        /// Get data size for a specific company
+        /// </summary>
+        [HttpGet("{id}/data-size")]
+        [ProducesResponseType(typeof(CompanyDataSizeDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ErrorResponseDTO), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetCompanyDataSize(Guid id)
+        {
+            try
+            {
+                var company = await _companyService.GetCompanyByIdAsync(id);
+                if (company == null)
+                {
+                    return NotFound(new ErrorResponseDTO
+                    {
+                        Success = false,
+                        Error = "Company not found",
+                        Type = "NotFound"
+                    });
+                }
+
+                var dataSize = await _companyService.GetCompanyDataSizeAsync(id);
+                return Ok(dataSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching data size for company {CompanyId}", id);
+                return StatusCode(500, new ErrorResponseDTO
+                {
+                    Success = false,
+                    Error = "Failed to fetch company data size",
+                    Type = "ServerError"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Get data sizes for all companies (optionally filtered by user)
+        /// </summary>
+        [HttpGet("data-sizes")]
+        [ProducesResponseType(typeof(List<CompanyDataSizeDTO>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAllCompaniesDataSize([FromQuery] Guid? userId = null)
+        {
+            try
+            {
+                var dataSizes = await _companyService.GetAllCompaniesDataSizeAsync(userId);
+                return Ok(dataSizes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching all companies data sizes");
+                return StatusCode(500, new ErrorResponseDTO
+                {
+                    Success = false,
+                    Error = "Failed to fetch companies data sizes",
+                    Type = "ServerError"
+                });
+            }
+        }
+
+        /// <summary>
         /// Add user to company
         /// </summary>
         [HttpPost("{companyId}/users")]
@@ -711,7 +771,7 @@ namespace SkyForge.Controllers
                 });
             }
         }
-       
+
         /// <summary>
         /// Update company
         /// </summary>

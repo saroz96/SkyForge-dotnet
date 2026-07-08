@@ -37,6 +37,8 @@ const CompanyDetails = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [dataSize, setDataSize] = useState(null);
+    const [loadingSize, setLoadingSize] = useState(false);
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -108,6 +110,38 @@ const CompanyDetails = () => {
         fetchCompanyData();
     }, [id, navigate, userInfo]);
 
+    const fetchDataSize = async () => {
+        setLoadingSize(true);
+        try {
+            const api = axios.create({
+                baseURL: process.env.REACT_APP_API_BASE_URL,
+                withCredentials: true,
+            });
+
+            api.interceptors.request.use(config => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+                return config;
+            });
+
+            const response = await api.get(`/api/Companies/${id}/data-size`);
+            setDataSize(response.data);
+        } catch (err) {
+            console.error('Error fetching data size:', err);
+        } finally {
+            setLoadingSize(false);
+        }
+    };
+
+    // Call this in useEffect after fetching company data
+    useEffect(() => {
+        if (company) {
+            fetchDataSize();
+        }
+    }, [company]);
+
     const handleDelete = async () => {
         if (window.confirm("Are you sure you want to delete this company? This action will permanently delete:\n\n• Company information\n• All fiscal years\n• All accounts and account groups\n• All items, units, and categories\n• All stores and racks\n• All associated settings\n\nThis action cannot be undone!")) {
             setIsDeleting(true);
@@ -156,6 +190,15 @@ const CompanyDetails = () => {
                 setIsDeleting(false);
             }
         }
+    };
+
+    const formatBytes = (bytes) => {
+        if (bytes === 0) return '0 B';
+        if (bytes < 0) return 'Error';
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const formatted = bytes / Math.pow(1024, i);
+        return `${formatted.toFixed(2)} ${sizes[i]}`;
     };
 
     if (loading) return <Loader />;
@@ -294,7 +337,7 @@ const CompanyDetails = () => {
                     <Card.Body className="py-3">
                         <Row>
                             {/* General Information - Compact */}
-                            <Col md={6}>
+                            <Col md={4}>
                                 <div className="mb-3">
                                     <h3 className="border-bottom pb-1 mb-2" style={{ fontSize: '1rem', fontWeight: '600' }}>
                                         <FaInfoCircle className="me-2" style={{ fontSize: '0.9rem' }} />
@@ -381,7 +424,7 @@ const CompanyDetails = () => {
                             </Col>
 
                             {/* Owner Information - Compact */}
-                            <Col md={6}>
+                            <Col md={4}>
                                 <div className="mb-3">
                                     <h3 className="border-bottom pb-1 mb-2" style={{ fontSize: '1rem', fontWeight: '600' }}>
                                         <FaUserTie className="me-2" style={{ fontSize: '0.9rem' }} />
@@ -456,6 +499,95 @@ const CompanyDetails = () => {
                                         </ul>
                                     </div>
                                 )}
+                            </Col>
+
+                            
+                            <Col md={4}>
+                                {/* Data Size Information */}
+                                <div className="mb-3">
+                                    <h3 className="border-bottom pb-1 mb-2" style={{ fontSize: '1rem', fontWeight: '600' }}>
+                                        <i className="fas fa-database me-2" style={{ fontSize: '0.9rem' }}></i>
+                                        Data Usage
+                                    </h3>
+
+                                    {loadingSize ? (
+                                        <div className="d-flex align-items-center">
+                                            <Spinner animation="border" size="sm" className="me-2" />
+                                            <span style={{ fontSize: '0.8rem' }}>Calculating data size...</span>
+                                        </div>
+                                    ) : dataSize ? (
+                                        <>
+                                            <div className="d-flex mb-2 align-items-center">
+                                                <span className="text-muted" style={{ minWidth: '100px', fontSize: '0.8rem' }}>Total Size:</span>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>
+                                                    {dataSize.totalSizeFormatted}
+                                                </span>
+                                            </div>
+
+                                            <div className="d-flex mb-2 align-items-center">
+                                                <span className="text-muted" style={{ minWidth: '100px', fontSize: '0.8rem' }}>Total Records:</span>
+                                                <span style={{ fontSize: '0.85rem' }}>
+                                                    {dataSize.totalRecords.toLocaleString()}
+                                                </span>
+                                            </div>
+
+                                            {/* Detailed breakdown - show as collapsible or tooltip */}
+                                            <Button
+                                                variant="link"
+                                                size="sm"
+                                                className="p-0"
+                                                onClick={() => {
+                                                    // Toggle detailed view
+                                                    const details = document.getElementById('dataSizeDetails');
+                                                    if (details) {
+                                                        details.style.display = details.style.display === 'none' ? 'block' : 'none';
+                                                    }
+                                                }}
+                                                style={{ fontSize: '0.75rem' }}
+                                            >
+                                                <i className="fas fa-chevron-down me-1"></i>
+                                                Show Details
+                                            </Button>
+
+                                            <div id="dataSizeDetails" style={{ display: 'none', marginTop: '0.5rem' }}>
+                                                <div className="table-responsive">
+                                                    <table className="table table-sm table-bordered" style={{ fontSize: '0.7rem' }}>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Table</th>
+                                                                <th className="text-end">Records</th>
+                                                                <th className="text-end">Size</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {Object.entries(dataSize.tableSizes).map(([table, size]) => (
+                                                                <tr key={table}>
+                                                                    <td>{table}</td>
+                                                                    <td className="text-end">
+                                                                        {dataSize.recordCounts[table]?.toLocaleString() || 0}
+                                                                    </td>
+                                                                    <td className="text-end">{formatBytes(size)}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                        <tfoot>
+                                                            <tr className="fw-bold">
+                                                                <td>TOTAL</td>
+                                                                <td className="text-end">{dataSize.totalRecords.toLocaleString()}</td>
+                                                                <td className="text-end">{dataSize.totalSizeFormatted}</td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    </table>
+                                                </div>
+                                                <small className="text-muted">
+                                                    Last calculated: {new Date(dataSize.calculatedAt).toLocaleString()}
+                                                </small>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <span style={{ fontSize: '0.8rem', color: '#6c757d' }}>Unable to calculate data size</span>
+                                    )}
+                                </div>
                             </Col>
                         </Row>
                     </Card.Body>

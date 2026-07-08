@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using SkyForge.Dto.CompanyDto;
 
 namespace SkyForge.Services
 {
@@ -1248,6 +1249,399 @@ namespace SkyForge.Services
 
             // Remove duplicates and return
             return notificationEmails.Distinct().ToList();
+        }
+
+
+        public async Task<CompanyDataSizeDTO> GetCompanyDataSizeAsync(Guid companyId)
+        {
+            try
+            {
+                _logger.LogInformation("Calculating data size for company {CompanyId}", companyId);
+
+                var company = await _context.Companies
+                    .FirstOrDefaultAsync(c => c.Id == companyId);
+
+                if (company == null)
+                {
+                    throw new Exception("Company not found");
+                }
+
+                var tableSizes = new Dictionary<string, long>();
+                var recordCounts = new Dictionary<string, int>();
+
+                // Helper to count records and estimate size
+                async Task<(int count, long size)> GetTableInfo<T>(IQueryable<T> query, string tableName) where T : class
+                {
+                    var count = await query.CountAsync();
+                    // Estimate size: average row size estimation (you can adjust these values)
+                    long estimatedSize = count * GetAverageRowSize(tableName);
+                    return (count, estimatedSize);
+                }
+
+                // 1. Transaction Documents
+                var salesBills = await _context.SalesBills
+                    .Where(sb => sb.CompanyId == companyId)
+                    .Include(sb => sb.Items)
+                    .ToListAsync();
+                var salesBillsCount = salesBills.Count;
+                var salesBillsSize = salesBillsCount * 2048; // Estimate 2KB per sales bill with items
+                tableSizes["SalesBills"] = salesBillsSize;
+                recordCounts["SalesBills"] = salesBillsCount;
+
+                var salesReturns = await _context.SalesReturns
+                    .Where(sr => sr.CompanyId == companyId)
+                    .Include(sr => sr.Items)
+                    .ToListAsync();
+                var salesReturnsCount = salesReturns.Count;
+                tableSizes["SalesReturns"] = salesReturnsCount * 2048;
+                recordCounts["SalesReturns"] = salesReturnsCount;
+
+                var purchaseBills = await _context.PurchaseBills
+                    .Where(pb => pb.CompanyId == companyId)
+                    .Include(pb => pb.Items)
+                    .ToListAsync();
+                var purchaseBillsCount = purchaseBills.Count;
+                tableSizes["PurchaseBills"] = purchaseBillsCount * 2048;
+                recordCounts["PurchaseBills"] = purchaseBillsCount;
+
+                var purchaseReturns = await _context.PurchaseReturns
+                    .Where(pr => pr.CompanyId == companyId)
+                    .Include(pr => pr.Items)
+                    .ToListAsync();
+                var purchaseReturnsCount = purchaseReturns.Count;
+                tableSizes["PurchaseReturns"] = purchaseReturnsCount * 2048;
+                recordCounts["PurchaseReturns"] = purchaseReturnsCount;
+
+                var payments = await _context.Payments
+                    .Where(p => p.CompanyId == companyId)
+                    .Include(p => p.PaymentEntries)
+                    .ToListAsync();
+                var paymentsCount = payments.Count;
+                tableSizes["Payments"] = paymentsCount * 1024;
+                recordCounts["Payments"] = paymentsCount;
+
+                var receipts = await _context.Receipts
+                    .Where(r => r.CompanyId == companyId)
+                    .Include(r => r.ReceiptEntries)
+                    .ToListAsync();
+                var receiptsCount = receipts.Count;
+                tableSizes["Receipts"] = receiptsCount * 1024;
+                recordCounts["Receipts"] = receiptsCount;
+
+                var journalVouchers = await _context.JournalVouchers
+                    .Where(jv => jv.CompanyId == companyId)
+                    .Include(jv => jv.JournalEntries)
+                    .ToListAsync();
+                var journalVouchersCount = journalVouchers.Count;
+                tableSizes["JournalVouchers"] = journalVouchersCount * 1024;
+                recordCounts["JournalVouchers"] = journalVouchersCount;
+
+                var creditNotes = await _context.CreditNotes
+                    .Where(cn => cn.CompanyId == companyId)
+                    .Include(cn => cn.CreditNoteEntries)
+                    .ToListAsync();
+                var creditNotesCount = creditNotes.Count;
+                tableSizes["CreditNotes"] = creditNotesCount * 1024;
+                recordCounts["CreditNotes"] = creditNotesCount;
+
+                var debitNotes = await _context.DebitNotes
+                    .Where(dn => dn.CompanyId == companyId)
+                    .Include(dn => dn.DebitNoteEntries)
+                    .ToListAsync();
+                var debitNotesCount = debitNotes.Count;
+                tableSizes["DebitNotes"] = debitNotesCount * 1024;
+                recordCounts["DebitNotes"] = debitNotesCount;
+
+                var salesQuotations = await _context.SalesQuotations
+                    .Where(sq => sq.CompanyId == companyId)
+                    .Include(sq => sq.Items)
+                    .ToListAsync();
+                var salesQuotationsCount = salesQuotations.Count;
+                tableSizes["SalesQuotations"] = salesQuotationsCount * 1024;
+                recordCounts["SalesQuotations"] = salesQuotationsCount;
+
+                var transactions = await _context.Transactions
+                    .Where(t => t.CompanyId == companyId)
+                    .Include(t => t.TransactionItems)
+                    .ToListAsync();
+                var transactionsCount = transactions.Count;
+                tableSizes["Transactions"] = transactionsCount * 1024;
+                recordCounts["Transactions"] = transactionsCount;
+
+                // 2. Inventory
+                var stockAdjustments = await _context.StockAdjustments
+                    .Where(sa => sa.CompanyId == companyId)
+                    .Include(sa => sa.Items)
+                    .ToListAsync();
+                var stockAdjustmentsCount = stockAdjustments.Count;
+                tableSizes["StockAdjustments"] = stockAdjustmentsCount * 1024;
+                recordCounts["StockAdjustments"] = stockAdjustmentsCount;
+
+                var stockEntries = await _context.StockEntries
+                    .Where(se => se.Item.CompanyId == companyId)
+                    .ToListAsync();
+                var stockEntriesCount = stockEntries.Count;
+                tableSizes["StockEntries"] = stockEntriesCount * 512;
+                recordCounts["StockEntries"] = stockEntriesCount;
+
+                // 3. Items
+                var items = await _context.Items
+                    .Where(i => i.CompanyId == companyId)
+                    .ToListAsync();
+                var itemsCount = items.Count;
+                tableSizes["Items"] = itemsCount * 1024;
+                recordCounts["Items"] = itemsCount;
+
+                var itemOpeningStocks = await _context.ItemOpeningStockByFiscalYear
+                    .Where(ios => items.Select(i => i.Id).Contains(ios.ItemId))
+                    .ToListAsync();
+                var itemOpeningStocksCount = itemOpeningStocks.Count;
+                tableSizes["ItemOpeningStock"] = itemOpeningStocksCount * 512;
+                recordCounts["ItemOpeningStock"] = itemOpeningStocksCount;
+
+                var itemClosingStocks = await _context.ItemClosingStockByFiscalYear
+                    .Where(ics => items.Select(i => i.Id).Contains(ics.ItemId))
+                    .ToListAsync();
+                var itemClosingStocksCount = itemClosingStocks.Count;
+                tableSizes["ItemClosingStock"] = itemClosingStocksCount * 512;
+                recordCounts["ItemClosingStock"] = itemClosingStocksCount;
+
+                // 4. Accounts
+                var accounts = await _context.Accounts
+                    .Where(a => a.CompanyId == companyId)
+                    .ToListAsync();
+                var accountsCount = accounts.Count;
+                tableSizes["Accounts"] = accountsCount * 1024;
+                recordCounts["Accounts"] = accountsCount;
+
+                var accountGroups = await _context.AccountGroups
+                    .Where(ag => ag.CompanyId == companyId)
+                    .ToListAsync();
+                var accountGroupsCount = accountGroups.Count;
+                tableSizes["AccountGroups"] = accountGroupsCount * 512;
+                recordCounts["AccountGroups"] = accountGroupsCount;
+
+                var openingBalances = await _context.OpeningBalances
+                    .Where(ob => ob.CompanyId == companyId)
+                    .ToListAsync();
+                var openingBalancesCount = openingBalances.Count;
+                tableSizes["OpeningBalances"] = openingBalancesCount * 512;
+                recordCounts["OpeningBalances"] = openingBalancesCount;
+
+                var closingBalances = await _context.ClosingBalanceByFiscalYear
+                    .Where(cb => cb.CompanyId == companyId)
+                    .ToListAsync();
+                var closingBalancesCount = closingBalances.Count;
+                tableSizes["ClosingBalances"] = closingBalancesCount * 512;
+                recordCounts["ClosingBalances"] = closingBalancesCount;
+
+                // 5. Master Data
+                var categories = await _context.Categories
+                    .Where(c => c.CompanyId == companyId)
+                    .ToListAsync();
+                var categoriesCount = categories.Count;
+                tableSizes["Categories"] = categoriesCount * 256;
+                recordCounts["Categories"] = categoriesCount;
+
+                var units = await _context.Units
+                    .Where(u => u.CompanyId == companyId)
+                    .ToListAsync();
+                var unitsCount = units.Count;
+                tableSizes["Units"] = unitsCount * 256;
+                recordCounts["Units"] = unitsCount;
+
+                var mainUnits = await _context.MainUnits
+                    .Where(mu => mu.CompanyId == companyId)
+                    .ToListAsync();
+                var mainUnitsCount = mainUnits.Count;
+                tableSizes["MainUnits"] = mainUnitsCount * 256;
+                recordCounts["MainUnits"] = mainUnitsCount;
+
+                var itemCompanies = await _context.ItemCompanies
+                    .Where(ic => ic.CompanyId == companyId)
+                    .ToListAsync();
+                var itemCompaniesCount = itemCompanies.Count;
+                tableSizes["ItemCompanies"] = itemCompaniesCount * 256;
+                recordCounts["ItemCompanies"] = itemCompaniesCount;
+
+                var compositions = await _context.Compositions
+                    .Where(c => c.CompanyId == companyId)
+                    .ToListAsync();
+                var compositionsCount = compositions.Count;
+                tableSizes["Compositions"] = compositionsCount * 256;
+                recordCounts["Compositions"] = compositionsCount;
+
+                // 6. Stores & Racks
+                var stores = await _context.Stores
+                    .Where(s => s.CompanyId == companyId)
+                    .ToListAsync();
+                var storesCount = stores.Count;
+                tableSizes["Stores"] = storesCount * 256;
+                recordCounts["Stores"] = storesCount;
+
+                var racks = await _context.Racks
+                    .Where(r => r.CompanyId == companyId)
+                    .ToListAsync();
+                var racksCount = racks.Count;
+                tableSizes["Racks"] = racksCount * 256;
+                recordCounts["Racks"] = racksCount;
+
+                // 7. Settings & Fiscal Years
+                var settings = await _context.CompanySettings
+                    .Where(s => s.CompanyId == companyId)
+                    .ToListAsync();
+                var settingsCount = settings.Count;
+                tableSizes["Settings"] = settingsCount * 512;
+                recordCounts["Settings"] = settingsCount;
+
+                var fiscalYears = await _context.FiscalYears
+                    .Where(f => f.CompanyId == companyId)
+                    .ToListAsync();
+                var fiscalYearsCount = fiscalYears.Count;
+                tableSizes["FiscalYears"] = fiscalYearsCount * 512;
+                recordCounts["FiscalYears"] = fiscalYearsCount;
+
+                // Calculate totals
+                var totalSize = tableSizes.Values.Sum();
+                var totalRecords = recordCounts.Values.Sum();
+
+                // Format size
+                string formattedSize = FormatBytes(totalSize);
+
+                var result = new CompanyDataSizeDTO
+                {
+                    CompanyId = companyId,
+                    CompanyName = company.Name,
+                    TotalSizeInBytes = totalSize,
+                    TotalSizeFormatted = formattedSize,
+                    TableSizes = tableSizes,
+                    TotalRecords = totalRecords,
+                    RecordCounts = recordCounts,
+                    CalculatedAt = DateTime.UtcNow
+                };
+
+                _logger.LogInformation("Calculated data size for company {CompanyId}: {Size}",
+                    companyId, formattedSize);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating data size for company {CompanyId}", companyId);
+                throw;
+            }
+        }
+
+        public async Task<List<CompanyDataSizeDTO>> GetAllCompaniesDataSizeAsync(Guid? userId = null)
+        {
+            try
+            {
+                _logger.LogInformation("Getting data sizes for all companies");
+
+                var companiesQuery = _context.Companies.AsQueryable();
+
+                if (userId.HasValue)
+                {
+                    companiesQuery = companiesQuery
+                        .Where(c => c.OwnerId == userId.Value || c.Users.Any(u => u.Id == userId.Value));
+                }
+
+                var companies = await companiesQuery.ToListAsync();
+                var result = new List<CompanyDataSizeDTO>();
+
+                foreach (var company in companies)
+                {
+                    try
+                    {
+                        var companySize = await GetCompanyDataSizeAsync(company.Id);
+                        result.Add(companySize);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to get data size for company {CompanyId}", company.Id);
+                        // Add a basic entry with error info
+                        result.Add(new CompanyDataSizeDTO
+                        {
+                            CompanyId = company.Id,
+                            CompanyName = company.Name,
+                            TotalSizeInBytes = -1,
+                            TotalSizeFormatted = "Error calculating",
+                            TableSizes = new Dictionary<string, long>(),
+                            TotalRecords = -1,
+                            RecordCounts = new Dictionary<string, int>(),
+                            CalculatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all companies data sizes");
+                throw;
+            }
+        }
+
+        // Helper method to format bytes
+        private string FormatBytes(long bytes)
+        {
+            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            double len = bytes;
+            int order = 0;
+            while (len >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                len = len / 1024;
+            }
+            return $"{len:0.##} {sizes[order]}";
+        }
+
+        // Helper method to estimate average row size for each table
+        private int GetAverageRowSize(string tableName)
+        {
+            // These are estimates in bytes. Adjust based on your actual schema
+            var sizes = new Dictionary<string, int>
+    {
+        // Transaction documents (larger due to JSON fields, multiple columns)
+        { "SalesBills", 2048 },
+        { "SalesReturns", 2048 },
+        { "PurchaseBills", 2048 },
+        { "PurchaseReturns", 2048 },
+        { "Payments", 1024 },
+        { "Receipts", 1024 },
+        { "JournalVouchers", 1024 },
+        { "CreditNotes", 1024 },
+        { "DebitNotes", 1024 },
+        { "SalesQuotations", 1024 },
+        { "Transactions", 1024 },
+        // Inventory
+        { "StockAdjustments", 1024 },
+        { "StockEntries", 512 },
+        // Items
+        { "Items", 1024 },
+        { "ItemOpeningStock", 512 },
+        { "ItemClosingStock", 512 },
+        // Accounts
+        { "Accounts", 1024 },
+        { "AccountGroups", 512 },
+        { "OpeningBalances", 512 },
+        { "ClosingBalances", 512 },
+        // Master Data
+        { "Categories", 256 },
+        { "Units", 256 },
+        { "MainUnits", 256 },
+        { "ItemCompanies", 256 },
+        { "Compositions", 256 },
+        // Stores
+        { "Stores", 256 },
+        { "Racks", 256 },
+        // Settings
+        { "Settings", 512 },
+        { "FiscalYears", 512 }
+    };
+
+            return sizes.ContainsKey(tableName) ? sizes[tableName] : 512;
         }
     }
 }
