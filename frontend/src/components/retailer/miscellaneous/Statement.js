@@ -790,6 +790,339 @@ const Statement = () => {
         return null;
     };
 
+    // const handlePrint = () => {
+    //     // Determine which data to print based on view mode
+    //     let rowsToPrint;
+    //     if (viewMode === 'regular') {
+    //         rowsToPrint = filteredStatement.length > 0 ? filteredStatement : data.statement;
+    //     } else {
+    //         rowsToPrint = data.itemwiseStatement;
+    //     }
+
+    //     if (!rowsToPrint || rowsToPrint.length === 0) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'No statement data to print. Please generate a report first.',
+    //             type: 'warning'
+    //         });
+    //         return;
+    //     }
+
+    //     const printWindow = window.open("", "_blank");
+
+    //     if (!printWindow) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Popup blocked. Please allow popups for this site.',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     let tableContent = '';
+    //     if (viewMode === 'regular') {
+    //         tableContent = generateRegularPrintContent(rowsToPrint);
+    //     } else {
+    //         tableContent = generateItemwisePrintContent(rowsToPrint);
+    //     }
+
+    //     printWindow.document.write(`
+    //         <html>
+    //             <head>
+    //                 <title>Statement - ${viewMode === 'regular' ? 'Regular' : 'Itemwise'}</title>
+    //                 <style>
+    //                     @page { 
+    //                         margin: 3mm;
+    //                     }
+    //                     body { 
+    //                         font-family: Arial, sans-serif; 
+    //                         font-size: 7px; 
+    //                         margin: 0;
+    //                         padding: 2mm;
+    //                     }
+    //                     table { 
+    //                         width: 100%; 
+    //                         border-collapse: collapse; 
+    //                         page-break-inside: auto;
+    //                     }
+    //                     tr { 
+    //                         page-break-inside: avoid; 
+    //                         page-break-after: auto; 
+    //                     }
+    //                     th, td { 
+    //                         border: 1px solid #000; 
+    //                         padding: 2px 3px; 
+    //                         text-align: left; 
+    //                         white-space: nowrap;
+    //                     }
+    //                     th { 
+    //                         background-color: #f2f2f2 !important; 
+    //                         -webkit-print-color-adjust: exact; 
+    //                         print-color-adjust: exact;
+    //                         font-size: 9px;
+    //                         font-weight: bold;
+    //                     }
+    //                     td {
+    //                         font-size: 7px;
+    //                     }
+    //                     .print-header { 
+    //                         text-align: center; 
+    //                         margin-bottom: 5px; 
+    //                     }
+    //                     .text-end { 
+    //                         text-align: right; 
+    //                     }
+    //                     .nowrap {
+    //                         white-space: nowrap;
+    //                     }
+    //                     .report-title {
+    //                         text-align: center;
+    //                         text-decoration: underline;
+    //                         font-size: 10px;
+    //                         font-weight: bold;
+    //                         margin: 3px 0;
+    //                     }
+    //                     .grand-total-row td {
+    //                         font-weight: bold;
+    //                         border-top: 2px solid #000;
+    //                     }
+    //                 </style>
+    //             </head>
+    //             <body>
+    //                 ${tableContent}
+    //                 <script>
+    //                     window.onload = function() {
+    //                         setTimeout(function() { 
+    //                             window.print();
+    //                             setTimeout(function() {
+    //                                 window.close();
+    //                             }, 500);
+    //                         }, 200);
+    //                     };
+    //                 <\/script>
+    //             </body>
+    //         </html>
+    //     `);
+    //     printWindow.document.close();
+    // };
+
+    // const generateRegularPrintContent = (statementData) => {
+    //     let balance = data.openingBalance;
+    //     const statement = statementData;
+
+    //     // Calculate totals
+    //     let totalDebit = 0;
+    //     let totalCredit = 0;
+    //     const isNepaliFormat = company.dateFormat === 'nepali';
+
+    //     let tableContent = `
+    //     <div class="print-header">
+    //         <h2 style="margin:0; padding:0; font-size: 14px;">${data.currentCompanyName || 'Company Name'}</h2>
+    //         <p style="margin:2px 0; font-size: 8px;">
+    //             ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
+    //             PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
+    //         </p>
+    //         <hr style="margin:2px 0;">
+    //         <div class="report-title">Statement of Account</div>
+    //         <p style="margin:2px 0; font-size: 8px;">
+    //             <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
+    //             <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
+    //             <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
+    //             <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
+    //             <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
+    //             <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
+    //         </p>
+    //     </div>
+    //     <table cellspacing="0">
+    //         <thead>
+    //             <tr>
+    //                 <th class="nowrap">Miti</th>
+    //                 <th class="nowrap">Date</th>
+    //                 <th class="nowrap">Vch No.</th>
+    //                 <th class="nowrap">Type</th>
+    //                 <th class="nowrap">Pay Mode</th>
+    //                 <th class="nowrap">Account</th>
+    //                 <th class="nowrap text-end">Debit (Rs.)</th>
+    //                 <th class="nowrap text-end">Credit (Rs.)</th>
+    //                 <th class="nowrap text-end">Balance (Rs.)</th>
+    //             </tr>
+    //         </thead>
+    //         <tbody>
+    // `;
+
+    //     statement.forEach((item, index) => {
+    //         const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+    //         const adDate = item.date ? new Date(item.date).toLocaleDateString() : '';
+
+    //         const debitAmount = parseFloat(item.debit) || 0;
+    //         const creditAmount = parseFloat(item.credit) || 0;
+
+    //         // Update running balance
+    //         balance = balance + debitAmount - creditAmount;
+
+    //         totalDebit += debitAmount;
+    //         totalCredit += creditAmount;
+
+    //         const balanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
+
+    //         // Get the account name
+    //         let accountName = '';
+    //         if (item.type === 'Pymt') {
+    //             accountName = item.PaymentReceiptType || item.accountType || '';
+    //         } else if (item.type === 'Rcpt') {
+    //             accountName = item.PaymentReceiptType || item.accountType || '';
+    //         } else {
+    //             accountName = item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.journalAccountType || '';
+    //         }
+
+    //         tableContent += `
+    //         <tr>
+    //             <td class="nowrap">${bsDate}</td>
+    //             <td class="nowrap">${adDate}</td>
+    //             <td class="nowrap">${item.billNumber || ''}</td>
+    //             <td class="nowrap">${item.type || ''}</td>
+    //             <td class="nowrap">${item.paymentMode || ''}</td>
+    //             <td style="white-space: normal; word-wrap: break-word;">${accountName}</td>
+    //             <td class="text-end">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
+    //             <td class="text-end">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
+    //             <td class="text-end">${balanceText}</td>
+    //         </tr>
+    //     `;
+    //     });
+
+    //     const finalBalanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
+
+    //     tableContent += `
+    //         <tr class="grand-total-row">
+    //             <td colspan="6" class="text-end"><strong>TOTALS</strong></td>
+    //             <td class="text-end"><strong>${formatCurrencyForPrint(totalDebit)}</strong></td>
+    //             <td class="text-end"><strong>${formatCurrencyForPrint(totalCredit)}</strong></td>
+    //             <td class="text-end"><strong>${finalBalanceText}</strong></td>
+    //         </tr>
+    //         </tbody>
+    //     </table>
+    //     <div style="margin-top: 10px; font-size: 7px; text-align: center; border-top: 1px solid #ccc; padding-top: 3px;">
+    //         <p>Generated on: ${new Date().toLocaleString()} | Powered by Ams Software</p>
+    //     </div>
+    // `;
+
+    //     return tableContent;
+    // };
+
+    // const generateItemwisePrintContent = (statementData) => {
+    //     const itemwiseData = statementData;
+    //     const isNepaliFormat = company.dateFormat === 'nepali';
+
+    //     if (!itemwiseData || itemwiseData.length === 0) {
+    //         return '<div class="alert alert-warning">No itemwise statement data available</div>';
+    //     }
+
+    //     let tableContent = `
+    //         <div class="print-header">
+    //             <h2 style="margin:0; padding:0; font-size: 14px;">${data.currentCompanyName || 'Company Name'}</h2>
+    //             <p style="margin:2px 0; font-size: 8px;">
+    //                 ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
+    //                 PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
+    //             </p>
+    //             <hr style="margin:2px 0;">
+    //             <div class="report-title">Itemwise Statement</div>
+    //             <p style="margin:2px 0; font-size: 8px;">
+    //                 <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
+    //                 <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
+    //                 <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
+    //                 <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
+    //                 <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
+    //                 <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
+    //             </p>
+    //         </div>
+    //         <table cellspacing="0">
+    //             <thead>
+    //                 <tr>
+    //                     <th class="nowrap">Miti</th>
+    //                     <th class="nowrap">Date</th>
+    //                     <th class="nowrap">Vch No.</th>
+    //                     <th class="nowrap">Type</th>
+    //                     <th class="nowrap">Pay Mode</th>
+    //                     <th class="nowrap">Item Name</th>
+    //                     <th class="nowrap text-end">Qty</th>
+    //                     <th class="nowrap">Unit</th>
+    //                     <th class="nowrap text-end">Rate (Rs.)</th>
+    //                     <th class="nowrap text-end">Discount (Rs.)</th>
+    //                     <th class="nowrap text-end">Taxable (Rs.)</th>
+    //                     <th class="nowrap text-end">VAT (Rs.)</th>
+    //                     <th class="nowrap text-end">Total (Rs.)</th>
+    //                 </tr>
+    //             </thead>
+    //             <tbody>
+    //     `;
+
+    //     let grandTotalQty = 0;
+    //     let grandTotalAmount = 0;
+    //     let grandTotalVat = 0;
+    //     let grandTotalTaxable = 0;
+    //     let grandTotalDiscount = 0;
+
+    //     itemwiseData.forEach((bill) => {
+    //         if (bill.items && bill.items.length > 0) {
+    //             const bsDate = bill.nepaliDate || (isNepaliFormat ? new NepaliDate(bill.date).format('YYYY-MM-DD') : '');
+    //             const adDate = bill.date ? new Date(bill.date).toLocaleDateString() : '';
+
+    //             bill.items.forEach((item) => {
+    //                 const quantity = item.quantity ? parseFloat(item.quantity) : 0;
+    //                 const rate = item.puPrice || item.price || 0;
+    //                 const discount = item.discountAmountPerItem || 0;
+    //                 const taxable = item.taxableAmount || 0;
+    //                 const vat = item.vatAmount || 0;
+    //                 const total = item.totalAmount || (taxable + vat);
+
+    //                 grandTotalQty += quantity;
+    //                 grandTotalAmount += total;
+    //                 grandTotalVat += vat;
+    //                 grandTotalTaxable += taxable;
+    //                 grandTotalDiscount += discount;
+
+    //                 tableContent += `
+    //                     <tr>
+    //                         <td class="nowrap">${bsDate}</td>
+    //                         <td class="nowrap">${adDate}</td>
+    //                         <td class="nowrap">${bill.billNumber || ''}</td>
+    //                         <td class="nowrap">${bill.type || ''}</td>
+    //                         <td class="nowrap">${bill.paymentMode || ''}</td>
+    //                         <td style="white-space: normal; word-wrap: break-word;">${item.item?.name || item.productName || 'N/A'}</td>
+    //                         <td class="text-end">${quantity.toFixed(2)}</td>
+    //                         <td class="nowrap">${item.unit?.name || ''}</td>
+    //                         <td class="text-end">${formatCurrencyForPrint(rate)}</td>
+    //                         <td class="text-end">${formatCurrencyForPrint(discount)}</td>
+    //                         <td class="text-end">${formatCurrencyForPrint(taxable)}</td>
+    //                         <td class="text-end">${formatCurrencyForPrint(vat)}</td>
+    //                         <td class="text-end">${formatCurrencyForPrint(total)}</td>
+    //                     </tr>
+    //                 `;
+    //             });
+    //         }
+    //     });
+
+    //     tableContent += `
+    //         <tr class="grand-total-row">
+    //             <td colspan="6" class="text-end"><strong>GRAND TOTALS</strong></td>
+    //             <td class="text-end"><strong>${grandTotalQty.toFixed(2)}</strong></td>
+    //             <td></td>
+    //             <td></td>
+    //             <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalDiscount)}</strong></td>
+    //             <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalTaxable)}</strong></td>
+    //             <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalVat)}</strong></td>
+    //             <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalAmount)}</strong></td>
+    //         </tr>
+    //         </tbody>
+    //     </table>
+    //     <div style="margin-top: 10px; font-size: 7px; text-align: center; border-top: 1px solid #ccc; padding-top: 3px;">
+    //         <p>Generated on: ${new Date().toLocaleString()} | Powered by Ams Software</p>
+    //     </div>
+    // `;
+
+    //     return tableContent;
+    // };
+
     const handlePrint = () => {
         // Determine which data to print based on view mode
         let rowsToPrint;
@@ -827,84 +1160,284 @@ const Statement = () => {
         }
 
         printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Statement - ${viewMode === 'regular' ? 'Regular' : 'Itemwise'}</title>
-                    <style>
-                        @page { 
-                            margin: 3mm;
-                        }
+        <html>
+            <head>
+                <title>Statement - ${viewMode === 'regular' ? 'Regular' : 'Itemwise'}</title>
+                <style>
+                    @page { 
+                        margin: 5mm;
+                        size: A4 portrait;
+                    }
+                    body { 
+                        font-family: 'Segoe UI', Arial, sans-serif; 
+                        font-size: 10px; 
+                        margin: 0;
+                        padding: 5mm;
+                        background: #fff;
+                        color: #000;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        page-break-inside: auto;
+                        font-size: 10px;
+                    }
+                    tr { 
+                        page-break-inside: avoid; 
+                        page-break-after: auto; 
+                    }
+                    th, td { 
+                        border: 1px solid #333; 
+                        padding: 4px 6px; 
+                        text-align: left; 
+                        white-space: nowrap;
+                    }
+                    th { 
+                        background-color: #e8e8e8 !important; 
+                        -webkit-print-color-adjust: exact; 
+                        print-color-adjust: exact;
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #1a1a1a;
+                    }
+                    td {
+                        font-size: 10px;
+                        padding: 4px 6px;
+                    }
+                    .print-header { 
+                        text-align: center; 
+                        margin-bottom: 10px; 
+                    }
+                    .text-end { 
+                        text-align: right; 
+                    }
+                    .text-center {
+                        text-align: center;
+                    }
+                    .nowrap {
+                        white-space: nowrap;
+                    }
+                    .report-title {
+                        text-align: center;
+                        text-decoration: underline;
+                        font-size: 14px;
+                        font-weight: 700;
+                        margin: 6px 0;
+                        color: #1a1a1a;
+                        letter-spacing: 0.5px;
+                    }
+                    .grand-total-row td {
+                        font-weight: 700;
+                        border-top: 3px double #000;
+                        background-color: #f5f5f5 !important;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    .company-name {
+                        font-size: 18px;
+                        font-weight: 700;
+                        margin: 0;
+                        padding: 0;
+                        color: #1a1a1a;
+                        letter-spacing: 1px;
+                    }
+                    .company-details {
+                        font-size: 10px;
+                        margin: 4px 0;
+                        color: #333;
+                        line-height: 1.4;
+                    }
+                    .statement-info {
+                        font-size: 10px;
+                        margin: 4px 0;
+                        color: #444;
+                        line-height: 1.6;
+                    }
+                    .statement-info strong {
+                        font-weight: 600;
+                        color: #1a1a1a;
+                    }
+                    .footer {
+                        margin-top: 15px;
+                        font-size: 9px;
+                        text-align: center;
+                        border-top: 1px solid #ccc;
+                        padding-top: 8px;
+                        color: #666;
+                    }
+                    .total-label {
+                        font-size: 11px;
+                        font-weight: 600;
+                    }
+                    .voucher-type {
+                        font-weight: 500;
+                        color: #1a1a1a;
+                    }
+                    .amount-positive {
+                        font-weight: 500;
+                    }
+                    .amount-negative {
+                        font-weight: 500;
+                    }
+                    .balance-text {
+                        font-weight: 600;
+                    }
+                    /* Ensure tables don't break across pages badly */
+                    table {
+                        page-break-inside: auto;
+                    }
+                    thead {
+                        display: table-header-group;
+                    }
+                    tbody {
+                        display: table-row-group;
+                    }
+                    /* Responsive cell sizing */
+                    .col-miti { min-width: 80px; }
+                    .col-date { min-width: 80px; }
+                    .col-vch { min-width: 70px; }
+                    .col-type { min-width: 60px; }
+                    .col-paymode { min-width: 80px; }
+                    .col-account { min-width: 120px; }
+                    .col-amount { min-width: 80px; }
+                    .col-balance { min-width: 90px; }
+                    
+                    /* Itemwise specific */
+                    .col-item { min-width: 120px; }
+                    .col-qty { min-width: 60px; }
+                    .col-unit { min-width: 50px; }
+                    .col-rate { min-width: 70px; }
+                    
+                    @media print {
                         body { 
-                            font-family: Arial, sans-serif; 
-                            font-size: 7px; 
-                            margin: 0;
-                            padding: 2mm;
+                            padding: 10px;
                         }
-                        table { 
-                            width: 100%; 
-                            border-collapse: collapse; 
-                            page-break-inside: auto;
+                        th, td {
+                            padding: 3px 5px;
                         }
-                        tr { 
-                            page-break-inside: avoid; 
-                            page-break-after: auto; 
-                        }
-                        th, td { 
-                            border: 1px solid #000; 
-                            padding: 2px 3px; 
-                            text-align: left; 
-                            white-space: nowrap;
-                        }
-                        th { 
-                            background-color: #f2f2f2 !important; 
-                            -webkit-print-color-adjust: exact; 
-                            print-color-adjust: exact;
-                            font-size: 9px;
-                            font-weight: bold;
-                        }
-                        td {
-                            font-size: 7px;
-                        }
-                        .print-header { 
-                            text-align: center; 
-                            margin-bottom: 5px; 
-                        }
-                        .text-end { 
-                            text-align: right; 
-                        }
-                        .nowrap {
-                            white-space: nowrap;
-                        }
-                        .report-title {
-                            text-align: center;
-                            text-decoration: underline;
-                            font-size: 10px;
-                            font-weight: bold;
-                            margin: 3px 0;
-                        }
-                        .grand-total-row td {
-                            font-weight: bold;
-                            border-top: 2px solid #000;
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${tableContent}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() { 
-                                window.print();
-                                setTimeout(function() {
-                                    window.close();
-                                }, 500);
-                            }, 200);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
+                    }
+                </style>
+            </head>
+            <body>
+                ${tableContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() { 
+                            window.print();
+                            setTimeout(function() {
+                                window.close();
+                            }, 500);
+                        }, 300);
+                    };
+                <\/script>
+            </body>
+        </html>
+    `);
         printWindow.document.close();
     };
+
+    //     const generateRegularPrintContent = (statementData) => {
+    //         let balance = data.openingBalance;
+    //         const statement = statementData;
+
+    //         // Calculate totals
+    //         let totalDebit = 0;
+    //         let totalCredit = 0;
+    //         const isNepaliFormat = company.dateFormat === 'nepali';
+
+    //         let tableContent = `
+    //     <div class="print-header">
+    //         <div class="company-name">${data.currentCompanyName || 'Company Name'}</div>
+    //         <div class="company-details">
+    //             ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
+    //             PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
+    //         </div>
+    //         <hr style="margin:6px 0; border: 1px solid #ccc;">
+    //         <div class="report-title">STATEMENT OF ACCOUNT</div>
+    //         <div class="statement-info">
+    //             <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
+    //             <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
+    //             <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
+    //             <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
+    //             <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
+    //             <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
+    //         </div>
+    //     </div>
+    //     <table cellspacing="0">
+    //         <thead>
+    //             <tr>
+    //                 <th class="nowrap col-miti">Miti</th>
+    //                 <th class="nowrap col-date">Date</th>
+    //                 <th class="nowrap col-vch">Vch No.</th>
+    //                 <th class="nowrap col-type">Type</th>
+    //                 <th class="nowrap col-paymode">Pay Mode</th>
+    //                 <th class="nowrap col-account">Account</th>
+    //                 <th class="nowrap col-amount text-end">Debit (Rs.)</th>
+    //                 <th class="nowrap col-amount text-end">Credit (Rs.)</th>
+    //                 <th class="nowrap col-balance text-end">Balance (Rs.)</th>
+    //             </tr>
+    //         </thead>
+    //         <tbody>
+    // `;
+
+    //         statement.forEach((item, index) => {
+    //             const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+    //             const adDate = item.date ? new Date(item.date).toLocaleDateString() : '';
+
+    //             const debitAmount = parseFloat(item.debit) || 0;
+    //             const creditAmount = parseFloat(item.credit) || 0;
+
+    //             // Update running balance
+    //             balance = balance + debitAmount - creditAmount;
+
+    //             totalDebit += debitAmount;
+    //             totalCredit += creditAmount;
+
+    //             const balanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
+
+    //             // Get the account name
+    //             let accountName = '';
+    //             if (item.type === 'Pymt') {
+    //                 accountName = item.PaymentReceiptType || item.accountType || '';
+    //             } else if (item.type === 'Rcpt') {
+    //                 accountName = item.PaymentReceiptType || item.accountType || '';
+    //             } else {
+    //                 accountName = item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.journalAccountType || '';
+    //             }
+
+    //             tableContent += `
+    //         <tr>
+    //             <td class="nowrap">${bsDate}</td>
+    //             <td class="nowrap">${adDate}</td>
+    //             <td class="nowrap">${item.billNumber || ''}</td>
+    //             <td class="nowrap voucher-type">${item.type || ''}</td>
+    //             <td class="nowrap">${item.paymentMode || ''}</td>
+    //             <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">${accountName}</td>
+    //             <td class="text-end amount-positive">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
+    //             <td class="text-end amount-positive">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
+    //             <td class="text-end balance-text">${balanceText}</td>
+    //         </tr>
+    //     `;
+    //         });
+
+    //         const finalBalanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
+
+    //         tableContent += `
+    //         <tr class="grand-total-row">
+    //             <td colspan="6" class="text-end total-label">TOTALS</td>
+    //             <td class="text-end total-label">${formatCurrencyForPrint(totalDebit)}</td>
+    //             <td class="text-end total-label">${formatCurrencyForPrint(totalCredit)}</td>
+    //             <td class="text-end total-label">${finalBalanceText}</td>
+    //         </tr>
+    //         </tbody>
+    //     </table>
+    //     <div class="footer">
+    //         Generated on: ${new Date().toLocaleString()} | Powered by Ams Software
+    //     </div>
+    // `;
+
+    //         return tableContent;
+    //     };
 
     const generateRegularPrintContent = (statementData) => {
         let balance = data.openingBalance;
@@ -916,43 +1449,61 @@ const Statement = () => {
         const isNepaliFormat = company.dateFormat === 'nepali';
 
         let tableContent = `
-        <div class="print-header">
-            <h2 style="margin:0; padding:0; font-size: 14px;">${data.currentCompanyName || 'Company Name'}</h2>
-            <p style="margin:2px 0; font-size: 8px;">
-                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
-                PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
-            </p>
-            <hr style="margin:2px 0;">
-            <div class="report-title">Statement of Account</div>
-            <p style="margin:2px 0; font-size: 8px;">
-                <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
-                <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
-                <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
-                <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
-                <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
-                <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
-            </p>
+    <div class="print-header">
+        <div class="company-name">${data.currentCompanyName || 'Company Name'}</div>
+        <div class="company-details">
+            ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
+            PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
         </div>
-        <table cellspacing="0">
-            <thead>
-                <tr>
-                    <th class="nowrap">Miti</th>
-                    <th class="nowrap">Date</th>
-                    <th class="nowrap">Vch No.</th>
-                    <th class="nowrap">Type</th>
-                    <th class="nowrap">Pay Mode</th>
-                    <th class="nowrap">Account</th>
-                    <th class="nowrap text-end">Debit (Rs.)</th>
-                    <th class="nowrap text-end">Credit (Rs.)</th>
-                    <th class="nowrap text-end">Balance (Rs.)</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
+        <hr style="margin:6px 0; border: 1px solid #ccc;">
+        <div class="report-title">STATEMENT OF ACCOUNT</div>
+        <div class="statement-info">
+            <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
+            <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
+            <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
+            <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
+            <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
+            <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
+        </div>
+    </div>
+    <table cellspacing="0">
+        <thead>
+            <tr>
+                <th class="nowrap col-miti">Miti</th>
+                <th class="nowrap col-date">Date</th>
+                <th class="nowrap col-vch">Vch No.</th>
+                <th class="nowrap col-type">Type</th>
+                <th class="nowrap col-paymode">Pay Mode</th>
+                <th class="nowrap col-account">Account</th>
+                <th class="nowrap col-amount text-end">Debit (Rs.)</th>
+                <th class="nowrap col-amount text-end">Credit (Rs.)</th>
+                <th class="nowrap col-balance text-end">Balance (Rs.)</th>
+            </tr>
+        </thead>
+        <tbody>
+`;
 
         statement.forEach((item, index) => {
-            const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
-            const adDate = item.date ? new Date(item.date).toLocaleDateString() : '';
+            // Check if this is an opening balance entry
+            const isOpeningBalance = item.accountType === 'Opening' ||
+                item.type === 'Opening' ||
+                (!item.type && item.accountType === 'Opening') ||
+                (item.accountType === 'Opening');
+
+            let bsDate = '';
+            let adDate = '';
+
+            if (isOpeningBalance) {
+                // For opening balance, show the from date
+                if (isNepaliFormat) {
+                    bsDate = dateRange.fromDate || '';
+                } else {
+                    adDate = dateRange.fromDateAd || '';
+                }
+            } else {
+                bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+                adDate = item.date ? new Date(item.date).toLocaleDateString() : '';
+            }
 
             const debitAmount = parseFloat(item.debit) || 0;
             const creditAmount = parseFloat(item.credit) || 0;
@@ -967,7 +1518,9 @@ const Statement = () => {
 
             // Get the account name
             let accountName = '';
-            if (item.type === 'Pymt') {
+            if (isOpeningBalance) {
+                accountName = 'Opening';
+            } else if (item.type === 'Pymt') {
                 accountName = item.PaymentReceiptType || item.accountType || '';
             } else if (item.type === 'Rcpt') {
                 accountName = item.PaymentReceiptType || item.accountType || '';
@@ -976,35 +1529,35 @@ const Statement = () => {
             }
 
             tableContent += `
-            <tr>
-                <td class="nowrap">${bsDate}</td>
-                <td class="nowrap">${adDate}</td>
-                <td class="nowrap">${item.billNumber || ''}</td>
-                <td class="nowrap">${item.type || ''}</td>
-                <td class="nowrap">${item.paymentMode || ''}</td>
-                <td style="white-space: normal; word-wrap: break-word;">${accountName}</td>
-                <td class="text-end">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
-                <td class="text-end">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
-                <td class="text-end">${balanceText}</td>
-            </tr>
-        `;
+        <tr>
+            <td class="nowrap">${bsDate || '-'}</td>
+            <td class="nowrap">${adDate || '-'}</td>
+            <td class="nowrap">${item.billNumber || ''}</td>
+            <td class="nowrap voucher-type">${item.type || ''}</td>
+            <td class="nowrap">${item.paymentMode || ''}</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">${accountName}</td>
+            <td class="text-end amount-positive">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
+            <td class="text-end amount-positive">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
+            <td class="text-end balance-text">${balanceText}</td>
+        </tr>
+    `;
         });
 
         const finalBalanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
 
         tableContent += `
-            <tr class="grand-total-row">
-                <td colspan="6" class="text-end"><strong>TOTALS</strong></td>
-                <td class="text-end"><strong>${formatCurrencyForPrint(totalDebit)}</strong></td>
-                <td class="text-end"><strong>${formatCurrencyForPrint(totalCredit)}</strong></td>
-                <td class="text-end"><strong>${finalBalanceText}</strong></td>
-            </tr>
-            </tbody>
-        </table>
-        <div style="margin-top: 10px; font-size: 7px; text-align: center; border-top: 1px solid #ccc; padding-top: 3px;">
-            <p>Generated on: ${new Date().toLocaleString()} | Powered by SkyForge</p>
-        </div>
-    `;
+        <tr class="grand-total-row">
+            <td colspan="6" class="text-end total-label">TOTALS</td>
+            <td class="text-end total-label">${formatCurrencyForPrint(totalDebit)}</td>
+            <td class="text-end total-label">${formatCurrencyForPrint(totalCredit)}</td>
+            <td class="text-end total-label">${finalBalanceText}</td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="footer">
+        Generated on: ${new Date().toLocaleString()} | Powered by Ams Software
+    </div>
+`;
 
         return tableContent;
     };
@@ -1018,43 +1571,43 @@ const Statement = () => {
         }
 
         let tableContent = `
-            <div class="print-header">
-                <h2 style="margin:0; padding:0; font-size: 14px;">${data.currentCompanyName || 'Company Name'}</h2>
-                <p style="margin:2px 0; font-size: 8px;">
-                    ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
-                    PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
-                </p>
-                <hr style="margin:2px 0;">
-                <div class="report-title">Itemwise Statement</div>
-                <p style="margin:2px 0; font-size: 8px;">
-                    <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
-                    <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
-                    <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
-                    <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
-                    <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
-                    <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
-                </p>
+        <div class="print-header">
+            <div class="company-name">${data.currentCompanyName || 'Company Name'}</div>
+            <div class="company-details">
+                ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
+                PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
             </div>
-            <table cellspacing="0">
-                <thead>
-                    <tr>
-                        <th class="nowrap">Miti</th>
-                        <th class="nowrap">Date</th>
-                        <th class="nowrap">Vch No.</th>
-                        <th class="nowrap">Type</th>
-                        <th class="nowrap">Pay Mode</th>
-                        <th class="nowrap">Item Name</th>
-                        <th class="nowrap text-end">Qty</th>
-                        <th class="nowrap">Unit</th>
-                        <th class="nowrap text-end">Rate (Rs.)</th>
-                        <th class="nowrap text-end">Discount (Rs.)</th>
-                        <th class="nowrap text-end">Taxable (Rs.)</th>
-                        <th class="nowrap text-end">VAT (Rs.)</th>
-                        <th class="nowrap text-end">Total (Rs.)</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+            <hr style="margin:6px 0; border: 1px solid #ccc;">
+            <div class="report-title">ITEMWISE STATEMENT</div>
+            <div class="statement-info">
+                <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
+                <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
+                <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
+                <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
+                <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
+                <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
+            </div>
+        </div>
+        <table cellspacing="0">
+            <thead>
+                <tr>
+                    <th class="nowrap col-miti">Miti</th>
+                    <th class="nowrap col-date">Date</th>
+                    <th class="nowrap col-vch">Vch No.</th>
+                    <th class="nowrap col-type">Type</th>
+                    <th class="nowrap col-paymode">Pay Mode</th>
+                    <th class="nowrap col-item">Item Name</th>
+                    <th class="nowrap col-qty text-end">Qty</th>
+                    <th class="nowrap col-unit">Unit</th>
+                    <th class="nowrap col-rate text-end">Rate (Rs.)</th>
+                    <th class="nowrap col-amount text-end">Discount (Rs.)</th>
+                    <th class="nowrap col-amount text-end">Taxable (Rs.)</th>
+                    <th class="nowrap col-amount text-end">VAT (Rs.)</th>
+                    <th class="nowrap col-amount text-end">Total (Rs.)</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
 
         let grandTotalQty = 0;
         let grandTotalAmount = 0;
@@ -1082,43 +1635,43 @@ const Statement = () => {
                     grandTotalDiscount += discount;
 
                     tableContent += `
-                        <tr>
-                            <td class="nowrap">${bsDate}</td>
-                            <td class="nowrap">${adDate}</td>
-                            <td class="nowrap">${bill.billNumber || ''}</td>
-                            <td class="nowrap">${bill.type || ''}</td>
-                            <td class="nowrap">${bill.paymentMode || ''}</td>
-                            <td style="white-space: normal; word-wrap: break-word;">${item.item?.name || item.productName || 'N/A'}</td>
-                            <td class="text-end">${quantity.toFixed(2)}</td>
-                            <td class="nowrap">${item.unit?.name || ''}</td>
-                            <td class="text-end">${formatCurrencyForPrint(rate)}</td>
-                            <td class="text-end">${formatCurrencyForPrint(discount)}</td>
-                            <td class="text-end">${formatCurrencyForPrint(taxable)}</td>
-                            <td class="text-end">${formatCurrencyForPrint(vat)}</td>
-                            <td class="text-end">${formatCurrencyForPrint(total)}</td>
-                        </tr>
-                    `;
+                    <tr>
+                        <td class="nowrap">${bsDate}</td>
+                        <td class="nowrap">${adDate}</td>
+                        <td class="nowrap">${bill.billNumber || ''}</td>
+                        <td class="nowrap voucher-type">${bill.type || ''}</td>
+                        <td class="nowrap">${bill.paymentMode || ''}</td>
+                        <td style="white-space: normal; word-wrap: break-word; max-width: 180px;">${item.item?.name || item.productName || 'N/A'}</td>
+                        <td class="text-end amount-positive">${quantity.toFixed(2)}</td>
+                        <td class="nowrap">${item.unit?.name || ''}</td>
+                        <td class="text-end amount-positive">${formatCurrencyForPrint(rate)}</td>
+                        <td class="text-end amount-positive">${formatCurrencyForPrint(discount)}</td>
+                        <td class="text-end amount-positive">${formatCurrencyForPrint(taxable)}</td>
+                        <td class="text-end amount-positive">${formatCurrencyForPrint(vat)}</td>
+                        <td class="text-end amount-positive">${formatCurrencyForPrint(total)}</td>
+                    </tr>
+                `;
                 });
             }
         });
 
         tableContent += `
-            <tr class="grand-total-row">
-                <td colspan="6" class="text-end"><strong>GRAND TOTALS</strong></td>
-                <td class="text-end"><strong>${grandTotalQty.toFixed(2)}</strong></td>
-                <td></td>
-                <td></td>
-                <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalDiscount)}</strong></td>
-                <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalTaxable)}</strong></td>
-                <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalVat)}</strong></td>
-                <td class="text-end"><strong>${formatCurrencyForPrint(grandTotalAmount)}</strong></td>
-            </tr>
-            </tbody>
-        </table>
-        <div style="margin-top: 10px; font-size: 7px; text-align: center; border-top: 1px solid #ccc; padding-top: 3px;">
-            <p>Generated on: ${new Date().toLocaleString()} | Powered by SkyForge</p>
-        </div>
-    `;
+        <tr class="grand-total-row">
+            <td colspan="6" class="text-end total-label">GRAND TOTALS</td>
+            <td class="text-end total-label">${grandTotalQty.toFixed(2)}</td>
+            <td></td>
+            <td></td>
+            <td class="text-end total-label">${formatCurrencyForPrint(grandTotalDiscount)}</td>
+            <td class="text-end total-label">${formatCurrencyForPrint(grandTotalTaxable)}</td>
+            <td class="text-end total-label">${formatCurrencyForPrint(grandTotalVat)}</td>
+            <td class="text-end total-label">${formatCurrencyForPrint(grandTotalAmount)}</td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="footer">
+        Generated on: ${new Date().toLocaleString()} | Powered by Ams Software
+    </div>
+`;
 
         return tableContent;
     };
@@ -1191,9 +1744,33 @@ const Statement = () => {
 
                 const statementToExport = filteredStatement.length > 0 ? filteredStatement : data.statement;
 
+                // Helper function to check if item is opening balance
+                const isOpeningBalance = (item) => {
+                    return item.accountType === 'Opening' ||
+                        item.type === 'Opening' ||
+                        (!item.type && item.accountType === 'Opening') ||
+                        (item.accountType === 'Opening');
+                };
+
                 statementToExport.forEach((item) => {
-                    const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
-                    const adDate = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+                    // Check if this is an opening balance entry
+                    const isOpening = isOpeningBalance(item);
+
+                    let bsDate = '';
+                    let adDate = '';
+
+                    if (isOpening) {
+                        // For opening balance, show the from date
+                        if (isNepaliFormat) {
+                            bsDate = dateRange.fromDate || '';
+                        } else {
+                            adDate = dateRange.fromDateAd || '';
+                        }
+                    } else {
+                        bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+                        adDate = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+                    }
+
                     const debitAmount = parseFloat(item.debit) || 0;
                     const creditAmount = parseFloat(item.credit) || 0;
 
@@ -1202,7 +1779,9 @@ const Statement = () => {
                     totalCredit += creditAmount;
 
                     let accountName = '';
-                    if (item.type === 'Pymt') {
+                    if (isOpening) {
+                        accountName = 'Opening';
+                    } else if (item.type === 'Pymt') {
                         accountName = item.PaymentReceiptType || item.accountType || '';
                     } else if (item.type === 'Rcpt') {
                         accountName = item.PaymentReceiptType || item.accountType || '';
@@ -1213,8 +1792,8 @@ const Statement = () => {
                     const balanceText = balance > 0 ? `${formatCurrencyForExport(Math.abs(balance))} Dr` : `${formatCurrencyForExport(Math.abs(balance))} Cr`;
 
                     const rowData = [
-                        bsDate,
-                        adDate,
+                        bsDate || '-',
+                        adDate || '-',
                         item.billNumber || '',
                         item.type || '',
                         item.paymentMode || '',
@@ -1226,15 +1805,33 @@ const Statement = () => {
                     excelData.push(rowData);
                 });
 
+                // Add totals row with proper column alignment
                 excelData.push([]);
                 const finalBalanceText = balance > 0 ? `${formatCurrencyForExport(Math.abs(balance))} Dr` : `${formatCurrencyForExport(Math.abs(balance))} Cr`;
                 excelData.push([
-                    'TOTALS', '', '', '', '',
-                    formatCurrencyForExport(totalDebit),
-                    formatCurrencyForExport(totalCredit),
-                    finalBalanceText, ''
+                    'TOTALS',  // Column 1: Miti
+                    '',        // Column 2: Date
+                    '',        // Column 3: Voucher No.
+                    '',        // Column 4: Voucher Type
+                    '',        // Column 5: Payment Mode
+                    'Grand Total:', // Column 6: Account
+                    formatCurrencyForExport(totalDebit),  // Column 7: Debit Amount
+                    formatCurrencyForExport(totalCredit), // Column 8: Credit Amount
+                    finalBalanceText  // Column 9: Balance
                 ]);
+
+                // Add opening balance info for reference
+                if (openingBalance !== 0) {
+                    const openingBalanceText = openingBalance > 0 ?
+                        `${formatCurrencyForExport(Math.abs(openingBalance))} Dr` :
+                        `${formatCurrencyForExport(Math.abs(openingBalance))} Cr`;
+                    excelData.push([
+                        '', '', '', '', '',
+                        '', '',
+                    ]);
+                }
             } else {
+                // Itemwise view
                 const headers = [
                     'Miti', 'Date', 'Voucher No.', 'Voucher Type', 'Payment Mode',
                     'Item Name', 'Quantity', 'Unit', 'Rate (Rs.)', 'Discount (Rs.)',
@@ -1268,11 +1865,11 @@ const Statement = () => {
                             grandTotalDiscount += discount;
 
                             const rowData = [
-                                bsDate,
-                                adDate,
-                                bill.billNumber,
-                                bill.type,
-                                bill.paymentMode,
+                                bsDate || '-',
+                                adDate || '-',
+                                bill.billNumber || '',
+                                bill.type || '',
+                                bill.paymentMode || '',
                                 item.item?.name || item.productName || 'N/A',
                                 quantity.toFixed(2),
                                 item.unit?.name || '',
@@ -1287,15 +1884,22 @@ const Statement = () => {
                     }
                 });
 
+                // Add grand totals row with proper column alignment
                 excelData.push([]);
                 excelData.push([
-                    'GRAND TOTALS', '', '', '', '',
-                    grandTotalQty.toFixed(2), '',
-                    '',
-                    formatCurrencyForExport(grandTotalDiscount),
-                    formatCurrencyForExport(grandTotalTaxable),
-                    formatCurrencyForExport(grandTotalVat),
-                    formatCurrencyForExport(grandTotalAmount), ''
+                    'GRAND TOTALS',  // Column 1: Miti
+                    '',              // Column 2: Date
+                    '',              // Column 3: Voucher No.
+                    '',              // Column 4: Voucher Type
+                    '',              // Column 5: Payment Mode
+                    '',              // Column 6: Item Name
+                    grandTotalQty.toFixed(2),  // Column 7: Quantity
+                    '',              // Column 8: Unit
+                    '',              // Column 9: Rate
+                    formatCurrencyForExport(grandTotalDiscount),  // Column 10: Discount
+                    formatCurrencyForExport(grandTotalTaxable),   // Column 11: Taxable
+                    formatCurrencyForExport(grandTotalVat),       // Column 12: VAT
+                    formatCurrencyForExport(grandTotalAmount)     // Column 13: Total
                 ]);
             }
 
@@ -1327,6 +1931,8 @@ const Statement = () => {
             setExporting(false);
         }
     };
+
+    
 
     const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
@@ -1486,6 +2092,174 @@ const Statement = () => {
     });
 
     // Table Row Component - Updated with BS Date and AD Date columns
+    // const TableRow = React.memo(({ index, style, data: rowData }) => {
+    //     const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
+    //     const item = statement[index];
+    //     const isNepaliFormat = company.dateFormat === 'nepali';
+
+    //     if (!item) return null;
+
+    //     const isSelected = selectedRowIndex === index;
+
+    //     const getFormattedAccountName = (item) => {
+    //         if (item.type === 'Purc') {
+    //             if (item.partyBillNumber) {
+    //                 return `Purchase ${item.partyBillNumber}`;
+    //             }
+    //             return item.accountType || item.purchaseSalesType || 'Purchase';
+    //         }
+    //         if (item.type === 'PrRt') {
+    //             if (item.partyBillNumber) {
+    //                 return `Purchase Return ${item.partyBillNumber}`;
+    //             }
+    //             return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
+    //         }
+    //         return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
+    //             item.PaymentReceiptType || item.journalAccountType || 'Opening';
+    //     };
+
+    //     // const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+    //     const adDate = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+
+    //     // const subtractDaysFromNepaliDate = (nepaliDateStr, days) => {
+    //     //     if (!nepaliDateStr || !isNepaliFormat) return nepaliDateStr;
+    //     //     try {
+    //     //         const nepaliDate = new NepaliDate(nepaliDateStr);
+    //     //         const jsDate = nepaliDate.getDateObject();
+    //     //         jsDate.setDate(jsDate.getDate() - days);
+    //     //         const newNepaliDate = new NepaliDate(jsDate);
+    //     //         return newNepaliDate.format('YYYY-MM-DD');
+    //     //     } catch (error) {
+    //     //         console.error('Error subtracting days from Nepali date:', error);
+    //     //         return nepaliDateStr;
+    //     //     }
+    //     // };
+
+    //     // Helper function to subtract days from Nepali date
+    //     const subtractDaysFromNepaliDate = (nepaliDateStr, days) => {
+    //         if (!nepaliDateStr || !isNepaliFormat) return nepaliDateStr;
+    //         try {
+    //             // Create NepaliDate object from the string
+    //             const nepaliDate = new NepaliDate(nepaliDateStr);
+
+    //             // Get the JS Date object
+    //             const jsDate = nepaliDate.getDateObject();
+
+    //             // Subtract days
+    //             jsDate.setDate(jsDate.getDate() - days);
+
+    //             // Convert back to Nepali date
+    //             const newNepaliDate = new NepaliDate(jsDate);
+
+    //             // Format as YYYY-MM-DD
+    //             const year = newNepaliDate.getYear();
+    //             const month = String(newNepaliDate.getMonth() + 1).padStart(2, '0');
+    //             const day = String(newNepaliDate.getDate()).padStart(2, '0');
+
+    //             return `${year}-${month}-${day}`;
+    //         } catch (error) {
+    //             console.error('Error subtracting days from Nepali date:', error);
+    //             // If subtraction fails, return the original date
+    //             return nepaliDateStr;
+    //         }
+    //     };
+
+    //     // FIX: Check if this is an opening balance entry
+    //     const isOpeningBalance = item.accountType === 'Opening' ||
+    //         item.type === 'Opening' ||
+    //         (!item.type && item.accountType === 'Opening') ||
+    //         (item.accountType === 'Opening Balance');
+
+    //     let bsDate = '';
+    //     let adDateDisplay = '';
+
+    //     if (isOpeningBalance) {
+    //         // For opening balance, show date as "Before fromDate" or fromDate - 1 day
+    //         if (isNepaliFormat && dateRange.fromDate) {
+    //             // Subtract 1 day from fromDate for Nepali date
+    //             bsDate = subtractDaysFromNepaliDate(dateRange.fromDate, 1);
+    //         } else if (dateRange.fromDateAd) {
+    //             // For AD date, subtract 1 day
+    //             const adDate = new Date(dateRange.fromDateAd);
+    //             adDate.setDate(adDate.getDate() - 1);
+    //             adDateDisplay = adDate.toISOString().split('T')[0];
+    //         }
+    //     } else {
+    //         bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+    //         adDateDisplay = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+    //     }
+
+    //     return (
+    //         <div
+    //             style={{
+    //                 ...style,
+    //                 display: 'flex',
+    //                 alignItems: 'center',
+    //                 height: '28px',
+    //                 minHeight: '28px',
+    //                 padding: '0',
+    //                 borderBottom: '1px solid #dee2e6',
+    //                 cursor: 'pointer',
+    //                 backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
+    //             }}
+    //             onClick={() => handleRowClick(index)}
+    //             onDoubleClick={() => handleRowDoubleClick(item)}
+    //         >
+    //             {/* BS Date Column */}
+    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{bsDate}</span>
+    //             </div>
+
+    //             {/* AD Date Column */}
+    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{adDate}</span>
+    //             </div>
+
+    //             {/* Voucher No Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.billNumber || ''}</span>
+    //             </div>
+
+    //             {/* Type Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.type || ''}</span>
+    //             </div>
+
+    //             {/* Pay Mode Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
+    //             </div>
+
+    //             {/* Account Column */}
+    //             <div
+    //                 className="d-flex align-items-center px-1 border-end"
+    //                 style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
+    //                 title={getFormattedAccountName(item)}
+    //             >
+    //                 <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+    //                     {getFormattedAccountName(item)}
+    //                 </span>
+    //             </div>
+
+    //             {/* Debit Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.debit)}</span>
+    //             </div>
+
+    //             {/* Credit Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.credit)}</span>
+    //             </div>
+
+    //             {/* Balance Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatBalance(item.balance)}</span>
+    //             </div>
+    //         </div>
+    //     );
+    // });
+
+    // Table Row Component - Updated with correct opening balance date handling
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
         const item = statement[index];
@@ -1512,9 +2286,20 @@ const Statement = () => {
                 item.PaymentReceiptType || item.journalAccountType || 'Opening';
         };
 
-        // const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
-        const adDate = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+        // Helper function to subtract days from AD date
+        const subtractDaysFromAdDate = (adDateStr, days) => {
+            if (!adDateStr) return adDateStr;
+            try {
+                const date = new Date(adDateStr);
+                date.setDate(date.getDate() - days);
+                return date.toISOString().split('T')[0];
+            } catch (error) {
+                console.error('Error subtracting days from AD date:', error);
+                return adDateStr;
+            }
+        };
 
+        // Helper function to subtract days from Nepali date
         const subtractDaysFromNepaliDate = (nepaliDateStr, days) => {
             if (!nepaliDateStr || !isNepaliFormat) return nepaliDateStr;
             try {
@@ -1522,34 +2307,36 @@ const Statement = () => {
                 const jsDate = nepaliDate.getDateObject();
                 jsDate.setDate(jsDate.getDate() - days);
                 const newNepaliDate = new NepaliDate(jsDate);
-                return newNepaliDate.format('YYYY-MM-DD');
+                const year = newNepaliDate.getYear();
+                const month = String(newNepaliDate.getMonth() + 1).padStart(2, '0');
+                const day = String(newNepaliDate.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
             } catch (error) {
                 console.error('Error subtracting days from Nepali date:', error);
                 return nepaliDateStr;
             }
         };
 
-        // FIX: Check if this is an opening balance entry
+        // Check if this is an opening balance entry
         const isOpeningBalance = item.accountType === 'Opening' ||
             item.type === 'Opening' ||
             (!item.type && item.accountType === 'Opening') ||
-            (item.accountType === 'Opening Balance');
+            (item.accountType === 'Opening');
 
         let bsDate = '';
         let adDateDisplay = '';
 
         if (isOpeningBalance) {
-            // For opening balance, show date as "Before fromDate" or fromDate - 1 day
+            // For opening balance, show the from date (not subtracted)
             if (isNepaliFormat && dateRange.fromDate) {
-                // Subtract 1 day from fromDate for Nepali date
-                bsDate = subtractDaysFromNepaliDate(dateRange.fromDate, 1);
+                // Show the from date as-is for the opening balance
+                bsDate = dateRange.fromDate;
             } else if (dateRange.fromDateAd) {
-                // For AD date, subtract 1 day
-                const adDate = new Date(dateRange.fromDateAd);
-                adDate.setDate(adDate.getDate() - 1);
-                adDateDisplay = adDate.toISOString().split('T')[0];
+                // For AD date, show the from date
+                adDateDisplay = dateRange.fromDateAd;
             }
         } else {
+            // For regular transactions, use the transaction date
             bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
             adDateDisplay = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
         }
@@ -1572,12 +2359,12 @@ const Statement = () => {
             >
                 {/* BS Date Column */}
                 <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{bsDate}</span>
+                    <span style={{ fontSize: '0.75rem' }}>{bsDate || '-'}</span>
                 </div>
 
                 {/* AD Date Column */}
                 <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{adDate}</span>
+                    <span style={{ fontSize: '0.75rem' }}>{adDateDisplay || '-'}</span>
                 </div>
 
                 {/* Voucher No Column */}
