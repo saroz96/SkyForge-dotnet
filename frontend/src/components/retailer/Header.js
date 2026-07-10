@@ -405,12 +405,6 @@ const Header = () => {
                     </li>
                   )}
                 {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
-                  finalUser?.menuPermissions?.get('salesRegister')) && (
-                    <li className="menu-item">
-                      <Link to="/retailer/sales-register">Sales Register</Link>
-                    </li>
-                  )}
-                {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
                   finalUser?.menuPermissions?.get('creditSalesRtn')) && (
                     <li className="menu-item dropdown">
                       <Link to="#">Credit Sales Rtn</Link>
@@ -438,10 +432,32 @@ const Header = () => {
                       </ul>
                     </li>
                   )}
-                {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
+
+                {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' ||
+                  finalUser?.role === 'Account' || finalUser?.isAdmin ||
                   finalUser?.menuPermissions?.get('salesRtnRegister')) && (
-                    <li className="menu-item">
-                      <Link to="/retailer/sales-return/register">Sales Rtn Register</Link>
+                    <li className="menu-item dropdown">
+                      <Link to="#">Register</Link>
+                      <ul className="sub-menu">
+                        {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
+                          finalUser?.menuPermissions?.get('salesRegister')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/sales-register">Sales Register</Link>
+                            </li>
+                          )}
+                        {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
+                          finalUser?.menuPermissions?.get('salesRtnRegister')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/sales-return/register">Sales Rtn Register</Link>
+                            </li>
+                          )}
+                        {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
+                          finalUser?.menuPermissions?.get('salesSummary')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/sales-summary">Sales Summary</Link>
+                            </li>
+                          )}
+                      </ul>
                     </li>
                   )}
               </ul>
@@ -475,13 +491,6 @@ const Header = () => {
                               <Link to="/retailer/purchase/finds">Edit</Link>
                             </li>
                           )}
-                        {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Purchase' ||
-                          finalUser?.role === 'Account' || finalUser?.isAdmin ||
-                          finalUser?.menuPermissions?.get('purchaseRegister')) && (
-                            <li className="menu-item">
-                              <Link to="/retailer/purchase-register">Purchase Register</Link>
-                            </li>
-                          )}
                       </ul>
                     </li>
                   )}
@@ -499,10 +508,33 @@ const Header = () => {
                               <Link to="/retailer/purchase-return/finds">Edit</Link>
                             </li>
                           )}
+                      </ul>
+                    </li>
+                  )}
+
+                {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Purchase' ||
+                  finalUser?.role === 'Account' || finalUser?.isAdmin ||
+                  finalUser?.menuPermissions?.get('createPurchase')) && (
+                    <li className="menu-item dropdown">
+                      <Link to="#">Register</Link>
+                      <ul className="sub-menu">
+                        {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Purchase' ||
+                          finalUser?.role === 'Account' || finalUser?.isAdmin ||
+                          finalUser?.menuPermissions?.get('purchaseRegister')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/purchase-register">Purchase Register</Link>
+                            </li>
+                          )}
                         {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Purchase' ||
                           finalUser?.isAdmin || finalUser?.menuPermissions?.get('purchaseRtnRegister')) && (
                             <li className="menu-item">
                               <Link to="/retailer/purchase-return/register">Purchase Rtn Register</Link>
+                            </li>
+                          )}
+                        {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Purchase' ||
+                          finalUser?.isAdmin || finalUser?.menuPermissions?.get('purchaseSummary')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/purchase-summary">Purchase Summary</Link>
                             </li>
                           )}
                       </ul>
@@ -852,12 +884,6 @@ const Header = () => {
                       <Link to="/list-of-existing/fiscalYears">Existing Fiscal Year</Link>
                     </li>
                   )}
-                {/* {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' ||
-                  finalUser?.isAdmin || finalUser?.menuPermissions?.get('existingFiscalYear')) && (
-                    <li className="menu-item">
-                      <Link to="/backups">Backups</Link>
-                    </li>
-                  )} */}
                 {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' ||
                   finalUser?.isAdmin || finalUser?.menuPermissions?.get('importExportSubHeader')) && (
                     <li className="menu-item dropdown">

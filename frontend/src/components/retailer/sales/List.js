@@ -1437,9 +1437,6 @@ const SalesBillsList = () => {
                                         <div className="spinner-border spinner-border-sm text-primary" role="status">
                                             <span className="visually-hidden">Loading...</span>
                                         </div>
-                                        <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>
-                                            Loading sales bills...
-                                        </p>
                                     </div>
                                 ) : filteredBills.length === 0 ? (
                                     <div className="d-flex flex-column justify-content-center align-items-center h-100">

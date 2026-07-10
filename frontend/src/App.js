@@ -31,12 +31,14 @@ import AccountGroups from './components/retailer/accounts/AccountGroup';
 import AccountDetails from './components/retailer/accounts/ViewAccount';
 import AddPurchase from './components/retailer/purchase/AddPurchase';
 import PurchaseBillsList from './components/retailer/purchase/List';
+import PurchaseSummary from './components/retailer/purchase/PurchaseSummary';
 import EditPurchase from './components/retailer/purchase/EditPurchase';
 import { PageNotRefreshProvider } from './components/retailer/PageNotRefreshContext';
 import FindPurchase from './components/retailer/purchase/FindPurchase';
 import AddSales from './components/retailer/sales/AddSales';
 import AddSalesOpen from './components/retailer/sales/AddSalesOpen';
 import SalesBillsList from './components/retailer/sales/List';
+import SalesSummary from './components/retailer/sales/SalesSummary';
 import PurchaseBillPrint from './components/retailer/purchase/Print';
 import SalesBillPrint from './components/retailer/sales/Print';
 import AddCashSales from './components/retailer/sales/AddCashSales';
@@ -387,6 +389,14 @@ function AppContent() {
               }
             />
             <Route
+              path="/retailer/purchase-summary"
+              element={
+                <ProtectedRoute>
+                  <PurchaseSummary />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/retailer/purchase/:id/print"
               element={
                 <ProtectedRoute>
@@ -434,6 +444,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <SalesBillsList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/sales-summary"
+              element={
+                <ProtectedRoute>
+                  <SalesSummary />
                 </ProtectedRoute>
               }
             />

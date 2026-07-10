@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import '../../../stylesheet/retailer/purchase/List.css';
+import '../../../stylesheet/retailer/sales/List.css';
 import Header from '../Header';
 import NepaliDate from 'nepali-datetime';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
@@ -107,7 +107,7 @@ const isValidNepaliDate = (dateStr) => {
     }
 };
 
-const PurchaseBillsList = () => {
+const SalesSummary = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
 
@@ -133,14 +133,14 @@ const PurchaseBillsList = () => {
         fiscalYear: {}
     });
 
-    // SPLIT STATE: Separate date range from bills and company info
+    // Date range state
     const [dateRange, setDateRange] = useState(() => {
-        if (draftSave && draftSave.purchaseBillsData) {
+        if (draftSave && draftSave.salesSummaryData) {
             return {
-                fromDate: draftSave.purchaseBillsData.fromDate || '',
-                toDate: draftSave.purchaseBillsData.toDate || '',
-                fromDateAd: draftSave.purchaseBillsData.fromDateAd || '',
-                toDateAd: draftSave.purchaseBillsData.toDateAd || ''
+                fromDate: draftSave.salesSummaryData.fromDate || '',
+                toDate: draftSave.salesSummaryData.toDate || '',
+                fromDateAd: draftSave.salesSummaryData.fromDateAd || '',
+                toDateAd: draftSave.salesSummaryData.toDateAd || ''
             };
         }
         return {
@@ -151,23 +151,22 @@ const PurchaseBillsList = () => {
         };
     });
 
-    const [bills, setBills] = useState(() => {
-        if (draftSave && draftSave.purchaseBillsData) {
-            return draftSave.purchaseBillsData.bills || [];
-        }
-        return [];
-    });
+    // Combined bills data (sales + returns)
+    const [salesBills, setSalesBills] = useState([]);
+    const [returnBills, setReturnBills] = useState([]);
+    const [combinedData, setCombinedData] = useState([]);
+    const [filteredData, setFilteredData] = useState([]);
 
     const [companyInfo, setCompanyInfo] = useState(() => {
-        if (draftSave && draftSave.purchaseBillsData) {
+        if (draftSave && draftSave.salesSummaryData) {
             return {
-                company: draftSave.purchaseBillsData.company,
-                currentFiscalYear: draftSave.purchaseBillsData.currentFiscalYear,
-                currentCompanyName: draftSave.purchaseBillsData.currentCompanyName || '',
-                companyDateFormat: draftSave.purchaseBillsData.companyDateFormat || 'english',
-                vatEnabled: draftSave.purchaseBillsData.vatEnabled !== undefined ? draftSave.purchaseBillsData.vatEnabled : true,
-                isVatExempt: draftSave.purchaseBillsData.isVatExempt || false,
-                isAdminOrSupervisor: draftSave.purchaseBillsData.isAdminOrSupervisor || false
+                company: draftSave.salesSummaryData.company,
+                currentFiscalYear: draftSave.salesSummaryData.currentFiscalYear,
+                currentCompanyName: draftSave.salesSummaryData.currentCompanyName || '',
+                companyDateFormat: draftSave.salesSummaryData.companyDateFormat || 'english',
+                vatEnabled: draftSave.salesSummaryData.vatEnabled !== undefined ? draftSave.salesSummaryData.vatEnabled : true,
+                isVatExempt: draftSave.salesSummaryData.isVatExempt || false,
+                isAdminOrSupervisor: draftSave.salesSummaryData.isAdminOrSupervisor || false
             };
         }
         return {
@@ -182,34 +181,42 @@ const PurchaseBillsList = () => {
     });
 
     const [searchQuery, setSearchQuery] = useState(() => {
-        if (draftSave && draftSave.purchaseBillsSearch) {
-            return draftSave.purchaseBillsSearch.searchQuery || '';
+        if (draftSave && draftSave.salesSummarySearch) {
+            return draftSave.salesSummarySearch.searchQuery || '';
         }
         return '';
     });
 
     const [paymentModeFilter, setPaymentModeFilter] = useState(() => {
-        if (draftSave && draftSave.purchaseBillsSearch) {
-            return draftSave.purchaseBillsSearch.paymentModeFilter || '';
+        if (draftSave && draftSave.salesSummarySearch) {
+            return draftSave.salesSummarySearch.paymentModeFilter || '';
         }
         return '';
     });
 
+    // Type filter state
+    const [typeFilter, setTypeFilter] = useState(() => {
+        if (draftSave && draftSave.salesSummarySearch) {
+            return draftSave.salesSummarySearch.typeFilter || 'all';
+        }
+        return 'all';
+    });
+
     const [selectedRowIndex, setSelectedRowIndex] = useState(() => {
-        if (draftSave && draftSave.purchaseBillsSearch) {
-            return draftSave.purchaseBillsSearch.selectedRowIndex || 0;
+        if (draftSave && draftSave.salesSummarySearch) {
+            return draftSave.salesSummarySearch.selectedRowIndex || 0;
         }
         return 0;
     });
 
-    // Column resizing state - Updated with separate BS and AD date columns
+    // Column resizing state
     const [columnWidths, setColumnWidths] = useState({
         bsDate: 80,
         adDate: 80,
-        vchNo: 90,
         invNo: 90,
-        supplierName: 150,
+        partyName: 150,
         payMode: 70,
+        type: 50,
         subTotal: 80,
         discount: 90,
         taxable: 70,
@@ -231,7 +238,6 @@ const PurchaseBillsList = () => {
         withCredentials: true,
     });
 
-    // Add authorization header to all requests
     api.interceptors.request.use(
         (config) => {
             const token = localStorage.getItem('token');
@@ -245,11 +251,46 @@ const PurchaseBillsList = () => {
         }
     );
 
-    // Fetch company and fiscal year info - RUNS ONLY ONCE on mount
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [totals, setTotals] = useState({
+        subTotal: 0,
+        discount: 0,
+        taxable: 0,
+        vat: 0,
+        roundOff: 0,
+        amount: 0,
+        // Return totals
+        returnSubTotal: 0,
+        returnDiscount: 0,
+        returnTaxable: 0,
+        returnVat: 0,
+        returnRoundOff: 0,
+        returnAmount: 0,
+        // Net totals
+        netSubTotal: 0,
+        netDiscount: 0,
+        netTaxable: 0,
+        netVat: 0,
+        netRoundOff: 0,
+        netAmount: 0
+    });
+
+    const fromDateRef = useRef(null);
+    const toDateRef = useRef(null);
+    const searchInputRef = useRef(null);
+    const paymentModeFilterRef = useRef(null);
+    const typeFilterRef = useRef(null);
+    const generateReportRef = useRef(null);
+    const tableBodyRef = useRef(null);
+    const [shouldFetch, setShouldFetch] = useState(false);
+    const navigate = useNavigate();
+
+    // Fetch company and fiscal year info
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const response = await api.get('/api/retailer/purchase/entry-data');
+                const response = await api.get('/api/retailer/sales-register/entry-data');
 
                 if (response.data.success) {
                     const responseData = response.data.data;
@@ -265,8 +306,8 @@ const PurchaseBillsList = () => {
                     });
 
                     const currentFiscalYear = responseData.currentFiscalYear;
-                    const hasDraftDates = draftSave?.purchaseBillsData?.fromDate &&
-                        draftSave?.purchaseBillsData?.toDate;
+                    const hasDraftDates = draftSave?.salesSummaryData?.fromDate &&
+                        draftSave?.salesSummaryData?.toDate;
 
                     if (!hasDraftDates && currentFiscalYear) {
                         let fromDateFormatted = '';
@@ -296,18 +337,6 @@ const PurchaseBillsList = () => {
                             fromDateAd: fromDateAd,
                             toDateAd: toDateAd
                         });
-                    } else if (hasDraftDates) {
-                        let fromDateAd = dateRange.fromDate;
-                        let toDateAd = dateRange.toDate;
-                        if (isNepaliFormat && dateRange.fromDate) {
-                            fromDateAd = convertBsToAd(dateRange.fromDate);
-                            toDateAd = convertBsToAd(dateRange.toDate);
-                        }
-                        setDateRange(prev => ({
-                            ...prev,
-                            fromDateAd: fromDateAd || prev.fromDateAd,
-                            toDateAd: toDateAd || prev.toDateAd
-                        }));
                     }
 
                     setCompanyInfo({
@@ -333,52 +362,31 @@ const PurchaseBillsList = () => {
         fetchInitialData();
     }, []);
 
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [totals, setTotals] = useState({
-        subTotal: 0,
-        discount: 0,
-        taxable: 0,
-        vat: 0,
-        roundOff: 0,
-        amount: 0
-    });
-    const [filteredBills, setFilteredBills] = useState([]);
-
-    const fromDateRef = useRef(null);
-    const toDateRef = useRef(null);
-    const searchInputRef = useRef(null);
-    const paymentModeFilterRef = useRef(null);
-    const generateReportRef = useRef(null);
-    const tableBodyRef = useRef(null);
-    const [shouldFetch, setShouldFetch] = useState(false);
-    const navigate = useNavigate();
-
-    // Save data and search state to draft context
+    // Save data to draft context
     useEffect(() => {
         setDraftSave({
             ...draftSave,
-            purchaseBillsData: {
+            salesSummaryData: {
                 ...companyInfo,
-                bills: bills,
                 fromDate: dateRange.fromDate,
                 toDate: dateRange.toDate,
                 fromDateAd: dateRange.fromDateAd,
                 toDateAd: dateRange.toDateAd
             },
-            purchaseBillsSearch: {
+            salesSummarySearch: {
                 searchQuery,
                 paymentModeFilter,
+                typeFilter,
                 selectedRowIndex,
                 fromDate: dateRange.fromDate,
                 toDate: dateRange.toDate
             }
         });
-    }, [bills, searchQuery, paymentModeFilter, selectedRowIndex, dateRange.fromDate, dateRange.toDate, dateRange.fromDateAd, dateRange.toDateAd, companyInfo]);
+    }, [searchQuery, paymentModeFilter, typeFilter, selectedRowIndex, dateRange.fromDate, dateRange.toDate, dateRange.fromDateAd, dateRange.toDateAd, companyInfo]);
 
     // Save/load column widths
     useEffect(() => {
-        const savedWidths = localStorage.getItem('purchaseBillsTableColumnWidths');
+        const savedWidths = localStorage.getItem('salesSummaryTableColumnWidths');
         if (savedWidths) {
             try {
                 setColumnWidths(JSON.parse(savedWidths));
@@ -389,10 +397,10 @@ const PurchaseBillsList = () => {
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('purchaseBillsTableColumnWidths', JSON.stringify(columnWidths));
+        localStorage.setItem('salesSummaryTableColumnWidths', JSON.stringify(columnWidths));
     }, [columnWidths]);
 
-    // Fetch data when generate report is clicked - ONLY UPDATES BILLS, NOT INPUT FIELDS
+    // Fetch data when generate report is clicked
     useEffect(() => {
         const abortController = new AbortController();
 
@@ -402,37 +410,52 @@ const PurchaseBillsList = () => {
             try {
                 setLoading(true);
                 const params = new URLSearchParams();
-                // Use AD dates for API call
                 if (dateRange.fromDateAd) params.append('fromDate', dateRange.fromDateAd);
                 if (dateRange.toDateAd) params.append('toDate', dateRange.toDateAd);
 
-                const response = await api.get(`/api/retailer/purchase-register?${params.toString()}`, {
+                // Fetch sales bills
+                const salesResponse = await api.get(`/api/retailer/sales-register?${params.toString()}`, {
                     signal: abortController.signal
                 });
 
-                if (response.data.success) {
-                    // ONLY update bills - keep everything else unchanged
-                    setBills(response.data.data.bills || []);
-                    // Update company info only if needed
-                    if (response.data.data.vatEnabled !== undefined) {
-                        setCompanyInfo(prev => ({
-                            ...prev,
-                            vatEnabled: response.data.data.vatEnabled,
-                            isVatExempt: response.data.data.isVatExempt || false
-                        }));
-                    }
-                    setError(null);
-                } else {
-                    setError(response.data.error || 'Failed to fetch purchase bills');
+                // Fetch sales returns
+                const returnResponse = await api.get(`/api/retailer/sales-return/register?${params.toString()}`, {
+                    signal: abortController.signal
+                });
+
+                let salesData = [];
+                let returnData = [];
+
+                if (salesResponse.data.success) {
+                    salesData = salesResponse.data.data.bills || [];
+                    setSalesBills(salesData);
                 }
 
-                if (!draftSave?.purchaseBillsSearch?.selectedRowIndex) {
-                    setSelectedRowIndex(0);
+                if (returnResponse.data.success) {
+                    returnData = returnResponse.data.data.bills || [];
+                    setReturnBills(returnData);
                 }
+
+                // Combine data with type indicator
+                const combined = [
+                    ...salesData.map(bill => ({ ...bill, type: 'Sales' })),
+                    ...returnData.map(bill => ({ ...bill, type: 'Return' }))
+                ];
+
+                // Sort by date (newest first)
+                combined.sort((a, b) => {
+                    const dateA = a.date ? new Date(a.date) : new Date(0);
+                    const dateB = b.date ? new Date(b.date) : new Date(0);
+                    return dateA - dateB;
+                });
+
+                setCombinedData(combined);
+                setError(null);
+                setSelectedRowIndex(0);
             } catch (err) {
                 if (err.name !== 'AbortError') {
                     console.error('Fetch error:', err);
-                    setError(err.response?.data?.error || 'Failed to fetch purchase bills');
+                    setError(err.response?.data?.error || 'Failed to fetch data');
                 }
             } finally {
                 setLoading(false);
@@ -447,29 +470,109 @@ const PurchaseBillsList = () => {
         };
     }, [shouldFetch, dateRange.fromDateAd, dateRange.toDateAd]);
 
-    // Filter bills based on search and payment mode
+    // Filter combined data - Updated with typeFilter
     useEffect(() => {
-        const billsArray = Array.isArray(bills) ? bills : [];
-
-        const filtered = billsArray.filter(bill => {
+        const filtered = combinedData.filter(item => {
+            // Search filter
             const matchesSearch =
-                (bill.billNumber?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-                (bill.partyBillNumber?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-                (bill.accountName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+                (item.billNumber?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                (item.accountName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                (item.cashAccount?.toLowerCase() || '').includes(searchQuery.toLowerCase());
 
+            // Payment mode filter
             const matchesPaymentMode =
                 paymentModeFilter === '' ||
-                (bill.paymentMode?.toLowerCase() || '') === paymentModeFilter.toLowerCase();
+                (item.paymentMode?.toLowerCase() || '') === paymentModeFilter.toLowerCase();
 
-            return matchesSearch && matchesPaymentMode;
+            // Type filter
+            let matchesType = true;
+            if (typeFilter === 'sales') {
+                matchesType = item.type === 'Sales';
+            } else if (typeFilter === 'return') {
+                matchesType = item.type === 'Return';
+            }
+
+            return matchesSearch && matchesPaymentMode && matchesType;
         });
 
-        setFilteredBills(filtered);
+        setFilteredData(filtered);
 
         if (selectedRowIndex >= filtered.length && filtered.length > 0) {
             setSelectedRowIndex(0);
         }
-    }, [bills, searchQuery, paymentModeFilter]);
+    }, [combinedData, searchQuery, paymentModeFilter, typeFilter]);
+
+    // Calculate totals based on filtered data
+    useEffect(() => {
+        if (filteredData.length === 0) {
+            setTotals({
+                subTotal: 0,
+                discount: 0,
+                taxable: 0,
+                vat: 0,
+                roundOff: 0,
+                amount: 0,
+                returnSubTotal: 0,
+                returnDiscount: 0,
+                returnTaxable: 0,
+                returnVat: 0,
+                returnRoundOff: 0,
+                returnAmount: 0,
+                netSubTotal: 0,
+                netDiscount: 0,
+                netTaxable: 0,
+                netVat: 0,
+                netRoundOff: 0,
+                netAmount: 0
+            });
+            return;
+        }
+
+        // Separate sales and return data from filtered results
+        const sales = filteredData.filter(item => item.type === 'Sales');
+        const returns = filteredData.filter(item => item.type === 'Return');
+
+        // Sales totals
+        const salesTotals = sales.reduce((acc, bill) => ({
+            subTotal: acc.subTotal + (bill.subTotal || 0),
+            discount: acc.discount + (bill.discountAmount || 0),
+            taxable: acc.taxable + (bill.taxableAmount || 0),
+            vat: acc.vat + (bill.vatAmount || 0),
+            roundOff: acc.roundOff + (bill.roundOffAmount || 0),
+            amount: acc.amount + (bill.totalAmount || 0)
+        }), { subTotal: 0, discount: 0, taxable: 0, vat: 0, roundOff: 0, amount: 0 });
+
+        // Return totals
+        const returnTotals = returns.reduce((acc, bill) => ({
+            subTotal: acc.subTotal + (bill.subTotal || 0),
+            discount: acc.discount + (bill.discountAmount || 0),
+            taxable: acc.taxable + (bill.taxableAmount || 0),
+            vat: acc.vat + (bill.vatAmount || 0),
+            roundOff: acc.roundOff + (bill.roundOffAmount || 0),
+            amount: acc.amount + (bill.totalAmount || 0)
+        }), { subTotal: 0, discount: 0, taxable: 0, vat: 0, roundOff: 0, amount: 0 });
+
+        setTotals({
+            subTotal: salesTotals.subTotal,
+            discount: salesTotals.discount,
+            taxable: salesTotals.taxable,
+            vat: salesTotals.vat,
+            roundOff: salesTotals.roundOff,
+            amount: salesTotals.amount,
+            returnSubTotal: returnTotals.subTotal,
+            returnDiscount: returnTotals.discount,
+            returnTaxable: returnTotals.taxable,
+            returnVat: returnTotals.vat,
+            returnRoundOff: returnTotals.roundOff,
+            returnAmount: returnTotals.amount,
+            netSubTotal: salesTotals.subTotal - returnTotals.subTotal,
+            netDiscount: salesTotals.discount - returnTotals.discount,
+            netTaxable: salesTotals.taxable - returnTotals.taxable,
+            netVat: salesTotals.vat - returnTotals.vat,
+            netRoundOff: salesTotals.roundOff - returnTotals.roundOff,
+            netAmount: salesTotals.amount - returnTotals.amount
+        });
+    }, [filteredData]);
 
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -484,45 +587,10 @@ const PurchaseBillsList = () => {
         };
     }, []);
 
-    // Calculate totals when filtered bills change
-    useEffect(() => {
-        if (filteredBills.length === 0) {
-            setTotals({
-                subTotal: 0,
-                discount: 0,
-                taxable: 0,
-                vat: 0,
-                roundOff: 0,
-                amount: 0
-            });
-            return;
-        }
-
-        const newTotals = filteredBills.reduce((acc, bill) => {
-            return {
-                subTotal: acc.subTotal + (bill.subTotal || 0),
-                discount: acc.discount + (bill.discountAmount || 0),
-                taxable: acc.taxable + (bill.taxableAmount || 0),
-                vat: acc.vat + (bill.vatAmount || 0),
-                roundOff: acc.roundOff + (bill.roundOffAmount || 0),
-                amount: acc.amount + (bill.totalAmount || 0)
-            };
-        }, {
-            subTotal: 0,
-            discount: 0,
-            taxable: 0,
-            vat: 0,
-            roundOff: 0,
-            amount: 0
-        });
-
-        setTotals(newTotals);
-    }, [filteredBills]);
-
     // Handle keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (filteredBills.length === 0) return;
+            if (filteredData.length === 0) return;
 
             const activeElement = document.activeElement;
             if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT') {
@@ -536,7 +604,7 @@ const PurchaseBillsList = () => {
                     break;
                 case 'ArrowDown':
                     e.preventDefault();
-                    setSelectedRowIndex(prev => Math.min(filteredBills.length - 1, prev + 1));
+                    setSelectedRowIndex(prev => Math.min(filteredData.length - 1, prev + 1));
                     break;
                 default:
                     break;
@@ -545,7 +613,7 @@ const PurchaseBillsList = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [filteredBills]);
+    }, [filteredData]);
 
     // Shallow equal function for memoization
     function shallowEqual(objA, objB) {
@@ -579,189 +647,163 @@ const PurchaseBillsList = () => {
     };
 
     const handlePrint = (filtered = false) => {
-        const rowsToPrint = filtered ? filteredBills : (Array.isArray(bills) ? bills : []);
-        const vatEnabled = companyInfo.vatEnabled;
-        const isVatExempt = companyInfo.isVatExempt;
-        const showVatColumns = vatEnabled && !isVatExempt;
+        const rowsToPrint = filtered ? filteredData : combinedData;
 
         if (rowsToPrint.length === 0) {
-            alert("No bills to print");
+            alert("No data to print");
             return;
         }
 
         const printWindow = window.open("", "_blank");
         const printHeader = `
-    <div class="print-header">
-        <h1 style="font-size: 14px; margin: 0;">${companyInfo.currentCompanyName || 'Company Name'}</h1>
-        <p style="font-size: 8px; margin: 2px 0;">
-            ${companyInfo.company?.address || ''}${companyInfo.company?.city ? ', ' + companyInfo.company.city : ''},
-            PAN: ${companyInfo.company?.pan || ''}<br>
-        </p>
-        <hr style="margin: 2px 0;">
-    </div>
+        <div class="print-header">
+            <h1 style="font-size: 14px; margin: 0;">${companyInfo.currentCompanyName || 'Company Name'}</h1>
+            <p style="font-size: 8px; margin: 2px 0;">
+                ${companyInfo.company?.address || ''}${companyInfo.company?.city ? ', ' + companyInfo.company.city : ''},
+                PAN: ${companyInfo.company?.pan || ''}<br>
+            </p>
+            <hr style="margin: 2px 0;">
+        </div>
     `;
 
         let tableContent = `
-    <style>
-        @page {
-            margin: 3mm;
-        }
-        body { 
-            font-family: Arial, sans-serif; 
-            font-size: 7px; 
-            margin: 0;
-            padding: 2mm;
-        }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            page-break-inside: auto;
-            font-size: 6px;
-        }
-        tr { 
-            page-break-inside: avoid; 
-            page-break-after: auto; 
-        }
-        th, td { 
-            border: 1px solid #000; 
-            padding: 2px 3px; 
-            text-align: left; 
-            white-space: nowrap;
-        }
-        th { 
-            background-color: #f2f2f2 !important; 
-            -webkit-print-color-adjust: exact;
-            font-size: 10px;
-            font-weight: bold;
-            padding: 3px 3px;
-        }
-        td {
-            font-size: 8px;
-            padding: 2px 3px;
-        }
-        .print-header { 
-            text-align: center; 
-            margin-bottom: 5px; 
-        }
-        .nowrap {
-            white-space: nowrap;
-        }
-        h1 {
-            font-size: 14px;
-            margin: 0;
-        }
-        .report-title {
-            text-align: center;
-            text-decoration: underline;
-            font-size: 11px;
-            font-weight: bold;
-            margin: 3px 0;
-        }
-        .grand-total-row td {
-            font-weight: bold;
-            border-top: 2px solid #000;
-            font-size: 7px;
-        }
-    </style>
-    ${printHeader}
-    <div class="report-title">Purchase Voucher's Register</div>
-    <table>
-        <thead>
-            <tr>
-                <th class="nowrap">Miti</th>
-                <th class="nowrap">Date</th>
-                <th class="nowrap">Vch. No.</th>
-                <th class="nowrap">Inv. No.</th>
-                <th class="nowrap">Supplier Name</th>
-                <th class="nowrap">Pay Mode</th>
-                <th class="nowrap">Sub Total</th>
-                <th class="nowrap">Discount</th>
-                ${showVatColumns ? `
-                <th class="nowrap">Taxable</th>
-                <th class="nowrap">VAT</th>
-                ` : ''}
-                <th class="nowrap">Off(-/+)</th>
-                <th class="nowrap">Total</th>
-                <th class="nowrap">User</th>
-            </tr>
-        </thead>
-        <tbody>
+        <style>
+            @page { margin: 3mm; }
+            body { font-family: Arial, sans-serif; font-size: 7px; margin: 0; padding: 2mm; }
+            table { width: 100%; border-collapse: collapse; page-break-inside: auto; font-size: 6px; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+            th, td { border: 1px solid #000; padding: 2px 3px; text-align: left; white-space: nowrap; }
+            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-size: 10px; font-weight: bold; padding: 3px 3px; }
+            td { font-size: 8px; padding: 2px 3px; }
+            .print-header { text-align: center; margin-bottom: 5px; }
+            .nowrap { white-space: nowrap; }
+            h1 { font-size: 14px; margin: 0; }
+            .report-title { text-align: center; text-decoration: underline; font-size: 11px; font-weight: bold; margin: 3px 0; }
+            .grand-total-row td { font-weight: bold; border-top: 2px solid #000; font-size: 7px; }
+            .return-row { background-color: #fff3f3; }
+            .sales-row { background-color: #f3fff3; }
+        </style>
+        ${printHeader}
+        <div class="report-title">Sales Summary Report</div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="nowrap">Miti</th>
+                    <th class="nowrap">Date</th>
+                    <th class="nowrap">Inv No.</th>
+                    <th class="nowrap">Party Name</th>
+                    <th class="nowrap">Type</th>
+                    <th class="nowrap">Pay Mode</th>
+                    <th class="nowrap">Sub Total</th>
+                    <th class="nowrap">Discount</th>
+                    <th class="nowrap">Taxable</th>
+                    <th class="nowrap">VAT</th>
+                    <th class="nowrap">Off(-/+)</th>
+                    <th class="nowrap">Total</th>
+                    <th class="nowrap">User</th>
+                </tr>
+            </thead>
+            <tbody>
     `;
 
-        let printTotals = {
-            subTotal: 0,
-            discount: 0,
-            taxable: 0,
-            vat: 0,
-            roundOff: 0,
-            amount: 0
-        };
+        // Separate sales and returns for correct calculation
+        const printSales = rowsToPrint.filter(item => item.type === 'Sales');
+        const printReturns = rowsToPrint.filter(item => item.type === 'Return');
 
-        rowsToPrint.forEach(bill => {
+        // Print Sales rows
+        printSales.forEach((bill, index) => {
             tableContent += `
-        <tr>
-            <td class="nowrap">${bill.nepaliDate || ''}</td>
-            <td class="nowrap">${bill.date ? new Date(bill.date).toLocaleDateString() : ''}</td>
-            <td class="nowrap">${bill.billNumber || ''}</td>
-            <td class="nowrap">${bill.partyBillNumber || ''}</td>
-            <td class="nowrap">${bill.accountName || ''}</td>
-            <td class="nowrap">${bill.paymentMode || ''}</td>
-            <td class="nowrap" style="text-align: right;">${(bill.subTotal || 0).toFixed(2)}</td>
-            <td class="nowrap" style="text-align: right;">${(bill.discountPercentage || 0).toFixed(2)}% - ${(bill.discountAmount || 0).toFixed(2)}</td>
-            ${showVatColumns ? `
-            <td class="nowrap" style="text-align: right;">${(bill.taxableAmount || 0).toFixed(2)}</td>
-            <td class="nowrap" style="text-align: right;">${(bill.vatAmount || 0).toFixed(2)}</td>
-            ` : ''}
-            <td class="nowrap" style="text-align: right;">${(bill.roundOffAmount || 0).toFixed(2)}</td>
-            <td class="nowrap" style="text-align: right;">${(bill.totalAmount || 0).toFixed(2)}</td>
-            <td class="nowrap">${bill.userName || ''}</td>
-        </tr>
+            <tr class="sales-row">
+                <td class="nowrap">${bill.nepaliDate || ''}</td>
+                <td class="nowrap">${bill.date ? new Date(bill.date).toLocaleDateString() : ''}</td>
+                <td class="nowrap">${bill.billNumber || ''}</td>
+                <td class="nowrap">${bill.accountName || bill.cashAccount || 'N/A'}</td>
+                <td class="nowrap" style="text-align: center; font-weight: bold; color: #28a745">SAL</td>
+                <td class="nowrap">${bill.paymentMode || ''}</td>
+                <td class="nowrap" style="text-align: right;">${(bill.subTotal || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right;">${(bill.discountPercentage || 0).toFixed(2)}% - ${(bill.discountAmount || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right;">${(bill.taxableAmount || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right;">${(bill.vatAmount || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right;">${(bill.roundOffAmount || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right;">${(bill.totalAmount || 0).toFixed(2)}</td>
+                <td class="nowrap">${bill.userName || 'N/A'}</td>
+            </tr>
         `;
-
-            printTotals.subTotal += parseFloat(bill.subTotal || 0);
-            printTotals.discount += parseFloat(bill.discountAmount || 0);
-            printTotals.taxable += parseFloat(bill.taxableAmount || 0);
-            printTotals.vat += parseFloat(bill.vatAmount || 0);
-            printTotals.roundOff += parseFloat(bill.roundOffAmount || 0);
-            printTotals.amount += parseFloat(bill.totalAmount || 0);
         });
 
+        // Print Return rows (with negative sign)
+        printReturns.forEach((bill, index) => {
+            tableContent += `
+            <tr class="return-row">
+                <td class="nowrap">${bill.nepaliDate || ''}</td>
+                <td class="nowrap">${bill.date ? new Date(bill.date).toLocaleDateString() : ''}</td>
+                <td class="nowrap">${bill.billNumber || ''}</td>
+                <td class="nowrap">${bill.accountName || bill.cashAccount || 'N/A'}</td>
+                <td class="nowrap" style="text-align: center; font-weight: bold; color: #dc3545">RET</td>
+                <td class="nowrap">${bill.paymentMode || ''}</td>
+                <td class="nowrap" style="text-align: right; color: #dc3545;">-${(bill.subTotal || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right; color: #dc3545;">-${(bill.discountAmount || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right; color: #dc3545;">-${(bill.taxableAmount || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right; color: #dc3545;">-${(bill.vatAmount || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right; color: #dc3545;">-${(bill.roundOffAmount || 0).toFixed(2)}</td>
+                <td class="nowrap" style="text-align: right; font-weight: bold; color: #dc3545;">-${(bill.totalAmount || 0).toFixed(2)}</td>
+                <td class="nowrap">${bill.userName || 'N/A'}</td>
+            </tr>
+        `;
+        });
+
+        // Calculate grand totals (Sales - Returns)
+        const grandTotals = {
+            subTotal: printSales.reduce((sum, bill) => sum + (bill.subTotal || 0), 0) -
+                printReturns.reduce((sum, bill) => sum + (bill.subTotal || 0), 0),
+            discount: printSales.reduce((sum, bill) => sum + (bill.discountAmount || 0), 0) -
+                printReturns.reduce((sum, bill) => sum + (bill.discountAmount || 0), 0),
+            taxable: printSales.reduce((sum, bill) => sum + (bill.taxableAmount || 0), 0) -
+                printReturns.reduce((sum, bill) => sum + (bill.taxableAmount || 0), 0),
+            vat: printSales.reduce((sum, bill) => sum + (bill.vatAmount || 0), 0) -
+                printReturns.reduce((sum, bill) => sum + (bill.vatAmount || 0), 0),
+            roundOff: printSales.reduce((sum, bill) => sum + (bill.roundOffAmount || 0), 0) -
+                printReturns.reduce((sum, bill) => sum + (bill.roundOffAmount || 0), 0),
+            amount: printSales.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0) -
+                printReturns.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0)
+        };
+
+        // Add grand total row
         tableContent += `
-        <tr class="grand-total-row" style="font-weight:bold;">
-            <td colspan="6" style="font-weight: bold;">Grand Totals</td>
-            <td style="text-align: right; font-weight: bold;">${printTotals.subTotal.toFixed(2)}</td>
-            <td style="text-align: right; font-weight: bold;">${printTotals.discount.toFixed(2)}</td>
-            ${showVatColumns ? `
-            <td style="text-align: right; font-weight: bold;">${printTotals.taxable.toFixed(2)}</td>
-            <td style="text-align: right; font-weight: bold;">${printTotals.vat.toFixed(2)}</td>
-            ` : ''}
-            <td style="text-align: right; font-weight: bold;">${printTotals.roundOff.toFixed(2)}</td>
-            <td style="text-align: right; font-weight: bold;">${printTotals.amount.toFixed(2)}</td>
-            <td></td>
-        </tr>
-        </tbody>
-    </table>
+            <tr class="grand-total-row">
+                <td colspan="5" style="font-weight: bold;">Grand Totals (Net)</td>
+                <td></td>
+                <td style="text-align: right; font-weight: bold;">${grandTotals.subTotal.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: bold;">${grandTotals.discount.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: bold;">${grandTotals.taxable.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: bold;">${grandTotals.vat.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: bold;">${grandTotals.roundOff.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: bold;">${grandTotals.amount.toFixed(2)}</td>
+                <td></td>
+            </tr>
+            </tbody>
+        </table>
     `;
 
         printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-        <head>
-            <title>Purchase Voucher's Register</title>
-            <meta charset="UTF-8">
-        </head>
-        <body>
-            ${tableContent}
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        window.close();
-                    }, 200);
-                };
-            <\/script>
-        </body>
-    </html>
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Sales Summary Report</title>
+                <meta charset="UTF-8">
+            </head>
+            <body>
+                ${tableContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 200);
+                    };
+                <\/script>
+            </body>
+        </html>
     `);
         printWindow.document.close();
     };
@@ -778,11 +820,13 @@ const PurchaseBillsList = () => {
         setSelectedRowIndex(index);
     }, []);
 
-    const handleRowDoubleClick = useCallback((billId) => {
-        if (filteredBills[selectedRowIndex]) {
-            navigate(`/retailer/purchase/${filteredBills[selectedRowIndex].id}/print`);
+    const handleRowDoubleClick = useCallback((billId, type) => {
+        if (type === 'Return') {
+            navigate(`/retailer/sales-return/${billId}/print`);
+        } else {
+            navigate(`/retailer/sales/${billId}/print`);
         }
-    }, [navigate, filteredBills, selectedRowIndex]);
+    }, [navigate]);
 
     const handleKeyDown = (e, nextFieldId) => {
         if (e.key === 'Enter') {
@@ -791,16 +835,6 @@ const PurchaseBillsList = () => {
                 const nextField = document.getElementById(nextFieldId);
                 if (nextField) {
                     nextField.focus();
-                }
-            } else {
-                const focusableElements = Array.from(
-                    document.querySelectorAll('input, select, button, [tabindex]:not([tabindex="-1"])')
-                ).filter(el => !el.disabled && el.offsetParent !== null);
-
-                const currentIndex = focusableElements.findIndex(el => el === e.target);
-
-                if (currentIndex > -1 && currentIndex < focusableElements.length - 1) {
-                    focusableElements[currentIndex + 1].focus();
                 }
             }
         }
@@ -830,15 +864,9 @@ const PurchaseBillsList = () => {
         );
     });
 
-    // Table Header Component - Updated with BS Date and AD Date columns
+    // Table Header Component
     const TableHeader = React.memo(() => {
-        const showVatColumns = companyInfo.vatEnabled && !companyInfo.isVatExempt;
-
-        const totalWidth = columnWidths.bsDate + columnWidths.adDate + columnWidths.vchNo +
-            columnWidths.invNo + columnWidths.supplierName + columnWidths.payMode +
-            columnWidths.subTotal + columnWidths.discount + columnWidths.roundOff +
-            columnWidths.total + columnWidths.user + columnWidths.actions +
-            (showVatColumns ? (columnWidths.taxable + columnWidths.vat) : 0);
+        const totalWidth = Object.values(columnWidths).reduce((a, b) => a + b, 0);
 
         const handleResizeStart = (e, columnName) => {
             setIsResizing(true);
@@ -892,22 +920,22 @@ const PurchaseBillsList = () => {
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.adDate - 2} columnName="adDate" />
                 </div>
 
-                {/* Vch. No. */}
-                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.vchNo}px`, flexShrink: 0, minWidth: '60px' }}>
-                    <strong style={{ fontSize: '0.75rem' }}>Vch. No.</strong>
-                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.vchNo - 3} columnName="vchNo" />
-                </div>
-
-                {/* Inv. No. */}
-                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.invNo}px`, flexShrink: 0, minWidth: '40px' }}>
-                    <strong style={{ fontSize: '0.75rem' }}>Inv. No.</strong>
+                {/* Inv No. */}
+                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.invNo}px`, flexShrink: 0, minWidth: '60px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Inv No.</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.invNo - 3} columnName="invNo" />
                 </div>
 
-                {/* Supplier Name */}
-                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.supplierName}px`, flexShrink: 0, minWidth: '100px' }}>
-                    <strong style={{ fontSize: '0.75rem' }}>Supplier Name</strong>
-                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.supplierName - 3} columnName="supplierName" />
+                {/* Party Name */}
+                <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.partyName}px`, flexShrink: 0, minWidth: '100px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Party Name</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.partyName - 3} columnName="partyName" />
+                </div>
+
+                {/* Type */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.type}px`, flexShrink: 0, minWidth: '50px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Type</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.type - 2} columnName="type" />
                 </div>
 
                 {/* Pay Mode */}
@@ -928,18 +956,17 @@ const PurchaseBillsList = () => {
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.discount - 2} columnName="discount" />
                 </div>
 
-                {showVatColumns && (
-                    <>
-                        <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.taxable}px`, flexShrink: 0, minWidth: '50px' }}>
-                            <strong style={{ fontSize: '0.75rem' }}>Taxable</strong>
-                            <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.taxable - 1} columnName="taxable" />
-                        </div>
-                        <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.vat}px`, flexShrink: 0, minWidth: '60px' }}>
-                            <strong style={{ fontSize: '0.75rem' }}>VAT</strong>
-                            <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.vat - 1} columnName="vat" />
-                        </div>
-                    </>
-                )}
+                {/* Taxable */}
+                <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.taxable}px`, flexShrink: 0, minWidth: '50px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Taxable</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.taxable - 1} columnName="taxable" />
+                </div>
+
+                {/* VAT */}
+                <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.vat}px`, flexShrink: 0, minWidth: '60px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>VAT</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.vat - 1} columnName="vat" />
+                </div>
 
                 {/* Round Off */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.roundOff}px`, flexShrink: 0, minWidth: '50px' }}>
@@ -972,7 +999,7 @@ const PurchaseBillsList = () => {
         );
     });
 
-    // Table Row Component - Updated with BS Date and AD Date columns
+    // Table Row Component
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { bills: rowBills, selectedRowIndex, formatCurrency, navigate } = rowData;
         const bill = rowBills[index];
@@ -983,29 +1010,29 @@ const PurchaseBillsList = () => {
 
         const handleDoubleClick = () => {
             if (bill && bill.id) {
-                navigate(`/retailer/purchase/${bill.id}/print`);
+                if (bill.type === 'Return') {
+                    navigate(`/retailer/sales-return/${bill.id}/print`);
+                } else {
+                    navigate(`/retailer/sales/${bill.id}/print`);
+                }
             }
         };
 
         const handleViewClick = (e) => {
             e.stopPropagation();
             if (bill && bill.id) {
-                navigate(`/retailer/purchase/${bill.id}/print`);
-            }
-        };
-
-        const handleEditClick = (e) => {
-            e.stopPropagation();
-            if (bill && bill.id) {
-                navigate(`/retailer/purchase/edit/${bill.id}`);
+                if (bill.type === 'Return') {
+                    navigate(`/retailer/sales-return/${bill.id}/print`);
+                } else {
+                    navigate(`/retailer/sales/${bill.id}/print`);
+                }
             }
         };
 
         if (!bill) return null;
 
         const isSelected = selectedRowIndex === index;
-        const showVatColumns = companyInfo.vatEnabled && !companyInfo.isVatExempt;
-        const canEdit = companyInfo.isAdminOrSupervisor;
+        const isReturn = bill.type === 'Return';
 
         return (
             <div
@@ -1033,19 +1060,29 @@ const PurchaseBillsList = () => {
                     <span style={{ fontSize: '0.75rem' }}>{bill.date ? new Date(bill.date).toLocaleDateString() : ''}</span>
                 </div>
 
-                {/* Vch. No. */}
-                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.vchNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+                {/* Inv No. */}
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.invNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ fontSize: '0.75rem' }}>{bill.billNumber || ''}</span>
                 </div>
 
-                {/* Inv. No. */}
-                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.invNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={bill.partyBillNumber || 'N/A'}>
-                    <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bill.partyBillNumber || ''}</span>
+                {/* Party Name */}
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.partyName}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={bill.accountName || bill.cashAccount || 'N/A'}>
+                    <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bill.accountName || bill.cashAccount || 'N/A'}</span>
                 </div>
 
-                {/* Supplier Name */}
-                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.supplierName}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={bill.accountName || 'N/A'}>
-                    <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bill.accountName || 'N/A'}</span>
+                {/* Type */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.type}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold',
+                        color: isReturn ? '#dc3545' : '#28a745',
+                        backgroundColor: isReturn ? '#fff5f5' : '#f0fff4',
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        border: `1px solid ${isReturn ? '#dc3545' : '#28a745'}`
+                    }}>
+                        {isReturn ? 'RET' : 'SAL'}
+                    </span>
                 </div>
 
                 {/* Pay Mode */}
@@ -1055,33 +1092,44 @@ const PurchaseBillsList = () => {
 
                 {/* Sub Total */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.subTotal}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{formatCurrency(bill.subTotal)}</span>
+                    <span style={{ fontSize: '0.75rem', color: isReturn ? '#dc3545' : 'inherit' }}>
+                        {isReturn ? '-' : ''}{formatCurrency(bill.subTotal)}
+                    </span>
                 </div>
 
                 {/* Discount */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{(bill.discountPercentage || 0).toFixed(2)}% - {formatCurrency(bill.discountAmount)}</span>
+                    <span style={{ fontSize: '0.75rem', color: isReturn ? '#dc3545' : 'inherit' }}>
+                        {isReturn ? '-' : ''}{(bill.discountPercentage || 0).toFixed(2)}% - {formatCurrency(bill.discountAmount)}
+                    </span>
                 </div>
 
-                {showVatColumns && (
-                    <>
-                        <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.taxable}px`, flexShrink: 0, height: '100%' }}>
-                            <span style={{ fontSize: '0.75rem' }}>{formatCurrency(bill.taxableAmount)}</span>
-                        </div>
-                        <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.vat}px`, flexShrink: 0, height: '100%' }}>
-                            <span style={{ fontSize: '0.75rem' }}>{formatCurrency(bill.vatAmount)}</span>
-                        </div>
-                    </>
-                )}
+                {/* Taxable */}
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.taxable}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem', color: isReturn ? '#dc3545' : 'inherit' }}>
+                        {isReturn ? '-' : ''}{formatCurrency(bill.taxableAmount)}
+                    </span>
+                </div>
+
+                {/* VAT */}
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.vat}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem', color: isReturn ? '#dc3545' : 'inherit' }}>
+                        {isReturn ? '-' : ''}{formatCurrency(bill.vatAmount)}
+                    </span>
+                </div>
 
                 {/* Round Off */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.roundOff}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{formatCurrency(bill.roundOffAmount)}</span>
+                    <span style={{ fontSize: '0.75rem', color: isReturn ? '#dc3545' : 'inherit' }}>
+                        {isReturn ? '-' : ''}{formatCurrency(bill.roundOffAmount)}
+                    </span>
                 </div>
 
                 {/* Total */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.total}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{formatCurrency(bill.totalAmount)}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: isReturn ? 'bold' : 'normal', color: isReturn ? '#dc3545' : 'inherit' }}>
+                        {isReturn ? '-' : ''}{formatCurrency(bill.totalAmount)}
+                    </span>
                 </div>
 
                 {/* User */}
@@ -1092,10 +1140,7 @@ const PurchaseBillsList = () => {
                 {/* Actions */}
                 <div className="d-flex align-items-center justify-content-center px-1 gap-1" style={{ width: `${columnWidths.actions}px`, flexShrink: 0, height: '100%' }}>
                     <button className="btn btn-sm btn-info py-0 px-1 d-flex align-items-center" onClick={handleViewClick} style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        <i class="bi bi-eye"></i>
-                    </button>
-                    <button className="btn btn-sm btn-warning py-0 px-1 d-flex align-items-center" onClick={handleEditClick} style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        <i class="bi bi-pencil-square"></i>
+                        <i className="bi bi-eye"></i>
                     </button>
                 </div>
             </div>
@@ -1112,9 +1157,9 @@ const PurchaseBillsList = () => {
         setColumnWidths({
             bsDate: 80,
             adDate: 80,
-            vchNo: 90,
             invNo: 90,
-            supplierName: 150,
+            partyName: 150,
+            type: 70,
             payMode: 70,
             subTotal: 80,
             discount: 90,
@@ -1152,20 +1197,20 @@ const PurchaseBillsList = () => {
     };
 
     // Safe check for loading and error states
-    if (loading && bills.length === 0) return <Loader />;
+    if (loading && combinedData.length === 0) return <Loader />;
 
     if (error) {
         return <div className="alert alert-danger text-center py-5">{error}</div>;
     }
 
-    const billsArray = Array.isArray(bills) ? bills : [];
+    const dataArray = Array.isArray(filteredData) ? filteredData : [];
 
     return (
         <div className="container-fluid">
             <Header />
             <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
                 <div className="card-header bg-white py-0">
-                    <h1 className="h4 mb-0 text-center text-primary">Purchase Voucher's Register</h1>
+                    <h1 className="h4 mb-0 text-center text-primary">Sales Summary</h1>
                 </div>
 
                 <div className="card-body p-2 p-md-3">
@@ -1376,7 +1421,7 @@ const PurchaseBillsList = () => {
                                         placeholder=""
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        disabled={billsArray.length === 0}
+                                        disabled={dataArray.length === 0}
                                         autoComplete='off'
                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                     />
@@ -1396,7 +1441,6 @@ const PurchaseBillsList = () => {
                                     ref={paymentModeFilterRef}
                                     value={paymentModeFilter}
                                     onChange={(e) => setPaymentModeFilter(e.target.value)}
-                                    disabled={billsArray.length === 0}
                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', width: '100%' }}
                                 >
                                     <option value="">All</option>
@@ -1409,14 +1453,30 @@ const PurchaseBillsList = () => {
                             </div>
                         </div>
 
+                        {/* Type Filter */}
+                        <div className="col-12 col-md-1">
+                            <div className="position-relative">
+                                <select
+                                    className="form-select form-select-sm"
+                                    id="typeFilter"
+                                    ref={typeFilterRef}
+                                    value={typeFilter}
+                                    onChange={(e) => setTypeFilter(e.target.value)}
+                                    style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', width: '100%' }}
+                                >
+                                    <option value="all">All</option>
+                                    <option value="sales">Sales</option>
+                                    <option value="return">Return</option>
+                                </select>
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    Type
+                                </label>
+                            </div>
+                        </div>
+
                         <div className="col-12 col-md-auto d-flex align-items-end justify-content-end gap-2">
-                            <button className="btn btn-primary btn-sm d-flex align-items-center"
-                                onClick={() => navigate('/retailer/purchase')}
-                                style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
-                                <i className="bi bi-plus-circle"></i>
-                            </button>
                             <button className="btn btn-secondary btn-sm d-flex align-items-center"
-                                onClick={() => handlePrint(true)} disabled={billsArray.length === 0}
+                                onClick={() => handlePrint(true)} disabled={dataArray.length === 0}
                                 style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
                                 <i className="bi bi-printer"></i>
                             </button>
@@ -1428,7 +1488,7 @@ const PurchaseBillsList = () => {
                         </div>
                     </div>
 
-                    {billsArray.length === 0 && !loading ? (
+                    {dataArray.length === 0 && !loading ? (
                         <div className="alert alert-info text-center py-3" style={{ fontSize: '0.875rem' }}>
                             <i className="fas fa-info-circle me-2"></i>
                             Please select date range and click "Generate Report" to view data
@@ -1450,11 +1510,11 @@ const PurchaseBillsList = () => {
                                             <span className="visually-hidden">Loading...</span>
                                         </div>
                                     </div>
-                                ) : filteredBills.length === 0 ? (
+                                ) : dataArray.length === 0 ? (
                                     <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                         <i className="bi bi-search text-muted" style={{ fontSize: '1.5rem' }}></i>
                                         <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>
-                                            No purchase bills found
+                                            No records found
                                         </h6>
                                         <p className="text-muted small" style={{ fontSize: '0.75rem' }}>
                                             {searchQuery ? 'Try a different search term' : 'No data for the selected date range'}
@@ -1463,24 +1523,18 @@ const PurchaseBillsList = () => {
                                 ) : (
                                     <AutoSizer>
                                         {({ height, width }) => {
-                                            const showVatColumns = companyInfo.vatEnabled && !companyInfo.isVatExempt;
-                                            const totalWidth = columnWidths.bsDate + columnWidths.adDate +
-                                                columnWidths.vchNo + columnWidths.invNo + columnWidths.supplierName +
-                                                columnWidths.payMode + columnWidths.subTotal + columnWidths.discount +
-                                                columnWidths.roundOff + columnWidths.total + columnWidths.user +
-                                                columnWidths.actions +
-                                                (showVatColumns ? (columnWidths.taxable + columnWidths.vat) : 0);
+                                            const totalWidth = Object.values(columnWidths).reduce((a, b) => a + b, 0);
 
                                             return (
                                                 <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
                                                     <TableHeader />
                                                     <List
                                                         height={height - 28}
-                                                        itemCount={filteredBills.length}
+                                                        itemCount={dataArray.length}
                                                         itemSize={28}
                                                         width={Math.max(width, totalWidth)}
                                                         itemData={{
-                                                            bills: filteredBills,
+                                                            bills: dataArray,
                                                             selectedRowIndex,
                                                             formatCurrency,
                                                             navigate,
@@ -1496,40 +1550,74 @@ const PurchaseBillsList = () => {
                                 )}
                             </div>
 
-                            {/* Footer with totals */}
+                            {/* Footer with Net Totals - Updates with filters */}
                             <div
                                 className="d-flex bg-light border-top sticky-bottom"
                                 style={{ zIndex: 2, height: '28px', borderTop: '2px solid #dee2e6' }}
                             >
                                 <div
                                     className="d-flex align-items-center px-1"
-                                    style={{ width: `${columnWidths.bsDate + columnWidths.adDate + columnWidths.vchNo + columnWidths.invNo + columnWidths.supplierName + columnWidths.payMode}px`, flexShrink: 0, height: '100%' }}
+                                    style={{
+                                        width: `${columnWidths.bsDate + columnWidths.adDate + columnWidths.invNo + columnWidths.partyName + columnWidths.type + columnWidths.payMode}px`,
+                                        flexShrink: 0,
+                                        height: '100%'
+                                    }}
                                 >
-                                    <strong style={{ fontSize: '0.75rem' }}>Total:</strong>
+                                    <strong style={{ fontSize: '0.75rem' }}>Net Totals:</strong>
                                 </div>
                                 <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.subTotal}px`, flexShrink: 0, height: '100%' }}>
-                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.subTotal)}</strong>
+                                    <strong
+                                        style={{ fontSize: '0.75rem', color: '#0d6efd', cursor: 'help' }}
+                                        title={`S: ${formatCurrency(totals.subTotal)} | R: ${formatCurrency(totals.returnSubTotal)}`}
+                                    >
+                                        {formatCurrency(totals.netSubTotal)}
+                                    </strong>
                                 </div>
                                 <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, height: '100%' }}>
-                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.discount)}</strong>
+                                    <strong
+                                        style={{ fontSize: '0.75rem', color: '#0d6efd', cursor: 'help' }}
+                                        title={`S: ${formatCurrency(totals.discount)} | R: ${formatCurrency(totals.returnDiscount)}`}
+                                    >
+                                        {formatCurrency(totals.netDiscount)}
+                                    </strong>
                                 </div>
-                                {companyInfo.vatEnabled && !companyInfo.isVatExempt && (
-                                    <>
-                                        <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.taxable}px`, flexShrink: 0, height: '100%' }}>
-                                            <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.taxable)}</strong>
-                                        </div>
-                                        <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.vat}px`, flexShrink: 0, height: '100%' }}>
-                                            <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.vat)}</strong>
-                                        </div>
-                                    </>
-                                )}
+                                <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.taxable}px`, flexShrink: 0, height: '100%' }}>
+                                    <strong
+                                        style={{ fontSize: '0.75rem', color: '#0d6efd', cursor: 'help' }}
+                                        title={`S: ${formatCurrency(totals.taxable)} | R: ${formatCurrency(totals.returnTaxable)}`}
+                                    >
+                                        {formatCurrency(totals.netTaxable)}
+                                    </strong>
+                                </div>
+                                <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.vat}px`, flexShrink: 0, height: '100%' }}>
+                                    <strong
+                                        style={{ fontSize: '0.75rem', color: '#0d6efd', cursor: 'help' }}
+                                        title={`S: ${formatCurrency(totals.vat)} | R: ${formatCurrency(totals.returnVat)}`}
+                                    >
+                                        {formatCurrency(totals.netVat)}
+                                    </strong>
+                                </div>
                                 <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.roundOff}px`, flexShrink: 0, height: '100%' }}>
-                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.roundOff)}</strong>
+                                    <strong
+                                        style={{ fontSize: '0.75rem', color: '#0d6efd', cursor: 'help' }}
+                                        title={`S: ${formatCurrency(totals.roundOff)} | R: ${formatCurrency(totals.returnRoundOff)}`}
+                                    >
+                                        {formatCurrency(totals.netRoundOff)}
+                                    </strong>
                                 </div>
                                 <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.total}px`, flexShrink: 0, height: '100%' }}>
-                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.amount)}</strong>
+                                    <strong
+                                        style={{ fontSize: '0.75rem', color: '#0d6efd', cursor: 'help' }}
+                                        title={`S: ${formatCurrency(totals.amount)} | R: ${formatCurrency(totals.returnAmount)}`}
+                                    >
+                                        {formatCurrency(totals.netAmount)}
+                                    </strong>
                                 </div>
-                                <div className="d-flex align-items-center px-1 border-start" style={{ width: `${columnWidths.user + columnWidths.actions}px`, flexShrink: 0, height: '100%' }}></div>
+                                <div className="d-flex align-items-center px-1 border-start" style={{ width: `${columnWidths.user + columnWidths.actions}px`, flexShrink: 0, height: '100%' }}>
+                                    <span style={{ fontSize: '0.6rem', color: '#6c757d' }}>
+                                        {dataArray.length} records
+                                    </span>
+                                </div>
                             </div>
                         </>
                     )}
@@ -1544,4 +1632,4 @@ const PurchaseBillsList = () => {
     );
 };
 
-export default PurchaseBillsList;
+export default SalesSummary;
