@@ -217,7 +217,7 @@ const PurchaseSummary = () => {
         vchNo: 90,
         invNo: 70,
         supplierName: 150,
-        payMode: 70,
+        payMode: 60,
         type: 50,
         subTotal: 80,
         discount: 90,
@@ -696,7 +696,7 @@ const PurchaseSummary = () => {
                     <th class="nowrap">Inv. No.</th>
                     <th class="nowrap">Supplier Name</th>
                     <th class="nowrap">Type</th>
-                    <th class="nowrap">Pay Mode</th>
+                    <th class="nowrap">Mode</th>
                     <th class="nowrap">Sub Total</th>
                     <th class="nowrap">Discount</th>
                     <th class="nowrap">Taxable</th>
@@ -951,7 +951,7 @@ const TableHeader = React.memo(() => {
 
             {/* Pay Mode */}
             <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, minWidth: '60px' }}>
-                <strong style={{ fontSize: '0.75rem' }}>Pay Mode</strong>
+                <strong style={{ fontSize: '0.75rem' }}>Mode</strong>
                 <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.payMode - 2} columnName="payMode" />
             </div>
 
@@ -1176,7 +1176,7 @@ const resetColumnWidths = () => {
         vchNo: 90,
         invNo: 70,
         supplierName: 150,
-        payMode: 70,
+        payMode: 60,
         type: 50,
         subTotal: 80,
         discount: 90,

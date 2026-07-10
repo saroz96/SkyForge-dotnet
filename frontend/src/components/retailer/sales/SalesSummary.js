@@ -215,7 +215,7 @@ const SalesSummary = () => {
         adDate: 80,
         invNo: 90,
         partyName: 150,
-        payMode: 70,
+        payMode: 60,
         type: 50,
         subTotal: 80,
         discount: 90,
@@ -693,7 +693,7 @@ const SalesSummary = () => {
                     <th class="nowrap">Inv No.</th>
                     <th class="nowrap">Party Name</th>
                     <th class="nowrap">Type</th>
-                    <th class="nowrap">Pay Mode</th>
+                    <th class="nowrap">Mode</th>
                     <th class="nowrap">Sub Total</th>
                     <th class="nowrap">Discount</th>
                     <th class="nowrap">Taxable</th>
@@ -940,7 +940,7 @@ const SalesSummary = () => {
 
                 {/* Pay Mode */}
                 <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, minWidth: '60px' }}>
-                    <strong style={{ fontSize: '0.75rem' }}>Pay Mode</strong>
+                    <strong style={{ fontSize: '0.75rem' }}>Mode</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.payMode - 2} columnName="payMode" />
                 </div>
 
@@ -1160,7 +1160,7 @@ const SalesSummary = () => {
             invNo: 90,
             partyName: 150,
             type: 70,
-            payMode: 70,
+            payMode: 60,
             subTotal: 80,
             discount: 90,
             taxable: 70,
