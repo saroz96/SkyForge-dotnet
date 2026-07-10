@@ -2702,7 +2702,7 @@ const AddPurchase = () => {
 
     return (
         <div className="container-fluid">
-            <Header />
+            {/* <Header /> */}
             <div className="card mt-2 shadow-lg p-2 animate__animated animate__fadeInUp expanded-card ledger-card compact">
                 <div className="card-header">
                     <div className="d-flex justify-content-between align-items-center">
