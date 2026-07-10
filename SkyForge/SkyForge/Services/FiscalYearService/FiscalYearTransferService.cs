@@ -405,14 +405,36 @@ namespace SkyForge.Services
                                          a.IsActive);
         }
 
+        // private async Task<(decimal TotalQuantity, decimal TotalValue)> CalculateItemClosingStockFromStockEntriesAsync(
+        //     Guid itemId,
+        //     Guid fiscalYearId,
+        //     Guid companyId)
+        // {
+        //     var stockEntries = await _context.StockEntries
+        //         .Where(s => s.ItemId == itemId &&
+        //                    s.FiscalYearId == fiscalYearId)
+        //         .ToListAsync();
+
+        //     decimal totalQuantity = 0;
+        //     decimal totalValue = 0;
+
+        //     foreach (var entry in stockEntries)
+        //     {
+        //         totalQuantity += entry.Quantity;
+        //         totalValue += entry.Quantity * entry.PuPrice;
+        //     }
+
+        //     return (totalQuantity, totalValue);
+        // }
+
         private async Task<(decimal TotalQuantity, decimal TotalValue)> CalculateItemClosingStockFromStockEntriesAsync(
             Guid itemId,
             Guid fiscalYearId,
             Guid companyId)
         {
+            // ✅ Get ALL stock entries for this item (no fiscal year filter)
             var stockEntries = await _context.StockEntries
-                .Where(s => s.ItemId == itemId &&
-                           s.FiscalYearId == fiscalYearId)
+                .Where(s => s.ItemId == itemId)
                 .ToListAsync();
 
             decimal totalQuantity = 0;
@@ -424,8 +446,74 @@ namespace SkyForge.Services
                 totalValue += entry.Quantity * entry.PuPrice;
             }
 
+            _logger.LogInformation($"Item {itemId}: Total Quantity: {totalQuantity}, Total Value: {totalValue} from {stockEntries.Count} entries");
+
             return (totalQuantity, totalValue);
         }
+
+        // private async Task CreateOpeningStockForTargetFiscalYearAsync(
+        //     Guid sourceFiscalYearId,
+        //     Guid targetFiscalYearId,
+        //     Guid companyId,
+        //     DateTime targetFiscalYearStartDate,
+        //     string targetFiscalYearStartDateNepali)
+        // {
+        //     // Get all items with closing stock from source fiscal year
+        //     var closingStocks = await _context.ItemClosingStockByFiscalYear
+        //         .Include(cs => cs.Item)
+        //         .Where(cs => cs.FiscalYearId == sourceFiscalYearId)
+        //         .ToListAsync();
+
+        //     var existingOpeningStocks = await _context.ItemOpeningStockByFiscalYear
+        //         .Where(os => os.FiscalYearId == targetFiscalYearId)
+        //         .ToDictionaryAsync(os => os.ItemId, os => os);
+
+        //     foreach (var closingStock in closingStocks)
+        //     {
+        //         // ✅ Calculate average purchase price and sales price from stock entries
+        //         var stockEntryData = await CalculateItemAveragePricesFromStockEntriesAsync(
+        //             closingStock.ItemId,
+        //             sourceFiscalYearId,
+        //             companyId);
+
+        //         decimal avgPurchasePrice = stockEntryData.AveragePurchasePrice;
+        //         decimal avgSalesPrice = stockEntryData.AverageSalesPrice;
+
+        //         if (existingOpeningStocks.TryGetValue(closingStock.ItemId, out var existingRecord))
+        //         {
+        //             // Update existing opening stock record
+        //             existingRecord.OpeningStock = closingStock.ClosingStock;
+        //             existingRecord.OpeningStockValue = closingStock.ClosingStockValue;
+        //             existingRecord.PurchasePrice = avgPurchasePrice; // ✅ Use calculated average
+        //             existingRecord.SalesPrice = avgSalesPrice; // ✅ Use calculated average
+        //             existingRecord.Date = targetFiscalYearStartDate;
+        //             existingRecord.NepaliDate = targetFiscalYearStartDateNepali;
+        //             existingRecord.UpdatedAt = DateTime.UtcNow;
+        //         }
+        //         else
+        //         {
+        //             // Create new opening stock record
+        //             var openingStock = new ItemOpeningStockByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = closingStock.ItemId,
+        //                 FiscalYearId = targetFiscalYearId,
+        //                 CompanyId = companyId,
+        //                 OpeningStock = closingStock.ClosingStock,
+        //                 OpeningStockValue = closingStock.ClosingStockValue,
+        //                 PurchasePrice = avgPurchasePrice, // ✅ Use calculated average
+        //                 SalesPrice = avgSalesPrice, // ✅ Use calculated average
+        //                 Date = targetFiscalYearStartDate,
+        //                 NepaliDate = targetFiscalYearStartDateNepali,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+        //             _context.ItemOpeningStockByFiscalYear.Add(openingStock);
+        //         }
+        //     }
+
+        //     await _context.SaveChangesAsync();
+        // }
 
         private async Task CreateOpeningStockForTargetFiscalYearAsync(
             Guid sourceFiscalYearId,
@@ -434,11 +522,28 @@ namespace SkyForge.Services
             DateTime targetFiscalYearStartDate,
             string targetFiscalYearStartDateNepali)
         {
-            // Get all items with closing stock from source fiscal year
+            // ✅ Get all items with closing stock from source fiscal year
             var closingStocks = await _context.ItemClosingStockByFiscalYear
                 .Include(cs => cs.Item)
                 .Where(cs => cs.FiscalYearId == sourceFiscalYearId)
                 .ToListAsync();
+
+            // ✅ If no closing stocks found, get the latest closing stock for each item
+            if (closingStocks == null || !closingStocks.Any())
+            {
+                _logger.LogInformation($"No closing stocks found for fiscal year {sourceFiscalYearId}. Getting latest closing stock for each item.");
+
+                var allClosingStocks = await _context.ItemClosingStockByFiscalYear
+                    .Include(cs => cs.Item)
+                    .Where(cs => cs.Item.CompanyId == companyId)
+                    .OrderByDescending(cs => cs.Date)
+                    .ToListAsync();
+
+                closingStocks = allClosingStocks
+                    .GroupBy(cs => cs.ItemId)
+                    .Select(g => g.First())
+                    .ToList();
+            }
 
             var existingOpeningStocks = await _context.ItemOpeningStockByFiscalYear
                 .Where(os => os.FiscalYearId == targetFiscalYearId)
@@ -446,7 +551,7 @@ namespace SkyForge.Services
 
             foreach (var closingStock in closingStocks)
             {
-                // ✅ Calculate average purchase price and sales price from stock entries
+                // ✅ Calculate average purchase price and sales price from ALL stock entries
                 var stockEntryData = await CalculateItemAveragePricesFromStockEntriesAsync(
                     closingStock.ItemId,
                     sourceFiscalYearId,
@@ -460,8 +565,8 @@ namespace SkyForge.Services
                     // Update existing opening stock record
                     existingRecord.OpeningStock = closingStock.ClosingStock;
                     existingRecord.OpeningStockValue = closingStock.ClosingStockValue;
-                    existingRecord.PurchasePrice = avgPurchasePrice; // ✅ Use calculated average
-                    existingRecord.SalesPrice = avgSalesPrice; // ✅ Use calculated average
+                    existingRecord.PurchasePrice = avgPurchasePrice;
+                    existingRecord.SalesPrice = avgSalesPrice;
                     existingRecord.Date = targetFiscalYearStartDate;
                     existingRecord.NepaliDate = targetFiscalYearStartDateNepali;
                     existingRecord.UpdatedAt = DateTime.UtcNow;
@@ -477,8 +582,8 @@ namespace SkyForge.Services
                         CompanyId = companyId,
                         OpeningStock = closingStock.ClosingStock,
                         OpeningStockValue = closingStock.ClosingStockValue,
-                        PurchasePrice = avgPurchasePrice, // ✅ Use calculated average
-                        SalesPrice = avgSalesPrice, // ✅ Use calculated average
+                        PurchasePrice = avgPurchasePrice,
+                        SalesPrice = avgSalesPrice,
                         Date = targetFiscalYearStartDate,
                         NepaliDate = targetFiscalYearStartDateNepali,
                         CreatedAt = DateTime.UtcNow,
@@ -535,6 +640,89 @@ namespace SkyForge.Services
         //     return (averagePurchasePrice, averageSalesPrice);
         // }
 
+        // private async Task<ItemTransferSummaryDto> CalculateAndSaveClosingStockForSourceFiscalYearAsync(
+        //     Guid sourceFiscalYearId,
+        //     Guid companyId,
+        //     DateTime sourceFiscalYearEndDate,
+        //     string sourceFiscalYearEndDateNepali,
+        //     DateTime sourceFiscalYearStartDate,
+        //     string sourceFiscalYearStartDateNepali)
+        // {
+        //     var summary = new ItemTransferSummaryDto();
+
+        //     var items = await _context.Items
+        //         .Where(i => i.CompanyId == companyId && i.Status == "active")
+        //         .ToListAsync();
+
+        //     summary.ItemsProcessed = items.Count;
+
+        //     var existingClosingStocks = await _context.ItemClosingStockByFiscalYear
+        //         .Where(cs => cs.FiscalYearId == sourceFiscalYearId)
+        //         .ToDictionaryAsync(cs => cs.ItemId, cs => cs);
+
+        //     foreach (var item in items)
+        //     {
+        //         // Calculate closing stock quantity and value
+        //         var closingStockData = await CalculateItemClosingStockFromStockEntriesAsync(item.Id, sourceFiscalYearId, companyId);
+
+        //         // ✅ Calculate average purchase price and sales price from stock entries
+        //         var averagePrices = await CalculateItemAveragePricesFromStockEntriesAsync(item.Id, sourceFiscalYearId, companyId);
+
+        //         var avgPurchasePrice = averagePrices.AveragePurchasePrice;
+        //         var avgSalesPrice = averagePrices.AverageSalesPrice;
+
+        //         if (closingStockData.TotalQuantity > 0)
+        //         {
+        //             summary.ItemsWithStock++;
+        //             summary.TotalClosingStockQuantity += closingStockData.TotalQuantity;
+        //             summary.TotalClosingStockValue += closingStockData.TotalValue;
+        //         }
+
+        //         if (existingClosingStocks.TryGetValue(item.Id, out var existingRecord))
+        //         {
+        //             // Update existing record with calculated averages
+        //             existingRecord.ClosingStock = closingStockData.TotalQuantity;
+        //             existingRecord.ClosingStockValue = closingStockData.TotalValue;
+        //             existingRecord.PurchasePrice = avgPurchasePrice; // ✅ Use calculated average
+        //             existingRecord.SalesPrice = avgSalesPrice; // ✅ Use calculated average
+        //             existingRecord.Date = sourceFiscalYearEndDate;
+        //             existingRecord.NepaliDate = sourceFiscalYearEndDateNepali;
+        //             existingRecord.UpdatedAt = DateTime.UtcNow;
+        //         }
+        //         else
+        //         {
+        //             // Create new closing stock record with calculated averages
+        //             var closingStock = new ItemClosingStockByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = item.Id,
+        //                 FiscalYearId = sourceFiscalYearId,
+        //                 ClosingStock = closingStockData.TotalQuantity,
+        //                 ClosingStockValue = closingStockData.TotalValue,
+        //                 PurchasePrice = avgPurchasePrice, // ✅ Use calculated average
+        //                 SalesPrice = avgSalesPrice, // ✅ Use calculated average
+        //                 Date = sourceFiscalYearEndDate,
+        //                 NepaliDate = sourceFiscalYearEndDateNepali,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+        //             _context.ItemClosingStockByFiscalYear.Add(closingStock);
+        //         }
+
+        //         summary.ItemDetails.Add(new ItemStockSummaryDto
+        //         {
+        //             ItemId = item.Id,
+        //             ItemName = item.Name,
+        //             ClosingQuantity = closingStockData.TotalQuantity,
+        //             ClosingValue = closingStockData.TotalValue,
+        //             AverageRate = avgPurchasePrice // Use purchase price as average rate
+        //         });
+        //     }
+
+        //     await _context.SaveChangesAsync();
+        //     return summary;
+        // }
+
         private async Task<ItemTransferSummaryDto> CalculateAndSaveClosingStockForSourceFiscalYearAsync(
             Guid sourceFiscalYearId,
             Guid companyId,
@@ -557,10 +745,10 @@ namespace SkyForge.Services
 
             foreach (var item in items)
             {
-                // Calculate closing stock quantity and value
+                // ✅ Calculate closing stock quantity and value from ALL stock entries
                 var closingStockData = await CalculateItemClosingStockFromStockEntriesAsync(item.Id, sourceFiscalYearId, companyId);
 
-                // ✅ Calculate average purchase price and sales price from stock entries
+                // ✅ Calculate average purchase price and sales price from ALL stock entries
                 var averagePrices = await CalculateItemAveragePricesFromStockEntriesAsync(item.Id, sourceFiscalYearId, companyId);
 
                 var avgPurchasePrice = averagePrices.AveragePurchasePrice;
@@ -578,8 +766,8 @@ namespace SkyForge.Services
                     // Update existing record with calculated averages
                     existingRecord.ClosingStock = closingStockData.TotalQuantity;
                     existingRecord.ClosingStockValue = closingStockData.TotalValue;
-                    existingRecord.PurchasePrice = avgPurchasePrice; // ✅ Use calculated average
-                    existingRecord.SalesPrice = avgSalesPrice; // ✅ Use calculated average
+                    existingRecord.PurchasePrice = avgPurchasePrice;
+                    existingRecord.SalesPrice = avgSalesPrice;
                     existingRecord.Date = sourceFiscalYearEndDate;
                     existingRecord.NepaliDate = sourceFiscalYearEndDateNepali;
                     existingRecord.UpdatedAt = DateTime.UtcNow;
@@ -594,8 +782,8 @@ namespace SkyForge.Services
                         FiscalYearId = sourceFiscalYearId,
                         ClosingStock = closingStockData.TotalQuantity,
                         ClosingStockValue = closingStockData.TotalValue,
-                        PurchasePrice = avgPurchasePrice, // ✅ Use calculated average
-                        SalesPrice = avgSalesPrice, // ✅ Use calculated average
+                        PurchasePrice = avgPurchasePrice,
+                        SalesPrice = avgSalesPrice,
                         Date = sourceFiscalYearEndDate,
                         NepaliDate = sourceFiscalYearEndDateNepali,
                         CreatedAt = DateTime.UtcNow,
@@ -610,7 +798,7 @@ namespace SkyForge.Services
                     ItemName = item.Name,
                     ClosingQuantity = closingStockData.TotalQuantity,
                     ClosingValue = closingStockData.TotalValue,
-                    AverageRate = avgPurchasePrice // Use purchase price as average rate
+                    AverageRate = avgPurchasePrice
                 });
             }
 
@@ -621,19 +809,60 @@ namespace SkyForge.Services
         /// <summary>
         /// Calculate average purchase price and sales price from stock entries for an item
         /// </summary>
+        // private async Task<(decimal AveragePurchasePrice, decimal AverageSalesPrice)> CalculateItemAveragePricesFromStockEntriesAsync(
+        //     Guid itemId,
+        //     Guid fiscalYearId,
+        //     Guid companyId)
+        // {
+        //     var stockEntries = await _context.StockEntries
+        //         .Where(s => s.ItemId == itemId &&
+        //                    s.FiscalYearId == fiscalYearId)
+        //         .ToListAsync();
+
+        //     if (stockEntries.Count == 0)
+        //     {
+        //         // If no stock entries, get the item's default prices
+        //         var item = await _context.Items
+        //             .FirstOrDefaultAsync(i => i.Id == itemId && i.CompanyId == companyId);
+
+        //         return (item?.PuPrice ?? 0, item?.Price ?? 0);
+        //     }
+
+        //     decimal totalQuantity = 0;
+        //     decimal totalPurchaseValue = 0;
+        //     decimal totalSalesValue = 0;
+
+        //     foreach (var entry in stockEntries)
+        //     {
+        //         totalQuantity += entry.Quantity;
+        //         totalPurchaseValue += entry.Quantity * entry.PuPrice;
+        //         totalSalesValue += entry.Quantity * entry.Price;
+        //     }
+
+        //     decimal averagePurchasePrice = totalQuantity > 0
+        //         ? totalPurchaseValue / totalQuantity
+        //         : 0;
+
+        //     decimal averageSalesPrice = totalQuantity > 0
+        //         ? totalSalesValue / totalQuantity
+        //         : 0;
+
+        //     return (averagePurchasePrice, averageSalesPrice);
+        // }
+
         private async Task<(decimal AveragePurchasePrice, decimal AverageSalesPrice)> CalculateItemAveragePricesFromStockEntriesAsync(
-            Guid itemId,
-            Guid fiscalYearId,
-            Guid companyId)
+     Guid itemId,
+     Guid fiscalYearId,
+     Guid companyId)
         {
+            // ✅ Get ALL stock entries for this item (no fiscal year filter)
             var stockEntries = await _context.StockEntries
-                .Where(s => s.ItemId == itemId &&
-                           s.FiscalYearId == fiscalYearId)
+                .Where(s => s.ItemId == itemId)
                 .ToListAsync();
 
             if (stockEntries.Count == 0)
             {
-                // If no stock entries, get the item's default prices
+                // If no stock entries at all, get the item's default prices
                 var item = await _context.Items
                     .FirstOrDefaultAsync(i => i.Id == itemId && i.CompanyId == companyId);
 
@@ -661,9 +890,34 @@ namespace SkyForge.Services
 
             return (averagePurchasePrice, averageSalesPrice);
         }
+        // private async Task<List<ItemClosingStockByFiscalYear>> GetItemClosingStocksFromStockEntriesAsync(
+        //            Guid fiscalYearId,
+        //            Guid companyId)
+        // {
+        //     var items = await _context.Items
+        //         .Where(i => i.CompanyId == companyId)
+        //         .ToListAsync();
+
+        //     var result = new List<ItemClosingStockByFiscalYear>();
+
+        //     foreach (var item in items)
+        //     {
+        //         var stock = await CalculateItemClosingStockFromStockEntriesAsync(item.Id, fiscalYearId, companyId);
+        //         result.Add(new ItemClosingStockByFiscalYear
+        //         {
+        //             ItemId = item.Id,
+        //             Item = item,
+        //             ClosingStock = stock.TotalQuantity,
+        //             ClosingStockValue = stock.TotalValue
+        //         });
+        //     }
+
+        //     return result;
+        // }
+
         private async Task<List<ItemClosingStockByFiscalYear>> GetItemClosingStocksFromStockEntriesAsync(
-                   Guid fiscalYearId,
-                   Guid companyId)
+            Guid fiscalYearId,
+            Guid companyId)
         {
             var items = await _context.Items
                 .Where(i => i.CompanyId == companyId)
@@ -673,13 +927,20 @@ namespace SkyForge.Services
 
             foreach (var item in items)
             {
+                // ✅ Calculate from ALL stock entries
                 var stock = await CalculateItemClosingStockFromStockEntriesAsync(item.Id, fiscalYearId, companyId);
+
+                // Get average prices from ALL stock entries
+                var averagePrices = await CalculateItemAveragePricesFromStockEntriesAsync(item.Id, fiscalYearId, companyId);
+
                 result.Add(new ItemClosingStockByFiscalYear
                 {
                     ItemId = item.Id,
                     Item = item,
                     ClosingStock = stock.TotalQuantity,
-                    ClosingStockValue = stock.TotalValue
+                    ClosingStockValue = stock.TotalValue,
+                    PurchasePrice = averagePrices.AveragePurchasePrice,
+                    SalesPrice = averagePrices.AverageSalesPrice
                 });
             }
 
@@ -834,8 +1095,8 @@ namespace SkyForge.Services
                 return new List<AccountBalanceSummaryDto>();
             }
         }
-        
-        
+
+
         private async Task<Transaction> CreateOpeningBalanceTransactionAsync(
             Guid fiscalYearId,
             Guid companyId,
