@@ -9,6 +9,7 @@ using SkyForge.Models.Shared;
 using SkyForge.Dto.RetailerDto.SalesBillDto;
 using SkyForge.Dto.RetailerDto;
 using SkyForge.Models.Retailer.Sales;
+using SkyForge.Models.Retailer.TransactionModel;
 
 
 namespace SkyForge.Controllers.Retailer
@@ -3805,6 +3806,515 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-    
+
+        // [HttpGet("cash-transactions")]
+        // public async Task<IActionResult> GetCashTransactions(
+        //     [FromQuery] string fromDate,
+        //     [FromQuery] string toDate,
+        //     [FromQuery] Guid? accountId = null)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetCashTransactions Started ===");
+
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //             return BadRequest(new { success = false, error = "Company not found" });
+
+        //         // Get fiscal year
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //             if (activeFiscalYear == null)
+        //                 return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+        //         }
+
+        //         // Parse dates
+        //         if (!DateTime.TryParse(fromDate, out DateTime fromDateParsed))
+        //             return BadRequest(new { success = false, error = "Invalid from date format" });
+
+        //         if (!DateTime.TryParse(toDate, out DateTime toDateParsed))
+        //             return BadRequest(new { success = false, error = "Invalid to date format" });
+
+        //         toDateParsed = toDateParsed.Date.AddDays(1).AddTicks(-1);
+
+        //         _logger.LogInformation($"Fetching cash transactions from {fromDateParsed} to {toDateParsed}");
+
+        //         // Get CASH SALES (payment mode is cash)
+        //         var cashSalesQuery = _context.SalesBills
+        //             .Where(sb => sb.CompanyId == companyIdGuid &&
+        //                         sb.FiscalYearId == fiscalYearIdGuid &&
+        //                         sb.PaymentMode != null &&
+        //                         sb.PaymentMode.ToLower() == "cash" &&
+        //                         sb.Date >= fromDateParsed &&
+        //                         sb.Date <= toDateParsed);
+
+        //         // Filter by account if provided (for credit sales, account is the party)
+        //         if (accountId.HasValue && accountId.Value != Guid.Empty)
+        //         {
+        //             cashSalesQuery = cashSalesQuery.Where(sb => sb.AccountId == accountId.Value);
+        //         }
+
+        //         var cashSales = await cashSalesQuery
+        //             .Include(sb => sb.Account)
+        //             .Include(sb => sb.User)
+        //             .OrderByDescending(sb => sb.Date)
+        //             .ThenByDescending(sb => sb.BillNumber)
+        //             .ToListAsync();
+
+        //         _logger.LogInformation($"Found {cashSales.Count} cash sales");
+
+        //         // Get CASH RETURNS (sales returns with cash payment mode)
+        //         var cashReturnsQuery = _context.SalesReturns
+        //             .Where(sr => sr.CompanyId == companyIdGuid &&
+        //                         sr.FiscalYearId == fiscalYearIdGuid &&
+        //                         sr.PaymentMode != null &&
+        //                         sr.PaymentMode.ToLower() == "cash" &&
+        //                         sr.Date >= fromDateParsed &&
+        //                         sr.Date <= toDateParsed);
+
+        //         // Filter by account if provided
+        //         if (accountId.HasValue && accountId.Value != Guid.Empty)
+        //         {
+        //             cashReturnsQuery = cashReturnsQuery.Where(sr => sr.AccountId == accountId.Value);
+        //         }
+
+        //         var cashReturns = await cashReturnsQuery
+        //             .Include(sr => sr.Account)
+        //             .Include(sr => sr.User)
+        //             .OrderByDescending(sr => sr.Date)
+        //             .ThenByDescending(sr => sr.BillNumber)
+        //             .ToListAsync();
+
+        //         _logger.LogInformation($"Found {cashReturns.Count} cash returns");
+
+        //         // Calculate totals
+        //         decimal totalCashSales = cashSales.Sum(sb => sb.TotalAmount);
+        //         decimal totalCashReturns = cashReturns.Sum(sr => sr.TotalAmount ?? 0);
+        //         decimal netCash = totalCashSales - totalCashReturns;
+
+        //         // Build transaction list
+        //         var transactions = new List<object>();
+
+        //         // Add cash sales
+        //         foreach (var sale in cashSales)
+        //         {
+        //             transactions.Add(new
+        //             {
+        //                 sale.Id,
+        //                 sale.BillNumber,
+        //                 sale.Date,
+        //                 sale.NepaliDate,
+        //                 sale.TransactionDate,
+        //                 sale.TransactionDateNepali,
+        //                 AccountName = sale.Account?.Name ?? sale.CashAccount ?? "Cash Sale",
+        //                 CashAccount = sale.CashAccount,
+        //                 Type = "Sale",
+        //                 Amount = sale.TotalAmount,
+        //                 PaymentMode = sale.PaymentMode,
+        //                 UserName = sale.User?.Name
+        //             });
+        //         }
+
+        //         // Add cash returns
+        //         foreach (var returnItem in cashReturns)
+        //         {
+        //             transactions.Add(new
+        //             {
+        //                 returnItem.Id,
+        //                 returnItem.BillNumber,
+        //                 returnItem.Date,
+        //                 returnItem.NepaliDate,
+        //                 returnItem.TransactionDate,
+        //                 returnItem.TransactionDateNepali,
+        //                 AccountName = returnItem.Account?.Name ?? returnItem.CashAccount ?? "Cash Return",
+        //                 CashAccount = returnItem.CashAccount,
+        //                 Type = "Return",
+        //                 Amount = -(returnItem.TotalAmount ?? 0), // Negative for returns
+        //                 PaymentMode = returnItem.PaymentMode,
+        //                 UserName = returnItem.User?.Name
+        //             });
+        //         }
+
+        //         // Sort by date descending
+        //         transactions = transactions
+        //             .OrderByDescending(t => ((dynamic)t).Date)
+        //             .ThenByDescending(t => ((dynamic)t).BillNumber)
+        //             .ToList();
+
+        //         var response = new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 totalCashSales,
+        //                 totalCashReturns,
+        //                 netCash,
+        //                 transactions
+        //             }
+        //         };
+
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error getting cash transactions");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        [HttpGet("cash-transactions")]
+        public async Task<IActionResult> GetCashTransactions(
+            [FromQuery] string fromDate,
+            [FromQuery] string toDate,
+            [FromQuery] Guid? accountId = null)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCashTransactions Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "Company not found" });
+
+                // Get fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Parse dates
+                if (!DateTime.TryParse(fromDate, out DateTime fromDateParsed))
+                    return BadRequest(new { success = false, error = "Invalid from date format" });
+
+                if (!DateTime.TryParse(toDate, out DateTime toDateParsed))
+                    return BadRequest(new { success = false, error = "Invalid to date format" });
+
+                toDateParsed = toDateParsed.Date.AddDays(1).AddTicks(-1);
+
+                _logger.LogInformation($"Fetching cash transactions from {fromDateParsed} to {toDateParsed}");
+
+                // Get the Cash in Hand account ID for this company
+                var cashAccount = await _context.Accounts
+                    .FirstOrDefaultAsync(a => a.CompanyId == companyIdGuid &&
+                                             a.Name == "Cash in Hand" &&
+                                             a.IsActive == true);
+
+                if (cashAccount == null)
+                {
+                    _logger.LogWarning("Cash in Hand account not found for company: {CompanyId}", companyIdGuid);
+                    return BadRequest(new { success = false, error = "Cash in Hand account not found" });
+                }
+
+                // Build query for ONLY Cash account transactions
+                var cashTransactionsQuery = _context.Transactions
+                    .Where(t => t.CompanyId == companyIdGuid &&
+                               t.FiscalYearId == fiscalYearIdGuid &&
+                               t.AccountId == cashAccount.Id && // Only Cash in Hand account
+                               t.Date >= fromDateParsed &&
+                               t.Date <= toDateParsed &&
+                               t.Status == TransactionStatus.Active &&
+                               t.IsActive == true);
+
+                // Filter by account if provided (for sales/returns, account is the party)
+                if (accountId.HasValue && accountId.Value != Guid.Empty)
+                {
+                    // If filtering by party account, we need to check related bills
+                    cashTransactionsQuery = cashTransactionsQuery.Where(t =>
+                        t.SalesBillId != null &&
+                        _context.SalesBills.Any(sb => sb.Id == t.SalesBillId && sb.AccountId == accountId.Value) ||
+                        t.SalesReturnBillId != null &&
+                        _context.SalesReturns.Any(sr => sr.Id == t.SalesReturnBillId && sr.AccountId == accountId.Value) ||
+                        t.PurchaseBillId != null &&
+                        _context.PurchaseBills.Any(pb => pb.Id == t.PurchaseBillId && pb.AccountId == accountId.Value) ||
+                        t.PurchaseReturnBillId != null &&
+                        _context.PurchaseReturns.Any(pr => pr.Id == t.PurchaseReturnBillId && pr.AccountId == accountId.Value)
+                    );
+                }
+
+                var cashTransactions = await cashTransactionsQuery
+                    .Include(t => t.Account)
+                    .Include(t => t.PaymentAccount)
+                    .Include(t => t.ReceiptAccount)
+                    .Include(t => t.DebitAccount)
+                    .Include(t => t.CreditAccount)
+                    .OrderByDescending(t => t.Date)
+                    .ThenByDescending(t => t.BillNumber)
+                    .ToListAsync();
+
+                _logger.LogInformation($"Found {cashTransactions.Count} cash transactions");
+
+                // Calculate totals
+                decimal totalCashInflow = 0;
+                decimal totalCashOutflow = 0;
+                decimal netCash = 0;
+
+                var transactions = new List<object>();
+
+                foreach (var transaction in cashTransactions)
+                {
+                    string transactionType = "";
+                    string transactionDescription = "";
+                    decimal amount = 0;
+                    string accountName = "";
+                    bool isInflow = false;
+                    string billNumber = transaction.BillNumber ?? "";
+
+                    // Get the source document information
+                    string sourceType = "";
+                    string sourceParty = "";
+
+                    // Determine transaction type and amount based on TransactionType
+                    switch (transaction.Type)
+                    {
+                        case TransactionType.Sale:
+                            transactionType = "Sale";
+                            transactionDescription = "Cash Sale";
+                            // For Cash account, Debit = Inflow (cash received)
+                            amount = transaction.TotalDebit;
+                            accountName = transaction.Account?.Name ?? "Cash Sale";
+                            isInflow = amount > 0;
+
+                            // Get source bill info
+                            if (transaction.SalesBillId.HasValue)
+                            {
+                                var salesBill = await _context.SalesBills
+                                    .Include(sb => sb.Account)
+                                    .FirstOrDefaultAsync(sb => sb.Id == transaction.SalesBillId);
+                                if (salesBill != null)
+                                {
+                                    sourceParty = salesBill.Account?.Name ?? salesBill.CashAccount ?? "Cash Sale";
+                                    billNumber = salesBill.BillNumber ?? billNumber;
+                                }
+                            }
+                            break;
+
+                        case TransactionType.SlRt:
+                            transactionType = "Sale Return";
+                            transactionDescription = "Cash Sale Return";
+                            // For Cash account, Credit = Outflow (cash paid out)
+                            amount = transaction.TotalCredit;
+                            accountName = transaction.Account?.Name ?? "Cash Return";
+                            isInflow = false;
+
+                            if (transaction.SalesReturnBillId.HasValue)
+                            {
+                                var returnBill = await _context.SalesReturns
+                                    .Include(sr => sr.Account)
+                                    .FirstOrDefaultAsync(sr => sr.Id == transaction.SalesReturnBillId);
+                                if (returnBill != null)
+                                {
+                                    sourceParty = returnBill.Account?.Name ?? returnBill.CashAccount ?? "Cash Return";
+                                    billNumber = returnBill.BillNumber ?? billNumber;
+                                }
+                            }
+                            break;
+
+                        case TransactionType.Purc:
+                            transactionType = "Purchase";
+                            transactionDescription = "Cash Purchase";
+                            amount = transaction.TotalCredit;
+                            accountName = transaction.Account?.Name ?? "Cash Purchase";
+                            isInflow = false;
+
+                            if (transaction.PurchaseBillId.HasValue)
+                            {
+                                var purchaseBill = await _context.PurchaseBills
+                                    .Include(pb => pb.Account)
+                                    .FirstOrDefaultAsync(pb => pb.Id == transaction.PurchaseBillId);
+                                if (purchaseBill != null)
+                                {
+                                    sourceParty = purchaseBill.Account?.Name ?? "Cash Purchase";
+                                    billNumber = purchaseBill.BillNumber ?? billNumber;
+                                }
+                            }
+                            break;
+
+                        case TransactionType.PrRt:
+                            transactionType = "Purchase Return";
+                            transactionDescription = "Cash Purchase Return";
+                            amount = transaction.TotalDebit;
+                            accountName = transaction.Account?.Name ?? "Purchase Return";
+                            isInflow = true;
+
+                            if (transaction.PurchaseReturnBillId.HasValue)
+                            {
+                                var returnBill = await _context.PurchaseReturns
+                                    .Include(pr => pr.Account)
+                                    .FirstOrDefaultAsync(pr => pr.Id == transaction.PurchaseReturnBillId);
+                                if (returnBill != null)
+                                {
+                                    sourceParty = returnBill.Account?.Name ?? "Purchase Return";
+                                    billNumber = returnBill.BillNumber ?? billNumber;
+                                }
+                            }
+                            break;
+
+                        case TransactionType.Pymt:
+                            transactionType = "Payment";
+                            transactionDescription = "Cash Payment";
+                            amount = transaction.TotalCredit;
+                            accountName = transaction.PaymentAccount?.Name ??
+                                         transaction.DebitAccount?.Name ??
+                                         "Cash Payment";
+                            isInflow = false;
+                            break;
+
+                        case TransactionType.Rcpt:
+                            transactionType = "Receipt";
+                            transactionDescription = "Cash Receipt";
+                            amount = transaction.TotalDebit;
+                            accountName = transaction.ReceiptAccount?.Name ??
+                                         transaction.CreditAccount?.Name ??
+                                         "Cash Receipt";
+                            isInflow = true;
+                            break;
+
+                        case TransactionType.Jrnl:
+                            transactionType = "Journal";
+                            transactionDescription = "Cash Journal";
+                            if (transaction.TotalDebit > 0 && transaction.TotalCredit > 0)
+                            {
+                                if (transaction.TotalDebit > transaction.TotalCredit)
+                                {
+                                    amount = transaction.TotalDebit - transaction.TotalCredit;
+                                    isInflow = true;
+                                }
+                                else
+                                {
+                                    amount = transaction.TotalCredit - transaction.TotalDebit;
+                                    isInflow = false;
+                                }
+                            }
+                            else if (transaction.TotalDebit > 0)
+                            {
+                                amount = transaction.TotalDebit;
+                                isInflow = true;
+                            }
+                            else
+                            {
+                                amount = transaction.TotalCredit;
+                                isInflow = false;
+                            }
+                            accountName = transaction.JournalAccountType ?? "Cash Journal";
+                            break;
+
+                        case TransactionType.DrNt:
+                            transactionType = "Debit Note";
+                            transactionDescription = "Cash Debit Note";
+                            amount = transaction.TotalDebit;
+                            accountName = transaction.DrCrNoteAccountType ?? "Debit Note";
+                            isInflow = true;
+                            break;
+
+                        case TransactionType.CrNt:
+                            transactionType = "Credit Note";
+                            transactionDescription = "Cash Credit Note";
+                            amount = transaction.TotalCredit;
+                            accountName = transaction.DrCrNoteAccountType ?? "Credit Note";
+                            isInflow = false;
+                            break;
+
+                        case TransactionType.OpeningBalance:
+                            transactionType = "Opening Balance";
+                            transactionDescription = "Cash Opening Balance";
+                            amount = transaction.TotalDebit > 0 ? transaction.TotalDebit : transaction.TotalCredit;
+                            accountName = transaction.Account?.Name ?? "Opening Balance";
+                            isInflow = transaction.TotalDebit > 0;
+                            break;
+
+                        default:
+                            transactionType = "Unknown";
+                            transactionDescription = "Unknown Cash Transaction";
+                            amount = transaction.TotalDebit > 0 ? transaction.TotalDebit : transaction.TotalCredit;
+                            accountName = transaction.Account?.Name ?? "Unknown";
+                            isInflow = transaction.TotalDebit > 0;
+                            break;
+                    }
+
+                    // Only add transaction if amount is not zero
+                    if (amount == 0) continue;
+
+                    // Update totals
+                    if (isInflow)
+                    {
+                        totalCashInflow += amount;
+                    }
+                    else
+                    {
+                        totalCashOutflow += amount;
+                    }
+
+                    // Get the display account name
+                    string displayAccountName = sourceParty ?? accountName ?? "N/A";
+
+                    // Add to transaction list
+                    transactions.Add(new
+                    {
+                        transaction.Id,
+                        BillNumber = billNumber,
+                        transaction.Date,
+                        transaction.NepaliDate,
+                        transaction.TransactionDate,
+                        transaction.TransactionDateNepali,
+                        AccountName = displayAccountName,
+                        transaction.PaymentMode,
+                        Type = transactionType,
+                        Description = transactionDescription,
+                        Amount = isInflow ? amount : -amount,
+                        Inflow = isInflow,
+                        Outflow = !isInflow,
+                        transaction.PartyBillNumber,
+                        transaction.PaymentReceiptType,
+                        transaction.PurchaseSalesType,
+                        transaction.PurchaseSalesReturnType
+                    });
+                }
+
+                // Calculate net cash
+                netCash = totalCashInflow - totalCashOutflow;
+
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        totalCashInflow,
+                        totalCashOutflow,
+                        netCash,
+                        transactions
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting cash transactions");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
     }
 }
