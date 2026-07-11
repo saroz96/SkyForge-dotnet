@@ -6,10 +6,10 @@
 
 // const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
 //     const { statsCardDraftSave, setStatsCardDraftSave } = usePageNotRefreshContext();
-    
+
 //     // Get API base URL from environment variable
 //     const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142';
-    
+
 //     const [company] = useState({
 //         dateFormat: 'nepali',
 //         vatEnabled: true,
@@ -23,7 +23,7 @@
 //         error: null,
 //         isFresh: false
 //     });
-    
+
 //     const [isFetching, setIsFetching] = useState(false);
 //     const intervalRef = useRef(null);
 //     const abortControllerRef = useRef(null);
@@ -35,7 +35,7 @@
 //             baseURL: API_BASE_URL,
 //             withCredentials: true,
 //         });
-        
+
 //         // Add request interceptor for token
 //         instance.interceptors.request.use(
 //             (config) => {
@@ -47,7 +47,7 @@
 //             },
 //             (error) => Promise.reject(error)
 //         );
-        
+
 //         return instance;
 //     }, []);
 
@@ -82,15 +82,15 @@
 //     const fetchFreshData = useCallback(async (isBackground = false) => {
 //         // Prevent multiple simultaneous requests
 //         if (isFetching) return;
-        
+
 //         // Cancel previous request if exists
 //         if (abortControllerRef.current) {
 //             abortControllerRef.current.abort();
 //         }
-        
+
 //         abortControllerRef.current = new AbortController();
 //         setIsFetching(true);
-        
+
 //         try {
 //             // Build query parameters
 //             const params = new URLSearchParams();
@@ -100,9 +100,9 @@
 
 //             // Use full URL with API base
 //             const url = `${API_BASE_URL}/api/retailer/retailerDashboard/indexv1?${params.toString()}`;
-            
+
 //             console.log('Fetching stats from:', url); // Debug log
-            
+
 //             const response = await axios.get(url, {
 //                 headers: { 
 //                     'Content-Type': 'application/json',
@@ -140,7 +140,7 @@
 //                 console.log('Fetch aborted');
 //                 return;
 //             }
-            
+
 //             console.error('Background refresh failed:', error);
 //             if (!statsCardDraftSave) {
 //                 setStats(prev => ({
@@ -309,18 +309,24 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../../context/AuthContext';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
-import DailyCashAndSalesSummary from '../DailyCashAndSalesSummary';
+import DailyCashSummary from '../DailyCashSummary';
+import DailySalesSummary from '../DailySalesSummary';
+import DailyBankSummary from '../DailyBankSummary';
+import DailyInventorySummary from '../DailyInventorySummary';
 
 const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
     const { statsCardDraftSave, setStatsCardDraftSave } = usePageNotRefreshContext();
-    
+
     // Add state for Cash Modal
     const [showCashModal, setShowCashModal] = useState(false);
+    const [showSalesModal, setShowSalesModal] = useState(false);
+    const [showBankModal, setShowBankModal] = useState(false);
+    const [showInventoryModal, setShowInventoryModal] = useState(false);
     const [selectedAccountId, setSelectedAccountId] = useState(null);
-    
+
     // Get API base URL from environment variable
     const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142';
-    
+
     const [company] = useState({
         dateFormat: 'nepali',
         vatEnabled: true,
@@ -334,7 +340,7 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
         error: null,
         isFresh: false
     });
-    
+
     const [isFetching, setIsFetching] = useState(false);
     const intervalRef = useRef(null);
     const abortControllerRef = useRef(null);
@@ -346,7 +352,7 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
             baseURL: API_BASE_URL,
             withCredentials: true,
         });
-        
+
         // Add request interceptor for token
         instance.interceptors.request.use(
             (config) => {
@@ -358,7 +364,7 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
             },
             (error) => Promise.reject(error)
         );
-        
+
         return instance;
     }, []);
 
@@ -392,14 +398,14 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
 
     const fetchFreshData = useCallback(async (isBackground = false) => {
         if (isFetching) return;
-        
+
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
-        
+
         abortControllerRef.current = new AbortController();
         setIsFetching(true);
-        
+
         try {
             const params = new URLSearchParams();
             params.append('companyId', companyId);
@@ -407,9 +413,9 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
             if (fiscalYearJson) params.append('fiscalYearJson', fiscalYearJson);
 
             const url = `${API_BASE_URL}/api/retailer/retailerDashboard/indexv1?${params.toString()}`;
-            
+
             const response = await axios.get(url, {
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
@@ -444,7 +450,7 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
                 console.log('Fetch aborted');
                 return;
             }
-            
+
             console.error('Background refresh failed:', error);
             if (!statsCardDraftSave) {
                 setStats(prev => ({
@@ -490,12 +496,28 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
         setShowCashModal(true);
     };
 
+    // Handle Sales Card click
+    const handleSalesCardClick = () => {
+        // You can set the accountId if needed (e.g., Sales account ID)
+        setSelectedAccountId(null); // Set to null to show all sales transactions
+        setShowSalesModal(true);
+    };
+
+    // Handle Bank Card click
+    const handleBankCardClick = () => {
+        setShowBankModal(true);
+    };
+
+    const handleInventoryCardClick = () => {
+        setShowInventoryModal(true);
+    }
+
     return (
         <>
             <div className="row">
                 {/* Cash Card - Made clickable */}
                 <div className="col-lg-3 col-md-6 col-12 mb-4">
-                    <div 
+                    <div
                         className="card border-start border-primary border-4 cursor-pointer"
                         onClick={handleCashCardClick}
                         style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
@@ -531,7 +553,12 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
 
                 {/* Sales Card */}
                 <div className="col-lg-3 col-md-6 col-12 mb-4">
-                    <div className="card border-start border-success border-4">
+                    <div className="card border-start border-success border-4 cursor-pointer"
+                        onClick={handleSalesCardClick}
+                        style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
                         <div className="card-body p-3">
                             <div className="d-flex justify-content-between align-items-center">
                                 <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
@@ -559,7 +586,12 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
 
                 {/* Bank Card */}
                 <div className="col-lg-3 col-md-6 col-12 mb-4">
-                    <div className="card border-start border-info border-4">
+                    <div className="card border-start border-success border-4 cursor-pointer"
+                        onClick={handleBankCardClick}
+                        style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
                         <div className="card-body p-3">
                             <div className="d-flex justify-content-between align-items-center">
                                 <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
@@ -587,7 +619,12 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
 
                 {/* Inventory Card */}
                 <div className="col-lg-3 col-md-6 col-12 mb-4">
-                    <div className="card border-start border-warning border-4">
+                    <div className="card border-start border-success border-4 cursor-pointer"
+                        onClick={handleInventoryCardClick}
+                        style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
                         <div className="card-body p-3">
                             <div className="d-flex justify-content-between align-items-center">
                                 <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
@@ -596,7 +633,7 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
                                         className="mb-0 text-truncate"
                                         title={`Rs. ${formatCurrency(displayData.totalStock)}`}
                                         style={{
-                                            fontSize: getDynamicFontSize(displayData.totalStock)*0.9,
+                                            fontSize: getDynamicFontSize(displayData.totalStock) * 0.9,
                                             fontWeight: '200',
                                             lineHeight: '1.1'
                                         }}
@@ -614,10 +651,31 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
                 </div>
             </div>
 
-            {/* Daily Cash And Sales Summary */}
-            <DailyCashAndSalesSummary
+            {/* Daily Cash Summary */}
+            <DailyCashSummary
                 show={showCashModal}
                 onClose={() => setShowCashModal(false)}
+                companyId={companyId}
+                accountId={selectedAccountId}
+            />
+            {/* Daily Inventory Summary */}
+            <DailyInventorySummary
+                show={showInventoryModal}
+                onClose={() => setShowInventoryModal(false)}
+                companyId={companyId}
+                accountId={selectedAccountId}
+            />
+            {/* Daily Sales Summary */}
+            <DailySalesSummary
+                show={showSalesModal}
+                onClose={() => setShowSalesModal(false)}
+                companyId={companyId}
+                accountId={selectedAccountId}
+            />
+            {/* Daily Bank Summary */}
+            <DailyBankSummary
+                show={showBankModal}
+                onClose={() => setShowBankModal(false)}
                 companyId={companyId}
                 accountId={selectedAccountId}
             />

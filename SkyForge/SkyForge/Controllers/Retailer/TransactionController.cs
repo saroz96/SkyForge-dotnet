@@ -7,6 +7,7 @@ using SkyForge.Services.Retailer.TransactionServices;
 using SkyForge.Dto.RetailerDto.TransactionDto;
 using System.Security.Claims;
 using SkyForge.Models.CompanyModel;
+using SkyForge.Models.Retailer.TransactionModel;
 
 namespace SkyForge.Controllers.Retailer
 {
@@ -410,6 +411,344 @@ namespace SkyForge.Controllers.Retailer
         {
             // TODO: Implement proper Nepali date conversion
             return DateTime.UtcNow.ToString("yyyy-MM-dd");
+        }
+
+        [HttpGet("bank-transactions")]
+        public async Task<IActionResult> GetBankTransactions(
+    [FromQuery] string fromDate,
+    [FromQuery] string toDate,
+    [FromQuery] Guid? accountId = null)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetBankTransactions Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "Company not found" });
+
+                // Get fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Parse dates
+                if (!DateTime.TryParse(fromDate, out DateTime fromDateParsed))
+                    return BadRequest(new { success = false, error = "Invalid from date format" });
+
+                if (!DateTime.TryParse(toDate, out DateTime toDateParsed))
+                    return BadRequest(new { success = false, error = "Invalid to date format" });
+
+                toDateParsed = toDateParsed.Date.AddDays(1).AddTicks(-1);
+
+                _logger.LogInformation($"Fetching bank transactions from {fromDateParsed} to {toDateParsed}");
+
+                // Get ALL bank accounts for this company
+                var bankAccounts = await _context.Accounts
+                    .Where(a => a.CompanyId == companyIdGuid &&
+                               a.IsActive == true &&
+                               (a.Name.Contains("Bank") ||
+                                a.Name.Contains("bank") ||
+                                a.AccountGroup != null &&
+                                (a.AccountGroup.Name == "Bank Accounts"||a.AccountGroup.Name == "Bank O/D Account" ||
+                                 a.AccountGroup.Name == "Bank")))
+                    .Select(a => new { a.Id, a.Name })
+                    .ToListAsync();
+
+                var bankAccountIds = bankAccounts.Select(a => a.Id).ToList();
+
+                if (!bankAccountIds.Any())
+                {
+                    _logger.LogWarning("No bank accounts found for company: {CompanyId}", companyIdGuid);
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            totalBankInflow = 0,
+                            totalBankOutflow = 0,
+                            netBank = 0,
+                            bankAccounts = new List<object>(),
+                            transactions = new List<object>()
+                        }
+                    });
+                }
+
+                // Build query for ALL bank account transactions
+                var bankTransactionsQuery = _context.Transactions
+                    .Where(t => t.CompanyId == companyIdGuid &&
+                               t.FiscalYearId == fiscalYearIdGuid &&
+                               bankAccountIds.Contains(t.AccountId.Value) &&
+                               t.Date >= fromDateParsed &&
+                               t.Date <= toDateParsed &&
+                               t.IsActive == true);
+
+                // Filter by specific bank account if provided
+                if (accountId.HasValue && accountId.Value != Guid.Empty)
+                {
+                    bankTransactionsQuery = bankTransactionsQuery.Where(t => t.AccountId == accountId.Value);
+                }
+
+                var bankTransactions = await bankTransactionsQuery
+                    .Include(t => t.Account)
+                    .Include(t => t.PaymentAccount)
+                    .Include(t => t.ReceiptAccount)
+                    .Include(t => t.DebitAccount)
+                    .Include(t => t.CreditAccount)
+                    .OrderByDescending(t => t.Date)
+                    .ThenByDescending(t => t.BillNumber)
+                    .ToListAsync();
+
+                _logger.LogInformation($"Found {bankTransactions.Count} bank transactions");
+
+                // Calculate totals per bank account
+                var bankAccountTotals = new Dictionary<Guid, (string Name, decimal Inflow, decimal Outflow)>();
+                foreach (var account in bankAccounts)
+                {
+                    bankAccountTotals[account.Id] = (account.Name, 0, 0);
+                }
+
+                decimal totalBankInflow = 0;
+                decimal totalBankOutflow = 0;
+                decimal netBank = 0;
+
+                var transactions = new List<object>();
+
+                foreach (var transaction in bankTransactions)
+                {
+                    string transactionType = "";
+                    string transactionDescription = "";
+                    decimal amount = 0;
+                    string accountName = transaction.Account?.Name ?? "Bank Account";
+                    bool isInflow = false;
+                    string billNumber = transaction.BillNumber ?? "";
+
+                    // Determine transaction type and amount based on TransactionType
+                    switch (transaction.Type)
+                    {
+                        case TransactionType.Sale:
+                            transactionType = "Sale";
+                            transactionDescription = "Bank Sale";
+                            amount = transaction.TotalDebit;
+                            isInflow = amount > 0;
+                            if (transaction.SalesBillId.HasValue)
+                            {
+                                var salesBill = await _context.SalesBills
+                                    .Include(sb => sb.Account)
+                                    .FirstOrDefaultAsync(sb => sb.Id == transaction.SalesBillId);
+                                if (salesBill != null)
+                                {
+                                    accountName = salesBill.Account?.Name ?? "Bank Sale";
+                                    billNumber = salesBill.BillNumber ?? billNumber;
+                                }
+                            }
+                            break;
+
+                        case TransactionType.SlRt:
+                            transactionType = "Sale Return";
+                            transactionDescription = "Bank Sale Return";
+                            amount = transaction.TotalCredit;
+                            isInflow = false;
+                            if (transaction.SalesReturnBillId.HasValue)
+                            {
+                                var returnBill = await _context.SalesReturns
+                                    .Include(sr => sr.Account)
+                                    .FirstOrDefaultAsync(sr => sr.Id == transaction.SalesReturnBillId);
+                                if (returnBill != null)
+                                {
+                                    accountName = returnBill.Account?.Name ?? "Bank Return";
+                                    billNumber = returnBill.BillNumber ?? billNumber;
+                                }
+                            }
+                            break;
+
+                        case TransactionType.Purc:
+                            transactionType = "Purchase";
+                            transactionDescription = "Bank Purchase";
+                            amount = transaction.TotalCredit;
+                            isInflow = false;
+                            if (transaction.PurchaseBillId.HasValue)
+                            {
+                                var purchaseBill = await _context.PurchaseBills
+                                    .Include(pb => pb.Account)
+                                    .FirstOrDefaultAsync(pb => pb.Id == transaction.PurchaseBillId);
+                                if (purchaseBill != null)
+                                {
+                                    accountName = purchaseBill.Account?.Name ?? "Bank Purchase";
+                                    billNumber = purchaseBill.BillNumber ?? billNumber;
+                                }
+                            }
+                            break;
+
+                        case TransactionType.PrRt:
+                            transactionType = "Purchase Return";
+                            transactionDescription = "Bank Purchase Return";
+                            amount = transaction.TotalDebit;
+                            isInflow = true;
+                            if (transaction.PurchaseReturnBillId.HasValue)
+                            {
+                                var returnBill = await _context.PurchaseReturns
+                                    .Include(pr => pr.Account)
+                                    .FirstOrDefaultAsync(pr => pr.Id == transaction.PurchaseReturnBillId);
+                                if (returnBill != null)
+                                {
+                                    accountName = returnBill.Account?.Name ?? "Bank Purchase Return";
+                                    billNumber = returnBill.BillNumber ?? billNumber;
+                                }
+                            }
+                            break;
+
+                        case TransactionType.Pymt:
+                            transactionType = "Payment";
+                            transactionDescription = "Bank Payment";
+                            amount = transaction.TotalCredit;
+                            accountName = transaction.PaymentAccount?.Name ?? "Bank Payment";
+                            isInflow = false;
+                            break;
+
+                        case TransactionType.Rcpt:
+                            transactionType = "Receipt";
+                            transactionDescription = "Bank Receipt";
+                            amount = transaction.TotalDebit;
+                            accountName = transaction.ReceiptAccount?.Name ?? "Bank Receipt";
+                            isInflow = true;
+                            break;
+
+                        case TransactionType.Jrnl:
+                            transactionType = "Journal";
+                            transactionDescription = "Bank Journal";
+                            if (transaction.TotalDebit > 0 && transaction.TotalCredit > 0)
+                            {
+                                if (transaction.TotalDebit > transaction.TotalCredit)
+                                {
+                                    amount = transaction.TotalDebit - transaction.TotalCredit;
+                                    isInflow = true;
+                                }
+                                else
+                                {
+                                    amount = transaction.TotalCredit - transaction.TotalDebit;
+                                    isInflow = false;
+                                }
+                            }
+                            else if (transaction.TotalDebit > 0)
+                            {
+                                amount = transaction.TotalDebit;
+                                isInflow = true;
+                            }
+                            else
+                            {
+                                amount = transaction.TotalCredit;
+                                isInflow = false;
+                            }
+                            accountName = transaction.JournalAccountType ?? "Bank Journal";
+                            break;
+
+                        default:
+                            transactionType = "Unknown";
+                            transactionDescription = "Bank Transaction";
+                            amount = transaction.TotalDebit > 0 ? transaction.TotalDebit : transaction.TotalCredit;
+                            isInflow = transaction.TotalDebit > 0;
+                            break;
+                    }
+
+                    // Skip zero amount transactions
+                    if (amount == 0) continue;
+
+                    // Update bank account totals
+                    var accountIdKey = transaction.AccountId ?? Guid.Empty;
+                    if (bankAccountTotals.ContainsKey(accountIdKey))
+                    {
+                        var current = bankAccountTotals[accountIdKey];
+                        if (isInflow)
+                        {
+                            bankAccountTotals[accountIdKey] = (current.Name, current.Inflow + amount, current.Outflow);
+                        }
+                        else
+                        {
+                            bankAccountTotals[accountIdKey] = (current.Name, current.Inflow, current.Outflow + amount);
+                        }
+                    }
+
+                    // Update totals
+                    if (isInflow)
+                    {
+                        totalBankInflow += amount;
+                    }
+                    else
+                    {
+                        totalBankOutflow += amount;
+                    }
+
+                    // Add to transaction list
+                    transactions.Add(new
+                    {
+                        transaction.Id,
+                        BillNumber = billNumber,
+                        transaction.Date,
+                        transaction.NepaliDate,
+                        transaction.TransactionDate,
+                        transaction.TransactionDateNepali,
+                        AccountName = accountName,
+                        BankAccount = transaction.Account?.Name ?? "Bank Account",
+                        transaction.PaymentMode,
+                        Type = transactionType,
+                        Description = transactionDescription,
+                        Amount = isInflow ? amount : -amount,
+                        Inflow = isInflow,
+                        Outflow = !isInflow
+                    });
+                }
+
+                // Calculate net bank
+                netBank = totalBankInflow - totalBankOutflow;
+
+                // Build bank account summary
+                var bankAccountSummary = bankAccountTotals
+                    .Where(b => b.Value.Inflow > 0 || b.Value.Outflow > 0)
+                    .Select(b => new
+                    {
+                        AccountId = b.Key,
+                        AccountName = b.Value.Name,
+                        Inflow = b.Value.Inflow,
+                        Outflow = b.Value.Outflow,
+                        Net = b.Value.Inflow - b.Value.Outflow
+                    })
+                    .OrderByDescending(b => b.Net)
+                    .ToList();
+
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        totalBankInflow,
+                        totalBankOutflow,
+                        netBank,
+                        bankAccounts = bankAccountSummary,
+                        transactions
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting bank transactions");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
         }
     }
 }

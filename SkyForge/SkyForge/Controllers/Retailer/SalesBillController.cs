@@ -3807,8 +3807,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // [HttpGet("cash-transactions")]
-        // public async Task<IActionResult> GetCashTransactions(
+        // [HttpGet("daily/sales-transactions")]
+        // public async Task<IActionResult> GetSalesTransactions(
         //     [FromQuery] string fromDate,
         //     [FromQuery] string toDate,
         //     [FromQuery] Guid? accountId = null)
@@ -3972,6 +3972,199 @@ namespace SkyForge.Controllers.Retailer
         //         });
         //     }
         // }
+
+        [HttpGet("daily/sales-transactions")]
+        public async Task<IActionResult> GetSalesTransactions(
+            [FromQuery] string fromDate,
+            [FromQuery] string toDate,
+            [FromQuery] Guid? accountId = null)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetSalesTransactions Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "Company not found" });
+
+                // Get fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Parse dates
+                if (!DateTime.TryParse(fromDate, out DateTime fromDateParsed))
+                    return BadRequest(new { success = false, error = "Invalid from date format" });
+
+                if (!DateTime.TryParse(toDate, out DateTime toDateParsed))
+                    return BadRequest(new { success = false, error = "Invalid to date format" });
+
+                toDateParsed = toDateParsed.Date.AddDays(1).AddTicks(-1);
+
+                _logger.LogInformation($"Fetching sales transactions from {fromDateParsed} to {toDateParsed}");
+
+                // ============ GET ALL SALES (Cash + Credit) ============
+                var allSalesQuery = _context.SalesBills
+                    .Where(sb => sb.CompanyId == companyIdGuid &&
+                                sb.FiscalYearId == fiscalYearIdGuid &&
+                                sb.Date >= fromDateParsed &&
+                                sb.Date <= toDateParsed);
+
+                // Filter by account if provided
+                if (accountId.HasValue && accountId.Value != Guid.Empty)
+                {
+                    allSalesQuery = allSalesQuery.Where(sb => sb.AccountId == accountId.Value);
+                }
+
+                var allSales = await allSalesQuery
+                    .Include(sb => sb.Account)
+                    .Include(sb => sb.User)
+                    .OrderByDescending(sb => sb.Date)
+                    .ThenByDescending(sb => sb.BillNumber)
+                    .ToListAsync();
+
+                _logger.LogInformation($"Found {allSales.Count} total sales (Cash + Credit)");
+
+                // ============ GET ALL SALES RETURNS ============
+                var allReturnsQuery = _context.SalesReturns
+                    .Where(sr => sr.CompanyId == companyIdGuid &&
+                                sr.FiscalYearId == fiscalYearIdGuid &&
+                                sr.Date >= fromDateParsed &&
+                                sr.Date <= toDateParsed);
+
+                // Filter by account if provided
+                if (accountId.HasValue && accountId.Value != Guid.Empty)
+                {
+                    allReturnsQuery = allReturnsQuery.Where(sr => sr.AccountId == accountId.Value);
+                }
+
+                var allReturns = await allReturnsQuery
+                    .Include(sr => sr.Account)
+                    .Include(sr => sr.User)
+                    .OrderByDescending(sr => sr.Date)
+                    .ThenByDescending(sr => sr.BillNumber)
+                    .ToListAsync();
+
+                _logger.LogInformation($"Found {allReturns.Count} sales returns");
+
+                // ============ SEPARATE CASH AND CREDIT SALES ============
+                var cashSales = allSales.Where(sb => sb.PaymentMode?.ToLower() == "cash").ToList();
+                var creditSales = allSales.Where(sb => sb.PaymentMode?.ToLower() == "credit").ToList();
+
+                // ============ CALCULATE TOTALS ============
+                decimal totalCashSales = cashSales.Sum(sb => sb.TotalAmount);
+                decimal totalCreditSales = creditSales.Sum(sb => sb.TotalAmount);
+                decimal totalSales = allSales.Sum(sb => sb.TotalAmount);
+                decimal totalSalesReturns = allReturns.Sum(sr => sr.TotalAmount ?? 0);
+                decimal netSales = totalSales - totalSalesReturns;
+
+                // ============ BUILD TRANSACTION LIST ============
+                var transactions = new List<object>();
+
+                // Add Cash Sales
+                foreach (var sale in cashSales)
+                {
+                    transactions.Add(new
+                    {
+                        sale.Id,
+                        sale.BillNumber,
+                        sale.Date,
+                        sale.NepaliDate,
+                        sale.TransactionDate,
+                        sale.TransactionDateNepali,
+                        AccountName = sale.Account?.Name ?? sale.CashAccount ?? "Cash Sale",
+                        CashAccount = sale.CashAccount,
+                        Type = "Cash Sale",
+                        PaymentMode = "Cash",
+                        Amount = sale.TotalAmount,
+                        UserName = sale.User?.Name,
+                        IsReturn = false
+                    });
+                }
+
+                // Add Credit Sales
+                foreach (var sale in creditSales)
+                {
+                    transactions.Add(new
+                    {
+                        sale.Id,
+                        sale.BillNumber,
+                        sale.Date,
+                        sale.NepaliDate,
+                        sale.TransactionDate,
+                        sale.TransactionDateNepali,
+                        AccountName = sale.Account?.Name ?? "Credit Sale",
+                        CashAccount = sale.CashAccount,
+                        Type = "Credit Sale",
+                        PaymentMode = "Credit",
+                        Amount = sale.TotalAmount,
+                        UserName = sale.User?.Name,
+                        IsReturn = false
+                    });
+                }
+
+                // Add Sales Returns
+                foreach (var returnItem in allReturns)
+                {
+                    transactions.Add(new
+                    {
+                        returnItem.Id,
+                        returnItem.BillNumber,
+                        returnItem.Date,
+                        returnItem.NepaliDate,
+                        returnItem.TransactionDate,
+                        returnItem.TransactionDateNepali,
+                        AccountName = returnItem.Account?.Name ?? returnItem.CashAccount ?? "Sales Return",
+                        CashAccount = returnItem.CashAccount,
+                        Type = "Sales Return",
+                        PaymentMode = returnItem.PaymentMode,
+                        Amount = -(returnItem.TotalAmount ?? 0), // Negative for returns
+                        UserName = returnItem.User?.Name,
+                        IsReturn = true
+                    });
+                }
+
+                // Sort by date descending
+                transactions = transactions
+                    .OrderByDescending(t => ((dynamic)t).Date)
+                    .ThenByDescending(t => ((dynamic)t).BillNumber)
+                    .ToList();
+
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        totalCashSales,
+                        totalCreditSales,
+                        totalSales,
+                        totalSalesReturns,
+                        netSales,
+                        transactions
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting sales transactions");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
 
         [HttpGet("cash-transactions")]
         public async Task<IActionResult> GetCashTransactions(

@@ -1796,8 +1796,8 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-        
-        
+
+
         [HttpGet("purchase-vat-report")]
         public async Task<IActionResult> GetPurchaseVatReport([FromQuery] string? fromDate = null, [FromQuery] string? toDate = null)
         {
@@ -2074,5 +2074,171 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
+        [HttpGet("inventory-stock")]
+        public async Task<IActionResult> GetInventoryStock(
+    [FromQuery] string? searchTerm = null,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetInventoryStock Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "Company not found" });
+
+                // Get fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Build query for stock entries with item and purchase bill info
+                var stockQuery = _context.StockEntries
+                    .Include(se => se.Item)
+                        .ThenInclude(i => i.Unit)
+                    .Include(se => se.Item)
+                        .ThenInclude(i => i.Category)
+                    .Include(se => se.PurchaseBill)
+                        .ThenInclude(pb => pb.Account)
+                    .Include(se => se.Store)
+                    .Include(se => se.Rack)
+                    .Where(se => se.CompanyId == companyIdGuid &&
+                                 se.Quantity > 0 &&
+                                 se.FiscalYearId == fiscalYearIdGuid);
+
+                // Apply search filter
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    searchTerm = searchTerm.ToLower();
+                    stockQuery = stockQuery.Where(se =>
+                        se.Item.Name.ToLower().Contains(searchTerm) ||
+                        (se.Item.UniqueNumber != null && se.Item.UniqueNumber.ToString().ToLower().Contains(searchTerm)) ||
+                        se.BatchNumber.ToLower().Contains(searchTerm) ||
+                        (se.PurchaseBill != null && se.PurchaseBill.BillNumber.ToLower().Contains(searchTerm)) ||
+                        (se.PurchaseBill != null && se.PurchaseBill.Account != null &&
+                         se.PurchaseBill.Account.Name.ToLower().Contains(searchTerm))
+                    );
+                }
+
+                // Get total count for pagination
+                var totalItems = await stockQuery.CountAsync();
+
+                // Get paginated results
+                var stockEntries = await stockQuery
+                    .OrderByDescending(se => se.Date)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                // Group by item to calculate total stock per item
+                var itemStockSummary = stockEntries
+                    .GroupBy(se => se.ItemId)
+                    .Select(g => new
+                    {
+                        ItemId = g.Key,
+                        Item = g.First().Item,
+                        TotalStock = g.Sum(se => se.Quantity),
+                        TotalValue = g.Sum(se => se.Quantity * se.PuPrice),
+                        Batches = g.Select(se => new
+                        {
+                            se.Id,
+                            se.BatchNumber,
+                            se.ExpiryDate,
+                            se.Quantity,
+                            se.PuPrice,
+                            se.Price,
+                            se.Mrp,
+                            se.Store,
+                            se.Rack,
+                            se.ExpiryStatus,
+                            se.DaysUntilExpiry,
+                            SupplierName = se.PurchaseBill != null && se.PurchaseBill.Account != null
+                                ? se.PurchaseBill.Account.Name
+                                : "N/A",
+                            PurchaseBillNumber = se.PurchaseBill != null
+                                ? se.PurchaseBill.BillNumber
+                                : "N/A",
+                            PartyBillNumber = se.PurchaseBill != null
+                                ? se.PurchaseBill.PartyBillNumber
+                                : "N/A",
+                            PurchaseDate = se.PurchaseBill != null
+                                ? se.PurchaseBill.Date
+                                : (DateTime?)null
+                        })
+                    })
+                    .ToList();
+
+                // Calculate summary totals
+                var totalStockQuantity = await stockQuery.SumAsync(se => se.Quantity);
+                var totalStockValue = await stockQuery.SumAsync(se => se.Quantity * se.PuPrice);
+
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        totalStockQuantity,
+                        totalStockValue,
+                        totalItems,
+                        currentPage = page,
+                        pageSize,
+                        totalPages = (int)Math.Ceiling((double)totalItems / pageSize),
+                        items = itemStockSummary.Select(item => new
+                        {
+                            itemId = item.ItemId,
+                            itemName = item.Item.Name,
+                            uniqueNumber = item.Item.UniqueNumber,
+                            hscode = item.Item.Hscode,
+                            unitName = item.Item.Unit != null ? item.Item.Unit.Name : "N/A",
+                            categoryName = item.Item.Category != null ? item.Item.Category.Name : "N/A",
+                            totalStock = item.TotalStock,
+                            totalValue = item.TotalValue,
+                            batches = item.Batches.Select(b => new
+                            {
+                                b.Id,
+                                b.BatchNumber,
+                                ExpiryDate = b.ExpiryDate.ToString("yyyy-MM-dd"),
+                                b.Quantity,
+                                b.PuPrice,
+                                b.Price,
+                                b.Mrp,
+                                StoreName = b.Store != null ? b.Store.Name : "N/A",
+                                RackName = b.Rack != null ? b.Rack.Name : "N/A",
+                                b.ExpiryStatus,
+                                b.DaysUntilExpiry,
+                                SupplierName = b.SupplierName,
+                                PurchaseBillNumber = b.PurchaseBillNumber,
+                                PartyBillNumber = b.PartyBillNumber,
+                                PurchaseDate = b.PurchaseDate
+                            })
+                        })
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting inventory stock");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+
     }
 }
