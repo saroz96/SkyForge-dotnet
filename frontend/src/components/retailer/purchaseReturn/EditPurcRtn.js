@@ -156,7 +156,8 @@ const EditPurcRtn = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const headerSearchInputRef = useRef(null);
-
+    // Add this state for date format toggle
+    const [dateFormatToggle, setDateFormatToggle] = useState('nepali'); // 'nepali' or 'english'
     // Search states
     const [searchQuery, setSearchQuery] = useState('');
     const [lastSearchQuery, setLastSearchQuery] = useState('');
@@ -1003,6 +1004,28 @@ const EditPurcRtn = () => {
             }
         }
     }, [showAccountModal]);
+
+    // Handle Ctrl+D key press to toggle date format
+    useEffect(() => {
+        const handleCtrlD = (e) => {
+            // Check for Ctrl+D
+            if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault();
+
+                // Toggle between nepali and english
+                setDateFormatToggle(prev => {
+                    const newFormat = prev === 'nepali' ? 'english' : 'nepali';
+
+                    return newFormat;
+                });
+            }
+        };
+
+        window.addEventListener('keydown', handleCtrlD);
+        return () => {
+            window.removeEventListener('keydown', handleCtrlD);
+        };
+    }, []);
 
     const handleAccountModalClose = () => {
         setShowAccountModal(false);
@@ -2560,220 +2583,9 @@ const EditPurcRtn = () => {
                 <div className="card-body p-2 p-md-3">
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
-                        <div className="row g-2 mb-3">
-                            {/* {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
-                                <>
-                                    <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateNepali"
-                                                id="transactionDateNepali"
-                                                ref={transactionDateRef}
-                                                autoComplete='off'
-                                                className={`form-control form-control-sm no-date-icon ${dateErrors.transactionDateNepali ? 'is-invalid' : ''}`}
-                                                value={formData.transactionDateNepali}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-
-                                                    if (sanitizedValue.length <= 10) {
-                                                        setFormData({ ...formData, transactionDateNepali: sanitizedValue });
-                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    const allowedKeys = [
-                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                                        'Home', 'End'
-                                                    ];
-
-                                                    if (!allowedKeys.includes(e.key) &&
-                                                        !/^\d$/.test(e.key) &&
-                                                        e.key !== '/' &&
-                                                        e.key !== '-' &&
-                                                        !e.ctrlKey && !e.metaKey) {
-                                                        e.preventDefault();
-                                                    }
-
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleKeyDown(e, 'transactionDateNepali');
-                                                    }
-                                                }}
-                                                placeholder="YYYY-MM-DD"
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Transaction Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="nepaliDate"
-                                                id="nepaliDate"
-                                                autoComplete='off'
-                                                className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
-                                                value={formData.nepaliDate}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-
-                                                    if (sanitizedValue.length <= 10) {
-                                                        setFormData({ ...formData, nepaliDate: sanitizedValue });
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleKeyDown(e, 'nepaliDate');
-                                                    }
-                                                }}
-                                                placeholder="YYYY-MM-DD"
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Return Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="date"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                ref={transactionDateRef}
-                                                value={formData.transactionDateRoman}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    setFormData({ ...formData, transactionDateRoman: value });
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleKeyDown(e, 'transactionDateRoman');
-                                                    }
-                                                }}
-                                                max={new Date().toISOString().split('T')[0]}
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Transaction Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="date"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    setFormData({ ...formData, billDate: value });
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleKeyDown(e, 'billDate');
-                                                    }
-                                                }}
-                                                max={new Date().toISOString().split('T')[0]}
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Invoice Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </>
-                            )} */}
-
+                        {/* <div className="row g-2 mb-3">
                             {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
-                                    {/* Nepali Transaction Date */}
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
                                             <input
@@ -2916,39 +2728,6 @@ const EditPurcRtn = () => {
                                         </div>
                                     </div>
 
-                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                value={formData.transactionDateRoman || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Transaction Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <input
                                         type="hidden"
                                         name="transactionDateRoman"
@@ -2956,7 +2735,6 @@ const EditPurcRtn = () => {
                                         value={formData.transactionDateRoman || ''}
                                     />
 
-                                    {/* Nepali Invoice Date */}
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
                                             <input
@@ -3094,39 +2872,6 @@ const EditPurcRtn = () => {
                                         </div>
                                     </div>
 
-                                    {/* AD Invoice Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Return Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <input
                                         type="hidden"
                                         name="billDate"
@@ -3135,7 +2880,6 @@ const EditPurcRtn = () => {
                                     />
                                 </>
                             ) : (
-                                // English date format section (remains the same)
                                 <>
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
@@ -3381,9 +3125,668 @@ const EditPurcRtn = () => {
                                     </label>
                                 </div>
                             </div>
+                        </div> */}
+
+                        {/* Date and Basic Info Row */}
+                        <div className="row g-1 mb-2">
+                            {/* Transaction Date - Toggle between BS and AD */}
+                            <div className="col-12 col-md-6 col-lg-2">
+                                <div className="position-relative">
+                                    {dateFormatToggle === 'nepali' ? (
+                                        // BS Date Input
+                                        <input
+                                            type="text"
+                                            name="transactionDateNepali"
+                                            id="transactionDateNepali"
+                                            ref={transactionDateRef}
+                                            autoComplete='off'
+                                            className={`form-control form-control-sm no-date-icon ${dateErrors.transactionDateNepali ? 'is-invalid' : ''}`}
+                                            value={formData.transactionDateNepali}
+                                            onKeyDown={(e) => {
+                                                const allowedKeys = [
+                                                    'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                    'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                    'Home', 'End'
+                                                ];
+
+                                                if (!allowedKeys.includes(e.key) &&
+                                                    !/^\d$/.test(e.key) &&
+                                                    e.key !== '/' &&
+                                                    e.key !== '-' &&
+                                                    !e.ctrlKey && !e.metaKey) {
+                                                    e.preventDefault();
+                                                }
+
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const dateStr = e.target.value.trim();
+
+                                                    if (!dateStr) {
+                                                        const currentDate = getCurrentNepaliDate();
+                                                        const adDate = convertBsToAd(currentDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: currentDate,
+                                                            transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                            billDate: adDate || prev.billDate,
+                                                            nepaliDate: currentDate
+                                                        }));
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Date required. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+
+                                                        handleKeyDown(e, 'transactionDateNepali');
+                                                    } else if (dateErrors.transactionDateNepali) {
+                                                        e.target.focus();
+                                                    } else {
+                                                        handleKeyDown(e, 'transactionDateNepali');
+                                                    }
+                                                }
+                                            }}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                                if (sanitizedValue.length <= 10) {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        transactionDateNepali: sanitizedValue
+                                                    }));
+                                                    setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                    if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                        const adDate = convertBsToAd(sanitizedValue);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                transactionDateRoman: adDate,
+                                                                billDate: adDate,
+                                                                nepaliDate: sanitizedValue
+                                                            }));
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const dateStr = e.target.value.trim();
+                                                if (!dateStr) {
+                                                    setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                    return;
+                                                }
+
+                                                if (isValidNepaliDate(dateStr)) {
+                                                    const adDate = convertBsToAd(dateStr);
+                                                    if (adDate) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: dateStr,
+                                                            transactionDateRoman: adDate,
+                                                            billDate: adDate,
+                                                            nepaliDate: dateStr
+                                                        }));
+                                                    }
+                                                    setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                } else {
+                                                    const currentDate = getCurrentNepaliDate();
+                                                    const adDate = convertBsToAd(currentDate);
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        transactionDateNepali: currentDate,
+                                                        transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                        billDate: adDate || prev.billDate,
+                                                        nepaliDate: currentDate
+                                                    }));
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                }
+                                            }}
+                                            placeholder="YYYY-MM-DD"
+                                            required
+                                            style={{
+                                                height: '26px',
+                                                fontSize: '0.875rem',
+                                                paddingTop: '0.75rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    ) : (
+                                        // AD Date Input
+                                        <input
+                                            type="date"
+                                            name="transactionDateRoman"
+                                            id="transactionDateRoman"
+                                            className="form-control form-control-sm"
+                                            value={formData.transactionDateRoman || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+
+                                                if (!value) {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        transactionDateRoman: value
+                                                    }));
+                                                    return;
+                                                }
+
+                                                const bsDate = convertAdToBs(value);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    transactionDateRoman: value,
+                                                    transactionDateNepali: bsDate || prev.transactionDateNepali,
+                                                    billDate: value,
+                                                    nepaliDate: bsDate || prev.nepaliDate
+                                                }));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const value = e.target.value;
+
+                                                    if (!value) {
+                                                        const today = new Date();
+                                                        const todayStr = today.toISOString().split('T')[0];
+                                                        const bsDate = convertAdToBs(todayStr);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateRoman: todayStr,
+                                                            transactionDateNepali: bsDate || prev.transactionDateNepali,
+                                                            nepaliDate: bsDate || prev.nepaliDate
+                                                        }));
+
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Date required. Auto-corrected to today.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    }
+
+                                                    handleKeyDown(e, 'transactionDateRoman');
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const value = e.target.value;
+                                                if (!value) {
+                                                    const today = new Date();
+                                                    const todayStr = today.toISOString().split('T')[0];
+                                                    const bsDate = convertAdToBs(todayStr);
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        transactionDateRoman: todayStr,
+                                                        transactionDateNepali: bsDate || prev.transactionDateNepali,
+                                                        nepaliDate: bsDate || prev.nepaliDate
+                                                    }));
+
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Date required. Auto-corrected to today.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                }
+                                            }}
+                                            style={{
+                                                height: '26px',
+                                                fontSize: '0.875rem',
+                                                paddingTop: '0.75rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    )}
+                                    <label className="position-absolute" style={{
+                                        top: '-0.5rem',
+                                        left: '0.75rem',
+                                        fontSize: '0.75rem',
+                                        backgroundColor: 'white',
+                                        padding: '0 0.25rem',
+                                        color: '#6c757d',
+                                        fontWeight: '500'
+                                    }}>
+                                        Transaction Date {dateFormatToggle === 'nepali' ? '(BS)' : '(AD)'}:
+                                        <span className="text-danger">*</span>
+                                        <span className="text-primary ms-1" style={{ fontSize: '0.6rem', cursor: 'pointer' }}
+                                            onClick={() => {
+                                                setDateFormatToggle(prev => prev === 'nepali' ? 'english' : 'nepali');
+                                                setNotification({
+                                                    show: true,
+                                                    message: `Switched to ${dateFormatToggle === 'nepali' ? 'English (AD)' : 'Nepali (BS)'} date format`,
+                                                    type: 'info',
+                                                    duration: 2000
+                                                });
+                                            }}>
+                                        </span>
+                                    </label>
+                                    {dateErrors.transactionDateNepali && dateFormatToggle === 'nepali' && (
+                                        <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                            {dateErrors.transactionDateNepali}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Hidden fields to store both dates */}
+                            <input
+                                type="hidden"
+                                name="transactionDateNepaliHidden"
+                                id="transactionDateNepaliHidden"
+                                value={formData.transactionDateNepali || ''}
+                            />
+                            <input
+                                type="hidden"
+                                name="transactionDateRomanHidden"
+                                id="transactionDateRomanHidden"
+                                value={formData.transactionDateRoman || ''}
+                            />
+
+                            {/* Return Date - Toggle between BS and AD */}
+                            <div className="col-12 col-md-6 col-lg-2">
+                                <div className="position-relative">
+                                    {dateFormatToggle === 'nepali' ? (
+                                        // BS Return Date
+                                        <input
+                                            type="text"
+                                            name="nepaliDate"
+                                            id="nepaliDate"
+                                            autoComplete='off'
+                                            className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
+                                            value={formData.nepaliDate}
+                                            onKeyDown={(e) => {
+                                                const allowedKeys = [
+                                                    'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                    'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                    'Home', 'End'
+                                                ];
+
+                                                if (!allowedKeys.includes(e.key) &&
+                                                    !/^\d$/.test(e.key) &&
+                                                    e.key !== '/' &&
+                                                    e.key !== '-' &&
+                                                    !e.ctrlKey && !e.metaKey) {
+                                                    e.preventDefault();
+                                                }
+
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const dateStr = e.target.value.trim();
+
+                                                    if (!dateStr) {
+                                                        const currentDate = getCurrentNepaliDate();
+                                                        const adDate = convertBsToAd(currentDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: currentDate,
+                                                            billDate: adDate || prev.billDate
+                                                        }));
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Date required. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+
+                                                        handleKeyDown(e, 'nepaliDate');
+                                                    } else if (dateErrors.nepaliDate) {
+                                                        e.target.focus();
+                                                    } else {
+                                                        handleKeyDown(e, 'nepaliDate');
+                                                    }
+                                                }
+                                            }}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                                if (sanitizedValue.length <= 10) {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        nepaliDate: sanitizedValue
+                                                    }));
+                                                    setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                    if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                        const adDate = convertBsToAd(sanitizedValue);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const dateStr = e.target.value.trim();
+                                                if (!dateStr) {
+                                                    setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                    return;
+                                                }
+
+                                                if (isValidNepaliDate(dateStr)) {
+                                                    const adDate = convertBsToAd(dateStr);
+                                                    if (adDate) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: dateStr,
+                                                            billDate: adDate
+                                                        }));
+                                                    }
+                                                    setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+                                                } else {
+                                                    const currentDate = getCurrentNepaliDate();
+                                                    const adDate = convertBsToAd(currentDate);
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        nepaliDate: currentDate,
+                                                        billDate: adDate || prev.billDate
+                                                    }));
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                }
+                                            }}
+                                            placeholder="YYYY-MM-DD"
+                                            required
+                                            style={{
+                                                height: '26px',
+                                                fontSize: '0.875rem',
+                                                paddingTop: '0.75rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    ) : (
+                                        // AD Return Date
+                                        <input
+                                            type="date"
+                                            name="billDate"
+                                            id="billDate"
+                                            className="form-control form-control-sm"
+                                            value={formData.billDate || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+
+                                                if (!value) {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        billDate: value
+                                                    }));
+                                                    return;
+                                                }
+
+                                                const bsDate = convertAdToBs(value);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    billDate: value,
+                                                    nepaliDate: bsDate || prev.nepaliDate,
+                                                    transactionDateNepali: bsDate || prev.transactionDateNepali,
+                                                    transactionDateRoman: value
+                                                }));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const value = e.target.value;
+
+                                                    if (!value) {
+                                                        const today = new Date();
+                                                        const todayStr = today.toISOString().split('T')[0];
+                                                        const bsDate = convertAdToBs(todayStr);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            billDate: todayStr,
+                                                            nepaliDate: bsDate || prev.nepaliDate,
+                                                            transactionDateNepali: bsDate || prev.transactionDateNepali
+                                                        }));
+
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Date required. Auto-corrected to today.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    }
+
+                                                    handleKeyDown(e, 'billDate');
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const value = e.target.value;
+                                                if (!value) {
+                                                    const today = new Date();
+                                                    const todayStr = today.toISOString().split('T')[0];
+                                                    const bsDate = convertAdToBs(todayStr);
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        billDate: todayStr,
+                                                        nepaliDate: bsDate || prev.nepaliDate,
+                                                        transactionDateNepali: bsDate || prev.transactionDateNepali
+                                                    }));
+
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Date required. Auto-corrected to today.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                }
+                                            }}
+                                            style={{
+                                                height: '26px',
+                                                fontSize: '0.875rem',
+                                                paddingTop: '0.75rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    )}
+                                    <label className="position-absolute" style={{
+                                        top: '-0.5rem',
+                                        left: '0.75rem',
+                                        fontSize: '0.75rem',
+                                        backgroundColor: 'white',
+                                        padding: '0 0.25rem',
+                                        color: '#6c757d',
+                                        fontWeight: '500'
+                                    }}>
+                                        Return Date {dateFormatToggle === 'nepali' ? '(BS)' : '(AD)'}:
+                                        <span className="text-danger">*</span>
+                                    </label>
+                                    {dateErrors.nepaliDate && dateFormatToggle === 'nepali' && (
+                                        <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                            {dateErrors.nepaliDate}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Hidden fields for both return dates */}
+                            <input
+                                type="hidden"
+                                name="nepaliDateHidden"
+                                id="nepaliDateHidden"
+                                value={formData.nepaliDate || ''}
+                            />
+                            <input
+                                type="hidden"
+                                name="billDateHidden"
+                                id="billDateHidden"
+                                value={formData.billDate || ''}
+                            />
+
+                            {/* Rest of your fields (billNumber, paymentMode, etc.) - keep these unchanged */}
+                            <div className="col-12 col-md-6 col-lg-2">
+                                <div className="position-relative">
+                                    <input
+                                        type="text"
+                                        name="billNumber"
+                                        id="billNumber"
+                                        className="form-control form-control-sm"
+                                        value={formData.billNumber}
+                                        readOnly
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                document.getElementById('paymentMode')?.focus();
+                                            }
+                                        }}
+                                        style={{
+                                            height: '26px',
+                                            fontSize: '0.875rem',
+                                            paddingTop: '0.75rem',
+                                            width: '100%'
+                                        }}
+                                    />
+                                    <label
+                                        className="position-absolute"
+                                        style={{
+                                            top: '-0.5rem',
+                                            left: '0.75rem',
+                                            fontSize: '0.75rem',
+                                            backgroundColor: 'white',
+                                            padding: '0 0.25rem',
+                                            color: '#6c757d',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        Inv. No:
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="col-12 col-md-6 col-lg-2">
+                                <div className="position-relative">
+                                    <select
+                                        className="form-control form-control-sm"
+                                        name="paymentMode"
+                                        id="paymentMode"
+                                        value={formData.paymentMode}
+                                        onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleKeyDown(e, 'paymentMode');
+                                            }
+                                        }}
+                                        style={{
+                                            height: '26px',
+                                            fontSize: '0.875rem',
+                                            paddingTop: '0.25rem',
+                                            width: '100%'
+                                        }}
+                                    >
+                                        <option value="credit">credit</option>
+                                        <option value="cash">cash</option>
+                                    </select>
+                                    <label
+                                        className="position-absolute"
+                                        style={{
+                                            top: '-0.5rem',
+                                            left: '0.75rem',
+                                            fontSize: '0.75rem',
+                                            backgroundColor: 'white',
+                                            padding: '0 0.25rem',
+                                            color: '#6c757d',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        Payment Mode:
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="col-12 col-md-6 col-lg-2">
+                                <div className="position-relative">
+                                    <input
+                                        type="text"
+                                        id="partyBillNumber"
+                                        name="partyBillNumber"
+                                        className="form-control form-control-sm"
+                                        value={formData.partyBillNumber}
+                                        onChange={(e) => setFormData({ ...formData, partyBillNumber: e.target.value })}
+                                        required
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleKeyDown(e, 'partyBillNumber');
+                                            }
+                                        }}
+                                        style={{
+                                            height: '26px',
+                                            fontSize: '0.875rem',
+                                            paddingTop: '0.75rem',
+                                            width: '100%'
+                                        }}
+                                    />
+                                    <label
+                                        className="position-absolute"
+                                        style={{
+                                            top: '-0.5rem',
+                                            left: '0.75rem',
+                                            fontSize: '0.75rem',
+                                            backgroundColor: 'white',
+                                            padding: '0 0.25rem',
+                                            color: '#6c757d',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        Supp. Inv. No: <span className="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="col-12 col-md-6 col-lg-2">
+                                <div className="position-relative">
+                                    <select
+                                        className="form-control form-control-sm"
+                                        name="isVatExempt"
+                                        id="isVatExempt"
+                                        value={formData.isVatExempt}
+                                        onChange={(e) => setFormData({ ...formData, isVatExempt: e.target.value })}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleKeyDown(e, 'isVatExempt');
+                                            }
+                                        }}
+                                        style={{
+                                            height: '26px',
+                                            fontSize: '0.875rem',
+                                            paddingTop: '0.25rem',
+                                            width: '100%'
+                                        }}
+                                    >
+                                        {company.vatEnabled && <option value="all">All</option>}
+                                        {company.vatEnabled && <option value="false">13%</option>}
+                                        <option value="true">Exempt</option>
+                                    </select>
+                                    <label
+                                        className="position-absolute"
+                                        style={{
+                                            top: '-0.5rem',
+                                            left: '0.75rem',
+                                            fontSize: '0.75rem',
+                                            backgroundColor: 'white',
+                                            padding: '0 0.25rem',
+                                            color: '#6c757d',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        VAT
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="row g-2 mb-3">
+                        <div className="row g-1 mb-2">
                             {/* Party Name Field */}
                             <div className="col-12 col-md-6">
                                 <div className="position-relative">
@@ -3535,8 +3938,8 @@ const EditPurcRtn = () => {
                         <div
                             className="table-responsive"
                             style={{
-                                minHeight: "270px",
-                                maxHeight: "270px",
+                                minHeight: "230px",
+                                maxHeight: "230px",
                                 overflowY: "auto",
                                 border: items.length > 0 ? '1px solid #dee2e6' : '1px dashed #ced4da',
                                 backgroundColor: '#fff'
@@ -4098,11 +4501,11 @@ const EditPurcRtn = () => {
                         </div>
 
                         {/* Totals Section */}
-                        <div className="table-responsive mb-2">
+                        <div className="table-responsive mb-0">
                             <table className="table table-sm table-bordered mb-1">
                                 <thead>
                                     <tr>
-                                        <th colSpan="6" className="text-center bg-light py-1" style={{ padding: '2px' }}>Bill Details</th>
+                                        <th colSpan="6" className="text-center bg-light py-0" style={{ padding: '2px' }}>Bill Details</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -4174,36 +4577,6 @@ const EditPurcRtn = () => {
                                             </div>
                                         </td>
                                     </tr>
-
-                                    {/* <tr id="taxableAmountRow">
-                                        {company.vatEnabled && formData.isVatExempt !== 'true' && (
-                                            <>
-                                                <td style={{ padding: '1px' }}>
-                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
-                                                </td>
-                                                <td style={{ padding: '1px' }}>
-                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.taxableAmount.toFixed(2)}</p>
-                                                </td>
-                                                <td style={{ padding: '1px' }}>
-                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT %:</label>
-                                                </td>
-                                                <td style={{ padding: '1px' }}>
-                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>{formData.vatPercentage}%</p>
-                                                </td>
-                                                <td style={{ padding: '1px' }}>
-                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT Amount:</label>
-                                                </td>
-                                                <td style={{ padding: '1px' }}>
-                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.vatAmount.toFixed(2)}</p>
-                                                </td>
-                                            </>
-                                        )}
-                                        {company.vatEnabled && formData.isVatExempt === 'true' && (
-                                            <td colSpan="6" className="text-center text-muted">
-                                                VAT Exempt
-                                            </td>
-                                        )}
-                                    </tr> */}
 
                                     <tr id="taxableAmountRow">
                                         <td style={{ padding: '1px' }}>
@@ -4293,88 +4666,6 @@ const EditPurcRtn = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <div className="position-relative">
-                                                <div className="input-group input-group-sm">
-                                                    <input
-                                                        type="number"
-                                                        className="form-control form-control-sm"
-                                                        step="any"
-                                                        id="roundOffAmount"
-                                                        name="roundOffAmount"
-                                                        value={roundOffPurchase && !manualRoundOffOverride ? totals.autoRoundOffAmount.toFixed(2) : formData.roundOffAmount}
-                                                        onChange={(e) => {
-                                                            if (roundOffPurchase) {
-                                                                setManualRoundOffOverride(true);
-                                                            }
-                                                            setFormData({ ...formData, roundOffAmount: parseFloat(e.target.value) || 0 });
-                                                        }}
-                                                        onFocus={(e) => {
-                                                            e.target.select();
-                                                            if (roundOffPurchase && !manualRoundOffOverride) {
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
-                                                                }));
-                                                            }
-                                                        }}
-                                                        onBlur={(e) => {
-                                                            if (roundOffPurchase && parseFloat(e.target.value) === totals.autoRoundOffAmount) {
-                                                                setManualRoundOffOverride(false);
-                                                            }
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                document.getElementById('saveBill')?.focus();
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            height: '22px',
-                                                            fontSize: '0.875rem',
-                                                            width: '100%'
-                                                        }}
-                                                    />
-                                                    {roundOffPurchase && (
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-outline-secondary btn-sm"
-                                                            onClick={() => {
-                                                                if (manualRoundOffOverride) {
-                                                                    setManualRoundOffOverride(false);
-                                                                    setFormData(prev => ({
-                                                                        ...prev,
-                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
-                                                                    }));
-                                                                } else {
-                                                                    setManualRoundOffOverride(true);
-                                                                    setFormData(prev => ({
-                                                                        ...prev,
-                                                                        roundOffAmount: totals.autoRoundOffAmount.toFixed(2)
-                                                                    }));
-                                                                }
-                                                            }}
-                                                            title={manualRoundOffOverride ? "Use auto round-off" : "Switch to manual input"}
-                                                            style={{
-                                                                height: '22px',
-                                                                fontSize: '0.75rem'
-                                                            }}
-                                                        >
-                                                            {manualRoundOffOverride ? (
-                                                                <i className="bi bi-arrow-clockwise"></i>
-                                                            ) : (
-                                                                <i className="bi bi-pencil"></i>
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                {roundOffPurchase && (
-                                                    <small className="text-muted" style={{ fontSize: '0.65rem' }}>
-                                                        {manualRoundOffOverride ? "Manual override active" : "Auto round-off enabled"}
-                                                    </small>
-                                                )}
-                                            </div>
-                                        </td> */}
 
                                         <td style={{ padding: '1px', verticalAlign: 'middle' }}>
                                             <div className="position-relative" style={{ minWidth: '150px' }}>
@@ -4520,7 +4811,14 @@ const EditPurcRtn = () => {
 
                             {/* Action Buttons */}
                             <div className="d-flex gap-2">
-                                <Button variant="secondary" className="btn-sm d-flex align-items-center" onClick={handleBack}>
+                                <Button variant="secondary" className="btn-sm d-flex align-items-center" onClick={handleBack}
+                                    style={{
+                                        height: '26px',
+                                        padding: '0 12px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: '500'
+                                    }}
+                                >
                                     <BiArrowBack /> Back
                                 </Button>
                                 <button
@@ -5163,412 +5461,6 @@ const EditPurcRtn = () => {
                     </div>
                 </div>
             )}
-
-            {/* Transaction Modal */}
-            {/* {showTransactionModal && (
-                <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{ display: 'block' }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content">
-                            <div className="modal-header py-1 px-3" style={{ minHeight: '40px' }}>
-                                <h6 className="modal-title mb-0" id="transactionModalLabel" style={{ fontSize: '1rem' }}>
-                                    Last Purchase Return Transactions
-                                </h6>
-                                <button
-                                    type="button"
-                                    className="close p-0"
-                                    onClick={handleTransactionModalClose}
-                                    aria-label="Close"
-                                    style={{
-                                        margin: '0',
-                                        fontSize: '1.2rem',
-                                        lineHeight: '1',
-                                        background: 'none',
-                                        border: 'none'
-                                    }}
-                                >
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
-                            </div>
-
-                            <div className="modal-body p-0">
-                                <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                    <table className="table table-sm table-hover mb-0 small">
-                                        <thead>
-                                            <tr className="sticky-top bg-light" style={{ top: 0 }}>
-                                                <th style={{
-                                                    width: '5%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>#</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Date</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Return No.</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Type</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>A/c Type</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Pay.Mode</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap',
-                                                    textAlign: 'right'
-                                                }}>Qty.</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Unit</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap',
-                                                    textAlign: 'right'
-                                                }}>Rate</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {transactions.length > 0 ? (
-                                                transactions.map((transaction, index) => (
-                                                    <tr
-                                                        key={index}
-                                                        style={{
-                                                            cursor: 'pointer',
-                                                            height: '28px',
-                                                            fontSize: '0.8rem'
-                                                        }}
-                                                        onClick={() => {
-                                                            if (transaction.purchaseReturnBillId && transaction.purchaseReturnBillId.id) {
-                                                                navigate(`/retailer/purchase-return/${transaction.purchaseReturnBillId.id}/print`);
-                                                            }
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                if (transaction.purchaseReturnBillId && transaction.purchaseReturnBillId.id) {
-                                                                    navigate(`/retailer/purchase-return/${transaction.purchaseReturnBillId.id}/print`);
-                                                                }
-                                                            } else if (e.key === 'Tab') {
-                                                                e.preventDefault();
-                                                                continueButtonRef.current?.focus();
-                                                            }
-                                                        }}
-                                                        tabIndex={0}
-                                                    >
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{index + 1}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', whiteSpace: 'nowrap' }}>
-                                                            {new NepaliDate(transaction.date).format('YYYY-MM-DD')}
-                                                        </td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', fontWeight: '500' }}>
-                                                            {transaction.billNumber || 'N/A'}
-                                                        </td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.type || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.purchaseSalesReturnType || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.paymentMode || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', textAlign: 'right' }}>{transaction.quantity || 0}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.unit?.name || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', textAlign: 'right', fontWeight: '500' }}>
-                                                            Rs.{transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr style={{ height: '28px' }}>
-                                                    <td colSpan="9" className="text-center text-muted align-middle" style={{ padding: '0.15rem 0.3rem' }}>
-                                                        No previous purchase return transactions found
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div className="modal-footer py-1 px-3" style={{ minHeight: '45px' }}>
-                                <button
-                                    ref={continueButtonRef}
-                                    type="button"
-                                    className="btn btn-primary btn-sm py-1 px-3"
-                                    onClick={handleTransactionModalClose}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleTransactionModalClose();
-                                        } else if (e.key === 'Tab' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            const firstTransactionRow = document.querySelector('tbody tr');
-                                            if (firstTransactionRow) {
-                                                firstTransactionRow.focus();
-                                            }
-                                        }
-                                    }}
-                                    style={{
-                                        fontSize: '0.8rem',
-                                        lineHeight: '1.2',
-                                        minHeight: '28px'
-                                    }}
-                                >
-                                    Continue
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )} */}
-
-            {/* {showTransactionModal && (
-                <div
-                    className="modal fade show"
-                    id="transactionModal"
-                    tabIndex="-1"
-                    style={{
-                        display: 'block',
-                        backgroundColor: 'rgba(0,0,0,0.5)'
-                    }}
-                    role="dialog"
-                    aria-labelledby="transactionModalLabel"
-                    aria-modal="true"
-                >
-                    <div className="modal-dialog modal-lg modal-dialog-centered">
-                        <div className="modal-content shadow-sm border-0 rounded-2">
-                            <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
-                                <div className="d-flex align-items-center">
-                                    <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
-                                    <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                                        {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
-                                    </h6>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="btn-close btn-close-white"
-                                    style={{ fontSize: '0.5rem', padding: '0.5rem' }}
-                                    onClick={handleTransactionModalClose}
-                                    aria-label="Close"
-                                ></button>
-                            </div>
-
-                            <div className="modal-body p-0">
-                                <div
-                                    className="table-responsive"
-                                    style={{ maxHeight: '220px', overflowY: 'auto' }}
-                                    id="transactionTableContainer"
-                                >
-                                    <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
-                                        <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
-                                            <tr>
-                                                <th className="py-1 px-1 text-center" style={{ width: '5%' }}>#</th>
-                                                <th className="py-1 px-1" style={{ width: '12%' }}>Date</th>
-                                                <th className="py-1 px-1" style={{ width: '12%' }}>Inv.No</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Type</th>
-                                                <th className="py-1 px-1" style={{ width: '10%' }}>A/c</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Pay</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Qty</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Free</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Unit</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '13%' }}>Rate</th>
-                                                <th className="py-1 px-1 text-center" style={{ width: '10%' }}></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {transactions.length > 0 ? (
-                                                transactions.map((transaction, index) => {
-                                                    // Format date based on company date format
-                                                    let formattedDate = '';
-                                                    if (company.dateFormat === 'nepali' || company.dateFormat === 'Nepali') {
-                                                        try {
-                                                            const dateObj = new Date(transaction.date);
-                                                            if (!isNaN(dateObj.getTime())) {
-                                                                const nepaliDate = new NepaliDate(dateObj);
-                                                                formattedDate = nepaliDate.format('YYYY-MM-DD');
-                                                            } else {
-                                                                formattedDate = transaction.date?.split('T')[0] || 'N/A';
-                                                            }
-                                                        } catch (error) {
-                                                            console.error('Error formatting Nepali date:', error);
-                                                            formattedDate = transaction.date?.split('T')[0] || 'N/A';
-                                                        }
-                                                    } else {
-                                                        formattedDate = transaction.date?.split('T')[0] || 'N/A';
-                                                    }
-
-                                                    return (
-                                                        <tr
-                                                            key={index}
-                                                            id={`transaction-row-${index}`}
-                                                            className="transaction-row"
-                                                            data-index={index}
-                                                            style={{
-                                                                cursor: 'pointer',
-                                                                height: '28px',
-                                                                backgroundColor: highlightedRowIndex === index ? '#0d6efd' : 'transparent',
-                                                                color: highlightedRowIndex === index ? 'white' : 'inherit',
-                                                                transition: 'background-color 0.2s ease'
-                                                            }}
-                                                            onMouseEnter={(e) => {
-                                                                if (highlightedRowIndex !== index) {
-                                                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
-                                                                    e.currentTarget.style.color = 'inherit';
-                                                                }
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                if (highlightedRowIndex !== index) {
-                                                                    e.currentTarget.style.backgroundColor = '';
-                                                                    e.currentTarget.style.color = '';
-                                                                }
-                                                            }}
-                                                            onClick={() => {
-                                                                if (transactionType === 'purchase') {
-                                                                    const billId = transaction.purchaseBillId || transaction.billId;
-                                                                    if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                } else {
-                                                                    const billId = transaction.salesBillId || transaction.billId;
-                                                                    if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                }
-                                                            }}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    e.preventDefault();
-                                                                    if (transactionType === 'purchase') {
-                                                                        const billId = transaction.purchaseBillId || transaction.billId;
-                                                                        if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                    } else {
-                                                                        const billId = transaction.salesBillId || transaction.billId;
-                                                                        if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                    }
-                                                                }
-                                                            }}
-                                                            tabIndex={-1}
-                                                        >
-                                                            <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
-                                                            <td className="py-1 px-1 text-nowrap">{formattedDate}</td>
-                                                            <td className="py-1 px-1 fw-semibold">{transaction.billNumber || 'N/A'}</td>
-                                                            <td className="py-1 px-1">
-                                                                <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
-                                                                    {transaction.type?.substring(0, 4) || 'N/A'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="py-1 px-1 text-muted">{transaction.purchaseSalesType?.substring(0, 8) || 'N/A'}</td>
-                                                            <td className="py-1 px-1">
-                                                                <span className={`badge ${transaction.paymentMode === 'Cash' ? 'bg-warning' : 'bg-primary'} bg-opacity-25 text-dark px-1 py-0`} style={{ fontSize: '0.6rem' }}>
-                                                                    {transaction.paymentMode?.substring(0, 6) || 'N/A'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="py-1 px-1 text-end fw-medium">{transaction.quantity || 0}</td>
-                                                            <td className="py-1 px-1 text-end text-secondary">{transaction.bonus || 0}</td>
-                                                            <td className="py-1 px-1">{transaction.unitName || transaction.unit || 'N/A'}</td>
-                                                            <td className="py-1 px-1 text-end fw-semibold">{transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0}</td>
-                                                            <td className="py-1 px-1 text-center">
-                                                                <button
-                                                                    className="btn btn-sm btn-outline-primary py-0 px-1"
-                                                                    style={{ fontSize: '0.6rem' }}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        if (transactionType === 'purchase') {
-                                                                            const billId = transaction.purchaseBillId || transaction.billId;
-                                                                            if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                        } else {
-                                                                            const billId = transaction.salesBillId || transaction.billId;
-                                                                            if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="11" className="text-center py-3">
-                                                        <div className="d-flex flex-column align-items-center">
-                                                            <i className="bi bi-inbox text-muted" style={{ fontSize: '1.5rem' }}></i>
-                                                            <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>No transactions found</p>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {transactions.length > 7 && (
-                                    <div className="text-center py-1 bg-light border-top" style={{ fontSize: '0.6rem', color: '#6c757d' }}>
-                                        <i className="bi bi-arrow-down-short me-1"></i>Scroll for more ({transactions.length} total)<i className="bi bi-arrow-down-short ms-1"></i>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="modal-footer py-1 px-2 bg-light border-top">
-                                <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
-                                    <div>
-                                        {transactionType === 'purchase' && (
-                                            <button
-                                                id="showSalesTransactions"
-                                                className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                onClick={fetchSalesTransactions}
-                                                style={{ fontSize: '0.65rem', height: '24px' }}
-                                            >
-                                                <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
-                                                Show Sales Transaction
-                                            </button>
-                                        )}
-
-                                        {transactionType === 'sales' && (
-                                            <button
-                                                id="showPurchaseTransactions"
-                                                className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                onClick={fetchPurchaseTransactions}
-                                                style={{ fontSize: '0.65rem', height: '24px' }}
-                                            >
-                                                <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
-                                                Show Purchase Transaction
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    <button
-                                        ref={continueButtonRef}
-                                        type="button"
-                                        className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
-                                        onClick={handleTransactionModalClose}
-                                        style={{ fontSize: '0.65rem', height: '24px' }}
-                                    >
-                                        <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
-                                        Continue
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )} */}
 
             {showTransactionModal && (
                 <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{

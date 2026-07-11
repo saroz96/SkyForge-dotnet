@@ -2499,7 +2499,7 @@ const AddSalesQuotation = () => {
                 <div className="card-body p-2 p-md-3">
                     <form onSubmit={handleSubmit} id="quotationForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row - same as your original */}
-                        <div className="row g-2 mb-3">
+                        <div className="row g-1 mb-2">
 
                             {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
@@ -3098,7 +3098,7 @@ const AddSalesQuotation = () => {
                             </div>
                         </div>
 
-                        <div className="row g-2 mb-3">
+                        <div className="row g-1 mb-2">
                             {/* Party Name Field */}
                             <div className="col-12 col-md-6">
                                 <div className="position-relative">
@@ -3259,8 +3259,8 @@ const AddSalesQuotation = () => {
                         <div
                             className="table-responsive"
                             style={{
-                                minHeight: "270px",
-                                maxHeight: "270px",
+                                minHeight: "230px",
+                                maxHeight: "230px",
                                 overflowY: "auto",
                                 border: items.length > 0 ? '1px solid #dee2e6' : '1px dashed #ced4da',
                                 backgroundColor: '#fff'
@@ -3635,11 +3635,11 @@ const AddSalesQuotation = () => {
                         </div>
 
                         {/* Totals Section */}
-                        <div className="table-responsive mb-2">
+                        <div className="table-responsive mb-0">
                             <table className="table table-sm table-bordered mb-1">
                                 <thead>
                                     <tr>
-                                        <th colSpan="6" className="text-center bg-light py-1" style={{ padding: '2px' }}>Bill Details</th>
+                                        <th colSpan="6" className="text-center bg-light py-0" style={{ padding: '2px' }}>Bill Details</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -3922,7 +3922,7 @@ const AddSalesQuotation = () => {
                             </table>
                         </div>
 
-                        <div className="row g-2 mb-2">
+                        <div className="row g-1 mb-0">
                             {/* Description Field */}
                             <div className="col-md-8 col-lg-9">
                                 <div className="position-relative">

@@ -3134,7 +3134,7 @@ const AddSales = () => {
                 <div className="card-body p-2 p-md-3">
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
-                        <div className="row g-2 mb-3">
+                        <div className="row g-1 mb-2">
 
                             {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
@@ -3731,7 +3731,7 @@ const AddSales = () => {
                             </div>
                         </div>
 
-                        <div className="row g-2 mb-3">
+                        <div className="row g-1 mb-2">
                             {/* Party Name Field */}
                             <div className="col-12 col-md-6">
                                 <div className="position-relative">
@@ -3892,8 +3892,8 @@ const AddSales = () => {
                         <div
                             className="table-responsive"
                             style={{
-                                minHeight: "270px",
-                                maxHeight: "270px",
+                                minHeight: "230px",
+                                maxHeight: "230px",
                                 overflowY: "auto",
                                 border: items.length > 0 ? '1px solid #dee2e6' : '1px dashed #ced4da',
                                 backgroundColor: '#fff'
@@ -4375,11 +4375,11 @@ const AddSales = () => {
                         </div>
 
                         {/* Bill Details Table - same as AddPurcRtn */}
-                        <div className="table-responsive mb-2">
+                        <div className="table-responsive mb-0">
                             <table className="table table-sm table-bordered mb-1">
                                 <thead>
                                     <tr>
-                                        <th colSpan="6" className="text-center bg-light py-1" style={{ padding: '2px' }}>Bill Details</th>
+                                        <th colSpan="6" className="text-center bg-light py-0" style={{ padding: '2px' }}>Bill Details</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -4618,8 +4618,8 @@ const AddSales = () => {
                             </table>
                         </div>
 
-                        {/* Action Buttons - same as AddPurcRtn */}
-                        <div className="row g-2 mb-2">
+                        {/* Action Buttons */}
+                        <div className="row g-2 mb-0">
                             <div className="col-12">
                                 <div className="d-flex justify-content-between align-items-center h-100">
                                     <div className="form-check mb-0 d-flex align-items-center">

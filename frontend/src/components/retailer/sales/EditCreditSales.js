@@ -2422,212 +2422,8 @@ const EditCreditSales = () => {
                 <div className="card-body p-2 p-md-3">
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
-                        <div className="row g-2 mb-3">
-                            {/* {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
-                                <>
-                                    <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateNepali"
-                                                id="transactionDateNepali"
-                                                ref={company.dateFormat === 'nepali' ? transactionDateRef : null}
-                                                autoComplete='off'
-                                                className={`form-control form-control-sm no-date-icon ${dateErrors.transactionDateNepali ? 'is-invalid' : ''}`}
-                                                value={formData.transactionDateNepali}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-                                                    if (sanitizedValue.length <= 10) {
-                                                        setFormData({ ...formData, transactionDateNepali: sanitizedValue });
-                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    const allowedKeys = [
-                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                                        'Home', 'End'
-                                                    ];
-                                                    if (!allowedKeys.includes(e.key) &&
-                                                        !/^\d$/.test(e.key) &&
-                                                        e.key !== '/' &&
-                                                        e.key !== '-' &&
-                                                        !e.ctrlKey && !e.metaKey) {
-                                                        e.preventDefault();
-                                                    }
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleKeyDown(e, 'transactionDateNepali');
-                                                    }
-                                                }}
-                                                placeholder="YYYY-MM-DD"
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Transaction Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="nepaliDate"
-                                                id="nepaliDate"
-                                                autoComplete='off'
-                                                className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
-                                                value={formData.nepaliDate}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-                                                    if (sanitizedValue.length <= 10) {
-                                                        setFormData({ ...formData, nepaliDate: sanitizedValue });
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleKeyDown(e, 'nepaliDate');
-                                                    }
-                                                }}
-                                                placeholder="YYYY-MM-DD"
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Invoice Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="date"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                ref={company.dateFormat === 'nepali' ? null : transactionDateRef}
-                                                value={formData.transactionDateRoman}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    setFormData({ ...formData, transactionDateRoman: value });
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleKeyDown(e, 'transactionDateRoman');
-                                                    }
-                                                }}
-                                                max={new Date().toISOString().split('T')[0]}
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Transaction Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="date"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    setFormData({ ...formData, billDate: value });
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleKeyDown(e, 'billDate');
-                                                    }
-                                                }}
-                                                max={new Date().toISOString().split('T')[0]}
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                Invoice Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </>
-                            )} */}
-
+                        <div className="row g-1 mb-2">
+                           
                             {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
                                     {/* Nepali Transaction Date */}
@@ -3199,7 +2995,7 @@ const EditCreditSales = () => {
                             </div>
                         </div>
 
-                        <div className="row g-2 mb-3">
+                        <div className="row g-1 mb-2">
                             {/* Party Name Field */}
                             <div className="col-12 col-md-6">
                                 <div className="position-relative">
@@ -3360,8 +3156,8 @@ const EditCreditSales = () => {
                         <div
                             className="table-responsive"
                             style={{
-                                minHeight: "270px",
-                                maxHeight: "270px",
+                                minHeight: "230px",
+                                maxHeight: "230px",
                                 overflowY: "auto",
                                 border: items.length > 0 ? '1px solid #dee2e6' : '1px dashed #ced4da',
                                 backgroundColor: '#fff'
@@ -3870,11 +3666,11 @@ const EditCreditSales = () => {
                         </div>
 
                         {/* Bill Details Table */}
-                        <div className="table-responsive mb-2">
+                        <div className="table-responsive mb-0">
                             <table className="table table-sm table-bordered mb-1">
                                 <thead>
                                     <tr>
-                                        <th colSpan="6" className="text-center bg-light py-1" style={{ padding: '2px' }}>Bill Details</th>
+                                        <th colSpan="6" className="text-center bg-light py-0" style={{ padding: '2px' }}>Bill Details</th>
                                     </tr>
                                 </thead>
                                 <tbody>
