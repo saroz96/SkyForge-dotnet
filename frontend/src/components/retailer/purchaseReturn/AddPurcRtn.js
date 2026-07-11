@@ -891,96 +891,6 @@ const AddPurcRtn = () => {
         }
     };
 
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-    //         const response = await api.get('/api/retailer/items/search', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: 15,
-    //                 vatStatus: formData.isVatExempt,
-    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             const itemsWithPrices = response.data.items.map(item => {
-    //                 let latestPrice = 0;
-    //                 let latestBatchNumber = '';
-    //                 let latestExpiryDate = '';
-    //                 let latestCCPercentage = 0;  // ADD THIS
-    //                 let latestItemCCAmount = 0;   // ADD THIS
-
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
-    //                         new Date(b.date) - new Date(a.date)
-    //                     );
-    //                     latestPrice = sortedEntries[0].puPrice || 0;
-    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
-    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
-    //                     latestCCPercentage = sortedEntries[0].ccPercentage || 0;  // ADD THIS
-    //                     latestItemCCAmount = sortedEntries[0].itemCcAmount || 0;  // ADD THIS
-    //                 }
-
-    //                 if (response.data.items.length > 0) {
-    //                     console.log('Sample stock entry from backend:', response.data.items[0].stockEntries?.[0]);
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     id: item.id, // Ensure id is present (ASP.NET uses 'id' not '_id')
-    //                     _id: item.id, // Keep _id for compatibility if needed
-    //                     latestPrice,
-    //                     latestBatchNumber,
-    //                     latestExpiryDate,
-    //                     latestCCPercentage,      // ADD THIS
-    //                     latestItemCCAmount,
-    //                     stock: item.currentStock || 0
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
-
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
             if (isHeaderModal) {
@@ -2162,86 +2072,6 @@ const AddPurcRtn = () => {
         }
     };
 
-    // const handleManualReset = async () => {
-    //     try {
-    //         setIsLoading(true);
-
-    //         // Get current bill number (does NOT increment)
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/purchase-return');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum, // Use current number (does NOT increment)
-    //             partyBillNumber: '',
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         setCategories(data.categories || []);
-    //         setUnits(data.units || []);
-    //         setCompanyGroups(data.companyGroups || []);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting form:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
-
-    // Reset after save - increments bill number
-
     const handleManualReset = async () => {
         try {
             setIsLoading(true);
@@ -2355,82 +2185,7 @@ const AddPurcRtn = () => {
             setIsLoading(false);
         }
     };
-
-    // const resetAfterSave = async () => {
-    //     try {
-    //         // Get next bill number (this increments the counter)
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/purchase-return');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum, // This will be the next number (incremented)
-    //             partyBillNumber: '',
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         setCategories(data.categories || []);
-    //         setUnits(data.units || []);
-    //         setCompanyGroups(data.companyGroups || []);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting after save:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     }
-    // };
-
-    // Reset after save - respects date preferences
+    
     const resetAfterSave = async () => {
         try {
             // Get current bill number (does NOT increment - use current, not next)
@@ -3294,39 +3049,6 @@ const AddPurcRtn = () => {
                                         </div>
                                     </div>
 
-                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                value={formData.transactionDateRoman || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Transaction Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <input
                                         type="hidden"
                                         name="transactionDateRoman"
@@ -3471,39 +3193,6 @@ const AddPurcRtn = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Invoice Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Invoice Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
                                     <input
                                         type="hidden"
                                         name="billDate"
@@ -5829,43 +5518,6 @@ const AddPurcRtn = () => {
                     </div>
                 </div>
             )}
-
-            {/* Items Modal */}
-            {/* {showItemsModal && (
-                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
-                    <div className="modal-dialog modal-fullscreen">
-                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
-                            <div className="modal-header bg-primary text-white">
-                                <h5 className="modal-title">Create New Item</h5>
-                                <div className="d-flex align-items-center">
-                                    <button
-                                        type="button"
-                                        className="btn-close btn-close-white"
-                                        onClick={() => setShowItemsModal(false)}
-                                    ></button>
-                                </div>
-                            </div>
-                            <div className="modal-body p-0">
-                                <iframe
-                                    src="/retailer/items"
-                                    title="Item Creation"
-                                    style={{ width: '100%', height: '100%', border: 'none' }}
-                                />
-                            </div>
-                            <div className="modal-footer bg-light">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => setShowItemsModal(false)}
-                                >
-                                    <i className="bi bi-arrow-left me-2"></i>Close
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )} */}
-
 
             {showItemsModal && (
                 <div

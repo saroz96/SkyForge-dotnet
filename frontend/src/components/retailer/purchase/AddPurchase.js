@@ -815,14 +815,6 @@ const AddPurchase = () => {
                 setDateFormatToggle(prev => {
                     const newFormat = prev === 'nepali' ? 'english' : 'nepali';
 
-                    // Show notification
-                    // setNotification({
-                    //     show: true,
-                    //     message: `Switched to ${newFormat === 'nepali' ? 'Nepali (BS)' : 'English (AD)'} date format`,
-                    //     type: 'info',
-                    //     duration: 2000
-                    // });
-
                     return newFormat;
                 });
             }
