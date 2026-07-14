@@ -8,6 +8,7 @@ using SkyForge.Services.Retailer.DebitNoteServices;
 using SkyForge.Dto.RetailerDto.CreditNoteDto;
 using SkyForge.Models.Retailer.CreditNoteModel;
 using SkyForge.Models.AccountModel;
+using SkyForge.Services.Retailer.CashCounterServices;
 
 
 namespace SkyForge.Services.Retailer.CreditNoteServices
@@ -16,17 +17,20 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<CreditNoteService> _logger;
-
         private readonly IBillNumberService _billNumberService;
+        private readonly ICashCounterService _cashCounterService;
+
 
         public CreditNoteService(
             ApplicationDbContext context,
             ILogger<CreditNoteService> logger,
-            IBillNumberService billNumberService)
+            IBillNumberService billNumberService,
+            ICashCounterService cashCounterService)
         {
             _context = context;
             _logger = logger;
             _billNumberService = billNumberService;
+            _cashCounterService = cashCounterService;
         }
 
         public async Task<CreditNoteFormDataResponseDTO> GetCreditNoteFormDataAsync(Guid companyId, Guid fiscalYearId, Guid userId)
@@ -166,6 +170,153 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
         {
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "creditNote");
         }
+
+        // public async Task<CreditNote> CreateCreditNoteAsync(CreateCreditNoteDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("CreateCreditNoteAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //             {
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+        //             }
+
+        //             // Calculate totals and validate
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
+        //             {
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+        //             }
+
+        //             // Verify all accounts exist and belong to company - cache them
+        //             var accountCache = new Dictionary<Guid, Account>();
+        //             foreach (var entry in dto.Entries)
+        //             {
+        //                 var account = await _context.Accounts
+        //                     .FirstOrDefaultAsync(a => a.Id == entry.AccountId && a.CompanyId == companyId);
+
+        //                 if (account == null)
+        //                 {
+        //                     throw new ArgumentException($"Account with ID {entry.AccountId} not found");
+        //                 }
+        //                 accountCache[entry.AccountId] = account;
+        //             }
+
+        //             // Get bill number
+        //             var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "creditNote");
+
+        //             // Create Credit Note master record
+        //             var creditNote = new CreditNote
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 TotalAmount = totalCredit,
+        //                 BillNumber = billNumber,
+        //                 Date = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 Description = dto.Description,
+        //                 UserId = userId,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 Status = CreditNoteStatus.Active,
+        //                 IsActive = true,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.CreditNotes.AddAsync(creditNote);
+
+        //             // Create credit note entries and transactions
+        //             var transactions = new List<Transaction>();
+        //             int lineNumber = 1;
+
+        //             foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
+        //             {
+        //                 // Create credit note entry
+        //                 var creditNoteEntry = new CreditNoteEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CreditNoteId = creditNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     EntryType = entryDto.EntryType,
+        //                     Amount = entryDto.Amount,
+        //                     Description = entryDto.Description,
+        //                     LineNumber = lineNumber++,
+        //                     ReferenceNumber = entryDto.ReferenceNumber,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 await _context.CreditNoteEntries.AddAsync(creditNoteEntry);
+
+        //                 // Get opposite entry type names for DrCrNoteAccountType field
+        //                 var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
+        //                 var oppositeAccountNames = new List<string>();
+
+        //                 foreach (var oppositeEntry in oppositeEntries)
+        //                 {
+        //                     if (accountCache.TryGetValue(oppositeEntry.AccountId, out var account))
+        //                     {
+        //                         oppositeAccountNames.Add(account.Name);
+        //                     }
+        //                 }
+
+        //                 var oppositeAccountNamesStr = string.Join(", ", oppositeAccountNames);
+        //                 if (oppositeAccountNamesStr.Length > 500)
+        //                 {
+        //                     oppositeAccountNamesStr = oppositeAccountNamesStr.Substring(0, 497) + "...";
+        //                 }
+
+        //                 // Create transaction using TotalDebit/TotalCredit
+        //                 var transactionEntry = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CreditNoteId = creditNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     Type = TransactionType.CrNt, // Credit Note
+        //                     DrCrNoteAccountTypes = entryDto.EntryType, // "Debit" or "Credit"
+        //                     DrCrNoteAccountType = oppositeAccountNamesStr,
+        //                     TotalDebit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+        //                     TotalCredit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+        //                     PaymentMode = PaymentMode.CrNote,
+        //                     Date = creditNote.Date,
+        //                     NepaliDate = creditNote.NepaliDate,
+        //                     IsActive = true,
+        //                     CompanyId = companyId,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active
+        //                 };
+
+        //                 transactions.Add(transactionEntry);
+        //             }
+
+        //             await _context.Transactions.AddRangeAsync(transactions);
+
+        //             await _context.SaveChangesAsync();
+        //             await transaction.CommitAsync();
+
+        //             _logger.LogInformation("Credit Note created successfully. ID: {CreditNoteId}, BillNumber: {BillNumber}, Total: {TotalAmount}, Entries: {EntryCount}",
+        //                 creditNote.Id, creditNote.BillNumber, totalCredit, dto.Entries.Count);
+
+        //             return creditNote;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error in CreateCreditNoteAsync for Company: {CompanyId}", companyId);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<CreditNote> CreateCreditNoteAsync(CreateCreditNoteDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -230,6 +381,7 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                     await _context.CreditNotes.AddAsync(creditNote);
 
                     // Create credit note entries and transactions
+                    var creditNoteEntries = new List<CreditNoteEntry>();
                     var transactions = new List<Transaction>();
                     int lineNumber = 1;
 
@@ -249,6 +401,7 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                             CreatedAt = DateTime.UtcNow
                         };
 
+                        creditNoteEntries.Add(creditNoteEntry);
                         await _context.CreditNoteEntries.AddAsync(creditNoteEntry);
 
                         // Get opposite entry type names for DrCrNoteAccountType field
@@ -300,6 +453,25 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
 
                     _logger.LogInformation("Credit Note created successfully. ID: {CreditNoteId}, BillNumber: {BillNumber}, Total: {TotalAmount}, Entries: {EntryCount}",
                         creditNote.Id, creditNote.BillNumber, totalCredit, dto.Entries.Count);
+
+                    // STEP: Add to Cash Counter if there are cash entries
+                    var cashEntries = creditNoteEntries
+                        .Where(cne => accountCache[cne.AccountId].Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (cashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.UpdateSessionFromCreditNoteAsync(creditNote.Id);
+                            _logger.LogInformation($"Added credit note {creditNote.BillNumber} to cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log but don't fail the credit note creation
+                            _logger.LogError(ex, $"Error adding credit note {creditNote.BillNumber} to cash counter");
+                        }
+                    }
 
                     return creditNote;
                 }
@@ -677,6 +849,190 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                 ReferenceNumber = e.ReferenceNumber
             }).ToList();
         }
+
+        // public async Task<CreditNote> UpdateCreditNoteAsync(Guid id, UpdateCreditNoteDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("=== Starting UpdateCreditNoteAsync for Credit Note ID: {CreditNoteId} ===", id);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+
+        //             // Find existing credit note
+        //             var existingCreditNote = await _context.CreditNotes
+        //                 .Include(c => c.CreditNoteEntries)
+        //                 .FirstOrDefaultAsync(c => c.Id == id && c.CompanyId == companyId);
+
+        //             if (existingCreditNote == null)
+        //                 throw new ArgumentException("Credit note not found");
+
+        //             // Check if credit note is canceled
+        //             if (existingCreditNote.Status == CreditNoteStatus.Canceled)
+        //                 throw new ArgumentException("Cannot update a canceled credit note");
+
+        //             // Validate all accounts exist and cache them
+        //             var accountCache = new Dictionary<Guid, Account>();
+        //             foreach (var entryDto in dto.Entries)
+        //             {
+        //                 var account = await _context.Accounts
+        //                     .FirstOrDefaultAsync(a => a.Id == entryDto.AccountId && a.CompanyId == companyId);
+
+        //                 if (account == null)
+        //                     throw new ArgumentException($"Account with ID {entryDto.AccountId} not found");
+
+        //                 accountCache[entryDto.AccountId] = account;
+        //             }
+
+        //             var company = await _context.Companies.FindAsync(companyId);
+        //             if (company == null)
+        //                 throw new ArgumentException("Company not found");
+
+        //             var fiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //             if (fiscalYear == null)
+        //                 throw new ArgumentException("Fiscal year not found");
+
+        //             // Delete existing transactions AND their transaction items
+        //             var existingTransactions = await _context.Transactions
+        //                 .Where(t => t.CreditNoteId == id)
+        //                 .Include(t => t.TransactionItems) // Include transaction items for cascade delete
+        //                 .ToListAsync();
+
+        //             if (existingTransactions.Any())
+        //             {
+        //                 // TransactionItems will be deleted automatically due to Cascade delete
+        //                 _context.Transactions.RemoveRange(existingTransactions);
+        //                 _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
+        //             }
+
+        //             // Delete existing credit note entries
+        //             if (existingCreditNote.CreditNoteEntries.Any())
+        //             {
+        //                 _context.CreditNoteEntries.RemoveRange(existingCreditNote.CreditNoteEntries);
+        //                 _logger.LogInformation("Deleted {Count} existing entries", existingCreditNote.CreditNoteEntries.Count);
+        //             }
+
+        //             await _context.SaveChangesAsync();
+
+        //             // Update credit note properties
+        //             existingCreditNote.TotalAmount = totalDebit;
+        //             existingCreditNote.Description = dto.Description;
+        //             existingCreditNote.NepaliDate = dto.NepaliDate;
+        //             existingCreditNote.Date = dto.Date;
+        //             existingCreditNote.UpdatedAt = DateTime.UtcNow;
+
+        //             _context.CreditNotes.Update(existingCreditNote);
+        //             await _context.SaveChangesAsync();
+
+        //             // Create new entries and transactions
+        //             var newEntries = new List<CreditNoteEntry>();
+        //             var newTransactions = new List<Transaction>();
+        //             int lineNumber = 1;
+
+        //             foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
+        //             {
+        //                 var creditNoteEntry = new CreditNoteEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CreditNoteId = existingCreditNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     EntryType = entryDto.EntryType,
+        //                     Amount = entryDto.Amount,
+        //                     Description = entryDto.Description,
+        //                     LineNumber = lineNumber++,
+        //                     ReferenceNumber = entryDto.ReferenceNumber,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 newEntries.Add(creditNoteEntry);
+
+        //                 // Get opposite entry type names for DrCrNoteAccountType field
+        //                 var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
+        //                 var oppositeAccountNames = new List<string>();
+
+        //                 foreach (var oppositeEntry in oppositeEntries)
+        //                 {
+        //                     if (accountCache.TryGetValue(oppositeEntry.AccountId, out var account))
+        //                     {
+        //                         oppositeAccountNames.Add(account.Name);
+        //                     }
+        //                 }
+
+        //                 var oppositeAccountNamesStr = string.Join(", ", oppositeAccountNames);
+
+        //                 // Truncate if too long (max 500 characters for SQL Server)
+        //                 if (oppositeAccountNamesStr.Length > 497)
+        //                     oppositeAccountNamesStr = oppositeAccountNamesStr.Substring(0, 494) + "...";
+
+        //                 // Create transaction using TotalDebit/TotalCredit
+        //                 var creditNoteTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CreditNoteId = existingCreditNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     Type = TransactionType.CrNt, // Credit Note
+        //                     DrCrNoteAccountTypes = entryDto.EntryType, // "Debit" or "Credit"
+        //                     DrCrNoteAccountType = oppositeAccountNamesStr,
+        //                     BillNumber = existingCreditNote.BillNumber,
+        //                     TotalDebit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+        //                     TotalCredit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+        //                     PaymentMode = PaymentMode.CrNote,
+        //                     Date = existingCreditNote.Date,
+        //                     NepaliDate = existingCreditNote.NepaliDate,
+        //                     IsActive = true,
+        //                     CompanyId = companyId,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active
+        //                 };
+
+        //                 newTransactions.Add(creditNoteTransaction);
+        //             }
+
+        //             await _context.CreditNoteEntries.AddRangeAsync(newEntries);
+        //             await _context.Transactions.AddRangeAsync(newTransactions);
+
+        //             var saveResult = await _context.SaveChangesAsync();
+        //             _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+
+        //             await transaction.CommitAsync();
+        //             _logger.LogInformation("Transaction committed successfully");
+
+        //             _logger.LogInformation("=== Successfully updated credit note: {CreditNoteId} with {EntryCount} entries ===",
+        //                 id, newEntries.Count);
+
+        //             // Return the updated credit note with entries
+        //             var updatedCreditNote = await _context.CreditNotes
+        //                 .Include(c => c.CreditNoteEntries)
+        //                     .ThenInclude(e => e.Account)
+        //                 .FirstOrDefaultAsync(c => c.Id == id);
+
+        //             return updatedCreditNote ?? existingCreditNote;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error updating credit note: {CreditNoteId}", id);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<CreditNote> UpdateCreditNoteAsync(Guid id, UpdateCreditNoteDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -699,9 +1055,10 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                     if (totalDebit != totalCredit)
                         throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
 
-                    // Find existing credit note
+                    // Find existing credit note with entries and accounts
                     var existingCreditNote = await _context.CreditNotes
                         .Include(c => c.CreditNoteEntries)
+                            .ThenInclude(cne => cne.Account)
                         .FirstOrDefaultAsync(c => c.Id == id && c.CompanyId == companyId);
 
                     if (existingCreditNote == null)
@@ -710,6 +1067,25 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                     // Check if credit note is canceled
                     if (existingCreditNote.Status == CreditNoteStatus.Canceled)
                         throw new ArgumentException("Cannot update a canceled credit note");
+
+                    // STEP 1: REMOVE OLD CREDIT NOTE FROM CASH COUNTER if it has cash entries
+                    var oldCashEntries = existingCreditNote.CreditNoteEntries
+                        .Where(cne => cne.Account.Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (oldCashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.RemoveSessionFromCreditNoteAsync(id);
+                            _logger.LogInformation($"Removed credit note {existingCreditNote.BillNumber} from cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Error removing credit note {existingCreditNote.BillNumber} from cash counter");
+                            // Continue with update even if cash counter fails
+                        }
+                    }
 
                     // Validate all accounts exist and cache them
                     var accountCache = new Dictionary<Guid, Account>();
@@ -839,6 +1215,25 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
 
                     await transaction.CommitAsync();
                     _logger.LogInformation("Transaction committed successfully");
+
+                    // STEP 2: ADD UPDATED CREDIT NOTE TO CASH COUNTER if it has cash entries
+                    var newCashEntries = newEntries
+                        .Where(cne => accountCache[cne.AccountId].Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (newCashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.UpdateSessionFromCreditNoteAsync(existingCreditNote.Id);
+                            _logger.LogInformation($"Added updated credit note {existingCreditNote.BillNumber} to cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Error adding credit note {existingCreditNote.BillNumber} to cash counter");
+                            // Continue with update even if cash counter fails
+                        }
+                    }
 
                     _logger.LogInformation("=== Successfully updated credit note: {CreditNoteId} with {EntryCount} entries ===",
                         id, newEntries.Count);

@@ -9,6 +9,8 @@ using SkyForge.Models.Shared;
 using SkyForge.Dto.RetailerDto.ReceiptDto;
 using SkyForge.Models.Retailer.ReceiptModel;
 using SkyForge.Models.Retailer.TransactionModel;
+using SkyForge.Services.Retailer.CashCounterServices;
+
 
 namespace SkyForge.Controllers.Retailer
 {
@@ -20,15 +22,19 @@ namespace SkyForge.Controllers.Retailer
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ReceiptController> _logger;
         private readonly IReceiptService _receiptService;
+        private readonly ICashCounterService _cashCounterService;
+
 
         public ReceiptController(
             ApplicationDbContext context,
             ILogger<ReceiptController> logger,
-            IReceiptService receiptService)
+            IReceiptService receiptService,
+            ICashCounterService cashCounterService)
         {
             _context = context;
             _logger = logger;
             _receiptService = receiptService;
+            _cashCounterService = cashCounterService;
         }
 
         // GET: api/retailer/last-receipt-date
@@ -1584,6 +1590,358 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // // POST: api/retailer/receipts/cancel/{billNumber}
+        // [HttpPost("receipts/cancel/{billNumber}")]
+        // public async Task<IActionResult> CancelReceipt(string billNumber)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== CancelReceipt Started for Bill Number: {BillNumber} ===", billNumber);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // Handle fiscal year - get from claims first, then fallback
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             // If not in claims, get active fiscal year for the company
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 // Try to get any fiscal year as fallback
+        //                 activeFiscalYear = await _context.FiscalYears
+        //                     .Where(f => f.CompanyId == companyIdGuid)
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (activeFiscalYear == null)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "No fiscal year found for this company."
+        //                     });
+        //                 }
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+
+        //             _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+        //         }
+
+        //         // Validate bill number
+        //         if (string.IsNullOrWhiteSpace(billNumber))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Bill number is required"
+        //             });
+        //         }
+
+        //         // Use execution strategy for transaction handling
+        //         var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //         var result = await executionStrategy.ExecuteAsync(async () =>
+        //         {
+        //             using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //             try
+        //             {
+        //                 _logger.LogInformation("Starting transaction to cancel receipt: {BillNumber}", billNumber);
+
+        //                 // Find the receipt by bill number and company
+        //                 var receipt = await _context.Receipts
+        //                     .FirstOrDefaultAsync(r => r.BillNumber == billNumber &&
+        //                                              r.CompanyId == companyIdGuid &&
+        //                                              r.FiscalYearId == fiscalYearIdGuid);
+
+        //                 if (receipt == null)
+        //                 {
+        //                     throw new ArgumentException($"Receipt with bill number {billNumber} not found");
+        //                 }
+
+        //                 // Check if already canceled
+        //                 if (receipt.Status == ReceiptStatus.Canceled)
+        //                 {
+        //                     throw new ArgumentException($"Receipt {billNumber} is already canceled");
+        //                 }
+
+        //                 // Update receipt status to Canceled
+        //                 receipt.Status = ReceiptStatus.Canceled;
+        //                 receipt.IsActive = false;
+        //                 receipt.UpdatedAt = DateTime.UtcNow;
+
+        //                 _context.Receipts.Update(receipt);
+        //                 _logger.LogInformation("Updated receipt status to Canceled for {BillNumber}", billNumber);
+
+        //                 // Update related transactions
+        //                 var transactionsUpdated = await _context.Transactions
+        //                     .Where(t => t.BillNumber == billNumber &&
+        //                                t.Type == TransactionType.Rcpt &&
+        //                                t.CompanyId == companyIdGuid)
+        //                     .ExecuteUpdateAsync(setters => setters
+        //                         .SetProperty(t => t.Status, TransactionStatus.Canceled)
+        //                         .SetProperty(t => t.IsActive, false));
+
+        //                 _logger.LogInformation("Updated {Count} related transactions for {BillNumber}", transactionsUpdated, billNumber);
+
+        //                 // Save all changes
+        //                 await _context.SaveChangesAsync();
+
+        //                 // Commit transaction
+        //                 await transaction.CommitAsync();
+        //                 _logger.LogInformation("Transaction committed successfully for canceling receipt {BillNumber}", billNumber);
+
+        //                 return new
+        //                 {
+        //                     success = true,
+        //                     message = "Receipt and related transactions have been canceled.",
+        //                     billNumber = billNumber
+        //                 };
+        //             }
+        //             catch (Exception ex)
+        //             {
+        //                 _logger.LogError(ex, "Error during transaction for canceling receipt {BillNumber}", billNumber);
+        //                 await transaction.RollbackAsync();
+        //                 throw;
+        //             }
+        //         });
+
+        //         return Ok(result);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in CancelReceipt for bill {BillNumber}", billNumber);
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in CancelReceipt for bill {BillNumber}", billNumber);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while canceling receipt",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // // POST: api/retailer/receipts/reactivate/{billNumber}
+        // [HttpPost("receipts/reactivate/{billNumber}")]
+        // public async Task<IActionResult> ReactivateReceipt(string billNumber)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== ReactivateReceipt Started for Bill Number: {BillNumber} ===", billNumber);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // Handle fiscal year - get from claims first, then fallback
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             // If not in claims, get active fiscal year for the company
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 // Try to get any fiscal year as fallback
+        //                 activeFiscalYear = await _context.FiscalYears
+        //                     .Where(f => f.CompanyId == companyIdGuid)
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (activeFiscalYear == null)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "No fiscal year found for this company."
+        //                     });
+        //                 }
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+
+        //             _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+        //         }
+
+        //         // Validate bill number
+        //         if (string.IsNullOrWhiteSpace(billNumber))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Bill number is required"
+        //             });
+        //         }
+
+        //         // Use execution strategy for transaction handling
+        //         var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //         var result = await executionStrategy.ExecuteAsync(async () =>
+        //         {
+        //             using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //             try
+        //             {
+        //                 _logger.LogInformation("Starting transaction to reactivate receipt: {BillNumber}", billNumber);
+
+        //                 // Find the receipt by bill number and company
+        //                 var receipt = await _context.Receipts
+        //                     .FirstOrDefaultAsync(r => r.BillNumber == billNumber &&
+        //                                              r.CompanyId == companyIdGuid &&
+        //                                              r.FiscalYearId == fiscalYearIdGuid);
+
+        //                 if (receipt == null)
+        //                 {
+        //                     throw new ArgumentException($"Receipt with bill number {billNumber} not found");
+        //                 }
+
+        //                 // Check if already active
+        //                 if (receipt.Status == ReceiptStatus.Active)
+        //                 {
+        //                     throw new ArgumentException($"Receipt {billNumber} is already active");
+        //                 }
+
+        //                 // Update receipt status to Active
+        //                 receipt.Status = ReceiptStatus.Active;
+        //                 receipt.IsActive = true;
+        //                 receipt.UpdatedAt = DateTime.UtcNow;
+
+        //                 _context.Receipts.Update(receipt);
+        //                 _logger.LogInformation("Updated receipt status to Active for {BillNumber}", billNumber);
+
+        //                 // Reactivate related transactions
+        //                 var transactionsUpdated = await _context.Transactions
+        //                     .Where(t => t.BillNumber == billNumber &&
+        //                                t.Type == TransactionType.Rcpt &&
+        //                                t.CompanyId == companyIdGuid)
+        //                     .ExecuteUpdateAsync(setters => setters
+        //                         .SetProperty(t => t.Status, TransactionStatus.Active)
+        //                         .SetProperty(t => t.IsActive, true));
+
+        //                 _logger.LogInformation("Reactivated {Count} related transactions for {BillNumber}", transactionsUpdated, billNumber);
+
+        //                 // Save all changes
+        //                 await _context.SaveChangesAsync();
+
+        //                 // Commit transaction
+        //                 await transaction.CommitAsync();
+        //                 _logger.LogInformation("Transaction committed successfully for reactivating receipt {BillNumber}", billNumber);
+
+        //                 return new
+        //                 {
+        //                     success = true,
+        //                     message = "Receipt and related transactions have been reactivated.",
+        //                     billNumber = billNumber
+        //                 };
+        //             }
+        //             catch (Exception ex)
+        //             {
+        //                 _logger.LogError(ex, "Error during transaction for reactivating receipt {BillNumber}", billNumber);
+        //                 await transaction.RollbackAsync();
+        //                 throw;
+        //             }
+        //         });
+
+        //         return Ok(result);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in ReactivateReceipt for bill {BillNumber}", billNumber);
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in ReactivateReceipt for bill {BillNumber}", billNumber);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while reactivating receipt",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         // POST: api/retailer/receipts/cancel/{billNumber}
         [HttpPost("receipts/cancel/{billNumber}")]
         public async Task<IActionResult> CancelReceipt(string billNumber)
@@ -1681,6 +2039,8 @@ namespace SkyForge.Controllers.Retailer
 
                         // Find the receipt by bill number and company
                         var receipt = await _context.Receipts
+                            .Include(r => r.ReceiptEntries)
+                                .ThenInclude(re => re.Account)
                             .FirstOrDefaultAsync(r => r.BillNumber == billNumber &&
                                                      r.CompanyId == companyIdGuid &&
                                                      r.FiscalYearId == fiscalYearIdGuid);
@@ -1694,6 +2054,32 @@ namespace SkyForge.Controllers.Retailer
                         if (receipt.Status == ReceiptStatus.Canceled)
                         {
                             throw new ArgumentException($"Receipt {billNumber} is already canceled");
+                        }
+
+                        // STEP 1: REMOVE FROM CASH COUNTER if it was cash
+                        var debitEntry = receipt.ReceiptEntries.FirstOrDefault(e => e.EntryType == "Debit");
+                        if (debitEntry != null)
+                        {
+                            var debitAccount = await _context.Accounts
+                                .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyIdGuid);
+
+                            var isCashReceipt = debitAccount?.Name?.ToLower() == "cash in hand" ||
+                                               debitEntry.InstType == null ||
+                                               debitEntry.InstType == ReceiptInstrumentType.NA;
+
+                            if (isCashReceipt && receipt.TotalAmount > 0)
+                            {
+                                try
+                                {
+                                    await _cashCounterService.RemoveSessionFromReceiptAsync(receipt.Id);
+                                    _logger.LogInformation($"Removed receipt {receipt.BillNumber} from cash counter session");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, $"Error removing receipt {receipt.BillNumber} from cash counter");
+                                    // Continue with cancellation even if cash counter fails
+                                }
+                            }
                         }
 
                         // Update receipt status to Canceled
@@ -1857,6 +2243,8 @@ namespace SkyForge.Controllers.Retailer
 
                         // Find the receipt by bill number and company
                         var receipt = await _context.Receipts
+                            .Include(r => r.ReceiptEntries)
+                                .ThenInclude(re => re.Account)
                             .FirstOrDefaultAsync(r => r.BillNumber == billNumber &&
                                                      r.CompanyId == companyIdGuid &&
                                                      r.FiscalYearId == fiscalYearIdGuid);
@@ -1891,8 +2279,34 @@ namespace SkyForge.Controllers.Retailer
 
                         _logger.LogInformation("Reactivated {Count} related transactions for {BillNumber}", transactionsUpdated, billNumber);
 
-                        // Save all changes
+                        // Save all changes before adding to cash counter
                         await _context.SaveChangesAsync();
+
+                        // STEP 2: ADD REACTIVATED RECEIPT TO CASH COUNTER (if it's cash)
+                        var debitEntry = receipt.ReceiptEntries.FirstOrDefault(e => e.EntryType == "Debit");
+                        if (debitEntry != null)
+                        {
+                            var debitAccount = await _context.Accounts
+                                .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyIdGuid);
+
+                            var isCashReceipt = debitAccount?.Name?.ToLower() == "cash in hand" ||
+                                               debitEntry.InstType == null ||
+                                               debitEntry.InstType == ReceiptInstrumentType.NA;
+
+                            if (isCashReceipt && receipt.TotalAmount > 0)
+                            {
+                                try
+                                {
+                                    await _cashCounterService.UpdateSessionFromReceiptAsync(receipt.Id);
+                                    _logger.LogInformation($"Added reactivated receipt {receipt.BillNumber} to cash counter session");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, $"Error adding receipt {receipt.BillNumber} to cash counter");
+                                    // Continue with reactivation even if cash counter fails
+                                }
+                            }
+                        }
 
                         // Commit transaction
                         await transaction.CommitAsync();

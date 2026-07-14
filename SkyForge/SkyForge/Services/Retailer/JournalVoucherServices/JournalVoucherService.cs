@@ -7,6 +7,7 @@ using SkyForge.Dto.RetailerDto;
 using SkyForge.Services.BillNumberServices;
 using SkyForge.Models.Retailer.TransactionModel;
 using SkyForge.Models.AccountModel;
+using SkyForge.Services.Retailer.CashCounterServices;
 
 
 namespace SkyForge.Services.Retailer.JournalVoucherServices
@@ -15,17 +16,20 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<JournalVoucherService> _logger;
-
         private readonly IBillNumberService _billNumberService;
+        private readonly ICashCounterService _cashCounterService;
+
 
         public JournalVoucherService(
             ApplicationDbContext context,
             ILogger<JournalVoucherService> logger,
-            IBillNumberService billNumberService)
+            IBillNumberService billNumberService,
+            ICashCounterService cashCounterService)
         {
             _context = context;
             _logger = logger;
             _billNumberService = billNumberService;
+            _cashCounterService = cashCounterService;
         }
 
         public async Task<JournalVoucherFormDataResponseDTO> GetJournalVoucherFormDataAsync(Guid companyId, Guid fiscalYearId, Guid userId)
@@ -162,6 +166,144 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
         {
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "journalVoucher");
         }
+
+        // public async Task<JournalVoucher> CreateJournalVoucherAsync(CreateJournalVoucherDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("CreateJournalVoucherAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //             {
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+        //             }
+
+        //             // Calculate totals and validate
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
+        //             {
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+        //             }
+
+        //             // Verify all accounts exist and belong to company
+        //             var accountCache = new Dictionary<Guid, Account>();
+        //             foreach (var entry in dto.Entries)
+        //             {
+        //                 var account = await _context.Accounts
+        //                     .FirstOrDefaultAsync(a => a.Id == entry.AccountId && a.CompanyId == companyId);
+
+        //                 if (account == null)
+        //                 {
+        //                     throw new ArgumentException($"Account with ID {entry.AccountId} not found");
+        //                 }
+        //                 accountCache[entry.AccountId] = account;
+        //             }
+
+        //             // Get bill number
+        //             var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "journalVoucher");
+
+        //             // Create Journal Voucher master record
+        //             var journalVoucher = new JournalVoucher
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 BillNumber = billNumber,
+        //                 TotalAmount = totalCredit,
+        //                 Date = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 Description = dto.Description,
+        //                 UserId = userId,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 Status = VoucherStatus.Active,
+        //                 IsActive = true,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.JournalVouchers.AddAsync(journalVoucher);
+
+        //             // Create journal entries and transactions
+        //             var transactions = new List<Transaction>();
+        //             int lineNumber = 1;
+
+        //             foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
+        //             {
+        //                 // Create journal entry
+        //                 var journalEntry = new JournalEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     JournalVoucherId = journalVoucher.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     EntryType = entryDto.EntryType,
+        //                     Amount = entryDto.Amount,
+        //                     Description = entryDto.Description,
+        //                     LineNumber = lineNumber++,
+        //                     ReferenceNumber = entryDto.ReferenceNumber,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 await _context.JournalEntries.AddAsync(journalEntry);
+
+        //                 // Get opposite entry type names for JournalAccountType field
+        //                 var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
+        //                 var oppositeAccountNames = string.Join(", ", oppositeEntries.Select(e =>
+        //                 {
+        //                     accountCache.TryGetValue(e.AccountId, out var account);
+        //                     return account?.Name ?? (entryDto.EntryType == "Debit" ? "Credit Note" : "Debit Note");
+        //                 }));
+
+        //                 // Create transaction using TotalDebit/TotalCredit
+        //                 var transactionEntry = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     JournalBillId = journalVoucher.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     Type = TransactionType.Jrnl,
+        //                     JournalAccountDrCrType = entryDto.EntryType,
+        //                     JournalAccountType = oppositeAccountNames.Length > 1900 ? oppositeAccountNames.Substring(0, 1897) + "..." : oppositeAccountNames,
+        //                     BillNumber = billNumber,
+        //                     TotalDebit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+        //                     TotalCredit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+        //                     PaymentMode = PaymentMode.Journal,
+        //                     Date = journalVoucher.Date,
+        //                     NepaliDate = journalVoucher.NepaliDate,
+        //                     IsActive = true,
+        //                     CompanyId = companyId,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active
+        //                 };
+
+        //                 transactions.Add(transactionEntry);
+        //             }
+
+        //             await _context.Transactions.AddRangeAsync(transactions);
+        //             await _context.SaveChangesAsync();
+
+        //             await transaction.CommitAsync();
+
+        //             _logger.LogInformation("Journal Voucher created successfully. ID: {JournalVoucherId}, BillNumber: {BillNumber}, Total: {TotalAmount}, Entries: {EntryCount}",
+        //                 journalVoucher.Id, journalVoucher.BillNumber, totalCredit, dto.Entries.Count);
+
+        //             return journalVoucher;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error in CreateJournalVoucherAsync for Company: {CompanyId}", companyId);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<JournalVoucher> CreateJournalVoucherAsync(CreateJournalVoucherDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -227,6 +369,7 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
 
                     // Create journal entries and transactions
                     var transactions = new List<Transaction>();
+                    var journalEntries = new List<JournalEntry>();
                     int lineNumber = 1;
 
                     foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
@@ -245,6 +388,7 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                             CreatedAt = DateTime.UtcNow
                         };
 
+                        journalEntries.Add(journalEntry);
                         await _context.JournalEntries.AddAsync(journalEntry);
 
                         // Get opposite entry type names for JournalAccountType field
@@ -288,6 +432,25 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                     _logger.LogInformation("Journal Voucher created successfully. ID: {JournalVoucherId}, BillNumber: {BillNumber}, Total: {TotalAmount}, Entries: {EntryCount}",
                         journalVoucher.Id, journalVoucher.BillNumber, totalCredit, dto.Entries.Count);
 
+                    // STEP: Add to Cash Counter if there are cash entries
+                    var cashEntries = journalEntries
+                        .Where(je => accountCache[je.AccountId].Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (cashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.UpdateSessionFromJournalVoucherAsync(journalVoucher.Id);
+                            _logger.LogInformation($"Added journal voucher {journalVoucher.BillNumber} to cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log but don't fail the journal creation
+                            _logger.LogError(ex, $"Error adding journal voucher {journalVoucher.BillNumber} to cash counter");
+                        }
+                    }
+
                     return journalVoucher;
                 }
                 catch (Exception ex)
@@ -298,6 +461,7 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                 }
             });
         }
+
         public async Task<JournalVoucherFindsDTO> GetJournalVoucherFindsAsync(Guid companyId, Guid fiscalYearId, Guid userId)
         {
             try
@@ -664,6 +828,184 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                 ReferenceNumber = e.ReferenceNumber
             }).ToList();
         }
+
+        // public async Task<JournalVoucher> UpdateJournalVoucherAsync(Guid id, UpdateJournalVoucherDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("=== Starting UpdateJournalVoucherAsync for Journal ID: {JournalId} ===", id);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+
+        //             // Find existing journal voucher
+        //             var existingJournal = await _context.JournalVouchers
+        //                 .Include(j => j.JournalEntries)
+        //                 .FirstOrDefaultAsync(j => j.Id == id && j.CompanyId == companyId);
+
+        //             if (existingJournal == null)
+        //                 throw new ArgumentException("Journal voucher not found");
+
+        //             // Check if voucher is canceled
+        //             if (existingJournal.Status == VoucherStatus.Canceled)
+        //                 throw new ArgumentException("Cannot update a canceled journal voucher");
+
+        //             // Validate all accounts exist and cache them
+        //             var accountCache = new Dictionary<Guid, Account>();
+        //             foreach (var entryDto in dto.Entries)
+        //             {
+        //                 var account = await _context.Accounts
+        //                     .FirstOrDefaultAsync(a => a.Id == entryDto.AccountId && a.CompanyId == companyId);
+
+        //                 if (account == null)
+        //                     throw new ArgumentException($"Account with ID {entryDto.AccountId} not found");
+
+        //                 accountCache[entryDto.AccountId] = account;
+        //             }
+
+        //             var company = await _context.Companies.FindAsync(companyId);
+        //             if (company == null)
+        //                 throw new ArgumentException("Company not found");
+
+        //             var fiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //             if (fiscalYear == null)
+        //                 throw new ArgumentException("Fiscal year not found");
+
+        //             // Delete existing transactions AND their transaction items associated with this journal voucher
+        //             var existingTransactions = await _context.Transactions
+        //                 .Where(t => t.JournalBillId == id)
+        //                 .Include(t => t.TransactionItems) // Include transaction items for cascade delete
+        //                 .ToListAsync();
+
+        //             if (existingTransactions.Any())
+        //             {
+        //                 // TransactionItems will be deleted automatically due to Cascade delete
+        //                 _context.Transactions.RemoveRange(existingTransactions);
+        //                 _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
+        //             }
+
+        //             // Delete existing journal entries
+        //             if (existingJournal.JournalEntries.Any())
+        //             {
+        //                 _context.JournalEntries.RemoveRange(existingJournal.JournalEntries);
+        //                 _logger.LogInformation("Deleted {Count} existing entries", existingJournal.JournalEntries.Count);
+        //             }
+
+        //             await _context.SaveChangesAsync();
+
+        //             // Update journal voucher properties
+        //             existingJournal.TotalAmount = totalDebit;
+        //             existingJournal.Description = dto.Description;
+        //             existingJournal.NepaliDate = dto.NepaliDate;
+        //             existingJournal.Date = dto.Date;
+        //             existingJournal.UpdatedAt = DateTime.UtcNow;
+
+        //             _context.JournalVouchers.Update(existingJournal);
+        //             await _context.SaveChangesAsync();
+
+        //             // Create new entries and transactions
+        //             var newEntries = new List<JournalEntry>();
+        //             var newTransactions = new List<Transaction>();
+        //             int lineNumber = 1;
+
+        //             foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
+        //             {
+        //                 var journalEntry = new JournalEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     JournalVoucherId = existingJournal.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     EntryType = entryDto.EntryType,
+        //                     Amount = entryDto.Amount,
+        //                     Description = entryDto.Description,
+        //                     LineNumber = lineNumber++,
+        //                     ReferenceNumber = entryDto.ReferenceNumber,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 newEntries.Add(journalEntry);
+
+        //                 // Get opposite entry type names for JournalAccountType field using cached accounts
+        //                 var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
+        //                 var oppositeAccountNames = string.Join(", ", oppositeEntries.Select(e =>
+        //                 {
+        //                     accountCache.TryGetValue(e.AccountId, out var account);
+        //                     return account?.Name ?? (entryDto.EntryType == "Debit" ? "Credit Note" : "Debit Note");
+        //                 }));
+
+        //                 // Truncate if too long (max 2000 characters for SQL Server)
+        //                 if (oppositeAccountNames.Length > 1900)
+        //                     oppositeAccountNames = oppositeAccountNames.Substring(0, 1897) + "...";
+
+        //                 // Create transaction using TotalDebit/TotalCredit (updated for new model)
+        //                 var journalTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     JournalBillId = existingJournal.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     Type = TransactionType.Jrnl,
+        //                     JournalAccountDrCrType = entryDto.EntryType,
+        //                     JournalAccountType = oppositeAccountNames,
+        //                     BillNumber = existingJournal.BillNumber,
+        //                     TotalDebit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+        //                     TotalCredit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+        //                     PaymentMode = PaymentMode.Journal,
+        //                     Date = existingJournal.Date,
+        //                     NepaliDate = existingJournal.NepaliDate,
+        //                     IsActive = true,
+        //                     CompanyId = companyId,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active
+        //                 };
+
+        //                 newTransactions.Add(journalTransaction);
+        //             }
+
+        //             await _context.JournalEntries.AddRangeAsync(newEntries);
+        //             await _context.Transactions.AddRangeAsync(newTransactions);
+
+        //             var saveResult = await _context.SaveChangesAsync();
+        //             _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+
+        //             await transaction.CommitAsync();
+        //             _logger.LogInformation("Transaction committed successfully");
+
+        //             _logger.LogInformation("=== Successfully updated journal voucher: {JournalId} with {EntryCount} entries ===",
+        //                 id, newEntries.Count);
+
+        //             // Return the updated journal with entries
+        //             var updatedJournal = await _context.JournalVouchers
+        //                 .Include(j => j.JournalEntries)
+        //                     .ThenInclude(e => e.Account)
+        //                 .FirstOrDefaultAsync(j => j.Id == id);
+
+        //             return updatedJournal ?? existingJournal;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error updating journal voucher: {JournalId}", id);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<JournalVoucher> UpdateJournalVoucherAsync(Guid id, UpdateJournalVoucherDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -686,9 +1028,10 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                     if (totalDebit != totalCredit)
                         throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
 
-                    // Find existing journal voucher
+                    // Find existing journal voucher with entries and accounts
                     var existingJournal = await _context.JournalVouchers
                         .Include(j => j.JournalEntries)
+                            .ThenInclude(je => je.Account)
                         .FirstOrDefaultAsync(j => j.Id == id && j.CompanyId == companyId);
 
                     if (existingJournal == null)
@@ -697,6 +1040,25 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                     // Check if voucher is canceled
                     if (existingJournal.Status == VoucherStatus.Canceled)
                         throw new ArgumentException("Cannot update a canceled journal voucher");
+
+                    // STEP 1: REMOVE OLD JOURNAL VOUCHER FROM CASH COUNTER if it has cash entries
+                    var oldCashEntries = existingJournal.JournalEntries
+                        .Where(je => je.Account.Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (oldCashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.RemoveSessionFromJournalVoucherAsync(id);
+                            _logger.LogInformation($"Removed journal voucher {existingJournal.BillNumber} from cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Error removing journal voucher {existingJournal.BillNumber} from cash counter");
+                            // Continue with update even if cash counter fails
+                        }
+                    }
 
                     // Validate all accounts exist and cache them
                     var accountCache = new Dictionary<Guid, Account>();
@@ -821,6 +1183,25 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                     await transaction.CommitAsync();
                     _logger.LogInformation("Transaction committed successfully");
 
+                    // STEP 2: ADD UPDATED JOURNAL VOUCHER TO CASH COUNTER if it has cash entries
+                    var newCashEntries = newEntries
+                        .Where(je => accountCache[je.AccountId].Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (newCashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.UpdateSessionFromJournalVoucherAsync(existingJournal.Id);
+                            _logger.LogInformation($"Added updated journal voucher {existingJournal.BillNumber} to cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Error adding journal voucher {existingJournal.BillNumber} to cash counter");
+                            // Continue with update even if cash counter fails
+                        }
+                    }
+
                     _logger.LogInformation("=== Successfully updated journal voucher: {JournalId} with {EntryCount} entries ===",
                         id, newEntries.Count);
 
@@ -840,6 +1221,7 @@ namespace SkyForge.Services.Retailer.JournalVoucherServices
                 }
             });
         }
+
         public async Task<JournalVoucherRegisterDataDTO> GetJournalVouchersRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null)
         {
             try

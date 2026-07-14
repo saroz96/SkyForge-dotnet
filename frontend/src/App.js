@@ -141,6 +141,8 @@ import BackupHistory from './components/backups/BackupHistory';
 import DisasterRecoveryProtocol from './components/backups/DisasterRecoveryProtocol';
 import AuditLogs from './components/audit/AuditLogs';
 
+import OpenCashCounterPage from './components/retailer/OpenCashCounterPage';
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
 
@@ -1149,6 +1151,14 @@ function AppContent() {
               </ProtectedRoute>
             }
             />
+
+            <Route path="/retailer/user-cash-counter" element={
+              <ProtectedRoute>
+                <OpenCashCounterPage />
+              </ProtectedRoute>
+            }
+            />
+
             {/**======================================================*/}
 
             < Route path="/unauthorized" element={<Unauthorized />} />

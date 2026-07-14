@@ -7,6 +7,8 @@ using SkyForge.Services.BillNumberServices;
 using SkyForge.Models.Retailer.TransactionModel;
 using SkyForge.Dto.RetailerDto;
 using SkyForge.Models.AccountModel;
+using SkyForge.Services.Retailer.CashCounterServices;
+
 
 namespace SkyForge.Services.Retailer.ReceiptServices
 {
@@ -15,16 +17,19 @@ namespace SkyForge.Services.Retailer.ReceiptServices
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ReceiptService> _logger;
         private readonly IBillNumberService _billNumberService;
+        private readonly ICashCounterService _cashCounterService;
 
 
         public ReceiptService(
             ApplicationDbContext context,
-             ILogger<ReceiptService> logger,
-                         IBillNumberService billNumberService)
+            ILogger<ReceiptService> logger,
+            IBillNumberService billNumberService,
+            ICashCounterService cashCounterService)
         {
             _context = context;
             _logger = logger;
             _billNumberService = billNumberService;
+            _cashCounterService = cashCounterService;
         }
 
         public async Task<ReceiptFormDataResponseDTO> GetReceiptFormDataAsync(Guid companyId, Guid fiscalYearId, Guid userId)
@@ -377,6 +382,22 @@ namespace SkyForge.Services.Retailer.ReceiptServices
 
                     // Commit transaction
                     await transaction.CommitAsync();
+
+                    var isCashReceipt = debitAccount.Name?.ToLower() == "cash in hand" ||
+                               debitEntry.InstType == null ||
+                               debitEntry.InstType == ReceiptInstrumentType.NA;
+
+                    if (isCashReceipt && debitEntry.Amount > 0)
+                    {
+                        try
+                        {
+                            await _cashCounterService.UpdateSessionFromReceiptAsync(receipt.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Error adding receipt {receipt.BillNumber} to cash counter");
+                        }
+                    }
 
                     _logger.LogInformation("Receipt created successfully. ID: {ReceiptId}, BillNumber: {BillNumber}, Amount: {Amount}, From: {FromAccount}, To: {ToAccount}",
                         receipt.Id, receipt.BillNumber, creditEntry.Amount, debitAccount.Name, creditAccount.Name);
@@ -854,6 +875,214 @@ namespace SkyForge.Services.Retailer.ReceiptServices
             }).ToList();
         }
 
+        // public async Task<Receipt> UpdateReceiptAsync(Guid id, UpdateReceiptDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("=== Starting UpdateReceiptAsync for Receipt ID: {ReceiptId} ===", id);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+
+        //             // Identify debit and credit entries
+        //             var debitEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Debit");
+        //             var creditEntry = dto.Entries.FirstOrDefault(e => e.EntryType == "Credit");
+
+        //             if (debitEntry == null || creditEntry == null)
+        //                 throw new ArgumentException("Both debit and credit entries are required");
+
+        //             if (debitEntry.Amount != creditEntry.Amount)
+        //                 throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
+
+        //             // Get existing receipt with entries
+        //             var existingReceipt = await _context.Receipts
+        //                 .Include(r => r.ReceiptEntries)
+        //                 .FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId);
+
+        //             if (existingReceipt == null)
+        //                 throw new ArgumentException("Receipt voucher not found");
+
+        //             // Validate accounts exist
+        //             var debitAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == debitEntry.AccountId && a.CompanyId == companyId);
+        //             if (debitAccount == null)
+        //                 throw new ArgumentException($"Debit account with ID {debitEntry.AccountId} not found");
+
+        //             var creditAccount = await _context.Accounts
+        //                 .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyId);
+        //             if (creditAccount == null)
+        //                 throw new ArgumentException($"Credit account with ID {creditEntry.AccountId} not found");
+
+        //             var company = await _context.Companies.FindAsync(companyId);
+        //             if (company == null)
+        //                 throw new ArgumentException("Company not found");
+
+        //             var fiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+        //             if (fiscalYear == null)
+        //                 throw new ArgumentException("Fiscal year not found");
+
+        //             // Delete existing transactions AND their transaction items
+        //             var existingTransactions = await _context.Transactions
+        //                 .Where(t => t.ReceiptAccountId == id)
+        //                 .Include(t => t.TransactionItems) // Include transaction items for cascade delete
+        //                 .ToListAsync();
+
+        //             if (existingTransactions.Any())
+        //             {
+        //                 // TransactionItems will be deleted automatically due to Cascade delete
+        //                 _context.Transactions.RemoveRange(existingTransactions);
+        //                 _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
+        //             }
+
+        //             // Delete existing entries
+        //             if (existingReceipt.ReceiptEntries.Any())
+        //             {
+        //                 _context.ReceiptEntries.RemoveRange(existingReceipt.ReceiptEntries);
+        //                 _logger.LogInformation("Deleted {Count} existing entries", existingReceipt.ReceiptEntries.Count);
+        //             }
+
+        //             await _context.SaveChangesAsync();
+
+        //             // Update receipt properties
+        //             existingReceipt.TotalAmount = debitEntry.Amount;
+        //             existingReceipt.Description = dto.Description;
+        //             existingReceipt.NepaliDate = dto.NepaliDate;
+        //             existingReceipt.Date = dto.Date;
+        //             existingReceipt.UpdatedAt = DateTime.UtcNow;
+
+        //             _context.Receipts.Update(existingReceipt);
+        //             await _context.SaveChangesAsync();
+
+        //             // Create new entries and transactions
+        //             var newEntries = new List<ReceiptEntry>();
+        //             var newTransactions = new List<Transaction>();
+
+        //             // 1. Create DEBIT Receipt Entry and Transaction (Party Account - Money going OUT)
+        //             var debitReceiptEntry = new ReceiptEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ReceiptId = existingReceipt.Id,
+        //                 AccountId = debitEntry.AccountId,
+        //                 EntryType = "Debit",
+        //                 Amount = debitEntry.Amount,
+        //                 Description = debitEntry.Description,
+        //                 InstType = debitEntry.InstType,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 InstNo = debitEntry.InstNo,
+        //                 ReferenceNumber = debitEntry.ReferenceNumber,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             newEntries.Add(debitReceiptEntry);
+
+        //             var debitTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ReceiptAccountId = existingReceipt.Id,
+        //                 AccountId = debitEntry.AccountId,
+        //                 Type = TransactionType.Rcpt,
+        //                 DrCrNoteAccountTypes = "Debit",
+        //                 PaymentReceiptType = creditAccount.Name,  // Store the receipt account name (Credit account name - Cash/Bank)
+        //                 BillNumber = existingReceipt.BillNumber,
+        //                 InstType = debitEntry.InstType.HasValue
+        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = debitEntry.InstNo,
+        //                 BankAcc = debitEntry.BankAcc,
+        //                 TotalDebit = debitEntry.Amount,
+        //                 TotalCredit = 0,
+        //                 PaymentMode = PaymentMode.Receipt,
+        //                 Date = existingReceipt.Date,
+        //                 NepaliDate = existingReceipt.NepaliDate,
+        //                 IsActive = true,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active
+        //             };
+        //             newTransactions.Add(debitTransaction);
+
+        //             // 2. Create CREDIT Receipt Entry and Transaction (Receipt Account - Money coming IN to Cash/Bank)
+        //             var creditReceiptEntry = new ReceiptEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ReceiptId = existingReceipt.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 EntryType = "Credit",
+        //                 Amount = creditEntry.Amount,
+        //                 Description = creditEntry.Description,
+        //                 InstType = creditEntry.InstType,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 InstNo = creditEntry.InstNo,
+        //                 ReferenceNumber = creditEntry.ReferenceNumber,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+        //             newEntries.Add(creditReceiptEntry);
+
+        //             var creditTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ReceiptAccountId = existingReceipt.Id,
+        //                 AccountId = creditEntry.AccountId,
+        //                 Type = TransactionType.Rcpt,
+        //                 DrCrNoteAccountTypes = "Credit",
+        //                 PaymentReceiptType = debitAccount.Name,  // Store the party account name (Debit account name - money source)
+        //                 BillNumber = existingReceipt.BillNumber,
+        //                 InstType = creditEntry.InstType.HasValue
+        //                     ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+        //                     : Models.Retailer.TransactionModel.InstrumentType.NA,
+        //                 InstNo = creditEntry.InstNo,
+        //                 BankAcc = creditEntry.BankAcc,
+        //                 TotalDebit = 0,
+        //                 TotalCredit = creditEntry.Amount,
+        //                 PaymentMode = PaymentMode.Receipt,
+        //                 Date = existingReceipt.Date,
+        //                 NepaliDate = existingReceipt.NepaliDate,
+        //                 IsActive = true,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active
+        //             };
+        //             newTransactions.Add(creditTransaction);
+
+        //             // Add all new entries and transactions
+        //             await _context.ReceiptEntries.AddRangeAsync(newEntries);
+        //             await _context.Transactions.AddRangeAsync(newTransactions);
+
+        //             var saveResult = await _context.SaveChangesAsync();
+        //             _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+
+        //             await transaction.CommitAsync();
+        //             _logger.LogInformation("Transaction committed successfully");
+
+        //             _logger.LogInformation("=== Successfully updated receipt: {ReceiptId} with {EntryCount} entries ===",
+        //                 id, newEntries.Count);
+
+        //             // Return updated receipt with entries
+        //             var updatedReceipt = await _context.Receipts
+        //                 .Include(r => r.ReceiptEntries)
+        //                     .ThenInclude(e => e.Account)
+        //                 .FirstOrDefaultAsync(r => r.Id == id);
+
+        //             return updatedReceipt ?? existingReceipt;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error updating receipt: {ReceiptId}", id);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<Receipt> UpdateReceiptAsync(Guid id, UpdateReceiptDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -880,13 +1109,39 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                     if (debitEntry.Amount != creditEntry.Amount)
                         throw new ArgumentException($"Debit amount ({debitEntry.Amount}) must equal Credit amount ({creditEntry.Amount})");
 
-                    // Get existing receipt with entries
+                    // Get existing receipt with entries and accounts
                     var existingReceipt = await _context.Receipts
                         .Include(r => r.ReceiptEntries)
+                            .ThenInclude(re => re.Account)
                         .FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId);
 
                     if (existingReceipt == null)
                         throw new ArgumentException("Receipt voucher not found");
+
+                    // STEP 1: REMOVE OLD RECEIPT FROM CASH COUNTER (if it was cash)
+                    var oldDebitEntry = existingReceipt.ReceiptEntries.FirstOrDefault(e => e.EntryType == "Debit");
+                    if (oldDebitEntry != null)
+                    {
+                        var oldDebitAccount = await _context.Accounts
+                            .FirstOrDefaultAsync(a => a.Id == oldDebitEntry.AccountId && a.CompanyId == companyId);
+
+                        var oldIsCashReceipt = oldDebitAccount?.Name?.ToLower() == "cash in hand" ||
+                                               oldDebitEntry.InstType == null ||
+                                               oldDebitEntry.InstType == ReceiptInstrumentType.NA;
+
+                        if (oldIsCashReceipt && existingReceipt.TotalAmount > 0)
+                        {
+                            try
+                            {
+                                await _cashCounterService.RemoveSessionFromReceiptAsync(id);
+                                _logger.LogInformation($"Removed receipt {existingReceipt.BillNumber} from cash counter session");
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, $"Error removing receipt {existingReceipt.BillNumber} from cash counter");
+                            }
+                        }
+                    }
 
                     // Validate accounts exist
                     var debitAccount = await _context.Accounts
@@ -1041,6 +1296,24 @@ namespace SkyForge.Services.Retailer.ReceiptServices
 
                     await transaction.CommitAsync();
                     _logger.LogInformation("Transaction committed successfully");
+
+                    // STEP 2: ADD UPDATED RECEIPT TO CASH COUNTER (if it's cash)
+                    var isCashReceipt = debitAccount.Name?.ToLower() == "cash in hand" ||
+                                       debitEntry.InstType == null ||
+                                       debitEntry.InstType == ReceiptInstrumentType.NA;
+
+                    if (isCashReceipt && debitEntry.Amount > 0)
+                    {
+                        try
+                        {
+                            await _cashCounterService.UpdateSessionFromReceiptAsync(existingReceipt.Id);
+                            _logger.LogInformation($"Added updated receipt {existingReceipt.BillNumber} to cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Error adding receipt {existingReceipt.BillNumber} to cash counter");
+                        }
+                    }
 
                     _logger.LogInformation("=== Successfully updated receipt: {ReceiptId} with {EntryCount} entries ===",
                         id, newEntries.Count);

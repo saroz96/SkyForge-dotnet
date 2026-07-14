@@ -31,6 +31,7 @@ using SkyForge.Models.Retailer.StockAdjustmentModel;
 using System.Text.Json;
 using SkyForge.Models.Retailer.SalesQuotationModel;
 using SkyForge.Models.Audit;
+using SkyForge.Models.Retailer.CashCounterModel;
 namespace SkyForge.Data
 {
     public class ApplicationDbContext : DbContext
@@ -94,6 +95,19 @@ namespace SkyForge.Data
         public DbSet<BillCounter> BillCounters { get; set; } = null!;
 
         public DbSet<BackupHistory> BackupHistories { get; set; }
+
+        public DbSet<CashCounterSession> CashCounterSessions { get; set; }
+        public DbSet<CashCounterTransaction> CashCounterTransactions { get; set; }
+        public DbSet<CashCounterDenomination> CashCounterDenominations { get; set; }
+        public DbSet<CashCounterSalesBill> CashCounterSalesBills { get; set; }
+        public DbSet<CashCounterSalesReturn> CashCounterSalesReturns { get; set; }
+        public DbSet<CashCounterPayment> CashCounterPayments { get; set; }
+        public DbSet<CashCounterReceipt> CashCounterReceipts { get; set; }
+        public DbSet<CashCounterJournalVoucher> CashCounterJournalVouchers { get; set; }
+        public DbSet<CashCounterDebitNote> CashCounterDebitNotes { get; set; }
+        public DbSet<CashCounterCreditNote> CashCounterCreditNotes { get; set; }
+        public DbSet<CashCounterPurchaseBill> CashCounterPurchaseBills { get; set; }
+        public DbSet<CashCounterPurchaseReturn> CashCounterPurchaseReturns { get; set; }
 
         public DbSet<AuditLog> AuditLogs { get; set; }
 
@@ -2067,15 +2081,6 @@ namespace SkyForge.Data
                 entity.Property(e => e.Date).HasDefaultValueSql("CURRENT_TIMESTAMP");
                 entity.Property(e => e.TransactionDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                // Computed columns for calculated values (PostgreSQL specific)
-                //entity.Property(e => e.AltQuantity)
-                //    .HasComputedColumnSql("CASE WHEN ws_unit IS NOT NULL AND ws_unit > 0 THEN ws_unit * quantity ELSE quantity END", stored: true);
-
-                //entity.Property(e => e.AltPrice)
-                //    .HasComputedColumnSql("CASE WHEN ws_unit IS NOT NULL AND ws_unit > 0 THEN price / ws_unit ELSE price END", stored: true);
-
-                //entity.Property(e => e.AltPuPrice)
-                //    .HasComputedColumnSql("CASE WHEN ws_unit IS NOT NULL AND ws_unit > 0 THEN pu_price / ws_unit ELSE pu_price END", stored: true);
             });
 
 
@@ -2142,7 +2147,297 @@ namespace SkyForge.Data
                 entity.HasIndex(e => new { e.CreatedAt, e.CompanyId });
                 entity.HasIndex(e => new { e.UserId, e.CreatedAt });
             });
+
+            // Configure CashCounterSession
+            modelBuilder.Entity<CashCounterSession>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.OpeningBalance).HasPrecision(18, 2);
+                entity.Property(e => e.ClosingBalance).HasPrecision(18, 2);
+                entity.Property(e => e.ExpectedClosingBalance).HasPrecision(18, 2);
+                entity.Property(e => e.TotalSales).HasPrecision(18, 2);
+                entity.Property(e => e.TotalReturns).HasPrecision(18, 2);
+                entity.Property(e => e.TotalPayments).HasPrecision(18, 2);
+                entity.Property(e => e.TotalReceipts).HasPrecision(18, 2);
+                entity.Property(e => e.CashDifference).HasPrecision(18, 2);
+
+                entity.HasOne(e => e.Company)
+                    .WithMany()
+                    .HasForeignKey(e => e.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.FiscalYear)
+                    .WithMany()
+                    .HasForeignKey(e => e.FiscalYearId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configure CashCounterTransaction
+            modelBuilder.Entity<CashCounterTransaction>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.Transactions)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configure CashCounterDenomination
+            modelBuilder.Entity<CashCounterDenomination>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.TotalValue).HasPrecision(18, 2);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.Denominations)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure CashCounterSalesBill
+            modelBuilder.Entity<CashCounterSalesBill>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.PaymentMode).HasMaxLength(20);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany() // If you want navigation, add: .WithMany(s => s.SalesBills)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterSalesBill_SessionId");
+
+                entity.HasIndex(e => e.SalesBillId)
+                    .HasDatabaseName("IX_CashCounterSalesBill_SalesBillId");
+
+                // Unique constraint to prevent duplicate bills in the same session
+                entity.HasIndex(e => new { e.SessionId, e.SalesBillId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterSalesBill_Session_SalesBill");
+            });
+
+            // Configure CashCounterSalesReturn
+            modelBuilder.Entity<CashCounterSalesReturn>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.PaymentMode).HasMaxLength(20);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany() // You can add navigation if needed
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterSalesReturn_SessionId");
+
+                entity.HasIndex(e => e.SalesReturnId)
+                    .HasDatabaseName("IX_CashCounterSalesReturn_SalesReturnId");
+
+                // Unique constraint to prevent duplicate returns in the same session
+                entity.HasIndex(e => new { e.SessionId, e.SalesReturnId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterSalesReturn_Session_SalesReturn");
+            });
+
+
+            // Configure CashCounterPayment
+            modelBuilder.Entity<CashCounterPayment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.PaymentMode).HasMaxLength(20);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.Payments)  // Navigation property
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterPayment_SessionId");
+
+                entity.HasIndex(e => e.PaymentId)
+                    .HasDatabaseName("IX_CashCounterPayment_PaymentId");
+
+                // Unique constraint to prevent duplicate payments in the same session
+                entity.HasIndex(e => new { e.SessionId, e.PaymentId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterPayment_Session_Payment");
+            });
+
+            // Configure CashCounterReceipt
+            modelBuilder.Entity<CashCounterReceipt>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.ReceiptMode).HasMaxLength(20);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.Receipts)  // Navigation property
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterReceipt_SessionId");
+
+                entity.HasIndex(e => e.ReceiptId)
+                    .HasDatabaseName("IX_CashCounterReceipt_ReceiptId");
+
+                // Unique constraint to prevent duplicate receipts in the same session
+                entity.HasIndex(e => new { e.SessionId, e.ReceiptId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterReceipt_Session_Receipt");
+            });
+
+            // Configure CashCounterJournalVoucher - NEW
+            modelBuilder.Entity<CashCounterJournalVoucher>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.EntryType).HasMaxLength(10);
+                entity.Property(e => e.AccountName).HasMaxLength(255);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.JournalVouchers)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterJournalVoucher_SessionId");
+
+                entity.HasIndex(e => e.JournalVoucherId)
+                    .HasDatabaseName("IX_CashCounterJournalVoucher_JournalVoucherId");
+
+                // Unique constraint to prevent duplicate journal vouchers in the same session
+                entity.HasIndex(e => new { e.SessionId, e.JournalVoucherId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterJournalVoucher_Session_JournalVoucher");
+            });
+
+            // Configure CashCounterDebitNote - NEW
+            modelBuilder.Entity<CashCounterDebitNote>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.EntryType).HasMaxLength(10);
+                entity.Property(e => e.AccountName).HasMaxLength(255);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.DebitNotes)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterDebitNote_SessionId");
+
+                entity.HasIndex(e => e.DebitNoteId)
+                    .HasDatabaseName("IX_CashCounterDebitNote_DebitNoteId");
+
+                // Unique constraint to prevent duplicate debit notes in the same session
+                entity.HasIndex(e => new { e.SessionId, e.DebitNoteId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterDebitNote_Session_DebitNote");
+            });
+
+            // Configure CashCounterCreditNote - NEW
+            modelBuilder.Entity<CashCounterCreditNote>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.EntryType).HasMaxLength(10);
+                entity.Property(e => e.AccountName).HasMaxLength(255);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.CreditNotes)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterCreditNote_SessionId");
+
+                entity.HasIndex(e => e.CreditNoteId)
+                    .HasDatabaseName("IX_CashCounterCreditNote_CreditNoteId");
+
+                // Unique constraint to prevent duplicate credit notes in the same session
+                entity.HasIndex(e => new { e.SessionId, e.CreditNoteId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterCreditNote_Session_CreditNote");
+            });
+
+            // Configure CashCounterPurchaseBill - NEW
+            modelBuilder.Entity<CashCounterPurchaseBill>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.PaymentMode).HasMaxLength(20);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.PurchaseBills)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterPurchaseBill_SessionId");
+
+                entity.HasIndex(e => e.PurchaseBillId)
+                    .HasDatabaseName("IX_CashCounterPurchaseBill_PurchaseBillId");
+
+                // Unique constraint to prevent duplicate purchase bills in the same session
+                entity.HasIndex(e => new { e.SessionId, e.PurchaseBillId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterPurchaseBill_Session_PurchaseBill");
+            });
+
+            // Configure CashCounterPurchaseReturn - NEW
+            modelBuilder.Entity<CashCounterPurchaseReturn>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.PaymentMode).HasMaxLength(20);
+
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.PurchaseReturns)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for performance
+                entity.HasIndex(e => e.SessionId)
+                    .HasDatabaseName("IX_CashCounterPurchaseReturn_SessionId");
+
+                entity.HasIndex(e => e.PurchaseReturnId)
+                    .HasDatabaseName("IX_CashCounterPurchaseReturn_PurchaseReturnId");
+
+                // Unique constraint to prevent duplicate purchase returns in the same session
+                entity.HasIndex(e => new { e.SessionId, e.PurchaseReturnId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_CashCounterPurchaseReturn_Session_PurchaseReturn");
+            });
+
         }
+
+
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

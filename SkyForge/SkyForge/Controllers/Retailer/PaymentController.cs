@@ -9,6 +9,8 @@ using SkyForge.Models.Shared;
 using SkyForge.Dto.RetailerDto.PaymentDto;
 using SkyForge.Models.Retailer.PaymentModel;
 using SkyForge.Models.Retailer.TransactionModel;
+using SkyForge.Services.Retailer.CashCounterServices;
+
 
 namespace SkyForge.Controllers.Retailer
 {
@@ -20,15 +22,19 @@ namespace SkyForge.Controllers.Retailer
         private readonly ApplicationDbContext _context;
         private readonly ILogger<PaymentController> _logger;
         private readonly IPaymentService _paymentService;
+        private readonly ICashCounterService _cashCounterService;
+
 
         public PaymentController(
             ApplicationDbContext context,
             ILogger<PaymentController> logger,
-            IPaymentService paymentService)
+            IPaymentService paymentService,
+            ICashCounterService cashCounterService)
         {
             _context = context;
             _logger = logger;
             _paymentService = paymentService;
+            _cashCounterService = cashCounterService;
         }
 
         // GET: api/retailer/last-payment-date
@@ -85,7 +91,7 @@ namespace SkyForge.Controllers.Retailer
                 }
 
                 var lastPayment = await orderedQuery
-                    .Select(p => new { p.Date, p.NepaliDate,p.BillNumber })
+                    .Select(p => new { p.Date, p.NepaliDate, p.BillNumber })
                     .FirstOrDefaultAsync();
 
                 if (lastPayment == null)
@@ -1496,6 +1502,358 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // // POST: api/retailer/payments/cancel/{billNumber}
+        // [HttpPost("payments/cancel/{billNumber}")]
+        // public async Task<IActionResult> CancelPayment(string billNumber)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== CancelPayment Started for Bill Number: {BillNumber} ===", billNumber);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // Handle fiscal year - get from claims first, then fallback
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             // If not in claims, get active fiscal year for the company
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 // Try to get any fiscal year as fallback
+        //                 activeFiscalYear = await _context.FiscalYears
+        //                     .Where(f => f.CompanyId == companyIdGuid)
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (activeFiscalYear == null)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "No fiscal year found for this company."
+        //                     });
+        //                 }
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+
+        //             _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+        //         }
+
+        //         // Validate bill number
+        //         if (string.IsNullOrWhiteSpace(billNumber))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Bill number is required"
+        //             });
+        //         }
+
+        //         // Use execution strategy for transaction handling
+        //         var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //         var result = await executionStrategy.ExecuteAsync(async () =>
+        //         {
+        //             using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //             try
+        //             {
+        //                 _logger.LogInformation("Starting transaction to cancel payment: {BillNumber}", billNumber);
+
+        //                 // Find the payment by bill number and company
+        //                 var payment = await _context.Payments
+        //                     .FirstOrDefaultAsync(p => p.BillNumber == billNumber &&
+        //                                              p.CompanyId == companyIdGuid &&
+        //                                              p.FiscalYearId == fiscalYearIdGuid);
+
+        //                 if (payment == null)
+        //                 {
+        //                     throw new ArgumentException($"Payment with bill number {billNumber} not found");
+        //                 }
+
+        //                 // Check if already canceled
+        //                 if (payment.Status == PaymentStatus.Canceled)
+        //                 {
+        //                     throw new ArgumentException($"Payment {billNumber} is already canceled");
+        //                 }
+
+        //                 // Update payment status to Canceled
+        //                 payment.Status = PaymentStatus.Canceled;
+        //                 payment.IsActive = false;
+        //                 payment.UpdatedAt = DateTime.UtcNow;
+
+        //                 _context.Payments.Update(payment);
+        //                 _logger.LogInformation("Updated payment status to Canceled for {BillNumber}", billNumber);
+
+        //                 // Update related transactions
+        //                 var transactionsUpdated = await _context.Transactions
+        //                     .Where(t => t.BillNumber == billNumber &&
+        //                                t.Type == TransactionType.Pymt &&
+        //                                t.CompanyId == companyIdGuid)
+        //                     .ExecuteUpdateAsync(setters => setters
+        //                         .SetProperty(t => t.Status, TransactionStatus.Canceled)
+        //                         .SetProperty(t => t.IsActive, false));
+
+        //                 _logger.LogInformation("Updated {Count} related transactions for {BillNumber}", transactionsUpdated, billNumber);
+
+        //                 // Save all changes
+        //                 await _context.SaveChangesAsync();
+
+        //                 // Commit transaction
+        //                 await transaction.CommitAsync();
+        //                 _logger.LogInformation("Transaction committed successfully for canceling payment {BillNumber}", billNumber);
+
+        //                 return new
+        //                 {
+        //                     success = true,
+        //                     message = "Payment and related transactions have been canceled.",
+        //                     billNumber = billNumber
+        //                 };
+        //             }
+        //             catch (Exception ex)
+        //             {
+        //                 _logger.LogError(ex, "Error during transaction for canceling payment {BillNumber}", billNumber);
+        //                 await transaction.RollbackAsync();
+        //                 throw;
+        //             }
+        //         });
+
+        //         return Ok(result);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in CancelPayment for bill {BillNumber}", billNumber);
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in CancelPayment for bill {BillNumber}", billNumber);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while canceling payment",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // // POST: api/retailer/payments/reactivate/{billNumber}
+        // [HttpPost("payments/reactivate/{billNumber}")]
+        // public async Task<IActionResult> ReactivatePayment(string billNumber)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== ReactivatePayment Started for Bill Number: {BillNumber} ===", billNumber);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // Handle fiscal year - get from claims first, then fallback
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             // If not in claims, get active fiscal year for the company
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 // Try to get any fiscal year as fallback
+        //                 activeFiscalYear = await _context.FiscalYears
+        //                     .Where(f => f.CompanyId == companyIdGuid)
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (activeFiscalYear == null)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "No fiscal year found for this company."
+        //                     });
+        //                 }
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+
+        //             _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+        //         }
+
+        //         // Validate bill number
+        //         if (string.IsNullOrWhiteSpace(billNumber))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Bill number is required"
+        //             });
+        //         }
+
+        //         // Use execution strategy for transaction handling
+        //         var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //         var result = await executionStrategy.ExecuteAsync(async () =>
+        //         {
+        //             using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //             try
+        //             {
+        //                 _logger.LogInformation("Starting transaction to reactivate payment: {BillNumber}", billNumber);
+
+        //                 // Find the payment by bill number and company
+        //                 var payment = await _context.Payments
+        //                     .FirstOrDefaultAsync(p => p.BillNumber == billNumber &&
+        //                                              p.CompanyId == companyIdGuid &&
+        //                                              p.FiscalYearId == fiscalYearIdGuid);
+
+        //                 if (payment == null)
+        //                 {
+        //                     throw new ArgumentException($"Payment with bill number {billNumber} not found");
+        //                 }
+
+        //                 // Check if already active
+        //                 if (payment.Status == PaymentStatus.Active)
+        //                 {
+        //                     throw new ArgumentException($"Payment {billNumber} is already active");
+        //                 }
+
+        //                 // Update payment status to Active
+        //                 payment.Status = PaymentStatus.Active;
+        //                 payment.IsActive = true;
+        //                 payment.UpdatedAt = DateTime.UtcNow;
+
+        //                 _context.Payments.Update(payment);
+        //                 _logger.LogInformation("Updated payment status to Active for {BillNumber}", billNumber);
+
+        //                 // Reactivate related transactions
+        //                 var transactionsUpdated = await _context.Transactions
+        //                     .Where(t => t.BillNumber == billNumber &&
+        //                                t.Type == TransactionType.Pymt &&
+        //                                t.CompanyId == companyIdGuid)
+        //                     .ExecuteUpdateAsync(setters => setters
+        //                         .SetProperty(t => t.Status, TransactionStatus.Active)
+        //                         .SetProperty(t => t.IsActive, true));
+
+        //                 _logger.LogInformation("Reactivated {Count} related transactions for {BillNumber}", transactionsUpdated, billNumber);
+
+        //                 // Save all changes
+        //                 await _context.SaveChangesAsync();
+
+        //                 // Commit transaction
+        //                 await transaction.CommitAsync();
+        //                 _logger.LogInformation("Transaction committed successfully for reactivating payment {BillNumber}", billNumber);
+
+        //                 return new
+        //                 {
+        //                     success = true,
+        //                     message = "Payment and related transactions have been reactivated.",
+        //                     billNumber = billNumber
+        //                 };
+        //             }
+        //             catch (Exception ex)
+        //             {
+        //                 _logger.LogError(ex, "Error during transaction for reactivating payment {BillNumber}", billNumber);
+        //                 await transaction.RollbackAsync();
+        //                 throw;
+        //             }
+        //         });
+
+        //         return Ok(result);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in ReactivatePayment for bill {BillNumber}", billNumber);
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in ReactivatePayment for bill {BillNumber}", billNumber);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while reactivating payment",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         // POST: api/retailer/payments/cancel/{billNumber}
         [HttpPost("payments/cancel/{billNumber}")]
         public async Task<IActionResult> CancelPayment(string billNumber)
@@ -1591,8 +1949,10 @@ namespace SkyForge.Controllers.Retailer
                     {
                         _logger.LogInformation("Starting transaction to cancel payment: {BillNumber}", billNumber);
 
-                        // Find the payment by bill number and company
+                        // Find the payment by bill number and company with entries and accounts
                         var payment = await _context.Payments
+                            .Include(p => p.PaymentEntries)
+                                .ThenInclude(pe => pe.Account)
                             .FirstOrDefaultAsync(p => p.BillNumber == billNumber &&
                                                      p.CompanyId == companyIdGuid &&
                                                      p.FiscalYearId == fiscalYearIdGuid);
@@ -1606,6 +1966,32 @@ namespace SkyForge.Controllers.Retailer
                         if (payment.Status == PaymentStatus.Canceled)
                         {
                             throw new ArgumentException($"Payment {billNumber} is already canceled");
+                        }
+
+                        // STEP 1: REMOVE FROM CASH COUNTER if it was cash
+                        var creditEntry = payment.PaymentEntries.FirstOrDefault(e => e.EntryType == "Credit");
+                        if (creditEntry != null)
+                        {
+                            var creditAccount = await _context.Accounts
+                                .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyIdGuid);
+
+                            var isCashPayment = creditAccount?.Name?.ToLower() == "cash in hand" ||
+                                               creditEntry.InstType == null ||
+                                               creditEntry.InstType == PaymentInstrumentType.NA;
+
+                            if (isCashPayment && payment.TotalAmount > 0)
+                            {
+                                try
+                                {
+                                    await _cashCounterService.RemoveSessionFromPaymentAsync(payment.Id);
+                                    _logger.LogInformation($"Removed payment {payment.BillNumber} from cash counter session");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, $"Error removing payment {payment.BillNumber} from cash counter");
+                                    // Continue with cancellation even if cash counter fails
+                                }
+                            }
                         }
 
                         // Update payment status to Canceled
@@ -1767,8 +2153,10 @@ namespace SkyForge.Controllers.Retailer
                     {
                         _logger.LogInformation("Starting transaction to reactivate payment: {BillNumber}", billNumber);
 
-                        // Find the payment by bill number and company
+                        // Find the payment by bill number and company with entries and accounts
                         var payment = await _context.Payments
+                            .Include(p => p.PaymentEntries)
+                                .ThenInclude(pe => pe.Account)
                             .FirstOrDefaultAsync(p => p.BillNumber == billNumber &&
                                                      p.CompanyId == companyIdGuid &&
                                                      p.FiscalYearId == fiscalYearIdGuid);
@@ -1803,8 +2191,34 @@ namespace SkyForge.Controllers.Retailer
 
                         _logger.LogInformation("Reactivated {Count} related transactions for {BillNumber}", transactionsUpdated, billNumber);
 
-                        // Save all changes
+                        // Save all changes before adding to cash counter
                         await _context.SaveChangesAsync();
+
+                        // STEP 2: ADD REACTIVATED PAYMENT TO CASH COUNTER (if it's cash)
+                        var creditEntry = payment.PaymentEntries.FirstOrDefault(e => e.EntryType == "Credit");
+                        if (creditEntry != null)
+                        {
+                            var creditAccount = await _context.Accounts
+                                .FirstOrDefaultAsync(a => a.Id == creditEntry.AccountId && a.CompanyId == companyIdGuid);
+
+                            var isCashPayment = creditAccount?.Name?.ToLower() == "cash in hand" ||
+                                               creditEntry.InstType == null ||
+                                               creditEntry.InstType == PaymentInstrumentType.NA;
+
+                            if (isCashPayment && payment.TotalAmount > 0)
+                            {
+                                try
+                                {
+                                    await _cashCounterService.UpdateSessionFromPaymentAsync(payment.Id);
+                                    _logger.LogInformation($"Added reactivated payment {payment.BillNumber} to cash counter session");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, $"Error adding payment {payment.BillNumber} to cash counter");
+                                    // Continue with reactivation even if cash counter fails
+                                }
+                            }
+                        }
 
                         // Commit transaction
                         await transaction.CommitAsync();
@@ -1847,7 +2261,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-
     }
 }
 

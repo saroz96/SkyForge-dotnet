@@ -8,6 +8,7 @@ using SkyForge.Services.Retailer.DebitNoteServices;
 using SkyForge.Dto.RetailerDto.DebitNoteDto;
 using SkyForge.Models.Retailer.DebitNoteModel;
 using SkyForge.Models.AccountModel;
+using SkyForge.Services.Retailer.CashCounterServices;
 
 
 namespace SkyForge.Services.Retailer.DebitNoteServices
@@ -16,17 +17,20 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<DebitNoteService> _logger;
-
         private readonly IBillNumberService _billNumberService;
+        private readonly ICashCounterService _cashCounterService;
+
 
         public DebitNoteService(
             ApplicationDbContext context,
             ILogger<DebitNoteService> logger,
-            IBillNumberService billNumberService)
+            IBillNumberService billNumberService,
+            ICashCounterService cashCounterService)
         {
             _context = context;
             _logger = logger;
             _billNumberService = billNumberService;
+            _cashCounterService = cashCounterService;
         }
 
         public async Task<DebitNoteFormDataResponseDTO> GetDebitNoteFormDataAsync(Guid companyId, Guid fiscalYearId, Guid userId)
@@ -164,6 +168,143 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "debitNote");
         }
 
+        // public async Task<DebitNote> CreateDebitNoteAsync(CreateDebitNoteDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("CreateDebitNoteAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //             {
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+        //             }
+
+        //             // Calculate totals and validate
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
+        //             {
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+        //             }
+
+        //             // Verify all accounts exist and belong to company
+        //             var accountCache = new Dictionary<Guid, Account>();
+        //             foreach (var entry in dto.Entries)
+        //             {
+        //                 var account = await _context.Accounts
+        //                     .FirstOrDefaultAsync(a => a.Id == entry.AccountId && a.CompanyId == companyId);
+
+        //                 if (account == null)
+        //                 {
+        //                     throw new ArgumentException($"Account with ID {entry.AccountId} not found");
+        //                 }
+        //                 accountCache[entry.AccountId] = account;
+        //             }
+
+        //             // Get bill number
+        //             var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "debitNote");
+
+        //             // Create Debit Note master record
+        //             var debitNote = new DebitNote
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 BillNumber = billNumber,
+        //                 TotalAmount = totalCredit,
+        //                 Date = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 Description = dto.Description,
+        //                 UserId = userId,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 Status = DebitNoteStatus.Active,
+        //                 IsActive = true,
+        //                 CreatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.DebitNotes.AddAsync(debitNote);
+
+        //             // Create debit note entries and transactions
+        //             var transactions = new List<Transaction>();
+        //             int lineNumber = 1;
+
+        //             foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
+        //             {
+        //                 // Create debit note entry
+        //                 var debitNoteEntry = new DebitNoteEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     DebitNoteId = debitNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     EntryType = entryDto.EntryType,
+        //                     Amount = entryDto.Amount,
+        //                     Description = entryDto.Description,
+        //                     LineNumber = lineNumber++,
+        //                     ReferenceNumber = entryDto.ReferenceNumber,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 await _context.DebitNoteEntries.AddAsync(debitNoteEntry);
+
+        //                 // Get opposite entry type names for DrCrNoteAccountType field
+        //                 var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
+        //                 var oppositeAccountNames = string.Join(", ", oppositeEntries.Select(e =>
+        //                 {
+        //                     accountCache.TryGetValue(e.AccountId, out var account);
+        //                     return account?.Name ?? (entryDto.EntryType == "Debit" ? "Credit Note" : "Debit Note");
+        //                 }));
+
+        //                 // Create transaction using TotalDebit/TotalCredit
+        //                 var transactionEntry = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     DebitNoteId = debitNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     Type = TransactionType.DrNt, // Debit Note type
+        //                     DrCrNoteAccountTypes = entryDto.EntryType,
+        //                     DrCrNoteAccountType = oppositeAccountNames.Length > 1900 ? oppositeAccountNames.Substring(0, 1897) + "..." : oppositeAccountNames,
+        //                     BillNumber = billNumber,
+        //                     TotalDebit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+        //                     TotalCredit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+        //                     PaymentMode = PaymentMode.DrNote,
+        //                     Date = debitNote.Date,
+        //                     NepaliDate = debitNote.NepaliDate,
+        //                     IsActive = true,
+        //                     CompanyId = companyId,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active
+        //                 };
+
+        //                 transactions.Add(transactionEntry);
+        //             }
+
+        //             await _context.Transactions.AddRangeAsync(transactions);
+        //             await _context.SaveChangesAsync();
+
+        //             await transaction.CommitAsync();
+
+        //             _logger.LogInformation("Debit Note created successfully. ID: {DebitNoteId}, BillNumber: {BillNumber}, Total: {TotalAmount}, Entries: {EntryCount}",
+        //                 debitNote.Id, debitNote.BillNumber, totalCredit, dto.Entries.Count);
+
+        //             return debitNote;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error in CreateDebitNoteAsync for Company: {CompanyId}", companyId);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<DebitNote> CreateDebitNoteAsync(CreateDebitNoteDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -228,6 +369,7 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
                     await _context.DebitNotes.AddAsync(debitNote);
 
                     // Create debit note entries and transactions
+                    var debitNoteEntries = new List<DebitNoteEntry>();
                     var transactions = new List<Transaction>();
                     int lineNumber = 1;
 
@@ -247,6 +389,7 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
                             CreatedAt = DateTime.UtcNow
                         };
 
+                        debitNoteEntries.Add(debitNoteEntry);
                         await _context.DebitNoteEntries.AddAsync(debitNoteEntry);
 
                         // Get opposite entry type names for DrCrNoteAccountType field
@@ -289,6 +432,25 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
 
                     _logger.LogInformation("Debit Note created successfully. ID: {DebitNoteId}, BillNumber: {BillNumber}, Total: {TotalAmount}, Entries: {EntryCount}",
                         debitNote.Id, debitNote.BillNumber, totalCredit, dto.Entries.Count);
+
+                    // STEP: Add to Cash Counter if there are cash entries
+                    var cashEntries = debitNoteEntries
+                        .Where(dne => accountCache[dne.AccountId].Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (cashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.UpdateSessionFromDebitNoteAsync(debitNote.Id);
+                            _logger.LogInformation($"Added debit note {debitNote.BillNumber} to cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log but don't fail the debit note creation
+                            _logger.LogError(ex, $"Error adding debit note {debitNote.BillNumber} to cash counter");
+                        }
+                    }
 
                     return debitNote;
                 }
@@ -667,6 +829,184 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
                 ReferenceNumber = e.ReferenceNumber
             }).ToList();
         }
+
+        // public async Task<DebitNote> UpdateDebitNoteAsync(Guid id, UpdateDebitNoteDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        //     return await executionStrategy.ExecuteAsync(async () =>
+        //     {
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("=== Starting UpdateDebitNoteAsync for Debit Note ID: {DebitNoteId} ===", id);
+
+        //             // Validate entries
+        //             if (dto.Entries == null || dto.Entries.Count < 2)
+        //                 throw new ArgumentException("At least 2 entries required (one debit and one credit)");
+
+        //             decimal totalDebit = dto.Entries.Where(e => e.EntryType == "Debit").Sum(e => e.Amount);
+        //             decimal totalCredit = dto.Entries.Where(e => e.EntryType == "Credit").Sum(e => e.Amount);
+
+        //             if (totalDebit != totalCredit)
+        //                 throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
+
+        //             // Find existing debit note
+        //             var existingDebitNote = await _context.DebitNotes
+        //                 .Include(d => d.DebitNoteEntries)
+        //                 .FirstOrDefaultAsync(d => d.Id == id && d.CompanyId == companyId);
+
+        //             if (existingDebitNote == null)
+        //                 throw new ArgumentException("Debit note not found");
+
+        //             // Check if debit note is canceled
+        //             if (existingDebitNote.Status == DebitNoteStatus.Canceled)
+        //                 throw new ArgumentException("Cannot update a canceled debit note");
+
+        //             // Validate all accounts exist and cache them
+        //             var accountCache = new Dictionary<Guid, Account>();
+        //             foreach (var entryDto in dto.Entries)
+        //             {
+        //                 var account = await _context.Accounts
+        //                     .FirstOrDefaultAsync(a => a.Id == entryDto.AccountId && a.CompanyId == companyId);
+
+        //                 if (account == null)
+        //                     throw new ArgumentException($"Account with ID {entryDto.AccountId} not found");
+
+        //                 accountCache[entryDto.AccountId] = account;
+        //             }
+
+        //             var company = await _context.Companies.FindAsync(companyId);
+        //             if (company == null)
+        //                 throw new ArgumentException("Company not found");
+
+        //             var fiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //             if (fiscalYear == null)
+        //                 throw new ArgumentException("Fiscal year not found");
+
+        //             // Delete existing transactions AND their transaction items
+        //             var existingTransactions = await _context.Transactions
+        //                 .Where(t => t.DebitNoteId == id)
+        //                 .Include(t => t.TransactionItems) // Include transaction items for cascade delete
+        //                 .ToListAsync();
+
+        //             if (existingTransactions.Any())
+        //             {
+        //                 // TransactionItems will be deleted automatically due to Cascade delete
+        //                 _context.Transactions.RemoveRange(existingTransactions);
+        //                 _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
+        //             }
+
+        //             // Delete existing debit note entries
+        //             if (existingDebitNote.DebitNoteEntries.Any())
+        //             {
+        //                 _context.DebitNoteEntries.RemoveRange(existingDebitNote.DebitNoteEntries);
+        //                 _logger.LogInformation("Deleted {Count} existing entries", existingDebitNote.DebitNoteEntries.Count);
+        //             }
+
+        //             await _context.SaveChangesAsync();
+
+        //             // Update debit note properties
+        //             existingDebitNote.TotalAmount = totalDebit;
+        //             existingDebitNote.Description = dto.Description;
+        //             existingDebitNote.NepaliDate = dto.NepaliDate;
+        //             existingDebitNote.Date = dto.Date;
+        //             existingDebitNote.UpdatedAt = DateTime.UtcNow;
+
+        //             _context.DebitNotes.Update(existingDebitNote);
+        //             await _context.SaveChangesAsync();
+
+        //             // Create new entries and transactions
+        //             var newEntries = new List<DebitNoteEntry>();
+        //             var newTransactions = new List<Transaction>();
+        //             int lineNumber = 1;
+
+        //             foreach (var entryDto in dto.Entries.OrderBy(e => e.LineNumber))
+        //             {
+        //                 var debitNoteEntry = new DebitNoteEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     DebitNoteId = existingDebitNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     EntryType = entryDto.EntryType,
+        //                     Amount = entryDto.Amount,
+        //                     Description = entryDto.Description,
+        //                     LineNumber = lineNumber++,
+        //                     ReferenceNumber = entryDto.ReferenceNumber,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 newEntries.Add(debitNoteEntry);
+
+        //                 // Get opposite entry type names for DrCrNoteAccountType field
+        //                 var oppositeEntries = dto.Entries.Where(e => e.EntryType != entryDto.EntryType).ToList();
+        //                 var oppositeAccountNames = string.Join(", ", oppositeEntries.Select(e =>
+        //                 {
+        //                     accountCache.TryGetValue(e.AccountId, out var account);
+        //                     return account?.Name ?? (entryDto.EntryType == "Debit" ? "Credit Note" : "Debit Note");
+        //                 }));
+
+        //                 // Truncate if too long (max 2000 characters for SQL Server)
+        //                 if (oppositeAccountNames.Length > 1900)
+        //                     oppositeAccountNames = oppositeAccountNames.Substring(0, 1897) + "...";
+
+        //                 // Create transaction using TotalDebit/TotalCredit
+        //                 var debitNoteTransaction = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     DebitNoteId = existingDebitNote.Id,
+        //                     AccountId = entryDto.AccountId,
+        //                     Type = TransactionType.DrNt,
+        //                     DrCrNoteAccountTypes = entryDto.EntryType,
+        //                     DrCrNoteAccountType = oppositeAccountNames,
+        //                     BillNumber = existingDebitNote.BillNumber,
+        //                     TotalDebit = entryDto.EntryType == "Debit" ? entryDto.Amount : 0,
+        //                     TotalCredit = entryDto.EntryType == "Credit" ? entryDto.Amount : 0,
+        //                     PaymentMode = PaymentMode.DrNote,
+        //                     Date = existingDebitNote.Date,
+        //                     NepaliDate = existingDebitNote.NepaliDate,
+        //                     IsActive = true,
+        //                     CompanyId = companyId,
+        //                     FiscalYearId = fiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active
+        //                 };
+
+        //                 newTransactions.Add(debitNoteTransaction);
+        //             }
+
+        //             await _context.DebitNoteEntries.AddRangeAsync(newEntries);
+        //             await _context.Transactions.AddRangeAsync(newTransactions);
+
+        //             var saveResult = await _context.SaveChangesAsync();
+        //             _logger.LogInformation("SaveChangesAsync completed. {RowCount} rows affected.", saveResult);
+
+        //             await transaction.CommitAsync();
+        //             _logger.LogInformation("Transaction committed successfully");
+
+        //             _logger.LogInformation("=== Successfully updated debit note: {DebitNoteId} with {EntryCount} entries ===",
+        //                 id, newEntries.Count);
+
+        //             // Return the updated debit note with entries
+        //             var updatedDebitNote = await _context.DebitNotes
+        //                 .Include(d => d.DebitNoteEntries)
+        //                     .ThenInclude(e => e.Account)
+        //                 .FirstOrDefaultAsync(d => d.Id == id);
+
+        //             return updatedDebitNote ?? existingDebitNote;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error updating debit note: {DebitNoteId}", id);
+        //             await transaction.RollbackAsync();
+        //             throw;
+        //         }
+        //     });
+        // }
+
         public async Task<DebitNote> UpdateDebitNoteAsync(Guid id, UpdateDebitNoteDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
             var executionStrategy = _context.Database.CreateExecutionStrategy();
@@ -689,9 +1029,10 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
                     if (totalDebit != totalCredit)
                         throw new ArgumentException($"Total Debit ({totalDebit}) must equal Total Credit ({totalCredit})");
 
-                    // Find existing debit note
+                    // Find existing debit note with entries and accounts
                     var existingDebitNote = await _context.DebitNotes
                         .Include(d => d.DebitNoteEntries)
+                            .ThenInclude(dne => dne.Account)
                         .FirstOrDefaultAsync(d => d.Id == id && d.CompanyId == companyId);
 
                     if (existingDebitNote == null)
@@ -700,6 +1041,25 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
                     // Check if debit note is canceled
                     if (existingDebitNote.Status == DebitNoteStatus.Canceled)
                         throw new ArgumentException("Cannot update a canceled debit note");
+
+                    // STEP 1: REMOVE OLD DEBIT NOTE FROM CASH COUNTER if it has cash entries
+                    var oldCashEntries = existingDebitNote.DebitNoteEntries
+                        .Where(dne => dne.Account.Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (oldCashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.RemoveSessionFromDebitNoteAsync(id);
+                            _logger.LogInformation($"Removed debit note {existingDebitNote.BillNumber} from cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Error removing debit note {existingDebitNote.BillNumber} from cash counter");
+                            // Continue with update even if cash counter fails
+                        }
+                    }
 
                     // Validate all accounts exist and cache them
                     var accountCache = new Dictionary<Guid, Account>();
@@ -823,6 +1183,25 @@ namespace SkyForge.Services.Retailer.DebitNoteServices
 
                     await transaction.CommitAsync();
                     _logger.LogInformation("Transaction committed successfully");
+
+                    // STEP 2: ADD UPDATED DEBIT NOTE TO CASH COUNTER if it has cash entries
+                    var newCashEntries = newEntries
+                        .Where(dne => accountCache[dne.AccountId].Name?.ToLower() == "cash in hand")
+                        .ToList();
+
+                    if (newCashEntries.Any())
+                    {
+                        try
+                        {
+                            await _cashCounterService.UpdateSessionFromDebitNoteAsync(existingDebitNote.Id);
+                            _logger.LogInformation($"Added updated debit note {existingDebitNote.BillNumber} to cash counter session");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Error adding debit note {existingDebitNote.BillNumber} to cash counter");
+                            // Continue with update even if cash counter fails
+                        }
+                    }
 
                     _logger.LogInformation("=== Successfully updated debit note: {DebitNoteId} with {EntryCount} entries ===",
                         id, newEntries.Count);
