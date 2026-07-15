@@ -2207,50 +2207,103 @@ namespace SkyForge.Data
             });
 
             // Configure CashCounterSalesBill
+            // modelBuilder.Entity<CashCounterSalesBill>(entity =>
+            // {
+            //     entity.HasKey(e => e.Id);
+            //     entity.Property(e => e.Amount).HasPrecision(18, 2);
+            //     entity.Property(e => e.PaymentMode).HasMaxLength(20);
+
+            //     entity.HasOne(e => e.Session)
+            //         .WithMany() // If you want navigation, add: .WithMany(s => s.SalesBills)
+            //         .HasForeignKey(e => e.SessionId)
+            //         .OnDelete(DeleteBehavior.Cascade);
+
+            //     // Indexes for performance
+            //     entity.HasIndex(e => e.SessionId)
+            //         .HasDatabaseName("IX_CashCounterSalesBill_SessionId");
+
+            //     entity.HasIndex(e => e.SalesBillId)
+            //         .HasDatabaseName("IX_CashCounterSalesBill_SalesBillId");
+
+            //     // Unique constraint to prevent duplicate bills in the same session
+            //     entity.HasIndex(e => new { e.SessionId, e.SalesBillId })
+            //         .IsUnique()
+            //         .HasDatabaseName("IX_CashCounterSalesBill_Session_SalesBill");
+            // });
+
+            // Configure CashCounterSalesBill
             modelBuilder.Entity<CashCounterSalesBill>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Amount).HasPrecision(18, 2);
-                entity.Property(e => e.PaymentMode).HasMaxLength(20);
+                entity.ToTable("cash_counter_sales_bills");
 
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.SessionId).HasColumnName("session_id");
+                entity.Property(e => e.SalesBillId).HasColumnName("sales_bill_id");
+                entity.Property(e => e.Amount).HasColumnName("amount").HasPrecision(18, 2);
+                entity.Property(e => e.PaymentMode).HasColumnName("payment_mode").HasMaxLength(20);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+                // ONLY ONE relationship - remove any duplicate
                 entity.HasOne(e => e.Session)
-                    .WithMany() // If you want navigation, add: .WithMany(s => s.SalesBills)
+                    .WithMany(s => s.SalesBills)
                     .HasForeignKey(e => e.SessionId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Indexes for performance
-                entity.HasIndex(e => e.SessionId)
-                    .HasDatabaseName("IX_CashCounterSalesBill_SessionId");
-
-                entity.HasIndex(e => e.SalesBillId)
-                    .HasDatabaseName("IX_CashCounterSalesBill_SalesBillId");
-
-                // Unique constraint to prevent duplicate bills in the same session
+                // Indexes
+                entity.HasIndex(e => e.SessionId).HasDatabaseName("IX_CashCounterSalesBill_SessionId");
+                entity.HasIndex(e => e.SalesBillId).HasDatabaseName("IX_CashCounterSalesBill_SalesBillId");
                 entity.HasIndex(e => new { e.SessionId, e.SalesBillId })
                     .IsUnique()
                     .HasDatabaseName("IX_CashCounterSalesBill_Session_SalesBill");
             });
 
             // Configure CashCounterSalesReturn
+            // modelBuilder.Entity<CashCounterSalesReturn>(entity =>
+            // {
+            //     entity.HasKey(e => e.Id);
+            //     entity.Property(e => e.Amount).HasPrecision(18, 2);
+            //     entity.Property(e => e.PaymentMode).HasMaxLength(20);
+
+            //     entity.HasOne(e => e.Session)
+            //         .WithMany() // You can add navigation if needed
+            //         .HasForeignKey(e => e.SessionId)
+            //         .OnDelete(DeleteBehavior.Cascade);
+
+            //     // Indexes for performance
+            //     entity.HasIndex(e => e.SessionId)
+            //         .HasDatabaseName("IX_CashCounterSalesReturn_SessionId");
+
+            //     entity.HasIndex(e => e.SalesReturnId)
+            //         .HasDatabaseName("IX_CashCounterSalesReturn_SalesReturnId");
+
+            //     // Unique constraint to prevent duplicate returns in the same session
+            //     entity.HasIndex(e => new { e.SessionId, e.SalesReturnId })
+            //         .IsUnique()
+            //         .HasDatabaseName("IX_CashCounterSalesReturn_Session_SalesReturn");
+            // });
+
+            // Configure CashCounterSalesReturn
             modelBuilder.Entity<CashCounterSalesReturn>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Amount).HasPrecision(18, 2);
-                entity.Property(e => e.PaymentMode).HasMaxLength(20);
+                entity.ToTable("cash_counter_sales_returns");
 
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.SessionId).HasColumnName("session_id");
+                entity.Property(e => e.SalesReturnId).HasColumnName("sales_return_id");
+                entity.Property(e => e.Amount).HasColumnName("amount").HasPrecision(18, 2);
+                entity.Property(e => e.PaymentMode).HasColumnName("payment_mode").HasMaxLength(20);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+                // ONLY ONE relationship - remove any duplicate
                 entity.HasOne(e => e.Session)
-                    .WithMany() // You can add navigation if needed
+                    .WithMany(s => s.SalesReturns)
                     .HasForeignKey(e => e.SessionId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Indexes for performance
-                entity.HasIndex(e => e.SessionId)
-                    .HasDatabaseName("IX_CashCounterSalesReturn_SessionId");
-
-                entity.HasIndex(e => e.SalesReturnId)
-                    .HasDatabaseName("IX_CashCounterSalesReturn_SalesReturnId");
-
-                // Unique constraint to prevent duplicate returns in the same session
+                entity.HasIndex(e => e.SessionId).HasDatabaseName("IX_CashCounterSalesReturn_SessionId");
+                entity.HasIndex(e => e.SalesReturnId).HasDatabaseName("IX_CashCounterSalesReturn_SalesReturnId");
                 entity.HasIndex(e => new { e.SessionId, e.SalesReturnId })
                     .IsUnique()
                     .HasDatabaseName("IX_CashCounterSalesReturn_Session_SalesReturn");
