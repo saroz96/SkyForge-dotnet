@@ -39,7 +39,8 @@ namespace SkyForge.Services.Retailer.StockStatusServices
             bool showSalesValue,
             User user,
             DateTime fromDate,
-            DateTime toDate)
+            DateTime toDate,
+            string? vatFilter = null)
         {
             try
             {
@@ -72,6 +73,13 @@ namespace SkyForge.Services.Retailer.StockStatusServices
                     .Include(i => i.InitialOpeningStock)
                     .Include(i => i.StockEntries)
                     .Where(i => i.CompanyId == companyId && i.Status == "active");
+
+                // Apply VAT filter
+                if (!string.IsNullOrEmpty(vatFilter) && vatFilter != "all")
+                {
+                    itemQuery = itemQuery.Where(i => i.VatStatus == vatFilter);
+                }
+
 
                 // Apply search filter
                 if (!string.IsNullOrEmpty(search))

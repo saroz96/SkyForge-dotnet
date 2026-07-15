@@ -1,122 +1,3 @@
-// import React from 'react';
-// import { useLocation, useNavigate } from 'react-router-dom';
-// import '../../../stylesheet/retailer/Items/ItemsImportResults.css';
-
-// const ItemsImportResults = () => {
-//     const location = useLocation();
-//     const navigate = useNavigate();
-//     const results = location.state?.results;
-
-//     if (!results) {
-//         return (
-//             <div className="results-container">
-//                 <div className="error-state">
-//                     <h2>No import results found</h2>
-//                     <p>Please go back and try importing again.</p>
-//                     <button onClick={() => navigate('/retailer/items-import')} className="back-btn">
-//                         Back to Import
-//                     </button>
-//                 </div>
-//             </div>
-//         );
-//     }
-
-//     const { success, total, errors = [] } = results;
-//     const successRate = total > 0 ? (success / total) * 100 : 0;
-//     const hasErrors = errors.length > 0;
-
-//     const downloadErrorCSV = () => {
-//         const csvContent = "data:text/csv;charset=utf-8," 
-//             + "Row,Error Message,Data\n" 
-//             + errors.map(e => `${e.row},"${e.message}","${JSON.stringify(e.data || '')}"`).join("\n");
-
-//         const encodedUri = encodeURI(csvContent);
-//         const link = document.createElement("a");
-//         link.setAttribute("href", encodedUri);
-//         link.setAttribute("download", "import_errors.csv");
-//         document.body.appendChild(link);
-//         link.click();
-//         document.body.removeChild(link);
-//     };
-
-//     return (
-//         <div className="results-container">
-//             <div className="results-header">
-//                 <h1>📊 Import Results</h1>
-//             </div>
-
-//             <div className="summary-card">
-//                 <div className="summary-header">
-//                     <div className="status-icon">
-//                         {hasErrors ? (
-//                             <span className="icon-warning">⚠️</span>
-//                         ) : (
-//                             <span className="icon-success">✅</span>
-//                         )}
-//                     </div>
-//                     <div className="summary-text">
-//                         <h2>{success} / {total} items imported successfully</h2>
-//                         <p className="summary-subtitle">
-//                             Process completed with {errors.length} error{errors.length !== 1 ? 's' : ''}
-//                         </p>
-//                     </div>
-//                 </div>
-
-//                 <div className="progress-container">
-//                     <div 
-//                         className={`progress-bar ${hasErrors ? 'progress-warning' : 'progress-success'}`}
-//                         style={{ width: `${successRate}%` }}
-//                     ></div>
-//                 </div>
-
-//                 {hasErrors ? (
-//                     <div className="error-section">
-//                         <div className="error-header">
-//                             <h3>❌ Error Details ({errors.length})</h3>
-//                             <button onClick={downloadErrorCSV} className="download-errors-btn">
-//                                 📥 Download Error Report
-//                             </button>
-//                         </div>
-
-//                         <div className="error-list">
-//                             {errors.map((error, index) => (
-//                                 <div key={index} className="error-item">
-//                                     <div className="error-header-row">
-//                                         <strong className="error-row">Row {error.row}</strong>
-//                                         <small className="error-date">
-//                                             {new Date().toLocaleDateString()}
-//                                         </small>
-//                                     </div>
-//                                     <p className="error-message">{error.message}</p>
-//                                     {error.data && (
-//                                         <div className="error-data">
-//                                             <strong>Data:</strong> {JSON.stringify(error.data)}
-//                                         </div>
-//                                     )}
-//                                 </div>
-//                             ))}
-//                         </div>
-//                     </div>
-//                 ) : (
-//                     <div className="success-section">
-//                         <div className="success-icon">🎉</div>
-//                         <h3>Perfect import!</h3>
-//                         <p>All items were successfully imported without any errors.</p>
-//                     </div>
-//                 )}
-//             </div>
-
-//             <div className="action-buttons">
-//                 <button onClick={() => navigate('/retailer/items-import')} className="back-btn">
-//                     ← Back to Import
-//                 </button>
-//             </div>
-//         </div>
-//     );
-// };
-
-// export default ItemsImportResults;
-
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../../../stylesheet/retailer/Items/ItemsImportResults.css';
@@ -130,10 +11,12 @@ const ItemsImportResults = () => {
     const error = location.state?.error;
     const warning = location.state?.warning;
     const isError = location.state?.isError;
+    const importType = location.state?.importType || 'items';
 
     if (!results) {
         return (
             <div className="results-container">
+                <Header />
                 <div className="error-state">
                     <div className="error-icon-large">❌</div>
                     <h2>No import results found</h2>
@@ -146,24 +29,37 @@ const ItemsImportResults = () => {
         );
     }
 
-    const { success, total, errors = [], processed, skipped, successRate } = results.results || results;
-    const hasErrors = errors && errors.length > 0;
-    const allFailed = success === 0 && hasErrors;
-    const allSkipped = success === 0 && (!errors || errors.length === 0) && skipped > 0;
-    const noData = total === 0;
+    // Extract data from backend response structure
+    const data = results.data || results;
+    const resultItems = data.results || [];
+    const totalProcessed = data.totalProcessed || 0;
+    const successCount = data.successCount || 0;
+    const failedCount = data.failedCount || 0;
+    const skippedCount = data.skippedCount || 0;
+    const errors = data.errors || [];
+    const warnings = data.warnings || [];
+
+    // Calculate success rate
+    const successRate = totalProcessed > 0 ? Math.round((successCount / totalProcessed) * 100) : 0;
+
+    const hasErrors = failedCount > 0 || errors.length > 0;
+    const allFailed = successCount === 0 && failedCount > 0;
+    const allSkipped = successCount === 0 && skippedCount > 0 && failedCount === 0;
+    const noData = totalProcessed === 0;
+    const hasWarnings = warnings && warnings.length > 0;
 
     const downloadErrorCSV = () => {
-        if (!errors || errors.length === 0) return;
+        if (!resultItems || resultItems.length === 0) return;
 
-        const headers = ['Row', 'Error Message', 'Item Name', 'Company', 'Category', 'Main Unit', 'Unit'];
-        const csvRows = errors.map(error => [
-            error.row,
-            `"${error.message}"`,
-            `"${error.data?.name || 'N/A'}"`,
-            `"${error.data?.company || 'N/A'}"`,
-            `"${error.data?.category || 'N/A'}"`,
-            `"${error.data?.mainunit || 'N/A'}"`,
-            `"${error.data?.unit || 'N/A'}"`
+        const failedItems = resultItems.filter(item => item.status === 'Failed' || item.status === 'Skipped');
+        if (failedItems.length === 0) return;
+
+        const headers = ['Row', 'Item Name', 'Status', 'Error Message'];
+        const csvRows = failedItems.map(item => [
+            item.rowNumber || item.RowNumber || 'N/A',
+            `"${item.itemName || item.ItemName || 'N/A'}"`,
+            item.status || item.Status || 'N/A',
+            `"${item.errorMessage || item.ErrorMessage || 'N/A'}"`
         ]);
 
         const csvContent = [
@@ -199,18 +95,59 @@ const ItemsImportResults = () => {
         if (noData) return 'The file contained no valid data to import.';
         if (allFailed) return 'All items failed to import. Please check the errors below.';
         if (isError) return message || error || 'The import process encountered an error.';
-        if (hasErrors) return `${success} items imported, ${errors.length} items failed.`;
-        return `All ${success} items were imported successfully!`;
+        if (hasErrors) return `${successCount} items imported successfully, ${failedCount} items failed, ${skippedCount} items skipped.`;
+        return `All ${successCount} items were imported successfully!`;
     };
+
+    // Get failed items for display
+    const failedItems = resultItems.filter(item => item.status === 'Failed' || item.status === 'Skipped');
 
     return (
         <div>
             <Header />
             <div className="results-container">
                 <div className="results-header">
-                    <h1>📊 Import Results</h1>
+                    <h1>📊 {importType === 'items' ? 'Items' : 'Account'} Import Results</h1>
                     <p className="results-subtitle">Import process completed</p>
                 </div>
+
+                {/* Warning Alert */}
+                {hasWarnings && (
+                    <div className="alert alert-warning">
+                        <div className="alert-icon">⚠️</div>
+                        <div className="alert-content">
+                            <strong>Warnings:</strong>
+                            <ul className="warning-list">
+                                {warnings.slice(0, 5).map((warning, index) => (
+                                    <li key={index}>{warning}</li>
+                                ))}
+                                {warnings.length > 5 && (
+                                    <li>+ {warnings.length - 5} more warnings</li>
+                                )}
+                            </ul>
+                        </div>
+                    </div>
+                )}
+
+                {/* Message Alert */}
+                {message && (
+                    <div className={`alert ${isError ? 'alert-error' : 'alert-success'}`}>
+                        <div className="alert-icon">{isError ? '❌' : '✅'}</div>
+                        <div className="alert-content">
+                            <strong>{isError ? 'Error:' : 'Success:'}</strong> {message}
+                        </div>
+                    </div>
+                )}
+
+                {/* Error Alert */}
+                {error && (
+                    <div className="alert alert-error">
+                        <div className="alert-icon">❌</div>
+                        <div className="alert-content">
+                            <strong>Error:</strong> {error}
+                        </div>
+                    </div>
+                )}
 
                 <div className={`summary-card ${isError || allFailed ? 'status-error' : ''} ${hasErrors ? 'status-warning' : ''} ${!isError && !hasErrors ? 'status-success' : ''}`}>
                     <div className="summary-header">
@@ -220,92 +157,87 @@ const ItemsImportResults = () => {
                         <div className="summary-text">
                             <h2>{getStatusTitle()}</h2>
                             <p className="summary-description">{getStatusDescription()}</p>
+                            {warning && (
+                                <p className="warning-text">⚠️ {warning}</p>
+                            )}
                         </div>
                     </div>
 
                     {/* Statistics */}
                     <div className="stats-grid">
                         <div className="stat-item">
-                            <div className="stat-value">{total}</div>
-                            <div className="stat-label">Total Rows</div>
+                            <div className="stat-value">{totalProcessed}</div>
+                            <div className="stat-label">Total Processed</div>
                         </div>
                         <div className="stat-item">
-                            <div className="stat-value success">{success}</div>
+                            <div className="stat-value success">{successCount}</div>
                             <div className="stat-label">Successful</div>
                         </div>
                         <div className="stat-item">
-                            <div className="stat-value error">{errors?.length || 0}</div>
-                            <div className="stat-label">Errors</div>
+                            <div className="stat-value error">{failedCount}</div>
+                            <div className="stat-label">Failed</div>
                         </div>
                         <div className="stat-item">
-                            <div className="stat-value skipped">{skipped || 0}</div>
+                            <div className="stat-value skipped">{skippedCount}</div>
                             <div className="stat-label">Skipped</div>
                         </div>
                     </div>
 
                     {/* Progress Bar */}
-                    {!noData && (
+                    {totalProcessed > 0 && (
                         <div className="progress-section">
                             <div className="progress-header">
                                 <span>Success Rate</span>
-                                <span>{successRate || 0}%</span>
+                                <span>{successRate}%</span>
                             </div>
                             <div className="progress-container">
                                 <div
                                     className={`progress-bar ${isError || allFailed ? 'error' : hasErrors ? 'warning' : 'success'}`}
-                                    style={{ width: `${successRate || 0}%` }}
+                                    style={{ width: `${successRate}%` }}
                                 ></div>
                             </div>
                         </div>
                     )}
 
-                    {/* Error Section */}
-                    {hasErrors && (
+                    {/* Error Section - Show failed items */}
+                    {failedItems.length > 0 && (
                         <div className="error-section">
                             <div className="section-header">
-                                <h3>❌ Import Errors ({errors.length})</h3>
+                                <h3>❌ Failed Items ({failedItems.length})</h3>
                                 <button onClick={downloadErrorCSV} className="download-errors-btn">
                                     📥 Download Error Report (CSV)
                                 </button>
                             </div>
 
                             <div className="error-list">
-                                {errors.slice(0, 50).map((error, index) => ( // Limit to first 50 errors
+                                {failedItems.slice(0, 50).map((item, index) => (
                                     <div key={index} className="error-item">
                                         <div className="error-header-row">
-                                            <strong className="error-row">Row {error.row}</strong>
-                                            <span className="error-badge">Error</span>
+                                            <strong className="error-row">Row {item.rowNumber || item.RowNumber || 'N/A'}</strong>
+                                            <span className={`error-badge ${item.status === 'Skipped' ? 'skipped-badge' : ''}`}>
+                                                {item.status || item.Status || 'Failed'}
+                                            </span>
                                         </div>
-                                        <p className="error-message">{error.message}</p>
-                                        {error.data && (
-                                            <div className="error-data">
-                                                <div className="error-data-grid">
-                                                    {error.data.name && (
-                                                        <div className="data-item">
-                                                            <span className="data-label">Item:</span>
-                                                            <span className="data-value">{error.data.name}</span>
-                                                        </div>
-                                                    )}
-                                                    {error.data.company && (
-                                                        <div className="data-item">
-                                                            <span className="data-label">Company:</span>
-                                                            <span className="data-value">{error.data.company}</span>
-                                                        </div>
-                                                    )}
-                                                    {error.data.category && (
-                                                        <div className="data-item">
-                                                            <span className="data-label">Category:</span>
-                                                            <span className="data-value">{error.data.category}</span>
-                                                        </div>
-                                                    )}
+                                        <p className="error-message">{item.errorMessage || item.ErrorMessage || 'Unknown error'}</p>
+                                        <div className="error-data">
+                                            <div className="error-data-grid">
+                                                <div className="data-item">
+                                                    <span className="data-label">Item:</span>
+                                                    <span className="data-value">{item.itemName || item.ItemName || 'N/A'}</span>
                                                 </div>
+                                                {item.itemId && (
+                                                    <div className="data-item">
+                                                        <span className="data-label">ID:</span>
+                                                        <span className="data-value">{item.itemId}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 ))}
-                                {errors.length > 50 && (
+                                {failedItems.length > 50 && (
                                     <div className="error-limit-note">
-                                        <p>Showing first 50 errors. Download the full report to see all {errors.length} errors.</p>
+                                        <p>Showing first 50 errors. Download the full report to see all {failedItems.length} errors.</p>
                                     </div>
                                 )}
                             </div>
@@ -313,11 +245,11 @@ const ItemsImportResults = () => {
                     )}
 
                     {/* Success Section */}
-                    {!hasErrors && !isError && success > 0 && (
+                    {!hasErrors && !isError && successCount > 0 && (
                         <div className="success-section">
                             <div className="success-icon">🎉</div>
                             <h3>Import Completed Successfully!</h3>
-                            <p>All {success} items have been imported without any errors.</p>
+                            <p>All {successCount} items have been imported without any errors.</p>
                         </div>
                     )}
 
@@ -335,12 +267,12 @@ const ItemsImportResults = () => {
                     <button onClick={() => navigate('/retailer/items-import')} className="back-btn secondary">
                         ← Import Another File
                     </button>
-                    {!isError && success > 0 && (
+                    {!isError && successCount > 0 && (
                         <button onClick={() => navigate('/retailer/items')} className="view-items-btn primary">
                             View Items in Inventory →
                         </button>
                     )}
-                    {hasErrors && (
+                    {failedItems.length > 0 && (
                         <button onClick={downloadErrorCSV} className="download-btn secondary">
                             📥 Download Error Report
                         </button>
@@ -348,20 +280,22 @@ const ItemsImportResults = () => {
                 </div>
 
                 {/* Summary Info */}
-                <div className="summary-info">
-                    <div className="info-item">
-                        <strong>Company:</strong> {results.summary?.company || 'N/A'}
+                {data.summary && (
+                    <div className="summary-info">
+                        <div className="info-item">
+                            <strong>Company:</strong> {data.summary.company || 'N/A'}
+                        </div>
+                        <div className="info-item">
+                            <strong>Fiscal Year:</strong> {data.summary.fiscalYear || 'N/A'}
+                        </div>
+                        <div className="info-item">
+                            <strong>Total Processed:</strong> {totalProcessed}
+                        </div>
+                        <div className="info-item">
+                            <strong>Import Date:</strong> {new Date().toLocaleString()}
+                        </div>
                     </div>
-                    <div className="info-item">
-                        <strong>Fiscal Year:</strong> {results.summary?.fiscalYear || 'N/A'}
-                    </div>
-                    <div className="info-item">
-                        <strong>File:</strong> {results.summary?.fileName || 'N/A'}
-                    </div>
-                    <div className="info-item">
-                        <strong>Import Date:</strong> {new Date(results.summary?.importDate || Date.now()).toLocaleString()}
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );

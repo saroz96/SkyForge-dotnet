@@ -1136,7 +1136,7 @@ const OpenCashCounterPage = () => {
                                             ref={el => inputRefs.current['opening-notes'] = el}
                                             type="text"
                                             className="form-control form-control-sm"
-                                            placeholder="Notes (optional)"
+                                            placeholder="Opening Notes"
                                             value={notes}
                                             onChange={(e) => setNotes(e.target.value)}
                                             onKeyDown={(e) => handleNotesKeyDown(e, 'opening')}

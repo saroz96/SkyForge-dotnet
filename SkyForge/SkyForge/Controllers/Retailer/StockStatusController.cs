@@ -36,7 +36,8 @@ namespace SkyForge.Controllers.Retailer
             [FromQuery] int limit = 10,
             [FromQuery] string search = "",
             [FromQuery] string? fromDate = null,
-            [FromQuery] string? toDate = null)
+            [FromQuery] string? toDate = null,
+             [FromQuery] string? vatFilter = null)
         {
             try
             {
@@ -207,7 +208,8 @@ namespace SkyForge.Controllers.Retailer
                     showSalesValue ?? false,
                     user,
                     fromDateTime,
-                    toDateTime);
+                    toDateTime,
+                    vatFilter);
 
                 return Ok(new { success = true, data = result });
             }

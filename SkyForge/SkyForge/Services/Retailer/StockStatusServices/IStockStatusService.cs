@@ -18,6 +18,7 @@ namespace SkyForge.Services.Retailer.StockStatusServices
             bool showSalesValue,
             User user,
             DateTime fromDate,
-            DateTime toDate);
+            DateTime toDate,
+            string? vatFilter = null);
     }
 }

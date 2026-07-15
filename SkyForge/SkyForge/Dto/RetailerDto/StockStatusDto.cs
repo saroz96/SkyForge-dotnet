@@ -16,6 +16,7 @@ namespace SkyForge.Dto.RetailerDto
         public bool IsAdminOrSupervisor { get; set; }
         public DateTime FromDate { get; set; }
         public DateTime ToDate { get; set; }
+        public string? VatFilter { get; set; }
     }
 
     public class StockStatusItemDTO

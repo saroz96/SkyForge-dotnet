@@ -10,6 +10,7 @@ import Loader from '../../Loader';
 import ProductModal from '../dashboard/modals/ProductModal';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import * as XLSX from 'xlsx';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -110,6 +111,7 @@ const isValidNepaliDate = (dateStr) => {
 const SalesSummary = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
+    const [exporting, setExporting] = useState(false);
 
     const [dateErrors, setDateErrors] = useState({
         fromDate: '',
@@ -816,6 +818,341 @@ const SalesSummary = () => {
         });
     }, []);
 
+    // Add this function for Excel export formatting
+    const formatCurrencyForExport = (num) => {
+        const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
+        return number.toFixed(2);
+    };
+
+    // Add the handleExportExcel function
+    const handleExportExcel = async () => {
+        if (!filteredData || filteredData.length === 0) {
+            setNotification({
+                show: true,
+                message: 'No data available to export. Please generate a report first.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        setExporting(true);
+        try {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const showVatColumns = companyInfo.vatEnabled && !companyInfo.isVatExempt;
+
+            let excelData = [];
+
+            // Header information
+            excelData.push(['Sales Summary Report']);
+            excelData.push(['Company:', companyInfo.currentCompanyName || 'N/A']);
+            excelData.push(['Address:', companyInfo.company?.address || '', companyInfo.company?.city ? ', ' + companyInfo.company?.city : '']);
+            excelData.push(['PAN:', companyInfo.company?.pan || '']);
+            excelData.push(['From Date (BS):', dateRange.fromDate]);
+            excelData.push(['To Date (BS):', dateRange.toDate]);
+            excelData.push(['From Date (AD):', dateRange.fromDateAd]);
+            excelData.push(['To Date (AD):', dateRange.toDateAd]);
+            excelData.push(['Total Records:', filteredData.length]);
+            if (searchQuery) excelData.push(['Search:', searchQuery]);
+            if (paymentModeFilter) excelData.push(['Payment Mode Filter:', paymentModeFilter === 'cash' ? 'Cash' : paymentModeFilter === 'credit' ? 'Credit' : 'All']);
+            if (typeFilter) excelData.push(['Type Filter:', typeFilter === 'sales' ? 'Sales' : typeFilter === 'return' ? 'Return' : 'All']);
+            excelData.push(['Export Date:', new Date().toLocaleString()]);
+            excelData.push([]); // Empty row for spacing
+
+            // Headers
+            const headers = [
+                'S.No',
+                'Miti',
+                'Date',
+                'Inv No.',
+                'Party Name',
+                'Type',
+                'Pay Mode',
+                'Sub Total',
+                'Discount (%)',
+                'Discount (Rs.)'
+            ];
+
+            if (showVatColumns) {
+                headers.push('Taxable');
+                headers.push('VAT');
+            }
+
+            headers.push('Round Off');
+            headers.push('Total');
+            headers.push('User');
+
+            excelData.push(headers);
+
+            // Data rows - separate Sales and Return
+            const sales = filteredData.filter(item => item.type === 'Sales');
+            const returns = filteredData.filter(item => item.type === 'Return');
+
+            // Add Sales rows
+            sales.forEach((bill, index) => {
+                const rowData = [
+                    index + 1,
+                    bill.nepaliDate || '',
+                    bill.date ? new Date(bill.date).toLocaleDateString() : '',
+                    bill.billNumber || '',
+                    bill.accountName || bill.cashAccount || 'N/A',
+                    'SAL',
+                    bill.paymentMode || '',
+                    formatCurrencyForExport(bill.subTotal),
+                    (bill.discountPercentage || 0).toFixed(2),
+                    formatCurrencyForExport(bill.discountAmount)
+                ];
+
+                if (showVatColumns) {
+                    rowData.push(formatCurrencyForExport(bill.taxableAmount));
+                    rowData.push(formatCurrencyForExport(bill.vatAmount));
+                }
+
+                rowData.push(formatCurrencyForExport(bill.roundOffAmount));
+                rowData.push(formatCurrencyForExport(bill.totalAmount));
+                rowData.push(bill.userName || '');
+
+                excelData.push(rowData);
+            });
+
+            // Add Return rows (with negative values)
+            returns.forEach((bill, index) => {
+                const rowData = [
+                    sales.length + index + 1,
+                    bill.nepaliDate || '',
+                    bill.date ? new Date(bill.date).toLocaleDateString() : '',
+                    bill.billNumber || '',
+                    bill.accountName || bill.cashAccount || 'N/A',
+                    'RET',
+                    bill.paymentMode || '',
+                    -parseFloat(bill.subTotal || 0),
+                    (bill.discountPercentage || 0).toFixed(2),
+                    -parseFloat(bill.discountAmount || 0)
+                ];
+
+                if (showVatColumns) {
+                    rowData.push(-parseFloat(bill.taxableAmount || 0));
+                    rowData.push(-parseFloat(bill.vatAmount || 0));
+                }
+
+                rowData.push(-parseFloat(bill.roundOffAmount || 0));
+                rowData.push(-parseFloat(bill.totalAmount || 0));
+                rowData.push(bill.userName || '');
+
+                excelData.push(rowData);
+            });
+
+            // Empty row before totals
+            excelData.push([]);
+
+            // Net Totals row
+            const netTotalsRow = [
+                '',
+                '',
+                '',
+                '',
+                '',
+                'NET TOTALS',
+                '',
+                formatCurrencyForExport(totals.netSubTotal),
+                '',
+                formatCurrencyForExport(totals.netDiscount)
+            ];
+
+            if (showVatColumns) {
+                netTotalsRow.push(formatCurrencyForExport(totals.netTaxable));
+                netTotalsRow.push(formatCurrencyForExport(totals.netVat));
+            }
+
+            netTotalsRow.push(formatCurrencyForExport(totals.netRoundOff));
+            netTotalsRow.push(formatCurrencyForExport(totals.netAmount));
+            netTotalsRow.push('');
+
+            excelData.push(netTotalsRow);
+
+            // Sales Totals row
+            const salesTotalsRow = [
+                '',
+                '',
+                '',
+                '',
+                '',
+                'Sales Totals',
+                '',
+                formatCurrencyForExport(totals.subTotal),
+                '',
+                formatCurrencyForExport(totals.discount)
+            ];
+
+            if (showVatColumns) {
+                salesTotalsRow.push(formatCurrencyForExport(totals.taxable));
+                salesTotalsRow.push(formatCurrencyForExport(totals.vat));
+            }
+
+            salesTotalsRow.push(formatCurrencyForExport(totals.roundOff));
+            salesTotalsRow.push(formatCurrencyForExport(totals.amount));
+            salesTotalsRow.push('');
+
+            excelData.push(salesTotalsRow);
+
+            // Return Totals row
+            const returnTotalsRow = [
+                '',
+                '',
+                '',
+                '',
+                '',
+                'Return Totals',
+                '',
+                formatCurrencyForExport(totals.returnSubTotal),
+                '',
+                formatCurrencyForExport(totals.returnDiscount)
+            ];
+
+            if (showVatColumns) {
+                returnTotalsRow.push(formatCurrencyForExport(totals.returnTaxable));
+                returnTotalsRow.push(formatCurrencyForExport(totals.returnVat));
+            }
+
+            returnTotalsRow.push(formatCurrencyForExport(totals.returnRoundOff));
+            returnTotalsRow.push(formatCurrencyForExport(totals.returnAmount));
+            returnTotalsRow.push('');
+
+            excelData.push(returnTotalsRow);
+
+            // Create worksheet
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+            // Set column widths
+            const colWidths = [
+                { wch: 6 },   // S.No
+                { wch: 14 },  // Miti
+                { wch: 14 },  // Date
+                { wch: 12 },  // Inv No.
+                { wch: 30 },  // Party Name
+                { wch: 8 },   // Type
+                { wch: 10 },  // Pay Mode
+                { wch: 14 },  // Sub Total
+                { wch: 12 },  // Discount (%)
+                { wch: 14 },  // Discount (Rs.)
+            ];
+
+            if (showVatColumns) {
+                colWidths.push({ wch: 14 }); // Taxable
+                colWidths.push({ wch: 12 }); // VAT
+            }
+
+            colWidths.push({ wch: 12 }); // Round Off
+            colWidths.push({ wch: 14 }); // Total
+            colWidths.push({ wch: 14 }); // User
+
+            ws['!cols'] = colWidths;
+
+            // Apply formatting to header rows
+            const headerRows = 13; // Number of header rows
+            for (let row = 0; row < headerRows; row++) {
+                for (let col = 0; col < excelData[row].length; col++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                    if (ws[cellRef]) {
+                        ws[cellRef].s = {
+                            font: {
+                                bold: row === 0 || row === 1 || row === 2 || row === 3,
+                                size: row === 0 ? 14 : 10
+                            },
+                            alignment: {
+                                horizontal: row === 0 ? 'center' : 'left',
+                                vertical: 'center'
+                            }
+                        };
+                    }
+                }
+            }
+
+            // Apply formatting to data rows and totals
+            const dataStartRow = headerRows;
+            const dataEndRow = excelData.length - 1;
+
+            for (let row = dataStartRow; row <= dataEndRow; row++) {
+                const isTotalsRow = row === dataEndRow || row === dataEndRow - 1 || row === dataEndRow - 2;
+                for (let col = 0; col < excelData[row].length; col++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                    if (ws[cellRef]) {
+                        // Numeric columns
+                        const numericColumns = [7, 9, 10, 11, 12, 13];
+                        const isNumeric = numericColumns.includes(col) ||
+                            (showVatColumns && (col === 10 || col === 11)) ||
+                            (col === (showVatColumns ? 12 : 10) || col === (showVatColumns ? 13 : 11));
+
+                        if (isNumeric && row > headerRows) {
+                            ws[cellRef].s = {
+                                font: {
+                                    bold: isTotalsRow
+                                },
+                                alignment: {
+                                    horizontal: 'right',
+                                    vertical: 'center'
+                                },
+                                numFmt: '#,##0.00'
+                            };
+                        } else {
+                            ws[cellRef].s = {
+                                font: {
+                                    bold: isTotalsRow
+                                },
+                                alignment: {
+                                    horizontal: col === 0 || col === 4 ? 'left' : 'center',
+                                    vertical: 'center'
+                                }
+                            };
+                        }
+                    }
+                }
+            }
+
+            // Highlight totals rows
+            const totalsRows = [dataEndRow, dataEndRow - 1, dataEndRow - 2];
+            totalsRows.forEach(rowIndex => {
+                for (let col = 0; col < excelData[rowIndex].length; col++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: col });
+                    if (ws[cellRef]) {
+                        ws[cellRef].s = {
+                            ...ws[cellRef].s,
+                            font: {
+                                bold: true,
+                                size: 11
+                            },
+                            fill: {
+                                fgColor: { rgb: rowIndex === dataEndRow ? "E8F4E8" : "F0F0F0" }
+                            }
+                        };
+                    }
+                }
+            });
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Sales Summary');
+
+            // Generate filename
+            const fileName = `Sales_Summary_${dateRange.fromDate}_to_${dateRange.toDate}_${currentDate}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            setNotification({
+                show: true,
+                message: 'Excel file exported successfully!',
+                type: 'success'
+            });
+        } catch (err) {
+            console.error('Error exporting to Excel:', err);
+            setNotification({
+                show: true,
+                message: 'Failed to export Excel file: ' + err.message,
+                type: 'error'
+            });
+        } finally {
+            setExporting(false);
+        }
+    };
+
     const handleRowClick = useCallback((index) => {
         setSelectedRowIndex(index);
     }, []);
@@ -1475,6 +1812,13 @@ const SalesSummary = () => {
                         </div>
 
                         <div className="col-12 col-md-auto d-flex align-items-end justify-content-end gap-2">
+                            <button className="btn btn-success btn-sm d-flex align-items-center"
+                                onClick={handleExportExcel}
+                                disabled={filteredData.length === 0 || exporting}
+                                style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                {exporting ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-file-excel me-1"></i>}
+                                {exporting ? 'Exporting...' : ''}
+                            </button>
                             <button className="btn btn-secondary btn-sm d-flex align-items-center"
                                 onClick={() => handlePrint(true)} disabled={dataArray.length === 0}
                                 style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>

@@ -94,7 +94,7 @@ namespace SkyForge.Models.Retailer.Items
         [Required]
         [Column("vat_status")]
         [StringLength(20)]
-        public string VatStatus { get; set; } = string.Empty; // 'all', 'vatable', 'vatExempt'
+        public string VatStatus { get; set; } = string.Empty;
 
         [Column("opening_stock")]
         [Precision(10, 3)]

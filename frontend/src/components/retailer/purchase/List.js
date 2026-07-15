@@ -10,6 +10,7 @@ import Loader from '../../Loader';
 import ProductModal from '../dashboard/modals/ProductModal';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import * as XLSX from 'xlsx';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -110,6 +111,7 @@ const isValidNepaliDate = (dateStr) => {
 const PurchaseBillsList = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
+    const [exporting, setExporting] = useState(false);
 
     const [dateErrors, setDateErrors] = useState({
         fromDate: '',
@@ -766,6 +768,272 @@ const PurchaseBillsList = () => {
         printWindow.document.close();
     };
 
+    // Add this function for Excel export formatting
+    const formatCurrencyForExport = (num) => {
+        const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
+        return number.toFixed(2);
+    };
+
+    // Add this function for Excel export
+    const handleExportExcel = async () => {
+        if (!filteredBills || filteredBills.length === 0) {
+            setNotification({
+                show: true,
+                message: 'No data available to export. Please generate a report first.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        setExporting(true);
+        try {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const showVatColumns = companyInfo.vatEnabled && !companyInfo.isVatExempt;
+
+            let excelData = [];
+
+            // Header information
+            excelData.push(['Purchase Voucher\'s Register']);
+            excelData.push(['Company:', companyInfo.currentCompanyName || 'N/A']);
+            excelData.push(['Address:', companyInfo.company?.address || '', companyInfo.company?.city ? ', ' + companyInfo.company?.city : '']);
+            excelData.push(['PAN:', companyInfo.company?.pan || '']);
+            excelData.push(['From Date (BS):', dateRange.fromDate]);
+            excelData.push(['To Date (BS):', dateRange.toDate]);
+            excelData.push(['From Date (AD):', dateRange.fromDateAd]);
+            excelData.push(['To Date (AD):', dateRange.toDateAd]);
+            excelData.push(['Total Bills:', filteredBills.length]);
+            if (searchQuery) excelData.push(['Search:', searchQuery]);
+            if (paymentModeFilter) excelData.push(['Payment Mode Filter:', paymentModeFilter]);
+            excelData.push(['Export Date:', new Date().toLocaleString()]);
+            excelData.push([]); // Empty row for spacing
+
+            // Headers
+            const headers = [
+                'S.No',
+                'Miti',
+                'Date',
+                'Vch. No.',
+                'Inv. No.',
+                'Supplier Name',
+                'Pay Mode',
+                'Sub Total',
+                'Discount (%)',
+                'Discount (Rs.)'
+            ];
+
+            if (showVatColumns) {
+                headers.push('Taxable');
+                headers.push('VAT');
+            }
+
+            headers.push('Round Off');
+            headers.push('Total');
+            headers.push('User');
+
+            excelData.push(headers);
+
+            // Data rows
+            let totalSubTotal = 0;
+            let totalDiscount = 0;
+            let totalTaxable = 0;
+            let totalVat = 0;
+            let totalRoundOff = 0;
+            let totalAmount = 0;
+
+            filteredBills.forEach((bill, index) => {
+                const rowData = [
+                    index + 1,
+                    bill.nepaliDate || '',
+                    bill.date ? new Date(bill.date).toLocaleDateString() : '',
+                    bill.billNumber || '',
+                    bill.partyBillNumber || '',
+                    bill.accountName || 'N/A',
+                    bill.paymentMode || '',
+                    formatCurrencyForExport(bill.subTotal),
+                    (bill.discountPercentage || 0).toFixed(2),
+                    formatCurrencyForExport(bill.discountAmount)
+                ];
+
+                if (showVatColumns) {
+                    rowData.push(formatCurrencyForExport(bill.taxableAmount));
+                    rowData.push(formatCurrencyForExport(bill.vatAmount));
+                }
+
+                rowData.push(formatCurrencyForExport(bill.roundOffAmount));
+                rowData.push(formatCurrencyForExport(bill.totalAmount));
+                rowData.push(bill.userName || '');
+
+                excelData.push(rowData);
+
+                // Accumulate totals
+                totalSubTotal += parseFloat(bill.subTotal || 0);
+                totalDiscount += parseFloat(bill.discountAmount || 0);
+                totalTaxable += parseFloat(bill.taxableAmount || 0);
+                totalVat += parseFloat(bill.vatAmount || 0);
+                totalRoundOff += parseFloat(bill.roundOffAmount || 0);
+                totalAmount += parseFloat(bill.totalAmount || 0);
+            });
+
+            // Empty row before totals
+            excelData.push([]);
+
+            // Totals row
+            const totalsRow = [
+                '',
+                '',
+                '',
+                '',
+                '',
+                'TOTALS',
+                '',
+                formatCurrencyForExport(totalSubTotal),
+                '',
+                formatCurrencyForExport(totalDiscount)
+            ];
+
+            if (showVatColumns) {
+                totalsRow.push(formatCurrencyForExport(totalTaxable));
+                totalsRow.push(formatCurrencyForExport(totalVat));
+            }
+
+            totalsRow.push(formatCurrencyForExport(totalRoundOff));
+            totalsRow.push(formatCurrencyForExport(totalAmount));
+            totalsRow.push('');
+
+            excelData.push(totalsRow);
+
+            // Create worksheet
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+            // Set column widths
+            const colWidths = [
+                { wch: 6 },   // S.No
+                { wch: 14 },  // Miti
+                { wch: 14 },  // Date
+                { wch: 12 },  // Vch. No.
+                { wch: 12 },  // Inv. No.
+                { wch: 30 },  // Supplier Name
+                { wch: 10 },  // Pay Mode
+                { wch: 14 },  // Sub Total
+                { wch: 12 },  // Discount (%)
+                { wch: 14 },  // Discount (Rs.)
+            ];
+
+            if (showVatColumns) {
+                colWidths.push({ wch: 14 }); // Taxable
+                colWidths.push({ wch: 12 }); // VAT
+            }
+
+            colWidths.push({ wch: 12 }); // Round Off
+            colWidths.push({ wch: 14 }); // Total
+            colWidths.push({ wch: 14 }); // User
+
+            ws['!cols'] = colWidths;
+
+            // Apply formatting to header rows
+            const headerRows = 12; // Number of header rows
+            for (let row = 0; row < headerRows; row++) {
+                for (let col = 0; col < excelData[row].length; col++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                    if (ws[cellRef]) {
+                        ws[cellRef].s = {
+                            font: {
+                                bold: row === 0 || row === 1 || row === 2 || row === 3,
+                                size: row === 0 ? 14 : 10
+                            },
+                            alignment: {
+                                horizontal: row === 0 ? 'center' : 'left',
+                                vertical: 'center'
+                            }
+                        };
+                    }
+                }
+            }
+
+            // Apply formatting to data rows and totals
+            const dataStartRow = headerRows;
+            const dataEndRow = excelData.length - 1;
+
+            for (let row = dataStartRow; row <= dataEndRow; row++) {
+                const isTotalsRow = row === dataEndRow;
+                for (let col = 0; col < excelData[row].length; col++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                    if (ws[cellRef]) {
+                        // Numeric columns: Sub Total, Discount, Taxable, VAT, Round Off, Total
+                        const numericColumns = [7, 9, 10, 11, 12, 13];
+                        const isNumeric = numericColumns.includes(col) ||
+                            (showVatColumns && (col === 10 || col === 11)) ||
+                            (col === (showVatColumns ? 12 : 10) || col === (showVatColumns ? 13 : 11));
+
+                        if (isNumeric && row > headerRows) {
+                            ws[cellRef].s = {
+                                font: {
+                                    bold: isTotalsRow
+                                },
+                                alignment: {
+                                    horizontal: 'right',
+                                    vertical: 'center'
+                                },
+                                numFmt: '#,##0.00'
+                            };
+                        } else {
+                            ws[cellRef].s = {
+                                font: {
+                                    bold: isTotalsRow
+                                },
+                                alignment: {
+                                    horizontal: col === 0 || col === 4 || col === 5 ? 'left' : 'center',
+                                    vertical: 'center'
+                                }
+                            };
+                        }
+                    }
+                }
+            }
+
+            // Highlight totals row
+            const totalsRowIndex = dataEndRow;
+            for (let col = 0; col < excelData[totalsRowIndex].length; col++) {
+                const cellRef = XLSX.utils.encode_cell({ r: totalsRowIndex, c: col });
+                if (ws[cellRef]) {
+                    ws[cellRef].s = {
+                        ...ws[cellRef].s,
+                        font: {
+                            bold: true,
+                            size: 11
+                        },
+                        fill: {
+                            fgColor: { rgb: "E8E8E8" }
+                        }
+                    };
+                }
+            }
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Purchase Register');
+
+            // Generate filename
+            const fileName = `Purchase_Register_${dateRange.fromDate}_to_${dateRange.toDate}_${currentDate}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            setNotification({
+                show: true,
+                message: 'Excel file exported successfully!',
+                type: 'success'
+            });
+        } catch (err) {
+            console.error('Error exporting to Excel:', err);
+            setNotification({
+                show: true,
+                message: 'Failed to export Excel file: ' + err.message,
+                type: 'error'
+            });
+        } finally {
+            setExporting(false);
+        }
+    };
+
     const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
         return number.toLocaleString('en-IN', {
@@ -1414,6 +1682,13 @@ const PurchaseBillsList = () => {
                                 onClick={() => navigate('/retailer/purchase')}
                                 style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
                                 <i className="bi bi-plus-circle"></i>
+                            </button>
+                            <button className="btn btn-success btn-sm d-flex align-items-center"
+                                onClick={handleExportExcel}
+                                disabled={filteredBills.length === 0 || exporting}
+                                style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                {exporting ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-file-excel me-1"></i>}
+                                {exporting ? 'Exporting...' : ''}
                             </button>
                             <button className="btn btn-secondary btn-sm d-flex align-items-center"
                                 onClick={() => handlePrint(true)} disabled={billsArray.length === 0}

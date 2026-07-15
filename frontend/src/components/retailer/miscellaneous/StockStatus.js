@@ -171,7 +171,8 @@ const StockStatus = () => {
                     key: 'name',
                     direction: 'ascending'
                 },
-                isAdminOrSupervisor: draftStockStatusSave.stockStatusData.isAdminOrSupervisor || false
+                isAdminOrSupervisor: draftStockStatusSave.stockStatusData.isAdminOrSupervisor || false,
+                vatFilter: draftStockStatusSave.stockStatusData.vatFilter || 'all'
             };
         }
         return {
@@ -192,7 +193,8 @@ const StockStatus = () => {
                 key: 'name',
                 direction: 'ascending'
             },
-            isAdminOrSupervisor: false
+            isAdminOrSupervisor: false,
+            vatFilter: 'all'
         };
     });
 
@@ -396,6 +398,7 @@ const StockStatus = () => {
             if (data.searchQuery) params.append('search', data.searchQuery);
             if (data.displayOptions.showPurchaseValue) params.append('showPurchaseValue', true);
             if (data.displayOptions.showSalesValue) params.append('showSalesValue', true);
+            if (data.vatFilter && data.vatFilter !== 'all') params.append('vatFilter', data.vatFilter);
 
             const response = await api.get(`/api/retailer/stock-status?${params.toString()}`, {
                 signal: abortControllerRef.current.signal
@@ -424,7 +427,7 @@ const StockStatus = () => {
         } finally {
             setLoading(false);
         }
-    }, [data.currentPage, data.itemsPerPage, data.searchQuery, data.displayOptions.showPurchaseValue, data.displayOptions.showSalesValue, dateRange.fromDateAd, dateRange.toDateAd, dateRange.fromDate, dateRange.toDate, company.dateFormat]);
+    }, [data.currentPage, data.itemsPerPage, data.searchQuery, data.displayOptions.showPurchaseValue, data.displayOptions.showSalesValue, data.vatFilter, dateRange.fromDateAd, dateRange.toDateAd, dateRange.fromDate, dateRange.toDate, company.dateFormat]);
 
     const handleGenerateReport = () => {
         if (!dateRange.fromDate) {
@@ -450,6 +453,20 @@ const StockStatus = () => {
             }
         }
         fetchStockItems();
+    };
+
+    // Handle VAT filter change
+    const handleVatFilterChange = (e) => {
+        const value = e.target.value;
+        setData(prev => ({
+            ...prev,
+            vatFilter: value,
+            currentPage: 1
+        }));
+        // Trigger fetch if report has been generated
+        if (hasGenerated) {
+            fetchStockItems();
+        }
     };
 
     // Handle BS date change
@@ -550,12 +567,12 @@ const StockStatus = () => {
         return () => clearTimeout(debounceTimer);
     }, [data.searchQuery]);
 
-    // Trigger fetch when pagination or display options change
+    // Trigger fetch when pagination, display options, or VAT filter change
     useEffect(() => {
         if (hasGenerated) {
             fetchStockItems();
         }
-    }, [data.currentPage, data.itemsPerPage, data.displayOptions.showPurchaseValue, data.displayOptions.showSalesValue]);
+    }, [data.currentPage, data.itemsPerPage, data.displayOptions.showPurchaseValue, data.displayOptions.showSalesValue, data.vatFilter]);
 
     // Save to draft - include AD dates
     useEffect(() => {
@@ -732,6 +749,33 @@ const StockStatus = () => {
 
         setExporting(true);
         try {
+            // Get VAT filter label
+            const getVatFilterLabel = () => {
+                switch (data.vatFilter) {
+                    case '13':
+                        return '13%';
+                    case 'vatExempt':
+                        return 'Exempt';
+                    default:
+                        return 'All';
+                }
+            };
+
+            // Create header information
+            const headerInfo = [
+                ['Stock Status'],
+                [`Company: ${company.currentCompanyName || 'Company Name'}`],
+                [`Address: ${company.address || ''}${company.city ? ', ' + company.city : ''}`],
+                [`TPIN: ${company.pan || ''}`],
+                [`From (BS): ${dateRange.fromDate} | To (BS): ${dateRange.toDate}`],
+                [`Fiscal Year: ${company.fiscalYear?.name || 'N/A'}`],
+                [`VAT Status: ${getVatFilterLabel()}`],
+                [`Total Items: ${sortedItems.length}${data.searchQuery ? ` | Search: "${data.searchQuery}"` : ''}`],
+                [`Generated on: ${new Date().toLocaleString()}`],
+                [], // Empty row for spacing
+            ];
+
+            // Create data rows
             const dataToExport = sortedItems.map((item, index) => {
                 const rowData = {
                     '#': index + 1,
@@ -784,14 +828,172 @@ const StockStatus = () => {
 
             dataToExport.push(totalsRow);
 
+            // Convert data to worksheet
             const ws = XLSX.utils.json_to_sheet(dataToExport);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Stock Status');
 
+            // Add header information at the top
+            // First, get the current range
+            const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+            // Insert header rows by shifting existing data down
+            const headerRows = headerInfo.length;
+            const dataStartRow = headerRows + 1; // +1 for the empty row after header
+
+            // Shift all existing data down
+            const existingData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            const columns = existingData[0] ? existingData[0].length : Object.keys(dataToExport[0] || {}).length;
+
+            // Create new array with header info
+            const newData = [];
+
+            // Add header rows
+            headerInfo.forEach(row => {
+                const newRow = Array(columns).fill('');
+                if (row.length > 0) {
+                    row.forEach((val, idx) => {
+                        if (idx < columns) newRow[idx] = val;
+                    });
+                }
+                newData.push(newRow);
+            });
+
+            // Add existing data (starting from row headerRows + 1)
+            existingData.forEach(row => {
+                const newRow = Array(columns).fill('');
+                row.forEach((val, idx) => {
+                    if (idx < columns) newRow[idx] = val;
+                });
+                newData.push(newRow);
+            });
+
+            // Clear the sheet and add new data
+            const newWs = XLSX.utils.aoa_to_sheet(newData);
+
+            // Apply column widths
+            const colWidths = [
+                { wch: 6 },  // #
+                { wch: 15 }, // Code
+                { wch: 30 }, // Item Name
+                { wch: 20 }, // Category
+                { wch: 10 }, // Unit
+                { wch: 12 }, // Stock
+                { wch: 12 }, // Op. Stock
+                { wch: 12 }, // Qty. In
+                { wch: 12 }, // Qty. Out
+                { wch: 10 }, // Min
+                { wch: 10 }, // Max
+                { wch: 12 }, // C.P
+                { wch: 12 }, // S.P
+            ];
+
+            if (data.displayOptions.showPurchaseValue) {
+                colWidths.push({ wch: 15 }); // Stock Value (CP)
+            }
+            if (data.displayOptions.showSalesValue) {
+                colWidths.push({ wch: 15 }); // Stock Value (SP)
+            }
+
+            newWs['!cols'] = colWidths;
+
+            // Apply cell formatting for header rows
+            const headerCells = [];
+            for (let row = 0; row < headerRows; row++) {
+                for (let col = 0; col < columns; col++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                    if (newWs[cellRef]) {
+                        // Make header text bold
+                        newWs[cellRef].s = {
+                            font: {
+                                bold: row === 0 || row === 1 || row === 2 || row === 3,
+                                size: row === 0 ? 14 : 10
+                            },
+                            alignment: {
+                                horizontal: row === 0 ? 'center' : 'left',
+                                vertical: 'center'
+                            }
+                        };
+                    }
+                }
+            }
+
+            // Apply formatting to data rows
+            const dataStartRowIndex = headerRows;
+            const dataEndRowIndex = newData.length - 1;
+
+            for (let row = dataStartRowIndex; row <= dataEndRowIndex; row++) {
+                for (let col = 0; col < columns; col++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                    if (newWs[cellRef]) {
+                        // Check if this is the totals row (last row)
+                        const isTotalsRow = row === dataEndRowIndex;
+                        const cellValue = newWs[cellRef].v;
+
+                        // Apply number formatting for numeric columns (stock, values)
+                        const isNumericColumn = col >= 5 && col <= 12; // Stock columns
+                        const isValueColumn = (data.displayOptions.showPurchaseValue && col === 13) ||
+                            (data.displayOptions.showSalesValue && col === (data.displayOptions.showPurchaseValue ? 14 : 13));
+
+                        if (isNumericColumn || isValueColumn) {
+                            newWs[cellRef].s = {
+                                font: {
+                                    bold: isTotalsRow
+                                },
+                                alignment: {
+                                    horizontal: 'right',
+                                    vertical: 'center'
+                                },
+                                numFmt: '#,##0.00'
+                            };
+                        } else {
+                            newWs[cellRef].s = {
+                                font: {
+                                    bold: isTotalsRow
+                                },
+                                alignment: {
+                                    horizontal: col === 0 || col === 1 || col === 2 ? 'left' : 'center',
+                                    vertical: 'center'
+                                }
+                            };
+                        }
+                    }
+                }
+            }
+
+            // Apply formatting to totals row
+            const totalsRowIndex = dataEndRowIndex;
+            for (let col = 0; col < columns; col++) {
+                const cellRef = XLSX.utils.encode_cell({ r: totalsRowIndex, c: col });
+                if (newWs[cellRef]) {
+                    newWs[cellRef].s = {
+                        ...newWs[cellRef].s,
+                        font: {
+                            bold: true,
+                            size: 11
+                        },
+                        fill: {
+                            fgColor: { rgb: "E8E8E8" }
+                        }
+                    };
+                }
+            }
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, newWs, 'Stock Status');
+
+            // Generate filename with date and filter info
             const date = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(wb, `Stock_Status_${date}.xlsx`);
+            let fileName = `Stock_Status_${date}`;
+
+            // Add filter info to filename if not "all"
+            if (data.vatFilter && data.vatFilter !== 'all') {
+                fileName += `_${data.vatFilter}`;
+            }
+
+            XLSX.writeFile(wb, `${fileName}.xlsx`);
             setNotification({ show: true, message: 'Excel file exported successfully!', type: 'success', duration: 3000 });
         } catch (err) {
+            console.error('Export error:', err);
             setNotification({ show: true, message: 'Failed to export data', type: 'error', duration: 3000 });
         } finally {
             setExporting(false);
@@ -809,95 +1011,142 @@ const StockStatus = () => {
         const printDate = new Date().toLocaleDateString();
         const fiscalYear = company.fiscalYear?.name || 'N/A';
 
+        // Get VAT filter label
+        const getVatFilterLabel = () => {
+            switch (data.vatFilter) {
+                case 'vatable':
+                    return '13%';
+                case 'vatExempt':
+                    return 'Exempt';
+                default:
+                    return 'All';
+            }
+        };
+
         const printContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Stock Status Report</title>
-                <style>
-                    @page { size: A4 landscape; margin: 10mm; }
-                    body { font-family: Arial, sans-serif; font-size: 10px; margin: 0; padding: 5mm; }
-                    .print-header { text-align: center; margin-bottom: 15px; }
-                    .report-title { text-align: center; text-decoration: underline; margin-bottom: 10px; }
-                    table { width: 100%; border-collapse: collapse; page-break-inside: auto; font-size: 12px; }
-                    th, td { border: 1px solid #000; padding: 4px; text-align: left; }
-                    th { background-color: #f2f2f2; }
-                    .text-end { text-align: right; }
-                    .print-footer { margin-top: 10px; font-size: 9px; text-align: right; }
-                </style>
-            </head>
-            <body>
-                <div class="print-header">
-                    <h1>${company.currentCompanyName || 'Company Name'}</h1>
-                    <p>${company.address || ''}${company.city ? ', ' + company.city : ''}, TPIN: ${company.pan || ''}</p>
-                    <h2 class="report-title">Stock Status Report</h2>
-                    <hr>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                    <div><strong>From (BS):</strong> ${dateRange.fromDate} | <strong>To (BS):</strong> ${dateRange.toDate} | <strong>F.Y:</strong> ${fiscalYear}</div>
-                    <div><strong>Total Items:</strong> ${sortedItems.length}${data.searchQuery ? ` | Search: "${data.searchQuery}"` : ''}</div>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Code</th>
-                            <th>Item Name</th>
-                            <th>Category</th>
-                            <th>Unit</th>
-                            <th class="text-end">Stock</th>
-                            <th class="text-end">Op. Stock</th>
-                            <th class="text-end">Qty. In</th>
-                            <th class="text-end">Qty. Out</th>
-                            <th class="text-end">Min</th>
-                            <th class="text-end">Max</th>
-                            <th class="text-end">C.P</th>
-                            <th class="text-end">S.P</th>
-                            ${data.displayOptions.showPurchaseValue ? '<th class="text-end">Val (CP)</th>' : ''}
-                            ${data.displayOptions.showSalesValue ? '<th class="text-end">Val (SP)</th>' : ''}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${sortedItems.map((item, index) => `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>${item.code || ''}</td>
-                                <td>${item.name}</td>
-                                <td>${item.category || '-'}</td>
-                                <td>${item.unit || '-'}</td>
-                                <td class="text-end">${formatCurrency(item.stock)}</td>
-                                <td class="text-end">${formatCurrency(item.openingStock)}</td>
-                                <td class="text-end">${formatCurrency(item.totalQtyIn)}</td>
-                                <td class="text-end">${formatCurrency(item.totalQtyOut)}</td>
-                                <td class="text-end">${item.minStock || '-'}</td>
-                                <td class="text-end">${item.maxStock || '-'}</td>
-                                <td class="text-end">${formatCurrency(item.avgPuPrice)}</td>
-                                <td class="text-end">${formatCurrency(item.avgPrice)}</td>
-                                ${data.displayOptions.showPurchaseValue ? `<td class="text-end">${formatCurrency(item.totalStockValuePurchase)}</td>` : ''}
-                                ${data.displayOptions.showSalesValue ? `<td class="text-end">${formatCurrency(item.totalStockValueSales)}</td>` : ''}
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr style="font-weight:bold;">
-                            <td colspan="5">Totals</td>
-                            <td class="text-end">${formatCurrency(totals.totalStock)}</td>
-                            <td class="text-end">${formatCurrency(totals.totalOpeningStock)}</td>
-                            <td class="text-end">${formatCurrency(totals.totalQtyIn)}</td>
-                            <td class="text-end">${formatCurrency(totals.totalQtyOut)}</td>
-                            <td colspan="2"></td>
-                            <td></td>
-                            <td></td>
-                            ${data.displayOptions.showPurchaseValue ? `<td class="text-end">${formatCurrency(totals.totalPurchaseValue)}</td>` : ''}
-                            ${data.displayOptions.showSalesValue ? `<td class="text-end">${formatCurrency(totals.totalSalesValue)}</td>` : ''}
-                        </tr>
-                    </tfoot>
-                </table>
-                <div class="print-footer">Printed from ${company.currentCompanyName || 'Company Name'} | ${new Date().toLocaleString()}</div>
-                <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; }</script>
-            </body>
-            </html>
-        `;
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Stock Status Report</title>
+        <style>
+            @page { size: A4 landscape; margin: 8mm; }
+            body { font-family: Arial, sans-serif; font-size: 8px; margin: 0; padding: 4mm; }
+            .print-header { text-align: center; margin-bottom: 10px; }
+            .print-header h1 { font-size: 14px; margin: 5px 0; }
+            .print-header p { font-size: 8px; margin: 3px 0; }
+            .report-title { text-align: center; text-decoration: underline; margin-bottom: 8px; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; page-break-inside: auto; font-size: 8px; }
+            th, td { border: 1px solid #000; padding: 3px 4px; text-align: left; }
+            th { background-color: #f2f2f2; font-size: 8px; }
+            .text-end { text-align: right; }
+            .print-footer { margin-top: 8px; font-size: 7px; text-align: right; }
+            .filter-info { 
+                display: flex; 
+                justify-content: space-between; 
+                margin-bottom: 10px;
+                font-size: 8px;
+            }
+            .filter-badge {
+                background-color: #e9ecef;
+                padding: 1px 6px;
+                border-radius: 3px;
+                font-weight: bold;
+                font-size: 8px;
+            }
+            hr { margin: 5px 0; }
+            .company-name { font-size: 16px; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="print-header">
+            <div class="company-name">${company.currentCompanyName || 'Company Name'}</div>
+            <p>${company.address || ''}${company.city ? ', ' + company.city : ''}, TPIN: ${company.pan || ''}</p>
+            <div class="report-title">Stock Status Report</div>
+            <hr>
+        </div>
+        <div class="filter-info">
+            <div>
+                <strong>From (BS):</strong> ${dateRange.fromDate} | 
+                <strong>To (BS):</strong> ${dateRange.toDate} | 
+                <strong>F.Y:</strong> ${fiscalYear}
+            </div>
+            <div>
+                <strong>VAT Status:</strong> <span class="filter-badge">${getVatFilterLabel()}</span>
+            </div>
+            <div>
+                <strong>Total Items:</strong> ${sortedItems.length}${data.searchQuery ? ` | Search: "${data.searchQuery}"` : ''}
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="text-align:center;width:30px;">#</th>
+                    <th style="width:50px;">Code</th>
+                    <th>Item Name</th>
+                    <th style="width:60px;">Category</th>
+                    <th style="width:40px;">Unit</th>
+                    <th class="text-end" style="width:50px;">Stock</th>
+                    <th class="text-end" style="width:50px;">Op. Stock</th>
+                    <th class="text-end" style="width:50px;">Qty. In</th>
+                    <th class="text-end" style="width:50px;">Qty. Out</th>
+                    <th class="text-end" style="width:35px;">Min</th>
+                    <th class="text-end" style="width:35px;">Max</th>
+                    <th class="text-end" style="width:50px;">C.P</th>
+                    <th class="text-end" style="width:50px;">S.P</th>
+                    ${data.displayOptions.showPurchaseValue ? '<th class="text-end" style="width:60px;">Val (CP)</th>' : ''}
+                    ${data.displayOptions.showSalesValue ? '<th class="text-end" style="width:60px;">Val (SP)</th>' : ''}
+                </tr>
+            </thead>
+            <tbody>
+                ${sortedItems.map((item, index) => `
+                    <tr>
+                        <td style="text-align:center;">${index + 1}</td>
+                        <td>${item.code || ''}</td>
+                        <td>${item.name}</td>
+                        <td>${item.category || '-'}</td>
+                        <td>${item.unit || '-'}</td>
+                        <td class="text-end">${formatCurrency(item.stock)}</td>
+                        <td class="text-end">${formatCurrency(item.openingStock)}</td>
+                        <td class="text-end">${formatCurrency(item.totalQtyIn)}</td>
+                        <td class="text-end">${formatCurrency(item.totalQtyOut)}</td>
+                        <td class="text-end">${item.minStock || '-'}</td>
+                        <td class="text-end">${item.maxStock || '-'}</td>
+                        <td class="text-end">${formatCurrency(item.avgPuPrice)}</td>
+                        <td class="text-end">${formatCurrency(item.avgPrice)}</td>
+                        ${data.displayOptions.showPurchaseValue ? `<td class="text-end">${formatCurrency(item.totalStockValuePurchase)}</td>` : ''}
+                        ${data.displayOptions.showSalesValue ? `<td class="text-end">${formatCurrency(item.totalStockValueSales)}</td>` : ''}
+                    </tr>
+                `).join('')}
+            </tbody>
+            <tfoot>
+                <tr style="font-weight:bold;">
+                    <td colspan="5" style="text-align:right;">Totals</td>
+                    <td class="text-end">${formatCurrency(totals.totalStock)}</td>
+                    <td class="text-end">${formatCurrency(totals.totalOpeningStock)}</td>
+                    <td class="text-end">${formatCurrency(totals.totalQtyIn)}</td>
+                    <td class="text-end">${formatCurrency(totals.totalQtyOut)}</td>
+                    <td colspan="2"></td>
+                    <td></td>
+                    <td></td>
+                    ${data.displayOptions.showPurchaseValue ? `<td class="text-end">${formatCurrency(totals.totalPurchaseValue)}</td>` : ''}
+                    ${data.displayOptions.showSalesValue ? `<td class="text-end">${formatCurrency(totals.totalSalesValue)}</td>` : ''}
+                </tr>
+            </tfoot>
+        </table>
+        <div class="print-footer">
+            Printed on ${new Date().toLocaleString()}
+        </div>
+        <script>
+            window.onload = function() { 
+                window.print(); 
+                window.onafterprint = function() { 
+                    window.close(); 
+                }; 
+            }
+        </script>
+    </body>
+    </html>
+`;
 
         printWindow.document.write(printContent);
         printWindow.document.close();
@@ -924,155 +1173,9 @@ const StockStatus = () => {
             <Header />
             <div className="card mt-2 shadow-lg p-0 expanded-card ledger-card compact">
                 <div className="card-header bg-white py-1">
-                    <h1 className="h5 mb-0 text-center text-primary">Stock Status</h1>
+                    <h1 className="h5 mb-0 text-center" style={{ color: 'white' }}>Stock Status</h1>
                 </div>
                 <div className="card-body p-2 p-md-3">
-                    {/* All Controls in One Row */}
-                    {/* <div className="row g-2 mb-3">
-                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-                            <div className="position-relative">
-                                <input
-                                    type="text"
-                                    id="fromDate"
-                                    name="fromDate"
-                                    ref={fromDateRef}
-                                    className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
-                                    value={dateRange.fromDate}
-                                    onChange={handleFromDateChange}
-                                    onBlur={handleFromDateBlur}
-                                    onKeyDown={(e) => handleKeyDown(e, 'fromDateAd')}
-                                    placeholder="YYYY-MM-DD (BS)"
-                                    autoComplete="off"
-                                    autoFocus
-                                    style={{ height: '30px', fontSize: '0.8rem', width: '100%', paddingTop: '0.75rem' }}
-                                />
-                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                    From (BS): <span className="text-danger">*</span>
-                                </label>
-                                {dateErrors.fromDate && <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>{dateErrors.fromDate}</div>}
-                            </div>
-                        </div>
-
-                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-                            <div className="position-relative">
-                                <input
-                                    type="date"
-                                    id="fromDateAd"
-                                    name="fromDateAd"
-                                    ref={fromDateAdRef}
-                                    className="form-control form-control-sm"
-                                    value={dateRange.fromDateAd || ''}
-                                    onChange={handleFromDateAdChange}
-                                    onKeyDown={(e) => handleKeyDown(e, 'toDate')}
-                                    style={{ height: '30px', fontSize: '0.8rem', width: '100%', paddingTop: '0.75rem' }}
-                                />
-                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                    From (AD):
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-                            <div className="position-relative">
-                                <input
-                                    type="text"
-                                    id="toDate"
-                                    name="toDate"
-                                    ref={toDateRef}
-                                    className={`form-control form-control-sm no-date-icon ${dateErrors.toDate ? 'is-invalid' : ''}`}
-                                    value={dateRange.toDate}
-                                    onChange={handleToDateChange}
-                                    onBlur={handleToDateBlur}
-                                    onKeyDown={(e) => handleKeyDown(e, 'toDateAd')}
-                                    placeholder="YYYY-MM-DD (BS)"
-                                    autoComplete="off"
-                                    style={{ height: '30px', fontSize: '0.8rem', width: '100%', paddingTop: '0.75rem' }}
-                                />
-                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                    To (BS): <span className="text-danger">*</span>
-                                </label>
-                                {dateErrors.toDate && <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>{dateErrors.toDate}</div>}
-                            </div>
-                        </div>
-
-                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-                            <div className="position-relative">
-                                <input
-                                    type="date"
-                                    id="toDateAd"
-                                    name="toDateAd"
-                                    ref={toDateAdRef}
-                                    className="form-control form-control-sm"
-                                    value={dateRange.toDateAd || ''}
-                                    onChange={handleToDateAdChange}
-                                    onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
-                                    style={{ height: '30px', fontSize: '0.8rem', width: '100%', paddingTop: '0.75rem' }}
-                                />
-                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                    To (AD):
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className="col-md-1">
-                            <button id="generateReport" ref={generateBtnRef} className="btn btn-primary btn-sm w-100" onClick={handleGenerateReport} disabled={loading} style={{ height: '30px', fontSize: '0.75rem', padding: '0 6px' }}>
-                                {loading ? <span className="spinner-border spinner-border-sm" style={{ width: '14px', height: '14px' }} /> : <>                                <i className="bi bi-search"></i>Generate</>}
-                            </button>
-                        </div>
-
-                        <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-                            <div className="input-group input-group-sm">
-                                <span className="input-group-text" style={{ height: '30px', padding: '0 8px' }}><i className="fas fa-search small" style={{ fontSize: '11px' }}></i></span>
-                                <input type="text" className="form-control form-control-sm" ref={searchInputRef} placeholder="Search item..." value={data.searchQuery}
-                                    onChange={handleSearchChange} disabled={!hasGenerated} autoComplete="off"
-                                    style={{ height: '30px', fontSize: '0.75rem' }} />
-                            </div>
-                        </div>
-
-                        <div className="col-md-2">
-                            <div className="d-flex align-items-center h-100 gap-2">
-                                <div className="form-check form-switch">
-                                    <input className="form-check-input" type="checkbox" role="switch" id="showPurchaseValue"
-                                        checked={data.displayOptions.showPurchaseValue} onChange={handleCheckboxChange} name="showPurchaseValue"
-                                        disabled={!hasGenerated} style={{ marginTop: '2px' }} />
-                                    <label className="form-check-label small" htmlFor="showPurchaseValue" style={{ fontSize: '0.75rem' }}>CP Value</label>
-                                </div>
-                                <div className="form-check form-switch">
-                                    <input className="form-check-input" type="checkbox" role="switch" id="showSalesValue"
-                                        checked={data.displayOptions.showSalesValue} onChange={handleCheckboxChange} name="showSalesValue"
-                                        disabled={!hasGenerated} style={{ marginTop: '2px' }} />
-                                    <label className="form-check-label small" htmlFor="showSalesValue" style={{ fontSize: '0.75rem' }}>SP Value</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="col-12" style={{ flex: '0 0 auto', width: '6%' }}>
-                            <select className="form-select form-select-sm" value={data.itemsPerPage} onChange={handleItemsPerPageChange}
-                                disabled={!hasGenerated} style={{ height: '30px', fontSize: '0.75rem', width: '100%', padding: '0 20px 0 8px' }}>
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="all">All</option>
-                            </select>
-                        </div>
-
-                        <div className="col-md-1">
-                            <button className="btn btn-outline-success btn-sm w-100" onClick={exportToExcel}
-                                disabled={!hasGenerated || !sortedItems.length || exporting}
-                                style={{ height: '30px', fontSize: '0.7rem', padding: '0 4px' }}>
-                                <i class="bi bi-file-earmark-excel-fill"></i>{exporting ? '...' : ''}
-                            </button>
-                        </div>
-
-                        <div className="col-md-1">
-                            <button className="btn btn-outline-primary btn-sm w-100" onClick={printStockStatus}
-                                disabled={!hasGenerated || !sortedItems.length}
-                                style={{ height: '30px', fontSize: '0.7rem', padding: '0 4px' }}>
-                               <i className="bi bi-printer"></i>
-                            </button>
-                        </div>
-                    </div> */}
-
                     <div className="row g-2 mb-3">
                         {/* From Date BS Field */}
                         <div className="col-12" style={{ flex: '0 0 auto', width: '11%' }}>
@@ -1222,8 +1325,28 @@ const StockStatus = () => {
                             </div>
                         </div>
 
+                        {/* VAT Filter Dropdown */}
+                        <div className="col-12" style={{ flex: '0 0 auto', width: '10%' }}>
+                            <div className="position-relative">
+                                <select
+                                    className="form-select form-select-sm"
+                                    value={data.vatFilter || 'all'}
+                                    onChange={handleVatFilterChange}
+                                    disabled={!hasGenerated}
+                                    style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', width: '100%' }}
+                                >
+                                    <option value="all">All</option>
+                                    <option value="13">13%</option>
+                                    <option value="vatExempt">Exempt</option>
+                                </select>
+                                <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                    VAT Status
+                                </label>
+                            </div>
+                        </div>
+
                         {/* Checkbox Options */}
-                        <div className="col-12 col-md-auto d-flex align-items-end gap-3">
+                        {/* <div className="col-12 col-md-auto d-flex align-items-end gap-3">
                             <div className="form-check form-switch">
                                 <input
                                     className="form-check-input"
@@ -1256,6 +1379,45 @@ const StockStatus = () => {
                                     SP Value
                                 </label>
                             </div>
+                        </div> */}
+
+                        <div className="col-12 col-md-auto d-flex align-items-end gap-3">
+                            <div className="d-flex flex-column align-items-center">
+                                <label className="form-check-label small mb-1" htmlFor="showPurchaseValue" style={{ fontSize: '0.7rem', fontWeight: '500', color: '#495057' }}>
+                                    Val(CP)
+                                </label>
+                                <div className="form-check form-switch" style={{ margin: 0 }}>
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        role="switch"
+                                        id="showPurchaseValue"
+                                        checked={data.displayOptions.showPurchaseValue}
+                                        onChange={handleCheckboxChange}
+                                        name="showPurchaseValue"
+                                        disabled={!hasGenerated}
+                                        style={{ marginTop: '0', cursor: 'pointer' }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="d-flex flex-column align-items-center">
+                                <label className="form-check-label small mb-1" htmlFor="showSalesValue" style={{ fontSize: '0.7rem', fontWeight: '500', color: '#495057' }}>
+                                    Val(SP)
+                                </label>
+                                <div className="form-check form-switch" style={{ margin: 0 }}>
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        role="switch"
+                                        id="showSalesValue"
+                                        checked={data.displayOptions.showSalesValue}
+                                        onChange={handleCheckboxChange}
+                                        name="showSalesValue"
+                                        disabled={!hasGenerated}
+                                        style={{ marginTop: '0', cursor: 'pointer' }}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Action Buttons */}
@@ -1279,7 +1441,7 @@ const StockStatus = () => {
                                 title="Print Report"
                             >
                                 <i className="bi bi-printer me-1"></i>
-                                
+
                             </button>
                         </div>
                     </div>
@@ -1400,7 +1562,7 @@ const StockStatus = () => {
                                             </tbody>
                                             <tfoot className="table-group-divider">
                                                 <tr className="fw-bold table-secondary">
-                                                    <td colSpan="5" style={{ padding: '6px 8px' }}>Page Total</td>
+                                                    <td colSpan="5" style={{ padding: '6px 8px' }}>Total</td>
                                                     <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(totals.totalStock)}</td>
                                                     <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(totals.totalOpeningStock)}</td>
                                                     <td className="text-end" style={{ padding: '6px 8px' }}>{formatCurrency(totals.totalQtyIn)}</td>
