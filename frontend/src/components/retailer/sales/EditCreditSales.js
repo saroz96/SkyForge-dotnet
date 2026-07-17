@@ -1041,9 +1041,9 @@ const EditCreditSales = () => {
     // Precision utility functions
 
     // REPLACE the calculateTotal function with this version using precise utilities
-    
-    
-    
+
+
+
     const preciseAdd = (a, b) => {
         return parseFloat((parseFloat(a) + parseFloat(b)).toFixed(10));
     };
@@ -1063,7 +1063,7 @@ const EditCreditSales = () => {
     const preciseRound = (value, decimals = 2) => {
         return parseFloat(value.toFixed(decimals));
     };
-    
+
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
@@ -1158,7 +1158,7 @@ const EditCreditSales = () => {
         };
     };
 
-     const handleDiscountPercentageChange = (e) => {
+    const handleDiscountPercentageChange = (e) => {
         const value = parseFloat(e.target.value) || 0;
         const validatedValue = Math.min(Math.max(value, 0), 100);
 
@@ -2423,7 +2423,7 @@ const EditCreditSales = () => {
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
                         <div className="row g-1 mb-2">
-                           
+
                             {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
                                     {/* Nepali Transaction Date */}
@@ -4930,7 +4930,8 @@ const EditCreditSales = () => {
                                     >
                                         <div className="dropdown-header" style={{
                                             display: 'grid',
-                                            gridTemplateColumns: 'repeat(7, 1fr)',
+                                            // gridTemplateColumns: 'repeat(7, 1fr)',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
                                             alignItems: 'center',
                                             padding: '0 8px',
                                             height: '20px',

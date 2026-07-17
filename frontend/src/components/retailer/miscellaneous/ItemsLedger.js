@@ -1334,7 +1334,8 @@ const ItemsLedger = () => {
                                     >
                                         <div className="dropdown-header" style={{
                                             display: 'grid',
-                                            gridTemplateColumns: 'repeat(7, 1fr)',
+                                            // gridTemplateColumns: 'repeat(7, 1fr)',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
                                             alignItems: 'center',
                                             padding: '0 8px',
                                             height: '20px',

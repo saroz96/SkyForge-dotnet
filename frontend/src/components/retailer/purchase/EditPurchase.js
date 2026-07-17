@@ -4465,8 +4465,8 @@ const EditPurchase = () => {
                             {/* Action Buttons */}
                             <div className="d-flex gap-2">
                                 <Button
-                                 variant="secondary" className="btn-sm d-flex align-items-center" onClick={handleBack}
-                                 style={{
+                                    variant="secondary" className="btn-sm d-flex align-items-center" onClick={handleBack}
+                                    style={{
                                         height: '26px',
                                         padding: '0 12px',
                                         fontSize: '0.8rem',
@@ -4647,7 +4647,8 @@ const EditPurchase = () => {
                                     >
                                         <div className="dropdown-header" style={{
                                             display: 'grid',
-                                            gridTemplateColumns: 'repeat(7, 1fr)',
+                                            // gridTemplateColumns: 'repeat(7, 1fr)',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
                                             alignItems: 'center',
                                             padding: '0 8px',
                                             height: '20px',
