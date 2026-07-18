@@ -869,7 +869,7 @@ const PurchaseBillPrint = () => {
                                         <td><strong>CC Charge:</strong></td>
                                         <td className="text-right">{formatTo2Decimal(billData.bill.totalCcAmount || 0)}</td>
                                     </tr>
-                                    {!billData.bill.isVatExempt && (
+                                    {!billData.bill.isVatExempt && billData.company?.vatEnabled !== false && (
                                         <>
                                             <tr>
                                                 <td><strong>Taxable Amount:</strong></td>
@@ -995,7 +995,7 @@ const PurchaseBillPrint = () => {
                                 <td><strong>CC Charge:</strong></td>
                                 <td className="print-text-right">{formatTo2Decimal(billData.bill.totalCcAmount || 0)}</td>
                             </tr>
-                            {!billData.bill.isVatExempt && (
+                            {!billData.bill.isVatExempt && billData.company?.vatEnabled !== false && (
                                 <>
                                     <tr>
                                         <td><strong>Taxable Amount:</strong></td>

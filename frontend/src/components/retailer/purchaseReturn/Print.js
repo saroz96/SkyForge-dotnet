@@ -826,17 +826,16 @@ const PurchaseReturnPrint = () => {
                                         <td><strong>CC Charge:</strong></td>
                                         <td className="text-right">{formatTo2Decimal(billData.bill.totalCcAmount || 0)}</td>
                                     </tr>
-                                    {!billData.bill.isVatExempt && (
-                                        <>
-                                            <tr>
-                                                <td><strong>Taxable Amount:</strong></td>
-                                                <td className="text-right">{formatTo2Decimal(billData.bill.taxableAmount)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td><strong>VAT ({billData.bill.vatPercentage || 0}%):</strong></td>
-                                                <td className="text-right">{formatTo2Decimal(billData.bill.vatAmount)}</td>
-                                            </tr>
-                                        </>
+                                    {!billData.bill.isVatExempt && billData.company?.vatEnabled !== false && (<>
+                                        <tr>
+                                            <td><strong>Taxable Amount:</strong></td>
+                                            <td className="text-right">{formatTo2Decimal(billData.bill.taxableAmount)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>VAT ({billData.bill.vatPercentage || 0}%):</strong></td>
+                                            <td className="text-right">{formatTo2Decimal(billData.bill.vatAmount)}</td>
+                                        </tr>
+                                    </>
                                     )}
                                     <tr>
                                         <td><strong>Round Off:</strong></td>
@@ -885,7 +884,7 @@ const PurchaseReturnPrint = () => {
                             <div><strong>Vch. No:</strong> {billData.bill.billNumber}</div>
                             <div><strong>Supplier Inv No:</strong> {billData.bill.partyBillNumber || ''}</div>
                             <div><strong>Trans. Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.transactionDateNepali, 'Nepali') : formatDate(billData.bill.transactionDate)}({new Date(billData.bill.transactionDate).toLocaleDateString()})</div>
-                                <div><strong>Vch. Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.nepaliDate, 'Nepali') : formatDate(billData.bill.date)}({new Date(billData.bill.date).toLocaleDateString()})</div>
+                            <div><strong>Vch. Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.nepaliDate, 'Nepali') : formatDate(billData.bill.date)}({new Date(billData.bill.date).toLocaleDateString()})</div>
                         </div>
                     </div>
 
@@ -944,7 +943,7 @@ const PurchaseReturnPrint = () => {
                                 <td><strong>Discount ({billData.bill.discountPercentage || 0}%):</strong></td>
                                 <td className="print-text-right">{formatTo2Decimal(billData.bill.discountAmount)}</td>
                             </tr>
-                            {!billData.bill.isVatExempt && (
+                            {!billData.bill.isVatExempt && billData.company?.vatEnabled !== false && (
                                 <>
                                     <tr>
                                         <td><strong>Taxable Amount:</strong></td>

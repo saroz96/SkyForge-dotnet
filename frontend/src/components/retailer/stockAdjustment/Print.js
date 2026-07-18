@@ -834,20 +834,23 @@ const StockAdjustmentPrint = () => {
                                         <td><strong>Discount:</strong></td>
                                         <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.discountAmount)}</td>
                                     </tr>
-                                    <tr>
-                                        <td><strong>Non Taxable:</strong></td>
-                                        <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.nonVatAdjustment)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Taxable Amount:</strong></td>
-                                        <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.taxableAmount)}</td>
-                                    </tr>
-                                    {!adjustmentData.adjustment.isVatExempt && (
-                                        <tr>
-                                            <td><strong>VAT ({adjustmentData.adjustment.vatPercentage || 0}%):</strong></td>
-                                            <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.vatAmount)}</td>
-                                        </tr>
+                                    {!adjustmentData.adjustment.isVatExempt && adjustmentData.company?.vatEnabled !== false && (
+                                        <>
+                                            <tr>
+                                                <td><strong>Non Taxable:</strong></td>
+                                                <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.nonVatAdjustment)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Taxable Amount:</strong></td>
+                                                <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.taxableAmount)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>VAT ({adjustmentData.adjustment.vatPercentage || 0}%):</strong></td>
+                                                <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.vatAmount)}</td>
+                                            </tr>
+                                        </>
                                     )}
+
                                     <tr>
                                         <td><strong>Round Off:</strong></td>
                                         <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.roundOffAmount)}</td>
@@ -958,19 +961,21 @@ const StockAdjustmentPrint = () => {
                                 <td><strong>Discount:</strong></td>
                                 <td className="print-text-right">{formatTo2Decimal(adjustmentData.adjustment.discountAmount)}</td>
                             </tr>
-                            <tr>
-                                <td><strong>Non Taxable:</strong></td>
-                                <td className="print-text-right">{formatTo2Decimal(adjustmentData.adjustment.nonVatAdjustment)}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Taxable Amount:</strong></td>
-                                <td className="print-text-right">{formatTo2Decimal(adjustmentData.adjustment.taxableAmount)}</td>
-                            </tr>
-                            {!adjustmentData.adjustment.isVatExempt && (
-                                <tr>
-                                    <td><strong>VAT ({adjustmentData.adjustment.vatPercentage || 0}%):</strong></td>
-                                    <td className="print-text-right">{formatTo2Decimal(adjustmentData.adjustment.vatAmount)}</td>
-                                </tr>
+                            {!adjustmentData.adjustment.isVatExempt && adjustmentData.company?.vatEnabled !== false && (
+                                <>
+                                    <tr>
+                                        <td><strong>Non Taxable:</strong></td>
+                                        <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.nonVatAdjustment)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Taxable Amount:</strong></td>
+                                        <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.taxableAmount)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>VAT ({adjustmentData.adjustment.vatPercentage || 0}%):</strong></td>
+                                        <td className="text-right">{formatTo2Decimal(adjustmentData.adjustment.vatAmount)}</td>
+                                    </tr>
+                                </>
                             )}
                             <tr>
                                 <td><strong>Round Off:</strong></td>

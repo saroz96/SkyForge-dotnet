@@ -813,7 +813,7 @@ const EditPurcRtn = () => {
                 setCompany({
                     ...data.company,
                     dateFormat: data.company.dateFormat || 'english',
-                    vatEnabled: data.company.vatEnabled || true
+                    vatEnabled: data.company.vatEnabled
                 });
 
                 const purchaseReturn = data.purchaseReturn;

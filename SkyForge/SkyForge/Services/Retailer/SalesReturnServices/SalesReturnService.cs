@@ -4606,6 +4606,7 @@ namespace SkyForge.Services.Retailer.SalesReturnServices
                     Id = companyEntity.Id,
                     RenewalDate = renewalDate,
                     DateFormat = companyEntity.DateFormat.ToString(),
+                    VatEnabled = companyEntity.VatEnabled,
                     FiscalYear = null
                 };
 

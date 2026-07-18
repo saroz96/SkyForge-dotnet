@@ -548,7 +548,7 @@ const EditPurchase = () => {
                 setCompany({
                     ...data.company,
                     dateFormat: data.company.dateFormat || 'nepali',
-                    vatEnabled: data.company.vatEnabled || true
+                    vatEnabled: data.company.vatEnabled
                 });
 
                 setStores(data.stores || []);

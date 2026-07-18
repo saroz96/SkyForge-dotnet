@@ -1430,6 +1430,7 @@ namespace SkyForge.Services.Retailer.SalesQuotationServices
                     Id = companyEntity.Id,
                     RenewalDate = renewalDate,
                     DateFormat = companyEntity.DateFormat.ToString(),
+                    VatEnabled = companyEntity.VatEnabled,
                     FiscalYear = null
                 };
                 if (company == null)

@@ -483,7 +483,7 @@ const AddSales = () => {
                 setCompany({
                     ...data.company,
                     dateFormat: data.company.dateFormat || 'nepali',
-                    vatEnabled: data.company.vatEnabled || true
+                    vatEnabled: data.company.vatEnabled
                 });
 
                 // Fetch date preference (useVoucherLastDate setting from backend)

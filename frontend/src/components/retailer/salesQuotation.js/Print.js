@@ -807,19 +807,21 @@ const SalesQuotationPrint = () => {
                                         <td><strong>Discount ({quotationData.bill.discountPercentage || 0}%):</strong></td>
                                         <td className="text-right">{formatTo2Decimal(quotationData.bill.discountAmount)}</td>
                                     </tr>
-                                    <tr>
-                                        <td><strong>Non-Taxable:</strong></td>
-                                        <td className="text-right">{formatTo2Decimal(quotationData.bill.nonVatSales || 0)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Taxable Amount:</strong></td>
-                                        <td className="text-right">{formatTo2Decimal(quotationData.bill.taxableAmount)}</td>
-                                    </tr>
-                                    {!quotationData.bill.isVatExempt && (
-                                        <tr>
-                                            <td><strong>VAT ({quotationData.bill.vatPercentage || 0}%):</strong></td>
-                                            <td className="text-right">{formatTo2Decimal(quotationData.bill.vatAmount)}</td>
-                                        </tr>
+                                    {!quotationData.bill.isVatExempt && quotationData.company?.vatEnabled !== false && (
+                                        <>
+                                            <tr>
+                                                <td><strong>Non-Taxable:</strong></td>
+                                                <td className="text-right">{formatTo2Decimal(quotationData.bill.nonVatSales || 0)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Taxable Amount:</strong></td>
+                                                <td className="text-right">{formatTo2Decimal(quotationData.bill.taxableAmount)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>VAT ({quotationData.bill.vatPercentage || 0}%):</strong></td>
+                                                <td className="text-right">{formatTo2Decimal(quotationData.bill.vatAmount)}</td>
+                                            </tr>
+                                        </>
                                     )}
                                     <tr>
                                         <td><strong>Round Off:</strong></td>
@@ -931,19 +933,21 @@ const SalesQuotationPrint = () => {
                                 <td><strong>Discount ({quotationData.bill.discountPercentage || 0}%):</strong></td>
                                 <td className="print-text-right">{formatTo2Decimal(quotationData.bill.discountAmount)}</td>
                             </tr>
-                            <tr>
-                                <td><strong>Non-Taxable:</strong></td>
-                                <td className="print-text-right">{formatTo2Decimal(quotationData.bill.nonVatSales || 0)}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Taxable Amount:</strong></td>
-                                <td className="print-text-right">{formatTo2Decimal(quotationData.bill.taxableAmount)}</td>
-                            </tr>
-                            {!quotationData.bill.isVatExempt && (
-                                <tr>
-                                    <td><strong>VAT ({quotationData.bill.vatPercentage || 0}%):</strong></td>
-                                    <td className="print-text-right">{formatTo2Decimal(quotationData.bill.vatAmount)}</td>
-                                </tr>
+                            {!quotationData.bill.isVatExempt && quotationData.company?.vatEnabled !== false && (
+                                <>
+                                    <tr>
+                                        <td><strong>Non-Taxable:</strong></td>
+                                        <td className="print-text-right">{formatTo2Decimal(quotationData.bill.nonVatSales || 0)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Taxable Amount:</strong></td>
+                                        <td className="text-right">{formatTo2Decimal(quotationData.bill.taxableAmount)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>VAT ({quotationData.bill.vatPercentage || 0}%):</strong></td>
+                                        <td className="text-right">{formatTo2Decimal(quotationData.bill.vatAmount)}</td>
+                                    </tr>
+                                </>
                             )}
                             <tr>
                                 <td><strong>Round Off:</strong></td>

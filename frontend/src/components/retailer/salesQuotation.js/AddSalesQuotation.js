@@ -437,7 +437,7 @@ const AddSalesQuotation = () => {
                 setCompany({
                     ...data.company,
                     dateFormat: data.company.dateFormat || 'nepali',
-                    vatEnabled: data.company.vatEnabled || true
+                    vatEnabled: data.company.vatEnabled
                 });
 
                 // Set other data

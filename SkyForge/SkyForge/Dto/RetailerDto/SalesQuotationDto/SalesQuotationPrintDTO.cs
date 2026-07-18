@@ -26,6 +26,7 @@ namespace SkyForge.Dto.RetailerDto.SalesQuotationDto
         public DateTime? RenewalDate { get; set; }
         public string DateFormat { get; set; } = string.Empty;
         public FiscalYearDTO? FiscalYear { get; set; }
+        public bool VatEnabled { get; internal set; }
     }
 
     public class CompanyPrintInfoDTO

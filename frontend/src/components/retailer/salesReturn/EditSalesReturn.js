@@ -656,7 +656,7 @@ const EditSalesReturn = () => {
                 setCompany({
                     ...data.company,
                     dateFormat: data.company.dateFormat || 'nepali',
-                    vatEnabled: data.company.vatEnabled || true
+                    vatEnabled: data.company.vatEnabled
                 });
 
                 const invoice = data.salesReturnInvoice;

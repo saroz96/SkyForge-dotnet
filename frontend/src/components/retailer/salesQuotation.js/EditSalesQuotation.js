@@ -791,7 +791,7 @@ const EditSalesQuotation = () => {
                 setCompany({
                     ...data.company,
                     dateFormat: data.company.dateFormat?.toLowerCase() || 'english',
-                    vatEnabled: data.company.vatEnabled || true
+                    vatEnabled: data.company.vatEnabled
                 });
 
                 const salesQuotation = data.salesQuotation;
