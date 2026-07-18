@@ -191,8 +191,7 @@ namespace SkyForge.Controllers.Retailer
                     _logger.LogInformation("Using default date range: {FromDate} to {ToDate}", fromDateTime, toDateTime);
                 }
 
-                // Parse limit with max value of 1000
-                int limitValue = Math.Min(limit, 1000);
+                int limitValue = limit;
                 int pageValue = Math.Max(page, 1);
 
                 // Get the stock status data
@@ -233,5 +232,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+    
     }
 }
