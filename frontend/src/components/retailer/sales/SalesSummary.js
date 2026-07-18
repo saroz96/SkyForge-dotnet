@@ -1758,7 +1758,6 @@ const SalesSummary = () => {
                                         placeholder=""
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        disabled={dataArray.length === 0}
                                         autoComplete='off'
                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                     />

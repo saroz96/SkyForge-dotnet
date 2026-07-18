@@ -458,7 +458,7 @@ namespace SkyForge.Controllers.Retailer
                                (a.Name.Contains("Bank") ||
                                 a.Name.Contains("bank") ||
                                 a.AccountGroup != null &&
-                                (a.AccountGroup.Name == "Bank Accounts"||a.AccountGroup.Name == "Bank O/D Account" ||
+                                (a.AccountGroup.Name == "Bank Accounts" || a.AccountGroup.Name == "Bank O/D Account" ||
                                  a.AccountGroup.Name == "Bank")))
                     .Select(a => new { a.Id, a.Name })
                     .ToListAsync();
@@ -750,6 +750,146 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
+
+        /// <summary>
+        /// GET: api/retailer/party-turnover
+        /// Fetches all parties with turnover exceeding the threshold
+        /// </summary>
+        [HttpGet("party-turnover")]
+        public async Task<IActionResult> GetPartyTurnover(
+          [FromQuery] decimal amount,
+          [FromQuery] string transactionType,
+          [FromQuery] DateTime? fromDate = null,
+          [FromQuery] DateTime? toDate = null,
+          [FromQuery] string? paymentMode = "all")
+        {
+            try
+            {
+                _logger.LogInformation("=== GetPartyTurnover Started ===");
+                _logger.LogInformation("Parameters - Amount: {Amount}, TransactionType: {TransactionType}, FromDate: {FromDate}, ToDate: {ToDate}",
+                    amount, transactionType, fromDate, toDate);
+
+                // Validate required parameters
+                if (amount <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Amount must be greater than 0"
+                    });
+                }
+
+                if (string.IsNullOrEmpty(transactionType) ||
+                    (transactionType.ToLower() != "sales" && transactionType.ToLower() != "purchase"))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Transaction type must be either 'Sales' or 'Purchase'"
+                    });
+                }
+
+                // Extract claims from JWT
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate user ID
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company ID
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Handle fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Check trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) ||
+                    !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) ||
+                    tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        message = "Access denied for this trade type"
+                    });
+                }
+
+                // Build request
+                var request = new PartyTurnoverRequestDto
+                {
+                    Amount = amount,
+                    TransactionType = transactionType,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    PaymentMode = paymentMode
+                };
+
+                // Get party turnover data
+                var response = await _transactionService.GetPartyTurnoverAsync(
+                    companyIdGuid,
+                    fiscalYearIdGuid,
+                    request);
+
+                if (!response.Success)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = response.Error
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    data = response.Data
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetPartyTurnover");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching party turnover",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+
     }
 }
 

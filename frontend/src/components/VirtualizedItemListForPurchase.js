@@ -132,8 +132,8 @@ const ItemRow = memo(({ item, index, style, onItemClick, searchRef }) => {
             onKeyDown={handleKeyDown}
             onFocus={handleFocus}
         >
-            <div>{item.uniqueNumber || 'N/A'}</div>
-            <div>{item.hscode || 'N/A'}</div>
+            <div>{item.uniqueNumber || ''}</div>
+            <div>{item.hscode || ''}</div>
             <div className="dropdown-items-name">{item.name}</div>
             <div>{displayCategory}</div>
             <div>{displayStock}</div>
@@ -152,7 +152,7 @@ const VirtualizedItemListForPurchase = memo(({
     onLoadMore,
     totalItems,
     page,
-    searchQuery = ''
+    searchQuery = '',
 }) => {
     const itemHeight = 28;
     const containerRef = useRef(null);

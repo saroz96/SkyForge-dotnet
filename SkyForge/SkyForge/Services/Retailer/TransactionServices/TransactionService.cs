@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SkyForge.Data;
 using SkyForge.Dto.RetailerDto.TransactionDto;
+using SkyForge.Models.AccountModel;
 using SkyForge.Models.Retailer.TransactionModel;
 
 namespace SkyForge.Services.Retailer.TransactionServices
@@ -247,6 +248,328 @@ namespace SkyForge.Services.Retailer.TransactionServices
                 _logger.LogError(ex, "Error in GetSalesTransactionsByItemAndAccountAsync");
                 throw;
             }
+        }
+
+
+        public async Task<PartyTurnoverResponseDto> GetPartyTurnoverAsync(
+            Guid companyId,
+            Guid fiscalYearId,
+            PartyTurnoverRequestDto request)
+        {
+            try
+            {
+                _logger.LogInformation("GetPartyTurnoverAsync called - CompanyId: {CompanyId}, Amount: {Amount}, Type: {Type}, FromDate: {FromDate}, ToDate: {ToDate}",
+                    companyId, request.Amount, request.TransactionType, request.FromDate, request.ToDate);
+
+                // Validate request
+                if (request.Amount <= 0)
+                {
+                    return new PartyTurnoverResponseDto
+                    {
+                        Success = false,
+                        Error = "Amount must be greater than 0"
+                    };
+                }
+
+                // Get all party accounts (Sundry Debtors, Sundry Creditors, Customers, Suppliers)
+                var partyAccounts = await GetPartyAccountsAsync(companyId);
+
+                if (!partyAccounts.Any())
+                {
+                    return new PartyTurnoverResponseDto
+                    {
+                        Success = true,
+                        Data = new PartyTurnoverAllDataDto
+                        {
+                            ThresholdAmount = request.Amount,
+                            TransactionType = request.TransactionType,
+                            Parties = new List<PartyTurnoverPartyDto>(),
+                            Summary = new PartyTurnoverSummaryDto(),
+                            GeneratedDate = DateTime.UtcNow,
+                            GeneratedDateNepali = GetCurrentNepaliDate()
+                        }
+                    };
+                }
+
+                // Get party IDs
+                List<Guid> partyIds = partyAccounts.Select(a => a.Id).ToList();
+
+                // Build transaction query - using AD dates for filtering
+                var query = BuildTurnoverQuery(companyId, fiscalYearId, request, partyIds);
+
+                // Get all transactions with related data
+                var transactions = await query
+                    .Include(t => t.TransactionItems)
+                        .ThenInclude(ti => ti.Item)
+                    .Include(t => t.TransactionItems)
+                        .ThenInclude(ti => ti.Unit)
+                    .Include(t => t.Account)
+                    .Include(t => t.PaymentAccount)
+                    .Include(t => t.ReceiptAccount)
+                    .Include(t => t.DebitAccount)
+                    .Include(t => t.CreditAccount)
+                    .OrderByDescending(t => t.Date)  // AD date for sorting
+                    .ThenByDescending(t => t.CreatedAt)
+                    .ToListAsync();
+
+                // Group transactions by party and calculate turnover
+                var partiesWithTurnover = CalculatePartyTurnover(
+                    partyAccounts,
+                    transactions,
+                    request.TransactionType,
+                    request.Amount);
+
+                // Calculate summary
+                var summary = CalculateSummary(partiesWithTurnover);
+
+                var nepaliDate = GetCurrentNepaliDate();
+
+                return new PartyTurnoverResponseDto
+                {
+                    Success = true,
+                    Data = new PartyTurnoverAllDataDto
+                    {
+                        ThresholdAmount = request.Amount,
+                        TransactionType = request.TransactionType,
+                        Parties = partiesWithTurnover,
+                        Summary = summary,
+                        GeneratedDate = DateTime.UtcNow,
+                        GeneratedDateNepali = nepaliDate
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetPartyTurnoverAsync");
+                return new PartyTurnoverResponseDto
+                {
+                    Success = false,
+                    Error = "An error occurred while fetching party turnover"
+                };
+            }
+        }
+
+        private async Task<List<Account>> GetPartyAccountsAsync(Guid companyId)
+        {
+            return await _context.Accounts
+                .Include(a => a.AccountGroup)
+                .Where(a => a.CompanyId == companyId &&
+                           a.IsActive &&
+                           (a.AccountGroup != null &&
+                            (a.AccountGroup.Name == "Sundry Debtors" ||
+                             a.AccountGroup.Name == "Sundry Creditors" ||
+                             a.AccountGroup.Name == "Customers" ||
+                             a.AccountGroup.Name == "Suppliers")))
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+        }
+
+        private IQueryable<Transaction> BuildTurnoverQuery(
+            Guid companyId,
+            Guid fiscalYearId,
+            PartyTurnoverRequestDto request,
+            List<Guid> partyIds)
+        {
+            // Start with base query
+            var query = _context.Transactions
+                .Where(t => t.CompanyId == companyId &&
+                           t.FiscalYearId == fiscalYearId &&
+                           t.IsActive &&
+                           t.Status == TransactionStatus.Active &&
+                           t.AccountId.HasValue &&
+                           partyIds.Contains(t.AccountId.Value));
+
+            // Filter by transaction type (Sale or Purchase)
+            if (request.TransactionType?.ToLower() == "sales")
+            {
+                query = query.Where(t => t.Type == TransactionType.Sale ||
+                                        t.Type == TransactionType.SlRt);
+            }
+            else if (request.TransactionType?.ToLower() == "purchase")
+            {
+                query = query.Where(t => t.Type == TransactionType.Purc ||
+                                        t.Type == TransactionType.PrRt);
+            }
+            else
+            {
+                // Default to sales if not specified
+                query = query.Where(t => t.Type == TransactionType.Sale ||
+                                        t.Type == TransactionType.SlRt);
+            }
+
+            // Date filtering using AD dates (Date property)
+            if (request.FromDate.HasValue)
+            {
+                var fromDateOnly = request.FromDate.Value.Date;
+                query = query.Where(t => t.Date.Date >= fromDateOnly);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                var toDateOnly = request.ToDate.Value.Date;
+                query = query.Where(t => t.Date.Date <= toDateOnly);
+            }
+
+            // Payment mode filtering
+            if (!string.IsNullOrEmpty(request.PaymentMode))
+            {
+                if (request.PaymentMode == "exclude-cash")
+                {
+                    query = query.Where(t => t.PaymentMode != PaymentMode.Cash);
+                }
+                else if (request.PaymentMode != "all")
+                {
+                    var paymentMode = ParsePaymentMode(request.PaymentMode);
+                    query = query.Where(t => t.PaymentMode == paymentMode);
+                }
+            }
+
+            return query;
+        }
+
+        private List<PartyTurnoverPartyDto> CalculatePartyTurnover(
+            List<Account> partyAccounts,
+            List<Transaction> transactions,
+            string transactionType,
+            decimal thresholdAmount)
+        {
+            var result = new List<PartyTurnoverPartyDto>();
+
+            // Group transactions by account
+            var groupedTransactions = transactions
+                .GroupBy(t => t.AccountId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var account in partyAccounts)
+            {
+                if (!groupedTransactions.TryGetValue(account.Id, out var accountTransactions))
+                    continue;
+
+                // Calculate total amount based on transaction type
+                decimal totalAmount = 0;
+                var transactionDetails = new List<PartyTurnoverTransactionDto>();
+
+                foreach (var tx in accountTransactions)
+                {
+                    // Use TotalDebit for Sales, TotalCredit for Purchase
+                    decimal amount = transactionType.ToLower() == "sales"
+                        ? tx.TotalDebit
+                        : tx.TotalCredit;
+
+                    totalAmount += amount;
+
+                    // Calculate VAT from items
+                    decimal vatAmount = tx.TransactionItems?
+                        .Where(ti => ti.VatAmount.HasValue)
+                        .Sum(ti => ti.VatAmount.Value) ?? 0;
+
+                    transactionDetails.Add(new PartyTurnoverTransactionDto
+                    {
+                        Id = tx.Id,
+                        Date = tx.Date,  // AD date
+                        NepaliDate = tx.NepaliDate,  // BS date for display
+                        BillNumber = tx.BillNumber,
+                        PartyBillNumber = tx.PartyBillNumber,
+                        TransactionType = tx.Type.ToString(),
+                        PaymentMode = tx.PaymentMode.ToString(),
+                        TotalAmount = amount,
+                        TotalDebit = tx.TotalDebit,
+                        TotalCredit = tx.TotalCredit,
+                        VatAmount = vatAmount,
+                        InstrumentType = tx.InstType.ToString(),
+                        InstrumentNumber = tx.InstNo,
+                        Items = tx.TransactionItems?.Select(ti => new PartyTurnoverItemDto
+                        {
+                            ItemId = ti.ItemId,
+                            ItemName = ti.Item != null ? ti.Item.Name : null,
+                            ItemCode = ti.Item != null ? ti.Item.UniqueNumber.ToString() : null,
+                            Quantity = ti.Quantity,
+                            UnitName = ti.Unit != null ? ti.Unit.Name : null,
+                            Price = ti.Price,
+                            PuPrice = ti.PuPrice,
+                            TotalAmount = ti.Debit + ti.Credit,
+                            DiscountAmount = ti.DiscountAmountPerItem,
+                            VatAmount = ti.VatAmount
+                        }).ToList() ?? new List<PartyTurnoverItemDto>()
+                    });
+                }
+
+                // Only include if total amount meets threshold
+                if (totalAmount < thresholdAmount)
+                    continue;
+
+                var amounts = transactionDetails.Select(t => t.TotalAmount).ToList();
+
+                result.Add(new PartyTurnoverPartyDto
+                {
+                    PartyId = account.Id,
+                    PartyName = account.Name,
+                    Pan = account.Pan,
+                    Phone = account.Phone,
+                    Address = account.Address,
+                    AccountGroup = account.AccountGroup?.Name,
+                    TransactionCount = transactionDetails.Count,
+                    TotalAmount = totalAmount,
+                    AverageAmount = transactionDetails.Any() ? totalAmount / transactionDetails.Count : 0,
+                    MinAmount = amounts.Any() ? amounts.Min() : 0,
+                    MaxAmount = amounts.Any() ? amounts.Max() : 0,
+                    Transactions = transactionDetails
+                        .OrderByDescending(t => t.Date)  // Sort by AD date
+                        .Take(10) // Show last 10 transactions for each party
+                        .ToList()
+                });
+            }
+
+            // Sort by total amount descending (highest turnover first)
+            return result.OrderByDescending(p => p.TotalAmount).ToList();
+        }
+
+        private PartyTurnoverSummaryDto CalculateSummary(List<PartyTurnoverPartyDto> parties)
+        {
+            if (!parties.Any())
+            {
+                return new PartyTurnoverSummaryDto();
+            }
+
+            var totalTransactions = parties.Sum(p => p.TransactionCount);
+            var totalAmount = parties.Sum(p => p.TotalAmount);
+            var totalVat = parties.Sum(p => p.Transactions.Sum(t => t.VatAmount));
+
+            var allAmounts = parties.SelectMany(p => p.Transactions.Select(t => t.TotalAmount)).ToList();
+
+            return new PartyTurnoverSummaryDto
+            {
+                TotalParties = parties.Count,
+                TotalTransactions = totalTransactions,
+                TotalAmount = totalAmount,
+                TotalVatAmount = totalVat,
+                AverageTransactionAmount = totalTransactions > 0 ? totalAmount / totalTransactions : 0,
+                MinTransactionAmount = allAmounts.Any() ? allAmounts.Min() : 0,
+                MaxTransactionAmount = allAmounts.Any() ? allAmounts.Max() : 0,
+                FirstTransactionDate = parties.SelectMany(p => p.Transactions).Min(t => t.Date),  // AD date
+                LastTransactionDate = parties.SelectMany(p => p.Transactions).Max(t => t.Date)   // AD date
+            };
+        }
+
+        private PaymentMode ParsePaymentMode(string? paymentMode)
+        {
+            return paymentMode?.ToLower() switch
+            {
+                "cash" => PaymentMode.Cash,
+                "credit" => PaymentMode.Credit,
+                "payment" => PaymentMode.Payment,
+                "receipt" => PaymentMode.Receipt,
+                "journal" => PaymentMode.Journal,
+                "drnote" => PaymentMode.DrNote,
+                "crnote" => PaymentMode.CrNote,
+                _ => PaymentMode.Credit
+            };
+        }
+
+        private string GetCurrentNepaliDate()
+        {
+            // TODO: Implement proper Nepali date conversion
+            return DateTime.UtcNow.ToString("yyyy-MM-dd");
         }
     }
 }

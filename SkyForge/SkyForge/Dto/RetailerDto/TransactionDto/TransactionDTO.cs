@@ -1,5 +1,6 @@
 ﻿using SkyForge.Models.Retailer.TransactionModel;
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace SkyForge.Dto.RetailerDto.TransactionDto
 {
@@ -282,5 +283,97 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
     {
         public List<TransactionResponseDto> Transactions { get; set; } = new List<TransactionResponseDto>();
         public int Count { get; set; }
+    }
+
+    public class PartyTurnoverRequestDto
+    {
+        [Required(ErrorMessage = "Amount threshold is required")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        public decimal Amount { get; set; }
+
+        [Required(ErrorMessage = "Transaction type is required")]
+        public string TransactionType { get; set; } = "Sales";
+
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public string? PaymentMode { get; set; } = "all";
+    }
+
+    public class PartyTurnoverResponseDto
+    {
+        public bool Success { get; set; }
+        public string? Error { get; set; }
+        public PartyTurnoverAllDataDto? Data { get; set; }
+    }
+
+    public class PartyTurnoverAllDataDto
+    {
+        public decimal ThresholdAmount { get; set; }
+        public string TransactionType { get; set; } = string.Empty;
+        public List<PartyTurnoverPartyDto> Parties { get; set; } = new List<PartyTurnoverPartyDto>();
+        public PartyTurnoverSummaryDto Summary { get; set; } = new PartyTurnoverSummaryDto();
+        public DateTime GeneratedDate { get; set; }
+        public string? GeneratedDateNepali { get; set; }
+    }
+
+    public class PartyTurnoverPartyDto
+    {
+        public Guid PartyId { get; set; }
+        public string PartyName { get; set; } = string.Empty;
+        public string? Pan { get; set; }
+        public string? Phone { get; set; }
+        public string? Address { get; set; }
+        public string? AccountGroup { get; set; }
+        public int TransactionCount { get; set; }
+        public decimal TotalAmount { get; set; }
+        public decimal AverageAmount { get; set; }
+        public decimal MinAmount { get; set; }
+        public decimal MaxAmount { get; set; }
+        public List<PartyTurnoverTransactionDto> Transactions { get; set; } = new List<PartyTurnoverTransactionDto>();
+    }
+
+    public class PartyTurnoverTransactionDto
+    {
+        public Guid Id { get; set; }
+        public DateTime Date { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? BillNumber { get; set; }
+        public string? PartyBillNumber { get; set; }
+        public string TransactionType { get; set; } = string.Empty;
+        public string PaymentMode { get; set; } = string.Empty;
+        public decimal TotalAmount { get; set; }
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        public decimal VatAmount { get; set; }
+        public string? InstrumentType { get; set; }
+        public string? InstrumentNumber { get; set; }
+        public List<PartyTurnoverItemDto> Items { get; set; } = new List<PartyTurnoverItemDto>();
+    }
+
+    public class PartyTurnoverItemDto
+    {
+        public Guid? ItemId { get; set; }
+        public string? ItemName { get; set; }
+        public string? ItemCode { get; set; }
+        public decimal? Quantity { get; set; }
+        public string? UnitName { get; set; }
+        public decimal Price { get; set; }
+        public decimal? PuPrice { get; set; }
+        public decimal TotalAmount { get; set; }
+        public decimal? DiscountAmount { get; set; }
+        public decimal? VatAmount { get; set; }
+    }
+
+    public class PartyTurnoverSummaryDto
+    {
+        public int TotalParties { get; set; }
+        public int TotalTransactions { get; set; }
+        public decimal TotalAmount { get; set; }
+        public decimal TotalVatAmount { get; set; }
+        public decimal AverageTransactionAmount { get; set; }
+        public decimal MinTransactionAmount { get; set; }
+        public decimal MaxTransactionAmount { get; set; }
+        public DateTime? FirstTransactionDate { get; set; }
+        public DateTime? LastTransactionDate { get; set; }
     }
 }

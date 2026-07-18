@@ -3816,7 +3816,7 @@ const EditCashSalesReturn = () => {
                                 <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
                                     Select Cash Account
                                 </h5>
-                                <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
+                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
                                     {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Type to search or enter new account'}
                                 </small>
                                 <button

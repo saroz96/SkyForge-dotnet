@@ -10,7 +10,6 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
 
         [Required]
         public Guid ItemId { get; set; }
-
         public string? ItemName { get; set; } // For response only
         public string? Hscode { get; set; }
         public int? UniqueNumber { get; set; }

@@ -1276,7 +1276,8 @@ const AddSales = () => {
             mrp: firstStockEntry.mrp || 0,
             amount: 0,
             vatStatus: item.vatStatus,
-            uniqueUuid: firstStockEntry.uniqueUuid
+            uniqueUuid: firstStockEntry.uniqueUuid,
+            purchaseBillId: firstStockEntry.purchaseBillId
         };
 
         const updatedItems = [...items, newItem];
@@ -1844,7 +1845,8 @@ const AddSales = () => {
                 puPrice: entry.puPrice || 0,
                 netPuPrice: entry.netPuPrice || 0,
                 mrp: entry.mrp || 0,
-                uniqueUuid: entry.uniqueUuid || `temp-${Date.now()}-${Math.random()}`
+                uniqueUuid: entry.uniqueUuid || `temp-${Date.now()}-${Math.random()}`,
+                purchaseBillId: entry.purchaseBillId
             });
 
             remainingQty -= takenQty;
@@ -1876,7 +1878,8 @@ const AddSales = () => {
                 // Amount calculated from batch price
                 amount: amount,
                 vatStatus: selectedItemForInsert.vatStatus,
-                uniqueUuid: batch.uniqueUuid
+                uniqueUuid: batch.uniqueUuid,
+                purchaseBillId: batch.purchaseBillId
             };
 
             newItems.push(newItem);
@@ -2609,18 +2612,11 @@ const AddSales = () => {
                     mrp: item.mrp,
                     netPuPrice: item.netPuPrice,
                     vatStatus: item.vatStatus,
-                    uniqueUuid: item.uniqueUuid
+                    uniqueUuid: item.uniqueUuid,
+                    purchaseBillId: item.purchaseBillId
                 })),
                 print
             };
-
-            // 🔍 DEBUG: Log the complete request data
-            console.log('=== COMPLETE REQUEST DATA ===');
-            console.log('billData:', JSON.stringify(billData, null, 2));
-            console.log('roundOffAmount being sent:', billData.roundOffAmount);
-            console.log('type of roundOffAmount:', typeof billData.roundOffAmount);
-            console.log('=============================');
-
 
             const response = await api.post('/api/retailer/credit-sales', billData);
 
@@ -4358,6 +4354,7 @@ const AddSales = () => {
                                                 <td className="d-none">
                                                     <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
                                                     <input type="hidden" name={`items[${index}][uniqueUuid]`} value={item.uniqueUuid} />
+                                                    <input type="hidden" name={`items[${index}][purchaseBillId]`} value={item.purchaseBillId || ''} />
                                                 </td>
                                             </tr>
                                         );
@@ -4727,7 +4724,7 @@ const AddSales = () => {
                                 <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
                                     Select an Account
                                 </h5>
-                                <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
+                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
                                     {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
                                 </small>
                                 <button

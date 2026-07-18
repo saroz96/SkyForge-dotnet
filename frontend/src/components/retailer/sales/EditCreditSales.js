@@ -873,7 +873,8 @@ const EditCreditSales = () => {
                     mrp: item.mrp || 0,
                     amount: ((item.quantity || 0) * (item.price || 0)).toFixed(2),
                     vatStatus: item.vatStatus,
-                    uniqueUuid: item.uniqueUuid
+                    uniqueUuid: item.uniqueUuid,
+                    purchaseBillId: item.purchaseBillId || null
                 }));
 
                 setFormData({
@@ -1394,7 +1395,8 @@ const EditCreditSales = () => {
                     puPrice: batchInfo.puPrice,
                     netPuPrice: batchInfo.netPuPrice,
                     mrp: batchInfo.mrp,
-                    uniqueUuid: batchInfo.uniqueUuid
+                    uniqueUuid: batchInfo.uniqueUuid,
+                    purchaseBillId: batchInfo.purchaseBillId
                 }
             });
 
@@ -1430,7 +1432,8 @@ const EditCreditSales = () => {
                 puPrice: batchInfo.puPrice,
                 netPuPrice: batchInfo.netPuPrice,
                 mrp: batchInfo.mrp,
-                uniqueUuid: batchInfo.uniqueUuid
+                uniqueUuid: batchInfo.uniqueUuid,
+                purchaseBillId: batchInfo.purchaseBillId
             });
         }
     };
@@ -1465,7 +1468,8 @@ const EditCreditSales = () => {
             netPuPrice: batchInfo.netPuPrice || 0,
             amount: 0,
             vatStatus: item.vatStatus,
-            uniqueUuid: batchInfo.uniqueUuid
+            uniqueUuid: batchInfo.uniqueUuid,
+            purchaseBillId: batchInfo.purchaseBillId
         };
 
         const updatedItems = [...items, newItem];
@@ -1559,7 +1563,8 @@ const EditCreditSales = () => {
             mrp: selectedItemForInsert.batchInfo?.mrp || 0,
             amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100),
             vatStatus: selectedItemForInsert.vatStatus,
-            uniqueUuid: uniqueUuid
+            uniqueUuid: uniqueUuid,
+            purchaseBillId: selectedItemForInsert.batchInfo?.purchaseBillId
         };
 
         const updatedItems = [...items, newItem];
@@ -3650,6 +3655,7 @@ const EditCreditSales = () => {
                                                 <input type="hidden" name={`items[${index}][netPuPrice]`} value={item.netPuPrice} />
                                                 <input type="hidden" name={`items[${index}][mrp]`} value={item.mrp} />
                                                 <input type="hidden" name={`items[${index}][uniqueUuid]`} value={item.uniqueUuid} />
+                                                <input type="hidden" name={`items[${index}][purchaseBillId]`} value={item.purchaseBillId || ''} />
                                             </tr>
                                         );
                                     })}
@@ -4031,7 +4037,7 @@ const EditCreditSales = () => {
                                 <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
                                     Select an Account
                                 </h5>
-                                <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
+                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
                                     {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
                                 </small>
                                 <button
@@ -5083,7 +5089,8 @@ const EditCreditSales = () => {
                                                                             puPrice: entry.puPrice,
                                                                             netPuPrice: entry.netPuPrice,
                                                                             mrp: entry.mrp,
-                                                                            uniqueUuid: entry.uniqueUuid
+                                                                            uniqueUuid: entry.uniqueUuid,
+                                                                            purchaseBillId: entry.purchaseBillId
                                                                         });
                                                                     }
                                                                 }}
@@ -5098,7 +5105,8 @@ const EditCreditSales = () => {
                                                                             puPrice: entry.puPrice,
                                                                             netPuPrice: entry.netPuPrice,
                                                                             mrp: entry.mrp,
-                                                                            uniqueUuid: entry.uniqueUuid
+                                                                            uniqueUuid: entry.uniqueUuid,
+                                                                            purchaseBillId: entry.purchaseBillId
                                                                         });
                                                                     } else if (e.key === 'ArrowDown') {
                                                                         e.preventDefault();

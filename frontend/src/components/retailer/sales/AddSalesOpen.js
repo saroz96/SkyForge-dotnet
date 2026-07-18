@@ -984,86 +984,6 @@ const AddSalesOpen = () => {
         }
     };
 
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-    //         const response = await api.get('/api/retailer/items/search', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: 15,
-    //                 vatStatus: formData.isVatExempt,
-    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             const itemsWithPrices = response.data.items.map(item => {
-    //                 let latestPrice = 0;
-    //                 let latestBatchNumber = '';
-    //                 let latestExpiryDate = '';
-
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
-    //                         new Date(b.date) - new Date(a.date)
-    //                     );
-    //                     latestPrice = sortedEntries[0].price || 0;
-    //                     latestBatchNumber = sortedEntries[0].batchNumber || '';
-    //                     latestExpiryDate = sortedEntries[0].expiryDate || '';
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     id: item.id,
-    //                     _id: item.id,
-    //                     latestPrice,
-    //                     latestBatchNumber,
-    //                     latestExpiryDate,
-    //                     stock: item.currentStock || 0
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
-
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
             if (isHeaderModal) {
@@ -1432,7 +1352,8 @@ const AddSalesOpen = () => {
             mrp: batchInfo.mrp,
             amount: 0,
             vatStatus: item.vatStatus,
-            uniqueUuid: batchInfo.uniqueUuid
+            uniqueUuid: batchInfo.uniqueUuid,
+            purchaseBillId: batchInfo.purchaseBillId
         };
 
         const updatedItems = [...items, newItem];
@@ -1574,7 +1495,8 @@ const AddSalesOpen = () => {
                     uniqueUuid: batchInfo.uniqueUuid,
                     puPrice: batchInfo.puPrice,
                     netPuPrice: batchInfo.netPuPrice,
-                    mrp: batchInfo.mrp
+                    mrp: batchInfo.mrp,
+                    purchaseBillId: batchInfo.purchaseBillId
                 }
             });
 
@@ -1608,7 +1530,8 @@ const AddSalesOpen = () => {
                 uniqueUuid: batchInfo.uniqueUuid,
                 puPrice: batchInfo.puPrice,
                 netPuPrice: batchInfo.netPuPrice,
-                mrp: batchInfo.mrp
+                mrp: batchInfo.mrp,
+                purchaseBillId: batchInfo.purchaseBillId
             });
         }
     };
@@ -1686,7 +1609,8 @@ const AddSalesOpen = () => {
             mrp: selectedItemForInsert.batchInfo?.mrp || 0,
             amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100),
             vatStatus: selectedItemForInsert.vatStatus,
-            uniqueUuid: uniqueUuid
+            uniqueUuid: uniqueUuid,
+            purchaseBillId: selectedItemForInsert.batchInfo?.purchaseBillId
         };
 
         const updatedItems = [...items, newItem];
@@ -2596,10 +2520,6 @@ const AddSalesOpen = () => {
                 taxableAmount: calculatedValues.taxableAmount,
                 nonTaxableAmount: calculatedValues.nonTaxableAmount,
                 totalAmount: calculatedValues.totalAmount,
-                // transactionDateNepali: formData.transactionDateNepali,
-                // transactionDateRoman: new Date(formData.transactionDateRoman).toISOString(),
-                // nepaliDate: formData.nepaliDate,
-                // billDate: new Date(formData.billDate).toISOString(),
                 nepaliDate: formData.nepaliDate,
                 date: parseDate(formData.billDate),
                 transactionDateNepali: formData.transactionDateNepali,
@@ -2615,7 +2535,8 @@ const AddSalesOpen = () => {
                     mrp: item.mrp,
                     netPuPrice: item.netPuPrice,
                     vatStatus: item.vatStatus,
-                    uniqueUuid: item.uniqueUuid
+                    uniqueUuid: item.uniqueUuid,
+                    purchaseBillId: item.purchaseBillId
                 })),
                 print
             };
@@ -4487,6 +4408,7 @@ const AddSalesOpen = () => {
                                                 <td className="d-none">
                                                     <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
                                                     <input type="hidden" name={`items[${index}][uniqueUuid]`} value={item.uniqueUuid} />
+                                                    <input type="hidden" name={`items[${index}][purchaseBillId]`} value={item.purchaseBillId || ''} />
                                                 </td>
                                             </tr>
                                         );
@@ -4873,105 +4795,107 @@ const AddSalesOpen = () => {
                         </div>
                     </form>
                 </div>
-            </div>
+            </div >
 
             {/* Account Modal */}
-            {showAccountModal && (
-                <div
-                    className="modal fade show"
-                    id="accountModal"
-                    tabIndex="-1"
-                    style={{ display: 'block' }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            handleAccountModalClose();
-                            setTimeout(() => {
-                                document.getElementById('address').focus();
-                            }, 0);
-                        }
-                    }}
-                >
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content" style={{ height: '400px' }}>
-                            <div className="modal-header py-1">
-                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                    Select an Account
-                                </h5>
-                                <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
-                                    {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
-                                </small>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={handleAccountModalClose}
-                                    aria-label="Close"
-                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
-                                ></button>
-                            </div>
-                            <div className="p-2 bg-white sticky-top">
-                                <input
-                                    type="text"
-                                    id="searchAccount"
-                                    className="form-control form-control-sm"
-                                    placeholder="Search Account... (Press F6 to create new account)"
-                                    autoFocus
-                                    autoComplete='off'
-                                    value={accountSearchQuery}
-                                    onChange={handleAccountSearch}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                            e.preventDefault();
-                                            const firstAccountItem = document.querySelector('.account-item');
-                                            if (firstAccountItem) {
-                                                firstAccountItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const firstAccountItem = document.querySelector('.account-item.active');
-                                            if (firstAccountItem) {
-                                                const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                const account = accounts.find(a => a.id === accountId);
-                                                if (account) {
-                                                    selectAccount(account);
-                                                    document.getElementById('address').focus();
+            {
+                showAccountModal && (
+                    <div
+                        className="modal fade show"
+                        id="accountModal"
+                        tabIndex="-1"
+                        style={{ display: 'block' }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                                handleAccountModalClose();
+                                setTimeout(() => {
+                                    document.getElementById('address').focus();
+                                }, 0);
+                            }
+                        }}
+                    >
+                        <div className="modal-dialog modal-xl modal-dialog-centered">
+                            <div className="modal-content" style={{ height: '400px' }}>
+                                <div className="modal-header py-1">
+                                    <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
+                                        Select an Account
+                                    </h5>
+                                    <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
+                                        {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
+                                    </small>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        onClick={handleAccountModalClose}
+                                        aria-label="Close"
+                                        style={{ fontSize: '0.6rem', padding: '0.25rem' }}
+                                    ></button>
+                                </div>
+                                <div className="p-2 bg-white sticky-top">
+                                    <input
+                                        type="text"
+                                        id="searchAccount"
+                                        className="form-control form-control-sm"
+                                        placeholder="Search Account... (Press F6 to create new account)"
+                                        autoFocus
+                                        autoComplete='off'
+                                        value={accountSearchQuery}
+                                        onChange={handleAccountSearch}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item');
+                                                if (firstAccountItem) {
+                                                    firstAccountItem.focus();
                                                 }
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item.active');
+                                                if (firstAccountItem) {
+                                                    const accountId = firstAccountItem.getAttribute('data-account-id');
+                                                    const account = accounts.find(a => a.id === accountId);
+                                                    if (account) {
+                                                        selectAccount(account);
+                                                        document.getElementById('address').focus();
+                                                    }
+                                                }
+                                            } else if (e.key === 'F6') {
+                                                e.preventDefault();
+                                                setShowAccountCreationModal(true);
+                                                handleAccountModalClose();
                                             }
-                                        } else if (e.key === 'F6') {
-                                            e.preventDefault();
-                                            setShowAccountCreationModal(true);
-                                            handleAccountModalClose();
-                                        }
-                                    }}
-                                    ref={accountSearchRef}
-                                    style={{
-                                        height: '24px',
-                                        fontSize: '0.75rem',
-                                        padding: '0.25rem 0.5rem'
-                                    }}
-                                />
-                            </div>
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(320px - 40px)' }}>
-                                    <VirtualizedAccountList
-                                        accounts={accounts}
-                                        onAccountClick={(account) => {
-                                            selectAccount(account);
-                                            document.getElementById('address').focus();
                                         }}
-                                        searchRef={accountSearchRef}
-                                        hasMore={hasMoreAccountResults}
-                                        isSearching={isAccountSearching}
-                                        onLoadMore={loadMoreAccounts}
-                                        totalAccounts={totalAccounts}
-                                        page={accountSearchPage}
-                                        searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
+                                        ref={accountSearchRef}
+                                        style={{
+                                            height: '24px',
+                                            fontSize: '0.75rem',
+                                            padding: '0.25rem 0.5rem'
+                                        }}
                                     />
+                                </div>
+                                <div className="modal-body p-0">
+                                    <div style={{ height: 'calc(320px - 40px)' }}>
+                                        <VirtualizedAccountList
+                                            accounts={accounts}
+                                            onAccountClick={(account) => {
+                                                selectAccount(account);
+                                                document.getElementById('address').focus();
+                                            }}
+                                            searchRef={accountSearchRef}
+                                            hasMore={hasMoreAccountResults}
+                                            isSearching={isAccountSearching}
+                                            onLoadMore={loadMoreAccounts}
+                                            totalAccounts={totalAccounts}
+                                            page={accountSearchPage}
+                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* {showTransactionModal && (
                 <div
@@ -5205,191 +5129,181 @@ const AddSalesOpen = () => {
                 </div>
             )} */}
 
-            {showTransactionModal && (
-                <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{
-                    display: 'block',
-                    backgroundColor: 'rgba(0,0,0,0.5)'
-                }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
-                    <div className="modal-dialog modal-lg modal-dialog-centered">
-                        <div className="modal-content shadow-sm border-0 rounded-2">
-                            {/* Modal Header */}
-                            <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
-                                <div className="d-flex align-items-center">
-                                    <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
-                                    <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                                        {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
-                                    </h6>
+            {
+                showTransactionModal && (
+                    <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.5)'
+                    }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
+                        <div className="modal-dialog modal-lg modal-dialog-centered">
+                            <div className="modal-content shadow-sm border-0 rounded-2">
+                                {/* Modal Header */}
+                                <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
+                                    <div className="d-flex align-items-center">
+                                        <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
+                                        <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
+                                            {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
+                                        </h6>
+                                    </div>
+                                    <button type="button" className="btn-close btn-close-white" style={{ fontSize: '0.5rem', padding: '0.5rem' }} onClick={handleTransactionModalClose} aria-label="Close"></button>
                                 </div>
-                                <button type="button" className="btn-close btn-close-white" style={{ fontSize: '0.5rem', padding: '0.5rem' }} onClick={handleTransactionModalClose} aria-label="Close"></button>
-                            </div>
 
-                            {/* Modal Body */}
-                            <div className="modal-body p-0">
-                                <div className="table-responsive" style={{ maxHeight: '220px', overflowY: 'auto' }} id="transactionTableContainer">
-                                    <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
-                                        <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
-                                            <tr>
-                                                <th className="py-1 px-1 text-center" style={{ width: '5%' }}>#</th>
-                                                <th className="py-1 px-1" style={{ width: '12%' }}>Date</th>
-                                                <th className="py-1 px-1" style={{ width: '12%' }}>Inv.No</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Type</th>
-                                                <th className="py-1 px-1" style={{ width: '10%' }}>A/c</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Pay</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Qty</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Free</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Unit</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '13%' }}>Rate</th>
-                                                <th className="py-1 px-1 text-center" style={{ width: '10%' }}></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {transactions.length > 0 ? (
-                                                transactions.map((transaction, index) => {
-                                                    // Helper function to format Nepali date
-                                                    const formatNepaliDate = (dateValue) => {
-                                                        if (!dateValue) return null;
+                                {/* Modal Body */}
+                                <div className="modal-body p-0">
+                                    <div className="table-responsive" style={{ maxHeight: '220px', overflowY: 'auto' }} id="transactionTableContainer">
+                                        <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
+                                            <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
+                                                <tr>
+                                                    <th className="py-1 px-1 text-center" style={{ width: '5%' }}>#</th>
+                                                    <th className="py-1 px-1" style={{ width: '12%' }}>Date</th>
+                                                    <th className="py-1 px-1" style={{ width: '12%' }}>Inv.No</th>
+                                                    <th className="py-1 px-1" style={{ width: '8%' }}>Type</th>
+                                                    <th className="py-1 px-1" style={{ width: '10%' }}>A/c</th>
+                                                    <th className="py-1 px-1" style={{ width: '8%' }}>Pay</th>
+                                                    <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Qty</th>
+                                                    <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Free</th>
+                                                    <th className="py-1 px-1" style={{ width: '8%' }}>Unit</th>
+                                                    <th className="py-1 px-1 text-end" style={{ width: '13%' }}>Rate</th>
+                                                    <th className="py-1 px-1 text-center" style={{ width: '10%' }}></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {transactions.length > 0 ? (
+                                                    transactions.map((transaction, index) => {
+                                                        // Helper function to format Nepali date
+                                                        const formatNepaliDate = (dateValue) => {
+                                                            if (!dateValue) return null;
 
-                                                        try {
-                                                            // If it's a string in YYYY-MM-DD format
-                                                            if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-                                                                // Validate it's a valid Nepali date
+                                                            try {
+                                                                // If it's a string in YYYY-MM-DD format
+                                                                if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                                                                    // Validate it's a valid Nepali date
+                                                                    const nepaliDate = new NepaliDate(dateValue);
+                                                                    if (nepaliDate && typeof nepaliDate.getYear === 'function') {
+                                                                        const year = nepaliDate.getYear();
+                                                                        const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+                                                                        const day = String(nepaliDate.getDate()).padStart(2, '0');
+
+                                                                        // Verify the date is valid by checking if components match
+                                                                        if (year && month && day &&
+                                                                            year === parseInt(dateValue.split('-')[0]) &&
+                                                                            month === dateValue.split('-')[1] &&
+                                                                            day === dateValue.split('-')[2]) {
+                                                                            return `${year}-${month}-${day}`;
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                // Try to create NepaliDate from string or Date object
                                                                 const nepaliDate = new NepaliDate(dateValue);
                                                                 if (nepaliDate && typeof nepaliDate.getYear === 'function') {
                                                                     const year = nepaliDate.getYear();
                                                                     const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
                                                                     const day = String(nepaliDate.getDate()).padStart(2, '0');
 
-                                                                    // Verify the date is valid by checking if components match
-                                                                    if (year && month && day &&
-                                                                        year === parseInt(dateValue.split('-')[0]) &&
-                                                                        month === dateValue.split('-')[1] &&
-                                                                        day === dateValue.split('-')[2]) {
+                                                                    if (year && month && day) {
                                                                         return `${year}-${month}-${day}`;
                                                                     }
                                                                 }
+                                                            } catch (error) {
+                                                                console.error('Error formatting Nepali date:', error);
                                                             }
 
-                                                            // Try to create NepaliDate from string or Date object
-                                                            const nepaliDate = new NepaliDate(dateValue);
-                                                            if (nepaliDate && typeof nepaliDate.getYear === 'function') {
-                                                                const year = nepaliDate.getYear();
-                                                                const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
-                                                                const day = String(nepaliDate.getDate()).padStart(2, '0');
+                                                            return null;
+                                                        };
 
-                                                                if (year && month && day) {
-                                                                    return `${year}-${month}-${day}`;
-                                                                }
-                                                            }
-                                                        } catch (error) {
-                                                            console.error('Error formatting Nepali date:', error);
-                                                        }
+                                                        // Helper function to format English date
+                                                        const formatEnglishDate = (dateValue) => {
+                                                            if (!dateValue) return null;
 
-                                                        return null;
-                                                    };
-
-                                                    // Helper function to format English date
-                                                    const formatEnglishDate = (dateValue) => {
-                                                        if (!dateValue) return null;
-
-                                                        try {
-                                                            if (typeof dateValue === 'string') {
-                                                                if (dateValue.includes('T')) {
-                                                                    return dateValue.split('T')[0];
-                                                                } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-                                                                    return dateValue;
-                                                                } else {
-                                                                    const dateObj = new Date(dateValue);
-                                                                    if (!isNaN(dateObj.getTime())) {
-                                                                        return dateObj.toISOString().split('T')[0];
-                                                                    }
-                                                                }
-                                                            } else if (dateValue instanceof Date) {
-                                                                if (!isNaN(dateValue.getTime())) {
-                                                                    return dateValue.toISOString().split('T')[0];
-                                                                }
-                                                            }
-                                                        } catch (error) {
-                                                            console.error('Error formatting English date:', error);
-                                                        }
-
-                                                        return null;
-                                                    };
-
-                                                    let formattedDate = '';
-                                                    const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
-
-                                                    if (isNepaliFormat) {
-                                                        // Priority 1: Use transactionDateNepali (same as voucher input)
-                                                        if (transaction.transactionDateNepali) {
-                                                            formattedDate = formatNepaliDate(transaction.transactionDateNepali);
-                                                        }
-
-                                                        // Priority 2: Use nepaliDate field (fallback)
-                                                        if (!formattedDate && transaction.nepaliDate) {
-                                                            formattedDate = formatNepaliDate(transaction.nepaliDate);
-                                                        }
-
-                                                        // Priority 3: Convert from AD date as last resort
-                                                        if (!formattedDate && transaction.date) {
                                                             try {
-                                                                const dateObj = new Date(transaction.date);
-                                                                if (!isNaN(dateObj.getTime())) {
-                                                                    const nepaliDate = new NepaliDate(dateObj);
-                                                                    if (nepaliDate && typeof nepaliDate.getYear === 'function') {
-                                                                        const year = nepaliDate.getYear();
-                                                                        const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
-                                                                        const day = String(nepaliDate.getDate()).padStart(2, '0');
-                                                                        formattedDate = `${year}-${month}-${day}`;
+                                                                if (typeof dateValue === 'string') {
+                                                                    if (dateValue.includes('T')) {
+                                                                        return dateValue.split('T')[0];
+                                                                    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                                                                        return dateValue;
+                                                                    } else {
+                                                                        const dateObj = new Date(dateValue);
+                                                                        if (!isNaN(dateObj.getTime())) {
+                                                                            return dateObj.toISOString().split('T')[0];
+                                                                        }
+                                                                    }
+                                                                } else if (dateValue instanceof Date) {
+                                                                    if (!isNaN(dateValue.getTime())) {
+                                                                        return dateValue.toISOString().split('T')[0];
                                                                     }
                                                                 }
                                                             } catch (error) {
-                                                                console.error('Error converting AD to BS:', error);
+                                                                console.error('Error formatting English date:', error);
                                                             }
-                                                        }
-                                                    } else {
-                                                        // For English format
-                                                        formattedDate = formatEnglishDate(transaction.date) ||
-                                                            formatEnglishDate(transaction.transactionDateRoman) ||
-                                                            'N/A';
-                                                    }
 
-                                                    // If still no date, show N/A
-                                                    if (!formattedDate) {
-                                                        formattedDate = 'N/A';
-                                                    }
-                                                    return (
-                                                        <tr key={index} id={`transaction-row-${index}`} className="transaction-row" data-index={index}
-                                                            style={{
-                                                                cursor: 'pointer',
-                                                                height: '28px',
-                                                                backgroundColor: highlightedRowIndex === index ? '#0d6efd' : 'transparent',
-                                                                color: highlightedRowIndex === index ? 'white' : 'inherit',
-                                                                transition: 'background-color 0.2s ease'
-                                                            }}
-                                                            onMouseEnter={(e) => {
-                                                                if (highlightedRowIndex !== index) {
-                                                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
-                                                                    e.currentTarget.style.color = 'inherit';
+                                                            return null;
+                                                        };
+
+                                                        let formattedDate = '';
+                                                        const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+                                                        if (isNepaliFormat) {
+                                                            // Priority 1: Use transactionDateNepali (same as voucher input)
+                                                            if (transaction.transactionDateNepali) {
+                                                                formattedDate = formatNepaliDate(transaction.transactionDateNepali);
+                                                            }
+
+                                                            // Priority 2: Use nepaliDate field (fallback)
+                                                            if (!formattedDate && transaction.nepaliDate) {
+                                                                formattedDate = formatNepaliDate(transaction.nepaliDate);
+                                                            }
+
+                                                            // Priority 3: Convert from AD date as last resort
+                                                            if (!formattedDate && transaction.date) {
+                                                                try {
+                                                                    const dateObj = new Date(transaction.date);
+                                                                    if (!isNaN(dateObj.getTime())) {
+                                                                        const nepaliDate = new NepaliDate(dateObj);
+                                                                        if (nepaliDate && typeof nepaliDate.getYear === 'function') {
+                                                                            const year = nepaliDate.getYear();
+                                                                            const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+                                                                            const day = String(nepaliDate.getDate()).padStart(2, '0');
+                                                                            formattedDate = `${year}-${month}-${day}`;
+                                                                        }
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error('Error converting AD to BS:', error);
                                                                 }
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                if (highlightedRowIndex !== index) {
-                                                                    e.currentTarget.style.backgroundColor = '';
-                                                                    e.currentTarget.style.color = '';
-                                                                }
-                                                            }}
-                                                            onClick={() => {
-                                                                if (transactionType === 'purchase') {
-                                                                    const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
-                                                                    if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                } else {
-                                                                    const billId = transaction.salesBillId || transaction.billId;
-                                                                    if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                }
-                                                            }}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    e.preventDefault();
+                                                            }
+                                                        } else {
+                                                            // For English format
+                                                            formattedDate = formatEnglishDate(transaction.date) ||
+                                                                formatEnglishDate(transaction.transactionDateRoman) ||
+                                                                'N/A';
+                                                        }
+
+                                                        // If still no date, show N/A
+                                                        if (!formattedDate) {
+                                                            formattedDate = 'N/A';
+                                                        }
+                                                        return (
+                                                            <tr key={index} id={`transaction-row-${index}`} className="transaction-row" data-index={index}
+                                                                style={{
+                                                                    cursor: 'pointer',
+                                                                    height: '28px',
+                                                                    backgroundColor: highlightedRowIndex === index ? '#0d6efd' : 'transparent',
+                                                                    color: highlightedRowIndex === index ? 'white' : 'inherit',
+                                                                    transition: 'background-color 0.2s ease'
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    if (highlightedRowIndex !== index) {
+                                                                        e.currentTarget.style.backgroundColor = '#f8f9fa';
+                                                                        e.currentTarget.style.color = 'inherit';
+                                                                    }
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    if (highlightedRowIndex !== index) {
+                                                                        e.currentTarget.style.backgroundColor = '';
+                                                                        e.currentTarget.style.color = '';
+                                                                    }
+                                                                }}
+                                                                onClick={() => {
                                                                     if (transactionType === 'purchase') {
                                                                         const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
                                                                         if (billId) navigate(`/retailer/purchase/${billId}/print`);
@@ -5397,35 +5311,10 @@ const AddSalesOpen = () => {
                                                                         const billId = transaction.salesBillId || transaction.billId;
                                                                         if (billId) navigate(`/retailer/sales/${billId}/print`);
                                                                     }
-                                                                }
-                                                            }}
-                                                            tabIndex={-1}>
-                                                            <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
-                                                            <td className="py-1 px-1 text-nowrap">{formattedDate || 'N/A'}</td>
-                                                            <td className="py-1 px-1 fw-semibold">{transaction.billNumber || transaction.purchaseBillNumber || 'N/A'}</td>
-                                                            <td className="py-1 px-1">
-                                                                <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
-                                                                    {transaction.type?.substring(0, 4) || 'N/A'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="py-1 px-1 text-muted">{transaction.purchaseSalesType?.substring(0, 8) || 'N/A'}</td>
-                                                            <td className="py-1 px-1">
-                                                                <span className={`badge ${transaction.paymentMode === 'Cash' ? 'bg-warning' : 'bg-primary'} bg-opacity-25 text-dark px-1 py-0`} style={{ fontSize: '0.6rem' }}>
-                                                                    {transaction.paymentMode?.substring(0, 6) || 'N/A'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="py-1 px-1 text-end fw-medium">{transaction.quantity || 0}</td>
-                                                            <td className="py-1 px-1 text-end text-secondary">{transaction.bonus || 0}</td>
-                                                            <td className="py-1 px-1">{transaction.unitName || transaction.unit || 'N/A'}</td>
-                                                            <td className="py-1 px-1 text-end fw-semibold">
-                                                                {transactionType === 'purchase'
-                                                                    ? (transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0)
-                                                                    : (transaction.price ? Math.round(transaction.price * 100) / 100 : 0)}
-                                                            </td>
-                                                            <td className="py-1 px-1 text-center">
-                                                                <button className="btn btn-sm btn-outline-primary py-0 px-1" style={{ fontSize: '0.6rem' }}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
                                                                         if (transactionType === 'purchase') {
                                                                             const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
                                                                             if (billId) navigate(`/retailer/purchase/${billId}/print`);
@@ -5433,530 +5322,302 @@ const AddSalesOpen = () => {
                                                                             const billId = transaction.salesBillId || transaction.billId;
                                                                             if (billId) navigate(`/retailer/sales/${billId}/print`);
                                                                         }
-                                                                    }}>
-                                                                    <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="11" className="text-center py-3">
-                                                        <div className="d-flex flex-column align-items-center">
-                                                            <i className="bi bi-inbox text-muted" style={{ fontSize: '1.5rem' }}></i>
-                                                            <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>No transactions found</p>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* Modal Footer */}
-                            <div className="modal-footer py-1 px-2 bg-light border-top">
-                                <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
-                                    <div>
-                                        {transactionType === 'purchase' && (
-                                            <button id="showSalesTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                onClick={fetchSalesTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
-                                                <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
-                                                Show Sales Transaction
-                                            </button>
-                                        )}
-                                        {transactionType === 'sales' && (
-                                            <button id="showPurchaseTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                onClick={fetchPurchaseTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
-                                                <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
-                                                Show Purchase Transaction
-                                            </button>
-                                        )}
-                                    </div>
-                                    <button ref={continueButtonRef} type="button" className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
-                                        onClick={handleTransactionModalClose} style={{ fontSize: '0.65rem', height: '24px' }}>
-                                        <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
-                                        Continue
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Header Item Modal */}
-            {showHeaderItemModal && (
-                <div
-                    className="modal fade show"
-                    id="headerItemModal"
-                    tabIndex="-1"
-                    style={{
-                        display: 'block',
-                        backgroundColor: 'rgba(0,0,0,0.5)',
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        zIndex: 1050
-                    }}
-                >
-                    <div
-                        className="modal-dialog modal-xl"
-                        style={{
-                            position: 'absolute',
-                            top: 'auto',
-                            bottom: '0',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            margin: '0',
-                            width: '90%',
-                            maxWidth: '90%'
-                        }}
-                    >
-                        <div
-                            className="modal-content"
-                            style={{
-                                height: '35vh',
-                                borderBottomLeftRadius: '0',
-                                borderBottomRightRadius: '0',
-                                borderTopLeftRadius: '0.5rem',
-                                borderTopRightRadius: '0.5rem'
-                            }}
-                        >
-                            <div className="modal-header py-0">
-                                <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>Select Item</h5>
-                                <div className="d-flex align-items-center" style={{ flex: 1, marginLeft: '10px' }}>
-                                    <div className="position-relative" style={{ width: '100%' }}>
-                                        <input
-                                            type="text"
-                                            className="form-control form-control-sm"
-                                            placeholder="Search items... (Press F6 to create new item)"
-                                            autoComplete='off'
-                                            value={headerSearchQuery}
-                                            onChange={(e) => {
-                                                const query = e.target.value;
-                                                setHeaderSearchQuery(query);
-                                                if (query.trim() !== '' && headerShouldShowLastSearchResults) {
-                                                    setHeaderShouldShowLastSearchResults(false);
-                                                    setHeaderLastSearchQuery('');
-                                                }
-                                            }}
-                                            autoFocus
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowDown') {
-                                                    e.preventDefault();
-                                                    const firstItem = document.querySelector('.dropdown-item');
-                                                    if (firstItem) {
-                                                        firstItem.focus();
-                                                    }
-                                                } else if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    const activeItem = document.querySelector('.dropdown-item.active');
-
-                                                    if (activeItem) {
-                                                        const index = parseInt(activeItem.getAttribute('data-index'));
-                                                        const itemToAdd = headerSearchResults[index];
-                                                        if (itemToAdd) {
-                                                            selectItemForInsert(itemToAdd);
-                                                            setShowHeaderItemModal(false);
-                                                        }
-                                                    } else {
-                                                        if (!headerSearchQuery.trim()) {
-                                                            setShowHeaderItemModal(false);
-                                                            setTimeout(() => {
-                                                                const discountInput = document.getElementById('discountPercentage');
-                                                                if (discountInput) {
-                                                                    discountInput.focus();
-                                                                    discountInput.select();
-                                                                }
-                                                            }, 50);
-                                                        }
-                                                    }
-                                                } else if (e.key === 'F6') {
-                                                    e.preventDefault();
-                                                    setShowItemsModal(true);
-                                                    setShowHeaderItemModal(false);
-                                                    setHeaderSearchQuery('');
-                                                    setHeaderShouldShowLastSearchResults(false);
-                                                    setHeaderLastSearchQuery('');
-                                                } else if (e.key === 'Escape') {
-                                                    e.preventDefault();
-                                                    setShowHeaderItemModal(false);
-                                                }
-                                            }}
-                                            style={{
-                                                height: '24px',
-                                                fontSize: '0.75rem',
-                                                padding: '0.25rem 0.5rem',
-                                                width: '100%'
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={handleHeaderItemModalClose}
-                                    aria-label="Close"
-                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
-                                ></button>
-                            </div>
-
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(55vh - 120px)' }}>
-                                    <div
-                                        id="dropdownMenu"
-                                        className="w-100 h-100"
-                                        style={{
-                                            border: '1px solid #dee2e6',
-                                            borderRadius: '0.25rem',
-                                            overflow: 'hidden'
-                                        }}
-                                    >
-                                        <div className="dropdown-header" style={{
-                                            display: 'grid',
-                                            // gridTemplateColumns: 'repeat(7, 1fr)',
-                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
-                                            alignItems: 'center',
-                                            padding: '0 8px',
-                                            height: '20px',
-                                            background: '#f0f0f0',
-                                            fontWeight: 'bold',
-                                            borderBottom: '1px solid #dee2e6',
-                                            position: 'sticky',
-                                            top: 0,
-                                            zIndex: 1,
-                                            fontSize: '0.7rem'
-                                        }}>
-                                            <div><strong>#</strong></div>
-                                            <div><strong>HSN</strong></div>
-                                            <div><strong>Description</strong></div>
-                                            <div><strong>Category</strong></div>
-                                            <div><strong>Stock</strong></div>
-                                            <div><strong>Unit</strong></div>
-                                            <div><strong>Rate</strong></div>
-                                        </div>
-
-                                        {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
-                                            <VirtualizedItemListForSales
-                                                items={headerSearchResults}
-                                                onItemClick={(item) => {
-                                                    selectItemForInsert(item);
-                                                    setShowHeaderItemModal(false);
-                                                }}
-                                                searchRef={{ current: document.querySelector('#headerItemModal input[type="text"]') }}
-                                                hasMore={hasMoreHeaderSearchResults}
-                                                isSearching={isHeaderSearching}
-                                                onLoadMore={loadMoreHeaderSearchItems}
-                                                totalItems={totalHeaderSearchItems}
-                                                page={headerSearchPage}
-                                                searchQuery={headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery}
-                                                setNotification={setNotification}
-                                            />
-                                        ) : (
-                                            <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
-                                                {headerSearchQuery ? 'No items found' : 'Type to search items'}
-                                                <div className="small mt-1">
-                                                    <small className="text-info">Press F6 to create a new item</small>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Batch Modal */}
-            {showBatchModal && selectedItemForBatch && (
-                <div className="modal fade show" id="batchModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                    <div className="modal-dialog modal-lg modal-dialog-centered">
-                        <div className="modal-content" style={{ borderRadius: '8px', overflow: 'hidden', minHeight: '200px' }}>
-                            <div className="modal-header py-0" style={{ backgroundColor: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
-                                <h5 className="modal-title mb-0 mx-auto fw-semibold" style={{ fontSize: '1.1rem' }}>
-                                    <i className="bi bi-box-seam me-2"></i>
-                                    {selectedItemForInsert === selectedItemForBatch
-                                        ? "Select Batch for Insertion"
-                                        : "Batch Information: " + selectedItemForBatch.name}
-                                </h5>
-                                <button
-                                    type="button"
-                                    className="btn-close position-absolute"
-                                    style={{ right: '1rem', top: '0.25rem' }}
-                                    onClick={() => {
-                                        setShowBatchModal(false);
-                                        setSelectedItemForBatch(null);
-                                        if (selectedItemForInsert === selectedItemForBatch) {
-                                            setSelectedItemForInsert(null);
-                                            setTimeout(() => {
-                                                const searchInput = document.getElementById('headerItemSearch');
-                                                if (searchInput) {
-                                                    searchInput.focus();
-                                                    searchInput.select();
-                                                }
-                                            }, 100);
-                                        }
-                                    }}
-                                    aria-label="Close"
-                                ></button>
-                            </div>
-                            <div className="modal-body p-0" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                                {selectedItemForBatch.stockEntries.every(entry => entry.quantity === 0) ? (
-                                    <div className="d-flex justify-content-center align-items-center py-2">
-                                        <div className="alert alert-warning d-flex align-items-center py-2 px-3 mb-0 w-75 text-center">
-                                            <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                                            <span>Out of stock</span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="table-responsive" style={{
-                                        maxHeight: 'calc(55vh - 110px)',
-                                        overflowY: 'auto'
-                                    }} id="batchTableContainer">
-                                        <table className="table table-sm table-hover mb-0">
-                                            <thead className="table-light" style={{
-                                                position: 'sticky',
-                                                top: 0,
-                                                zIndex: 1,
-                                                backgroundColor: '#f8f9fa'
-                                            }}>
-                                                <tr className="text-center">
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Batch No.</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Expiry Date</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Stock</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>S.P</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>C.P</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>%</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>MRP</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {selectedItemForBatch.stockEntries
-                                                    .filter(entry => entry.quantity > 0)
-                                                    .map((entry, index) => {
-                                                        const batchKey = `${selectedItemForBatch.id}-${entry.batchNumber}-${entry.uniqueUuid}`;
-                                                        const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
-
-                                                        const usedStock = items
-                                                            .filter(item =>
-                                                                item.itemId === selectedItemForBatch.id &&
-                                                                item.batchNumber === entry.batchNumber &&
-                                                                item.uniqueUuid === entry.uniqueUuid
-                                                            )
-                                                            .reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
-
-                                                        const availableStock = Math.max(0, totalStock - usedStock);
-
-                                                        return (
-                                                            <tr
-                                                                key={index}
-                                                                className={`batch-row text-center ${index === 0 ? 'bg-primary text-white' : ''}`}
-                                                                style={{
-                                                                    height: '24px',
-                                                                    cursor: availableStock > 0 ? 'pointer' : 'not-allowed',
-                                                                    fontSize: '0.75rem',
-                                                                    opacity: availableStock > 0 ? 1 : 0.6
-                                                                }}
-                                                                onClick={() => {
-                                                                    if (availableStock > 0) {
-                                                                        handleBatchRowClick({
-                                                                            batchNumber: entry.batchNumber,
-                                                                            expiryDate: entry.expiryDate,
-                                                                            price: entry.price,
-                                                                            puPrice: entry.puPrice,
-                                                                            netPuPrice: entry.netPuPrice,
-                                                                            mrp: entry.mrp,
-                                                                            uniqueUuid: entry.uniqueUuid
-                                                                        });
                                                                     }
                                                                 }}
-                                                                tabIndex={availableStock > 0 ? 0 : -1}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter' && availableStock > 0) {
-                                                                        e.preventDefault();
-                                                                        handleBatchRowClick({
-                                                                            batchNumber: entry.batchNumber,
-                                                                            expiryDate: entry.expiryDate,
-                                                                            price: entry.price,
-                                                                            puPrice: entry.puPrice,
-                                                                            netPuPrice: entry.netPuPrice,
-                                                                            mrp: entry.mrp,
-                                                                            uniqueUuid: entry.uniqueUuid
-                                                                        });
-                                                                    } else if (e.key === 'ArrowDown') {
-                                                                        e.preventDefault();
-                                                                        const nextRow = e.currentTarget.nextElementSibling;
-                                                                        if (nextRow) {
-                                                                            e.currentTarget.classList.remove('bg-primary', 'text-white');
-                                                                            nextRow.classList.add('bg-primary', 'text-white');
-                                                                            nextRow.focus();
-
-                                                                            const tableContainer = document.getElementById('batchTableContainer');
-                                                                            if (tableContainer) {
-                                                                                const rowRect = nextRow.getBoundingClientRect();
-                                                                                const containerRect = tableContainer.getBoundingClientRect();
-
-                                                                                if (rowRect.bottom > containerRect.bottom) {
-                                                                                    nextRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    } else if (e.key === 'ArrowUp') {
-                                                                        e.preventDefault();
-                                                                        const prevRow = e.currentTarget.previousElementSibling;
-                                                                        if (prevRow) {
-                                                                            e.currentTarget.classList.remove('bg-primary', 'text-white');
-                                                                            prevRow.classList.add('bg-primary', 'text-white');
-                                                                            prevRow.focus();
-
-                                                                            const tableContainer = document.getElementById('batchTableContainer');
-                                                                            if (tableContainer) {
-                                                                                const rowRect = prevRow.getBoundingClientRect();
-                                                                                const containerRect = tableContainer.getBoundingClientRect();
-
-                                                                                if (rowRect.top < containerRect.top) {
-                                                                                    prevRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                                                                                }
-                                                                            }
-                                                                        } else {
-                                                                            e.currentTarget.focus();
-                                                                            e.currentTarget.classList.add('bg-primary', 'text-white');
-                                                                        }
-                                                                    } else if (e.key === 'Escape') {
-                                                                        e.preventDefault();
-                                                                        setShowBatchModal(false);
-                                                                        setSelectedItemForBatch(null);
-                                                                    }
-                                                                }}
-                                                                onFocus={(e) => {
-                                                                    if (availableStock > 0) {
-                                                                        document.querySelectorAll('.batch-row').forEach(row => {
-                                                                            row.classList.remove('bg-primary', 'text-white');
-                                                                        });
-                                                                        e.currentTarget.classList.add('bg-primary', 'text-white');
-
-                                                                        const tableContainer = document.getElementById('batchTableContainer');
-                                                                        if (tableContainer) {
-                                                                            const rowRect = e.currentTarget.getBoundingClientRect();
-                                                                            const containerRect = tableContainer.getBoundingClientRect();
-
-                                                                            if (rowRect.bottom > containerRect.bottom) {
-                                                                                e.currentTarget.scrollIntoView({ block: 'end', behavior: 'smooth' });
-                                                                            } else if (rowRect.top < containerRect.top) {
-                                                                                e.currentTarget.scrollIntoView({ block: 'start', behavior: 'smooth' });
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                onMouseEnter={(e) => {
-                                                                    if (availableStock > 0) {
-                                                                        document.querySelectorAll('.batch-row').forEach(row => {
-                                                                            row.classList.remove('bg-primary', 'text-white');
-                                                                        });
-                                                                        e.currentTarget.classList.add('bg-primary', 'text-white');
-
-                                                                        const tableContainer = document.getElementById('batchTableContainer');
-                                                                        if (tableContainer) {
-                                                                            const rowRect = e.currentTarget.getBoundingClientRect();
-                                                                            const containerRect = tableContainer.getBoundingClientRect();
-
-                                                                            if (rowRect.bottom > containerRect.bottom) {
-                                                                                e.currentTarget.scrollIntoView({ block: 'end', behavior: 'smooth' });
-                                                                            } else if (rowRect.top < containerRect.top) {
-                                                                                e.currentTarget.scrollIntoView({ block: 'start', behavior: 'smooth' });
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                title={availableStock > 0
-                                                                    ? `Total: ${totalStock} | Used in current bill: ${usedStock} | Available: ${availableStock}\nClick to select this batch`
-                                                                    : `Total: ${totalStock} | Used in current bill: ${usedStock} | Available: ${availableStock}\nOut of stock`
-                                                                }
-                                                            >
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{entry.batchNumber || 'N/A'}</td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{formatDateForInput(entry.expiryDate)}</td>
-                                                                <td className="align-middle fw-semibold" style={{ padding: '3px' }}>
-                                                                    <span
-                                                                        style={{
-                                                                            color: availableStock <= 0 ? '#dc3545' :
-                                                                                availableStock < 5 ? '#ffc107' :
-                                                                                    '#198754',
-                                                                            position: 'relative'
-                                                                        }}
-                                                                    >
-                                                                        {availableStock}
-                                                                        {usedStock > 0 && (
-                                                                            <small
-                                                                                style={{
-                                                                                    fontSize: '0.6rem',
-                                                                                    color: '#6c757d',
-                                                                                    marginLeft: '2px',
-                                                                                    position: 'absolute',
-                                                                                    top: '-8px',
-                                                                                    right: '-12px'
-                                                                                }}
-                                                                                title={`Used in current bill: ${usedStock}`}
-                                                                            >
-                                                                                ({usedStock})
-                                                                            </small>
-                                                                        )}
+                                                                tabIndex={-1}>
+                                                                <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
+                                                                <td className="py-1 px-1 text-nowrap">{formattedDate || 'N/A'}</td>
+                                                                <td className="py-1 px-1 fw-semibold">{transaction.billNumber || transaction.purchaseBillNumber || 'N/A'}</td>
+                                                                <td className="py-1 px-1">
+                                                                    <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
+                                                                        {transaction.type?.substring(0, 4) || 'N/A'}
                                                                     </span>
                                                                 </td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.price * 100) / 100}</td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.puPrice * 100) / 100}</td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.marginPercentage * 100) / 100}</td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.mrp * 100) / 100}</td>
-                                                                <td className="d-none">{entry.uniqueUuid}</td>
+                                                                <td className="py-1 px-1 text-muted">{transaction.purchaseSalesType?.substring(0, 8) || 'N/A'}</td>
+                                                                <td className="py-1 px-1">
+                                                                    <span className={`badge ${transaction.paymentMode === 'Cash' ? 'bg-warning' : 'bg-primary'} bg-opacity-25 text-dark px-1 py-0`} style={{ fontSize: '0.6rem' }}>
+                                                                        {transaction.paymentMode?.substring(0, 6) || 'N/A'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="py-1 px-1 text-end fw-medium">{transaction.quantity || 0}</td>
+                                                                <td className="py-1 px-1 text-end text-secondary">{transaction.bonus || 0}</td>
+                                                                <td className="py-1 px-1">{transaction.unitName || transaction.unit || 'N/A'}</td>
+                                                                <td className="py-1 px-1 text-end fw-semibold">
+                                                                    {transactionType === 'purchase'
+                                                                        ? (transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0)
+                                                                        : (transaction.price ? Math.round(transaction.price * 100) / 100 : 0)}
+                                                                </td>
+                                                                <td className="py-1 px-1 text-center">
+                                                                    <button className="btn btn-sm btn-outline-primary py-0 px-1" style={{ fontSize: '0.6rem' }}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (transactionType === 'purchase') {
+                                                                                const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
+                                                                                if (billId) navigate(`/retailer/purchase/${billId}/print`);
+                                                                            } else {
+                                                                                const billId = transaction.salesBillId || transaction.billId;
+                                                                                if (billId) navigate(`/retailer/sales/${billId}/print`);
+                                                                            }
+                                                                        }}>
+                                                                        <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
+                                                                    </button>
+                                                                </td>
                                                             </tr>
                                                         );
                                                     })
-                                                }
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan="11" className="text-center py-3">
+                                                            <div className="d-flex flex-column align-items-center">
+                                                                <i className="bi bi-inbox text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                                                <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>No transactions found</p>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
                                             </tbody>
                                         </table>
-                                        {selectedItemForBatch.stockEntries.filter(entry => entry.quantity > 0).length > 6 && (
-                                            <div className="text-center py-0" style={{
-                                                fontSize: '0.5rem',
-                                                color: '#6c757d',
-                                                backgroundColor: '#f8f9fa',
-                                                borderTop: '1px solid #dee2e6',
-                                                position: 'sticky',
-                                                bottom: 0
-                                            }}>
-                                            </div>
-                                        )}
                                     </div>
-                                )}
-                            </div>
+                                </div>
 
-                            <div className="modal-footer py-0 justify-content-center" style={{
-                                backgroundColor: '#f8f9fa',
-                                borderTop: '1px solid #dee2e6',
-                            }}>
-                                <button
-                                    type="button"
-                                    className="btn btn-primary btn-sm py-1 px-3 d-flex align-items-center"
-                                    onClick={() => {
-                                        setShowBatchModal(false);
-                                        setSelectedItemForBatch(null);
-                                        if (selectedItemForInsert === selectedItemForBatch) {
-                                            setSelectedItemForInsert(null);
-                                            setTimeout(() => {
-                                                const searchInput = document.getElementById('headerItemSearch');
-                                                if (searchInput) {
-                                                    searchInput.focus();
-                                                    searchInput.select();
-                                                }
-                                            }, 100);
-                                        }
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
+                                {/* Modal Footer */}
+                                <div className="modal-footer py-1 px-2 bg-light border-top">
+                                    <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
+                                        <div>
+                                            {transactionType === 'purchase' && (
+                                                <button id="showSalesTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                    onClick={fetchSalesTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                                    <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
+                                                    Show Sales Transaction
+                                                </button>
+                                            )}
+                                            {transactionType === 'sales' && (
+                                                <button id="showPurchaseTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                    onClick={fetchPurchaseTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                                    <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
+                                                    Show Purchase Transaction
+                                                </button>
+                                            )}
+                                        </div>
+                                        <button ref={continueButtonRef} type="button" className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
+                                            onClick={handleTransactionModalClose} style={{ fontSize: '0.65rem', height: '24px' }}>
+                                            <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
+                                            Continue
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Header Item Modal */}
+            {
+                showHeaderItemModal && (
+                    <div
+                        className="modal fade show"
+                        id="headerItemModal"
+                        tabIndex="-1"
+                        style={{
+                            display: 'block',
+                            backgroundColor: 'rgba(0,0,0,0.5)',
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 1050
+                        }}
+                    >
+                        <div
+                            className="modal-dialog modal-xl"
+                            style={{
+                                position: 'absolute',
+                                top: 'auto',
+                                bottom: '0',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                margin: '0',
+                                width: '90%',
+                                maxWidth: '90%'
+                            }}
+                        >
+                            <div
+                                className="modal-content"
+                                style={{
+                                    height: '35vh',
+                                    borderBottomLeftRadius: '0',
+                                    borderBottomRightRadius: '0',
+                                    borderTopLeftRadius: '0.5rem',
+                                    borderTopRightRadius: '0.5rem'
+                                }}
+                            >
+                                <div className="modal-header py-0">
+                                    <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>Select Item</h5>
+                                    <div className="d-flex align-items-center" style={{ flex: 1, marginLeft: '10px' }}>
+                                        <div className="position-relative" style={{ width: '100%' }}>
+                                            <input
+                                                type="text"
+                                                className="form-control form-control-sm"
+                                                placeholder="Search items... (Press F6 to create new item)"
+                                                autoComplete='off'
+                                                value={headerSearchQuery}
+                                                onChange={(e) => {
+                                                    const query = e.target.value;
+                                                    setHeaderSearchQuery(query);
+                                                    if (query.trim() !== '' && headerShouldShowLastSearchResults) {
+                                                        setHeaderShouldShowLastSearchResults(false);
+                                                        setHeaderLastSearchQuery('');
+                                                    }
+                                                }}
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'ArrowDown') {
+                                                        e.preventDefault();
+                                                        const firstItem = document.querySelector('.dropdown-item');
+                                                        if (firstItem) {
+                                                            firstItem.focus();
+                                                        }
+                                                    } else if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const activeItem = document.querySelector('.dropdown-item.active');
+
+                                                        if (activeItem) {
+                                                            const index = parseInt(activeItem.getAttribute('data-index'));
+                                                            const itemToAdd = headerSearchResults[index];
+                                                            if (itemToAdd) {
+                                                                selectItemForInsert(itemToAdd);
+                                                                setShowHeaderItemModal(false);
+                                                            }
+                                                        } else {
+                                                            if (!headerSearchQuery.trim()) {
+                                                                setShowHeaderItemModal(false);
+                                                                setTimeout(() => {
+                                                                    const discountInput = document.getElementById('discountPercentage');
+                                                                    if (discountInput) {
+                                                                        discountInput.focus();
+                                                                        discountInput.select();
+                                                                    }
+                                                                }, 50);
+                                                            }
+                                                        }
+                                                    } else if (e.key === 'F6') {
+                                                        e.preventDefault();
+                                                        setShowItemsModal(true);
+                                                        setShowHeaderItemModal(false);
+                                                        setHeaderSearchQuery('');
+                                                        setHeaderShouldShowLastSearchResults(false);
+                                                        setHeaderLastSearchQuery('');
+                                                    } else if (e.key === 'Escape') {
+                                                        e.preventDefault();
+                                                        setShowHeaderItemModal(false);
+                                                    }
+                                                }}
+                                                style={{
+                                                    height: '24px',
+                                                    fontSize: '0.75rem',
+                                                    padding: '0.25rem 0.5rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        onClick={handleHeaderItemModalClose}
+                                        aria-label="Close"
+                                        style={{ fontSize: '0.6rem', padding: '0.25rem' }}
+                                    ></button>
+                                </div>
+
+                                <div className="modal-body p-0">
+                                    <div style={{ height: 'calc(55vh - 120px)' }}>
+                                        <div
+                                            id="dropdownMenu"
+                                            className="w-100 h-100"
+                                            style={{
+                                                border: '1px solid #dee2e6',
+                                                borderRadius: '0.25rem',
+                                                overflow: 'hidden'
+                                            }}
+                                        >
+                                            <div className="dropdown-header" style={{
+                                                display: 'grid',
+                                                // gridTemplateColumns: 'repeat(7, 1fr)',
+                                                gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
+                                                alignItems: 'center',
+                                                padding: '0 8px',
+                                                height: '20px',
+                                                background: '#f0f0f0',
+                                                fontWeight: 'bold',
+                                                borderBottom: '1px solid #dee2e6',
+                                                position: 'sticky',
+                                                top: 0,
+                                                zIndex: 1,
+                                                fontSize: '0.7rem'
+                                            }}>
+                                                <div><strong>#</strong></div>
+                                                <div><strong>HSN</strong></div>
+                                                <div><strong>Description</strong></div>
+                                                <div><strong>Category</strong></div>
+                                                <div><strong>Stock</strong></div>
+                                                <div><strong>Unit</strong></div>
+                                                <div><strong>Rate</strong></div>
+                                            </div>
+
+                                            {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
+                                                <VirtualizedItemListForSales
+                                                    items={headerSearchResults}
+                                                    onItemClick={(item) => {
+                                                        selectItemForInsert(item);
+                                                        setShowHeaderItemModal(false);
+                                                    }}
+                                                    searchRef={{ current: document.querySelector('#headerItemModal input[type="text"]') }}
+                                                    hasMore={hasMoreHeaderSearchResults}
+                                                    isSearching={isHeaderSearching}
+                                                    onLoadMore={loadMoreHeaderSearchItems}
+                                                    totalItems={totalHeaderSearchItems}
+                                                    page={headerSearchPage}
+                                                    searchQuery={headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery}
+                                                    setNotification={setNotification}
+                                                />
+                                            ) : (
+                                                <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+                                                    {headerSearchQuery ? 'No items found' : 'Type to search items'}
+                                                    <div className="small mt-1">
+                                                        <small className="text-info">Press F6 to create a new item</small>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Batch Modal */}
+            {
+                showBatchModal && selectedItemForBatch && (
+                    <div className="modal fade show" id="batchModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                        <div className="modal-dialog modal-lg modal-dialog-centered">
+                            <div className="modal-content" style={{ borderRadius: '8px', overflow: 'hidden', minHeight: '200px' }}>
+                                <div className="modal-header py-0" style={{ backgroundColor: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
+                                    <h5 className="modal-title mb-0 mx-auto fw-semibold" style={{ fontSize: '1.1rem' }}>
+                                        <i className="bi bi-box-seam me-2"></i>
+                                        {selectedItemForInsert === selectedItemForBatch
+                                            ? "Select Batch for Insertion"
+                                            : "Batch Information: " + selectedItemForBatch.name}
+                                    </h5>
+                                    <button
+                                        type="button"
+                                        className="btn-close position-absolute"
+                                        style={{ right: '1rem', top: '0.25rem' }}
+                                        onClick={() => {
                                             setShowBatchModal(false);
                                             setSelectedItemForBatch(null);
                                             if (selectedItemForInsert === selectedItemForBatch) {
@@ -5969,31 +5630,305 @@ const AddSalesOpen = () => {
                                                     }
                                                 }, 100);
                                             }
-                                        } else if (e.key === 'Escape') {
-                                            e.preventDefault();
+                                        }}
+                                        aria-label="Close"
+                                    ></button>
+                                </div>
+                                <div className="modal-body p-0" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                    {selectedItemForBatch.stockEntries.every(entry => entry.quantity === 0) ? (
+                                        <div className="d-flex justify-content-center align-items-center py-2">
+                                            <div className="alert alert-warning d-flex align-items-center py-2 px-3 mb-0 w-75 text-center">
+                                                <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                                <span>Out of stock</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="table-responsive" style={{
+                                            maxHeight: 'calc(55vh - 110px)',
+                                            overflowY: 'auto'
+                                        }} id="batchTableContainer">
+                                            <table className="table table-sm table-hover mb-0">
+                                                <thead className="table-light" style={{
+                                                    position: 'sticky',
+                                                    top: 0,
+                                                    zIndex: 1,
+                                                    backgroundColor: '#f8f9fa'
+                                                }}>
+                                                    <tr className="text-center">
+                                                        <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Batch No.</th>
+                                                        <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Expiry Date</th>
+                                                        <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Stock</th>
+                                                        <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>S.P</th>
+                                                        <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>C.P</th>
+                                                        <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>%</th>
+                                                        <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>MRP</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {selectedItemForBatch.stockEntries
+                                                        .filter(entry => entry.quantity > 0)
+                                                        .map((entry, index) => {
+                                                            const batchKey = `${selectedItemForBatch.id}-${entry.batchNumber}-${entry.uniqueUuid}`;
+                                                            const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+                                                            const usedStock = items
+                                                                .filter(item =>
+                                                                    item.itemId === selectedItemForBatch.id &&
+                                                                    item.batchNumber === entry.batchNumber &&
+                                                                    item.uniqueUuid === entry.uniqueUuid
+                                                                )
+                                                                .reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+
+                                                            const availableStock = Math.max(0, totalStock - usedStock);
+
+                                                            return (
+                                                                <tr
+                                                                    key={index}
+                                                                    className={`batch-row text-center ${index === 0 ? 'bg-primary text-white' : ''}`}
+                                                                    style={{
+                                                                        height: '24px',
+                                                                        cursor: availableStock > 0 ? 'pointer' : 'not-allowed',
+                                                                        fontSize: '0.75rem',
+                                                                        opacity: availableStock > 0 ? 1 : 0.6
+                                                                    }}
+                                                                    onClick={() => {
+                                                                        if (availableStock > 0) {
+                                                                            handleBatchRowClick({
+                                                                                batchNumber: entry.batchNumber,
+                                                                                expiryDate: entry.expiryDate,
+                                                                                price: entry.price,
+                                                                                puPrice: entry.puPrice,
+                                                                                netPuPrice: entry.netPuPrice,
+                                                                                mrp: entry.mrp,
+                                                                                uniqueUuid: entry.uniqueUuid,
+                                                                                purchaseBillId: entry.purchaseBillId
+                                                                            });
+                                                                        }
+                                                                    }}
+                                                                    tabIndex={availableStock > 0 ? 0 : -1}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter' && availableStock > 0) {
+                                                                            e.preventDefault();
+                                                                            handleBatchRowClick({
+                                                                                batchNumber: entry.batchNumber,
+                                                                                expiryDate: entry.expiryDate,
+                                                                                price: entry.price,
+                                                                                puPrice: entry.puPrice,
+                                                                                netPuPrice: entry.netPuPrice,
+                                                                                mrp: entry.mrp,
+                                                                                uniqueUuid: entry.uniqueUuid,
+                                                                                purchaseBillId: entry.purchaseBillId
+                                                                            });
+                                                                        } else if (e.key === 'ArrowDown') {
+                                                                            e.preventDefault();
+                                                                            const nextRow = e.currentTarget.nextElementSibling;
+                                                                            if (nextRow) {
+                                                                                e.currentTarget.classList.remove('bg-primary', 'text-white');
+                                                                                nextRow.classList.add('bg-primary', 'text-white');
+                                                                                nextRow.focus();
+
+                                                                                const tableContainer = document.getElementById('batchTableContainer');
+                                                                                if (tableContainer) {
+                                                                                    const rowRect = nextRow.getBoundingClientRect();
+                                                                                    const containerRect = tableContainer.getBoundingClientRect();
+
+                                                                                    if (rowRect.bottom > containerRect.bottom) {
+                                                                                        nextRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        } else if (e.key === 'ArrowUp') {
+                                                                            e.preventDefault();
+                                                                            const prevRow = e.currentTarget.previousElementSibling;
+                                                                            if (prevRow) {
+                                                                                e.currentTarget.classList.remove('bg-primary', 'text-white');
+                                                                                prevRow.classList.add('bg-primary', 'text-white');
+                                                                                prevRow.focus();
+
+                                                                                const tableContainer = document.getElementById('batchTableContainer');
+                                                                                if (tableContainer) {
+                                                                                    const rowRect = prevRow.getBoundingClientRect();
+                                                                                    const containerRect = tableContainer.getBoundingClientRect();
+
+                                                                                    if (rowRect.top < containerRect.top) {
+                                                                                        prevRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                                                                    }
+                                                                                }
+                                                                            } else {
+                                                                                e.currentTarget.focus();
+                                                                                e.currentTarget.classList.add('bg-primary', 'text-white');
+                                                                            }
+                                                                        } else if (e.key === 'Escape') {
+                                                                            e.preventDefault();
+                                                                            setShowBatchModal(false);
+                                                                            setSelectedItemForBatch(null);
+                                                                        }
+                                                                    }}
+                                                                    onFocus={(e) => {
+                                                                        if (availableStock > 0) {
+                                                                            document.querySelectorAll('.batch-row').forEach(row => {
+                                                                                row.classList.remove('bg-primary', 'text-white');
+                                                                            });
+                                                                            e.currentTarget.classList.add('bg-primary', 'text-white');
+
+                                                                            const tableContainer = document.getElementById('batchTableContainer');
+                                                                            if (tableContainer) {
+                                                                                const rowRect = e.currentTarget.getBoundingClientRect();
+                                                                                const containerRect = tableContainer.getBoundingClientRect();
+
+                                                                                if (rowRect.bottom > containerRect.bottom) {
+                                                                                    e.currentTarget.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                                                                                } else if (rowRect.top < containerRect.top) {
+                                                                                    e.currentTarget.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                        if (availableStock > 0) {
+                                                                            document.querySelectorAll('.batch-row').forEach(row => {
+                                                                                row.classList.remove('bg-primary', 'text-white');
+                                                                            });
+                                                                            e.currentTarget.classList.add('bg-primary', 'text-white');
+
+                                                                            const tableContainer = document.getElementById('batchTableContainer');
+                                                                            if (tableContainer) {
+                                                                                const rowRect = e.currentTarget.getBoundingClientRect();
+                                                                                const containerRect = tableContainer.getBoundingClientRect();
+
+                                                                                if (rowRect.bottom > containerRect.bottom) {
+                                                                                    e.currentTarget.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                                                                                } else if (rowRect.top < containerRect.top) {
+                                                                                    e.currentTarget.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    title={availableStock > 0
+                                                                        ? `Total: ${totalStock} | Used in current bill: ${usedStock} | Available: ${availableStock}\nClick to select this batch`
+                                                                        : `Total: ${totalStock} | Used in current bill: ${usedStock} | Available: ${availableStock}\nOut of stock`
+                                                                    }
+                                                                >
+                                                                    <td className="align-middle" style={{ padding: '3px' }}>{entry.batchNumber || 'N/A'}</td>
+                                                                    <td className="align-middle" style={{ padding: '3px' }}>{formatDateForInput(entry.expiryDate)}</td>
+                                                                    <td className="align-middle fw-semibold" style={{ padding: '3px' }}>
+                                                                        <span
+                                                                            style={{
+                                                                                color: availableStock <= 0 ? '#dc3545' :
+                                                                                    availableStock < 5 ? '#ffc107' :
+                                                                                        '#198754',
+                                                                                position: 'relative'
+                                                                            }}
+                                                                        >
+                                                                            {availableStock}
+                                                                            {usedStock > 0 && (
+                                                                                <small
+                                                                                    style={{
+                                                                                        fontSize: '0.6rem',
+                                                                                        color: '#6c757d',
+                                                                                        marginLeft: '2px',
+                                                                                        position: 'absolute',
+                                                                                        top: '-8px',
+                                                                                        right: '-12px'
+                                                                                    }}
+                                                                                    title={`Used in current bill: ${usedStock}`}
+                                                                                >
+                                                                                    ({usedStock})
+                                                                                </small>
+                                                                            )}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.price * 100) / 100}</td>
+                                                                    <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.puPrice * 100) / 100}</td>
+                                                                    <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.marginPercentage * 100) / 100}</td>
+                                                                    <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.mrp * 100) / 100}</td>
+                                                                    <td className="d-none">{entry.uniqueUuid}</td>
+                                                                    <td className="d-none">{entry.purchaseBillId}</td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    }
+                                                </tbody>
+                                            </table>
+                                            {selectedItemForBatch.stockEntries.filter(entry => entry.quantity > 0).length > 6 && (
+                                                <div className="text-center py-0" style={{
+                                                    fontSize: '0.5rem',
+                                                    color: '#6c757d',
+                                                    backgroundColor: '#f8f9fa',
+                                                    borderTop: '1px solid #dee2e6',
+                                                    position: 'sticky',
+                                                    bottom: 0
+                                                }}>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="modal-footer py-0 justify-content-center" style={{
+                                    backgroundColor: '#f8f9fa',
+                                    borderTop: '1px solid #dee2e6',
+                                }}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary btn-sm py-1 px-3 d-flex align-items-center"
+                                        onClick={() => {
                                             setShowBatchModal(false);
                                             setSelectedItemForBatch(null);
-                                        }
-                                    }}
-                                    style={{
-                                        fontSize: '0.8rem',
-                                        lineHeight: '1.2',
-                                        minHeight: '28px'
-                                    }}
-                                >
-                                    <i className="bi bi-x-circle me-1"></i>
-                                    Close
-                                </button>
+                                            if (selectedItemForInsert === selectedItemForBatch) {
+                                                setSelectedItemForInsert(null);
+                                                setTimeout(() => {
+                                                    const searchInput = document.getElementById('headerItemSearch');
+                                                    if (searchInput) {
+                                                        searchInput.focus();
+                                                        searchInput.select();
+                                                    }
+                                                }, 100);
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                setShowBatchModal(false);
+                                                setSelectedItemForBatch(null);
+                                                if (selectedItemForInsert === selectedItemForBatch) {
+                                                    setSelectedItemForInsert(null);
+                                                    setTimeout(() => {
+                                                        const searchInput = document.getElementById('headerItemSearch');
+                                                        if (searchInput) {
+                                                            searchInput.focus();
+                                                            searchInput.select();
+                                                        }
+                                                    }, 100);
+                                                }
+                                            } else if (e.key === 'Escape') {
+                                                e.preventDefault();
+                                                setShowBatchModal(false);
+                                                setSelectedItemForBatch(null);
+                                            }
+                                        }}
+                                        style={{
+                                            fontSize: '0.8rem',
+                                            lineHeight: '1.2',
+                                            minHeight: '28px'
+                                        }}
+                                    >
+                                        <i className="bi bi-x-circle me-1"></i>
+                                        Close
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Product modal */}
-            {showProductModal && (
-                <ProductModal onClose={() => setShowProductModal(false)} />
-            )}
+            {
+                showProductModal && (
+                    <ProductModal onClose={() => setShowProductModal(false)} />
+                )
+            }
 
             <NotificationToast
                 show={notification.show}
@@ -6003,155 +5938,159 @@ const AddSalesOpen = () => {
             />
 
             {/* Account Creation Modal */}
-            {showAccountCreationModal && (
-                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
-                    <div className="modal-dialog modal-fullscreen">
-                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
-                            <div className="modal-header bg-primary text-white">
-                                <h5 className="modal-title">Create New Account</h5>
-                                <div className="d-flex align-items-center">
+            {
+                showAccountCreationModal && (
+                    <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                        <div className="modal-dialog modal-fullscreen">
+                            <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                                <div className="modal-header bg-primary text-white">
+                                    <h5 className="modal-title">Create New Account</h5>
+                                    <div className="d-flex align-items-center">
+                                        <button
+                                            type="button"
+                                            className="btn-close btn-close-white"
+                                            onClick={handleAccountCreationModalClose}
+                                        ></button>
+                                    </div>
+                                </div>
+                                <div className="modal-body p-0">
+                                    <iframe
+                                        src="/retailer/accounts"
+                                        title="Account Creation"
+                                        style={{ width: '100%', height: '100%', border: 'none' }}
+                                    />
+                                </div>
+                                <div className="modal-footer bg-light">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={handleAccountCreationModalClose}
+                                    >
+                                        <i className="bi bi-arrow-left me-2"></i>Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+
+            {
+                showItemsModal && (
+                    <div
+                        className="modal fade show"
+                        tabIndex="-1"
+                        style={{
+                            display: 'block',
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            zIndex: 1060
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShowItemsModal(false);
+                                setTimeout(() => {
+                                    if (headerSearchInputRef.current) {
+                                        headerSearchInputRef.current.focus();
+                                        headerSearchInputRef.current.select();
+                                    }
+                                    sessionStorage.removeItem('returnToHeaderModal');
+                                }, 100);
+                            }
+                        }}
+                    >
+                        <div className="modal-dialog modal-fullscreen">
+                            <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                                {/* Minimized Header */}
+                                <div className="modal-header py-1 px-2 bg-primary text-white" style={{ minHeight: '32px', position: 'relative' }}>
+                                    <h5 className="modal-title" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                        <i className="bi bi-plus-circle me-1" style={{ fontSize: '0.8rem' }}></i>
+                                        Create New Item
+                                    </h5>
                                     <button
                                         type="button"
                                         className="btn-close btn-close-white"
-                                        onClick={handleAccountCreationModalClose}
-                                    ></button>
+                                        style={{
+                                            fontSize: '0.6rem',
+                                            margin: '0',
+                                            padding: '0.5rem',
+                                            position: 'relative',
+                                            right: '0'
+                                        }}
+                                        onClick={() => {
+                                            setShowItemsModal(false);
+                                            setTimeout(() => {
+                                                if (headerSearchInputRef.current) {
+                                                    headerSearchInputRef.current.focus();
+                                                    headerSearchInputRef.current.select();
+                                                }
+                                                sessionStorage.removeItem('returnToHeaderModal');
+                                            }, 100);
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Body - with Escape key handler for iframe */}
+                                <div className="modal-body p-0">
+                                    <iframe
+                                        src="/retailer/items"
+                                        title="Item Creation"
+                                        style={{ width: '100%', height: '100%', border: 'none' }}
+                                        onLoad={(e) => {
+                                            // Add Escape key listener to iframe content
+                                            const iframe = e.target;
+                                            const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                                            if (iframeDocument) {
+                                                iframeDocument.addEventListener('keydown', (event) => {
+                                                    if (event.key === 'Escape') {
+                                                        event.preventDefault();
+                                                        event.stopPropagation();
+                                                        setShowItemsModal(false);
+                                                        setTimeout(() => {
+                                                            if (headerSearchInputRef.current) {
+                                                                headerSearchInputRef.current.focus();
+                                                                headerSearchInputRef.current.select();
+                                                            }
+                                                            sessionStorage.removeItem('returnToHeaderModal');
+                                                        }, 100);
+                                                    }
+                                                });
+                                            }
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Minimized Footer */}
+                                <div className="modal-footer py-1 px-2 bg-light" style={{ minHeight: '36px', borderTop: '1px solid #dee2e6' }}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-secondary"
+                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                                        onClick={() => {
+                                            setShowItemsModal(false);
+                                            setTimeout(() => {
+                                                if (headerSearchInputRef.current) {
+                                                    headerSearchInputRef.current.focus();
+                                                    headerSearchInputRef.current.select();
+                                                }
+                                                sessionStorage.removeItem('returnToHeaderModal');
+                                            }, 100);
+                                        }}
+                                    >
+                                        <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.7rem' }}></i>
+                                        Close
+                                    </button>
                                 </div>
                             </div>
-                            <div className="modal-body p-0">
-                                <iframe
-                                    src="/retailer/accounts"
-                                    title="Account Creation"
-                                    style={{ width: '100%', height: '100%', border: 'none' }}
-                                />
-                            </div>
-                            <div className="modal-footer bg-light">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={handleAccountCreationModalClose}
-                                >
-                                    <i className="bi bi-arrow-left me-2"></i>Close
-                                </button>
-                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-
-            {showItemsModal && (
-                <div
-                    className="modal fade show"
-                    tabIndex="-1"
-                    style={{
-                        display: 'block',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        zIndex: 1060
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setShowItemsModal(false);
-                            setTimeout(() => {
-                                if (headerSearchInputRef.current) {
-                                    headerSearchInputRef.current.focus();
-                                    headerSearchInputRef.current.select();
-                                }
-                                sessionStorage.removeItem('returnToHeaderModal');
-                            }, 100);
-                        }
-                    }}
-                >
-                    <div className="modal-dialog modal-fullscreen">
-                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
-                            {/* Minimized Header */}
-                            <div className="modal-header py-1 px-2 bg-primary text-white" style={{ minHeight: '32px', position: 'relative' }}>
-                                <h5 className="modal-title" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
-                                    <i className="bi bi-plus-circle me-1" style={{ fontSize: '0.8rem' }}></i>
-                                    Create New Item
-                                </h5>
-                                <button
-                                    type="button"
-                                    className="btn-close btn-close-white"
-                                    style={{
-                                        fontSize: '0.6rem',
-                                        margin: '0',
-                                        padding: '0.5rem',
-                                        position: 'relative',
-                                        right: '0'
-                                    }}
-                                    onClick={() => {
-                                        setShowItemsModal(false);
-                                        setTimeout(() => {
-                                            if (headerSearchInputRef.current) {
-                                                headerSearchInputRef.current.focus();
-                                                headerSearchInputRef.current.select();
-                                            }
-                                            sessionStorage.removeItem('returnToHeaderModal');
-                                        }, 100);
-                                    }}
-                                />
-                            </div>
-
-                            {/* Body - with Escape key handler for iframe */}
-                            <div className="modal-body p-0">
-                                <iframe
-                                    src="/retailer/items"
-                                    title="Item Creation"
-                                    style={{ width: '100%', height: '100%', border: 'none' }}
-                                    onLoad={(e) => {
-                                        // Add Escape key listener to iframe content
-                                        const iframe = e.target;
-                                        const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-
-                                        if (iframeDocument) {
-                                            iframeDocument.addEventListener('keydown', (event) => {
-                                                if (event.key === 'Escape') {
-                                                    event.preventDefault();
-                                                    event.stopPropagation();
-                                                    setShowItemsModal(false);
-                                                    setTimeout(() => {
-                                                        if (headerSearchInputRef.current) {
-                                                            headerSearchInputRef.current.focus();
-                                                            headerSearchInputRef.current.select();
-                                                        }
-                                                        sessionStorage.removeItem('returnToHeaderModal');
-                                                    }, 100);
-                                                }
-                                            });
-                                        }
-                                    }}
-                                />
-                            </div>
-
-                            {/* Minimized Footer */}
-                            <div className="modal-footer py-1 px-2 bg-light" style={{ minHeight: '36px', borderTop: '1px solid #dee2e6' }}>
-                                <button
-                                    type="button"
-                                    className="btn btn-sm btn-secondary"
-                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
-                                    onClick={() => {
-                                        setShowItemsModal(false);
-                                        setTimeout(() => {
-                                            if (headerSearchInputRef.current) {
-                                                headerSearchInputRef.current.focus();
-                                                headerSearchInputRef.current.select();
-                                            }
-                                            sessionStorage.removeItem('returnToHeaderModal');
-                                        }, 100);
-                                    }}
-                                >
-                                    <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.7rem' }}></i>
-                                    Close
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-        </div>
+        </div >
     );
 };
 

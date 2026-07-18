@@ -1510,6 +1510,7 @@ namespace SkyForge.Controllers.Retailer
                             MarginPercentage = se.MarginPercentage,
                             Mrp = se.Mrp,
                             UniqueUuid = se.UniqueUuid,
+                            PurchaseBillId=se.PurchaseBillId,
                             BatchNumber = se.BatchNumber,
                             ExpiryDate = se.ExpiryDate,
                             ExpiryStatus = se.ExpiryStatus,

@@ -16,5 +16,10 @@ namespace SkyForge.Services.Retailer.TransactionServices
         Guid accountId,
         Guid companyId,
         Guid fiscalYearId);
+
+        Task<PartyTurnoverResponseDto> GetPartyTurnoverAsync(
+            Guid companyId,
+            Guid fiscalYearId,
+            PartyTurnoverRequestDto request);
     }
 }

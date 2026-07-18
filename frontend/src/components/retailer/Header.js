@@ -852,6 +852,21 @@ const Header = () => {
                       </ul>
                     </li>
                   )}
+
+                {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Account' ||
+                  finalUser?.isAdmin || finalUser?.menuPermissions?.get('reportsSubHeader')) && (
+                    <li className="menu-item dropdown">
+                      <Link to="#">MIS Reports</Link>
+                      <ul className="sub-menu">
+                        {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Account' ||
+                          finalUser?.isAdmin || finalUser?.menuPermissions?.get('partyTurnoverDetails')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/party-turnover-details">Party Turnover Details</Link>
+                            </li>
+                          )}
+                      </ul>
+                    </li>
+                  )}
               </ul>
             </div>
           </li>

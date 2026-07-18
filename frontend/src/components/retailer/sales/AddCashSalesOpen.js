@@ -1146,7 +1146,8 @@ const AddCashSalesOpen = () => {
             netPuPrice: batchInfo.netPuPrice || 0,
             amount: 0,
             vatStatus: item.vatStatus,
-            uniqueUuid: batchInfo.uniqueUuid
+            uniqueUuid: batchInfo.uniqueUuid,
+            purchaseBillId: batchInfo.purchaseBillId
         };
 
         const updatedItems = [...items, newItem];
@@ -1247,7 +1248,8 @@ const AddCashSalesOpen = () => {
                     uniqueUuid: batchInfo.uniqueUuid,
                     puPrice: batchInfo.puPrice,
                     netPuPrice: batchInfo.netPuPrice,
-                    mrp: batchInfo.mrp
+                    mrp: batchInfo.mrp,
+                    purchaseBillId: batchInfo.purchaseBillId
                 }
             });
 
@@ -1276,7 +1278,8 @@ const AddCashSalesOpen = () => {
                 uniqueUuid: batchInfo.uniqueUuid,
                 puPrice: batchInfo.puPrice,
                 netPuPrice: batchInfo.netPuPrice,
-                mrp: batchInfo.mrp
+                mrp: batchInfo.mrp,
+                purchaseBillId: batchInfo.purchaseBillId
             });
         }
     };
@@ -1350,7 +1353,8 @@ const AddCashSalesOpen = () => {
             mrp: selectedItemForInsert.batchInfo?.mrp || 0,
             amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100),
             vatStatus: selectedItemForInsert.vatStatus,
-            uniqueUuid: uniqueUuid
+            uniqueUuid: uniqueUuid,
+            purchaseBillId: selectedItemForInsert.batchInfo?.purchaseBillId
         };
 
         const updatedItems = [...items, newItem];
@@ -1796,7 +1800,8 @@ const AddCashSalesOpen = () => {
                     mrp: item.mrp,
                     netPuPrice: item.netPuPrice,
                     vatStatus: item.vatStatus,
-                    uniqueUuid: item.uniqueUuid
+                    uniqueUuid: item.uniqueUuid,
+                    purchaseBillId: item.purchaseBillId
                 }))
             };
 
@@ -3613,6 +3618,7 @@ const AddCashSalesOpen = () => {
                                                 <td className="d-none">
                                                     <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
                                                     <input type="hidden" name={`items[${index}][uniqueUuid]`} value={item.uniqueUuid} />
+                                                    <input type="hidden" name={`items[${index}][purchaseBillId]`} value={item.purchaseBillId || ''} />
                                                 </td>
                                             </tr>
                                         );
@@ -4022,7 +4028,7 @@ const AddCashSalesOpen = () => {
                                 <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
                                     Select or Type Account Name
                                 </h5>
-                                <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
+                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
                                     {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Type to search or enter new account'}
                                 </small>
                                 <button
@@ -4469,7 +4475,8 @@ const AddCashSalesOpen = () => {
                                                                             puPrice: entry.puPrice,
                                                                             netPuPrice: entry.netPuPrice,
                                                                             mrp: entry.mrp || 0,
-                                                                            uniqueUuid: entry.uniqueUuid
+                                                                            uniqueUuid: entry.uniqueUuid,
+                                                                            purchaseBillId: entry.purchaseBillId
                                                                         });
                                                                     }
                                                                 }}
@@ -4484,7 +4491,8 @@ const AddCashSalesOpen = () => {
                                                                             puPrice: entry.puPrice,
                                                                             netPuPrice: entry.netPuPrice,
                                                                             mrp: entry.mrp || 0,
-                                                                            uniqueUuid: entry.uniqueUuid
+                                                                            uniqueUuid: entry.uniqueUuid,
+                                                                            purchaseBillId: entry.purchaseBillId
                                                                         });
                                                                     } else if (e.key === 'ArrowDown') {
                                                                         e.preventDefault();
@@ -4610,6 +4618,7 @@ const AddCashSalesOpen = () => {
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.marginPercentage * 100) / 100}</td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{Math.round(entry.mrp * 100) / 100}</td>
                                                                 <td className="d-none">{entry.uniqueUuid}</td>
+                                                                <td className="d-none">{entry.purchaseBillId}</td>
                                                             </tr>
                                                         );
                                                     })

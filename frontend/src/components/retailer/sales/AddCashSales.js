@@ -1114,7 +1114,8 @@ const AddCashSales = () => {
             netPuPrice: firstStockEntry.netPuPrice || 0,
             amount: 0,
             vatStatus: item.vatStatus,
-            uniqueUuid: firstStockEntry.uniqueUuid
+            uniqueUuid: firstStockEntry.uniqueUuid,
+            purchaseBillId:firstStockEntry.purchaseBillId
         };
 
         const updatedItems = [...items, newItem];
@@ -1613,7 +1614,8 @@ const AddCashSales = () => {
                 puPrice: entry.puPrice || 0,
                 netPuPrice: entry.netPuPrice || 0,
                 mrp: entry.mrp || 0,
-                uniqueUuid: entry.uniqueUuid || `temp-${Date.now()}-${Math.random()}`
+                uniqueUuid: entry.uniqueUuid || `temp-${Date.now()}-${Math.random()}`,
+                purchaseBillId:entry.purchaseBillId
             });
 
             remainingQty -= takenQty;
@@ -1645,7 +1647,8 @@ const AddCashSales = () => {
                 // Amount calculated from batch price
                 amount: amount,
                 vatStatus: selectedItemForInsert.vatStatus,
-                uniqueUuid: batch.uniqueUuid
+                uniqueUuid: batch.uniqueUuid,
+                purchaseBillId:batch.purchaseBillId
             };
 
             newItems.push(newItem);
@@ -2203,7 +2206,8 @@ const AddCashSales = () => {
                     mrp: parseFloat(item.mrp),
                     netPuPrice: parseFloat(item.netPuPrice) || parseFloat(item.puPrice) || 0,
                     vatStatus: item.vatStatus || '13',
-                    uniqueUuid: item.uniqueUuid || ''
+                    uniqueUuid: item.uniqueUuid || '',
+                    purchaseBillId:item.purchaseBillId
                 })),
 
                 print: print || false
@@ -4040,6 +4044,7 @@ const AddCashSales = () => {
                                                 <td className="d-none">
                                                     <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
                                                     <input type="hidden" name={`items[${index}][uniqueUuid]`} value={item.uniqueUuid} />
+                                                    <input type="hidden" name={`items[${index}][purchaseBillId]`} value={item.purchaseBillId || ''} />
                                                 </td>
                                             </tr>
                                         );
@@ -4446,7 +4451,7 @@ const AddCashSales = () => {
                                 <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
                                     Select Cash Account
                                 </h5>
-                                <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
+                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
                                     {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Type to search or enter new account'}
                                 </small>
                                 <button
@@ -4754,7 +4759,7 @@ const AddCashSales = () => {
                                         <div className="dropdown-header" style={{
                                             display: 'grid',
                                             // gridTemplateColumns: 'repeat(7, 1fr)',
-                                             gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
                                             alignItems: 'center',
                                             padding: '0 8px',
                                             height: '20px',
