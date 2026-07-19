@@ -186,6 +186,307 @@ namespace SkyForge.Services.Retailer.ItemServices
         /// <summary>
         /// Creates a new item with all related entities
         /// </summary>
+        // public async Task<Item> CreateItemAsync(CreateItemDTO createItemDto, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         _logger.LogInformation("Creating new item for company {CompanyId}", companyId);
+
+        //         // 1. Validate fiscal year exists and belongs to company
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         if (fiscalYear == null)
+        //         {
+        //             throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
+        //         }
+
+        //         // 7. Check for duplicate item name in same fiscal year
+        //         var existingItem = await _context.Items
+        //             .AnyAsync(i => i.Name.ToLower() == createItemDto.Name.ToLower().Trim()
+        //                 && i.CompanyId == companyId);
+
+        //         if (existingItem)
+        //         {
+        //             throw new InvalidOperationException($"Item '{createItemDto.Name.Trim()}' already exists for this fiscal year");
+        //         }
+
+        //         // 8. Generate unique numbers
+        //         var uniqueNumber = await GenerateUniqueItemNumberAsync(companyId);
+        //         var barcodeNumber = await GenerateBarcodeNumberAsync(companyId);
+        //         var defaultStore = await GetDefaultStoreAsync(companyId);
+        //         var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
+
+        //         // Calculate purchase and sales prices for consistency
+        //         decimal purchasePrice = createItemDto.PuPrice ?? 0;
+        //         decimal salesPrice = createItemDto.Price ?? 0;
+        //         decimal openingStock = createItemDto.OpeningStock;
+        //         decimal openingStockValue = openingStock * purchasePrice;
+
+        //         // 9. Create new item
+        //         var newItem = new Item
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             Name = createItemDto.Name?.Trim() ?? "",
+        //             Hscode = createItemDto.Hscode,
+        //             CategoryId = createItemDto.CategoryId,
+        //             ItemsCompanyId = createItemDto.ItemsCompanyId,
+        //             Price = salesPrice,
+        //             PuPrice = purchasePrice,
+        //             MainUnitPuPrice = createItemDto.MainUnitPuPrice,
+        //             MainUnitId = createItemDto.MainUnitId,
+        //             WsUnit = createItemDto.WsUnit,
+        //             UnitId = createItemDto.UnitId,
+        //             VatStatus = createItemDto.VatStatus,
+        //             OpeningStock = openingStock,
+        //             MinStock = createItemDto.MinStock,
+        //             MaxStock = createItemDto.MaxStock,
+        //             ReorderLevel = createItemDto.ReorderLevel,
+        //             UniqueNumber = uniqueNumber,
+        //             BarcodeNumber = barcodeNumber,
+        //             CompanyId = companyId,
+        //             Status = createItemDto.Status ?? "active",
+        //             CreatedAt = DateTime.UtcNow,
+        //             // FiscalYearId = fiscalYearId,
+        //             OriginalFiscalYearId = fiscalYearId,
+        //             Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow,
+        //             NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         // 10. Add compositions if provided
+        //         if (createItemDto.CompositionIds != null && createItemDto.CompositionIds.Any())
+        //         {
+        //             newItem.ItemCompositions = createItemDto.CompositionIds.Select(compositionId => new ItemComposition
+        //             {
+        //                 ItemId = newItem.Id,
+        //                 CompositionId = compositionId
+        //             }).ToList();
+        //         }
+
+        //         // 11. Create initial opening stock record
+        //         var initialOpeningStock = new ItemInitialOpeningStock
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             ItemId = newItem.Id,
+        //             // Use provided InitialFiscalYearId or default to current fiscal year
+        //             InitialFiscalYearId = createItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
+        //             OpeningStock = openingStock,
+        //             OpeningStockValue = createItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockValue,
+        //             PurchasePrice = createItemDto.InitialOpeningStock?.PurchasePrice ?? purchasePrice,
+        //             SalesPrice = createItemDto.InitialOpeningStock?.SalesPrice ?? salesPrice,
+        //             Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //             NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         newItem.InitialOpeningStock = initialOpeningStock;
+
+        //         // 12. Create opening stocks by fiscal year
+        //         // Always create opening stock for current fiscal year
+        //         var openingStocks = new List<ItemOpeningStockByFiscalYear>();
+
+        //         // Check if current fiscal year is already provided in DTO
+        //         var existingCurrentFiscalYearStock = createItemDto.OpeningStocksByFiscalYear?
+        //             .FirstOrDefault(os => os.FiscalYearId == fiscalYearId);
+
+        //         if (existingCurrentFiscalYearStock != null)
+        //         {
+        //             // Use provided values for current fiscal year
+        //             var openingStockCurrent = new ItemOpeningStockByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = newItem.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CompanyId = companyId,
+        //                 OpeningStock = existingCurrentFiscalYearStock.OpeningStock,
+        //                 OpeningStockValue = existingCurrentFiscalYearStock.OpeningStockValue,
+        //                 PurchasePrice = existingCurrentFiscalYearStock.PurchasePrice,
+        //                 SalesPrice = existingCurrentFiscalYearStock.SalesPrice,
+        //                 Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                 NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+        //             openingStocks.Add(openingStockCurrent);
+        //         }
+        //         else
+        //         {
+        //             // Create default opening stock for current fiscal year
+        //             var openingStockCurrent = new ItemOpeningStockByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = newItem.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CompanyId = companyId,
+        //                 OpeningStock = openingStock,
+        //                 OpeningStockValue = openingStockValue,
+        //                 PurchasePrice = purchasePrice,
+        //                 SalesPrice = salesPrice,
+        //                 Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                 NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+        //             openingStocks.Add(openingStockCurrent);
+        //         }
+
+        //         // Add opening stocks for other fiscal years if provided
+        //         if (createItemDto.OpeningStocksByFiscalYear != null)
+        //         {
+        //             foreach (var openingStockDto in createItemDto.OpeningStocksByFiscalYear)
+        //             {
+        //                 // Skip current fiscal year as we already handled it
+        //                 if (openingStockDto.FiscalYearId == fiscalYearId)
+        //                     continue;
+
+        //                 // Validate fiscal year exists and belongs to company
+        //                 var fiscalYearForOpeningStock = await _context.FiscalYears
+        //                     .FirstOrDefaultAsync(f => f.Id == openingStockDto.FiscalYearId && f.CompanyId == companyId);
+
+        //                 if (fiscalYearForOpeningStock == null)
+        //                 {
+        //                     throw new InvalidOperationException($"Fiscal year {openingStockDto.FiscalYearId} not found for opening stock");
+        //                 }
+
+        //                 // Calculate opening stock value if not provided or validate consistency
+        //                 decimal calculatedOpeningStockValue = openingStockDto.OpeningStockValue;
+        //                 if (calculatedOpeningStockValue == 0)
+        //                 {
+        //                     calculatedOpeningStockValue = openingStockDto.OpeningStock * openingStockDto.PurchasePrice;
+        //                 }
+
+        //                 var openingStockRecord = new ItemOpeningStockByFiscalYear
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     ItemId = newItem.Id,
+        //                     FiscalYearId = openingStockDto.FiscalYearId,
+        //                     CompanyId = companyId,
+        //                     OpeningStock = openingStockDto.OpeningStock,
+        //                     OpeningStockValue = calculatedOpeningStockValue,
+        //                     PurchasePrice = openingStockDto.PurchasePrice,
+        //                     SalesPrice = openingStockDto.SalesPrice,
+        //                     Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                     NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     UpdatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 openingStocks.Add(openingStockRecord);
+        //             }
+        //         }
+
+        //         newItem.OpeningStocksByFiscalYear = openingStocks;
+
+        //         // 13. Create closing stocks by fiscal year if provided
+        //         if (createItemDto.ClosingStocksByFiscalYear != null && createItemDto.ClosingStocksByFiscalYear.Any())
+        //         {
+        //             var closingStocks = new List<ItemClosingStockByFiscalYear>();
+
+        //             foreach (var closingStockDto in createItemDto.ClosingStocksByFiscalYear)
+        //             {
+        //                 // Validate fiscal year exists and belongs to company
+        //                 var fiscalYearForClosingStock = await _context.FiscalYears
+        //                     .FirstOrDefaultAsync(f => f.Id == closingStockDto.FiscalYearId && f.CompanyId == companyId);
+
+        //                 if (fiscalYearForClosingStock == null)
+        //                 {
+        //                     throw new InvalidOperationException($"Fiscal year {closingStockDto.FiscalYearId} not found for closing stock");
+        //                 }
+
+        //                 // Calculate closing stock value if not provided
+        //                 decimal calculatedClosingStockValue = closingStockDto.ClosingStockValue;
+        //                 if (calculatedClosingStockValue == 0)
+        //                 {
+        //                     calculatedClosingStockValue = closingStockDto.ClosingStock * closingStockDto.PurchasePrice;
+        //                 }
+
+        //                 var closingStock = new ItemClosingStockByFiscalYear
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     ItemId = newItem.Id,
+        //                     FiscalYearId = closingStockDto.FiscalYearId,
+        //                     ClosingStock = closingStockDto.ClosingStock,
+        //                     ClosingStockValue = calculatedClosingStockValue,
+        //                     PurchasePrice = closingStockDto.PurchasePrice,
+        //                     SalesPrice = closingStockDto.SalesPrice,
+        //                     Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                     NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     UpdatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 closingStocks.Add(closingStock);
+        //             }
+
+        //             newItem.ClosingStocksByFiscalYear = closingStocks;
+        //         }
+
+        //         // 14. Add stock entry if opening stock > 0
+        //         if (openingStock > 0)
+        //         {
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = newItem.Id,
+        //                 WsUnit = createItemDto.WsUnit,
+        //                 Quantity = openingStock,
+        //                 Price = salesPrice,
+        //                 NetPrice = salesPrice,
+        //                 PuPrice = purchasePrice,
+        //                 NetPuPrice = purchasePrice,
+        //                 MainUnitPuPrice = createItemDto.MainUnitPuPrice,
+        //                 Mrp = salesPrice,
+        //                 BatchNumber = "XXX",
+        //                 Currency = createItemDto.Currency ?? "NPR",
+        //                 StoreId = createItemDto.StoreId ?? defaultStore?.Id,
+        //                 RackId = createItemDto.RackId ?? defaultRack?.Id,
+        //                 ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+        //                 ExpiryStatus = "safe",
+        //                 DaysUntilExpiry = 730,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 UniqueUuid = Guid.NewGuid().ToString(),
+        //                 Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                 NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             newItem.StockEntries = new List<StockEntry> { stockEntry };
+        //         }
+
+        //         // 15. Save the item and all related entities
+        //         await _context.Items.AddAsync(newItem);
+        //         await _context.SaveChangesAsync();
+
+        //         // 16. Commit transaction
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("Item created successfully: {ItemName} (ID: {ItemId}, Unique: {UniqueNumber})",
+        //             newItem.Name, newItem.Id, newItem.UniqueNumber);
+
+        //         return newItem;
+        //     }
+        //     catch (Exception)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
+        /// <summary>
+        /// Creates a new item with all related entities
+        /// </summary>
         public async Task<Item> CreateItemAsync(CreateItemDTO createItemDto, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -203,29 +504,31 @@ namespace SkyForge.Services.Retailer.ItemServices
                     throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
                 }
 
-                // 7. Check for duplicate item name in same fiscal year
+                // 2. Check for duplicate item name in same company
                 var existingItem = await _context.Items
                     .AnyAsync(i => i.Name.ToLower() == createItemDto.Name.ToLower().Trim()
                         && i.CompanyId == companyId);
 
                 if (existingItem)
                 {
-                    throw new InvalidOperationException($"Item '{createItemDto.Name.Trim()}' already exists for this fiscal year");
+                    throw new InvalidOperationException($"Item '{createItemDto.Name.Trim()}' already exists for this company");
                 }
 
-                // 8. Generate unique numbers
+                // 3. Generate unique numbers using database sequence functions (C# approach)
                 var uniqueNumber = await GenerateUniqueItemNumberAsync(companyId);
                 var barcodeNumber = await GenerateBarcodeNumberAsync(companyId);
+
+                // 4. Get default store and rack
                 var defaultStore = await GetDefaultStoreAsync(companyId);
                 var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
 
-                // Calculate purchase and sales prices for consistency
+                // 5. Calculate purchase and sales prices for consistency
                 decimal purchasePrice = createItemDto.PuPrice ?? 0;
                 decimal salesPrice = createItemDto.Price ?? 0;
                 decimal openingStock = createItemDto.OpeningStock;
                 decimal openingStockValue = openingStock * purchasePrice;
 
-                // 9. Create new item
+                // 6. Create new item with generated unique numbers
                 var newItem = new Item
                 {
                     Id = Guid.NewGuid(),
@@ -244,19 +547,21 @@ namespace SkyForge.Services.Retailer.ItemServices
                     MinStock = createItemDto.MinStock,
                     MaxStock = createItemDto.MaxStock,
                     ReorderLevel = createItemDto.ReorderLevel,
+
+                    // Set from C# using sequence functions
                     UniqueNumber = uniqueNumber,
                     BarcodeNumber = barcodeNumber,
+
                     CompanyId = companyId,
                     Status = createItemDto.Status ?? "active",
                     CreatedAt = DateTime.UtcNow,
-                    // FiscalYearId = fiscalYearId,
                     OriginalFiscalYearId = fiscalYearId,
                     Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow,
                     NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                // 10. Add compositions if provided
+                // 7. Add compositions if provided
                 if (createItemDto.CompositionIds != null && createItemDto.CompositionIds.Any())
                 {
                     newItem.ItemCompositions = createItemDto.CompositionIds.Select(compositionId => new ItemComposition
@@ -266,12 +571,11 @@ namespace SkyForge.Services.Retailer.ItemServices
                     }).ToList();
                 }
 
-                // 11. Create initial opening stock record
+                // 8. Create initial opening stock record
                 var initialOpeningStock = new ItemInitialOpeningStock
                 {
                     Id = Guid.NewGuid(),
                     ItemId = newItem.Id,
-                    // Use provided InitialFiscalYearId or default to current fiscal year
                     InitialFiscalYearId = createItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
                     OpeningStock = openingStock,
                     OpeningStockValue = createItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockValue,
@@ -286,8 +590,7 @@ namespace SkyForge.Services.Retailer.ItemServices
 
                 newItem.InitialOpeningStock = initialOpeningStock;
 
-                // 12. Create opening stocks by fiscal year
-                // Always create opening stock for current fiscal year
+                // 9. Create opening stocks by fiscal year
                 var openingStocks = new List<ItemOpeningStockByFiscalYear>();
 
                 // Check if current fiscal year is already provided in DTO
@@ -308,7 +611,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                         PurchasePrice = existingCurrentFiscalYearStock.PurchasePrice,
                         SalesPrice = existingCurrentFiscalYearStock.SalesPrice,
                         Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                               (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
                         NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -329,7 +632,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                         PurchasePrice = purchasePrice,
                         SalesPrice = salesPrice,
                         Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                               (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
                         NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -373,7 +676,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                             PurchasePrice = openingStockDto.PurchasePrice,
                             SalesPrice = openingStockDto.SalesPrice,
                             Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                                   (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
                             NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
@@ -385,7 +688,7 @@ namespace SkyForge.Services.Retailer.ItemServices
 
                 newItem.OpeningStocksByFiscalYear = openingStocks;
 
-                // 13. Create closing stocks by fiscal year if provided
+                // 10. Create closing stocks by fiscal year if provided
                 if (createItemDto.ClosingStocksByFiscalYear != null && createItemDto.ClosingStocksByFiscalYear.Any())
                 {
                     var closingStocks = new List<ItemClosingStockByFiscalYear>();
@@ -418,7 +721,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                             PurchasePrice = closingStockDto.PurchasePrice,
                             SalesPrice = closingStockDto.SalesPrice,
                             Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                                   (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
                             NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
@@ -430,7 +733,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     newItem.ClosingStocksByFiscalYear = closingStocks;
                 }
 
-                // 14. Add stock entry if opening stock > 0
+                // 11. Add stock entry if opening stock > 0
                 if (openingStock > 0)
                 {
                     var stockEntry = new StockEntry
@@ -456,7 +759,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                         FiscalYearId = fiscalYearId,
                         UniqueUuid = Guid.NewGuid().ToString(),
                         Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                               (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
                         NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -465,15 +768,15 @@ namespace SkyForge.Services.Retailer.ItemServices
                     newItem.StockEntries = new List<StockEntry> { stockEntry };
                 }
 
-                // 15. Save the item and all related entities
+                // 12. Save the item with generated unique numbers
                 await _context.Items.AddAsync(newItem);
                 await _context.SaveChangesAsync();
 
-                // 16. Commit transaction
+                // 13. Commit transaction
                 await transaction.CommitAsync();
 
-                _logger.LogInformation("Item created successfully: {ItemName} (ID: {ItemId}, Unique: {UniqueNumber})",
-                    newItem.Name, newItem.Id, newItem.UniqueNumber);
+                _logger.LogInformation("Item created successfully: {ItemName} (ID: {ItemId}, Unique: {UniqueNumber}, Barcode: {BarcodeNumber})",
+                    newItem.Name, newItem.Id, newItem.UniqueNumber, newItem.BarcodeNumber);
 
                 return newItem;
             }
@@ -483,7 +786,6 @@ namespace SkyForge.Services.Retailer.ItemServices
                 throw;
             }
         }
-
         private async Task<Store?> GetDefaultStoreAsync(Guid companyId)
         {
             // First try to find store named "Main"
