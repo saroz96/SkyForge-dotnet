@@ -3297,8 +3297,8 @@ const AddStockAdjustment = () => {
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Qty</th>
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Unit</th>
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Rate</th>
-                                        <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Amount</th>
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Reason</th>
+                                        <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Amount</th>
                                         <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
                                     </tr>
                                 </thead>
