@@ -2884,70 +2884,6 @@ namespace SkyForge.Controllers
             }
         }
 
-        [HttpPost("resend-verification")]
-        [AllowAnonymous] // Or remove if you want authenticated users only
-        public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest request)
-        {
-            try
-            {
-                _logger.LogInformation("=== ResendVerification Started ===");
-                _logger.LogInformation($"Email: {request.Email}");
-
-                // Validate email
-                if (string.IsNullOrWhiteSpace(request.Email))
-                {
-                    return BadRequest(new { success = false, message = "Email is required" });
-                }
-
-                // Find user by email
-                var user = await _userService.GetUserByEmailAsync(request.Email);
-
-                // For security, don't reveal if email exists
-                if (user == null)
-                {
-                    _logger.LogWarning($"Resend verification requested for non-existent email: {request.Email}");
-                    // Return success even if user not found (security best practice)
-                    return Ok(new
-                    {
-                        success = true,
-                        message = "If your email is registered, a verification link will be sent."
-                    });
-                }
-
-                // Check if email is already verified
-                if (user.IsEmailVerified)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "Email is already verified. Please login."
-                    });
-                }
-
-                // Generate new verification token
-                var verificationToken = await _userService.GenerateEmailVerificationTokenAsync(user.Id);
-
-                // Send verification email
-                await _emailService.SendVerificationEmailAsync(user.Email, user.Name, verificationToken);
-
-                _logger.LogInformation($"Verification email resent to {user.Email}");
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "Verification email sent. Please check your inbox."
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in ResendVerification for email {Email}", request.Email);
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Error sending verification email. Please try again later."
-                });
-            }
-        }
 
         [HttpGet("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
@@ -3064,6 +3000,70 @@ namespace SkyForge.Controllers
                 {
                     success = false,
                     message = "Error processing your request. Please try again later."
+                });
+            }
+        }
+
+        [HttpPost("resend-verification")]
+        public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("=== ResendVerification Started ===");
+                _logger.LogInformation($"Email: {request.Email}");
+
+                // Validate email
+                if (string.IsNullOrWhiteSpace(request.Email))
+                {
+                    return BadRequest(new { success = false, message = "Email is required" });
+                }
+
+                // Find user by email
+                var user = await _userService.GetUserByEmailAsync(request.Email);
+
+                // For security, don't reveal if email exists
+                if (user == null)
+                {
+                    _logger.LogWarning($"Resend verification requested for non-existent email: {request.Email}");
+                    // Return success even if user not found (security best practice)
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "If your email is registered, a verification link will be sent."
+                    });
+                }
+
+                // Check if email is already verified
+                if (user.IsEmailVerified)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Email is already verified. Please login."
+                    });
+                }
+
+                // Generate new verification token
+                var verificationToken = await _userService.GenerateEmailVerificationTokenAsync(user.Id);
+
+                // Send verification email
+                await _emailService.SendVerificationEmailAsync(user.Email, user.Name, verificationToken);
+
+                _logger.LogInformation($"Verification email resent to {user.Email}");
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Verification email sent. Please check your inbox."
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in ResendVerification for email {Email}", request.Email);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error sending verification email. Please try again later."
                 });
             }
         }
