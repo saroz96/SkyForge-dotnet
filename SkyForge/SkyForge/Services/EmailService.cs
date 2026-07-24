@@ -69,10 +69,21 @@ namespace SkyForge.Services
             }
         }
 
+        // public async Task SendVerificationEmailAsync(string toEmail, string userName, string verificationToken)
+        // {
+        //     var appUrl = _configuration["AppUrl"] ?? "https://localhost:7142";
+        //     var verificationLink = $"{appUrl}/api/user/verify-email?token={verificationToken}";
+        //     var loginLink = $"{appUrl}/auth/login";
+
+        //     var body = GetVerificationEmailTemplate(userName, verificationLink, loginLink);
+        //     await SendEmailAsync(toEmail, "Verify Your Email - Ams Software", body);
+        // }
+
         public async Task SendVerificationEmailAsync(string toEmail, string userName, string verificationToken)
         {
-            var appUrl = _configuration["AppUrl"] ?? "https://localhost:7142";
-            var verificationLink = $"{appUrl}/api/user/verify-email?token={verificationToken}";
+            // Use the frontend route, not the API endpoint
+            var appUrl = _configuration["AppUrl"] ?? "https://localhost:3000";
+            var verificationLink = $"{appUrl}/verify-email?token={verificationToken}"; // Frontend route
             var loginLink = $"{appUrl}/auth/login";
 
             var body = GetVerificationEmailTemplate(userName, verificationLink, loginLink);

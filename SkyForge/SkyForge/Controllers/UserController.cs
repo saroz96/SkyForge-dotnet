@@ -325,7 +325,7 @@ namespace SkyForge.Controllers
                 });
             }
         }
-        
+
         [HttpGet("admin/create-user/new")]
         public async Task<IActionResult> GetCreateUserFormData([FromQuery] Guid? companyId = null)
         {
@@ -2678,66 +2678,91 @@ namespace SkyForge.Controllers
         }
 
 
+        //     [HttpGet("verify-email")]
+        //     public async Task<IActionResult> VerifyEmail([FromQuery] string token)
+        //     {
+        //         if (string.IsNullOrEmpty(token))
+        //         {
+        //             return BadRequest(new { success = false, error = "Verification token is required" });
+        //         }
+
+        //         var result = await _userService.VerifyEmailAsync(token);
+
+        //         if (!result)
+        //         {
+        //             // Return a user-friendly HTML page for the browser
+        //             return Content(@"
+        //         <!DOCTYPE html>
+        //         <html>
+        //         <head>
+        //             <title>Email Verification Failed</title>
+        //             <style>
+        //                 body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        //                 .error { color: #dc3545; }
+        //                 .container { max-width: 500px; margin: 0 auto; }
+        //             </style>
+        //         </head>
+        //         <body>
+        //             <div class='container'>
+        //                 <h1 class='error'>Verification Failed</h1>
+        //                 <p>The verification link is invalid or has expired.</p>
+        //                 <p>Please contact support if you need assistance.</p>
+        //                 <a href='/auth/login'>Go to Login</a>
+        //             </div>
+        //         </body>
+        //         </html>
+        //     ", "text/html");
+        //         }
+
+        //         // Return success HTML page
+        //         return Content(@"
+        //     <!DOCTYPE html>
+        //     <html>
+        //     <head>
+        //         <title>Email Verified Successfully</title>
+        //         <style>
+        //             body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        //             .success { color: #28a745; }
+        //             .container { max-width: 500px; margin: 0 auto; }
+        //             .button { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+        //         </style>
+        //     </head>
+        //     <body>
+        //         <div class='container'>
+        //             <h1 class='success'>Email Verified Successfully!</h1>
+        //             <p>Your email has been verified. You can now log in to your account.</p>
+        //             <a href='/auth/login' class='button'>Proceed to Login</a>
+        //         </div>
+        //     </body>
+        //     </html>
+        // ", "text/html");
+        //     }
+
         [HttpGet("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
         {
             if (string.IsNullOrEmpty(token))
             {
-                return BadRequest(new { success = false, error = "Verification token is required" });
+                return BadRequest(new { success = false, message = "Verification token is required" });
             }
 
             var result = await _userService.VerifyEmailAsync(token);
 
             if (!result)
             {
-                // Return a user-friendly HTML page for the browser
-                return Content(@"
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Email Verification Failed</title>
-                <style>
-                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                    .error { color: #dc3545; }
-                    .container { max-width: 500px; margin: 0 auto; }
-                </style>
-            </head>
-            <body>
-                <div class='container'>
-                    <h1 class='error'>Verification Failed</h1>
-                    <p>The verification link is invalid or has expired.</p>
-                    <p>Please contact support if you need assistance.</p>
-                    <a href='/auth/login'>Go to Login</a>
-                </div>
-            </body>
-            </html>
-        ", "text/html");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "The verification link is invalid or has expired."
+                });
             }
 
-            // Return success HTML page
-            return Content(@"
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Email Verified Successfully</title>
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                .success { color: #28a745; }
-                .container { max-width: 500px; margin: 0 auto; }
-                .button { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <h1 class='success'>Email Verified Successfully!</h1>
-                <p>Your email has been verified. You can now log in to your account.</p>
-                <a href='/auth/login' class='button'>Proceed to Login</a>
-            </div>
-        </body>
-        </html>
-    ", "text/html");
+            return Ok(new
+            {
+                success = true,
+                message = "Email verified successfully!"
+            });
         }
-
 
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
