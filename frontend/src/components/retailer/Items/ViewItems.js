@@ -218,8 +218,8 @@ const ViewItems = () => {
                                 </ListGroup.Item>
                                 <ListGroup.Item className="py-1 px-2 d-flex align-items-center">
                                     <strong>VAT Status:</strong>
-                                    <Badge bg={item.vatStatus === 'vatable' ? 'success' : 'warning'} className="ms-2 py-1">
-                                        {item.vatStatus === 'vatable' ? '13%' : 'Exempt'}
+                                    <Badge bg={item.vatStatus === '13' ? 'success' : 'warning'} className="ms-2 py-1">
+                                       {item.vatStatus === '13' ? '13%' : 'Exempt'}
                                     </Badge>
                                 </ListGroup.Item>
                                 <ListGroup.Item className="py-1 px-2">

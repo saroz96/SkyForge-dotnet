@@ -10,6 +10,9 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public Guid? InitialFiscalYearId { get; set; }
 
         [Required]
+        public Guid CompanyId { get; set; }
+
+        [Required]
         [Range(0, double.MaxValue)]
         public decimal OpeningStock { get; set; } = 0;
 

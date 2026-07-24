@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SkyForge.Models.CompanyModel;
 using SkyForge.Models.FiscalYearModel;
 
 namespace SkyForge.Models.Retailer.Items
@@ -24,6 +25,13 @@ namespace SkyForge.Models.Retailer.Items
 
         [ForeignKey("FiscalYearId")]
         public FiscalYear FiscalYear { get; set; } = null!;
+
+        [Required]
+        [Column("company_id")]
+        public Guid CompanyId { get; set; }
+
+        [ForeignKey("CompanyId")]
+        public Company Company { get; set; } = null!;
 
         [Required]
         [Column("closing_stock")]

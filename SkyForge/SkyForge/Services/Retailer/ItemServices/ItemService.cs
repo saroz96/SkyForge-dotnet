@@ -273,6 +273,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     ItemId = newItem.Id,
                     // Use provided InitialFiscalYearId or default to current fiscal year
                     InitialFiscalYearId = createItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
+                    CompanyId = createItemDto.CompanyId,
                     OpeningStock = openingStock,
                     OpeningStockValue = createItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockValue,
                     PurchasePrice = createItemDto.InitialOpeningStock?.PurchasePrice ?? purchasePrice,
@@ -413,6 +414,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                             Id = Guid.NewGuid(),
                             ItemId = newItem.Id,
                             FiscalYearId = closingStockDto.FiscalYearId,
+                            CompanyId = closingStockDto.CompanyId,
                             ClosingStock = closingStockDto.ClosingStock,
                             ClosingStockValue = calculatedClosingStockValue,
                             PurchasePrice = closingStockDto.PurchasePrice,
@@ -842,6 +844,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                                 Id = Guid.NewGuid(),
                                 ItemId = existingItem.Id,
                                 FiscalYearId = fiscalYearId,
+                                CompanyId = existingItem.CompanyId,
                                 OpeningStock = newOpeningStock,
                                 OpeningStockValue = openingStockBalance,
                                 PurchasePrice = existingItem.PuPrice ?? 0,
@@ -976,6 +979,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                                     Id = Guid.NewGuid(),
                                     ItemId = existingItem.Id,
                                     FiscalYearId = openingStockDto.FiscalYearId,
+                                    CompanyId = openingStockDto.CompanyId,
                                     OpeningStock = openingStockDto.OpeningStock,
                                     OpeningStockValue = openingStockDto.OpeningStockValue,
                                     PurchasePrice = openingStockDto.PurchasePrice,
@@ -1012,6 +1016,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                                     Id = Guid.NewGuid(),
                                     ItemId = existingItem.Id,
                                     FiscalYearId = closingStockDto.FiscalYearId,
+                                    CompanyId = existingItem.CompanyId,
                                     ClosingStock = closingStockDto.ClosingStock,
                                     ClosingStockValue = closingStockDto.ClosingStockValue,
                                     PurchasePrice = closingStockDto.PurchasePrice,
@@ -1047,6 +1052,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                 throw;
             }
         }
+
         public async Task<bool> DeleteItemAsync(Guid itemId, Guid companyId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
