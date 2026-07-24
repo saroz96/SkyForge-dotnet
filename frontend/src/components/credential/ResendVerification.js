@@ -19,8 +19,7 @@ const ResendVerification = () => {
     setMessage('');
 
     try {
-      const response = await axios.post('/api/user/resend-verification', { email });
-      
+      const response = await axios.post('/api/public/resend-verification', { email });
       if (response.data.success) {
         setMessage('Verification email sent. Please check your inbox.');
       } else {

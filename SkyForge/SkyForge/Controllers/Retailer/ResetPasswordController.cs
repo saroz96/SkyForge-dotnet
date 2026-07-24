@@ -29,15 +29,21 @@ namespace SkyForge.Controllers
     [EnableCors("ReactApp")]
     public class ResetPasswordController : ControllerBase
     {
+        private readonly IUserService _userService;
+        private readonly IEmailService _emailService;
         private readonly ApplicationDbContext _context;
         private readonly IPasswordService _passwordService;
         private readonly ILogger<ResetPasswordController> _logger;
 
         public ResetPasswordController(
+            IUserService userService,
+            IEmailService emailService,
             ApplicationDbContext context,
             IPasswordService passwordService,
             ILogger<ResetPasswordController> logger)
         {
+            _userService = userService;
+            _emailService = emailService;
             _context = context;
             _passwordService = passwordService;
             _logger = logger;
@@ -92,7 +98,7 @@ namespace SkyForge.Controllers
 
                 // Find user by token - check BOTH raw and hashed tokens
                 var user = await _context.Users
-                    .FirstOrDefaultAsync(u => 
+                    .FirstOrDefaultAsync(u =>
                         (u.ResetPasswordToken == token || u.ResetPasswordToken == _passwordService.HashToken(token)) &&
                         u.ResetPasswordExpires > DateTime.UtcNow);
 
@@ -130,11 +136,112 @@ namespace SkyForge.Controllers
                 });
             }
         }
+
+        [HttpPost("resend-verification")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("=== ResendVerification (Public) Started ===");
+                _logger.LogInformation($"Email: {request.Email}");
+
+                // Validate email
+                if (string.IsNullOrWhiteSpace(request.Email))
+                {
+                    return BadRequest(new { success = false, message = "Email is required" });
+                }
+
+                // Validate email format
+                if (!IsValidEmail(request.Email))
+                {
+                    return BadRequest(new { success = false, message = "Invalid email format" });
+                }
+
+                // Find user by email
+                var user = await _userService.GetUserByEmailAsync(request.Email);
+
+                // For security, don't reveal if email exists
+                if (user == null)
+                {
+                    _logger.LogWarning($"Resend verification requested for non-existent email: {request.Email}");
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "If your email is registered, a verification link will be sent."
+                    });
+                }
+
+                // Check if email is already verified
+                if (user.IsEmailVerified)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Email is already verified. Please login."
+                    });
+                }
+
+                // Check if user is active
+                if (!user.IsActive)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Account is deactivated. Please contact support."
+                    });
+                }
+
+                // Generate new verification token
+                var verificationToken = await _userService.GenerateEmailVerificationTokenAsync(user.Id);
+
+                // Send verification email
+                await _emailService.SendVerificationEmailAsync(user.Email, user.Name, verificationToken);
+
+                _logger.LogInformation($"Verification email resent to {user.Email}");
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Verification email sent. Please check your inbox."
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in ResendVerification for email {Email}", request.Email);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error sending verification email. Please try again later."
+                });
+            }
+        }
+
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
     }
+
+
 
     public class ResetPasswordRequest
     {
         public string Password { get; set; }
         public string Password2 { get; set; }
+    }
+
+    public class ResendVerificationRequest
+    {
+        public required string Email { get; set; }
     }
 }
