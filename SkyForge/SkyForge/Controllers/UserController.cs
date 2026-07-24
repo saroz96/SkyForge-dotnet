@@ -2884,17 +2884,71 @@ namespace SkyForge.Controllers
             }
         }
 
-        // [HttpPost("verify-email")]
-        // public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
-        // {
-        //     var result = await _userService.VerifyEmailAsync(request.Token!);
-        //     if (!result)
-        //         return BadRequest(new { error = "Invalid or expired verification token" });
+        [HttpPost("resend-verification")]
+        [AllowAnonymous] // Or remove if you want authenticated users only
+        public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("=== ResendVerification Started ===");
+                _logger.LogInformation($"Email: {request.Email}");
 
-        //     return Ok(new { success = true, message = "Email verified successfully!" });
-        // }
+                // Validate email
+                if (string.IsNullOrWhiteSpace(request.Email))
+                {
+                    return BadRequest(new { success = false, message = "Email is required" });
+                }
 
-        // GET: api/user/verify-email?token=xyz
+                // Find user by email
+                var user = await _userService.GetUserByEmailAsync(request.Email);
+
+                // For security, don't reveal if email exists
+                if (user == null)
+                {
+                    _logger.LogWarning($"Resend verification requested for non-existent email: {request.Email}");
+                    // Return success even if user not found (security best practice)
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "If your email is registered, a verification link will be sent."
+                    });
+                }
+
+                // Check if email is already verified
+                if (user.IsEmailVerified)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Email is already verified. Please login."
+                    });
+                }
+
+                // Generate new verification token
+                var verificationToken = await _userService.GenerateEmailVerificationTokenAsync(user.Id);
+
+                // Send verification email
+                await _emailService.SendVerificationEmailAsync(user.Email, user.Name, verificationToken);
+
+                _logger.LogInformation($"Verification email resent to {user.Email}");
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Verification email sent. Please check your inbox."
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in ResendVerification for email {Email}", request.Email);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error sending verification email. Please try again later."
+                });
+            }
+        }
+
         [HttpGet("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
         {
@@ -2955,27 +3009,7 @@ namespace SkyForge.Controllers
     ", "text/html");
         }
 
-        // [HttpPost("forgot-password")]
-        // public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
-        // {
-        //     try
-        //     {
-        //         var token = await _userService.GeneratePasswordResetTokenAsync(request.Email!);
-        //         await SendPasswordResetEmailAsync(request.Email!, token);
 
-        //         return Ok(new
-        //         {
-        //             success = true,
-        //             message = "Password reset email sent"
-        //         });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         return BadRequest(new { error = ex.Message });
-        //     }
-        // }
-
-        // POST: api/user/forgot-password
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
@@ -3033,69 +3067,6 @@ namespace SkyForge.Controllers
                 });
             }
         }
-
-        // [HttpPost("reset-password/{token}")]
-        // public async Task<IActionResult> ResetPassword(string token, [FromBody] ResetPasswordRequest request)
-        // {
-        //     try
-        //     {
-        //         _logger.LogInformation("=== ResetPassword Started ===");
-        //         _logger.LogInformation($"Raw token from URL: {token}");
-
-        //         // URL decode the token if needed
-        //         var decodedToken = Uri.UnescapeDataString(token);
-        //         _logger.LogInformation($"Decoded token: {decodedToken}");
-
-        //         // Validate inputs
-        //         if (string.IsNullOrEmpty(decodedToken))
-        //         {
-        //             return BadRequest(new { success = false, message = "Token is required" });
-        //         }
-
-        //         if (string.IsNullOrWhiteSpace(request.Password))
-        //         {
-        //             return BadRequest(new { success = false, message = "Password is required" });
-        //         }
-
-        //         if (string.IsNullOrWhiteSpace(request.Password2))
-        //         {
-        //             return BadRequest(new { success = false, message = "Password confirmation is required" });
-        //         }
-
-        //         if (request.Password != request.Password2)
-        //         {
-        //             return BadRequest(new { success = false, message = "Passwords do not match" });
-        //         }
-
-        //         if (request.Password.Length < 6)
-        //         {
-        //             return BadRequest(new { success = false, message = "Password must be at least 6 characters long" });
-        //         }
-
-        //         // Let the UserService handle the hashing and comparison
-        //         var result = await _userService.ResetPasswordAsync(decodedToken, request.Password);
-
-        //         if (!result)
-        //         {
-        //             return BadRequest(new { success = false, message = "Token is invalid or has expired" });
-        //         }
-
-        //         return Ok(new
-        //         {
-        //             success = true,
-        //             message = "Password updated successfully! You can now log in with your new password."
-        //         });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error in ResetPassword");
-        //         return StatusCode(500, new
-        //         {
-        //             success = false,
-        //             message = "Error resetting your password. Please try again."
-        //         });
-        //     }
-        // }
 
 
         [HttpGet("{id}")]
@@ -3610,6 +3581,11 @@ namespace SkyForge.Controllers
     {
         public required string Email { get; set; }
         public required string Password { get; set; }
+    }
+
+    public class ResendVerificationRequest
+    {
+        public required string Email { get; set; }
     }
 
     public class VerifyEmailRequest

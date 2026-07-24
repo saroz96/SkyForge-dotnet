@@ -19,7 +19,7 @@ const ResendVerification = () => {
     setMessage('');
 
     try {
-      const response = await axios.post('/api/auth/resend-verification', { email });
+      const response = await axios.post('/api/user/resend-verification', { email });
       
       if (response.data.success) {
         setMessage('Verification email sent. Please check your inbox.');
@@ -27,8 +27,8 @@ const ResendVerification = () => {
         setError(response.data.message || 'Failed to resend verification email');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 
-              'Error resending verification email. Please try again.');
+      setError(err.response?.data?.message ||
+        'Error resending verification email. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -37,7 +37,7 @@ const ResendVerification = () => {
   return (
     <Container className="mt-5" style={{ maxWidth: '500px' }}>
       <h2 className="text-center mb-4">Resend Verification Email</h2>
-      
+
       {message && <Alert variant="success">{message}</Alert>}
       {error && <Alert variant="danger">{error}</Alert>}
 
@@ -54,9 +54,9 @@ const ResendVerification = () => {
         </Form.Group>
 
         <div className="d-grid gap-2">
-          <Button 
-            variant="primary" 
-            type="submit" 
+          <Button
+            variant="primary"
+            type="submit"
             disabled={loading}
           >
             {loading ? 'Sending...' : 'Resend Verification Email'}
@@ -65,8 +65,8 @@ const ResendVerification = () => {
       </Form>
 
       <div className="text-center mt-3">
-        <Button 
-          variant="link" 
+        <Button
+          variant="link"
           onClick={() => navigate('/auth/login')}
         >
           Back to Login
