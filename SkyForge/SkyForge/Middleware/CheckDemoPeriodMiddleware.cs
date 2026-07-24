@@ -277,6 +277,7 @@ namespace SkyForge.Middleware
 
             return path.Contains("/api/auth") ||
                 path.Contains("/api/subscription") ||
+                path.Contains("/api/user/resend-verification") ||
                 path.Contains("/api/company") ||
                 path.Contains("/swagger") ||
                 path.StartsWith("/health");
