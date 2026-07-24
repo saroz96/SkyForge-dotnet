@@ -18,6 +18,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using SkyForge.Models.Retailer.StoreModel;
 using SkyForge.Models.RackModel;
+using Npgsql;
+using Microsoft.Extensions.Configuration;
 
 namespace SkyForge.Services.Retailer.ItemServices
 {
@@ -26,52 +28,87 @@ namespace SkyForge.Services.Retailer.ItemServices
         private readonly ApplicationDbContext _context;
         private readonly Random _random;
         private readonly ILogger<ItemService> _logger;
+        private readonly string _connectionString;
 
-        public ItemService(ApplicationDbContext context, ILogger<ItemService> logger)
+        public ItemService(
+            ApplicationDbContext context,
+             ILogger<ItemService> logger,
+             IConfiguration configuration)
         {
             _context = context;
             _logger = logger;
             _random = new Random();
+            _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
 
+        // /// <summary>
+        // /// Generates a random 4-digit unique number for items (1000-9999)
+        // /// </summary>
+        // public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
+        // {
+        //     try
+        //     {
+        //         int uniqueNumber;
+        //         bool isUnique;
+        //         int attempts = 0;
+        //         const int maxAttempts = 100; // Prevent infinite loop
+
+        //         do
+        //         {
+        //             attempts++;
+
+        //             // Generate random 4-digit number (1000-9999)
+        //             uniqueNumber = _random.Next(1000, 10000);
+
+        //             // Check if number already exists in the same company
+        //             isUnique = !await _context.Items
+        //                 .AnyAsync(i => i.CompanyId == companyId && i.UniqueNumber == uniqueNumber);
+
+        //             if (attempts >= maxAttempts)
+        //             {
+        //                 // Fallback: Get max number and add 1000 + random
+        //                 var maxNumber = await _context.Items
+        //                     .Where(i => i.CompanyId == companyId)
+        //                     .MaxAsync(i => (int?)i.UniqueNumber) ?? 1000;
+
+        //                 uniqueNumber = maxNumber + 1000 + _random.Next(1, 100);
+        //                 _logger.LogWarning("Using fallback unique number generation: {UniqueNumber}", uniqueNumber);
+        //                 break;
+        //             }
+
+        //         } while (!isUnique);
+
+        //         _logger.LogDebug("Generated unique item number: {UniqueNumber} for company {CompanyId}", uniqueNumber, companyId);
+        //         return uniqueNumber;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error generating unique item number for company {CompanyId}", companyId);
+        //         throw;
+        //     }
+        // }
+
         /// <summary>
-        /// Generates a random 4-digit unique number for items (1000-9999)
+        /// Generates a unique item number using database sequence (Fastest & Most Reliable)
         /// </summary>
         public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
         {
             try
             {
-                int uniqueNumber;
-                bool isUnique;
-                int attempts = 0;
-                const int maxAttempts = 100; // Prevent infinite loop
+                // Use database function to get next number from sequence
+                using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
 
-                do
-                {
-                    attempts++;
+                using var cmd = new NpgsqlCommand(
+                    "SELECT get_next_item_number(@companyId)",
+                    connection);
+                cmd.Parameters.AddWithValue("companyId", companyId);
 
-                    // Generate random 4-digit number (1000-9999)
-                    uniqueNumber = _random.Next(1000, 10000);
+                var result = await cmd.ExecuteScalarAsync();
+                var uniqueNumber = Convert.ToInt32(result);
 
-                    // Check if number already exists in the same company
-                    isUnique = !await _context.Items
-                        .AnyAsync(i => i.CompanyId == companyId && i.UniqueNumber == uniqueNumber);
-
-                    if (attempts >= maxAttempts)
-                    {
-                        // Fallback: Get max number and add 1000 + random
-                        var maxNumber = await _context.Items
-                            .Where(i => i.CompanyId == companyId)
-                            .MaxAsync(i => (int?)i.UniqueNumber) ?? 1000;
-
-                        uniqueNumber = maxNumber + 1000 + _random.Next(1, 100);
-                        _logger.LogWarning("Using fallback unique number generation: {UniqueNumber}", uniqueNumber);
-                        break;
-                    }
-
-                } while (!isUnique);
-
-                _logger.LogDebug("Generated unique item number: {UniqueNumber} for company {CompanyId}", uniqueNumber, companyId);
+                _logger.LogDebug("Generated unique item number from sequence: {UniqueNumber} for company {CompanyId}",
+                    uniqueNumber, companyId);
                 return uniqueNumber;
             }
             catch (Exception ex)
