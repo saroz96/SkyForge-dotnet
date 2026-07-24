@@ -171,7 +171,8 @@ function AppContent() {
             {/* Public Routes */}
             <Route path="/" element={<WelcomePage />} />
             <Route path="/auth/register" element={<RegisterForm />} />
-            <Route path="/verify-email/:token" element={<VerifyEmail />} />
+            {/* <Route path="/verify-email/:token" element={<VerifyEmail />} /> */}
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/auth/verify-email" element={<ResendVerification />} />
             <Route path="/auth/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />

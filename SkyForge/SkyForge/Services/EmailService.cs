@@ -81,9 +81,9 @@ namespace SkyForge.Services
 
         public async Task SendVerificationEmailAsync(string toEmail, string userName, string verificationToken)
         {
-            // Use the frontend route, not the API endpoint
-            var appUrl = _configuration["AppUrl"] ?? "https://localhost:3000";
-            var verificationLink = $"{appUrl}/verify-email?token={verificationToken}"; // Frontend route
+            // CHANGE: Use the React route, not the API endpoint
+            var appUrl = _configuration["AppUrl"] ?? "https://www.amsacc.com";
+            var verificationLink = $"{appUrl}/verify-email?token={verificationToken}"; // React route
             var loginLink = $"{appUrl}/auth/login";
 
             var body = GetVerificationEmailTemplate(userName, verificationLink, loginLink);
