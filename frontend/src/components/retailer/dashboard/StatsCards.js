@@ -1,11 +1,21 @@
-
 // import React, { useState, useEffect, useRef, useCallback } from 'react';
 // import axios from 'axios';
 // import { useAuth } from '../../../context/AuthContext';
 // import { usePageNotRefreshContext } from '../PageNotRefreshContext';
+// import DailyCashSummary from '../DailyCashSummary';
+// import DailySalesSummary from '../DailySalesSummary';
+// import DailyBankSummary from '../DailyBankSummary';
+// import DailyInventorySummary from '../DailyInventorySummary';
 
 // const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
 //     const { statsCardDraftSave, setStatsCardDraftSave } = usePageNotRefreshContext();
+
+//     // Add state for Cash Modal
+//     const [showCashModal, setShowCashModal] = useState(false);
+//     const [showSalesModal, setShowSalesModal] = useState(false);
+//     const [showBankModal, setShowBankModal] = useState(false);
+//     const [showInventoryModal, setShowInventoryModal] = useState(false);
+//     const [selectedAccountId, setSelectedAccountId] = useState(null);
 
 //     // Get API base URL from environment variable
 //     const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142';
@@ -80,10 +90,8 @@
 //     };
 
 //     const fetchFreshData = useCallback(async (isBackground = false) => {
-//         // Prevent multiple simultaneous requests
 //         if (isFetching) return;
 
-//         // Cancel previous request if exists
 //         if (abortControllerRef.current) {
 //             abortControllerRef.current.abort();
 //         }
@@ -92,19 +100,15 @@
 //         setIsFetching(true);
 
 //         try {
-//             // Build query parameters
 //             const params = new URLSearchParams();
 //             params.append('companyId', companyId);
 //             if (companyName) params.append('companyName', companyName);
 //             if (fiscalYearJson) params.append('fiscalYearJson', fiscalYearJson);
 
-//             // Use full URL with API base
 //             const url = `${API_BASE_URL}/api/retailer/retailerDashboard/indexv1?${params.toString()}`;
 
-//             console.log('Fetching stats from:', url); // Debug log
-
 //             const response = await axios.get(url, {
-//                 headers: { 
+//                 headers: {
 //                     'Content-Type': 'application/json',
 //                     'Authorization': `Bearer ${localStorage.getItem('token')}`
 //                 },
@@ -135,7 +139,6 @@
 //                 throw new Error(response.data.error || 'Failed to load dashboard data');
 //             }
 //         } catch (error) {
-//             // Don't show error if request was aborted
 //             if (error.name === 'AbortError') {
 //                 console.log('Fetch aborted');
 //                 return;
@@ -155,23 +158,18 @@
 //     }, [companyId, companyName, fiscalYearJson, statsCardDraftSave, setStatsCardDraftSave, API_BASE_URL, isFetching]);
 
 //     useEffect(() => {
-//         // Don't fetch if no companyId
 //         if (!companyId) return;
 
-//         // Initial fetch
 //         if (statsCardDraftSave) {
-//             // Use cached data first, then fetch in background
 //             fetchFreshData(true).catch(e => console.log('Background update failed:', e));
 //         } else {
 //             fetchFreshData(false);
 //         }
 
-//         // Set up interval for auto-refresh (5 minutes)
 //         intervalRef.current = setInterval(() => {
-//             fetchFreshData(true); // Background refresh
-//         }, 300000); // 5 minutes
+//             fetchFreshData(true);
+//         }, 300000);
 
-//         // Cleanup
 //         return () => {
 //             if (intervalRef.current) {
 //                 clearInterval(intervalRef.current);
@@ -180,130 +178,207 @@
 //                 abortControllerRef.current.abort();
 //             }
 //         };
-//     }, [companyId]); // Only depend on companyId, not on statsCardDraftSave
+//     }, [companyId]);
 
 //     const displayData = stats.isFresh ? stats : statsCardDraftSave || stats;
 
+//     // Handle Cash Card click
+//     const handleCashCardClick = () => {
+//         // You can set the accountId if needed (e.g., Cash in Hand account ID)
+//         setSelectedAccountId(null); // Set to null to show all cash transactions
+//         setShowCashModal(true);
+//     };
+
+//     // Handle Sales Card click
+//     const handleSalesCardClick = () => {
+//         // You can set the accountId if needed (e.g., Sales account ID)
+//         setSelectedAccountId(null); // Set to null to show all sales transactions
+//         setShowSalesModal(true);
+//     };
+
+//     // Handle Bank Card click
+//     const handleBankCardClick = () => {
+//         setShowBankModal(true);
+//     };
+
+//     const handleInventoryCardClick = () => {
+//         setShowInventoryModal(true);
+//     }
+
 //     return (
-//         <div className="row">
-//             {/* Cash Card */}
-//             <div className="col-lg-3 col-md-6 col-12 mb-4">
-//                 <div className="card border-start border-primary border-4">
-//                     <div className="card-body p-3">
-//                         <div className="d-flex justify-content-between align-items-center">
-//                             <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
-//                                 <h6 className="text-muted mb-1 text-truncate small">Cash</h6>
-//                                 <div
-//                                     className="mb-0 text-truncate"
-//                                     title={`Rs. ${formatCurrency(displayData.cashBalance)}`}
-//                                     style={{
-//                                         fontSize: getDynamicFontSize(displayData.cashBalance) * 0.9,
-//                                         fontWeight: '200',
-//                                         lineHeight: '1.1'
-//                                     }}
-//                                 >
-//                                     {formatCurrency(displayData.cashBalance)}
-//                                     <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
+//         <>
+//             <div className="row">
+//                 {/* Cash Card - Made clickable */}
+//                 <div className="col-lg-3 col-md-6 col-12 mb-4">
+//                     <div
+//                         className="card border-start border-primary border-4 cursor-pointer"
+//                         onClick={handleCashCardClick}
+//                         style={{ cursor: 'pointer', transition: 'transform 0.2s',minHeight: '120px' }}
+//                         onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+//                         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+//                     >
+//                         <div className="card-body p-3">
+//                             <div className="d-flex justify-content-between align-items-center">
+//                                 <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
+//                                     <h6 className="text-muted mb-1 text-truncate small">
+//                                         Cash <i className="bi bi-info-circle text-primary" style={{ fontSize: '0.7rem' }}></i>
+//                                     </h6>
+//                                     <div
+//                                         className="mb-0 text-truncate"
+//                                         title={`Rs. ${formatCurrency(displayData.cashBalance)}`}
+//                                         style={{
+//                                             fontSize: getDynamicFontSize(displayData.cashBalance) * 0.9,
+//                                             fontWeight: '200',
+//                                             lineHeight: '1.1'
+//                                         }}
+//                                     >
+//                                         {formatCurrency(displayData.cashBalance)}
+//                                         <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
+//                                     </div>
+//                                 </div>
+//                                 <div className="bg-primary bg-opacity-10 p-2 rounded flex-shrink-0">
+//                                     <i className="bi bi-cash-coin fs-5 text-primary" title="Click to view details"></i>
 //                                 </div>
 //                             </div>
-//                             <div className="bg-primary bg-opacity-10 p-2 rounded flex-shrink-0">
-//                                 <i className="bi bi-cash-coin fs-5 text-primary"></i>
+//                         </div>
+//                     </div>
+//                 </div>
+
+//                 {/* Sales Card */}
+//                 <div className="col-lg-3 col-md-6 col-12 mb-4">
+//                     <div className="card border-start border-success border-4 cursor-pointer"
+//                         onClick={handleSalesCardClick}
+//                         style={{ cursor: 'pointer', transition: 'transform 0.2s' ,minHeight: '120px'}}
+//                         onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+//                         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+//                     >
+//                         <div className="card-body p-3">
+//                             <div className="d-flex justify-content-between align-items-center">
+//                                 <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
+//                                     <h6 className="text-muted mb-1 text-truncate small">Sales</h6>
+//                                     <div
+//                                         className="mb-0 text-truncate"
+//                                         title={`Rs. ${formatCurrency(displayData.netSales)}`}
+//                                         style={{
+//                                             fontSize: getDynamicFontSize(displayData.netSales) * 0.9,
+//                                             fontWeight: '200',
+//                                             lineHeight: '1.1'
+//                                         }}
+//                                     >
+//                                         {formatCurrency(displayData.netSales)}
+//                                         <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
+//                                     </div>
+//                                 </div>
+//                                 <div className="bg-success bg-opacity-10 p-2 rounded flex-shrink-0">
+//                                     <i className="bi bi-graph-up fs-5 text-success"></i>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </div>
+
+//                 {/* Bank Card */}
+//                 <div className="col-lg-3 col-md-6 col-12 mb-4">
+//                     <div className="card border-start border-success border-4 cursor-pointer"
+//                         onClick={handleBankCardClick}
+//                         style={{ cursor: 'pointer', transition: 'transform 0.2s' ,minHeight: '120px'}}
+//                         onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+//                         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+//                     >
+//                         <div className="card-body p-3">
+//                             <div className="d-flex justify-content-between align-items-center">
+//                                 <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
+//                                     <h6 className="text-muted mb-1 text-truncate small">Bank</h6>
+//                                     <div
+//                                         className="mb-0 text-truncate"
+//                                         title={`Rs. ${formatCurrency(displayData.bankBalance)}`}
+//                                         style={{
+//                                             fontSize: getDynamicFontSize(displayData.bankBalance) * 0.9,
+//                                             fontWeight: '200',
+//                                             lineHeight: '1.1'
+//                                         }}
+//                                     >
+//                                         {formatCurrency(displayData.bankBalance)}
+//                                         <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
+//                                     </div>
+//                                 </div>
+//                                 <div className="bg-info bg-opacity-10 p-2 rounded flex-shrink-0">
+//                                     <i className="bi bi-bank fs-5 text-info"></i>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </div>
+
+//                 {/* Inventory Card */}
+//                 <div className="col-lg-3 col-md-6 col-12 mb-4">
+//                     <div className="card border-start border-success border-4 cursor-pointer"
+//                         onClick={handleInventoryCardClick}
+//                         style={{ cursor: 'pointer', transition: 'transform 0.2s',minHeight: '120px' }}
+//                         onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+//                         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+//                     >
+//                         <div className="card-body p-3">
+//                             <div className="d-flex justify-content-between align-items-center">
+//                                 <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
+//                                     <h6 className="text-muted mb-1 text-truncate small">Inventory</h6>
+//                                     <div
+//                                         className="mb-0 text-truncate"
+//                                         title={`Rs. ${formatCurrency(displayData.totalStock)}`}
+//                                         style={{
+//                                             fontSize: getDynamicFontSize(displayData.totalStock) * 0.9,
+//                                             fontWeight: '200',
+//                                             lineHeight: '1.1'
+//                                         }}
+//                                     >
+//                                         {formatCurrency(displayData.totalStock)}
+//                                         <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
+//                                     </div>
+//                                 </div>
+//                                 <div className="bg-warning bg-opacity-10 p-2 rounded flex-shrink-0">
+//                                     <i className="bi bi-box-seam fs-5 text-warning"></i>
+//                                 </div>
 //                             </div>
 //                         </div>
 //                     </div>
 //                 </div>
 //             </div>
 
-//             {/* Sales Card */}
-//             <div className="col-lg-3 col-md-6 col-12 mb-4">
-//                 <div className="card border-start border-success border-4">
-//                     <div className="card-body p-3">
-//                         <div className="d-flex justify-content-between align-items-center">
-//                             <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
-//                                 <h6 className="text-muted mb-1 text-truncate small">Sales</h6>
-//                                 <div
-//                                     className="mb-0 text-truncate"
-//                                     title={`Rs. ${formatCurrency(displayData.netSales)}`}
-//                                     style={{
-//                                         fontSize: getDynamicFontSize(displayData.netSales) * 0.9,
-//                                         fontWeight: '200',
-//                                         lineHeight: '1.1'
-//                                     }}
-//                                 >
-//                                     {formatCurrency(displayData.netSales)}
-//                                     <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
-//                                 </div>
-//                             </div>
-//                             <div className="bg-success bg-opacity-10 p-2 rounded flex-shrink-0">
-//                                 <i className="bi bi-graph-up fs-5 text-success"></i>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* Bank Card */}
-//             <div className="col-lg-3 col-md-6 col-12 mb-4">
-//                 <div className="card border-start border-info border-4">
-//                     <div className="card-body p-3">
-//                         <div className="d-flex justify-content-between align-items-center">
-//                             <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
-//                                 <h6 className="text-muted mb-1 text-truncate small">Bank</h6>
-//                                 <div
-//                                     className="mb-0 text-truncate"
-//                                     title={`Rs. ${formatCurrency(displayData.bankBalance)}`}
-//                                     style={{
-//                                         fontSize: getDynamicFontSize(displayData.bankBalance) * 0.9,
-//                                         fontWeight: '200',
-//                                         lineHeight: '1.1'
-//                                     }}
-//                                 >
-//                                     {formatCurrency(displayData.bankBalance)}
-//                                     <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
-//                                 </div>
-//                             </div>
-//                             <div className="bg-info bg-opacity-10 p-2 rounded flex-shrink-0">
-//                                 <i className="bi bi-bank fs-5 text-info"></i>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* Inventory Card */}
-//             <div className="col-lg-3 col-md-6 col-12 mb-4">
-//                 <div className="card border-start border-warning border-4">
-//                     <div className="card-body p-3">
-//                         <div className="d-flex justify-content-between align-items-center">
-//                             <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
-//                                 <h6 className="text-muted mb-1 text-truncate small">Inventory</h6>
-//                                 <div
-//                                     className="mb-0 text-truncate"
-//                                     title={`Rs. ${formatCurrency(displayData.totalStock)}`}
-//                                     style={{
-//                                         fontSize: getDynamicFontSize(displayData.totalStock)*0.9,
-//                                         fontWeight: '200',
-//                                         lineHeight: '1.1'
-//                                     }}
-//                                 >
-//                                     {formatCurrency(displayData.totalStock)}
-//                                     <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
-//                                 </div>
-//                             </div>
-//                             <div className="bg-warning bg-opacity-10 p-2 rounded flex-shrink-0">
-//                                 <i className="bi bi-box-seam fs-5 text-warning"></i>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-//         </div>
+//             {/* Daily Cash Summary */}
+//             <DailyCashSummary
+//                 show={showCashModal}
+//                 onClose={() => setShowCashModal(false)}
+//                 companyId={companyId}
+//                 accountId={selectedAccountId}
+//             />
+//             {/* Daily Inventory Summary */}
+//             <DailyInventorySummary
+//                 show={showInventoryModal}
+//                 onClose={() => setShowInventoryModal(false)}
+//                 companyId={companyId}
+//                 accountId={selectedAccountId}
+//             />
+//             {/* Daily Sales Summary */}
+//             <DailySalesSummary
+//                 show={showSalesModal}
+//                 onClose={() => setShowSalesModal(false)}
+//                 companyId={companyId}
+//                 accountId={selectedAccountId}
+//             />
+//             {/* Daily Bank Summary */}
+//             <DailyBankSummary
+//                 show={showBankModal}
+//                 onClose={() => setShowBankModal(false)}
+//                 companyId={companyId}
+//                 accountId={selectedAccountId}
+//             />
+//         </>
 //     );
 // };
 
 // export default StatsCards;
 
-//-----------------------------------------------------------end
+//-----------------------------------------------------end
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
@@ -317,14 +392,12 @@ import DailyInventorySummary from '../DailyInventorySummary';
 const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
     const { statsCardDraftSave, setStatsCardDraftSave } = usePageNotRefreshContext();
 
-    // Add state for Cash Modal
     const [showCashModal, setShowCashModal] = useState(false);
     const [showSalesModal, setShowSalesModal] = useState(false);
     const [showBankModal, setShowBankModal] = useState(false);
     const [showInventoryModal, setShowInventoryModal] = useState(false);
     const [selectedAccountId, setSelectedAccountId] = useState(null);
 
-    // Get API base URL from environment variable
     const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142';
 
     const [company] = useState({
@@ -346,14 +419,89 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
     const abortControllerRef = useRef(null);
     const { currentCompany } = useAuth();
 
-    // Create axios instance with base URL
+    // Professional card styles
+    const styles = {
+        grid: {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '20px',
+        },
+        card: {
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            padding: '20px 24px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            border: '1px solid #e8ecf1',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            minHeight: '110px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+        },
+        cardHover: {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+            borderColor: '#2563eb',
+        },
+        cardHeader: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '8px',
+        },
+        cardLabel: {
+            fontSize: '13px',
+            fontWeight: '500',
+            color: '#6b7280',
+            margin: 0,
+        },
+        cardIcon: {
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '18px',
+        },
+        cardValue: {
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1a202c',
+            margin: 0,
+            lineHeight: '1.2',
+        },
+        cardSubtext: {
+            fontSize: '12px',
+            color: '#6b7280',
+            marginTop: '4px',
+        },
+        '@media (max-width: 992px)': {
+            grid: {
+                gridTemplateColumns: 'repeat(2, 1fr)',
+            },
+        },
+        '@media (max-width: 576px)': {
+            grid: {
+                gridTemplateColumns: '1fr',
+            },
+            card: {
+                padding: '16px 20px',
+                minHeight: '90px',
+            },
+            cardValue: {
+                fontSize: '20px',
+            },
+        },
+    };
+
     const api = useCallback(() => {
         const instance = axios.create({
             baseURL: API_BASE_URL,
             withCredentials: true,
         });
 
-        // Add request interceptor for token
         instance.interceptors.request.use(
             (config) => {
                 const token = localStorage.getItem('token');
@@ -447,7 +595,6 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
             }
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.log('Fetch aborted');
                 return;
             }
 
@@ -468,7 +615,7 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
         if (!companyId) return;
 
         if (statsCardDraftSave) {
-            fetchFreshData(true).catch(e => console.log('Background update failed:', e));
+            fetchFreshData(true);
         } else {
             fetchFreshData(false);
         }
@@ -489,190 +636,108 @@ const StatsCards = ({ companyId, companyName, fiscalYearJson }) => {
 
     const displayData = stats.isFresh ? stats : statsCardDraftSave || stats;
 
-    // Handle Cash Card click
-    const handleCashCardClick = () => {
-        // You can set the accountId if needed (e.g., Cash in Hand account ID)
-        setSelectedAccountId(null); // Set to null to show all cash transactions
-        setShowCashModal(true);
-    };
-
-    // Handle Sales Card click
-    const handleSalesCardClick = () => {
-        // You can set the accountId if needed (e.g., Sales account ID)
-        setSelectedAccountId(null); // Set to null to show all sales transactions
-        setShowSalesModal(true);
-    };
-
-    // Handle Bank Card click
-    const handleBankCardClick = () => {
-        setShowBankModal(true);
-    };
-
-    const handleInventoryCardClick = () => {
-        setShowInventoryModal(true);
-    }
+    const cardConfigs = [
+        {
+            key: 'cash',
+            label: 'Cash Balance',
+            value: displayData.cashBalance,
+            icon: 'bi-cash-coin',
+            iconColor: '#059669',
+            iconBg: '#ecfdf5',
+            borderColor: '#059669',
+            onClick: () => { setSelectedAccountId(null); setShowCashModal(true); },
+            subtext: 'Available cash'
+        },
+        {
+            key: 'sales',
+            label: 'Net Sales',
+            value: displayData.netSales,
+            icon: 'bi-graph-up-arrow',
+            iconColor: '#2563eb',
+            iconBg: '#eff6ff',
+            borderColor: '#2563eb',
+            onClick: () => { setSelectedAccountId(null); setShowSalesModal(true); },
+            subtext: 'Today\'s sales'
+        },
+        {
+            key: 'bank',
+            label: 'Bank Balance',
+            value: displayData.bankBalance,
+            icon: 'bi-bank',
+            iconColor: '#7c3aed',
+            iconBg: '#f5f3ff',
+            borderColor: '#7c3aed',
+            onClick: () => { setShowBankModal(true); },
+            subtext: 'Total in bank'
+        },
+        {
+            key: 'inventory',
+            label: 'Inventory Value',
+            value: displayData.totalStock,
+            icon: 'bi-box-seam',
+            iconColor: '#d97706',
+            iconBg: '#fffbeb',
+            borderColor: '#d97706',
+            onClick: () => { setShowInventoryModal(true); },
+            subtext: 'Stock value'
+        }
+    ];
 
     return (
         <>
-            <div className="row">
-                {/* Cash Card - Made clickable */}
-                <div className="col-lg-3 col-md-6 col-12 mb-4">
+            <div style={styles.grid}>
+                {cardConfigs.map((config) => (
                     <div
-                        className="card border-start border-primary border-4 cursor-pointer"
-                        onClick={handleCashCardClick}
-                        style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        key={config.key}
+                        style={styles.card}
+                        onClick={config.onClick}
+                        onMouseEnter={(e) => {
+                            Object.assign(e.currentTarget.style, styles.cardHover);
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
+                            e.currentTarget.style.borderColor = '#e8ecf1';
+                        }}
                     >
-                        <div className="card-body p-3">
-                            <div className="d-flex justify-content-between align-items-center">
-                                <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
-                                    <h6 className="text-muted mb-1 text-truncate small">
-                                        Cash <i className="bi bi-info-circle text-primary" style={{ fontSize: '0.7rem' }}></i>
-                                    </h6>
-                                    <div
-                                        className="mb-0 text-truncate"
-                                        title={`Rs. ${formatCurrency(displayData.cashBalance)}`}
-                                        style={{
-                                            fontSize: getDynamicFontSize(displayData.cashBalance) * 0.9,
-                                            fontWeight: '200',
-                                            lineHeight: '1.1'
-                                        }}
-                                    >
-                                        {formatCurrency(displayData.cashBalance)}
-                                        <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
-                                    </div>
-                                </div>
-                                <div className="bg-primary bg-opacity-10 p-2 rounded flex-shrink-0">
-                                    <i className="bi bi-cash-coin fs-5 text-primary" title="Click to view details"></i>
-                                </div>
+                        <div style={styles.cardHeader}>
+                            <p style={styles.cardLabel}>{config.label}</p>
+                            <div style={{ ...styles.cardIcon, backgroundColor: config.iconBg }}>
+                                <i className={`bi ${config.icon}`} style={{ color: config.iconColor }}></i>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                {/* Sales Card */}
-                <div className="col-lg-3 col-md-6 col-12 mb-4">
-                    <div className="card border-start border-success border-4 cursor-pointer"
-                        onClick={handleSalesCardClick}
-                        style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                        <div className="card-body p-3">
-                            <div className="d-flex justify-content-between align-items-center">
-                                <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
-                                    <h6 className="text-muted mb-1 text-truncate small">Sales</h6>
-                                    <div
-                                        className="mb-0 text-truncate"
-                                        title={`Rs. ${formatCurrency(displayData.netSales)}`}
-                                        style={{
-                                            fontSize: getDynamicFontSize(displayData.netSales) * 0.9,
-                                            fontWeight: '200',
-                                            lineHeight: '1.1'
-                                        }}
-                                    >
-                                        {formatCurrency(displayData.netSales)}
-                                        <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
-                                    </div>
-                                </div>
-                                <div className="bg-success bg-opacity-10 p-2 rounded flex-shrink-0">
-                                    <i className="bi bi-graph-up fs-5 text-success"></i>
-                                </div>
-                            </div>
+                        <div>
+                            <p style={styles.cardValue}>
+                                {formatCurrency(config.value)}
+                            </p>
+                            <p style={styles.cardSubtext}>
+                                <i className="bi bi-arrow-right me-1"></i>
+                                {config.subtext}
+                            </p>
                         </div>
                     </div>
-                </div>
-
-                {/* Bank Card */}
-                <div className="col-lg-3 col-md-6 col-12 mb-4">
-                    <div className="card border-start border-success border-4 cursor-pointer"
-                        onClick={handleBankCardClick}
-                        style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                        <div className="card-body p-3">
-                            <div className="d-flex justify-content-between align-items-center">
-                                <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
-                                    <h6 className="text-muted mb-1 text-truncate small">Bank</h6>
-                                    <div
-                                        className="mb-0 text-truncate"
-                                        title={`Rs. ${formatCurrency(displayData.bankBalance)}`}
-                                        style={{
-                                            fontSize: getDynamicFontSize(displayData.bankBalance) * 0.9,
-                                            fontWeight: '200',
-                                            lineHeight: '1.1'
-                                        }}
-                                    >
-                                        {formatCurrency(displayData.bankBalance)}
-                                        <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
-                                    </div>
-                                </div>
-                                <div className="bg-info bg-opacity-10 p-2 rounded flex-shrink-0">
-                                    <i className="bi bi-bank fs-5 text-info"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Inventory Card */}
-                <div className="col-lg-3 col-md-6 col-12 mb-4">
-                    <div className="card border-start border-success border-4 cursor-pointer"
-                        onClick={handleInventoryCardClick}
-                        style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                        <div className="card-body p-3">
-                            <div className="d-flex justify-content-between align-items-center">
-                                <div className="flex-grow-1 me-2" style={{ minWidth: 0 }}>
-                                    <h6 className="text-muted mb-1 text-truncate small">Inventory</h6>
-                                    <div
-                                        className="mb-0 text-truncate"
-                                        title={`Rs. ${formatCurrency(displayData.totalStock)}`}
-                                        style={{
-                                            fontSize: getDynamicFontSize(displayData.totalStock) * 0.9,
-                                            fontWeight: '200',
-                                            lineHeight: '1.1'
-                                        }}
-                                    >
-                                        {formatCurrency(displayData.totalStock)}
-                                        <small className="text-muted" style={{ fontSize: '0.6em' }}> Rs.</small>
-                                    </div>
-                                </div>
-                                <div className="bg-warning bg-opacity-10 p-2 rounded flex-shrink-0">
-                                    <i className="bi bi-box-seam fs-5 text-warning"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                ))}
             </div>
 
-            {/* Daily Cash Summary */}
+            {/* Modals */}
             <DailyCashSummary
                 show={showCashModal}
                 onClose={() => setShowCashModal(false)}
                 companyId={companyId}
                 accountId={selectedAccountId}
             />
-            {/* Daily Inventory Summary */}
             <DailyInventorySummary
                 show={showInventoryModal}
                 onClose={() => setShowInventoryModal(false)}
                 companyId={companyId}
                 accountId={selectedAccountId}
             />
-            {/* Daily Sales Summary */}
             <DailySalesSummary
                 show={showSalesModal}
                 onClose={() => setShowSalesModal(false)}
                 companyId={companyId}
                 accountId={selectedAccountId}
             />
-            {/* Daily Bank Summary */}
             <DailyBankSummary
                 show={showBankModal}
                 onClose={() => setShowBankModal(false)}

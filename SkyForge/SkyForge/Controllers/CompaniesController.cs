@@ -797,58 +797,86 @@ namespace SkyForge.Controllers
                     });
                 }
 
-                // Map DTO to Company entity - use the enum values directly from request
-                var company = new Company
+                // Get the existing company
+                var existingCompany = await _companyService.GetCompanyByIdAsync(id);
+                if (existingCompany == null)
                 {
-                    Name = request.Name,
-                    Address = request.Address,
-                    Country = request.Country,
-                    State = request.State,
-                    City = request.City,
-                    Pan = request.Pan,
-                    Phone = request.Phone,
-                    Ward = request.Ward,
-                    Email = request.Email,
-                    TradeType = request.TradeType, // Already enum type
-                    DateFormat = request.DateFormat, // Already nullable enum type
-                    VatEnabled = request.VatEnabled,
-                    StoreManagement = request.StoreManagement,
-                    RenewalDate = request.RenewalDate,
-                    FiscalYearStartDateNepali = request.FiscalYearStartDateNepali,
-                    FiscalYearStartDateEnglish = request.FiscalYearStartDateEnglish,
-                    NotificationEmails = request.NotificationEmails ?? new(),
-                    AttendanceSettings = request.AttendanceSettings != null
-                        ? new CompanyAttendanceSettings
-                        {
-                            GeoFencingEnabled = request.AttendanceSettings.GeoFencingEnabled,
-                            OfficeLocations = request.AttendanceSettings.OfficeLocations?.Select(l => new OfficeLocation
-                            {
-                                Name = l.Name,
-                                Coordinates = new Coordinates
-                                {
-                                    Lat = l.Coordinates?.Lat,
-                                    Lng = l.Coordinates?.Lng
-                                },
-                                Radius = l.Radius,
-                                Address = l.Address,
-                                IsActive = l.IsActive
-                            }).ToList() ?? new(),
-                            WorkingHours = new WorkingHours
-                            {
-                                StartTime = request.AttendanceSettings.WorkingHours?.StartTime ?? "09:00",
-                                EndTime = request.AttendanceSettings.WorkingHours?.EndTime ?? "17:00",
-                                GracePeriod = request.AttendanceSettings.WorkingHours?.GracePeriod ?? 15
-                            },
-                            AutoClockOut = new AutoClockOutSettings
-                            {
-                                Enabled = request.AttendanceSettings.AutoClockOut?.Enabled ?? false,
-                                Time = request.AttendanceSettings.AutoClockOut?.Time ?? "18:00"
-                            }
-                        }
-                        : new CompanyAttendanceSettings()
-                };
+                    return NotFound(new ErrorResponseDTO
+                    {
+                        Success = false,
+                        Error = "Company not found",
+                        Type = "NotFound"
+                    });
+                }
 
-                var updatedCompany = await _companyService.UpdateCompanyAsync(id, company);
+                // Parse TradeType from string to enum (like CreateCompany does)
+                TradeType tradeTypeEnum;
+                if (!Enum.TryParse<TradeType>(request.TradeType, true, out tradeTypeEnum))
+                {
+                    tradeTypeEnum = TradeType.Retailer; // Default
+                }
+
+                // Parse DateFormat from string to enum
+                DateFormatEnum dateFormatEnum;
+                if (!Enum.TryParse<DateFormatEnum>(request.DateFormat, true, out dateFormatEnum))
+                {
+                    dateFormatEnum = DateFormatEnum.English; // Default
+                }
+
+                // Update the existing company properties
+                existingCompany.Name = request.Name;
+                existingCompany.Address = request.Address;
+                existingCompany.Country = request.Country;
+                existingCompany.State = request.State;
+                existingCompany.City = request.City;
+                existingCompany.Pan = request.Pan;
+                existingCompany.Phone = request.Phone;
+                existingCompany.Ward = request.Ward;
+                existingCompany.Email = request.Email;
+                existingCompany.TradeType = tradeTypeEnum;
+                existingCompany.DateFormat = dateFormatEnum;
+                existingCompany.VatEnabled = request.VatEnabled;
+                existingCompany.StoreManagement = request.StoreManagement;
+                existingCompany.RenewalDate = request.RenewalDate;
+                existingCompany.FiscalYearStartDateNepali = request.FiscalYearStartDateNepali;
+                existingCompany.FiscalYearStartDateEnglish = request.FiscalYearStartDateEnglish;
+                existingCompany.NotificationEmails = request.NotificationEmails ?? new List<string>();
+
+                // Update attendance settings if provided
+                if (request.AttendanceSettings != null)
+                {
+                    existingCompany.AttendanceSettings = new CompanyAttendanceSettings
+                    {
+                        GeoFencingEnabled = request.AttendanceSettings.GeoFencingEnabled,
+                        OfficeLocations = request.AttendanceSettings.OfficeLocations?.Select(l => new OfficeLocation
+                        {
+                            Name = l.Name,
+                            Coordinates = new Coordinates
+                            {
+                                Lat = l.Coordinates?.Lat,
+                                Lng = l.Coordinates?.Lng
+                            },
+                            Radius = l.Radius,
+                            Address = l.Address,
+                            IsActive = l.IsActive
+                        }).ToList() ?? new List<OfficeLocation>(),
+                        WorkingHours = new WorkingHours
+                        {
+                            StartTime = request.AttendanceSettings.WorkingHours?.StartTime ?? "09:00",
+                            EndTime = request.AttendanceSettings.WorkingHours?.EndTime ?? "17:00",
+                            GracePeriod = request.AttendanceSettings.WorkingHours?.GracePeriod ?? 15
+                        },
+                        AutoClockOut = new AutoClockOutSettings
+                        {
+                            Enabled = request.AttendanceSettings.AutoClockOut?.Enabled ?? false,
+                            Time = request.AttendanceSettings.AutoClockOut?.Time ?? "18:00"
+                        }
+                    };
+                }
+
+                existingCompany.UpdatedAt = DateTime.UtcNow;
+
+                var updatedCompany = await _companyService.UpdateCompanyAsync(id, existingCompany);
 
                 _logger.LogInformation("Company updated: {CompanyId}", id);
                 return Ok(MapToCompanyResponseDTO(updatedCompany));

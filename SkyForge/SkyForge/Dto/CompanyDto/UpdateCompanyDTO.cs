@@ -1,6 +1,9 @@
-﻿using SkyForge.Models.CompanyModel;
+﻿
+// UpdateCompanyDTO.cs
+using SkyForge.Models.CompanyModel;
 using SkyForge.Models.Shared;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.CompanyDto
 {
@@ -36,24 +39,24 @@ namespace SkyForge.Dto.CompanyDto
         public string Email { get; set; }
 
         [Required(ErrorMessage = "Trade type is required")]
-        public TradeType TradeType { get; set; }
+        public string TradeType { get; set; }
 
-        public DateFormatEnum? DateFormat { get; set; } = DateFormatEnum.English;
+        public string DateFormat { get; set; }
 
         public bool VatEnabled { get; set; }
 
         public bool StoreManagement { get; set; }
 
+        // Make RenewalDate required - it's required in the database
         [Required(ErrorMessage = "Renewal date is required")]
-        public string? RenewalDate { get; set; }
+        public string RenewalDate { get; set; }
 
-        [Required(ErrorMessage = "Fiscal year start date is required")]
         public string? FiscalYearStartDateNepali { get; set; }
 
         public DateTime? FiscalYearStartDateEnglish { get; set; }
 
         public List<string> NotificationEmails { get; set; } = new();
 
-        public CompanyAttendanceSettingsDTO AttendanceSettings { get; set; }
+        public CompanyAttendanceSettingsDTO? AttendanceSettings { get; set; }
     }
 }

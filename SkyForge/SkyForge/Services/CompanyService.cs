@@ -692,6 +692,7 @@ namespace SkyForge.Services
                 throw;
             }
         }
+
         public async Task<bool> DeleteCompanyAsync(Guid companyId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
