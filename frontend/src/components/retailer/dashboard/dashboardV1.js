@@ -1404,8 +1404,8 @@ const DashboardV1 = () => {
                     <div style={styles.sidebarInner}>
                         <div style={styles.sidebarHeader}>
                             <div style={styles.sidebarLogo}>
-                                <div style={styles.sidebarLogoIcon}>P</div>
-                                <span style={styles.sidebarLogoText}>Probilz</span>
+                                <div style={styles.sidebarLogoIcon}>A</div>
+                                <span style={styles.sidebarLogoText}>Ams</span>
                             </div>
                         </div>
                         <nav style={styles.sidebarMenu}>
