@@ -91,18 +91,50 @@ namespace SkyForge.Services.Retailer.ItemServices
         /// <summary>
         /// Generates a unique item number using database sequence (Fastest & Most Reliable)
         /// </summary>
+        // public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
+        // {
+        //     try
+        //     {
+        //         // Use database function to get next number from sequence
+        //         using var connection = new NpgsqlConnection(_connectionString);
+        //         await connection.OpenAsync();
+
+        //         using var cmd = new NpgsqlCommand(
+        //             "SELECT get_next_item_number(@companyId)",
+        //             connection);
+        //         cmd.Parameters.AddWithValue("companyId", companyId);
+
+        //         var result = await cmd.ExecuteScalarAsync();
+        //         var uniqueNumber = Convert.ToInt32(result);
+
+        //         _logger.LogDebug("Generated unique item number from sequence: {UniqueNumber} for company {CompanyId}",
+        //             uniqueNumber, companyId);
+        //         return uniqueNumber;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error generating unique item number for company {CompanyId}", companyId);
+        //         throw;
+        //     }
+        // }
+
         public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
         {
             try
             {
-                // Use database function to get next number from sequence
+                // Generate sequence name from company ID
+                string sequenceName = $"item_seq_{companyId.ToString().Replace("-", "_")}";
+
+                // Check if sequence exists and create if not
+                await EnsureSequenceExistsAsync(companyId);
+
+                // Get next value from sequence
                 using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
 
                 using var cmd = new NpgsqlCommand(
-                    "SELECT get_next_item_number(@companyId)",
+                    $"SELECT nextval('{sequenceName}')",
                     connection);
-                cmd.Parameters.AddWithValue("companyId", companyId);
 
                 var result = await cmd.ExecuteScalarAsync();
                 var uniqueNumber = Convert.ToInt32(result);
@@ -114,6 +146,46 @@ namespace SkyForge.Services.Retailer.ItemServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating unique item number for company {CompanyId}", companyId);
+                throw;
+            }
+        }
+
+        private async Task EnsureSequenceExistsAsync(Guid companyId)
+        {
+            string sequenceName = $"item_seq_{companyId.ToString().Replace("-", "_")}";
+
+            try
+            {
+                using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                // Check if sequence exists
+                using var checkCmd = new NpgsqlCommand(
+                    @"SELECT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = @sequenceName)",
+                    connection);
+                checkCmd.Parameters.AddWithValue("sequenceName", sequenceName);
+
+                var exists = (bool)await checkCmd.ExecuteScalarAsync();
+
+                if (!exists)
+                {
+                    // Create sequence
+                    using var createCmd = new NpgsqlCommand(
+                        $@"CREATE SEQUENCE {sequenceName} 
+                   START WITH 1000 
+                   INCREMENT BY 1 
+                   MINVALUE 1000 
+                   MAXVALUE 999999 
+                   CYCLE",
+                        connection);
+                    await createCmd.ExecuteNonQueryAsync();
+
+                    _logger.LogInformation("Created sequence {SequenceName} for company {CompanyId}", sequenceName, companyId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error ensuring sequence exists for company {CompanyId}", companyId);
                 throw;
             }
         }
