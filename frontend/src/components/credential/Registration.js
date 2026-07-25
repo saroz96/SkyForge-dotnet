@@ -1482,7 +1482,7 @@ const RegisterForm = () => {
                   style={styles.termsCheck}
                 />
                 <span>
-                  I agree to the <a href="#!" style={{ color: '#2a4d7a', textDecoration: 'none' }}>Terms</a> & <a href="#!" style={{ color: '#2a4d7a', textDecoration: 'none' }}>Privacy Policy</a>
+                  I agree to the <a href="#!" style={{ color: '#2a4d7a', textDecoration: 'none' }}>Terms</a> & <a href="/privacy-policy" style={{ color: '#2a4d7a', textDecoration: 'none' }}>Privacy Policy</a>
                 </span>
               </label>
               {errors.terms && <div style={styles.fieldError}>{errors.terms}</div>}

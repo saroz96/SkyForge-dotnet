@@ -616,6 +616,8 @@
 
 // export default DashboardV1;
 
+//---------------------------------------------------------end1
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -732,17 +734,11 @@ const DashboardV1 = () => {
             gap: '10px',
             overflow: 'hidden',
         },
-        sidebarLogoIcon: {
+        sidebarLogoImage: {
             width: '32px',
             height: '32px',
             borderRadius: '8px',
-            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
-            fontWeight: '700',
-            fontSize: '14px',
+            objectFit: 'contain',
             flexShrink: 0,
         },
         sidebarLogoText: {
@@ -1404,7 +1400,14 @@ const DashboardV1 = () => {
                     <div style={styles.sidebarInner}>
                         <div style={styles.sidebarHeader}>
                             <div style={styles.sidebarLogo}>
-                                <div style={styles.sidebarLogoIcon}>A</div>
+                                <img
+                                    src="/logo/logo.png"
+                                    alt="Ams Logo"
+                                    style={styles.sidebarLogoImage}
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                    }}
+                                />
                                 <span style={styles.sidebarLogoText}>Ams</span>
                             </div>
                         </div>
@@ -1566,3 +1569,4 @@ const DashboardV1 = () => {
 };
 
 export default DashboardV1;
+

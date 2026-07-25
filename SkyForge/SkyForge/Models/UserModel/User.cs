@@ -62,6 +62,9 @@ namespace SkyForge.Models.UserModel
         // Navigation properties
         public virtual ICollection<Company> OwnedCompanies { get; set; }
         public virtual ICollection<Company> AccessibleCompanies { get; set; }
+        
+        [NotMapped]
+        public ICollection<Company> Companies => AccessibleCompanies;
 
         [ForeignKey("FiscalYear")]
         public Guid? FiscalYearId { get; set; }
@@ -109,6 +112,8 @@ namespace SkyForge.Models.UserModel
 
         // Attendance settings as complex type
         public AttendanceSettings AttendanceSettings { get; set; }
+        public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
+        public virtual ICollection<DutySchedule> DutySchedules { get; set; } = new List<DutySchedule>();
 
         public bool AutoBackupEnabled { get; set; } = false;
         public string BackupSchedule { get; set; } = "daily";

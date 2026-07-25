@@ -208,42 +208,6 @@ const DailyInventorySummary = ({ show, onClose, companyId }) => {
                             </div>
                         </div>
 
-                        {/* Summary Cards */}
-                        {/* <div className="row g-1 mb-2">
-                            <div className="col-12 col-md-4">
-                                <div className="card border-start border-info border-3">
-                                    <div className="card-body py-1 px-2">
-                                        <h6 className="text-muted mb-0" style={{ fontSize: '0.6rem' }}>Total Stock Qty</h6>
-                                        <h5 className="mb-0 text-info" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                                            {formatCurrency(inventoryData.totalStockQuantity)} Units
-                                        </h5>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="col-12 col-md-4">
-                                <div className="card border-start border-success border-3">
-                                    <div className="card-body py-1 px-2">
-                                        <h6 className="text-muted mb-0" style={{ fontSize: '0.6rem' }}>Total Stock Value</h6>
-                                        <h5 className="mb-0 text-success" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                                            Rs. {formatCurrency(inventoryData.totalStockValue)}
-                                        </h5>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="col-12 col-md-4">
-                                <div className="card border-start border-warning border-3">
-                                    <div className="card-body py-1 px-2">
-                                        <h6 className="text-muted mb-0" style={{ fontSize: '0.6rem' }}>Total Items</h6>
-                                        <h5 className="mb-0 text-warning" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                                            {inventoryData.totalItems}
-                                        </h5>
-                                    </div>
-                                </div>
-                            </div>
-                        </div> */}
-
                         {/* Inventory Table */}
                         {loading ? (
                             <div className="text-center py-4">

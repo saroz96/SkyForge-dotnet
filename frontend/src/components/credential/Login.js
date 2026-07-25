@@ -1352,12 +1352,6 @@ const LoginForm = () => {
                                 </button>
                             </div>
                         </div>
-                        {/* <div className="d-flex justify-content-between align-items-center mb-2">
-                            <Link to="/auth/verify-email">Verify Email</Link>
-                            <Link to="/auth/forgot-password" className="forgot-password">
-                                Forgot password?
-                            </Link>
-                        </div> */}
                         <div style={styles.optionsRow}>
                             <label style={styles.verifyEmailLabel}>
                                 <Link to="/auth/verify-email" style={{ textDecoration: 'none', color: 'inherit' }}>

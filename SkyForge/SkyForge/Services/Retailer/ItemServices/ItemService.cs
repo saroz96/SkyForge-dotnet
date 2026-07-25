@@ -273,7 +273,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     ItemId = newItem.Id,
                     // Use provided InitialFiscalYearId or default to current fiscal year
                     InitialFiscalYearId = createItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
-                    CompanyId = createItemDto.CompanyId,
+                    CompanyId = companyId,
                     OpeningStock = openingStock,
                     OpeningStockValue = createItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockValue,
                     PurchasePrice = createItemDto.InitialOpeningStock?.PurchasePrice ?? purchasePrice,

@@ -67,6 +67,8 @@ namespace SkyForge.Models.CompanyModel
         // public virtual Settings Settings { get; set; } = null!;
 
         public virtual ICollection<Settings> Settings { get; set; } = new List<Settings>();
+        public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
+        public virtual ICollection<DutySchedule> DutySchedules { get; set; } = new List<DutySchedule>();
 
         [Column(TypeName = "varchar(20)")]
         public DateFormatEnum? DateFormat { get; set; } = DateFormatEnum.English;
@@ -112,6 +114,9 @@ namespace SkyForge.Models.CompanyModel
     [ComplexType]
     public class OfficeLocation
     {
+        [Key]
+        public Guid Id { get; set; } = Guid.NewGuid();
+
         [MaxLength(100)]
         public string Name { get; set; }
 

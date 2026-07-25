@@ -110,7 +110,8 @@ namespace SkyForge.Data
         public DbSet<CashCounterPurchaseReturn> CashCounterPurchaseReturns { get; set; }
 
         public DbSet<AuditLog> AuditLogs { get; set; }
-
+        public DbSet<Attendance> Attendances { get; set; }
+        public DbSet<DutySchedule> DutySchedules { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

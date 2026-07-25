@@ -13,6 +13,7 @@ import WelcomePage from './components/welcome';
 import LoginForm from './components/credential/Login';
 import Dashboard from './components/company/Dashboard';
 import RegisterForm from './components/credential/Registration';
+import PrivacyPolicy from './components/PrivacyPolicy';
 import VerifyEmail from './components/credential/VerifyEmail';
 import ResendVerification from './components/credential/ResendVerification';
 import ForgotPassword from './components/credential/ForgotPassword';
@@ -171,7 +172,7 @@ function AppContent() {
             {/* Public Routes */}
             <Route path="/" element={<WelcomePage />} />
             <Route path="/auth/register" element={<RegisterForm />} />
-            {/* <Route path="/verify-email/:token" element={<VerifyEmail />} /> */}
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/auth/verify-email" element={<ResendVerification />} />
             <Route path="/auth/forgot-password" element={<ForgotPassword />} />
