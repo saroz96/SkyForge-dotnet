@@ -41,68 +41,29 @@ namespace SkyForge.Services.Retailer.ItemServices
             _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
 
+
+        // //for 6 digit------------------------------start
         // /// <summary>
-        // /// Generates a random 4-digit unique number for items (1000-9999)
+        // /// Generates a unique item number using database sequence (Fastest & Most Reliable)
         // /// </summary>
         // public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
         // {
         //     try
         //     {
-        //         int uniqueNumber;
-        //         bool isUnique;
-        //         int attempts = 0;
-        //         const int maxAttempts = 100; // Prevent infinite loop
+        //         string sequenceName = $"item_seq_{companyId.ToString().Replace("-", "_")}";
 
-        //         do
-        //         {
-        //             attempts++;
+        //         _logger.LogInformation($"Looking for sequence: {sequenceName}");
 
-        //             // Generate random 4-digit number (1000-9999)
-        //             uniqueNumber = _random.Next(1000, 10000);
+        //         // Ensure sequence exists for this company
+        //         await EnsureSequenceExistsAsync(companyId, sequenceName);
 
-        //             // Check if number already exists in the same company
-        //             isUnique = !await _context.Items
-        //                 .AnyAsync(i => i.CompanyId == companyId && i.UniqueNumber == uniqueNumber);
-
-        //             if (attempts >= maxAttempts)
-        //             {
-        //                 // Fallback: Get max number and add 1000 + random
-        //                 var maxNumber = await _context.Items
-        //                     .Where(i => i.CompanyId == companyId)
-        //                     .MaxAsync(i => (int?)i.UniqueNumber) ?? 1000;
-
-        //                 uniqueNumber = maxNumber + 1000 + _random.Next(1, 100);
-        //                 _logger.LogWarning("Using fallback unique number generation: {UniqueNumber}", uniqueNumber);
-        //                 break;
-        //             }
-
-        //         } while (!isUnique);
-
-        //         _logger.LogDebug("Generated unique item number: {UniqueNumber} for company {CompanyId}", uniqueNumber, companyId);
-        //         return uniqueNumber;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error generating unique item number for company {CompanyId}", companyId);
-        //         throw;
-        //     }
-        // }
-
-        /// <summary>
-        /// Generates a unique item number using database sequence (Fastest & Most Reliable)
-        /// </summary>
-        // public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
-        // {
-        //     try
-        //     {
-        //         // Use database function to get next number from sequence
+        //         // Get next value from sequence
         //         using var connection = new NpgsqlConnection(_connectionString);
         //         await connection.OpenAsync();
 
         //         using var cmd = new NpgsqlCommand(
-        //             "SELECT get_next_item_number(@companyId)",
+        //             $"SELECT nextval('\"{sequenceName}\"')", // Added quotes for case sensitivity
         //             connection);
-        //         cmd.Parameters.AddWithValue("companyId", companyId);
 
         //         var result = await cmd.ExecuteScalarAsync();
         //         var uniqueNumber = Convert.ToInt32(result);
@@ -118,22 +79,170 @@ namespace SkyForge.Services.Retailer.ItemServices
         //     }
         // }
 
+        // /// <summary>
+        // /// Ensures a sequence exists for the company, creates it if not
+        // /// </summary>
+        // private async Task EnsureSequenceExistsAsync(Guid companyId, string sequenceName)
+        // {
+        //     try
+        //     {
+        //         using var connection = new NpgsqlConnection(_connectionString);
+        //         await connection.OpenAsync();
+
+        //         // Check if sequence exists
+        //         using var checkCmd = new NpgsqlCommand(
+        //             @"SELECT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = @sequenceName)",
+        //             connection);
+        //         checkCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
+
+        //         var exists = await checkCmd.ExecuteScalarAsync();
+
+        //         _logger.LogInformation($"Sequence {sequenceName} exists: {exists}");
+
+        //         if (!(bool)exists)
+        //         {
+        //             // Get current max unique number - FIXED LINQ
+        //             int maxUniqueNumber = 0;
+        //             try
+        //             {
+        //                 // Use MaxAsync without DefaultIfEmpty
+        //                 maxUniqueNumber = await _context.Items
+        //                     .Where(i => i.CompanyId == companyId)
+        //                     .Select(i => i.UniqueNumber)
+        //                     .MaxAsync();
+        //             }
+        //             catch (InvalidOperationException)
+        //             {
+        //                 // No items found, use default
+        //                 maxUniqueNumber = 0;
+        //             }
+
+        //             long startValue = maxUniqueNumber < 100000 ? 100000 : maxUniqueNumber + 1;
+
+        //             // Create new sequence with 6 digits
+        //             using var createCmd = new NpgsqlCommand(
+        //                 $@"CREATE SEQUENCE ""{sequenceName}"" 
+        //            START WITH {startValue} 
+        //            INCREMENT BY 1 
+        //            MINVALUE 100000 
+        //            MAXVALUE 999999 
+        //            CYCLE",
+        //                 connection);
+        //             await createCmd.ExecuteNonQueryAsync();
+        //             _logger.LogInformation("Created sequence {SequenceName} for company {CompanyId} with start value {StartValue}",
+        //                 sequenceName, companyId, startValue);
+        //         }
+        //         else
+        //         {
+        //             // Check if sequence needs upgrading
+        //             using var checkMinValueCmd = new NpgsqlCommand(
+        //                 $"SELECT min_value FROM pg_sequences WHERE sequencename = @sequenceName",
+        //                 connection);
+        //             checkMinValueCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
+
+        //             var minValueObj = await checkMinValueCmd.ExecuteScalarAsync();
+        //             long minValue = minValueObj != null ? Convert.ToInt64(minValueObj) : 0;
+
+        //             if (minValue < 100000)
+        //             {
+        //                 _logger.LogInformation($"Upgrading sequence {sequenceName} from 4-digit to 6-digit");
+
+        //                 try
+        //                 {
+        //                     // Try to alter the sequence
+        //                     using var alterCmd = new NpgsqlCommand(
+        //                         $@"ALTER SEQUENCE ""{sequenceName}"" 
+        //                    MINVALUE 100000 MAXVALUE 999999",
+        //                         connection);
+        //                     await alterCmd.ExecuteNonQueryAsync();
+
+        //                     // Get current value
+        //                     using var getValCmd = new NpgsqlCommand(
+        //                         $"SELECT last_value FROM pg_sequences WHERE sequencename = @sequenceName",
+        //                         connection);
+        //                     getValCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
+        //                     var curValObj = await getValCmd.ExecuteScalarAsync();
+        //                     long currentValue = curValObj != null ? Convert.ToInt64(curValObj) : 100000;
+
+        //                     long newStart = currentValue < 100000 ? 100000 : currentValue + 1;
+
+        //                     using var restartCmd = new NpgsqlCommand(
+        //                         $@"ALTER SEQUENCE ""{sequenceName}"" RESTART WITH {newStart}",
+        //                         connection);
+        //                     await restartCmd.ExecuteNonQueryAsync();
+
+        //                     _logger.LogInformation($"Successfully upgraded sequence {sequenceName} to 6 digits");
+        //                 }
+        //                 catch (Exception ex)
+        //                 {
+        //                     _logger.LogWarning($"Alter failed: {ex.Message}. Recreating sequence...");
+
+        //                     // Drop and recreate
+        //                     using var dropCmd = new NpgsqlCommand(
+        //                         $@"DROP SEQUENCE ""{sequenceName}""",
+        //                         connection);
+        //                     await dropCmd.ExecuteNonQueryAsync();
+
+        //                     // Get max value using the same pattern
+        //                     int maxUniqueNumber = 0;
+        //                     try
+        //                     {
+        //                         maxUniqueNumber = await _context.Items
+        //                             .Where(i => i.CompanyId == companyId)
+        //                             .Select(i => i.UniqueNumber)
+        //                             .MaxAsync();
+        //                     }
+        //                     catch (InvalidOperationException)
+        //                     {
+        //                         maxUniqueNumber = 0;
+        //                     }
+
+        //                     long startValue = maxUniqueNumber < 100000 ? 100000 : maxUniqueNumber + 1;
+
+        //                     using var createCmd = new NpgsqlCommand(
+        //                         $@"CREATE SEQUENCE ""{sequenceName}"" 
+        //                    START WITH {startValue} 
+        //                    INCREMENT BY 1 
+        //                    MINVALUE 100000 
+        //                    MAXVALUE 999999 
+        //                    CYCLE",
+        //                         connection);
+        //                     await createCmd.ExecuteNonQueryAsync();
+
+        //                     _logger.LogInformation($"Recreated sequence {sequenceName} with start value {startValue}");
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error ensuring sequence exists: {SequenceName} for company {CompanyId}", sequenceName, companyId);
+        //         throw;
+        //     }
+        // }
+        // //-----------------------------------------end
+
+        //for 5 digit------------------------------start
+        /// <summary>
+        /// Generates a unique item number using database sequence (Fastest & Most Reliable)
+        /// </summary>
         public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
         {
             try
             {
-                // Generate sequence name from company ID
                 string sequenceName = $"item_seq_{companyId.ToString().Replace("-", "_")}";
 
-                // Check if sequence exists and create if not
-                await EnsureSequenceExistsAsync(companyId);
+                _logger.LogInformation($"Looking for sequence: {sequenceName}");
+
+                // Ensure sequence exists for this company
+                await EnsureSequenceExistsAsync(companyId, sequenceName);
 
                 // Get next value from sequence
                 using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
 
                 using var cmd = new NpgsqlCommand(
-                    $"SELECT nextval('{sequenceName}')",
+                    $"SELECT nextval('\"{sequenceName}\"')", // Added quotes for case sensitivity
                     connection);
 
                 var result = await cmd.ExecuteScalarAsync();
@@ -150,10 +259,11 @@ namespace SkyForge.Services.Retailer.ItemServices
             }
         }
 
-        private async Task EnsureSequenceExistsAsync(Guid companyId)
+        /// <summary>
+        /// Ensures a sequence exists for the company, creates it if not
+        /// </summary>
+        private async Task EnsureSequenceExistsAsync(Guid companyId, string sequenceName)
         {
-            string sequenceName = $"item_seq_{companyId.ToString().Replace("-", "_")}";
-
             try
             {
                 using var connection = new NpgsqlConnection(_connectionString);
@@ -163,36 +273,173 @@ namespace SkyForge.Services.Retailer.ItemServices
                 using var checkCmd = new NpgsqlCommand(
                     @"SELECT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = @sequenceName)",
                     connection);
-                checkCmd.Parameters.AddWithValue("sequenceName", sequenceName);
+                checkCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
 
-                var exists = (bool)await checkCmd.ExecuteScalarAsync();
+                var exists = await checkCmd.ExecuteScalarAsync();
 
-                if (!exists)
+                _logger.LogInformation($"Sequence {sequenceName} exists: {exists}");
+
+                if (!(bool)exists)
                 {
-                    // Create sequence
+                    // Get current max unique number
+                    int maxUniqueNumber = 0;
+                    try
+                    {
+                        maxUniqueNumber = await _context.Items
+                            .Where(i => i.CompanyId == companyId)
+                            .Select(i => i.UniqueNumber)
+                            .MaxAsync();
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        maxUniqueNumber = 0;
+                    }
+
+                    long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
+
+                    // Create new sequence with 5 digits
                     using var createCmd = new NpgsqlCommand(
-                        $@"CREATE SEQUENCE {sequenceName} 
-                   START WITH 1000 
+                        $@"CREATE SEQUENCE ""{sequenceName}"" 
+                   START WITH {startValue} 
                    INCREMENT BY 1 
-                   MINVALUE 1000 
-                   MAXVALUE 999999 
+                   MINVALUE 10000 
+                   MAXVALUE 99999 
                    CYCLE",
                         connection);
                     await createCmd.ExecuteNonQueryAsync();
+                    _logger.LogInformation("Created sequence {SequenceName} for company {CompanyId} with start value {StartValue}",
+                        sequenceName, companyId, startValue);
+                }
+                else
+                {
+                    // 🔴 CRITICAL: Check if sequence is 6-digit and force reset to 5-digit
+                    using var checkMinValueCmd = new NpgsqlCommand(
+                        $"SELECT min_value FROM pg_sequences WHERE sequencename = @sequenceName",
+                        connection);
+                    checkMinValueCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
 
-                    _logger.LogInformation("Created sequence {SequenceName} for company {CompanyId}", sequenceName, companyId);
+                    var minValueObj = await checkMinValueCmd.ExecuteScalarAsync();
+                    long minValue = minValueObj != null ? Convert.ToInt64(minValueObj) : 0;
+
+                    // 🔴 FORCE RESET: If minValue is 100000 (6-digit), reset to 5-digit
+                    if (minValue >= 100000)
+                    {
+                        _logger.LogWarning($"Sequence {sequenceName} is 6-digit (minValue: {minValue}). Forcing reset to 5-digit...");
+
+                        // Get current max unique number from items
+                        int maxUniqueNumber = 0;
+                        try
+                        {
+                            maxUniqueNumber = await _context.Items
+                                .Where(i => i.CompanyId == companyId)
+                                .Select(i => i.UniqueNumber)
+                                .MaxAsync();
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            maxUniqueNumber = 0;
+                        }
+
+                        // Calculate new start value (5-digit)
+                        long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
+
+                        // Drop and recreate the sequence with 5-digit configuration
+                        using var dropCmd = new NpgsqlCommand(
+                            $@"DROP SEQUENCE IF EXISTS ""{sequenceName}""",
+                            connection);
+                        await dropCmd.ExecuteNonQueryAsync();
+
+                        using var createCmd = new NpgsqlCommand(
+                            $@"CREATE SEQUENCE ""{sequenceName}"" 
+                       START WITH {startValue} 
+                       INCREMENT BY 1 
+                       MINVALUE 10000 
+                       MAXVALUE 99999 
+                       CYCLE",
+                            connection);
+                        await createCmd.ExecuteNonQueryAsync();
+
+                        _logger.LogInformation($"Reset sequence {sequenceName} to 5-digit with start value {startValue}");
+                    }
+                    // Check if sequence needs upgrading from 4-digit to 5-digit
+                    else if (minValue < 10000)
+                    {
+                        _logger.LogInformation($"Upgrading sequence {sequenceName} from 4-digit to 5-digit");
+
+                        try
+                        {
+                            // Try to alter the sequence
+                            using var alterCmd = new NpgsqlCommand(
+                                $@"ALTER SEQUENCE ""{sequenceName}"" 
+                           MINVALUE 10000 MAXVALUE 99999",
+                                connection);
+                            await alterCmd.ExecuteNonQueryAsync();
+
+                            // Get current value
+                            using var getValCmd = new NpgsqlCommand(
+                                $"SELECT last_value FROM pg_sequences WHERE sequencename = @sequenceName",
+                                connection);
+                            getValCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
+                            var curValObj = await getValCmd.ExecuteScalarAsync();
+                            long currentValue = curValObj != null ? Convert.ToInt64(curValObj) : 10000;
+
+                            long newStart = currentValue < 10000 ? 10000 : currentValue + 1;
+
+                            using var restartCmd = new NpgsqlCommand(
+                                $@"ALTER SEQUENCE ""{sequenceName}"" RESTART WITH {newStart}",
+                                connection);
+                            await restartCmd.ExecuteNonQueryAsync();
+
+                            _logger.LogInformation($"Successfully upgraded sequence {sequenceName} to 5 digits");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning($"Alter failed: {ex.Message}. Recreating sequence...");
+
+                            // Drop and recreate
+                            using var dropCmd = new NpgsqlCommand(
+                                $@"DROP SEQUENCE ""{sequenceName}""",
+                                connection);
+                            await dropCmd.ExecuteNonQueryAsync();
+
+                            int maxUniqueNumber = 0;
+                            try
+                            {
+                                maxUniqueNumber = await _context.Items
+                                    .Where(i => i.CompanyId == companyId)
+                                    .Select(i => i.UniqueNumber)
+                                    .MaxAsync();
+                            }
+                            catch (InvalidOperationException)
+                            {
+                                maxUniqueNumber = 0;
+                            }
+
+                            long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
+
+                            using var createCmd = new NpgsqlCommand(
+                                $@"CREATE SEQUENCE ""{sequenceName}"" 
+                           START WITH {startValue} 
+                           INCREMENT BY 1 
+                           MINVALUE 10000 
+                           MAXVALUE 99999 
+                           CYCLE",
+                                connection);
+                            await createCmd.ExecuteNonQueryAsync();
+
+                            _logger.LogInformation($"Recreated sequence {sequenceName} with start value {startValue}");
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error ensuring sequence exists for company {CompanyId}", companyId);
+                _logger.LogError(ex, "Error ensuring sequence exists: {SequenceName} for company {CompanyId}", sequenceName, companyId);
                 throw;
             }
         }
+        //-----------------------------------------end
 
-        /// <summary>
-        /// Generates a barcode number (unique long number)
-        /// </summary>
         public async Task<long> GenerateBarcodeNumberAsync(Guid companyId)
         {
             try

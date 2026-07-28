@@ -428,11 +428,70 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
             return cashBalance;
         }
 
+        // private async Task<decimal> CalculateBankBalanceAsync(Guid companyId, DateTime endDate)
+        // {
+        //     try
+        //     {
+        //         decimal balance = 0;
+
+        //         var bankGroup = await _context.AccountGroups
+        //             .FirstOrDefaultAsync(cg => cg.CompanyId == companyId &&
+        //                                       cg.Name == "Bank Accounts");
+
+        //         if (bankGroup != null)
+        //         {
+        //             var bankAccounts = await _context.Accounts
+        //                 .Where(a => a.CompanyId == companyId &&
+        //                            a.AccountGroupsId == bankGroup.Id &&
+        //                            a.IsActive)
+        //                 .ToListAsync();
+
+        //             foreach (var account in bankAccounts)
+        //             {
+        //                 decimal accountBalance = 0;
+
+        //                 if (account.InitialOpeningBalance != null)
+        //                 {
+        //                     var openingBalance = account.InitialOpeningBalance;
+        //                     if (openingBalance.Type == "Dr")
+        //                     {
+        //                         accountBalance += openingBalance.Amount;
+        //                     }
+        //                     else if (openingBalance.Type == "Cr")
+        //                     {
+        //                         accountBalance -= openingBalance.Amount;
+        //                     }
+        //                 }
+
+        //                 var transactions = await _context.Transactions
+        //                     .Where(t => t.AccountId == account.Id &&
+        //                                t.Date <= endDate &&
+        //                                t.Status == TransactionStatus.Active)
+        //                     .ToListAsync();
+
+        //                 foreach (var transaction in transactions)
+        //                 {
+        //                     accountBalance += (transaction.TotalDebit - transaction.TotalCredit);
+        //                 }
+
+        //                 balance += accountBalance;
+        //             }
+        //         }
+
+        //         return balance;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error calculating bank balance for company {CompanyId}", companyId);
+        //         return 0;
+        //     }
+        // }
+
         private async Task<decimal> CalculateBankBalanceAsync(Guid companyId, DateTime endDate)
         {
             try
             {
-                decimal balance = 0;
+                decimal totalBalance = 0;
 
                 var bankGroup = await _context.AccountGroups
                     .FirstOrDefaultAsync(cg => cg.CompanyId == companyId &&
@@ -444,12 +503,14 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                         .Where(a => a.CompanyId == companyId &&
                                    a.AccountGroupsId == bankGroup.Id &&
                                    a.IsActive)
+                        .Include(a => a.InitialOpeningBalance) // Make sure to include this
                         .ToListAsync();
 
                     foreach (var account in bankAccounts)
                     {
                         decimal accountBalance = 0;
 
+                        // Include initial opening balance
                         if (account.InitialOpeningBalance != null)
                         {
                             var openingBalance = account.InitialOpeningBalance;
@@ -463,22 +524,24 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                             }
                         }
 
+                        // Get all transactions for this account up to endDate
                         var transactions = await _context.Transactions
                             .Where(t => t.AccountId == account.Id &&
                                        t.Date <= endDate &&
                                        t.Status == TransactionStatus.Active)
                             .ToListAsync();
 
+                        // Process transactions (Debit increases asset, Credit decreases asset)
                         foreach (var transaction in transactions)
                         {
-                            accountBalance += (transaction.TotalDebit - transaction.TotalCredit);
+                            accountBalance += transaction.TotalDebit - transaction.TotalCredit;
                         }
 
-                        balance += accountBalance;
+                        totalBalance += accountBalance;
                     }
                 }
 
-                return balance;
+                return totalBalance;
             }
             catch (Exception ex)
             {
@@ -486,6 +549,65 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                 return 0;
             }
         }
+
+        // private async Task<decimal> CalculateBankODBalanceAsync(Guid companyId, DateTime endDate)
+        // {
+        //     try
+        //     {
+        //         decimal balance = 0;
+
+        //         var bankODGroup = await _context.AccountGroups
+        //             .FirstOrDefaultAsync(cg => cg.CompanyId == companyId &&
+        //                                       cg.Name == "Bank O/D Account");
+
+        //         if (bankODGroup != null)
+        //         {
+        //             var bankODAccounts = await _context.Accounts
+        //                 .Where(a => a.CompanyId == companyId &&
+        //                            a.AccountGroupsId == bankODGroup.Id &&
+        //                            a.IsActive)
+        //                 .ToListAsync();
+
+        //             foreach (var account in bankODAccounts)
+        //             {
+        //                 decimal accountBalance = 0;
+
+        //                 if (account.InitialOpeningBalance != null)
+        //                 {
+        //                     var openingBalance = account.InitialOpeningBalance;
+        //                     if (openingBalance.Type == "Dr")
+        //                     {
+        //                         accountBalance += openingBalance.Amount;
+        //                     }
+        //                     else if (openingBalance.Type == "Cr")
+        //                     {
+        //                         accountBalance -= openingBalance.Amount;
+        //                     }
+        //                 }
+
+        //                 var transactions = await _context.Transactions
+        //                     .Where(t => t.AccountId == account.Id &&
+        //                                t.Date <= endDate &&
+        //                                t.Status == TransactionStatus.Active)
+        //                     .ToListAsync();
+
+        //                 foreach (var transaction in transactions)
+        //                 {
+        //                     accountBalance += (transaction.TotalDebit - transaction.TotalCredit);
+        //                 }
+
+        //                 balance += accountBalance;
+        //             }
+        //         }
+
+        //         return balance;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error calculating bank OD balance for company {CompanyId}", companyId);
+        //         return 0;
+        //     }
+        // }
 
         private async Task<decimal> CalculateBankODBalanceAsync(Guid companyId, DateTime endDate)
         {
@@ -503,21 +625,25 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                         .Where(a => a.CompanyId == companyId &&
                                    a.AccountGroupsId == bankODGroup.Id &&
                                    a.IsActive)
+                        .Include(a => a.InitialOpeningBalance) // Include opening balance
                         .ToListAsync();
 
                     foreach (var account in bankODAccounts)
                     {
                         decimal accountBalance = 0;
 
+                        // For Bank O/D: Credit balance increases overdraft (liability)
                         if (account.InitialOpeningBalance != null)
                         {
                             var openingBalance = account.InitialOpeningBalance;
-                            if (openingBalance.Type == "Dr")
+                            if (openingBalance.Type == "Cr")
                             {
+                                // Credit opening balance adds to overdraft liability
                                 accountBalance += openingBalance.Amount;
                             }
-                            else if (openingBalance.Type == "Cr")
+                            else if (openingBalance.Type == "Dr")
                             {
+                                // Debit opening balance reduces overdraft liability
                                 accountBalance -= openingBalance.Amount;
                             }
                         }
@@ -528,9 +654,12 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
                                        t.Status == TransactionStatus.Active)
                             .ToListAsync();
 
+                        // For Bank O/D (Liability/Credit account):
+                        // Credit increases the overdraft (liability)
+                        // Debit decreases the overdraft (liability)
                         foreach (var transaction in transactions)
                         {
-                            accountBalance += (transaction.TotalDebit - transaction.TotalCredit);
+                            accountBalance += (transaction.TotalCredit - transaction.TotalDebit);
                         }
 
                         balance += accountBalance;
