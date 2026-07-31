@@ -128,7 +128,7 @@ const Statement = () => {
     const { draftSave, setDraftSave } = usePageNotRefreshContext();
     const [showProductModal, setShowProductModal] = useState(false);
     const [showAccountModal, setShowAccountModal] = useState(false);
-
+    const [filteredItemwiseStatement, setFilteredItemwiseStatement] = useState([]);
     // Account search states for virtualized list
     const [accounts, setAccounts] = useState([]);
     const [isAccountSearching, setIsAccountSearching] = useState(false);
@@ -220,6 +220,30 @@ const Statement = () => {
         }
         return '';
     });
+
+    // Filter itemwise statement based on search query
+    useEffect(() => {
+        if (viewMode === 'itemwise' && data.itemwiseStatement.length > 0) {
+            const filtered = data.itemwiseStatement.filter(bill => {
+                // Search in bill level fields
+                const billMatch =
+                    bill.billNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    bill.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    bill.paymentMode?.toLowerCase().includes(searchQuery.toLowerCase());
+
+                // Search in items
+                const itemMatch = bill.items?.some(item =>
+                    item.item?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    item.productName?.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+
+                return billMatch || itemMatch;
+            });
+            setFilteredItemwiseStatement(filtered);
+        } else {
+            setFilteredItemwiseStatement(data.itemwiseStatement);
+        }
+    }, [data.itemwiseStatement, searchQuery, viewMode]);
 
     const [selectedRowIndex, setSelectedRowIndex] = useState(() => {
         if (draftSave && draftSave.statementSearch) {
@@ -1003,109 +1027,6 @@ const Statement = () => {
         printWindow.document.close();
     };
 
-    //     const generateRegularPrintContent = (statementData) => {
-    //         let balance = data.openingBalance;
-    //         const statement = statementData;
-
-    //         // Calculate totals
-    //         let totalDebit = 0;
-    //         let totalCredit = 0;
-    //         const isNepaliFormat = company.dateFormat === 'nepali';
-
-    //         let tableContent = `
-    //     <div class="print-header">
-    //         <div class="company-name">${data.currentCompanyName || 'Company Name'}</div>
-    //         <div class="company-details">
-    //             ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
-    //             PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
-    //         </div>
-    //         <hr style="margin:6px 0; border: 1px solid #ccc;">
-    //         <div class="report-title">STATEMENT OF ACCOUNT</div>
-    //         <div class="statement-info">
-    //             <strong>Party:</strong> ${data.partyName} &nbsp;|&nbsp;
-    //             <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
-    //             <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
-    //             <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
-    //             <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
-    //             <strong>Payment Mode:</strong> ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}
-    //         </div>
-    //     </div>
-    //     <table cellspacing="0">
-    //         <thead>
-    //             <tr>
-    //                 <th class="nowrap col-miti">Miti</th>
-    //                 <th class="nowrap col-date">Date</th>
-    //                 <th class="nowrap col-vch">Vch No.</th>
-    //                 <th class="nowrap col-type">Type</th>
-    //                 <th class="nowrap col-paymode">Pay Mode</th>
-    //                 <th class="nowrap col-account">Account</th>
-    //                 <th class="nowrap col-amount text-end">Debit (Rs.)</th>
-    //                 <th class="nowrap col-amount text-end">Credit (Rs.)</th>
-    //                 <th class="nowrap col-balance text-end">Balance (Rs.)</th>
-    //             </tr>
-    //         </thead>
-    //         <tbody>
-    // `;
-
-    //         statement.forEach((item, index) => {
-    //             const bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
-    //             const adDate = item.date ? new Date(item.date).toLocaleDateString() : '';
-
-    //             const debitAmount = parseFloat(item.debit) || 0;
-    //             const creditAmount = parseFloat(item.credit) || 0;
-
-    //             // Update running balance
-    //             balance = balance + debitAmount - creditAmount;
-
-    //             totalDebit += debitAmount;
-    //             totalCredit += creditAmount;
-
-    //             const balanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
-
-    //             // Get the account name
-    //             let accountName = '';
-    //             if (item.type === 'Pymt') {
-    //                 accountName = item.PaymentReceiptType || item.accountType || '';
-    //             } else if (item.type === 'Rcpt') {
-    //                 accountName = item.PaymentReceiptType || item.accountType || '';
-    //             } else {
-    //                 accountName = item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.journalAccountType || '';
-    //             }
-
-    //             tableContent += `
-    //         <tr>
-    //             <td class="nowrap">${bsDate}</td>
-    //             <td class="nowrap">${adDate}</td>
-    //             <td class="nowrap">${item.billNumber || ''}</td>
-    //             <td class="nowrap voucher-type">${item.type || ''}</td>
-    //             <td class="nowrap">${item.paymentMode || ''}</td>
-    //             <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">${accountName}</td>
-    //             <td class="text-end amount-positive">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
-    //             <td class="text-end amount-positive">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
-    //             <td class="text-end balance-text">${balanceText}</td>
-    //         </tr>
-    //     `;
-    //         });
-
-    //         const finalBalanceText = balance > 0 ? `${formatCurrencyForPrint(Math.abs(balance))} Dr` : `${formatCurrencyForPrint(Math.abs(balance))} Cr`;
-
-    //         tableContent += `
-    //         <tr class="grand-total-row">
-    //             <td colspan="6" class="text-end total-label">TOTALS</td>
-    //             <td class="text-end total-label">${formatCurrencyForPrint(totalDebit)}</td>
-    //             <td class="text-end total-label">${formatCurrencyForPrint(totalCredit)}</td>
-    //             <td class="text-end total-label">${finalBalanceText}</td>
-    //         </tr>
-    //         </tbody>
-    //     </table>
-    //     <div class="footer">
-    //         Generated on: ${new Date().toLocaleString()} | Powered by Ams Software
-    //     </div>
-    // `;
-
-    //         return tableContent;
-    //     };
-
     const generateRegularPrintContent = (statementData) => {
         let balance = data.openingBalance;
         const statement = statementData;
@@ -1599,7 +1520,7 @@ const Statement = () => {
         }
     };
 
-    
+
 
     const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
@@ -1757,7 +1678,7 @@ const Statement = () => {
             </div>
         );
     });
-    
+
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
         const item = statement[index];
@@ -1836,7 +1757,7 @@ const Statement = () => {
         } else {
             // For regular transactions, use the transaction date
             bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
-            adDateDisplay = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+            adDateDisplay = item.date ? new Date(item.date).toLocaleDateString() : '';
         }
 
         return (
@@ -2327,7 +2248,7 @@ const Statement = () => {
                                     )
                                 ) : (
                                     // Itemwise view - show the table
-                                    data.itemwiseStatement.length === 0 ? (
+                                    filteredItemwiseStatement.length === 0 ? (
                                         <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                             <i className="bi bi-box-seam text-muted" style={{ fontSize: '1.5rem' }}></i>
                                             <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>No items found</h6>
@@ -2354,7 +2275,7 @@ const Statement = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {data.itemwiseStatement.map((bill, billIndex) => (
+                                                   {filteredItemwiseStatement.map((bill, billIndex) => (
                                                         bill.items && bill.items.map((item, itemIndex) => {
                                                             const isNepaliFormatLocal = company.dateFormat === 'nepali';
                                                             const bsDate = bill.nepaliDate || (isNepaliFormatLocal ? new NepaliDate(bill.nepaliDate).format('YYYY-MM-DD') : '');
@@ -2394,7 +2315,7 @@ const Statement = () => {
                                                     let grandTotalTaxable = 0;
                                                     let grandTotalDiscount = 0;
 
-                                                    data.itemwiseStatement.forEach((bill) => {
+                                                    filteredItemwiseStatement.forEach((bill) => {
                                                         if (bill.items && bill.items.length > 0) {
                                                             bill.items.forEach((item) => {
                                                                 const quantity = item.quantity ? parseFloat(item.quantity) : 0;

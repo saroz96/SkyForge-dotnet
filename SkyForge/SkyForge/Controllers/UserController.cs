@@ -2574,18 +2574,18 @@ namespace SkyForge.Controllers
                     ? new CompanyAttendanceSettingsDTO
                     {
                         GeoFencingEnabled = company.AttendanceSettings.GeoFencingEnabled,
-                        OfficeLocations = company.AttendanceSettings.OfficeLocations?.Select(l => new OfficeLocationDTO
-                        {
-                            Name = l.Name,
-                            Coordinates = new CoordinatesDTO
-                            {
-                                Lat = l.Coordinates?.Lat,
-                                Lng = l.Coordinates?.Lng
-                            },
-                            Radius = l.Radius,
-                            Address = l.Address,
-                            IsActive = l.IsActive
-                        }).ToList() ?? new(),
+                        // OfficeLocations = company.AttendanceSettings.OfficeLocations?.Select(l => new OfficeLocationDTO
+                        // {
+                        //     Name = l.Name,
+                        //     Coordinates = new CoordinatesDTO
+                        //     {
+                        //         Lat = l.Coordinates?.Lat,
+                        //         Lng = l.Coordinates?.Lng
+                        //     },
+                        //     Radius = l.Radius,
+                        //     Address = l.Address,
+                        //     IsActive = l.IsActive
+                        // }).ToList() ?? new(),
                         WorkingHours = new WorkingHoursDTO
                         {
                             StartTime = company.AttendanceSettings.WorkingHours?.StartTime ?? "09:00",

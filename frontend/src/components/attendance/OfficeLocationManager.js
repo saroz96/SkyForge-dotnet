@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Modal,
     Button,
@@ -24,6 +24,33 @@ import {
 } from 'react-icons/fa';
 import axios from 'axios';
 
+// Create axios instance with auth interceptor (matching your existing pattern)
+const api = axios.create({
+    baseURL: process.env.REACT_APP_API_BASE_URL,
+    withCredentials: true,
+});
+
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// Helper to get company ID (handles both _id and Id)
+const getCompanyId = (company) => {
+    return company?.id || company?.Id || company?._id;
+};
+
+// Helper to get location ID (handles both _id and Id)
+const getLocationId = (location) => {
+    return location?.id || location?.Id || location?._id;
+};
+
 const OfficeLocationManager = ({ company, onUpdate }) => {
     const [locations, setLocations] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -46,24 +73,22 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
         if (company) {
             fetchOfficeLocations();
         }
-    }, [company, fetchOfficeLocations]);
+    }, [company]);
 
     const fetchOfficeLocations = useCallback(async () => {
-        if (!company) return;
+        const companyId = getCompanyId(company);
+        if (!companyId) {
+            setError('Company ID not found');
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
         setError(null);
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get('/api/attendance/office-locations', {
-                params: {
-                    companyId: company._id
-                },
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+            const response = await api.get('/api/attendance/office-locations', {
+                params: { companyId: companyId }
             });
 
             console.log('Office locations response:', response.data);
@@ -71,10 +96,6 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
             if (response.data.success) {
                 const officeLocations = response.data.data.officeLocations || [];
                 setLocations(officeLocations);
-
-                // You can also access other data if needed:
-                // const geoFencingEnabled = response.data.data.geoFencingEnabled;
-                // const companyData = response.data.data.company;
             } else {
                 setError(response.data.message || 'Failed to fetch office locations');
             }
@@ -181,6 +202,12 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
     };
 
     const handleAddLocation = async () => {
+        const companyId = getCompanyId(company);
+        if (!companyId) {
+            setError('Company ID not found');
+            return;
+        }
+
         const validationError = validateForm();
         if (validationError) {
             setError(validationError);
@@ -189,9 +216,8 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.post('/api/attendance/office-location', {
-                companyId: company._id,
+            const response = await api.post('/api/attendance/office-location', {
+                companyId: companyId,
                 name: formData.name,
                 coordinates: {
                     lat: parseFloat(formData.coordinates.lat),
@@ -199,19 +225,12 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
                 },
                 radius: formData.radius,
                 address: formData.address
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
 
             if (response.data.success) {
-                setLocations(prev => [...prev, {
-                    _id: response.data.data.locationId,
-                    ...formData,
-                    coordinates: {
-                        lat: parseFloat(formData.coordinates.lat),
-                        lng: parseFloat(formData.coordinates.lng)
-                    }
-                }]);
+                // The response should contain the full location object
+                const newLocation = response.data.data;
+                setLocations(prev => [...prev, newLocation]);
 
                 setShowAddModal(false);
                 resetForm();
@@ -222,7 +241,6 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
                     onUpdate();
                 }
 
-                // Show success message
                 alert('Office location added successfully!');
             }
         } catch (error) {
@@ -249,6 +267,19 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
     };
 
     const handleUpdateLocation = async () => {
+        const companyId = getCompanyId(company);
+        const locationId = getLocationId(selectedLocation);
+        
+        if (!companyId) {
+            setError('Company ID not found');
+            return;
+        }
+        
+        if (!locationId) {
+            setError('Location ID not found');
+            return;
+        }
+
         const validationError = validateForm();
         if (validationError) {
             setError(validationError);
@@ -257,9 +288,8 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.put(`/api/attendance/office-location/${selectedLocation._id}`, {
-                companyId: company._id,
+            const response = await api.put(`/api/attendance/office-location/${locationId}`, {
+                companyId: companyId,
                 updates: {
                     name: formData.name,
                     coordinates: {
@@ -270,13 +300,12 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
                     address: formData.address,
                     isActive: formData.isActive
                 }
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
 
             if (response.data.success) {
+                const updatedLocation = response.data.data;
                 setLocations(prev => prev.map(loc =>
-                    loc._id === selectedLocation._id ? response.data.data : loc
+                    getLocationId(loc) === locationId ? updatedLocation : loc
                 ));
 
                 setShowEditModal(false);
@@ -298,20 +327,24 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
     };
 
     const handleDeleteLocation = async (locationId) => {
+        const companyId = getCompanyId(company);
+        if (!companyId) {
+            setError('Company ID not found');
+            return;
+        }
+
         if (!window.confirm('Are you sure you want to delete this office location?')) {
             return;
         }
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.delete(`/api/attendance/office-location/${locationId}`, {
-                params: { companyId: company._id },
-                headers: { Authorization: `Bearer ${token}` }
+            const response = await api.delete(`/api/attendance/office-location/${locationId}`, {
+                params: { companyId: companyId }
             });
 
             if (response.data.success) {
-                setLocations(prev => prev.filter(loc => loc._id !== locationId));
+                setLocations(prev => prev.filter(loc => getLocationId(loc) !== locationId));
                 setError(null);
 
                 if (onUpdate) {
@@ -346,109 +379,273 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
         window.open(url, '_blank');
     };
 
-    const renderLocationCard = (location) => (
-        <Card key={location._id} className="mb-3 shadow-sm">
-            <Card.Body>
-                <div className="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <h6 className="mb-1">
-                            <FaMapMarkerAlt className="me-2 text-primary" />
-                            {location.name}
-                        </h6>
-                        <p className="text-muted small mb-2">{location.address}</p>
+    const renderLocationCard = (location) => {
+        const locationId = getLocationId(location);
+        
+        return (
+            <Card key={locationId} className="mb-3 shadow-sm">
+                <Card.Body>
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 className="mb-1">
+                                <FaMapMarkerAlt className="me-2 text-primary" />
+                                {location.name}
+                            </h6>
+                            <p className="text-muted small mb-2">{location.address}</p>
+                        </div>
+                        <div>
+                            <Badge bg={location.isActive ? "success" : "secondary"} className="me-2">
+                                {location.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            <Badge bg="info">
+                                <FaRuler className="me-1" />
+                                {location.radius}m
+                            </Badge>
+                        </div>
                     </div>
-                    <div>
-                        <Badge bg={location.isActive ? "success" : "secondary"} className="me-2">
-                            {location.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                        <Badge bg="info">
-                            <FaRuler className="me-1" />
-                            {location.radius}m
-                        </Badge>
+
+                    <div className="location-details">
+                        <Row>
+                            <Col md={6}>
+                                <div className="mb-2">
+                                    <small className="text-muted">Coordinates:</small>
+                                    <div className="font-monospace small">
+                                        {location.coordinates.lat.toFixed(6)}, {location.coordinates.lng.toFixed(6)}
+                                    </div>
+                                </div>
+                            </Col>
+                            <Col md={6}>
+                                <div className="mb-2">
+                                    <small className="text-muted">Status:</small>
+                                    <div>
+                                        {location.isActive ? (
+                                            <span className="text-success">
+                                                <FaCheckCircle className="me-1" />
+                                                Active for attendance
+                                            </span>
+                                        ) : (
+                                            <span className="text-secondary">
+                                                <FaTimesCircle className="me-1" />
+                                                Inactive
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </Col>
+                        </Row>
                     </div>
-                </div>
 
-                <div className="location-details">
-                    <Row>
-                        <Col md={6}>
-                            <div className="mb-2">
-                                <small className="text-muted">Coordinates:</small>
-                                <div className="font-monospace small">
-                                    {location.coordinates.lat.toFixed(6)}, {location.coordinates.lng.toFixed(6)}
-                                </div>
-                            </div>
-                        </Col>
-                        <Col md={6}>
-                            <div className="mb-2">
-                                <small className="text-muted">Status:</small>
-                                <div>
-                                    {location.isActive ? (
-                                        <span className="text-success">
-                                            <FaCheckCircle className="me-1" />
-                                            Active for attendance
-                                        </span>
-                                    ) : (
-                                        <span className="text-secondary">
-                                            <FaTimesCircle className="me-1" />
-                                            Inactive
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </Col>
-                    </Row>
-                </div>
+                    <div className="d-flex justify-content-end mt-3">
+                        <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            className="me-2"
+                            onClick={() => openInMaps(location)}
+                        >
+                            <FaMap className="me-1" />
+                            View Map
+                        </Button>
+                        <Button
+                            variant="outline-primary"
+                            size="sm"
+                            className="me-2"
+                            onClick={() => handleEditLocation(location)}
+                        >
+                            <FaEdit className="me-1" />
+                            Edit
+                        </Button>
+                        <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleDeleteLocation(locationId)}
+                        >
+                            <FaTrash className="me-1" />
+                            Delete
+                        </Button>
+                    </div>
+                </Card.Body>
+            </Card>
+        );
+    };
 
-                <div className="d-flex justify-content-end mt-3">
-                    <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        className="me-2"
-                        onClick={() => openInMaps(location)}
-                    >
-                        <FaMap className="me-1" />
-                        View Map
-                    </Button>
-                    <Button
-                        variant="outline-primary"
-                        size="sm"
-                        className="me-2"
-                        onClick={() => handleEditLocation(location)}
-                    >
-                        <FaEdit className="me-1" />
-                        Edit
-                    </Button>
-                    <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => handleDeleteLocation(location._id)}
-                    >
-                        <FaTrash className="me-1" />
-                        Delete
-                    </Button>
-                </div>
-            </Card.Body>
-        </Card>
-    );
+    // const renderAddEditModal = (isEdit = false) => (
+    //     <Modal show={isEdit ? showEditModal : showAddModal} onHide={() => isEdit ? setShowEditModal(false) : setShowAddModal(false)} size="lg">
+    //         <Modal.Header closeButton className="bg-primary text-white">
+    //             <Modal.Title>
+    //                 <FaMapMarkerAlt className="me-2" />
+    //                 {isEdit ? 'Edit Office Location' : 'Add New Office Location'}
+    //             </Modal.Title>
+    //         </Modal.Header>
+    //         <Modal.Body>
+    //             {error && (
+    //                 <Alert variant="danger" onClose={() => setError(null)} dismissible>
+    //                     {error}
+    //                 </Alert>
+    //             )}
+
+    //             <Form>
+    //                 <Form.Group className="mb-3">
+    //                     <Form.Label>Office Name *</Form.Label>
+    //                     <Form.Control
+    //                         type="text"
+    //                         name="name"
+    //                         value={formData.name}
+    //                         onChange={handleInputChange}
+    //                         placeholder="e.g., Main Office, Branch Office, Warehouse"
+    //                         required
+    //                     />
+    //                     <Form.Text className="text-muted">
+    //                         A descriptive name for this location
+    //                     </Form.Text>
+    //                 </Form.Group>
+
+    //                 <Form.Group className="mb-3">
+    //                     <Form.Label>Address</Form.Label>
+    //                     <Form.Control
+    //                         type="text"
+    //                         name="address"
+    //                         value={formData.address}
+    //                         onChange={handleInputChange}
+    //                         placeholder="Full address of the office"
+    //                     />
+    //                 </Form.Group>
+
+    //                 <Row className="mb-3">
+    //                     <Col md={6}>
+    //                         <Form.Group>
+    //                             <Form.Label>Latitude *</Form.Label>
+    //                             <InputGroup>
+    //                                 <Form.Control
+    //                                     type="number"
+    //                                     step="0.000001"
+    //                                     name="coordinates.lat"
+    //                                     value={formData.coordinates.lat}
+    //                                     onChange={handleInputChange}
+    //                                     placeholder="e.g., 28.459497"
+    //                                     required
+    //                                 />
+    //                                 <Button
+    //                                     variant="outline-secondary"
+    //                                     onClick={getCurrentLocation}
+    //                                     disabled={mapLoading}
+    //                                 >
+    //                                     {mapLoading ? <Spinner size="sm" /> : 'Use Current'}
+    //                                 </Button>
+    //                             </InputGroup>
+    //                             <Form.Text className="text-muted">
+    //                                 Example: 28.459497
+    //                             </Form.Text>
+    //                         </Form.Group>
+    //                     </Col>
+    //                     <Col md={6}>
+    //                         <Form.Group>
+    //                             <Form.Label>Longitude *</Form.Label>
+    //                             <Form.Control
+    //                                 type="number"
+    //                                 step="0.000001"
+    //                                 name="coordinates.lng"
+    //                                 value={formData.coordinates.lng}
+    //                                 onChange={handleInputChange}
+    //                                 placeholder="e.g., 77.026634"
+    //                                 required
+    //                             />
+    //                             <Form.Text className="text-muted">
+    //                                 Example: 77.026634
+    //                             </Form.Text>
+    //                         </Form.Group>
+    //                     </Col>
+    //                 </Row>
+
+    //                 <Form.Group className="mb-3">
+    //                     <Form.Label>Attendance Radius (meters) *</Form.Label>
+    //                     <div className="d-flex align-items-center">
+    //                         <Form.Range
+    //                             min="10"
+    //                             max="1000"
+    //                             step="10"
+    //                             name="radius"
+    //                             value={formData.radius}
+    //                             onChange={handleInputChange}
+    //                             className="me-3"
+    //                         />
+    //                         <Form.Control
+    //                             type="number"
+    //                             min="10"
+    //                             max="1000"
+    //                             name="radius"
+    //                             value={formData.radius}
+    //                             onChange={handleInputChange}
+    //                             style={{ width: '100px' }}
+    //                         />
+    //                         <span className="ms-2">m</span>
+    //                     </div>
+    //                     <Form.Text className="text-muted">
+    //                         Users must be within this radius to mark attendance (Recommended: 50-200m)
+    //                     </Form.Text>
+    //                 </Form.Group>
+
+    //                 {isEdit && (
+    //                     <Form.Group className="mb-3">
+    //                         <Form.Check
+    //                             type="checkbox"
+    //                             label="Active for attendance"
+    //                             checked={formData.isActive}
+    //                             onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+    //                         />
+    //                     </Form.Group>
+    //                 )}
+
+    //                 {currentLocation && (
+    //                     <Alert variant="info" className="small">
+    //                         <FaMapMarkerAlt className="me-2" />
+    //                         Using your current location: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
+    //                     </Alert>
+    //                 )}
+    //             </Form>
+    //         </Modal.Body>
+    //         <Modal.Footer>
+    //             <Button variant="secondary" onClick={() => isEdit ? setShowEditModal(false) : setShowAddModal(false)}>
+    //                 Cancel
+    //             </Button>
+    //             <Button
+    //                 variant="primary"
+    //                 onClick={isEdit ? handleUpdateLocation : handleAddLocation}
+    //                 disabled={loading}
+    //             >
+    //                 {loading ? (
+    //                     <>
+    //                         <Spinner animation="border" size="sm" className="me-2" />
+    //                         {isEdit ? 'Updating...' : 'Adding...'}
+    //                     </>
+    //                 ) : (
+    //                     <>
+    //                         <FaCheckCircle className="me-2" />
+    //                         {isEdit ? 'Update Location' : 'Add Location'}
+    //                     </>
+    //                 )}
+    //             </Button>
+    //         </Modal.Footer>
+    //     </Modal>
+    // );
 
     const renderAddEditModal = (isEdit = false) => (
         <Modal show={isEdit ? showEditModal : showAddModal} onHide={() => isEdit ? setShowEditModal(false) : setShowAddModal(false)} size="lg">
-            <Modal.Header closeButton className="bg-primary text-white">
-                <Modal.Title>
-                    <FaMapMarkerAlt className="me-2" />
+            <Modal.Header closeButton className="bg-primary text-white py-2">
+                <Modal.Title className="d-flex align-items-center" style={{ fontSize: '0.95rem' }}>
+                    <FaMapMarkerAlt className="me-2" size={16} />
                     {isEdit ? 'Edit Office Location' : 'Add New Office Location'}
                 </Modal.Title>
             </Modal.Header>
-            <Modal.Body>
+            <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                 {error && (
-                    <Alert variant="danger" onClose={() => setError(null)} dismissible>
+                    <Alert variant="danger" onClose={() => setError(null)} dismissible className="py-1" style={{ fontSize: '0.8rem' }}>
                         {error}
                     </Alert>
                 )}
 
                 <Form>
-                    <Form.Group className="mb-3">
-                        <Form.Label>Office Name *</Form.Label>
+                    <Form.Group className="mb-2">
+                        <Form.Label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Office Name *</Form.Label>
                         <Form.Control
                             type="text"
                             name="name"
@@ -456,28 +653,32 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
                             onChange={handleInputChange}
                             placeholder="e.g., Main Office, Branch Office, Warehouse"
                             required
+                            size="sm"
+                            style={{ fontSize: '0.8rem', height: '32px' }}
                         />
-                        <Form.Text className="text-muted">
+                        <Form.Text className="text-muted" style={{ fontSize: '0.65rem' }}>
                             A descriptive name for this location
                         </Form.Text>
                     </Form.Group>
 
-                    <Form.Group className="mb-3">
-                        <Form.Label>Address</Form.Label>
+                    <Form.Group className="mb-2">
+                        <Form.Label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Address</Form.Label>
                         <Form.Control
                             type="text"
                             name="address"
                             value={formData.address}
                             onChange={handleInputChange}
                             placeholder="Full address of the office"
+                            size="sm"
+                            style={{ fontSize: '0.8rem', height: '32px' }}
                         />
                     </Form.Group>
 
-                    <Row className="mb-3">
+                    <Row className="mb-2">
                         <Col md={6}>
                             <Form.Group>
-                                <Form.Label>Latitude *</Form.Label>
-                                <InputGroup>
+                                <Form.Label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Latitude *</Form.Label>
+                                <InputGroup size="sm">
                                     <Form.Control
                                         type="number"
                                         step="0.000001"
@@ -486,23 +687,25 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
                                         onChange={handleInputChange}
                                         placeholder="e.g., 28.459497"
                                         required
+                                        style={{ fontSize: '0.8rem', height: '32px' }}
                                     />
                                     <Button
                                         variant="outline-secondary"
                                         onClick={getCurrentLocation}
                                         disabled={mapLoading}
+                                        style={{ fontSize: '0.7rem', height: '32px' }}
                                     >
                                         {mapLoading ? <Spinner size="sm" /> : 'Use Current'}
                                     </Button>
                                 </InputGroup>
-                                <Form.Text className="text-muted">
+                                <Form.Text className="text-muted" style={{ fontSize: '0.6rem' }}>
                                     Example: 28.459497
                                 </Form.Text>
                             </Form.Group>
                         </Col>
                         <Col md={6}>
                             <Form.Group>
-                                <Form.Label>Longitude *</Form.Label>
+                                <Form.Label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Longitude *</Form.Label>
                                 <Form.Control
                                     type="number"
                                     step="0.000001"
@@ -511,16 +714,18 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
                                     onChange={handleInputChange}
                                     placeholder="e.g., 77.026634"
                                     required
+                                    size="sm"
+                                    style={{ fontSize: '0.8rem', height: '32px' }}
                                 />
-                                <Form.Text className="text-muted">
+                                <Form.Text className="text-muted" style={{ fontSize: '0.6rem' }}>
                                     Example: 77.026634
                                 </Form.Text>
                             </Form.Group>
                         </Col>
                     </Row>
 
-                    <Form.Group className="mb-3">
-                        <Form.Label>Attendance Radius (meters) *</Form.Label>
+                    <Form.Group className="mb-2">
+                        <Form.Label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Attendance Radius (meters) *</Form.Label>
                         <div className="d-flex align-items-center">
                             <Form.Range
                                 min="10"
@@ -529,7 +734,8 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
                                 name="radius"
                                 value={formData.radius}
                                 onChange={handleInputChange}
-                                className="me-3"
+                                className="me-2"
+                                style={{ flex: 1 }}
                             />
                             <Form.Control
                                 type="number"
@@ -538,51 +744,55 @@ const OfficeLocationManager = ({ company, onUpdate }) => {
                                 name="radius"
                                 value={formData.radius}
                                 onChange={handleInputChange}
-                                style={{ width: '100px' }}
+                                style={{ width: '80px', fontSize: '0.8rem', height: '32px' }}
+                                size="sm"
                             />
-                            <span className="ms-2">m</span>
+                            <span className="ms-1" style={{ fontSize: '0.8rem' }}>m</span>
                         </div>
-                        <Form.Text className="text-muted">
+                        <Form.Text className="text-muted" style={{ fontSize: '0.6rem' }}>
                             Users must be within this radius to mark attendance (Recommended: 50-200m)
                         </Form.Text>
                     </Form.Group>
 
                     {isEdit && (
-                        <Form.Group className="mb-3">
+                        <Form.Group className="mb-2">
                             <Form.Check
                                 type="checkbox"
                                 label="Active for attendance"
                                 checked={formData.isActive}
                                 onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                                style={{ fontSize: '0.8rem' }}
                             />
                         </Form.Group>
                     )}
 
                     {currentLocation && (
-                        <Alert variant="info" className="small">
-                            <FaMapMarkerAlt className="me-2" />
+                        <Alert variant="info" className="py-1 px-2 mb-2" style={{ fontSize: '0.7rem' }}>
+                            <FaMapMarkerAlt className="me-1" size={12} />
                             Using your current location: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
                         </Alert>
                     )}
                 </Form>
             </Modal.Body>
-            <Modal.Footer>
-                <Button variant="secondary" onClick={() => isEdit ? setShowEditModal(false) : setShowAddModal(false)}>
+            <Modal.Footer className="bg-light py-2">
+                <Button variant="secondary" size="sm" onClick={() => isEdit ? setShowEditModal(false) : setShowAddModal(false)} style={{ fontSize: '0.75rem' }}>
                     Cancel
                 </Button>
                 <Button
                     variant="primary"
+                    size="sm"
                     onClick={isEdit ? handleUpdateLocation : handleAddLocation}
                     disabled={loading}
+                    style={{ fontSize: '0.75rem' }}
                 >
                     {loading ? (
                         <>
-                            <Spinner animation="border" size="sm" className="me-2" />
+                            <Spinner animation="border" size="sm" className="me-1" style={{ width: '14px', height: '14px' }} />
                             {isEdit ? 'Updating...' : 'Adding...'}
                         </>
                     ) : (
                         <>
-                            <FaCheckCircle className="me-2" />
+                            <FaCheckCircle className="me-1" size={12} />
                             {isEdit ? 'Update Location' : 'Add Location'}
                         </>
                     )}

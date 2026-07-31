@@ -1,3 +1,4 @@
+using Npgsql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -50,6 +51,16 @@ using SkyForge.Services.Retailer.CashCounterServices;
 using SkyForge.Services.AttendanceServices;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("DefaultConnection"));
+dataSourceBuilder.EnableDynamicJson();
+var dataSource = dataSourceBuilder.Build();
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(dataSource)); // Remove .UseNetTopologySuite()
+
+//must be install this package
+// dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite
 
 // Add authentication with JWT
 builder.Services.AddAuthentication(options =>

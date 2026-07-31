@@ -43,7 +43,7 @@ namespace SkyForge.Dto
         public string Source { get; set; } = "geo-fence";
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
-        
+
         // Collection properties for list views
         public List<AttendanceResponseDto>? Attendance { get; set; }
         public PaginationInfo? Pagination { get; set; }
@@ -195,5 +195,38 @@ namespace SkyForge.Dto
         public string End { get; set; } = string.Empty;
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
+    }
+
+    // Create this DTO class
+    public class CompanyAttendanceSettingsDto
+    {
+        public bool GeoFencingEnabled { get; set; }
+        public List<OfficeLocationDto> OfficeLocations { get; set; } = new List<OfficeLocationDto>();
+        public WorkingHoursDto WorkingHours { get; set; } = new WorkingHoursDto();
+        public AutoClockOutDto AutoClockOut { get; set; } = new AutoClockOutDto();
+    }
+
+    public class OfficeLocationDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public double? Lat { get; set; }
+        public double? Lng { get; set; }
+        public int Radius { get; set; }
+        public string Address { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+    }
+
+    public class WorkingHoursDto
+    {
+        public string StartTime { get; set; } = "09:00";
+        public string EndTime { get; set; } = "17:00";
+        public int GracePeriod { get; set; } = 15;
+    }
+
+    public class AutoClockOutDto
+    {
+        public bool Enabled { get; set; }
+        public string Time { get; set; } = "18:00";
     }
 }

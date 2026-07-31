@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaMapMarkerAlt, FaShieldAlt, FaCompressAlt } from 'react-icons/fa';
 import locationService from '../services/locationService';
@@ -12,114 +11,192 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
     const [showModal, setShowModal] = useState(false);
     const [accuracy, setAccuracy] = useState(null);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [isGettingLocation, setIsGettingLocation] = useState(false);
+    const isMounted = useRef(true);
+    const locationSent = useRef(false);
+    const initAttempted = useRef(false);
 
     useEffect(() => {
-        initializeLocation();
-        
         return () => {
+            isMounted.current = false;
             locationService.stopWatching();
         };
-    }, [initializeLocation]);
+    }, []);
 
-    const initializeLocation = useCallback(async () => {
-        try {
+    // Function to send location to parent
+    const sendLocationToParent = (loc) => {
+        console.log('📤 sendLocationToParent called with:', loc);
+        if (onLocationUpdate && typeof onLocationUpdate === 'function') {
+            if (!locationSent.current) {
+                locationSent.current = true;
+                console.log('✅ Calling onLocationUpdate with location:', loc);
+                onLocationUpdate(loc);
+            } else {
+                console.log('⚠️ Location already sent, skipping');
+            }
+        } else {
+            console.warn('⚠️ onLocationUpdate is not a function:', onLocationUpdate);
+        }
+    };
+
+    useEffect(() => {
+        const initialize = async () => {
+            // Prevent multiple initialization attempts
+            if (isInitialized || initAttempted.current) {
+                console.log('⏭️ Already initialized or attempting, skipping');
+                return;
+            }
+            initAttempted.current = true;
+
+            console.log('🚀 Initializing LocationPermissionWrapper');
+
             // Check if geolocation is available
             if (!locationService.isAvailable()) {
+                console.log('❌ Geolocation not available');
                 setPermissionStatus('unsupported');
                 setError('Geolocation is not supported by your browser');
                 setIsInitialized(true);
+                sendLocationToParent(null);
                 return;
             }
 
-            // Request permission
             try {
-                const status = await locationService.requestPermission();
-                setPermissionStatus(status);
-                
-                if (status === 'granted' || status === 'timeout') {
-                    // Start watching location
-                    locationService.subscribe((update) => {
-                        if (update && update.type === 'error') {
-                            setError(update.error);
-                        } else if (update && update.lat) {
-                            // It's a location update
-                            setLocation(update);
-                            setAccuracy(update.accuracy);
-                            if (onLocationUpdate) {
-                                onLocationUpdate(update);
-                            }
-                        }
-                    });
-
-                    // Try to get initial location, but don't fail if it times out
-                    try {
-                        const initialLocation = await locationService.getCurrentLocation({
-                            timeout: 10000,
-                            maximumAge: 60000
-                        });
-                        setLocation(initialLocation);
-                        setAccuracy(initialLocation.accuracy);
-                        if (onLocationUpdate) {
-                            onLocationUpdate(initialLocation);
-                        }
-                    } catch (locationError) {
-                        console.log('Initial location fetch failed:', locationError);
-                        // This is okay, we'll continue watching
+                // Check permission state
+                if (navigator.permissions && navigator.permissions.query) {
+                    const permission = await navigator.permissions.query({ name: 'geolocation' });
+                    console.log('📍 Permission state:', permission.state);
+                    
+                    if (permission.state === 'denied') {
+                        setPermissionStatus('denied');
+                        setError('Location permission denied. Please enable location access.');
+                        setIsInitialized(true);
+                        sendLocationToParent(null);
+                        return;
                     }
-                } else if (status === 'prompt') {
-                    setShowModal(true);
-                } else if (status === 'denied') {
-                    setError('Location permission denied. Please enable location access in browser settings.');
+                    
+                    if (permission.state === 'granted') {
+                        console.log('✅ Permission granted, getting location...');
+                        setPermissionStatus('granted');
+                        setIsGettingLocation(true);
+                        
+                        try {
+                            const loc = await locationService.getCurrentLocation({
+                                timeout: 15000,
+                                maximumAge: 60000,
+                                enableHighAccuracy: false
+                            });
+                            
+                            console.log('📍 Location service returned:', loc);
+                            setIsGettingLocation(false);
+                            
+                            if (loc && loc.lat !== undefined && loc.lng !== undefined && 
+                                !isNaN(loc.lat) && !isNaN(loc.lng) &&
+                                loc.lat !== 0 && loc.lng !== 0) {
+                                console.log('✅ Valid location obtained:', loc);
+                                setLocation(loc);
+                                setAccuracy(loc.accuracy || 0);
+                                // Send location to parent
+                                sendLocationToParent(loc);
+                            } else {
+                                console.warn('⚠️ Invalid location object:', loc);
+                                setError('Could not get valid location. Please check your GPS.');
+                                sendLocationToParent(null);
+                            }
+                        } catch (err) {
+                            console.error('❌ Location fetch error:', err);
+                            setIsGettingLocation(false);
+                            setError(err.message || 'Failed to get location');
+                            sendLocationToParent(null);
+                        }
+                        
+                        setIsInitialized(true);
+                        return;
+                    }
                 }
-            } catch (permissionError) {
-                console.error('Permission error:', permissionError);
+
+                // Permission state is 'prompt' or unknown - show modal
+                console.log('📱 Showing permission modal');
+                setShowModal(true);
+
+            } catch (err) {
+                console.error('❌ Init error:', err);
                 setPermissionStatus('error');
-                setError('Failed to request location permission.');
+                setError('Failed to initialize location services.');
+                setIsInitialized(true);
+                sendLocationToParent(null);
             }
-            
-        } catch (err) {
-            console.error('Location initialization error:', err);
-            setPermissionStatus('error');
-            setError(err.message || 'Failed to initialize location services');
-        } finally {
-            setIsInitialized(true);
-        }
-    }, [onLocationUpdate]);
+        };
+
+        initialize();
+    }, []); // Empty dependency array to run once
 
     const handleAllowLocation = async () => {
+        console.log('🔓 User clicked Allow Location');
+        setShowModal(false);
+        setIsGettingLocation(true);
+        
         try {
             const status = await locationService.requestPermission();
+            console.log('📊 Permission request result:', status);
             setPermissionStatus(status);
-            setShowModal(false);
             
-            if (status === 'granted' || status === 'timeout') {
-                // Start watching
-                locationService.subscribe((update) => {
-                    if (update && update.type === 'error') {
-                        setError(update.error);
-                    } else if (update && update.lat) {
-                        setLocation(update);
-                        setAccuracy(update.accuracy);
-                        if (onLocationUpdate) {
-                            onLocationUpdate(update);
-                        }
+            if (status === 'granted') {
+                try {
+                    const loc = await locationService.getCurrentLocation({
+                        timeout: 15000,
+                        maximumAge: 60000,
+                        enableHighAccuracy: false
+                    });
+                    
+                    console.log('📍 Location after permission:', loc);
+                    setIsGettingLocation(false);
+                    
+                    if (loc && loc.lat !== undefined && loc.lng !== undefined && 
+                        !isNaN(loc.lat) && !isNaN(loc.lng) &&
+                        loc.lat !== 0 && loc.lng !== 0) {
+                        console.log('✅ Valid location after permission:', loc);
+                        setLocation(loc);
+                        setAccuracy(loc.accuracy || 0);
+                        // Reset locationSent to allow sending
+                        locationSent.current = false;
+                        sendLocationToParent(loc);
+                    } else {
+                        console.warn('⚠️ Invalid location after permission:', loc);
+                        setError('Could not get valid location. Please try again.');
+                        sendLocationToParent(null);
                     }
-                });
+                } catch (err) {
+                    console.error('❌ Location fetch after permission error:', err);
+                    setIsGettingLocation(false);
+                    setError(err.message || 'Failed to get location');
+                    sendLocationToParent(null);
+                }
+            } else if (status === 'denied') {
+                setIsGettingLocation(false);
+                setError('Location permission denied.');
+                sendLocationToParent(null);
+            } else {
+                setIsGettingLocation(false);
+                sendLocationToParent(null);
             }
+            setIsInitialized(true);
         } catch (err) {
-            setError(err.message);
+            console.error('❌ Permission error:', err);
+            setIsGettingLocation(false);
+            setError('Failed to get location permission.');
+            setPermissionStatus('error');
+            setIsInitialized(true);
+            sendLocationToParent(null);
         }
-    };
-
-    const handleManualLocation = () => {
-        setPermissionStatus('manual');
-        setShowModal(false);
-        setError('Location access not enabled. Attendance may be limited.');
     };
 
     const handleSkipLocation = () => {
+        console.log('⏭️ User skipped location');
         setPermissionStatus('skipped');
         setShowModal(false);
+        setIsInitialized(true);
+        setError('Location access skipped. Some features may be limited.');
+        sendLocationToParent(null);
     };
 
     const renderPermissionModal = () => (
@@ -140,7 +217,6 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
                         This feature requires access to your location to verify you are at the office.
                     </p>
                 </div>
-
                 <div className="permission-reasons mb-4">
                     <div className="d-flex align-items-start mb-3">
                         <FaShieldAlt className="text-success me-2 mt-1" />
@@ -161,7 +237,6 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
                         </div>
                     </div>
                 </div>
-
                 <Alert variant="info" className="small">
                     <strong>Note:</strong> Your location data is only used for attendance verification
                     and is not shared with third parties.
@@ -179,11 +254,12 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
     );
 
     const renderContent = () => {
-        if (!isInitialized) {
+        if (!isInitialized || isGettingLocation) {
             return (
                 <div className="text-center py-5">
                     <Spinner animation="border" variant="primary" />
-                    <p className="mt-3">Initializing location services...</p>
+                    <p className="mt-3">{isGettingLocation ? 'Getting your location...' : 'Initializing location services...'}</p>
+                    <p className="text-muted small">This may take a moment</p>
                 </div>
             );
         }
@@ -192,7 +268,7 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
             return (
                 <Alert variant="warning" className="text-center">
                     <h5>Location Not Supported</h5>
-                    <p>Your browser doesn't support geolocation. Please use a modern browser or contact support.</p>
+                    <p>Your browser doesn't support geolocation.</p>
                     {!required && children}
                 </Alert>
             );
@@ -202,12 +278,12 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
             return (
                 <Alert variant="danger" className="text-center">
                     <h5>Location Access Denied</h5>
-                    <p>{error || 'Please enable location access in your browser settings to use attendance features.'}</p>
+                    <p>{error || 'Please enable location access in your browser settings.'}</p>
                     <div className="mt-3">
                         <Button 
                             variant="outline-danger" 
                             size="sm"
-                            onClick={initializeLocation}
+                            onClick={() => { window.location.reload(); }}
                             className="me-2"
                         >
                             Retry
@@ -215,7 +291,7 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
                         <Button 
                             variant="secondary" 
                             size="sm"
-                            onClick={handleManualLocation}
+                            onClick={handleSkipLocation}
                         >
                             Continue Without Location
                         </Button>
@@ -241,29 +317,72 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
             return (
                 <Alert variant="warning">
                     <h5>Location Service Timeout</h5>
-                    <p>Getting your location is taking longer than expected. Please ensure location services are enabled on your device.</p>
-                    <Button 
-                        variant="outline-warning" 
-                        size="sm"
-                        onClick={initializeLocation}
-                    >
-                        Retry Location
-                    </Button>
+                    <p>{error || 'Location request timed out. You can continue without location.'}</p>
+                    <div className="mt-3">
+                        <Button 
+                            variant="outline-warning" 
+                            size="sm"
+                            onClick={() => { window.location.reload(); }}
+                            className="me-2"
+                        >
+                            Retry Location
+                        </Button>
+                        <Button 
+                            variant="secondary" 
+                            size="sm"
+                            onClick={handleSkipLocation}
+                        >
+                            Continue Without Location
+                        </Button>
+                    </div>
                     {children}
                 </Alert>
             );
         }
 
-        if (!location && (permissionStatus === 'granted' || permissionStatus === 'checking')) {
+        if (!location && (permissionStatus === 'granted')) {
             return (
                 <div className="text-center py-4">
                     <Spinner animation="border" variant="primary" size="sm" />
                     <p className="mt-2 small">Getting your location...</p>
-                    <p className="text-muted small">This may take a moment</p>
+                    <Button 
+                        variant="outline-secondary" 
+                        size="sm"
+                        onClick={() => {
+                            console.log('🔄 Manual location retry');
+                            setIsGettingLocation(true);
+                            locationService.getCurrentLocation({ timeout: 15000 })
+                                .then(loc => {
+                                    setIsGettingLocation(false);
+                                    if (loc && loc.lat && loc.lng && loc.lat !== 0 && loc.lng !== 0) {
+                                        console.log('✅ Manual retry location:', loc);
+                                        setLocation(loc);
+                                        setAccuracy(loc.accuracy || 0);
+                                        // Reset locationSent to allow sending
+                                        locationSent.current = false;
+                                        sendLocationToParent(loc);
+                                    } else {
+                                        console.warn('⚠️ Manual retry invalid location:', loc);
+                                        setError('Could not get valid location');
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('❌ Manual retry error:', err);
+                                    setIsGettingLocation(false);
+                                    setError(err.message);
+                                });
+                        }}
+                        className="mt-2"
+                        disabled={isGettingLocation}
+                    >
+                        {isGettingLocation ? 'Getting location...' : 'Retry Getting Location'}
+                    </Button>
                 </div>
             );
         }
 
+        // Location is valid - render children
+        console.log('✅ Rendering children with location:', location);
         return children;
     };
 
@@ -272,12 +391,13 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
             {renderPermissionModal()}
             {renderContent()}
             
-            {location && (permissionStatus === 'granted' || permissionStatus === 'timeout') && (
+            {/* {location && location.lat !== 0 && location.lng !== 0 && 
+             (permissionStatus === 'granted') && (
                 <div className="location-status-bar">
                     <small className="text-muted">
                         <FaMapMarkerAlt size={12} className="me-1" />
                         Location: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                        {accuracy && (
+                        {accuracy !== null && accuracy !== undefined && (
                             <span className="ms-2">
                                 (Accuracy: {Math.round(accuracy)}m)
                             </span>
@@ -286,12 +406,33 @@ const LocationPermissionWrapper = ({ children, onLocationUpdate, required = true
                     <Button 
                         variant="outline-light" 
                         size="sm"
-                        onClick={() => initializeLocation()}
+                        onClick={() => {
+                            console.log('🔄 Refresh location');
+                            setIsGettingLocation(true);
+                            locationService.getCurrentLocation({ timeout: 15000 })
+                                .then(loc => {
+                                    setIsGettingLocation(false);
+                                    if (loc && loc.lat && loc.lng && loc.lat !== 0 && loc.lng !== 0) {
+                                        console.log('✅ Refreshed location:', loc);
+                                        setLocation(loc);
+                                        setAccuracy(loc.accuracy || 0);
+                                        // Reset locationSent to allow sending
+                                        locationSent.current = false;
+                                        sendLocationToParent(loc);
+                                    }
+                                })
+                                .catch(err => {
+                                    setIsGettingLocation(false);
+                                    console.error('❌ Refresh error:', err);
+                                });
+                        }}
+                        className="ms-2"
+                        disabled={isGettingLocation}
                     >
-                        Refresh
+                        {isGettingLocation ? 'Updating...' : 'Refresh'}
                     </Button>
                 </div>
-            )}
+            )} */}
         </div>
     );
 };

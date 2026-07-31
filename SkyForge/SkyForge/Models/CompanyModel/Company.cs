@@ -111,10 +111,8 @@ namespace SkyForge.Models.CompanyModel
         public AutoClockOutSettings AutoClockOut { get; set; } = new AutoClockOutSettings();
     }
 
-    [ComplexType]
     public class OfficeLocation
     {
-        [Key]
         public Guid Id { get; set; } = Guid.NewGuid();
 
         [MaxLength(100)]

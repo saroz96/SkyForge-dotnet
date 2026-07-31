@@ -53,6 +53,127 @@ namespace SkyForge.Controllers
         #region User Routes
 
         /// <summary>
+        /// Get company data with attendance settings
+        /// </summary>
+        [HttpGet("company-data")]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetCompanyData()
+        {
+            try
+            {
+                var userId = GetUserId();
+
+                // Get the current company from the user's claims
+                var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+                if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyId))
+                {
+                    // Try to get from the user's associated companies
+                    var user = await _context.Users
+                        .AsNoTracking()
+                        .Include(u => u.AccessibleCompanies)
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+
+                    if (user?.AccessibleCompanies?.Any() == true)
+                    {
+                        companyId = user.AccessibleCompanies.First().Id;
+                    }
+                    else
+                    {
+                        return BadRequest(new ApiResponse<object>
+                        {
+                            Success = false,
+                            Message = "No company selected. Please select a company first.",
+                            Data = null
+                        });
+                    }
+                }
+
+                // Get company with attendance settings - Use AsNoTracking and explicit projection
+                var company = await _context.Companies
+                    .AsNoTracking()
+                    .Where(c => c.Id == companyId)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.Name,
+                        // Explicitly flatten the attendance settings to avoid EF Core tracking issues
+                        GeoFencingEnabled = c.AttendanceSettings != null ? c.AttendanceSettings.GeoFencingEnabled : false,
+                        OfficeLocations = c.AttendanceSettings != null && c.AttendanceSettings.OfficeLocations != null
+            ? c.AttendanceSettings.OfficeLocations.Select(o => new
+            {
+                o.Id,
+                o.Name,
+                Lat = o.Coordinates.Lat,
+                Lng = o.Coordinates.Lng,
+                o.Radius,
+                o.Address,
+                o.IsActive
+            }).ToList<object>()  // Cast to List<object>
+            : new List<object>(),
+                        WorkingHoursStartTime = c.AttendanceSettings != null ? c.AttendanceSettings.WorkingHours.StartTime : "09:00",
+                        WorkingHoursEndTime = c.AttendanceSettings != null ? c.AttendanceSettings.WorkingHours.EndTime : "17:00",
+                        WorkingHoursGracePeriod = c.AttendanceSettings != null ? c.AttendanceSettings.WorkingHours.GracePeriod : 15,
+                        AutoClockOutEnabled = c.AttendanceSettings != null ? c.AttendanceSettings.AutoClockOut.Enabled : false,
+                        AutoClockOutTime = c.AttendanceSettings != null ? c.AttendanceSettings.AutoClockOut.Time : "18:00"
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (company == null)
+                {
+                    return NotFound(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Company not found",
+                        Data = null
+                    });
+                }
+
+                // Build the response
+                var response = new
+                {
+                    _id = company.Id,
+                    id = company.Id,
+                    name = company.Name,
+                    attendanceSettings = new
+                    {
+                        GeoFencingEnabled = company.GeoFencingEnabled,
+                        OfficeLocations = company.OfficeLocations,
+                        WorkingHours = new
+                        {
+                            StartTime = company.WorkingHoursStartTime,
+                            EndTime = company.WorkingHoursEndTime,
+                            GracePeriod = company.WorkingHoursGracePeriod
+                        },
+                        AutoClockOut = new
+                        {
+                            Enabled = company.AutoClockOutEnabled,
+                            Time = company.AutoClockOutTime
+                        }
+                    }
+                };
+
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "Company data retrieved successfully",
+                    Data = response
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting company data");
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Server error",
+                    Data = ex.Message
+                });
+            }
+        }
+        
+        
+        /// <summary>
         /// Clock in with location
         /// </summary>
         [HttpPost("clock-in")]

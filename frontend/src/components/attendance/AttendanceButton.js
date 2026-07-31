@@ -1,9 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Card, Alert, Spinner, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
-import { Clock, MapPin, CheckCircle, XCircle, AlertCircle, Calendar, Info } from 'lucide-react';
+import { Button, Card, Alert, Spinner, Badge } from 'react-bootstrap';
+import { Clock, MapPin, CheckCircle, XCircle, AlertCircle, Calendar } from 'lucide-react';
 import axios from 'axios';
 import '../../stylesheet/attendance/AttendanceButton.css';
 import locationService from '../services/locationService';
+
+// Create axios instance with auth interceptor
+const api = axios.create({
+    baseURL: process.env.REACT_APP_API_BASE_URL,
+    withCredentials: true,
+});
+
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
 const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }) => {
     const [attendanceStatus, setAttendanceStatus] = useState(null);
@@ -18,17 +35,36 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
     const [dutyStartTime, setDutyStartTime] = useState(null);
     const [dutyEndTime, setDutyEndTime] = useState(null);
     const [initializing, setInitializing] = useState(true);
+    const [dataFetched, setDataFetched] = useState(false);
 
-    // Define all functions BEFORE useEffect
+    // Helper to get company ID
+    const getCompanyId = () => {
+        return company?.id || company?.Id || company?._id;
+    };
+
+    // Helper to get user ID
+    const getUserId = () => {
+        return user?.id || user?.Id || user?._id;
+    };
+
     const checkLocationStatus = () => {
-        console.log('🔍 Checking location status:', {
-            hasCurrentLocation: !!currentLocation,
-            hasCompany: !!company,
-            officeLocationsCount: company?.attendanceSettings?.officeLocations?.length || 0,
-        });
+        const effectiveLocation = currentLocation;
+        console.log('🔍 Checking location status with:', effectiveLocation);
 
-        if (!currentLocation || !company?.attendanceSettings?.officeLocations) {
-            console.log('❌ Missing data for location check');
+        // Check if location is valid
+        if (!effectiveLocation ||
+            effectiveLocation.lat === undefined ||
+            effectiveLocation.lng === undefined ||
+            effectiveLocation.lat === 0 ||
+            effectiveLocation.lng === 0) {
+            console.log('❌ Invalid location data');
+            setIsAtOffice(false);
+            setNearestOffice(null);
+            return;
+        }
+
+        if (!company?.attendanceSettings?.officeLocations) {
+            console.log('❌ Missing office locations');
             setIsAtOffice(false);
             setNearestOffice(null);
             return;
@@ -41,48 +77,92 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
         offices.forEach(office => {
             if (!office.isActive) return;
 
+            let officeLat, officeLng;
+
+            if (office.coordinates && office.coordinates.lat !== undefined && office.coordinates.lng !== undefined) {
+                officeLat = office.coordinates.lat;
+                officeLng = office.coordinates.lng;
+                console.log('📍 Using nested coordinates for:', office.name);
+            } else if (office.lat !== undefined && office.lng !== undefined) {
+                officeLat = office.lat;
+                officeLng = office.lng;
+                console.log('📍 Using direct coordinates for:', office.name);
+            } else {
+                console.warn('⚠️ Office missing coordinates:', office);
+                return;
+            }
+
+            if (officeLat === undefined || officeLat === null ||
+                officeLng === undefined || officeLng === null ||
+                officeLat === 0 || officeLng === 0) {
+                console.warn('⚠️ Office has invalid coordinates:', office);
+                return;
+            }
+
             const dist = locationService.calculateDistance(
-                currentLocation.lat,
-                currentLocation.lng,
-                office.coordinates.lat,
-                office.coordinates.lng
+                effectiveLocation.lat,
+                effectiveLocation.lng,
+                officeLat,
+                officeLng
             );
+
+            console.log(`📏 Distance to ${office.name}: ${Math.round(dist)}m (radius: ${office.radius}m)`);
 
             if (dist < minDist) {
                 minDist = dist;
-                foundOffice = { ...office, distance: dist };
+                foundOffice = {
+                    ...office,
+                    distance: dist,
+                    coordinates: { lat: officeLat, lng: officeLng }
+                };
             }
         });
 
         setNearestOffice(foundOffice);
         setDistance(minDist);
 
-        // Check if within any office radius
         const atOffice = offices.some(office => {
             if (!office.isActive) return false;
+
+            let officeLat, officeLng;
+            if (office.coordinates && office.coordinates.lat !== undefined && office.coordinates.lng !== undefined) {
+                officeLat = office.coordinates.lat;
+                officeLng = office.coordinates.lng;
+            } else if (office.lat !== undefined && office.lng !== undefined) {
+                officeLat = office.lat;
+                officeLng = office.lng;
+            } else {
+                return false;
+            }
+
+            if (officeLat === undefined || officeLat === null ||
+                officeLng === undefined || officeLng === null) {
+                return false;
+            }
+
             return locationService.isWithinOfficeRadius(
-                currentLocation,
-                office.coordinates,
-                office.radius
+                effectiveLocation,
+                { lat: officeLat, lng: officeLng },
+                office.radius || 100
             );
         });
 
+        console.log(`📍 Is at office: ${atOffice}, nearest office: ${foundOffice?.name || 'none'}`);
         setIsAtOffice(atOffice);
     };
 
     const fetchTodayStatus = async () => {
         try {
-            const response = await axios.get('/api/attendance/today-status', {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
+            const response = await api.get('/api/attendance/today-status');
 
             if (response.data.success && response.data.data) {
                 const companyStatus = response.data.data.find(item => {
                     if (!item.company) return false;
                     const itemCompanyId = typeof item.company === 'object'
-                        ? item.company._id
+                        ? (item.company.id || item.company._id)
                         : item.company;
-                    return itemCompanyId === company?._id;
+                    const currentCompanyId = getCompanyId();
+                    return itemCompanyId === currentCompanyId;
                 });
 
                 if (companyStatus) {
@@ -110,18 +190,6 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                         dutyScheduleId: null
                     });
                 }
-            } else {
-                setAttendanceStatus({
-                    hasClockedIn: false,
-                    hasClockedOut: false,
-                    clockIn: null,
-                    clockOut: null,
-                    totalHours: 0,
-                    overtime: 0,
-                    lateMinutes: 0,
-                    status: 'absent',
-                    dutyScheduleId: null
-                });
             }
         } catch (error) {
             console.error('❌ Error fetching attendance status:', error);
@@ -139,71 +207,30 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
         }
     };
 
-    // const checkDutySchedule = async () => {
-    //     if (!company?._id || !user?._id) {
-    //         console.log('❌ Missing company or user ID for duty schedule check');
-    //         setHasDutyForToday(false);
-    //         return false;
-    //     }
-
-    //     setCheckingDuty(true);
-    //     try {
-    //         const response = await axios.get('/api/duty-schedule/check-today', {
-    //             params: {
-    //                 userId: user._id,
-    //                 companyId: company._id
-    //             },
-    //             headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    //         });
-
-    //         if (response.data.success) {
-    //             const hasDuty = response.data.hasDuty || false;
-    //             setHasDutyForToday(hasDuty);
-
-    //             if (response.data.schedule) {
-    //                 setDutySchedule(response.data.schedule);
-    //                 setDutyStartTime(response.data.schedule.dutyHours?.startTime || '09:00');
-    //                 setDutyEndTime(response.data.schedule.dutyHours?.endTime || '17:00');
-    //             } else {
-    //                 setDutySchedule(null);
-    //             }
-
-    //             return hasDuty;
-    //         } else {
-    //             console.log('❌ Duty schedule check failed:', response.data.message);
-    //             setHasDutyForToday(false);
-    //             return false;
-    //         }
-    //     } catch (error) {
-    //         console.error('❌ Error checking duty schedule:', error);
-    //         setHasDutyForToday(false);
-    //         return false;
-    //     } finally {
-    //         setCheckingDuty(false);
-    //     }
-    // };
-
     const checkDutySchedule = async () => {
-        if (!company?._id || !user?._id) {
+        const userId = getUserId();
+        const companyId = getCompanyId();
+
+        if (!companyId || !userId) {
             console.log('❌ Missing company or user ID for duty schedule check');
             setHasDutyForToday(false);
+            setDutySchedule(null);
             return false;
         }
 
         setCheckingDuty(true);
         try {
             console.log('📅 Checking duty schedule for today:', {
-                userId: user._id,
-                companyId: company._id,
+                userId: userId,
+                companyId: companyId,
                 currentDate: new Date().toISOString()
             });
 
-            const response = await axios.get('/api/duty-schedule/check-today', {
+            const response = await api.get('/api/duty-schedule/check-today', {
                 params: {
-                    userId: user._id,
-                    companyId: company._id
-                },
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                    userId: userId,
+                    companyId: companyId
+                }
             });
 
             console.log('📊 Duty schedule API response:', response.data);
@@ -213,25 +240,24 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                 console.log('✅ Has duty for today:', hasDuty);
                 setHasDutyForToday(hasDuty);
 
-                if (response.data.schedule) {
+                if (hasDuty && response.data.schedule) {
                     console.log('✅ Found duty schedule:', response.data.schedule);
-                    setDutySchedule(response.data.schedule);
-                    setDutyStartTime(response.data.schedule.dutyHours?.startTime || '09:00');
-                    setDutyEndTime(response.data.schedule.dutyHours?.endTime || '17:00');
-
-                    // Also store the office location info if available
-                    if (response.data.schedule.officeLocation) {
-                        console.log('📍 Office location:', response.data.schedule.officeLocation);
-                    }
+                    const schedule = response.data.schedule;
+                    setDutySchedule(schedule);
+                    setDutyStartTime(schedule.dutyHours?.startTime || '09:00');
+                    setDutyEndTime(schedule.dutyHours?.endTime || '17:00');
                 } else {
                     console.log('ℹ️ No duty schedule found for today');
                     setDutySchedule(null);
+                    setDutyStartTime(null);
+                    setDutyEndTime(null);
                 }
 
                 return hasDuty;
             } else {
                 console.log('❌ Duty schedule check failed:', response.data.message);
                 setHasDutyForToday(false);
+                setDutySchedule(null);
                 return false;
             }
         } catch (error) {
@@ -241,6 +267,7 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                 status: error.response?.status
             });
             setHasDutyForToday(false);
+            setDutySchedule(null);
             return false;
         } finally {
             setCheckingDuty(false);
@@ -248,7 +275,6 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
     };
 
     const checkIfCanClockIn = () => {
-        // First check if checking duty
         if (checkingDuty) {
             return {
                 canClock: false,
@@ -257,7 +283,6 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
             };
         }
 
-        // Check if duty exists
         if (!hasDutyForToday) {
             return {
                 canClock: false,
@@ -266,7 +291,6 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
             };
         }
 
-        // Check location
         if (!isAtOffice) {
             return {
                 canClock: false,
@@ -275,7 +299,6 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
             };
         }
 
-        // Check attendance status
         if (attendanceStatus?.hasClockedIn && !attendanceStatus?.hasClockedOut) {
             return {
                 canClock: true,
@@ -308,19 +331,23 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
             return;
         }
 
+        const companyId = getCompanyId();
+        if (!companyId) {
+            setError('Company ID not found');
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
         try {
-            const response = await axios.post('/api/attendance/clock-in', {
+            const response = await api.post('/api/attendance/clock-in', {
                 location: currentLocation,
-                companyId: company._id
-            }, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                companyId: companyId
             });
 
             if (response.data.success) {
-                fetchTodayStatus();
+                await fetchTodayStatus();
                 if (onAttendanceUpdate) {
                     onAttendanceUpdate(response.data.data);
                 }
@@ -329,16 +356,18 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
             console.error('❌ Clock-in error:', error);
             const errorMsg = error.response?.data?.message || error.response?.data?.details || 'Clock in failed';
             setError(errorMsg);
-
-            if (error.response?.data?.code === 'NO_DUTY_SCHEDULE') {
-                checkDutySchedule();
-            }
         } finally {
             setLoading(false);
         }
     };
 
     const handleClockOut = async () => {
+        const companyId = getCompanyId();
+        if (!companyId) {
+            setError('Company ID not found');
+            return;
+        }
+
         if (!isAtOffice) {
             setError('You must be at the office location to clock out');
             return;
@@ -348,15 +377,13 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
         setError(null);
 
         try {
-            const response = await axios.post('/api/attendance/clock-out', {
+            const response = await api.post('/api/attendance/clock-out', {
                 location: currentLocation,
-                companyId: company._id
-            }, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                companyId: companyId
             });
 
             if (response.data.success) {
-                fetchTodayStatus();
+                await fetchTodayStatus();
                 if (onAttendanceUpdate) {
                     onAttendanceUpdate(response.data.data);
                 }
@@ -370,30 +397,26 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
         }
     };
 
-    const showNotification = (message, type = 'info') => {
-        console.log(`${type}: ${message}`);
-    };
-
     const getStatusBadge = () => {
         if (!attendanceStatus) return null;
 
         if (attendanceStatus.hasClockedIn && attendanceStatus.hasClockedOut) {
             return (
-                <Badge bg="success" className="ms-2">
+                <Badge bg="success" className="ms-1" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>
                     <CheckCircle size={14} className="me-1" />
                     Completed
                 </Badge>
             );
         } else if (attendanceStatus.hasClockedIn) {
             return (
-                <Badge bg="warning" className="ms-2">
+                <Badge bg="warning" className="ms-1" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>
                     <Clock size={14} className="me-1" />
                     Clocked In
                 </Badge>
             );
         } else {
             return (
-                <Badge bg="secondary" className="ms-2">
+                <Badge bg="secondary" className="ms-1" style={{ fontSize: '0.7rem', padding: '4px 10px' }}>
                     <Clock size={14} className="me-1" />
                     Not Clocked In
                 </Badge>
@@ -404,39 +427,41 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
     const renderDutyScheduleInfo = () => {
         if (checkingDuty) {
             return (
-                <div className="text-center py-2">
-                    <Spinner animation="border" size="sm" variant="info" />
-                    <small className="d-block mt-1 text-muted">Checking duty schedule...</small>
+                <div className="text-center py-1">
+                    <Spinner animation="border" size="sm" variant="info" style={{ width: '18px', height: '18px' }} />
+                    <small className="d-block mt-1 text-muted" style={{ fontSize: '0.75rem' }}>Checking duty schedule...</small>
                 </div>
             );
         }
 
         if (!hasDutyForToday) {
             return (
-                <Alert variant="warning" className="small py-2 mb-3">
-                    <XCircle size={16} className="me-2" />
+                <Alert variant="warning" className="py-1 px-3 mb-2" style={{ fontSize: '0.75rem' }}>
+                    <XCircle size={16} className="me-1" />
                     <strong>No Duty Scheduled Today</strong>
-                    <div className="mt-1 small">
+                    {/* <div className="mt-1" style={{ fontSize: '0.7rem' }}>
                         You don't have any duty schedule assigned for today.
                         <br />
                         <strong>Attendance will be disabled.</strong>
-                    </div>
+                    </div> */}
                 </Alert>
             );
         }
 
         if (dutySchedule) {
             return (
-                <Alert variant="success" className="small py-2 mb-3">
-                    <CheckCircle size={16} className="me-2" />
-                    <strong>✅ Duty Assigned Today</strong>
-                    <div className="mt-1">
-                        <div className="d-flex justify-content-between">
+                <Alert variant="success" className="py-1 px-3 mb-2" style={{ fontSize: '0.75rem' }}>
+                    <div className="d-flex align-items-center mb-1">
+                        <CheckCircle size={16} className="me-1" />
+                        <strong>Duty Assigned Today</strong>
+                    </div>
+                    <div style={{ borderTop: '1px solid rgba(40, 167, 69, 0.2)', paddingTop: '6px' }}>
+                        <div className="d-flex justify-content-between" style={{ fontSize: '0.7rem' }}>
                             <span>Schedule:</span>
                             <strong>{dutyStartTime} - {dutyEndTime}</strong>
                         </div>
                         {dutySchedule.officeLocationId && (
-                            <div className="d-flex justify-content-between">
+                            <div className="d-flex justify-content-between" style={{ fontSize: '0.7rem' }}>
                                 <span>Office:</span>
                                 <strong>{dutySchedule.officeLocation?.name || 'Assigned Office'}</strong>
                             </div>
@@ -452,10 +477,10 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
     const renderLocationInfo = () => {
         if (!currentLocation) {
             return (
-                <Alert variant="warning" className="small mb-3">
-                    <AlertCircle size={16} className="me-2" />
+                <Alert variant="warning" className="py-1 px-3 mb-2" style={{ fontSize: '0.75rem' }}>
+                    <AlertCircle size={16} className="me-1" />
                     Location not available
-                    <div className="mt-2 small">
+                    <div className="mt-1" style={{ fontSize: '0.7rem' }}>
                         <code>Lat: N/A, Lng: N/A</code>
                     </div>
                 </Alert>
@@ -464,17 +489,17 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
 
         if (!isAtOffice && nearestOffice) {
             return (
-                <Alert variant="info" className="small mb-3">
+                <Alert variant="info" className="py-1 px-3 mb-2" style={{ fontSize: '0.75rem' }}>
                     <div className="d-flex justify-content-between align-items-center">
                         <span>
-                            <MapPin size={14} className="me-2" />
+                            <MapPin size={16} className="me-1" />
                             {nearestOffice.name}: {Math.round(distance)}m away
                         </span>
-                        <Badge bg="light" text="dark">
+                        <Badge bg="light" text="dark" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>
                             {Math.round(nearestOffice.radius)}m radius
                         </Badge>
                     </div>
-                    <small className="text-muted d-block mt-1">
+                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.65rem' }}>
                         You need to be within {Math.round(nearestOffice.radius)} meters to mark attendance
                     </small>
                 </Alert>
@@ -483,17 +508,17 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
 
         if (isAtOffice && nearestOffice) {
             return (
-                <Alert variant="success" className="small mb-3">
+                <Alert variant="success" className="py-1 px-3 mb-2" style={{ fontSize: '0.75rem' }}>
                     <div className="d-flex justify-content-between align-items-center">
                         <span>
-                            <CheckCircle size={14} className="me-2" />
+                            <CheckCircle size={16} className="me-1" />
                             At {nearestOffice.name}
                         </span>
-                        <Badge bg="light" text="success">
+                        <Badge bg="light" text="success" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>
                             {Math.round(distance)}m from center
                         </Badge>
                     </div>
-                    <small className="text-muted d-block mt-1">
+                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.65rem' }}>
                         GPS accuracy: {Math.round(currentLocation.accuracy)} meters
                     </small>
                 </Alert>
@@ -502,10 +527,10 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
 
         if (company && (!company.attendanceSettings?.officeLocations || company.attendanceSettings.officeLocations.length === 0)) {
             return (
-                <Alert variant="warning" className="small mb-3">
-                    <AlertCircle size={16} className="me-2" />
+                <Alert variant="warning" className="py-1 px-3 mb-2" style={{ fontSize: '0.75rem' }}>
+                    <AlertCircle size={16} className="me-1" />
                     No office locations configured
-                    <div className="mt-2 small">
+                    <div className="mt-1" style={{ fontSize: '0.7rem' }}>
                         Contact your administrator to add office locations
                     </div>
                 </Alert>
@@ -513,8 +538,8 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
         }
 
         return (
-            <Alert variant="secondary" className="small mb-3">
-                <AlertCircle size={16} className="me-2" />
+            <Alert variant="secondary" className="py-1 px-3 mb-2" style={{ fontSize: '0.75rem' }}>
+                <AlertCircle size={16} className="me-1" />
                 Location status unknown
             </Alert>
         );
@@ -523,8 +548,8 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
     const renderAttendanceInfo = () => {
         if (!attendanceStatus) {
             return (
-                <div className="text-center py-3">
-                    <Spinner animation="border" size="sm" />
+                <div className="text-center py-2">
+                    <Spinner animation="border" size="sm" style={{ width: '18px', height: '18px' }} />
                 </div>
             );
         }
@@ -537,17 +562,17 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
         });
 
         return (
-            <div className="attendance-info mb-3">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                    <h6 className="mb-0">
-                        <Calendar size={16} className="me-2" />
+            <div className="attendance-info mb-2">
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                    <h6 className="mb-0" style={{ fontSize: '0.8rem' }}>
+                        <Calendar size={16} className="me-1" />
                         {today}
                     </h6>
                     {getStatusBadge()}
                 </div>
 
                 {attendanceStatus.clockIn && (
-                    <div className="time-info">
+                    <div className="time-info" style={{ fontSize: '0.75rem' }}>
                         <div className="d-flex justify-content-between">
                             <span className="text-muted">Clock In:</span>
                             <strong>
@@ -559,7 +584,7 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                             </strong>
                         </div>
                         {attendanceStatus.lateMinutes > 0 && (
-                            <div className="text-warning small">
+                            <div className="text-warning" style={{ fontSize: '0.7rem' }}>
                                 Late by {attendanceStatus.lateMinutes} minutes
                             </div>
                         )}
@@ -567,7 +592,7 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                 )}
 
                 {attendanceStatus.clockOut && (
-                    <div className="time-info mt-2">
+                    <div className="time-info mt-1" style={{ fontSize: '0.75rem' }}>
                         <div className="d-flex justify-content-between">
                             <span className="text-muted">Clock Out:</span>
                             <strong>
@@ -582,13 +607,13 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                 )}
 
                 {attendanceStatus.totalHours > 0 && (
-                    <div className="time-info mt-2">
+                    <div className="time-info mt-1" style={{ fontSize: '0.75rem' }}>
                         <div className="d-flex justify-content-between">
                             <span className="text-muted">Total Hours:</span>
                             <strong>{attendanceStatus.totalHours.toFixed(2)} hrs</strong>
                         </div>
                         {attendanceStatus.overtime > 0 && (
-                            <div className="text-success small">
+                            <div className="text-success" style={{ fontSize: '0.7rem' }}>
                                 +{attendanceStatus.overtime.toFixed(2)} hrs overtime
                             </div>
                         )}
@@ -601,45 +626,43 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
     const renderButton = () => {
         const canClock = checkIfCanClockIn();
 
-        // Show loading if checking duty
         if (checkingDuty || initializing) {
             return (
-                <Button variant="secondary" disabled className="w-100">
-                    <Spinner animation="border" size="sm" className="me-2" />
+                <Button variant="secondary" disabled className="w-100" style={{ fontSize: '0.8rem', height: '38px' }}>
+                    <Spinner animation="border" size="sm" className="me-2" style={{ width: '16px', height: '16px' }} />
                     Checking Availability...
                 </Button>
             );
         }
 
-        // If no duty, show disabled button
         if (!hasDutyForToday) {
             return (
                 <Button
                     variant="outline-secondary"
                     disabled
                     className="w-100"
+                    style={{ fontSize: '0.8rem', height: '38px' }}
                 >
-                    <XCircle className="me-2" />
+                    <XCircle size={18} className="me-2" />
                     No Duty Today
                 </Button>
             );
         }
 
-        // If duty exists but not at office
         if (hasDutyForToday && !isAtOffice) {
             return (
                 <Button
                     variant="outline-warning"
                     disabled
                     className="w-100"
+                    style={{ fontSize: '0.8rem', height: '38px' }}
                 >
-                    <MapPin className="me-2" />
+                    <MapPin size={18} className="me-2" />
                     Go to Office Location
                 </Button>
             );
         }
 
-        // If at office with duty but already clocked in
         if (hasDutyForToday && isAtOffice && attendanceStatus?.hasClockedIn && !attendanceStatus?.hasClockedOut) {
             return (
                 <Button
@@ -647,15 +670,16 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                     onClick={handleClockOut}
                     disabled={loading}
                     className="w-100"
+                    style={{ fontSize: '0.8rem', height: '38px' }}
                 >
                     {loading ? (
                         <>
-                            <Spinner animation="border" size="sm" className="me-2" />
+                            <Spinner animation="border" size="sm" className="me-2" style={{ width: '16px', height: '16px' }} />
                             Processing...
                         </>
                     ) : (
                         <>
-                            <Clock className="me-2" />
+                            <Clock size={18} className="me-2" />
                             Clock Out
                         </>
                     )}
@@ -663,7 +687,6 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
             );
         }
 
-        // If at office with duty and not clocked in
         if (hasDutyForToday && isAtOffice && !attendanceStatus?.hasClockedIn) {
             return (
                 <Button
@@ -671,15 +694,16 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                     onClick={handleClockIn}
                     disabled={loading}
                     className="w-100"
+                    style={{ fontSize: '0.8rem', height: '38px' }}
                 >
                     {loading ? (
                         <>
-                            <Spinner animation="border" size="sm" className="me-2" />
+                            <Spinner animation="border" size="sm" className="me-2" style={{ width: '16px', height: '16px' }} />
                             Processing...
                         </>
                     ) : (
                         <>
-                            <Clock className="me-2" />
+                            <Clock size={18} className="me-2" />
                             Clock In
                         </>
                     )}
@@ -687,87 +711,87 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
             );
         }
 
-        // If attendance completed
         if (attendanceStatus?.hasClockedIn && attendanceStatus?.hasClockedOut) {
             return (
                 <Button
                     variant="success"
                     disabled
                     className="w-100"
+                    style={{ fontSize: '0.8rem', height: '38px' }}
                 >
-                    <CheckCircle className="me-2" />
+                    <CheckCircle size={18} className="me-2" />
                     Attendance Complete
                 </Button>
             );
         }
 
-        // Default fallback
         return (
             <Button
                 variant="outline-secondary"
                 disabled
                 className="w-100"
+                style={{ fontSize: '0.8rem', height: '38px' }}
             >
-                <Clock className="me-2" />
+                <Clock size={18} className="me-2" />
                 Check Duty Schedule
             </Button>
         );
     };
 
-    // Now define useEffect AFTER all function declarations
+    // Initialize on component mount only - NO interval refresh
     useEffect(() => {
         const initialize = async () => {
             setInitializing(true);
-            await checkDutySchedule();
+            const hasDuty = await checkDutySchedule();
+            console.log('📋 Initial duty check result:', hasDuty);
             checkLocationStatus();
             await fetchTodayStatus();
             setInitializing(false);
+            setDataFetched(true);
         };
 
-        initialize();
+        // Only fetch if data hasn't been fetched yet
+        if (!dataFetched) {
+            initialize();
+        }
+    }, [company, user]); // Only re-run if company or user changes
 
-        const interval = setInterval(() => {
-            checkDutySchedule();
+    // Re-check location when currentLocation changes (but only after initial load)
+    useEffect(() => {
+        if (currentLocation && dataFetched) {
             checkLocationStatus();
-        }, 30000);
+        }
+    }, [currentLocation]);
 
-        return () => clearInterval(interval);
-    }, [currentLocation, company]);
-
-    // Add early return for initial loading
+    // If initializing, show loading
     if (initializing) {
         return (
-            <Card className="attendance-card shadow-sm">
-                <Card.Body className="text-center py-4">
-                    <Spinner animation="border" variant="primary" />
-                    <div className="mt-2">Loading attendance information...</div>
+            <Card className="attendance-card shadow-sm border-0">
+                <Card.Body className="text-center py-3">
+                    <Spinner animation="border" variant="primary" size="sm" />
+                    <div className="mt-2 text-muted" style={{ fontSize: '0.8rem' }}>Loading attendance information...</div>
                 </Card.Body>
             </Card>
         );
     }
 
     return (
-        <Card className="attendance-card shadow-sm">
-            <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
-                    <Clock className="me-2" />
+        <Card className="attendance-card shadow-sm border-0">
+            <Card.Header className="bg-light py-1 px-3 d-flex justify-content-between align-items-center" style={{ minHeight: '40px' }}>
+                <h6 className="mb-0 d-flex align-items-center" style={{ fontSize: '0.85rem' }}>
+                    <Clock size={18} className="me-2" />
                     Daily Attendance
-                </h5>
-                {company?.name && (
-                    <Badge bg="info" className="company-badge">
-                        {company.name}
-                    </Badge>
-                )}
+                </h6>
             </Card.Header>
 
-            <Card.Body>
+            <Card.Body className="p-3">
                 {renderDutyScheduleInfo()}
                 {renderLocationInfo()}
                 {renderAttendanceInfo()}
 
                 {error && (
-                    <Alert variant="danger" className="small py-2">
-                        <XCircle size={14} className="me-2" />
+                    <Alert variant="danger" className="py-1 px-3 mb-2" style={{ fontSize: '0.75rem' }}>
+                        <XCircle size={16} className="me-1" />
                         {error}
                     </Alert>
                 )}
@@ -775,18 +799,18 @@ const AttendanceButton = ({ user, company, currentLocation, onAttendanceUpdate }
                 {renderButton()}
 
                 {isAtOffice && hasDutyForToday && !attendanceStatus?.hasClockedIn && (
-                    <div className="location-status mt-3">
-                        <small className="text-success">
-                            <MapPin size={12} className="me-1" />
-                            You are at the office location and have duty for today
+                    <div className="location-status mt-2">
+                        <small className="text-success d-flex align-items-center" style={{ fontSize: '0.7rem' }}>
+                            <MapPin size={14} className="me-1" />
+                            You are at the office location
                         </small>
                     </div>
                 )}
             </Card.Body>
 
-            <Card.Footer className="bg-light py-2">
-                <small className="text-muted">
-                    <Clock size={12} className="me-1" />
+            <Card.Footer className="bg-light py-1 px-3" style={{ minHeight: '32px' }}>
+                <small className="text-muted d-flex align-items-center" style={{ fontSize: '0.7rem' }}>
+                    <Clock size={14} className="me-1" />
                     {checkingDuty ? (
                         <>Checking duty schedule...</>
                     ) : hasDutyForToday && dutyStartTime && dutyEndTime ? (

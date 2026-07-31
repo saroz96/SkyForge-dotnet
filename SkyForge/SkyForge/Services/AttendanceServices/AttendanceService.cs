@@ -40,6 +40,7 @@ namespace SkyForge.Services.AttendanceServices
             return R * c; // Distance in meters
         }
 
+
         public async Task<Attendance> ClockInAsync(Guid userId, Guid companyId, LocationDto location)
         {
             try
@@ -101,19 +102,79 @@ namespace SkyForge.Services.AttendanceServices
                     throw new InvalidOperationException("No office locations configured");
                 }
 
-                // Check duty schedule
+                // ✅ FIX: Check duty schedule with proper date comparison
+                var currentDateTime = DateTime.UtcNow;
+                var currentDayOfWeek = (int)currentDateTime.DayOfWeek;
+
+                _logger.LogInformation("Checking duty schedule for UserId={UserId}, CompanyId={CompanyId}, CurrentDate={CurrentDate}, DayOfWeek={DayOfWeek}",
+                    userId, companyId, currentDateTime.Date, currentDayOfWeek);
+
                 var schedules = await _context.DutySchedules
                     .Where(s => s.UserId == userId && s.CompanyId == companyId && s.IsActive)
                     .ToListAsync();
 
+                _logger.LogInformation("Found {Count} active schedules for user", schedules.Count);
+
+                // Log all schedules for debugging
+                foreach (var s in schedules)
+                {
+                    _logger.LogInformation("Schedule: Id={Id}, Type={Type}, ValidFrom={ValidFrom}, ValidTo={ValidTo}, DaysOfWeek={DaysOfWeek}",
+                        s.Id, s.ScheduleType, s.ValidFrom, s.ValidTo, string.Join(",", s.DaysOfWeek ?? new int[0]));
+                }
+
+                // Find applicable schedule with proper date comparison
                 var applicableSchedule = schedules.FirstOrDefault(s =>
-                    s.ValidFrom <= DateTime.UtcNow &&
-                    (s.ValidTo == null || s.ValidTo >= DateTime.UtcNow) &&
-                    (s.DaysOfWeek == null || s.DaysOfWeek.Contains((int)DateTime.UtcNow.DayOfWeek))
-                );
+                {
+                    // Check if schedule is active
+                    if (!s.IsActive) return false;
+
+                    // Check ValidFrom - if set, schedule must have started
+                    if (s.ValidFrom.HasValue && s.ValidFrom.Value.Date > currentDateTime.Date)
+                    {
+                        _logger.LogInformation("Schedule {Id} not started yet (ValidFrom: {ValidFrom} > CurrentDate: {CurrentDate})",
+                            s.Id, s.ValidFrom.Value.Date, currentDateTime.Date);
+                        return false;
+                    }
+
+                    // Check ValidTo - if set, schedule must not have expired
+                    if (s.ValidTo.HasValue && s.ValidTo.Value.Date < currentDateTime.Date)
+                    {
+                        _logger.LogInformation("Schedule {Id} has expired (ValidTo: {ValidTo} < CurrentDate: {CurrentDate})",
+                            s.Id, s.ValidTo.Value.Date, currentDateTime.Date);
+                        return false;
+                    }
+
+                    // Check DaysOfWeek - if set, current day must be included
+                    if (s.DaysOfWeek != null && s.DaysOfWeek.Length > 0)
+                    {
+                        var dayMatches = s.DaysOfWeek.Contains(currentDayOfWeek);
+                        if (!dayMatches)
+                        {
+                            _logger.LogInformation("Schedule {Id} doesn't apply to current day (DayOfWeek: {DayOfWeek}, DaysOfWeek: {DaysOfWeek})",
+                                s.Id, currentDayOfWeek, string.Join(",", s.DaysOfWeek));
+                            return false;
+                        }
+                    }
+
+                    _logger.LogInformation("Schedule {Id} is applicable for today", s.Id);
+                    return true;
+                });
 
                 if (applicableSchedule == null)
                 {
+                    // Log all schedules and their applicability
+                    _logger.LogWarning("No applicable schedule found. Total schedules: {Count}", schedules.Count);
+                    foreach (var s in schedules)
+                    {
+                        var isActive = s.IsActive;
+                        var validFromOk = !s.ValidFrom.HasValue || s.ValidFrom.Value.Date <= currentDateTime.Date;
+                        var validToOk = !s.ValidTo.HasValue || s.ValidTo.Value.Date >= currentDateTime.Date;
+                        var dayOk = s.DaysOfWeek == null || s.DaysOfWeek.Length == 0 || s.DaysOfWeek.Contains(currentDayOfWeek);
+
+                        _logger.LogWarning("Schedule {Id}: IsActive={IsActive}, ValidFromOk={ValidFromOk}, ValidToOk={ValidToOk}, DayOk={DayOk}",
+                            s.Id, isActive, validFromOk, validToOk, dayOk);
+                    }
+
                     throw new InvalidOperationException("No duty schedule assigned for today. Please contact your supervisor.");
                 }
 
@@ -279,6 +340,8 @@ namespace SkyForge.Services.AttendanceServices
 
                 // Find today's attendance
                 var attendance = await _context.Attendances
+                    .Include(a => a.User)
+                    .Include(a => a.Company)
                     .FirstOrDefaultAsync(a =>
                         a.UserId == userId &&
                         a.Date == today &&
@@ -335,40 +398,107 @@ namespace SkyForge.Services.AttendanceServices
                 var clockOutTime = DateTime.UtcNow;
                 var clockInTime = attendance.ClockIn.Time;
 
-                // Calculate total hours
+                // Calculate total hours (with proper rounding)
                 var totalMs = (clockOutTime - clockInTime).TotalMilliseconds;
-                var totalHours = totalMs / (1000 * 60 * 60);
+                var totalHours = Math.Round(totalMs / (1000 * 60 * 60), 2);
 
-                // Calculate early departure and overtime
+                // ✅ FIX: Get duty hours from ScheduledDutyHours
                 int earlyDepartureMinutes = 0;
                 decimal overtime = 0;
+                int lateMinutes = attendance.LateMinutes; // Keep existing late minutes
 
-                var workingHours = company.AttendanceSettings?.WorkingHours ?? new WorkingHours();
-                var endTimeStr = workingHours.EndTime ?? "17:00";
-
-                if (!string.IsNullOrEmpty(endTimeStr) && endTimeStr.Contains(':'))
+                if (attendance.ScheduledDutyHours != null)
                 {
-                    try
-                    {
-                        var endParts = endTimeStr.Split(':').Select(int.Parse).ToArray();
-                        var endTime = new DateTime(today.Year, today.Month, today.Day, endParts[0], endParts[1], 0);
+                    var dutyStartTimeStr = attendance.ScheduledDutyHours.StartTime;
+                    var dutyEndTimeStr = attendance.ScheduledDutyHours.EndTime;
+                    var gracePeriod = attendance.ScheduledDutyHours.GracePeriod;
 
-                        if (clockOutTime < endTime)
+                    _logger.LogInformation("Using duty schedule hours: Start={Start}, End={End}, Grace={Grace}",
+                        dutyStartTimeStr, dutyEndTimeStr, gracePeriod);
+
+                    if (!string.IsNullOrEmpty(dutyEndTimeStr) && dutyEndTimeStr.Contains(':'))
+                    {
+                        try
                         {
-                            earlyDepartureMinutes = (int)Math.Round((endTime - clockOutTime).TotalMinutes);
-                            if (earlyDepartureMinutes > 60)
+                            var startParts = dutyStartTimeStr.Split(':').Select(int.Parse).ToArray();
+                            var endParts = dutyEndTimeStr.Split(':').Select(int.Parse).ToArray();
+
+                            // Get duty start time (same day)
+                            var dutyStartTime = new DateTime(today.Year, today.Month, today.Day, startParts[0], startParts[1], 0);
+
+                            // Get duty end time (could be next day for overnight shifts)
+                            var dutyEndTime = new DateTime(today.Year, today.Month, today.Day, endParts[0], endParts[1], 0);
+
+                            // If end time is before or equal to start time, it means the shift goes past midnight
+                            if (dutyEndTime <= dutyStartTime)
+                            {
+                                dutyEndTime = dutyEndTime.AddDays(1);
+                            }
+
+                            // ✅ Calculate early departure (if clock out before duty end)
+                            if (clockOutTime < dutyEndTime)
+                            {
+                                earlyDepartureMinutes = (int)Math.Round((dutyEndTime - clockOutTime).TotalMinutes);
+                            }
+
+                            // ✅ Calculate overtime (if clock out after duty end)
+                            if (clockOutTime > dutyEndTime)
+                            {
+                                var overtimeHours = (clockOutTime - dutyEndTime).TotalHours;
+                                overtime = Convert.ToDecimal(Math.Round(overtimeHours, 2));
+                            }
+
+                            // ✅ Determine status based on total hours worked
+                            if (totalHours >= 4) // 4 hours or more = present
+                            {
+                                attendance.Status = "present";
+                            }
+                            else if (totalHours > 0 && totalHours < 4) // Less than 4 hours = half_day
                             {
                                 attendance.Status = "half_day";
                             }
+                            else if (totalHours == 0)
+                            {
+                                attendance.Status = "absent";
+                            }
+
+                            _logger.LogInformation("Duty Hours: Start={DutyStart}, End={DutyEnd}, TotalHours={TotalHours}, EarlyDeparture={EarlyDeparture}, Overtime={Overtime}",
+                                dutyStartTime, dutyEndTime, totalHours, earlyDepartureMinutes, overtime);
                         }
-                        else if (clockOutTime > endTime)
+                        catch (Exception ex)
                         {
-                            overtime = Convert.ToDecimal((clockOutTime - endTime).TotalHours);
+                            _logger.LogWarning(ex, "Error parsing duty hours: Start={Start}, End={End}", dutyStartTimeStr, dutyEndTimeStr);
                         }
                     }
-                    catch (Exception ex)
+                }
+                else
+                {
+                    // Fallback to company working hours
+                    _logger.LogWarning("No ScheduledDutyHours found, falling back to company working hours");
+
+                    var workingHours = company.AttendanceSettings?.WorkingHours ?? new WorkingHours();
+                    var endTimeStr = workingHours.EndTime ?? "17:00";
+
+                    if (!string.IsNullOrEmpty(endTimeStr) && endTimeStr.Contains(':'))
                     {
-                        _logger.LogWarning(ex, "Error parsing end time: {EndTime}", endTimeStr);
+                        try
+                        {
+                            var endParts = endTimeStr.Split(':').Select(int.Parse).ToArray();
+                            var endTime = new DateTime(today.Year, today.Month, today.Day, endParts[0], endParts[1], 0);
+
+                            if (clockOutTime < endTime)
+                            {
+                                earlyDepartureMinutes = (int)Math.Round((endTime - clockOutTime).TotalMinutes);
+                            }
+                            else if (clockOutTime > endTime)
+                            {
+                                overtime = Convert.ToDecimal((clockOutTime - endTime).TotalHours);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Error parsing end time: {EndTime}", endTimeStr);
+                        }
                     }
                 }
 
@@ -384,28 +514,15 @@ namespace SkyForge.Services.AttendanceServices
                     },
                     OfficeLocationId = officeLocationId
                 };
-                attendance.TotalHours = (decimal)Math.Round(totalHours, 2);
+                attendance.TotalHours = Convert.ToDecimal(totalHours);
                 attendance.EarlyDepartureMinutes = earlyDepartureMinutes;
                 attendance.Overtime = overtime;
                 attendance.UpdatedAt = DateTime.UtcNow;
 
-                // Update status based on hours worked
-                if (string.IsNullOrEmpty(attendance.Status) || attendance.Status == "absent")
-                {
-                    if (totalHours < 4)
-                    {
-                        attendance.Status = "half_day";
-                    }
-                    else
-                    {
-                        attendance.Status = "present";
-                    }
-                }
-
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Clock-out successful: UserId={UserId}, TotalHours={TotalHours}, Status={Status}",
-                    userId, attendance.TotalHours, attendance.Status);
+                _logger.LogInformation("Clock-out successful: UserId={UserId}, TotalHours={TotalHours}, Overtime={Overtime}, Status={Status}, EarlyDeparture={EarlyDeparture}",
+                    userId, attendance.TotalHours, attendance.Overtime, attendance.Status, attendance.EarlyDepartureMinutes);
 
                 return attendance;
             }
@@ -415,7 +532,8 @@ namespace SkyForge.Services.AttendanceServices
                 throw;
             }
         }
-
+        
+        
         public async Task<List<TodayStatusResponseDto>> GetTodayStatusAsync(Guid userId)
         {
             try
@@ -423,9 +541,14 @@ namespace SkyForge.Services.AttendanceServices
                 var today = DateTime.UtcNow.Date;
 
                 // Use AccessibleCompanies directly since Companies is [NotMapped]
+                // var user = await _context.Users
+                //     .Include(u => u.AccessibleCompanies)
+                //     .FirstOrDefaultAsync(u => u.Id == userId);
+
                 var user = await _context.Users
-                    .Include(u => u.AccessibleCompanies)
-                    .FirstOrDefaultAsync(u => u.Id == userId);
+                           .AsNoTracking()
+                           .Include(u => u.AccessibleCompanies)
+                           .FirstOrDefaultAsync(u => u.Id == userId);
 
                 if (user == null)
                 {
@@ -551,6 +674,8 @@ namespace SkyForge.Services.AttendanceServices
                 throw;
             }
         }
+
+
         public async Task<CompanyAttendanceSettings> GetCompanyDataAsync(Guid companyId)
         {
             var company = await _context.Companies
@@ -573,6 +698,7 @@ namespace SkyForge.Services.AttendanceServices
                 }
             };
         }
+
 
         public async Task<CompanyAttendanceResponseDto> GetCompanyAttendanceAsync(Guid companyId, Guid? userId, string? status, DateTime? startDate, DateTime? endDate, int page, int limit)
         {
@@ -904,34 +1030,69 @@ namespace SkyForge.Services.AttendanceServices
 
         private async Task<List<object>> GetDailyReportAsync(Guid companyId, DateTime start, DateTime end)
         {
-            return await _context.Attendances
-                .Where(a => a.CompanyId == companyId && a.Date >= start && a.Date <= end)
-                .GroupBy(a => new { Date = a.Date.Date, Status = a.Status })
-                .Select(g => new
-                {
-                    Date = g.Key.Date.ToString("yyyy-MM-dd"),
-                    Status = g.Key.Status,
-                    Count = g.Count(),
-                    AvgHours = g.Average(a => a.TotalHours),
-                    TotalHours = g.Sum(a => a.TotalHours),
-                    Users = g.Select(a => a.UserId).Distinct()
-                })
-                .GroupBy(g => g.Date)
-                .Select(g => new
-                {
-                    Date = g.Key,
-                    Statuses = g.Select(s => new
+            try
+            {
+                // Get attendance records with necessary fields
+                var attendanceQuery = _context.Attendances
+                    .Where(a => a.CompanyId == companyId && a.Date >= start && a.Date <= end)
+                    .Select(a => new
                     {
-                        Status = s.Status,
-                        Count = s.Count,
-                        AvgHours = s.AvgHours
-                    }),
-                    TotalUsers = g.SelectMany(s => s.Users).Distinct().Count(),
-                    TotalHours = g.Sum(s => s.TotalHours)
-                })
-                .OrderByDescending(g => g.Date)
-                .ToListAsync()
-                .ContinueWith(t => t.Result.Cast<object>().ToList());
+                        Date = a.Date.Date,
+                        a.Status,
+                        a.TotalHours,
+                        a.UserId
+                    });
+
+                // Get daily status counts and hours
+                var dailyStatusStats = await attendanceQuery
+                    .GroupBy(a => new { a.Date, a.Status })
+                    .Select(g => new
+                    {
+                        Date = g.Key.Date,
+                        Status = g.Key.Status,
+                        Count = g.Count(),
+                        AvgHours = g.Average(a => a.TotalHours),
+                        TotalHours = g.Sum(a => a.TotalHours),
+                        UserIds = g.Select(a => a.UserId).Distinct()
+                    })
+                    .ToListAsync();
+
+                // Get daily user counts separately
+                var dailyUserCounts = await attendanceQuery
+                    .GroupBy(a => a.Date)
+                    .Select(g => new
+                    {
+                        Date = g.Key,
+                        UserCount = g.Select(a => a.UserId).Distinct().Count()
+                    })
+                    .ToDictionaryAsync(k => k.Date, v => v.UserCount);
+
+                // Build the report
+                var report = dailyStatusStats
+                    .GroupBy(s => s.Date)
+                    .Select(dateGroup => new
+                    {
+                        Date = dateGroup.Key.ToString("yyyy-MM-dd"),
+                        Statuses = dateGroup.Select(s => new
+                        {
+                            Status = s.Status,
+                            Count = s.Count,
+                            AvgHours = s.AvgHours
+                        }),
+                        TotalUsers = dailyUserCounts.GetValueOrDefault(dateGroup.Key, 0),
+                        TotalHours = dateGroup.Sum(s => s.TotalHours)
+                    })
+                    .OrderByDescending(g => g.Date)
+                    .Cast<object>()
+                    .ToList();
+
+                return report;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating daily report for company {CompanyId}", companyId);
+                throw;
+            }
         }
 
         private async Task<List<object>> GetUserReportAsync(Guid companyId, DateTime start, DateTime end)
@@ -1035,6 +1196,74 @@ namespace SkyForge.Services.AttendanceServices
             };
         }
 
+        // public async Task<OfficeLocation> AddOfficeLocationAsync(Guid companyId, Guid adminId, OfficeLocationRequestDto request)
+        // {
+        //     try
+        //     {
+        //         var company = await _context.Companies
+        //             .FirstOrDefaultAsync(c => c.Id == companyId);
+
+        //         if (company == null)
+        //         {
+        //             throw new KeyNotFoundException("Company not found");
+        //         }
+
+        //         // Initialize attendance settings if not exists
+        //         if (company.AttendanceSettings == null)
+        //         {
+        //             company.AttendanceSettings = new CompanyAttendanceSettings
+        //             {
+        //                 GeoFencingEnabled = false,
+        //                 OfficeLocations = new List<OfficeLocation>(),
+        //                 WorkingHours = new WorkingHours
+        //                 {
+        //                     StartTime = "09:00",
+        //                     EndTime = "17:00",
+        //                     GracePeriod = 15
+        //                 }
+        //             };
+        //         }
+
+        //         if (company.AttendanceSettings.OfficeLocations == null)
+        //         {
+        //             company.AttendanceSettings.OfficeLocations = new List<OfficeLocation>();
+        //         }
+
+        //         var newLocation = new OfficeLocation
+        //         {
+        //             Name = request.Name,
+        //             Coordinates = new Coordinates
+        //             {
+        //                 Lat = request.Coordinates.Lat,
+        //                 Lng = request.Coordinates.Lng
+        //             },
+        //             Radius = request.Radius > 0 ? request.Radius : 100,
+        //             Address = request.Address ?? string.Empty,
+        //             IsActive = true
+        //         };
+
+        //         company.AttendanceSettings.OfficeLocations.Add(newLocation);
+
+        //         // If this is the first location, enable geo-fencing
+        //         if (company.AttendanceSettings.OfficeLocations.Count == 1)
+        //         {
+        //             company.AttendanceSettings.GeoFencingEnabled = true;
+        //         }
+
+        //         await _context.SaveChangesAsync();
+
+        //         _logger.LogInformation("Office location added: CompanyId={CompanyId}, LocationId={LocationId}, AdminId={AdminId}",
+        //             companyId, newLocation.Id, adminId);
+
+        //         return newLocation;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error adding office location for company {CompanyId}", companyId);
+        //         throw;
+        //     }
+        // }
+
         public async Task<OfficeLocation> AddOfficeLocationAsync(Guid companyId, Guid adminId, OfficeLocationRequestDto request)
         {
             try
@@ -1070,6 +1299,7 @@ namespace SkyForge.Services.AttendanceServices
 
                 var newLocation = new OfficeLocation
                 {
+                    Id = Guid.NewGuid(), // Explicitly set Id
                     Name = request.Name,
                     Coordinates = new Coordinates
                     {

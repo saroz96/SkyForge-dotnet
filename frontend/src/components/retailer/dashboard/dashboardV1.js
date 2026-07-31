@@ -28,7 +28,7 @@
 //     const dispatch = useDispatch();
 
 //     const { currentUser: authContextUser, logout, loading: authLoading } = useAuth();
-    
+
 //     // Use the YouTube-style loading hook
 //     const { showLoading, hideLoading, updateProgress, isLoading: globalLoading } = useLoading();
 
@@ -97,7 +97,7 @@
 //             // Show the YouTube-style progress bar
 //             showLoading(8000); // Expect initialization to take ~8 seconds
 //             updateProgress(10);
-            
+
 //             setError('');
 
 //             console.log('=== Dashboard Initialization Debug ===');
@@ -239,7 +239,7 @@
 //                 hideLoading();
 //                 setIsInitializing(false);
 //             }, 300);
-            
+
 //         } catch (err) {
 //             console.error('❌ Dashboard initialization error:', err);
 //             hideLoading();
@@ -254,7 +254,7 @@
 //             const response = await api.get('/api/auth/me');
 //             if (response.data.user) {
 //                 const userData = response.data.user;
-                
+
 //                 updateProgress(55);
 
 //                 // Save to Redux
@@ -370,7 +370,7 @@
 //                 localStorage.setItem('currentCompanyId', companyId.toString());
 
 //                 updateProgress(100);
-                
+
 //                 // Dashboard is now ready
 //                 setTimeout(() => {
 //                     hideLoading();
@@ -623,17 +623,19 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { useAuth } from '../../../context/AuthContext';
 import { useLoading } from '../../../context/LoadingContext';
-import { 
-  FaHome, 
-  FaShoppingCart, 
-  FaUsers, 
-  FaBox, 
-  FaChartLine, 
-  FaUserCircle,
-  FaStore,
-  FaTag,
-  FaTruck,
-  FaThLarge
+import {
+    FaHome,
+    FaShoppingCart,
+    FaUsers,
+    FaBox,
+    FaChartLine,
+    FaUserCircle,
+    FaClock,
+    FaCalendarCheck,
+    FaStore,
+    FaTag,
+    FaTruck,
+    FaThLarge
 } from 'react-icons/fa';
 import { setCurrentCompany, setUserInfo, setUserCompanies } from '../../../auth/authSlice';
 import Header from '../Header';
@@ -653,13 +655,14 @@ const DashboardV1 = () => {
     const { userInfo, currentCompany, userCompanies } = useSelector((state) => state.auth);
     const currentUser = authContextUser || userInfo;
     const isAdminOrSupervisor = currentUser?.isAdmin || currentUser?.role === 'Supervisor';
-    
+
     const [isInitializing, setIsInitializing] = useState(true);
     const [error, setError] = useState('');
     const [isHovered, setIsHovered] = useState(false);
     const [showProductModal, setShowProductModal] = useState(false);
     const [showContactsModal, setShowContactsModal] = useState(false);
     const [showPosModal, setShowPosModal] = useState(false);
+    const [activeMenu, setActiveMenu] = useState('Dashboard');
 
     const api = axios.create({
         baseURL: process.env.REACT_APP_API_BASE_URL || '',
@@ -1003,7 +1006,7 @@ const DashboardV1 = () => {
             setIsInitializing(true);
             showLoading(8000);
             updateProgress(10);
-            
+
             setError('');
 
             const token = localStorage.getItem('token');
@@ -1102,7 +1105,7 @@ const DashboardV1 = () => {
                 hideLoading();
                 setIsInitializing(false);
             }, 300);
-            
+
         } catch (err) {
             console.error('Dashboard initialization error:', err);
             hideLoading();
@@ -1214,7 +1217,7 @@ const DashboardV1 = () => {
                 localStorage.setItem('currentCompanyId', companyId.toString());
 
                 updateProgress(100);
-                
+
                 setTimeout(() => {
                     hideLoading();
                     setIsInitializing(false);
@@ -1274,10 +1277,17 @@ const DashboardV1 = () => {
     ];
 
     const managementItems = [
+        { icon: <FaCalendarCheck size={20} />, label: 'Attendance', path: '/attendance' },
         { icon: <FaStore size={20} />, label: 'Store' },
-        { icon: <FaTag size={20} />, label: 'Categories' },
         { icon: <FaTruck size={20} />, label: 'Suppliers' },
     ];
+
+    const handleMenuItemClick = (item) => {
+        if (item.path) {
+            setActiveMenu(item.label);
+            navigate(item.path);
+        }
+    };
 
     const getCompanyId = () => {
         return currentCompany?.id || currentCompany?._id || '';
@@ -1328,7 +1338,7 @@ const DashboardV1 = () => {
                         Error Loading Dashboard
                     </h4>
                     <p style={{ color: '#718096', marginBottom: '20px' }}>{error}</p>
-                    <button 
+                    <button
                         style={{
                             padding: '8px 24px',
                             backgroundColor: '#2563eb',
@@ -1359,7 +1369,7 @@ const DashboardV1 = () => {
                         Authentication Required
                     </h4>
                     <p style={{ color: '#718096', marginBottom: '20px' }}>Please login to access the dashboard.</p>
-                    <button 
+                    <button
                         style={{
                             padding: '8px 24px',
                             backgroundColor: '#2563eb',
@@ -1392,7 +1402,7 @@ const DashboardV1 = () => {
             {/* Main Layout with Sidebar and Content */}
             <div style={styles.mainLayout}>
                 {/* Sidebar - Icon only, expands on hover */}
-                <div 
+                <div
                     style={styles.sidebar}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
@@ -1420,6 +1430,7 @@ const DashboardV1 = () => {
                                         ...styles.sidebarMenuItem,
                                         ...(item.active ? styles.sidebarMenuItemActive : {})
                                     }}
+                                    onClick={() => handleMenuItemClick(item)}
                                     onMouseEnter={(e) => {
                                         if (!item.active) {
                                             e.currentTarget.style.backgroundColor = styles.sidebarMenuItemHover.backgroundColor;
@@ -1452,6 +1463,7 @@ const DashboardV1 = () => {
                                 <div
                                     key={index}
                                     style={styles.sidebarMenuItem}
+                                    onClick={() => handleMenuItemClick(item)}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.backgroundColor = styles.sidebarMenuItemHover.backgroundColor;
                                     }}

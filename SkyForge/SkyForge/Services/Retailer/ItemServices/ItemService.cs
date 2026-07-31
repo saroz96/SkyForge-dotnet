@@ -41,8 +41,7 @@ namespace SkyForge.Services.Retailer.ItemServices
             _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
 
-
-        // //for 6 digit------------------------------start
+        // //for 5 digit------------------------------start
         // /// <summary>
         // /// Generates a unique item number using database sequence (Fastest & Most Reliable)
         // /// </summary>
@@ -101,11 +100,10 @@ namespace SkyForge.Services.Retailer.ItemServices
 
         //         if (!(bool)exists)
         //         {
-        //             // Get current max unique number - FIXED LINQ
+        //             // Get current max unique number
         //             int maxUniqueNumber = 0;
         //             try
         //             {
-        //                 // Use MaxAsync without DefaultIfEmpty
         //                 maxUniqueNumber = await _context.Items
         //                     .Where(i => i.CompanyId == companyId)
         //                     .Select(i => i.UniqueNumber)
@@ -113,19 +111,18 @@ namespace SkyForge.Services.Retailer.ItemServices
         //             }
         //             catch (InvalidOperationException)
         //             {
-        //                 // No items found, use default
         //                 maxUniqueNumber = 0;
         //             }
 
-        //             long startValue = maxUniqueNumber < 100000 ? 100000 : maxUniqueNumber + 1;
+        //             long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
 
-        //             // Create new sequence with 6 digits
+        //             // Create new sequence with 5 digits
         //             using var createCmd = new NpgsqlCommand(
         //                 $@"CREATE SEQUENCE ""{sequenceName}"" 
         //            START WITH {startValue} 
         //            INCREMENT BY 1 
-        //            MINVALUE 100000 
-        //            MAXVALUE 999999 
+        //            MINVALUE 10000 
+        //            MAXVALUE 99999 
         //            CYCLE",
         //                 connection);
         //             await createCmd.ExecuteNonQueryAsync();
@@ -134,7 +131,7 @@ namespace SkyForge.Services.Retailer.ItemServices
         //         }
         //         else
         //         {
-        //             // Check if sequence needs upgrading
+        //             // 🔴 CRITICAL: Check if sequence is 6-digit and force reset to 5-digit
         //             using var checkMinValueCmd = new NpgsqlCommand(
         //                 $"SELECT min_value FROM pg_sequences WHERE sequencename = @sequenceName",
         //                 connection);
@@ -143,16 +140,57 @@ namespace SkyForge.Services.Retailer.ItemServices
         //             var minValueObj = await checkMinValueCmd.ExecuteScalarAsync();
         //             long minValue = minValueObj != null ? Convert.ToInt64(minValueObj) : 0;
 
-        //             if (minValue < 100000)
+        //             // 🔴 FORCE RESET: If minValue is 100000 (6-digit), reset to 5-digit
+        //             if (minValue >= 100000)
         //             {
-        //                 _logger.LogInformation($"Upgrading sequence {sequenceName} from 4-digit to 6-digit");
+        //                 _logger.LogWarning($"Sequence {sequenceName} is 6-digit (minValue: {minValue}). Forcing reset to 5-digit...");
+
+        //                 // Get current max unique number from items
+        //                 int maxUniqueNumber = 0;
+        //                 try
+        //                 {
+        //                     maxUniqueNumber = await _context.Items
+        //                         .Where(i => i.CompanyId == companyId)
+        //                         .Select(i => i.UniqueNumber)
+        //                         .MaxAsync();
+        //                 }
+        //                 catch (InvalidOperationException)
+        //                 {
+        //                     maxUniqueNumber = 0;
+        //                 }
+
+        //                 // Calculate new start value (5-digit)
+        //                 long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
+
+        //                 // Drop and recreate the sequence with 5-digit configuration
+        //                 using var dropCmd = new NpgsqlCommand(
+        //                     $@"DROP SEQUENCE IF EXISTS ""{sequenceName}""",
+        //                     connection);
+        //                 await dropCmd.ExecuteNonQueryAsync();
+
+        //                 using var createCmd = new NpgsqlCommand(
+        //                     $@"CREATE SEQUENCE ""{sequenceName}"" 
+        //                START WITH {startValue} 
+        //                INCREMENT BY 1 
+        //                MINVALUE 10000 
+        //                MAXVALUE 99999 
+        //                CYCLE",
+        //                     connection);
+        //                 await createCmd.ExecuteNonQueryAsync();
+
+        //                 _logger.LogInformation($"Reset sequence {sequenceName} to 5-digit with start value {startValue}");
+        //             }
+        //             // Check if sequence needs upgrading from 4-digit to 5-digit
+        //             else if (minValue < 10000)
+        //             {
+        //                 _logger.LogInformation($"Upgrading sequence {sequenceName} from 4-digit to 5-digit");
 
         //                 try
         //                 {
         //                     // Try to alter the sequence
         //                     using var alterCmd = new NpgsqlCommand(
         //                         $@"ALTER SEQUENCE ""{sequenceName}"" 
-        //                    MINVALUE 100000 MAXVALUE 999999",
+        //                    MINVALUE 10000 MAXVALUE 99999",
         //                         connection);
         //                     await alterCmd.ExecuteNonQueryAsync();
 
@@ -162,16 +200,16 @@ namespace SkyForge.Services.Retailer.ItemServices
         //                         connection);
         //                     getValCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
         //                     var curValObj = await getValCmd.ExecuteScalarAsync();
-        //                     long currentValue = curValObj != null ? Convert.ToInt64(curValObj) : 100000;
+        //                     long currentValue = curValObj != null ? Convert.ToInt64(curValObj) : 10000;
 
-        //                     long newStart = currentValue < 100000 ? 100000 : currentValue + 1;
+        //                     long newStart = currentValue < 10000 ? 10000 : currentValue + 1;
 
         //                     using var restartCmd = new NpgsqlCommand(
         //                         $@"ALTER SEQUENCE ""{sequenceName}"" RESTART WITH {newStart}",
         //                         connection);
         //                     await restartCmd.ExecuteNonQueryAsync();
 
-        //                     _logger.LogInformation($"Successfully upgraded sequence {sequenceName} to 6 digits");
+        //                     _logger.LogInformation($"Successfully upgraded sequence {sequenceName} to 5 digits");
         //                 }
         //                 catch (Exception ex)
         //                 {
@@ -183,7 +221,6 @@ namespace SkyForge.Services.Retailer.ItemServices
         //                         connection);
         //                     await dropCmd.ExecuteNonQueryAsync();
 
-        //                     // Get max value using the same pattern
         //                     int maxUniqueNumber = 0;
         //                     try
         //                     {
@@ -197,14 +234,14 @@ namespace SkyForge.Services.Retailer.ItemServices
         //                         maxUniqueNumber = 0;
         //                     }
 
-        //                     long startValue = maxUniqueNumber < 100000 ? 100000 : maxUniqueNumber + 1;
+        //                     long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
 
         //                     using var createCmd = new NpgsqlCommand(
         //                         $@"CREATE SEQUENCE ""{sequenceName}"" 
         //                    START WITH {startValue} 
         //                    INCREMENT BY 1 
-        //                    MINVALUE 100000 
-        //                    MAXVALUE 999999 
+        //                    MINVALUE 10000 
+        //                    MAXVALUE 99999 
         //                    CYCLE",
         //                         connection);
         //                     await createCmd.ExecuteNonQueryAsync();
@@ -222,7 +259,6 @@ namespace SkyForge.Services.Retailer.ItemServices
         // }
         // //-----------------------------------------end
 
-        //for 5 digit------------------------------start
         /// <summary>
         /// Generates a unique item number using database sequence (Fastest & Most Reliable)
         /// </summary>
@@ -230,31 +266,125 @@ namespace SkyForge.Services.Retailer.ItemServices
         {
             try
             {
-                string sequenceName = $"item_seq_{companyId.ToString().Replace("-", "_")}";
+                // Use a simpler sequence name to avoid length issues
+                string sequenceName = $"item_seq_{companyId:N}"; // N format removes hyphens
 
                 _logger.LogInformation($"Looking for sequence: {sequenceName}");
 
                 // Ensure sequence exists for this company
                 await EnsureSequenceExistsAsync(companyId, sequenceName);
 
-                // Get next value from sequence
+                // Get next value from sequence - use the sequence directly
+                // PostgreSQL sequences are designed to be concurrency-safe
                 using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
 
-                using var cmd = new NpgsqlCommand(
-                    $"SELECT nextval('\"{sequenceName}\"')", // Added quotes for case sensitivity
-                    connection);
+                // Use a transaction to ensure consistency
+                using var transaction = await connection.BeginTransactionAsync();
 
-                var result = await cmd.ExecuteScalarAsync();
-                var uniqueNumber = Convert.ToInt32(result);
+                try
+                {
+                    // Get next value from sequence
+                    using var cmd = new NpgsqlCommand(
+                        $"SELECT nextval('\"{sequenceName}\"')",
+                        connection, transaction);
 
-                _logger.LogDebug("Generated unique item number from sequence: {UniqueNumber} for company {CompanyId}",
-                    uniqueNumber, companyId);
-                return uniqueNumber;
+                    var result = await cmd.ExecuteScalarAsync();
+                    var uniqueNumber = Convert.ToInt32(result);
+
+                    // Validate the number is within 5-digit range
+                    if (uniqueNumber > 99999)
+                    {
+                        // Sequence cycled, check if we need to reset
+                        _logger.LogWarning($"Sequence {sequenceName} reached {uniqueNumber}, checking for reset...");
+
+                        // Get current max from items table
+                        int maxUniqueNumber = await GetMaxUniqueNumberAsync(companyId);
+
+                        if (maxUniqueNumber < 10000)
+                        {
+                            // Reset sequence if no items or all numbers are below 10000
+                            await ResetSequenceAsync(connection, transaction, sequenceName, 10000);
+                            uniqueNumber = 10000;
+                        }
+                        else if (maxUniqueNumber >= 99999)
+                        {
+                            // All 5-digit numbers are used, need to handle overflow
+                            throw new InvalidOperationException($"All 5-digit numbers (10000-99999) are used for company {companyId}");
+                        }
+                        else
+                        {
+                            // Reset to next available number
+                            await ResetSequenceAsync(connection, transaction, sequenceName, maxUniqueNumber + 1);
+                            uniqueNumber = maxUniqueNumber + 1;
+                        }
+                    }
+
+                    // Final validation - ensure number is 5-digit
+                    if (uniqueNumber < 10000 || uniqueNumber > 99999)
+                    {
+                        throw new InvalidOperationException($"Generated number {uniqueNumber} is not a valid 5-digit number");
+                    }
+
+                    await transaction.CommitAsync();
+
+                    _logger.LogDebug("Generated unique item number from sequence: {UniqueNumber} for company {CompanyId}",
+                        uniqueNumber, companyId);
+                    return uniqueNumber;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating unique item number for company {CompanyId}", companyId);
+                throw;
+            }
+        }
+
+        private async Task<int> GetMaxUniqueNumberAsync(Guid companyId)
+        {
+            try
+            {
+                return await _context.Items
+                    .Where(i => i.CompanyId == companyId)
+                    .Select(i => i.UniqueNumber)
+                    .MaxAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                return 0;
+            }
+        }
+
+        private async Task ResetSequenceAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string sequenceName, long startValue)
+        {
+            try
+            {
+                // Drop and recreate sequence
+                using var dropCmd = new NpgsqlCommand(
+                    $@"DROP SEQUENCE IF EXISTS ""{sequenceName}""",
+                    connection, transaction);
+                await dropCmd.ExecuteNonQueryAsync();
+
+                using var createCmd = new NpgsqlCommand(
+                    $@"CREATE SEQUENCE ""{sequenceName}"" 
+               START WITH {startValue} 
+               INCREMENT BY 1 
+               MINVALUE 10000 
+               MAXVALUE 99999 
+               CYCLE",
+                    connection, transaction);
+                await createCmd.ExecuteNonQueryAsync();
+
+                _logger.LogInformation($"Reset sequence {sequenceName} to start with {startValue}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to reset sequence {sequenceName}");
                 throw;
             }
         }
@@ -269,86 +399,27 @@ namespace SkyForge.Services.Retailer.ItemServices
                 using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
 
-                // Check if sequence exists
-                using var checkCmd = new NpgsqlCommand(
-                    @"SELECT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = @sequenceName)",
-                    connection);
-                checkCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
+                using var transaction = await connection.BeginTransactionAsync();
 
-                var exists = await checkCmd.ExecuteScalarAsync();
-
-                _logger.LogInformation($"Sequence {sequenceName} exists: {exists}");
-
-                if (!(bool)exists)
+                try
                 {
-                    // Get current max unique number
-                    int maxUniqueNumber = 0;
-                    try
+                    // Check if sequence exists - use the exact name without ToLower()
+                    using var checkCmd = new NpgsqlCommand(
+                        @"SELECT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = @sequenceName)",
+                        connection, transaction);
+                    checkCmd.Parameters.AddWithValue("sequenceName", sequenceName); // Remove ToLower()
+
+                    var exists = await checkCmd.ExecuteScalarAsync();
+
+                    _logger.LogInformation($"Sequence {sequenceName} exists: {exists}");
+
+                    if (!(bool)exists)
                     {
-                        maxUniqueNumber = await _context.Items
-                            .Where(i => i.CompanyId == companyId)
-                            .Select(i => i.UniqueNumber)
-                            .MaxAsync();
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        maxUniqueNumber = 0;
-                    }
-
-                    long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
-
-                    // Create new sequence with 5 digits
-                    using var createCmd = new NpgsqlCommand(
-                        $@"CREATE SEQUENCE ""{sequenceName}"" 
-                   START WITH {startValue} 
-                   INCREMENT BY 1 
-                   MINVALUE 10000 
-                   MAXVALUE 99999 
-                   CYCLE",
-                        connection);
-                    await createCmd.ExecuteNonQueryAsync();
-                    _logger.LogInformation("Created sequence {SequenceName} for company {CompanyId} with start value {StartValue}",
-                        sequenceName, companyId, startValue);
-                }
-                else
-                {
-                    // 🔴 CRITICAL: Check if sequence is 6-digit and force reset to 5-digit
-                    using var checkMinValueCmd = new NpgsqlCommand(
-                        $"SELECT min_value FROM pg_sequences WHERE sequencename = @sequenceName",
-                        connection);
-                    checkMinValueCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
-
-                    var minValueObj = await checkMinValueCmd.ExecuteScalarAsync();
-                    long minValue = minValueObj != null ? Convert.ToInt64(minValueObj) : 0;
-
-                    // 🔴 FORCE RESET: If minValue is 100000 (6-digit), reset to 5-digit
-                    if (minValue >= 100000)
-                    {
-                        _logger.LogWarning($"Sequence {sequenceName} is 6-digit (minValue: {minValue}). Forcing reset to 5-digit...");
-
-                        // Get current max unique number from items
-                        int maxUniqueNumber = 0;
-                        try
-                        {
-                            maxUniqueNumber = await _context.Items
-                                .Where(i => i.CompanyId == companyId)
-                                .Select(i => i.UniqueNumber)
-                                .MaxAsync();
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            maxUniqueNumber = 0;
-                        }
-
-                        // Calculate new start value (5-digit)
+                        // Get current max unique number
+                        int maxUniqueNumber = await GetMaxUniqueNumberAsync(companyId);
                         long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
 
-                        // Drop and recreate the sequence with 5-digit configuration
-                        using var dropCmd = new NpgsqlCommand(
-                            $@"DROP SEQUENCE IF EXISTS ""{sequenceName}""",
-                            connection);
-                        await dropCmd.ExecuteNonQueryAsync();
-
+                        // Create new sequence with 5 digits
                         using var createCmd = new NpgsqlCommand(
                             $@"CREATE SEQUENCE ""{sequenceName}"" 
                        START WITH {startValue} 
@@ -356,80 +427,47 @@ namespace SkyForge.Services.Retailer.ItemServices
                        MINVALUE 10000 
                        MAXVALUE 99999 
                        CYCLE",
-                            connection);
+                            connection, transaction);
                         await createCmd.ExecuteNonQueryAsync();
 
-                        _logger.LogInformation($"Reset sequence {sequenceName} to 5-digit with start value {startValue}");
+                        _logger.LogInformation("Created sequence {SequenceName} for company {CompanyId} with start value {StartValue}",
+                            sequenceName, companyId, startValue);
                     }
-                    // Check if sequence needs upgrading from 4-digit to 5-digit
-                    else if (minValue < 10000)
+                    else
                     {
-                        _logger.LogInformation($"Upgrading sequence {sequenceName} from 4-digit to 5-digit");
+                        // Check sequence configuration
+                        using var checkMinValueCmd = new NpgsqlCommand(
+                            $"SELECT min_value, last_value FROM pg_sequences WHERE sequencename = @sequenceName",
+                            connection, transaction);
+                        checkMinValueCmd.Parameters.AddWithValue("sequenceName", sequenceName);
 
-                        try
+                        using var reader = await checkMinValueCmd.ExecuteReaderAsync();
+                        long minValue = 0;
+                        long lastValue = 0;
+
+                        if (await reader.ReadAsync())
                         {
-                            // Try to alter the sequence
-                            using var alterCmd = new NpgsqlCommand(
-                                $@"ALTER SEQUENCE ""{sequenceName}"" 
-                           MINVALUE 10000 MAXVALUE 99999",
-                                connection);
-                            await alterCmd.ExecuteNonQueryAsync();
-
-                            // Get current value
-                            using var getValCmd = new NpgsqlCommand(
-                                $"SELECT last_value FROM pg_sequences WHERE sequencename = @sequenceName",
-                                connection);
-                            getValCmd.Parameters.AddWithValue("sequenceName", sequenceName.ToLower());
-                            var curValObj = await getValCmd.ExecuteScalarAsync();
-                            long currentValue = curValObj != null ? Convert.ToInt64(curValObj) : 10000;
-
-                            long newStart = currentValue < 10000 ? 10000 : currentValue + 1;
-
-                            using var restartCmd = new NpgsqlCommand(
-                                $@"ALTER SEQUENCE ""{sequenceName}"" RESTART WITH {newStart}",
-                                connection);
-                            await restartCmd.ExecuteNonQueryAsync();
-
-                            _logger.LogInformation($"Successfully upgraded sequence {sequenceName} to 5 digits");
+                            minValue = reader.GetInt64(0);
+                            lastValue = reader.GetInt64(1);
                         }
-                        catch (Exception ex)
+                        await reader.CloseAsync();
+
+                        // If minValue is not 10000, recreate the sequence
+                        if (minValue != 10000)
                         {
-                            _logger.LogWarning($"Alter failed: {ex.Message}. Recreating sequence...");
+                            _logger.LogWarning($"Sequence {sequenceName} has incorrect minValue: {minValue}. Recreating...");
 
-                            // Drop and recreate
-                            using var dropCmd = new NpgsqlCommand(
-                                $@"DROP SEQUENCE ""{sequenceName}""",
-                                connection);
-                            await dropCmd.ExecuteNonQueryAsync();
-
-                            int maxUniqueNumber = 0;
-                            try
-                            {
-                                maxUniqueNumber = await _context.Items
-                                    .Where(i => i.CompanyId == companyId)
-                                    .Select(i => i.UniqueNumber)
-                                    .MaxAsync();
-                            }
-                            catch (InvalidOperationException)
-                            {
-                                maxUniqueNumber = 0;
-                            }
-
-                            long startValue = maxUniqueNumber < 10000 ? 10000 : maxUniqueNumber + 1;
-
-                            using var createCmd = new NpgsqlCommand(
-                                $@"CREATE SEQUENCE ""{sequenceName}"" 
-                           START WITH {startValue} 
-                           INCREMENT BY 1 
-                           MINVALUE 10000 
-                           MAXVALUE 99999 
-                           CYCLE",
-                                connection);
-                            await createCmd.ExecuteNonQueryAsync();
-
-                            _logger.LogInformation($"Recreated sequence {sequenceName} with start value {startValue}");
+                            // Drop and recreate the sequence
+                            await ResetSequenceAsync(connection, transaction, sequenceName, 10000);
                         }
                     }
+
+                    await transaction.CommitAsync();
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
                 }
             }
             catch (Exception ex)
@@ -438,7 +476,6 @@ namespace SkyForge.Services.Retailer.ItemServices
                 throw;
             }
         }
-        //-----------------------------------------end
 
         public async Task<long> GenerateBarcodeNumberAsync(Guid companyId)
         {
