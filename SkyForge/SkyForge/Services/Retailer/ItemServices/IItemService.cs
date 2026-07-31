@@ -9,7 +9,7 @@ namespace SkyForge.Services.Retailer.ItemServices
 {
     public interface IItemService
     {
-        // Task<int> GenerateUniqueItemNumberAsync(Guid companyId);
+        Task<int> GenerateUniqueItemNumberAsync(Guid companyId);
         Task<long> GenerateBarcodeNumberAsync(Guid companyId);
         Task<Item> CreateItemAsync(CreateItemDTO createItemDto, Guid companyId, Guid fiscalYearId);
         Task<Item> GetItemByIdAsync(Guid itemId);

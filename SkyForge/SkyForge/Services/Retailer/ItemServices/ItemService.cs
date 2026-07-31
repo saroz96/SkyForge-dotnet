@@ -1776,7 +1776,7 @@ namespace SkyForge.Services.Retailer.ItemServices
 
                 if (exists)
                 {
-                    throw new InvalidOperationException($"Unique number {providedUniqueNumber.Value} already exists for this company");
+                    throw new InvalidOperationException($"Unique number {providedUniqueNumber.Value} already exists!");
                 }
 
                 return providedUniqueNumber.Value;
@@ -2153,7 +2153,7 @@ namespace SkyForge.Services.Retailer.ItemServices
 
                 if (existingItem)
                 {
-                    throw new InvalidOperationException($"Item '{createItemDto.Name.Trim()}' already exists for this company");
+                    throw new InvalidOperationException($"Item '{createItemDto.Name.Trim()}' already exists!");
                 }
 
                 // 3. Validate and get unique number (from frontend or generate)

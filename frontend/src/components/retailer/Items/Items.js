@@ -996,19 +996,19 @@
 //         </style>
 //         ${printHeader}
 //         <div class="report-title">Items Report</div>
-        
+
 //         <div class="header-info">
 //             <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
 //             <strong>Total Items:</strong> ${itemsToPrint.length}
 //         </div>
-        
+
 //         <div class="filter-info">
 //             ${printOption !== 'all' ? `<strong>Filter:</strong> ${printOption.charAt(0).toUpperCase() + printOption.slice(1)} | ` : ''}
 //             <strong>Printed on:</strong> ${data.companyDateFormat === 'nepali' ?
 //                 (data.nepaliDate || new NepaliDate().format('YYYY-MM-DD')) :
 //                 new Date().toLocaleDateString()}
 //         </div>
-        
+
 //         <table>
 //             <thead>
 //                 <tr>
@@ -1046,7 +1046,7 @@
 //         tableContent += `
 //             </tbody>
 //         </table>
-        
+
 //         <div class="footer-note" style="margin-top: 10px; font-size: 7px; color: #666; text-align: center;">
 //             ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
 //         </div>
@@ -1873,7 +1873,7 @@ const Items = () => {
     const [notificationType, setNotificationType] = useState('');
     const [showProductModal, setShowProductModal] = useState(false);
     const itemNameRef = useRef(null);
-    
+
     // Column resizing state
     const [columnWidths, setColumnWidths] = useState({
         name: 160,
@@ -1994,7 +1994,7 @@ const Items = () => {
         // We've reached beyond 99999, try to find any gap
         let gapNumber = 10001;
         const sortedSet = new Set(existingNumbers);
-        
+
         for (let i = 10001; i <= 99999; i++) {
             if (!sortedSet.has(i)) {
                 console.log('Found gap after full scan:', i);
@@ -2694,7 +2694,7 @@ const Items = () => {
             puPrice: item.puPrice || '',
             openingStock: item.openingStock || '',
             openingStockBalance: item.openingStockBalance || (item.puPrice * item.openingStock).toFixed(2),
-            uniqueNumber: item.uniqueNumber || ''
+            // uniqueNumber: item.uniqueNumber || ''
         });
         setGeneratedUniqueNumber(item.uniqueNumber);
         setPendingNumberGeneration(false);
@@ -2714,7 +2714,7 @@ const Items = () => {
     const handleUniqueNumberChange = (e) => {
         const value = e.target.value;
         const numValue = parseInt(value);
-        
+
         if (value && (numValue < 10001 || numValue > 99999)) {
             showNotificationMessage('Unique number must be between 10001 and 99999', 'warning');
             return;
@@ -2775,6 +2775,113 @@ const Items = () => {
         setShowCompositionModal(false);
     };
 
+    // const handleSubmit = async (e) => {
+    //     if (e) {
+    //         e.preventDefault();
+    //     }
+
+    //     setIsSaving(true);
+
+    //     try {
+    //         const requestData = {
+    //             name: formData.name.trim(),
+    //             hscode: formData.hscode,
+    //             categoryId: formData.categoryId,
+    //             itemsCompanyId: formData.itemsCompanyId,
+    //             mainUnitId: formData.mainUnitId || null,
+    //             wsUnit: formData.wsUnit ? parseFloat(formData.wsUnit) : 0,
+    //             unitId: formData.unitId,
+    //             vatStatus: formData.vatStatus,
+    //             reorderLevel: formData.reorderLevel ? parseFloat(formData.reorderLevel) : 0,
+    //             price: formData.price ? parseFloat(formData.price) : null,
+    //             puPrice: formData.puPrice ? parseFloat(formData.puPrice) : null,
+    //             openingStock: formData.openingStock ? parseFloat(formData.openingStock) : 0,
+    //             compositionIds: selectedCompositions.map(comp => comp.id || comp._id),
+    //             uniqueNumber: formData.uniqueNumber ? parseInt(formData.uniqueNumber) : null
+    //         };
+
+    //         if (!requestData.name || !requestData.categoryId || !requestData.itemsCompanyId ||
+    //             !requestData.unitId || !requestData.vatStatus) {
+    //             showNotificationMessage('Please fill all required fields', 'error');
+    //             setIsSaving(false);
+    //             return;
+    //         }
+
+    //         if (!requestData.uniqueNumber) {
+    //             showNotificationMessage('Please generate or enter a unique number', 'error');
+    //             setIsSaving(false);
+    //             return;
+    //         }
+
+    //         if (!currentItem) {
+    //             const numberExists = data.items.some(item => 
+    //                 item.uniqueNumber === requestData.uniqueNumber
+    //             );
+    //             if (numberExists) {
+    //                 showNotificationMessage(`Number ${requestData.uniqueNumber} already exists! Please use another number.`, 'error');
+    //                 setIsSaving(false);
+    //                 return;
+    //             }
+    //         }
+
+    //         if (currentItem) {
+    //             // Update existing item
+    //             const response = await api.put(`/api/retailer/items/${currentItem._id}`, requestData);
+
+    //             if (response.data?.success) {
+    //                 showNotificationMessage('Item updated successfully!', 'success');
+    //                 await fetchItems();
+    //                 // Reset form and generate next number
+    //                 resetFormOnly();
+    //                 setPendingNumberGeneration(true);
+    //             } else {
+    //                 showNotificationMessage(response.data?.error || 'Failed to update item', 'error');
+    //             }
+    //         } else {
+    //             // Create new item
+    //             const response = await api.post('/api/retailer/items/create', requestData);
+
+    //             if (response.data?.success) {
+    //                 showNotificationMessage('Item created successfully!', 'success');
+
+    //                 // Reset form and set pending flag to generate number after fetch
+    //                 resetFormOnly();
+    //                 setPendingNumberGeneration(true);
+
+    //                 // Fetch updated items list
+    //                 await fetchItems();
+    //             } else {
+    //                 showNotificationMessage(response.data?.error || 'Failed to create item', 'error');
+    //             }
+    //         }
+    //     } catch (err) {
+    //         console.error('Submit error:', err);
+
+    //         if (err.response?.data?.error?.includes('duplicate') || 
+    //             err.response?.data?.error?.includes('unique constraint') ||
+    //             err.response?.data?.error?.includes('already exists')) {
+    //             showNotificationMessage('This unique number is already taken. Please generate a new one.', 'error');
+    //             const nextNumber = generateNextUniqueNumber();
+    //             if (nextNumber) {
+    //                 setGeneratedUniqueNumber(nextNumber);
+    //                 setFormData(prev => ({
+    //                     ...prev,
+    //                     uniqueNumber: nextNumber
+    //                 }));
+    //             }
+    //         } else if (err.response?.data?.errors) {
+    //             const validationErrors = Object.entries(err.response.data.errors)
+    //                 .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
+    //                 .join('; ');
+    //             showNotificationMessage(`Validation errors: ${validationErrors}`, 'error');
+    //         } else {
+    //             handleApiError(err);
+    //         }
+    //     } finally {
+    //         setIsSaving(false);
+    //     }
+    // };
+
     const handleSubmit = async (e) => {
         if (e) {
             e.preventDefault();
@@ -2814,41 +2921,36 @@ const Items = () => {
             }
 
             if (!currentItem) {
-                const numberExists = data.items.some(item => 
-                    item.uniqueNumber === requestData.uniqueNumber
+                const currentCompanyId = data.companyId || data.currentCompany?.id;
+                const numberExists = data.items.some(item =>
+                    item.uniqueNumber === requestData.uniqueNumber &&
+                    item.companyId === currentCompanyId
                 );
                 if (numberExists) {
-                    showNotificationMessage(`Number ${requestData.uniqueNumber} already exists! Please use another number.`, 'error');
+                    showNotificationMessage(`Number ${requestData.uniqueNumber} already exists in this company! Please use another number.`, 'error');
                     setIsSaving(false);
                     return;
                 }
             }
 
             if (currentItem) {
-                // Update existing item
                 const response = await api.put(`/api/retailer/items/${currentItem._id}`, requestData);
 
                 if (response.data?.success) {
                     showNotificationMessage('Item updated successfully!', 'success');
                     await fetchItems();
-                    // Reset form and generate next number
                     resetFormOnly();
                     setPendingNumberGeneration(true);
                 } else {
                     showNotificationMessage(response.data?.error || 'Failed to update item', 'error');
                 }
             } else {
-                // Create new item
                 const response = await api.post('/api/retailer/items/create', requestData);
 
                 if (response.data?.success) {
                     showNotificationMessage('Item created successfully!', 'success');
-                    
-                    // Reset form and set pending flag to generate number after fetch
                     resetFormOnly();
                     setPendingNumberGeneration(true);
-                    
-                    // Fetch updated items list
                     await fetchItems();
                 } else {
                     showNotificationMessage(response.data?.error || 'Failed to create item', 'error');
@@ -2856,10 +2958,23 @@ const Items = () => {
             }
         } catch (err) {
             console.error('Submit error:', err);
-            
-            if (err.response?.data?.error?.includes('duplicate') || 
+
+            // ✅ Get the error message from the response
+            const errorMessage = err.response?.data?.error || err.message || '';
+
+            // ✅ Check if it's a DUPLICATE NAME error
+            if (errorMessage.toLowerCase().includes('already exists') ||
+                errorMessage.toLowerCase().includes('already exists for this fiscal year')) {
+                showNotificationMessage(errorMessage, 'error');
+                setIsSaving(false);
+                return;
+            }
+
+            // ✅ Check if it's a DUPLICATE UNIQUE NUMBER error
+            if (err.response?.data?.error?.includes('duplicate') ||
                 err.response?.data?.error?.includes('unique constraint') ||
-                err.response?.data?.error?.includes('already exists')) {
+                errorMessage.toLowerCase().includes('unique number') ||
+                errorMessage.toLowerCase().includes('already exists')) {
                 showNotificationMessage('This unique number is already taken. Please generate a new one.', 'error');
                 const nextNumber = generateNextUniqueNumber();
                 if (nextNumber) {
@@ -3244,9 +3359,9 @@ const Items = () => {
                                                     max="99999"
                                                     placeholder=" "
                                                     autoComplete="off"
-                                                    style={{ 
-                                                        height: '30px', 
-                                                        fontSize: '0.875rem', 
+                                                    style={{
+                                                        height: '30px',
+                                                        fontSize: '0.875rem',
                                                         paddingTop: '0.75rem',
                                                         backgroundColor: currentItem ? '#f8f9fa' : 'white'
                                                     }}
@@ -3261,8 +3376,8 @@ const Items = () => {
                                                         size="sm"
                                                         onClick={handleGenerateNumber}
                                                         title="Generate unique number (Ctrl+N)"
-                                                        style={{ 
-                                                            height: '30px', 
+                                                        style={{
+                                                            height: '30px',
                                                             padding: '0 8px',
                                                             marginLeft: '4px',
                                                             fontSize: '0.75rem',
