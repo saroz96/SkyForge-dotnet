@@ -9,7 +9,7 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         [Required]
         [StringLength(255)]
         public string Name { get; set; } = string.Empty;
-
+        public int? UniqueNumber { get; set; }
         public string? Hscode { get; set; }
 
         [Required]
