@@ -822,6 +822,7 @@ namespace SkyForge.Controllers.Retailer
         }
 
 
+
         [HttpDelete("items/{id}")]
         public async Task<IActionResult> DeleteItem(Guid id)
         {

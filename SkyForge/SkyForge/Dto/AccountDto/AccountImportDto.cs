@@ -1,6 +1,7 @@
 // Dto/AccountDto/AccountImportDto.cs
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace SkyForge.Dto.AccountDto
 {
@@ -18,6 +19,13 @@ namespace SkyForge.Dto.AccountDto
         public decimal? OpeningBalance { get; set; }
         public string? OpeningBalanceType { get; set; } = "Dr";
         public bool? IsActive { get; set; } = true;
+    }
+
+    // Create this DTO
+    public class AccountImportRequestDto
+    {
+        [Required]
+        public IFormFile ExcelFile { get; set; }
     }
 
     public class AccountImportResponseDto

@@ -1,6 +1,7 @@
 // Dto/RetailerDto/ItemDto/ItemImportDto.cs
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace SkyForge.Dto.RetailerDto.ItemDto
 {
@@ -23,7 +24,11 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public decimal? ReorderLevel { get; set; }
         public string? Status { get; set; }
     }
-
+    public class ItemImportRequestDto
+    {
+        [Required]
+        public IFormFile ExcelFile { get; set; }
+    }
     public class ItemImportResponseDto
     {
         public bool Success { get; set; }

@@ -166,8 +166,109 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // [HttpPost("items-import")]
+        // [Consumes("multipart/form-data")]
+        // public async Task<IActionResult> ImportItems([FromForm] IFormFile excelFile)
+        // {
+        //     try
+        //     {
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new { success = false, error = "Invalid user token" });
+        //         }
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new { success = false, error = "No company selected" });
+        //         }
+
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new { success = false, error = "Access restricted to retailer accounts" });
+        //         }
+
+        //         // Validate file
+        //         if (excelFile == null || excelFile.Length == 0)
+        //         {
+        //             return BadRequest(new ItemImportResponseDto
+        //             {
+        //                 Success = false,
+        //                 Message = "No file uploaded",
+        //                 Code = "NO_FILE"
+        //             });
+        //         }
+
+        //         if (excelFile.Length > 5 * 1024 * 1024) // 5MB limit
+        //         {
+        //             return BadRequest(new ItemImportResponseDto
+        //             {
+        //                 Success = false,
+        //                 Message = "File size exceeds 5MB limit",
+        //                 Code = "FILE_TOO_LARGE"
+        //             });
+        //         }
+
+        //         var extension = Path.GetExtension(excelFile.FileName).ToLower();
+        //         if (extension != ".xlsx" && extension != ".xls")
+        //         {
+        //             return BadRequest(new ItemImportResponseDto
+        //             {
+        //                 Success = false,
+        //                 Message = "Invalid file format. Please upload .xlsx or .xls file",
+        //                 Code = "INVALID_FORMAT"
+        //             });
+        //         }
+
+        //         // Get fiscal year
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //         if (currentFiscalYear == null)
+        //         {
+        //             return BadRequest(new ItemImportResponseDto
+        //             {
+        //                 Success = false,
+        //                 Message = "No active fiscal year found",
+        //                 Code = "FISCAL_YEAR_MISSING"
+        //             });
+        //         }
+
+        //         // Process the file
+        //         var result = await ProcessItemImport(excelFile, companyIdGuid, currentFiscalYear.Id, userIdGuid);
+
+        //         return Ok(new ItemImportResponseDto
+        //         {
+        //             Success = result.SuccessCount > 0,
+        //             Message = $"Imported {result.SuccessCount} items successfully",
+        //             Warning = result.Warnings.Any() ? string.Join("; ", result.Warnings) : null,
+        //             Code = result.SuccessCount > 0 ? "IMPORT_SUCCESS" : "IMPORT_FAILED",
+        //             Data = result
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in ImportItems");
+        //         return StatusCode(500, new ItemImportResponseDto
+        //         {
+        //             Success = false,
+        //             Message = "Server error during import",
+        //             Code = "SERVER_ERROR",
+        //             Data = new ItemImportResultData
+        //             {
+        //                 Errors = new List<string> { ex.Message }
+        //             }
+        //         });
+        //     }
+        // }
+
+
         [HttpPost("items-import")]
-        public async Task<IActionResult> ImportItems([FromForm] IFormFile excelFile)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ImportItems([FromForm] ItemImportRequestDto request)
         {
             try
             {
@@ -190,8 +291,8 @@ namespace SkyForge.Controllers.Retailer
                     return StatusCode(403, new { success = false, error = "Access restricted to retailer accounts" });
                 }
 
-                // Validate file
-                if (excelFile == null || excelFile.Length == 0)
+                // Validate file - use request.ExcelFile instead of excelFile
+                if (request.ExcelFile == null || request.ExcelFile.Length == 0)
                 {
                     return BadRequest(new ItemImportResponseDto
                     {
@@ -201,7 +302,7 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                if (excelFile.Length > 5 * 1024 * 1024) // 5MB limit
+                if (request.ExcelFile.Length > 5 * 1024 * 1024) // 5MB limit
                 {
                     return BadRequest(new ItemImportResponseDto
                     {
@@ -211,7 +312,7 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                var extension = Path.GetExtension(excelFile.FileName).ToLower();
+                var extension = Path.GetExtension(request.ExcelFile.FileName).ToLower();
                 if (extension != ".xlsx" && extension != ".xls")
                 {
                     return BadRequest(new ItemImportResponseDto
@@ -236,8 +337,8 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                // Process the file
-                var result = await ProcessItemImport(excelFile, companyIdGuid, currentFiscalYear.Id, userIdGuid);
+                // Process the file - use request.ExcelFile
+                var result = await ProcessItemImport(request.ExcelFile, companyIdGuid, currentFiscalYear.Id, userIdGuid);
 
                 return Ok(new ItemImportResponseDto
                 {

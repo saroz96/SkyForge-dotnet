@@ -27,5 +27,6 @@ namespace SkyForge.Services.Retailer.ItemServices
         Task<Guid> GetCurrentFiscalYearIdAsync(Guid companyId);
 
         Task<bool> UpdateBatchByNumberAsync(Guid itemId, string oldBatchNumber, UpdateBatchByNumberDTO updateDto, Guid companyId);
+
     }
 }

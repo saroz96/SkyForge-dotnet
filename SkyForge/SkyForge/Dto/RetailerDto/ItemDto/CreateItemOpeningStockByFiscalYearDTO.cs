@@ -25,5 +25,7 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         [Required]
         [Range(0, double.MaxValue)]
         public decimal SalesPrice { get; set; } = 0;
+        public string? NepaliDate { get; set; }
+        public DateTime Date { get; set; }
     }
 }
