@@ -1908,11 +1908,12 @@ namespace SkyForge.Services.Retailer.ItemServices
             return first12Digits * 10 + checkDigit;
         }
 
-         //for 5 digit------------------------------start
+        
+//         //for 5 digit------------------------------start
         /// <summary>
         /// Generates a unique item number using database sequence (Fastest & Most Reliable)
         /// </summary>
-        public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
+        public async Task<int> GenerateUniqueItemNumberForImportAsync(Guid companyId)
         {
             try
             {
@@ -1921,7 +1922,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                 _logger.LogInformation($"Looking for sequence: {sequenceName}");
 
                 // Ensure sequence exists for this company
-                await EnsureSequenceExistsAsync(companyId, sequenceName);
+                await EnsureSequenceExistsForImportAsync(companyId, sequenceName);
 
                 // Get next value from sequence
                 using var connection = new NpgsqlConnection(_connectionString);
@@ -2126,11 +2127,12 @@ namespace SkyForge.Services.Retailer.ItemServices
         }
         //-----------------------------------------end
 
+
         //for 5 digit------------------------------start
-        /// <summary>ams
+        /// <summary>
         /// Generates a unique item number using database sequence (Fastest & Most Reliable)
         /// </summary>
-        public async Task<int> GenerateUniqueItemNumberForImportAsync(Guid companyId)
+        public async Task<int> GenerateUniqueItemNumberAsync(Guid companyId)
         {
             try
             {
@@ -2139,7 +2141,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                 _logger.LogInformation($"Looking for sequence: {sequenceName}");
 
                 // Ensure sequence exists for this company
-                await EnsureSequenceExistsForImportAsync(companyId, sequenceName);
+                await EnsureSequenceExistsAsync(companyId, sequenceName);
 
                 // Get next value from sequence
                 using var connection = new NpgsqlConnection(_connectionString);
