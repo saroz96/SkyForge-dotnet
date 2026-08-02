@@ -781,7 +781,7 @@ namespace SkyForge.Controllers.Retailer
                         MinStock = finalMinStock,
                         MaxStock = finalMaxStock,
                         ReorderLevel = finalReorderLevel,
-                        // UniqueNumber = uniqueNumber,
+                        UniqueNumber = uniqueNumber,
                         BarcodeNumber = barcodeNumber,
                         CompanyId = companyId,
                         Status = finalStatus,
