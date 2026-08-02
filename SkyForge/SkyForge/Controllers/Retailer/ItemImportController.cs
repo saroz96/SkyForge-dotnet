@@ -759,7 +759,7 @@ namespace SkyForge.Controllers.Retailer
                     string finalStatus = string.IsNullOrEmpty(status) ? "active" : status;
 
                     // Generate unique numbers
-                    // var uniqueNumber = await _itemService.GenerateUniqueItemNumberAsync(companyId);
+                    var uniqueNumber = await _itemService.GenerateUniqueItemNumberAsync(companyId);
                     var barcodeNumber = await _itemService.GenerateBarcodeNumberAsync(companyId);
 
                     // Create the item
