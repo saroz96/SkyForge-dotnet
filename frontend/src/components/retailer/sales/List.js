@@ -8,6 +8,7 @@ import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import '../../../stylesheet/noDateIcon.css';
 import Loader from '../../Loader';
 import ProductModal from '../dashboard/modals/ProductModal';
+// import {FixedSizeList as List } from 'react-window';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import * as XLSX from 'xlsx';
