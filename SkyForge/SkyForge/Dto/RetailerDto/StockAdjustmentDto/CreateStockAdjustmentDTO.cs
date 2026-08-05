@@ -35,6 +35,9 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
         [Required]
         public Guid UnitId { get; set; }
 
+        [Range(0.001, double.MaxValue)]
+        public decimal? WsUnit { get; set; }
+
         public string? BatchNumber { get; set; }
 
         public DateTime? ExpiryDate { get; set; }
@@ -63,5 +66,8 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
         public string VatStatus { get; set; } = string.Empty;
 
         public string? UniqueUuid { get; set; } // For short adjustments to identify specific batch
+
+        public Guid? StoreId { get; set; }
+        public Guid? RackId { get; set; }
     }
 }

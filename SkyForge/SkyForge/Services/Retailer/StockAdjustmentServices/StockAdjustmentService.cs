@@ -9,6 +9,8 @@ using SkyForge.Dto.AccountDto;
 using SkyForge.Dto.RetailerDto;
 using SkyForge.Models.Retailer.StockAdjustmentModel;
 using SkyForge.Models.Retailer.Items;
+using SkyForge.Models.Retailer.StoreModel;
+using SkyForge.Models.RackModel;
 
 
 namespace SkyForge.Services.Retailer.StockAdjustmentServices
@@ -164,6 +166,369 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
             return await _billNumberService.GetCurrentBillNumberAsync(companyId, fiscalYearId, "stockAdjustment");
         }
 
+        // public async Task<StockAdjustment> CreateStockAdjustmentAsync(CreateStockAdjustmentDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         _logger.LogInformation("CreateStockAdjustmentAsync started for Company: {CompanyId}, User: {UserId}", companyId, userId);
+
+        //         // Validate company and fiscal year
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears.FindAsync(fiscalYearId);
+        //         if (fiscalYear == null || fiscalYear.CompanyId != companyId)
+        //             throw new ArgumentException("Invalid fiscal year");
+
+        //         // Parse VAT exemption
+        //         bool isVatExemptBool = dto.IsVatExempt == "true" || dto.IsVatExempt == "True" || dto.IsVatExempt == "1";
+        //         bool isVatAll = dto.IsVatExempt == "all";
+
+        //         decimal discount = dto.DiscountPercentage;
+
+        //         decimal subTotal = 0;
+        //         decimal totalTaxableAmount = 0;
+        //         decimal totalNonTaxableAmount = 0;
+        //         bool hasVatableItems = false;
+        //         bool hasNonVatableItems = false;
+
+        //         var itemsList = new List<StockAdjustmentItem>();
+
+        //         // Validate and process each item
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             var item = await _context.Items
+        //                 .Include(i => i.StockEntries)
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item not found: {itemDto.ItemId}");
+
+        //             // Use values from DTO
+        //             decimal puPrice = itemDto.PuPrice;           // Cost price from DTO (e.g., 400)
+        //             decimal price = itemDto.Price;                // Selling price from DTO
+        //             decimal mrp = itemDto.Mrp ?? 0;                // MRP from DTO
+        //             decimal marginPercentage = itemDto.MarginPercentage ?? 0;
+        //             string batchNumber = itemDto.BatchNumber ?? "XXX";
+        //             DateOnly? expiryDate = itemDto.ExpiryDate.HasValue
+        //                 ? DateOnly.FromDateTime(itemDto.ExpiryDate.Value)
+        //                 : null;
+
+        //             // Try to find the latest purchase bill item with the EXACT AltPuPrice provided
+        //             var matchingPurchaseItem = await _context.PurchaseBillItems
+        //                 .Include(pbi => pbi.PurchaseBill)
+        //                 .Where(pbi => pbi.ItemId == itemDto.ItemId
+        //                     && pbi.AltPuPrice == puPrice  // Match exactly the provided cost price (400)
+        //                     && pbi.PurchaseBill.CompanyId == companyId)
+        //                 .OrderByDescending(pbi => pbi.NepaliDate) // Get the most recent one
+        //                 .FirstOrDefaultAsync();
+
+        //             if (matchingPurchaseItem != null)
+        //             {
+        //                 // Found a purchase with matching AltPuPrice - restore its data
+        //                 // But keep the original PuPrice from DTO since that's what we matched on
+        //                 marginPercentage = matchingPurchaseItem.MarginPercentage;   // Restore margin % from purchase
+        //                 mrp = matchingPurchaseItem.AltMrp ?? 0;                     // Restore MRP from purchase
+        //                 price = matchingPurchaseItem.AltPrice ?? 0;                 // Restore selling price from purchase
+
+        //                 // Also restore batch and expiry from purchase if not provided
+        //                 if (string.IsNullOrEmpty(batchNumber) || batchNumber == "XXX")
+        //                     batchNumber = matchingPurchaseItem.BatchNumber ?? batchNumber;
+
+        //                 if (!expiryDate.HasValue)
+        //                     expiryDate = matchingPurchaseItem.ExpiryDate;
+
+        //                 _logger.LogInformation("Found matching purchase for item {ItemId} with AltPuPrice={AltPuPrice}: Selling Price={Price}, Margin={MarginPercentage}%, MRP={Mrp}, Batch={BatchNumber}, Expiry={ExpiryDate} from PurchaseBill: {BillNumber}",
+        //                     itemDto.ItemId, puPrice, price, marginPercentage, mrp, batchNumber, expiryDate, matchingPurchaseItem.PurchaseBill?.BillNumber);
+        //             }
+        //             else
+        //             {
+        //                 _logger.LogInformation("No matching purchase found for item {ItemId} with AltPuPrice={AltPuPrice}, using provided values: Selling Price={Price}, MRP={Mrp}",
+        //                     itemDto.ItemId, puPrice, price, mrp);
+        //             }
+
+        //             decimal itemTotal = price * itemDto.Quantity;
+        //             subTotal += itemTotal;
+
+        //             if (item.VatStatus?.ToLower() == "13")
+        //             {
+        //                 hasVatableItems = true;
+        //                 totalTaxableAmount += itemTotal;
+        //             }
+        //             else
+        //             {
+        //                 hasNonVatableItems = true;
+        //                 totalNonTaxableAmount += itemTotal;
+        //             }
+
+        //             decimal parsedQuantity = itemDto.Quantity;
+
+        //             // Generate a unique UUID for this stock adjustment batch
+        //             var uniqueUuid = Guid.NewGuid().ToString();
+
+        //             // Handle excess adjustment - ALWAYS CREATE NEW ENTRY
+        //             if (dto.AdjustmentType == "xcess")
+        //             {
+        //                 // ALWAYS create a new batch with its own unique UUID using the restored values
+        //                 var stockEntry = new StockEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     ItemId = item.Id,
+        //                     Date = dto.Date,
+        //                     NepaliDate = dto.NepaliDate,
+        //                     BatchNumber = batchNumber,
+        //                     ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+        //                     Quantity = parsedQuantity,
+        //                     Price = price,                                     // Restored selling price from purchase (500)
+        //                     PuPrice = puPrice,                                  // Cost price from DTO (400)
+        //                     Mrp = mrp,                                          // Restored MRP from purchase
+        //                     MarginPercentage = marginPercentage,                // Restored margin % from purchase
+        //                     UniqueUuid = uniqueUuid,
+        //                     CompanyId = companyId,                              // New unique UUID for this batch
+        //                     FiscalYearId = fiscalYearId
+        //                 };
+
+        //                 await _context.StockEntries.AddAsync(stockEntry);
+
+        //                 _logger.LogInformation("CREATED new separate batch for item {ItemId} with PuPrice={PuPrice}, quantity={Quantity}, UUID={Uuid}, " +
+        //                     "RESTORED Price={Price}, Mrp={Mrp}, Margin={MarginPercentage}%",
+        //                     item.Id, puPrice, parsedQuantity, uniqueUuid, price, mrp, marginPercentage);
+        //             }
+
+        //             // Handle short adjustment
+        //             if (dto.AdjustmentType == "short")
+        //             {
+        //                 decimal remainingQuantity = parsedQuantity;
+
+        //                 // Get fresh stock entries from database - match by ItemId AND PuPrice
+        //                 var stockEntries = await _context.StockEntries
+        //                     .Where(e => e.ItemId == item.Id
+        //                         && e.PuPrice == puPrice  // CRITICAL: Match exact cost price
+        //                         && e.Quantity > 0)
+        //                     .OrderBy(e => e.Date) // FIFO
+        //                     .ToListAsync();
+
+        //                 var batchesToProcess = stockEntries
+        //                     .Where(e => e.BatchNumber == batchNumber)
+        //                     .ToList();
+
+        //                 // If specific UUID provided, filter by it
+        //                 if (!string.IsNullOrEmpty(itemDto.UniqueUuid))
+        //                 {
+        //                     batchesToProcess = batchesToProcess
+        //                         .Where(e => e.UniqueUuid == itemDto.UniqueUuid)
+        //                         .ToList();
+        //                 }
+
+        //                 if (!batchesToProcess.Any())
+        //                 {
+        //                     throw new ArgumentException($"No matching batch found for item: {item.Name} with cost price: {puPrice}, batch: {batchNumber}");
+        //                 }
+
+        //                 foreach (var batch in batchesToProcess)
+        //                 {
+        //                     if (remainingQuantity <= 0) break;
+
+        //                     if (batch.Quantity >= remainingQuantity)
+        //                     {
+        //                         batch.Quantity -= remainingQuantity;
+        //                         remainingQuantity = 0;
+
+        //                         if (batch.Quantity == 0)
+        //                         {
+        //                             _context.StockEntries.Remove(batch);
+        //                             _logger.LogInformation("Removed batch for item {ItemId} with PuPrice={PuPrice}, UUID={Uuid} as quantity became 0",
+        //                                 item.Id, puPrice, batch.UniqueUuid);
+        //                         }
+        //                         else
+        //                         {
+        //                             _context.StockEntries.Update(batch);
+        //                             _logger.LogInformation("Updated batch for item {ItemId} with PuPrice={PuPrice}, new quantity={Quantity}, UUID={Uuid}",
+        //                                 item.Id, puPrice, batch.Quantity, batch.UniqueUuid);
+        //                         }
+        //                     }
+        //                     else
+        //                     {
+        //                         remainingQuantity -= batch.Quantity;
+        //                         batch.Quantity = 0;
+        //                         _context.StockEntries.Remove(batch);
+        //                         _logger.LogInformation("Removed batch for item {ItemId} with PuPrice={PuPrice}, UUID={Uuid} as it was fully consumed",
+        //                             item.Id, puPrice, batch.UniqueUuid);
+        //                     }
+        //                 }
+
+        //                 if (remainingQuantity > 0)
+        //                 {
+        //                     throw new InvalidOperationException(
+        //                         $"Insufficient batch stock for item: {item.Name} with cost price: {puPrice}. " +
+        //                         $"Requested: {parsedQuantity}, Available in selected batch: {parsedQuantity - remainingQuantity}");
+        //                 }
+        //             }
+
+        //             // Add to items list for the adjustment with restored values
+        //             itemsList.Add(new StockAdjustmentItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 Quantity = parsedQuantity,
+        //                 PuPrice = puPrice,                    // Cost price from DTO (400)
+        //                 BatchNumber = batchNumber,             // Restored batch number
+        //                 ExpiryDate = expiryDate,                // Restored expiry date
+        //                 Reason = itemDto.Reason?.ToArray() ?? Array.Empty<string>(),
+        //                 VatStatus = itemDto.VatStatus
+        //             });
+        //         }
+
+        //         // Validate VAT consistency
+        //         if (!isVatAll)
+        //         {
+        //             if (isVatExemptBool && hasVatableItems)
+        //                 throw new InvalidOperationException("Cannot save VAT exempt adjustment with vatable items");
+
+        //             if (!isVatExemptBool && hasNonVatableItems)
+        //                 throw new InvalidOperationException("Cannot save adjustment with non-vatable items when VAT is applied");
+        //         }
+
+        //         // Calculate financials
+        //         decimal discountForTaxable = (totalTaxableAmount * discount) / 100;
+        //         decimal discountForNonTaxable = (totalNonTaxableAmount * discount) / 100;
+        //         decimal finalTaxableAmount = totalTaxableAmount - discountForTaxable;
+        //         decimal finalNonTaxableAmount = totalNonTaxableAmount - discountForNonTaxable;
+
+        //         decimal vatAmount = (!isVatExemptBool || isVatAll)
+        //             ? (finalTaxableAmount * dto.VatPercentage) / 100
+        //             : 0;
+
+        //         decimal totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
+
+        //         // Get next bill number
+        //         var billNumber = await GetNextStockAdjustmentBillNumberAsync(companyId, fiscalYearId);
+
+        //         // Create stock adjustment
+        //         var stockAdjustment = new StockAdjustment
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             BillNumber = billNumber,
+        //             Note = dto.Note,
+        //             AdjustmentType = dto.AdjustmentType,
+        //             SubTotal = subTotal,
+        //             NonVatAdjustment = finalNonTaxableAmount,
+        //             TaxableAmount = finalTaxableAmount,
+        //             DiscountPercentage = discount,
+        //             DiscountAmount = discountForTaxable + discountForNonTaxable,
+        //             VatPercentage = isVatExemptBool ? 0 : dto.VatPercentage,
+        //             VatAmount = vatAmount,
+        //             TotalAmount = totalAmount,
+        //             IsVatExempt = isVatExemptBool,
+        //             IsVatAll = isVatAll ? "all" : null,
+        //             RoundOffAmount = 0,
+        //             Status = "active",
+        //             IsActive = true,
+        //             CompanyId = companyId,
+        //             UserId = userId,
+        //             FiscalYearId = fiscalYearId,
+        //             Date = dto.Date,
+        //             NepaliDate = dto.NepaliDate,
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow,
+        //             Items = itemsList
+        //         };
+
+        //         await _context.StockAdjustments.AddAsync(stockAdjustment);
+
+        //         // Save ALL changes at once
+        //         await _context.SaveChangesAsync();
+
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("Stock adjustment created successfully with ID: {AdjustmentId}, Number: {BillNumber}",
+        //             stockAdjustment.Id, stockAdjustment.BillNumber);
+
+        //         return stockAdjustment;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, "Error creating stock adjustment");
+        //         throw;
+        //     }
+        // }
+
+        private int CalculateDaysUntilExpiry(DateOnly expiryDate)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var daysUntilExpiry = (expiryDate.ToDateTime(TimeOnly.MinValue) - today.ToDateTime(TimeOnly.MinValue)).Days;
+            return daysUntilExpiry;
+        }
+
+        private string CalculateExpiryStatus(DateOnly expiryDate)
+        {
+            var daysUntilExpiry = CalculateDaysUntilExpiry(expiryDate);
+
+            if (daysUntilExpiry <= 0)
+                return "expired";
+            else if (daysUntilExpiry <= 30)
+                return "danger";
+            else if (daysUntilExpiry <= 90)
+                return "warning";
+            else
+                return "safe";
+        }
+
+        private async Task<Store?> GetDefaultStoreAsync(Guid companyId)
+        {
+            // First try to find store named "Main"
+            var mainStore = await _context.Stores
+                .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                         s.Name == "Main" &&
+                                         s.IsActive);
+
+            if (mainStore != null)
+                return mainStore;
+
+            // Then try "Default"
+            var defaultStore = await _context.Stores
+                .FirstOrDefaultAsync(s => s.CompanyId == companyId &&
+                                         s.Name == "Default" &&
+                                         s.IsActive);
+
+            if (defaultStore != null)
+                return defaultStore;
+
+            // Finally, get the first active store
+            return await _context.Stores
+                .FirstOrDefaultAsync(s => s.CompanyId == companyId && s.IsActive);
+        }
+
+        private async Task<Rack?> GetDefaultRackAsync(Guid storeId)
+        {
+            // First try to find rack named "Default"
+            var defaultRack = await _context.Racks
+                .FirstOrDefaultAsync(r => r.StoreId == storeId &&
+                                         r.Name == "Default" &&
+                                         r.IsActive);
+
+            if (defaultRack != null)
+                return defaultRack;
+
+            // Then try "Main"
+            var mainRack = await _context.Racks
+                .FirstOrDefaultAsync(r => r.StoreId == storeId &&
+                                         r.Name == "Main" &&
+                                         r.IsActive);
+
+            if (mainRack != null)
+                return mainRack;
+
+            // Finally, get the first active rack
+            return await _context.Racks
+                .FirstOrDefaultAsync(r => r.StoreId == storeId && r.IsActive);
+        }
+
+
         public async Task<StockAdjustment> CreateStockAdjustmentAsync(CreateStockAdjustmentDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -193,6 +558,10 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                 bool hasNonVatableItems = false;
 
                 var itemsList = new List<StockAdjustmentItem>();
+
+                // Get default store and rack
+                var defaultStore = await GetDefaultStoreAsync(companyId);
+                var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
 
                 // Validate and process each item
                 foreach (var itemDto in dto.Items)
@@ -226,7 +595,6 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                     if (matchingPurchaseItem != null)
                     {
                         // Found a purchase with matching AltPuPrice - restore its data
-                        // But keep the original PuPrice from DTO since that's what we matched on
                         marginPercentage = matchingPurchaseItem.MarginPercentage;   // Restore margin % from purchase
                         mrp = matchingPurchaseItem.AltMrp ?? 0;                     // Restore MRP from purchase
                         price = matchingPurchaseItem.AltPrice ?? 0;                 // Restore selling price from purchase
@@ -266,33 +634,131 @@ namespace SkyForge.Services.Retailer.StockAdjustmentServices
                     // Generate a unique UUID for this stock adjustment batch
                     var uniqueUuid = Guid.NewGuid().ToString();
 
-                    // Handle excess adjustment - ALWAYS CREATE NEW ENTRY
+                    // ========== HANDLE EXCESS ADJUSTMENT WITH NEGATIVE STOCK SETTLEMENT ==========
                     if (dto.AdjustmentType == "xcess")
                     {
-                        // ALWAYS create a new batch with its own unique UUID using the restored values
-                        var stockEntry = new StockEntry
+                        decimal remainingQuantityToAdd = parsedQuantity;
+                        decimal wsUnit = itemDto.WsUnit ?? 1m;
+
+                        // Check if there's any existing negative stock entry for this item with the same PuPrice
+                        var existingNegativeStockEntries = await _context.StockEntries
+                            .Where(se => se.ItemId == itemDto.ItemId
+                                && se.Quantity < 0
+                                && se.PuPrice == puPrice) // Match exact cost price
+                            .OrderBy(se => se.CreatedAt) // FIFO - settle oldest first
+                            .ToListAsync();
+
+                        // Track if we need to create a new stock entry
+                        bool shouldCreateNewStockEntry = false;
+                        decimal finalQuantityForNewEntry = 0;
+
+                        // If there are negative stock entries, settle them first
+                        if (existingNegativeStockEntries.Any() && remainingQuantityToAdd > 0)
                         {
-                            Id = Guid.NewGuid(),
-                            ItemId = item.Id,
-                            Date = dto.Date,
-                            NepaliDate = dto.NepaliDate,
-                            BatchNumber = batchNumber,
-                            ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
-                            Quantity = parsedQuantity,
-                            Price = price,                                     // Restored selling price from purchase (500)
-                            PuPrice = puPrice,                                  // Cost price from DTO (400)
-                            Mrp = mrp,                                          // Restored MRP from purchase
-                            MarginPercentage = marginPercentage,                // Restored margin % from purchase
-                            UniqueUuid = uniqueUuid,
-                            CompanyId = companyId,                              // New unique UUID for this batch
-                            FiscalYearId = fiscalYearId
-                        };
+                            _logger.LogInformation($"Found {existingNegativeStockEntries.Count} negative stock entries for item {itemDto.ItemId} with PuPrice {puPrice}. Total negative: {existingNegativeStockEntries.Sum(e => e.Quantity)}");
 
-                        await _context.StockEntries.AddAsync(stockEntry);
+                            var entriesToDelete = new List<StockEntry>();
 
-                        _logger.LogInformation("CREATED new separate batch for item {ItemId} with PuPrice={PuPrice}, quantity={Quantity}, UUID={Uuid}, " +
-                            "RESTORED Price={Price}, Mrp={Mrp}, Margin={MarginPercentage}%",
-                            item.Id, puPrice, parsedQuantity, uniqueUuid, price, mrp, marginPercentage);
+                            foreach (var negativeEntry in existingNegativeStockEntries)
+                            {
+                                if (remainingQuantityToAdd <= 0)
+                                    break;
+
+                                decimal negativeQuantity = Math.Abs(negativeEntry.Quantity);
+                                decimal quantityToSettle = Math.Min(remainingQuantityToAdd, negativeQuantity);
+
+                                if (quantityToSettle >= negativeQuantity)
+                                {
+                                    // FULLY SETTLE: Remove the negative entry entirely
+                                    _logger.LogInformation($"Fully settled negative entry {negativeEntry.Id} with quantity {negativeQuantity}");
+                                    entriesToDelete.Add(negativeEntry);
+                                }
+                                else
+                                {
+                                    // PARTIALLY SETTLE: Reduce the negative quantity and update with new prices
+                                    negativeEntry.Quantity += quantityToSettle; // This makes it less negative
+                                    negativeEntry.UpdatedAt = DateTime.UtcNow;
+
+                                    // Update the negative entry with new price information
+                                    negativeEntry.PuPrice = puPrice;
+                                    negativeEntry.NetPuPrice = puPrice;
+                                    negativeEntry.Price = wsUnit > 0 ? price / wsUnit : 0m;
+                                    negativeEntry.NetPrice = wsUnit > 0 ? price / wsUnit : 0m;
+                                    negativeEntry.Mrp = mrp;
+                                    negativeEntry.MainUnitPuPrice = puPrice;
+                                    negativeEntry.BatchNumber = batchNumber;
+                                    negativeEntry.ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2));
+                                    negativeEntry.ExpiryStatus = CalculateExpiryStatus(expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)));
+                                    negativeEntry.DaysUntilExpiry = CalculateDaysUntilExpiry(expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)));
+                                    negativeEntry.Date = dto.Date;
+                                    negativeEntry.NepaliDate = dto.NepaliDate;
+                                    negativeEntry.StoreId = itemDto.StoreId ?? defaultStore?.Id;
+                                    negativeEntry.RackId = itemDto.RackId ?? defaultRack?.Id;
+
+                                    _context.Entry(negativeEntry).State = EntityState.Modified;
+                                    _logger.LogInformation($"Partially settled negative entry {negativeEntry.Id}. Remaining: {negativeEntry.Quantity}");
+                                }
+
+                                remainingQuantityToAdd -= quantityToSettle;
+                            }
+
+                            // Delete fully settled entries
+                            foreach (var entry in entriesToDelete)
+                            {
+                                _context.StockEntries.Remove(entry);
+                                _logger.LogInformation($"Deleted fully settled negative entry {entry.Id}");
+                            }
+
+                            _logger.LogInformation($"After settling negative stock, remaining to add: {remainingQuantityToAdd}");
+                        }
+
+                        // If there's still remaining positive quantity after settling negative stock, create new stock entry
+                        if (remainingQuantityToAdd > 0)
+                        {
+                            shouldCreateNewStockEntry = true;
+                            finalQuantityForNewEntry = remainingQuantityToAdd;
+                        }
+
+                        // Create new stock entry ONLY if there's remaining positive quantity
+                        if (shouldCreateNewStockEntry)
+                        {
+                            // Create stock entry for the remaining positive quantity
+                            var stockEntry = new StockEntry
+                            {
+                                Id = Guid.NewGuid(),
+                                ItemId = item.Id,
+                                Date = dto.Date,
+                                NepaliDate = dto.NepaliDate,
+                                BatchNumber = batchNumber,
+                                ExpiryDate = expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2)),
+                                Quantity = finalQuantityForNewEntry,
+                                Price = price,                                     // Restored selling price from purchase
+                                NetPrice = price,
+                                PuPrice = puPrice,                                  // Cost price from DTO
+                                NetPuPrice = puPrice,
+                                Mrp = mrp,                                          // Restored MRP from purchase
+                                MarginPercentage = marginPercentage,                // Restored margin % from purchase
+                                UniqueUuid = uniqueUuid,
+                                CompanyId = companyId,
+                                FiscalYearId = fiscalYearId,
+                                StoreId = itemDto.StoreId ?? defaultStore?.Id,
+                                RackId = itemDto.RackId ?? defaultRack?.Id,
+                                ExpiryStatus = CalculateExpiryStatus(expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2))),
+                                DaysUntilExpiry = CalculateDaysUntilExpiry(expiryDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(2))),
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedAt = DateTime.UtcNow
+                            };
+
+                            await _context.StockEntries.AddAsync(stockEntry);
+
+                            _logger.LogInformation($"CREATED new stock entry for item {item.Id} with PuPrice={puPrice}, quantity={finalQuantityForNewEntry}, UUID={uniqueUuid}, " +
+                                "Price={Price}, Mrp={Mrp}, Margin={MarginPercentage}%",
+                                item.Id, puPrice, finalQuantityForNewEntry, uniqueUuid, price, mrp, marginPercentage);
+                        }
+                        else
+                        {
+                            _logger.LogInformation($"No new stock entry created for item {itemDto.ItemId} as all quantity was used to settle negative stock");
+                        }
                     }
 
                     // Handle short adjustment

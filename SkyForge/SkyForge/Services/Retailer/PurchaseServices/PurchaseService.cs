@@ -196,6 +196,558 @@ namespace SkyForge.Services.Retailer.PurchaseServices
             }
         }
 
+        // public async Task<PurchaseBill> CreatePurchaseBillAsync(CreatePurchaseBillDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         // Validate company and fiscal year
+        //         var company = await _context.Companies.FindAsync(companyId);
+        //         if (company == null)
+        //             throw new ArgumentException("Company not found");
+
+        //         var fiscalYear = await _context.FiscalYears.FindAsync(fiscalYearId);
+        //         if (fiscalYear == null || fiscalYear.CompanyId != companyId)
+        //             throw new ArgumentException("Invalid fiscal year");
+
+        //         var defaultStore = await GetDefaultStoreAsync(companyId);
+        //         var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
+
+        //         var purchaseAccountId = await GetDefaultAccountIdAsync("Purchase", companyId);
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+        //         var cashAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
+
+        //         // Parse payment mode from string to enum
+        //         var paymentMode = ParsePaymentMode(dto.PaymentMode);
+        //         var billNumber = await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "purchase");
+
+        //         // Determine if company uses Nepali date format
+        //         bool isNepaliFormat = company.DateFormat?.ToString().ToLower() == "nepali";
+
+        //         // Create purchase bill
+        //         var purchaseBill = new PurchaseBill
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             CompanyId = companyId,
+        //             UserId = userId,
+        //             BillNumber = billNumber,
+        //             PartyBillNumber = dto.PartyBillNumber,
+        //             AccountId = dto.AccountId,
+        //             VatAccountId = dto.VatAccountId,
+        //             PurchaseAccountId = dto.PurchaseAccountId,
+        //             RoundOffAccountId = dto.RoundOffAccountId,
+        //             UnitId = dto.UnitId,
+        //             SettingsId = dto.SettingsId,
+        //             FiscalYearId = fiscalYearId,
+        //             Type = "Purc",
+        //             SubTotal = dto.SubTotal ?? 0,
+        //             NonVatPurchase = dto.NonVatPurchase ?? 0,
+        //             TaxableAmount = dto.TaxableAmount ?? 0,
+        //             TotalCcAmount = dto.TotalCcAmount ?? 0,
+        //             DiscountPercentage = dto.DiscountPercentage ?? 0,
+        //             DiscountAmount = dto.DiscountAmount ?? 0,
+        //             VatPercentage = dto.VatPercentage,
+        //             VatAmount = dto.VatAmount ?? 0,
+        //             TotalAmount = dto.TotalAmount ?? 0,
+        //             IsVatExempt = dto.IsVatExempt,
+        //             IsVatAll = dto.IsVatAll,
+        //             RoundOffAmount = dto.RoundOffAmount ?? 0,
+        //             PaymentMode = dto.PaymentMode,
+        //             NepaliDate = dto.NepaliDate,
+        //             Date = dto.Date,
+        //             TransactionDateNepali = dto.TransactionDateNepali,
+        //             TransactionDate = dto.TransactionDate,
+        //             PurchaseSalesType = dto.PurchaseSalesType,
+        //             OriginalCopies = dto.OriginalCopies,
+        //         };
+
+        //         // Dictionary to track items and avoid duplicate product updates
+        //         var productStockUpdates = new Dictionary<Guid, (Item item, List<StockEntry> stockEntries, decimal totalNetQuantity, decimal wsUnit)>();
+
+        //         // Get the overall discount percentage from the voucher
+        //         decimal overallDiscountPercentage = dto.DiscountPercentage ?? 0m;
+
+        //         // Track totals for header transactions
+        //         decimal totalPurchaseDebit = 0;
+        //         decimal totalPartyCredit = 0;
+        //         decimal totalVatDebit = 0;
+
+        //         // Store item calculations for later use in transactions
+        //         var itemCalculations = new List<ItemCalculation>();
+
+        //         // Add items
+        //         foreach (var itemDto in dto.Items)
+        //         {
+        //             // Get the item/product
+        //             var item = await _context.Items
+        //                 .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId);
+
+        //             if (item == null)
+        //                 throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+
+        //             // Calculate values based on MongoDB logic
+        //             decimal wsUnit = itemDto.WsUnit ?? 1m;
+        //             decimal quantity = itemDto.Quantity;
+        //             decimal bonus = itemDto.Bonus ?? 0m;
+        //             decimal ccAmountForItem = itemDto.ItemCcAmount;
+        //             decimal ccPercentage = itemDto.CcPercentage;
+        //             decimal roundOffAmount = dto.RoundOffAmount ?? 0m;
+
+        //             // Total quantity including bonus multiplied by WS Unit
+        //             decimal totalQuantityWithBonus = quantity + bonus;
+        //             decimal netQuantity = totalQuantityWithBonus * wsUnit;
+        //             decimal altQuantityWithoutBonus = quantity * wsUnit;
+        //             decimal altBonusQuantity = bonus * wsUnit;
+
+        //             // Calculate total purchase value before discount and CC (only for purchased quantity, not bonus)
+        //             decimal totalPurchaseValueBeforeDiscount = itemDto.PuPrice * quantity;
+
+        //             // Calculate discount amount for this item based on overall voucher discount
+        //             decimal discountAmountForItem = (totalPurchaseValueBeforeDiscount * overallDiscountPercentage) / 100m;
+
+        //             // Calculate net purchase value after discount and including CC charges
+        //             decimal netPurchaseValueAfterDiscountAndCC = totalPurchaseValueBeforeDiscount - discountAmountForItem + ccAmountForItem + roundOffAmount;
+
+        //             // Calculate the final PuPrice per unit (including bonus items)
+        //             decimal finalPuPricePerUnit = netQuantity > 0 ? netPurchaseValueAfterDiscountAndCC / netQuantity : 0m;
+
+        //             // Calculate puPrice without bonus (for reference)
+        //             decimal puPriceWithOutBonus = (itemDto.PuPrice) * quantity;
+        //             decimal puPricePerUnit = quantity > 0 && wsUnit > 0 ? puPriceWithOutBonus / (quantity * wsUnit) : 0m;
+
+        //             // Calculate discount amount per item
+        //             decimal discountAmountPerItem = (itemDto.PuPrice * quantity * overallDiscountPercentage) / 100m;
+
+        //             // Calculate net pu price (before spreading to bonus) - including CC
+        //             // decimal netPuPrice = itemDto.PuPrice - (itemDto.PuPrice * overallDiscountPercentage / 100m) + (itemDto.PuPrice * ccPercentage / 100m);
+        //             decimal netPuPrice = totalPurchaseValueBeforeDiscount / netQuantity;
+
+        //             // Calculate Item-wise VAT values
+        //             decimal itemTaxableAmount = 0m;
+        //             decimal itemVatPercentage = dto.VatPercentage;
+        //             decimal itemVatAmount = 0m;
+
+        //             // Calculate taxable amount (Purchase value after discount)
+        //             decimal itemValueAfterDiscount = totalPurchaseValueBeforeDiscount - discountAmountForItem;
+
+        //             // Check if VAT applies
+        //             bool isItemVatExempt = dto.IsVatExempt;
+
+        //             if (!isItemVatExempt && itemVatPercentage > 0)
+        //             {
+        //                 itemTaxableAmount = itemValueAfterDiscount;
+        //                 itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
+        //             }
+        //             else if (dto.VatAmount.HasValue && dto.VatAmount.Value > 0)
+        //             {
+        //                 itemVatAmount = dto.VatAmount.Value;
+        //                 if (itemVatPercentage > 0)
+        //                 {
+        //                     itemTaxableAmount = (itemVatAmount * 100) / itemVatPercentage;
+        //                 }
+        //             }
+
+        //             // Calculate MRP for stock
+        //             decimal mrpForStock = itemDto.Currency == "INR" ? itemDto.Mrp * 1.6m : itemDto.Mrp;
+        //             decimal mrpPerUnit = wsUnit > 0 ? mrpForStock / wsUnit : 0m;
+
+        //             var UniqueUuid = Guid.NewGuid().ToString();
+
+        //             // Create purchase bill item
+        //             var billItem = new PurchaseBillItem
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 PurchaseBillId = purchaseBill.Id,
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 WsUnit = wsUnit,
+        //                 Quantity = quantity,
+        //                 Bonus = bonus,
+        //                 AltQuantity = altQuantityWithoutBonus,
+        //                 AltBonus = altBonusQuantity,
+        //                 Price = itemDto.Price ?? 0,
+        //                 PuPrice = itemDto.PuPrice,
+        //                 DiscountPercentagePerItem = overallDiscountPercentage,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 NetPuPrice = netPuPrice,
+        //                 CcPercentage = ccPercentage,
+        //                 ItemCcAmount = ccAmountForItem,
+        //                 Mrp = itemDto.Mrp,
+        //                 AltMrp = wsUnit > 0 ? itemDto.Mrp / wsUnit : 0m,
+        //                 MarginPercentage = itemDto.MarginPercentage,
+        //                 Currency = itemDto.Currency ?? "NPR",
+        //                 AltPrice = wsUnit > 0 ? itemDto.Price / wsUnit : 0m,
+        //                 AltPuPrice = wsUnit > 0 ? itemDto.PuPrice / wsUnit : 0m,
+        //                 BatchNumber = itemDto.BatchNumber ?? "XXX",
+        //                 ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+        //                 VatStatus = itemDto.VatStatus,
+        //                 UniqueUuid = UniqueUuid,
+        //                 Date = dto.Date,
+        //                 TransactionDate = dto.TransactionDate,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 TransactionDateNepali = dto.TransactionDateNepali
+        //             };
+
+        //             purchaseBill.Items.Add(billItem);
+
+        //             // Create stock entry
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = itemDto.ItemId,
+        //                 WsUnit = wsUnit,
+        //                 Quantity = netQuantity,
+        //                 BillQty = quantity,
+        //                 ActualQty = netQuantity,
+        //                 Bonus = bonus * wsUnit,
+        //                 BatchNumber = itemDto.BatchNumber ?? "XXX",
+        //                 ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+        //                 Price = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m,
+        //                 PuPrice = finalPuPricePerUnit,
+        //                 NetPuPrice = netPuPrice,
+        //                 CcPercentage = ccPercentage,
+        //                 ItemCcAmount = ccAmountForItem,
+        //                 DiscountPercentagePerItem = overallDiscountPercentage,
+        //                 DiscountAmountPerItem = discountAmountPerItem,
+        //                 MainUnitPuPrice = itemDto.PuPrice,
+        //                 Mrp = mrpPerUnit,
+        //                 MarginPercentage = itemDto.MarginPercentage,
+        //                 Currency = itemDto.Currency ?? "NPR",
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 UniqueUuid = UniqueUuid,
+        //                 PurchaseBillId = purchaseBill.Id,
+        //                 ExpiryStatus = CalculateExpiryStatus(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+        //                 DaysUntilExpiry = CalculateDaysUntilExpiry(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+        //                 StoreId = itemDto.StoreId ?? defaultStore?.Id,
+        //                 RackId = itemDto.RackId ?? defaultRack?.Id,
+        //                 Date = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.StockEntries.AddAsync(stockEntry);
+
+        //             // Store calculations for later use in transactions
+        //             itemCalculations.Add(new ItemCalculation
+        //             {
+        //                 ItemId = itemDto.ItemId,
+        //                 UnitId = itemDto.UnitId,
+        //                 WsUnit = wsUnit,
+        //                 Quantity = quantity,
+        //                 Bonus = bonus,
+        //                 Price = itemDto.Price ?? 0,
+        //                 PuPrice = itemDto.PuPrice,
+        //                 DiscountPercentagePerItem = overallDiscountPercentage,
+        //                 DiscountAmountPerItem = discountAmountForItem,
+        //                 NetPuPrice = netPuPrice,
+        //                 TaxableAmount = itemTaxableAmount,
+        //                 VatPercentage = itemVatPercentage,
+        //                 VatAmount = itemVatAmount,
+        //                 ItemValueAfterDiscount = itemValueAfterDiscount
+        //             });
+
+        //             // Update totals
+        //             totalPurchaseDebit += itemValueAfterDiscount;
+        //             totalPartyCredit += itemValueAfterDiscount + itemVatAmount;
+        //             totalVatDebit += itemVatAmount;
+
+        //             // Track product stock updates
+        //             if (!productStockUpdates.ContainsKey(item.Id))
+        //             {
+        //                 productStockUpdates[item.Id] = (item, new List<StockEntry>(), 0m, wsUnit);
+        //             }
+
+        //             productStockUpdates[item.Id].stockEntries.Add(stockEntry);
+        //             productStockUpdates[item.Id] = (
+        //                 productStockUpdates[item.Id].item,
+        //                 productStockUpdates[item.Id].stockEntries,
+        //                 productStockUpdates[item.Id].totalNetQuantity + netQuantity,
+        //                 wsUnit
+        //             );
+        //         }
+
+        //         // Update product WSUnit
+        //         foreach (var update in productStockUpdates.Values)
+        //         {
+        //             var item = update.item;
+        //             var newWsUnit = update.wsUnit;
+        //             item.WsUnit = newWsUnit;
+        //             _context.Items.Update(item);
+        //         }
+
+        //         await _context.PurchaseBills.AddAsync(purchaseBill);
+
+        //         // ========== CREATE HEADER TRANSACTIONS WITH ITEM DETAILS ==========
+
+        //         // 1. PURCHASE ACCOUNT TRANSACTION (Header)
+        //         if (purchaseAccountId.HasValue && totalPurchaseDebit > 0)
+        //         {
+        //             var purchaseTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = purchaseAccountId.Value,
+        //                 PurchaseBillId = purchaseBill.Id,
+        //                 BillNumber = purchaseBill.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 Type = TransactionType.Purc,
+        //                 PurchaseSalesType = "Purchase",
+        //                 TotalDebit = totalPurchaseDebit,
+        //                 TotalCredit = 0,
+        //                 TaxableAmount = dto.TaxableAmount,
+        //                 VatPercentage = dto.VatPercentage,
+        //                 VatAmount = dto.VatAmount,
+        //                 PaymentMode = paymentMode,
+        //                 Date = dto.TransactionDate,
+        //                 TransactionDate = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 TransactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(purchaseTransaction);
+
+        //             // Add Transaction Items for Purchase Account
+        //             foreach (var calc in itemCalculations)
+        //             {
+        //                 var transactionItem = new TransactionItem
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     TransactionId = purchaseTransaction.Id,
+        //                     ItemId = calc.ItemId,
+        //                     UnitId = calc.UnitId,
+        //                     WSUnit = (int?)calc.WsUnit,
+        //                     Quantity = calc.Quantity,
+        //                     Bonus = calc.Bonus,
+        //                     Price = calc.Price,
+        //                     PuPrice = calc.PuPrice,
+        //                     DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+        //                     DiscountAmountPerItem = calc.DiscountAmountPerItem,
+        //                     NetPuPrice = calc.NetPuPrice,
+        //                     TaxableAmount = calc.TaxableAmount,
+        //                     VatPercentage = calc.VatPercentage,
+        //                     VatAmount = calc.VatAmount,
+        //                     Debit = calc.ItemValueAfterDiscount,
+        //                     Credit = 0,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+        //                 await _context.TransactionItems.AddAsync(transactionItem);
+        //             }
+        //         }
+
+        //         // 2. PARTY/CREDITOR TRANSACTION (Header)
+        //         if (dto.AccountId.HasValue && totalPartyCredit > 0)
+        //         {
+        //             var partyTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = dto.AccountId.Value,
+        //                 PurchaseBillId = purchaseBill.Id,
+        //                 BillNumber = purchaseBill.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 Type = TransactionType.Purc,
+        //                 PurchaseSalesType = "Purchase",
+        //                 TotalDebit = 0,
+        //                 TotalCredit = dto.TotalAmount ?? 0,
+        //                 TaxableAmount = dto.TaxableAmount,
+        //                 VatPercentage = dto.VatPercentage,
+        //                 VatAmount = dto.VatAmount,
+        //                 PaymentMode = paymentMode,
+        //                 Date = dto.TransactionDate,
+        //                 TransactionDate = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 TransactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(partyTransaction);
+
+        //             // Add Transaction Items for Party Transaction
+        //             foreach (var calc in itemCalculations)
+        //             {
+        //                 var transactionItem = new TransactionItem
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     TransactionId = partyTransaction.Id,
+        //                     ItemId = calc.ItemId,
+        //                     UnitId = calc.UnitId,
+        //                     WSUnit = (int?)calc.WsUnit,
+        //                     Quantity = calc.Quantity,
+        //                     Bonus = calc.Bonus,
+        //                     Price = calc.Price,
+        //                     PuPrice = calc.PuPrice,
+        //                     DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+        //                     DiscountAmountPerItem = calc.DiscountAmountPerItem,
+        //                     NetPuPrice = calc.NetPuPrice,
+        //                     TaxableAmount = calc.TaxableAmount,
+        //                     VatPercentage = calc.VatPercentage,
+        //                     VatAmount = calc.VatAmount,
+        //                     Debit = 0,
+        //                     Credit = calc.ItemValueAfterDiscount + calc.VatAmount,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+        //                 await _context.TransactionItems.AddAsync(transactionItem);
+        //             }
+        //         }
+
+        //         // 3. VAT TRANSACTION (Header)
+        //         if (totalVatDebit > 0 && vatAccountId.HasValue && !dto.IsVatExempt)
+        //         {
+        //             var vatTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = vatAccountId.Value,
+        //                 PurchaseBillId = purchaseBill.Id,
+        //                 BillNumber = purchaseBill.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 IsType = TransactionIsType.VAT,
+        //                 Type = TransactionType.Purc,
+        //                 PurchaseSalesType = "Purchase",
+        //                 TotalDebit = totalVatDebit,
+        //                 TotalCredit = 0,
+        //                 TaxableAmount = dto.TaxableAmount,
+        //                 VatPercentage = dto.VatPercentage,
+        //                 VatAmount = totalVatDebit,
+        //                 PaymentMode = paymentMode,
+        //                 Date = dto.TransactionDate,
+        //                 TransactionDate = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 TransactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(vatTransaction);
+
+        //             // Add Transaction Items for VAT Transaction
+        //             foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
+        //             {
+        //                 var transactionItem = new TransactionItem
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     TransactionId = vatTransaction.Id,
+        //                     ItemId = calc.ItemId,
+        //                     UnitId = calc.UnitId,
+        //                     WSUnit = (int?)calc.WsUnit,
+        //                     Quantity = calc.Quantity,
+        //                     Bonus = calc.Bonus,
+        //                     Price = calc.Price,
+        //                     PuPrice = calc.PuPrice,
+        //                     DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+        //                     DiscountAmountPerItem = calc.DiscountAmountPerItem,
+        //                     NetPuPrice = calc.NetPuPrice,
+        //                     TaxableAmount = calc.TaxableAmount,
+        //                     VatPercentage = calc.VatPercentage,
+        //                     VatAmount = calc.VatAmount,
+        //                     Debit = calc.VatAmount,
+        //                     Credit = 0,
+        //                     CreatedAt = DateTime.UtcNow
+        //                 };
+        //                 await _context.TransactionItems.AddAsync(transactionItem);
+        //             }
+        //         }
+
+        //         // 4. ROUND-OFF TRANSACTION (Header) - No item details needed
+        //         if (dto.RoundOffAmount != 0 && roundOffAccountId.HasValue)
+        //         {
+        //             var roundOffTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = roundOffAccountId.Value,
+        //                 PurchaseBillId = purchaseBill.Id,
+        //                 BillNumber = purchaseBill.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 IsType = TransactionIsType.RoundOff,
+        //                 Type = TransactionType.Purc,
+        //                 PurchaseSalesType = "Purchase",
+        //                 TotalDebit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
+        //                 TotalCredit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
+        //                 PaymentMode = paymentMode,
+        //                 Date = dto.TransactionDate,
+        //                 TransactionDate = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 TransactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(roundOffTransaction);
+        //         }
+
+        //         // 5. CASH TRANSACTION (Header) - No item details needed
+        //         if (paymentMode == PaymentMode.Cash && cashAccountId.HasValue && dto.TotalAmount.HasValue)
+        //         {
+        //             var cashTransaction = new Transaction
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 CompanyId = companyId,
+        //                 AccountId = cashAccountId.Value,
+        //                 PurchaseBillId = purchaseBill.Id,
+        //                 BillNumber = purchaseBill.BillNumber,
+        //                 PartyBillNumber = dto.PartyBillNumber,
+        //                 Type = TransactionType.Purc,
+        //                 PurchaseSalesType = "Purchase",
+        //                 TotalDebit = 0,
+        //                 TotalCredit = dto.TotalAmount ?? 0,
+        //                 PaymentMode = PaymentMode.Cash,
+        //                 Date = dto.TransactionDate,
+        //                 TransactionDate = dto.Date,
+        //                 NepaliDate = dto.NepaliDate,
+        //                 TransactionDateNepali = dto.TransactionDateNepali,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 Status = TransactionStatus.Active,
+        //                 IsActive = true
+        //             };
+
+        //             await _context.Transactions.AddAsync(cashTransaction);
+        //         }
+
+        //         await _context.SaveChangesAsync();
+        //         await transaction.CommitAsync();
+
+        //         // STEP: Add to Cash Counter if payment mode is cash
+        //         if (dto.PaymentMode?.ToLower() == "cash" && dto.TotalAmount > 0)
+        //         {
+        //             try
+        //             {
+        //                 await _cashCounterService.UpdateSessionFromPurchaseBillAsync(purchaseBill.Id);
+        //             }
+        //             catch (Exception ex)
+        //             {
+        //                 // Log but don't fail the purchase bill creation
+        //                 _logger.LogError(ex, $"Error adding purchase bill {purchaseBill.BillNumber} to cash counter");
+        //             }
+        //         }
+
+        //         return purchaseBill;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, "Error creating purchase bill");
+        //         throw;
+        //     }
+        // }
+
+        //------------------------------------------------------------end1
+
         public async Task<PurchaseBill> CreatePurchaseBillAsync(CreatePurchaseBillDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -320,7 +872,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     decimal discountAmountPerItem = (itemDto.PuPrice * quantity * overallDiscountPercentage) / 100m;
 
                     // Calculate net pu price (before spreading to bonus) - including CC
-                    // decimal netPuPrice = itemDto.PuPrice - (itemDto.PuPrice * overallDiscountPercentage / 100m) + (itemDto.PuPrice * ccPercentage / 100m);
                     decimal netPuPrice = totalPurchaseValueBeforeDiscount / netQuantity;
 
                     // Calculate Item-wise VAT values
@@ -354,7 +905,90 @@ namespace SkyForge.Services.Retailer.PurchaseServices
 
                     var UniqueUuid = Guid.NewGuid().ToString();
 
-                    // Create purchase bill item
+                    // ========== STOCK ENTRY LOGIC WITH NEGATIVE STOCK HANDLING ==========
+
+                    // Check if there's any existing negative stock entry for this item
+                    var existingNegativeStockEntries = await _context.StockEntries
+                        .Where(se => se.ItemId == itemDto.ItemId && se.Quantity < 0)
+                        .OrderBy(se => se.CreatedAt) // FIFO - settle oldest first
+                        .ToListAsync();
+
+                    decimal remainingQuantityToAdd = netQuantity;
+                    decimal totalBonusToAdd = bonus * wsUnit;
+                    decimal remainingBonus = totalBonusToAdd;
+
+                    // Track if we need to create a new stock entry
+                    bool shouldCreateNewStockEntry = false;
+                    decimal finalQuantityForNewEntry = 0;
+
+                    // If there are negative stock entries, settle them first
+                    if (existingNegativeStockEntries.Any() && remainingQuantityToAdd > 0)
+                    {
+                        _logger.LogInformation($"Found {existingNegativeStockEntries.Count} negative stock entries for item {itemDto.ItemId}. Total negative: {existingNegativeStockEntries.Sum(e => e.Quantity)}");
+
+                        foreach (var negativeEntry in existingNegativeStockEntries)
+                        {
+                            if (remainingQuantityToAdd <= 0)
+                                break;
+
+                            decimal negativeQuantity = Math.Abs(negativeEntry.Quantity);
+                            decimal quantityToSettle = Math.Min(remainingQuantityToAdd, negativeQuantity);
+
+                            if (quantityToSettle >= negativeQuantity)
+                            {
+                                // FULLY SETTLE: Remove the negative entry entirely
+                                _logger.LogInformation($"Fully settled negative entry {negativeEntry.Id} with quantity {negativeQuantity}");
+                                _context.StockEntries.Remove(negativeEntry);
+                            }
+                            else
+                            {
+                                // PARTIALLY SETTLE: Reduce the negative quantity and update with new prices
+                                negativeEntry.Quantity += quantityToSettle; // This makes it less negative
+                                negativeEntry.UpdatedAt = DateTime.UtcNow;
+
+                                // Update the negative entry with new price information from the purchase
+                                negativeEntry.PuPrice = finalPuPricePerUnit;
+                                negativeEntry.NetPuPrice = netPuPrice;
+                                negativeEntry.Price = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m;
+                                negativeEntry.NetPrice = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m;
+                                negativeEntry.Mrp = mrpPerUnit;
+                                negativeEntry.MainUnitPuPrice = itemDto.PuPrice;
+                                negativeEntry.CcPercentage = ccPercentage;
+                                negativeEntry.ItemCcAmount = (quantityToSettle / netQuantity) * ccAmountForItem;
+                                negativeEntry.DiscountPercentagePerItem = overallDiscountPercentage;
+                                negativeEntry.DiscountAmountPerItem = (quantityToSettle / netQuantity) * discountAmountForItem;
+                                negativeEntry.Bonus = (quantityToSettle / netQuantity) * totalBonusToAdd;
+                                negativeEntry.BatchNumber = itemDto.BatchNumber ?? "XXX";
+                                negativeEntry.ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2));
+                                negativeEntry.ExpiryStatus = CalculateExpiryStatus(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)));
+                                negativeEntry.DaysUntilExpiry = CalculateDaysUntilExpiry(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)));
+                                negativeEntry.Date = dto.Date;
+                                negativeEntry.NepaliDate = dto.NepaliDate;
+                                negativeEntry.StoreId = itemDto.StoreId ?? defaultStore?.Id;
+                                negativeEntry.RackId = itemDto.RackId ?? defaultRack?.Id;
+
+                                _context.Entry(negativeEntry).State = EntityState.Modified;
+                                _logger.LogInformation($"Partially settled negative entry {negativeEntry.Id}. Remaining: {negativeEntry.Quantity}");
+                            }
+
+                            remainingQuantityToAdd -= quantityToSettle;
+
+                            // Calculate how much bonus to apply to this settlement
+                            decimal bonusToSettle = (quantityToSettle / netQuantity) * totalBonusToAdd;
+                            remainingBonus -= bonusToSettle;
+                        }
+
+                        _logger.LogInformation($"After settling negative stock, remaining to add: {remainingQuantityToAdd}");
+                    }
+
+                    // If there's still remaining positive quantity after settling negative stock, create new stock entry
+                    if (remainingQuantityToAdd > 0)
+                    {
+                        shouldCreateNewStockEntry = true;
+                        finalQuantityForNewEntry = remainingQuantityToAdd;
+                    }
+
+                    // Create the PurchaseBillItem (always with original values)
                     var billItem = new PurchaseBillItem
                     {
                         Id = Guid.NewGuid(),
@@ -391,44 +1025,78 @@ namespace SkyForge.Services.Retailer.PurchaseServices
 
                     purchaseBill.Items.Add(billItem);
 
-                    // Create stock entry
-                    var stockEntry = new StockEntry
+                    // Create new stock entry ONLY if there's remaining positive quantity
+                    if (shouldCreateNewStockEntry)
                     {
-                        Id = Guid.NewGuid(),
-                        ItemId = itemDto.ItemId,
-                        WsUnit = wsUnit,
-                        Quantity = netQuantity,
-                        BillQty = quantity,
-                        ActualQty = netQuantity,
-                        Bonus = bonus * wsUnit,
-                        BatchNumber = itemDto.BatchNumber ?? "XXX",
-                        ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
-                        Price = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m,
-                        PuPrice = finalPuPricePerUnit,
-                        NetPuPrice = netPuPrice,
-                        CcPercentage = ccPercentage,
-                        ItemCcAmount = ccAmountForItem,
-                        DiscountPercentagePerItem = overallDiscountPercentage,
-                        DiscountAmountPerItem = discountAmountPerItem,
-                        MainUnitPuPrice = itemDto.PuPrice,
-                        Mrp = mrpPerUnit,
-                        MarginPercentage = itemDto.MarginPercentage,
-                        Currency = itemDto.Currency ?? "NPR",
-                        CompanyId = companyId,
-                        FiscalYearId = fiscalYearId,
-                        UniqueUuid = UniqueUuid,
-                        PurchaseBillId = purchaseBill.Id,
-                        ExpiryStatus = CalculateExpiryStatus(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
-                        DaysUntilExpiry = CalculateDaysUntilExpiry(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
-                        StoreId = itemDto.StoreId ?? defaultStore?.Id,
-                        RackId = itemDto.RackId ?? defaultRack?.Id,
-                        Date = dto.Date,
-                        NepaliDate = dto.NepaliDate,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
+                        // Calculate the final purchase value for the remaining quantity using NEW prices
+                        decimal remainingTotalPurchaseValue = (finalQuantityForNewEntry / netQuantity) * totalPurchaseValueBeforeDiscount;
+                        decimal remainingDiscountAmount = (finalQuantityForNewEntry / netQuantity) * discountAmountForItem;
+                        decimal remainingCcAmount = (finalQuantityForNewEntry / netQuantity) * ccAmountForItem;
+                        decimal remainingNetPuPrice = finalQuantityForNewEntry > 0 ? remainingTotalPurchaseValue / finalQuantityForNewEntry : 0m;
 
-                    await _context.StockEntries.AddAsync(stockEntry);
+                        // Calculate bonus for the remaining quantity
+                        decimal remainingBonusForStock = (finalQuantityForNewEntry / netQuantity) * totalBonusToAdd;
+
+                        // Create stock entry for the remaining positive quantity with NEW prices
+                        var stockEntry = new StockEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ItemId = itemDto.ItemId,
+                            WsUnit = wsUnit,
+                            Quantity = finalQuantityForNewEntry,
+                            BillQty = (finalQuantityForNewEntry / wsUnit) - (remainingBonusForStock / wsUnit),
+                            ActualQty = finalQuantityForNewEntry,
+                            Bonus = remainingBonusForStock,
+                            BatchNumber = itemDto.BatchNumber ?? "XXX",
+                            ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                            Price = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m,
+                            NetPrice = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m,
+                            PuPrice = finalPuPricePerUnit,
+                            NetPuPrice = remainingNetPuPrice,
+                            CcPercentage = ccPercentage,
+                            ItemCcAmount = remainingCcAmount,
+                            DiscountPercentagePerItem = overallDiscountPercentage,
+                            DiscountAmountPerItem = (finalQuantityForNewEntry / netQuantity) * discountAmountPerItem,
+                            MainUnitPuPrice = itemDto.PuPrice,
+                            Mrp = mrpPerUnit,
+                            MarginPercentage = itemDto.MarginPercentage,
+                            Currency = itemDto.Currency ?? "NPR",
+                            CompanyId = companyId,
+                            FiscalYearId = fiscalYearId,
+                            UniqueUuid = UniqueUuid,
+                            PurchaseBillId = purchaseBill.Id,
+                            ExpiryStatus = CalculateExpiryStatus(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+                            DaysUntilExpiry = CalculateDaysUntilExpiry(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+                            StoreId = itemDto.StoreId ?? defaultStore?.Id,
+                            RackId = itemDto.RackId ?? defaultRack?.Id,
+                            Date = dto.Date,
+                            NepaliDate = dto.NepaliDate,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        await _context.StockEntries.AddAsync(stockEntry);
+
+                        // Track product stock updates
+                        if (!productStockUpdates.ContainsKey(item.Id))
+                        {
+                            productStockUpdates[item.Id] = (item, new List<StockEntry>(), 0m, wsUnit);
+                        }
+
+                        productStockUpdates[item.Id].stockEntries.Add(stockEntry);
+                        productStockUpdates[item.Id] = (
+                            productStockUpdates[item.Id].item,
+                            productStockUpdates[item.Id].stockEntries,
+                            productStockUpdates[item.Id].totalNetQuantity + finalQuantityForNewEntry,
+                            wsUnit
+                        );
+
+                        _logger.LogInformation($"Created new stock entry with quantity: {finalQuantityForNewEntry} using new purchase prices for item {itemDto.ItemId}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"No new stock entry created for item {itemDto.ItemId} as all quantity was used to settle negative stock");
+                    }
 
                     // Store calculations for later use in transactions
                     itemCalculations.Add(new ItemCalculation
@@ -453,20 +1121,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     totalPurchaseDebit += itemValueAfterDiscount;
                     totalPartyCredit += itemValueAfterDiscount + itemVatAmount;
                     totalVatDebit += itemVatAmount;
-
-                    // Track product stock updates
-                    if (!productStockUpdates.ContainsKey(item.Id))
-                    {
-                        productStockUpdates[item.Id] = (item, new List<StockEntry>(), 0m, wsUnit);
-                    }
-
-                    productStockUpdates[item.Id].stockEntries.Add(stockEntry);
-                    productStockUpdates[item.Id] = (
-                        productStockUpdates[item.Id].item,
-                        productStockUpdates[item.Id].stockEntries,
-                        productStockUpdates[item.Id].totalNetQuantity + netQuantity,
-                        wsUnit
-                    );
                 }
 
                 // Update product WSUnit
@@ -746,7 +1400,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
             }
         }
 
-        // Helper class to store item calculations
         private class ItemCalculation
         {
             public Guid ItemId { get; set; }
@@ -785,6 +1438,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
             else
                 return "safe";
         }
+
         private async Task<Store?> GetDefaultStoreAsync(Guid companyId)
         {
             // First try to find store named "Main"
@@ -1711,6 +2365,21 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //         if (existingBill == null)
         //             throw new ArgumentException("Purchase bill not found");
 
+        //         // STEP 1: REMOVE OLD PURCHASE BILL FROM CASH COUNTER (if payment mode was cash)
+        //         if (existingBill.PaymentMode?.ToLower() == "cash" && existingBill.TotalAmount > 0)
+        //         {
+        //             try
+        //             {
+        //                 await _cashCounterService.RemoveSessionFromPurchaseBillAsync(id);
+        //                 _logger.LogInformation($"Removed purchase bill {existingBill.BillNumber} from cash counter session");
+        //             }
+        //             catch (Exception ex)
+        //             {
+        //                 _logger.LogError(ex, $"Error removing purchase bill {existingBill.BillNumber} from cash counter");
+        //                 // Continue with update even if cash counter fails
+        //             }
+        //         }
+
         //         // Get company to check date format
         //         var company = await _context.Companies.FindAsync(companyId);
         //         if (company == null)
@@ -1732,7 +2401,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //         // CHECK IF STOCK IS USED
         //         await CheckIfStockIsUsedAsync(existingBill, companyId);
 
-        //         // STEP 1: RESTORE STOCK by removing all stock entries for this purchase bill
+        //         // STEP 2: RESTORE STOCK by removing all stock entries for this purchase bill
         //         var existingStockEntries = await _context.StockEntries
         //             .Where(se => se.PurchaseBillId == id)
         //             .ToListAsync();
@@ -1743,7 +2412,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //             _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
         //         }
 
-        //         // STEP 2: Delete all associated transactions AND their transaction items
+        //         // STEP 3: Delete all associated transactions AND their transaction items
         //         var existingTransactions = await _context.Transactions
         //             .Where(t => t.PurchaseBillId == id)
         //             .Include(t => t.TransactionItems)
@@ -1756,7 +2425,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //         }
         //         _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
 
-        //         // STEP 3: Delete existing items
+        //         // STEP 4: Delete existing items
         //         if (existingBill.Items.Any())
         //         {
         //             _context.PurchaseBillItems.RemoveRange(existingBill.Items);
@@ -1796,7 +2465,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //         // Store item calculations for transaction items
         //         var itemCalculations = new List<ItemCalculation>();
 
-        //         // STEP 4: UPDATE BILL PROPERTIES
+        //         // STEP 5: UPDATE BILL PROPERTIES
         //         existingBill.AccountId = dto.AccountId;
         //         existingBill.IsVatExempt = isVatExempt;
         //         existingBill.VatPercentage = isVatExempt ? 0 : dto.VatPercentage;
@@ -1821,7 +2490,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //         _context.PurchaseBills.Update(existingBill);
         //         await _context.SaveChangesAsync();
 
-        //         // STEP 5: Process new items and create stock entries
+        //         // STEP 6: Process new items and create stock entries
         //         decimal overallDiscountPercentage = dto.DiscountPercentage;
 
         //         foreach (var itemDto in dto.Items)
@@ -2011,7 +2680,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //         // Save items and stock entries
         //         await _context.SaveChangesAsync();
 
-        //         // STEP 6: CREATE NEW TRANSACTIONS WITH TRANSACTION ITEMS
+        //         // STEP 7: CREATE NEW TRANSACTIONS WITH TRANSACTION ITEMS
         //         var transactionsList = new List<Transaction>();
 
         //         // 1. PARTY ACCOUNT TRANSACTION (Header - Credit to party)
@@ -2257,6 +2926,21 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //         await transaction.CommitAsync();
         //         _logger.LogInformation("Transaction committed successfully");
 
+        //         // STEP 8: ADD UPDATED PURCHASE BILL TO CASH COUNTER (if payment mode is cash)
+        //         if (dto.PaymentMode?.ToLower() == "cash" && dto.TotalAmount > 0)
+        //         {
+        //             try
+        //             {
+        //                 await _cashCounterService.UpdateSessionFromPurchaseBillAsync(existingBill.Id);
+        //                 _logger.LogInformation($"Added updated purchase bill {existingBill.BillNumber} to cash counter session");
+        //             }
+        //             catch (Exception ex)
+        //             {
+        //                 _logger.LogError(ex, $"Error adding purchase bill {existingBill.BillNumber} to cash counter");
+        //                 // Continue with update even if cash counter fails
+        //             }
+        //         }
+
         //         _logger.LogInformation("=== Successfully updated purchase bill: {BillId} ===", id);
 
         //         // Reload the bill with account and items for response
@@ -2274,6 +2958,9 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         //         throw;
         //     }
         // }
+
+        //----------------------------------------------------------------end1
+
 
         public async Task<PurchaseBill> UpdatePurchaseBillAsync(Guid id, UpdatePurchaseBillDTO dto, Guid companyId, Guid fiscalYearId, Guid userId)
         {
@@ -2336,7 +3023,211 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 // CHECK IF STOCK IS USED
                 await CheckIfStockIsUsedAsync(existingBill, companyId);
 
-                // STEP 2: RESTORE STOCK by removing all stock entries for this purchase bill
+                // STEP 2: Get old items - GROUP BY ItemId + BatchNumber + PuPrice (unique batch)
+                var oldItems = existingBill.Items.ToList();
+                var oldItemGroups = oldItems
+                    .GroupBy(i => new { i.ItemId, i.BatchNumber, i.PuPrice })
+                    .ToDictionary(
+                        g => g.Key,
+                        g => new
+                        {
+                            TotalNetQuantity = g.Sum(i => (i.Quantity + (i.Bonus ?? 0m)) * (i.WsUnit ?? 1m)),
+                            TotalQuantity = g.Sum(i => i.Quantity),
+                            TotalBonus = g.Sum(i => i.Bonus ?? 0m),
+                            AvgPuPrice = g.Average(i => i.PuPrice),
+                            AvgPrice = g.Average(i => i.Price),
+                            Items = g.ToList(),
+                            FirstItem = g.First(),
+                            BatchNumber = g.Key.BatchNumber,
+                            PuPrice = g.Key.PuPrice,
+                            ItemId = g.Key.ItemId
+                        }
+                    );
+
+                // STEP 2.5: Get current stock entry for each unique batch in this bill
+                var currentStockEntries = await _context.StockEntries
+                    .Where(se => se.PurchaseBillId == id)
+                    .ToListAsync();
+
+                // Group by ItemId + BatchNumber + PuPrice for matching
+                var currentStockQuantities = currentStockEntries
+                    .GroupBy(se => new { se.ItemId, se.BatchNumber, se.PuPrice })
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Sum(se => se.Quantity)
+                    );
+
+                // STEP 2.6: GROUP new items by ItemId + BatchNumber + PuPrice (unique batch)
+                var newItemGroups = dto.Items
+                    .GroupBy(i => new { i.ItemId, i.BatchNumber, i.PuPrice })
+                    .ToDictionary(
+                        g => g.Key,
+                        g => new
+                        {
+                            TotalNetQuantity = g.Sum(i => (i.Quantity + (i.Bonus ?? 0m)) * (i.WsUnit ?? 1m)),
+                            TotalQuantity = g.Sum(i => i.Quantity),
+                            TotalBonus = g.Sum(i => i.Bonus ?? 0m),
+                            Items = g.ToList(),
+                            FirstItem = g.First(),
+                            BatchNumber = g.Key.BatchNumber,
+                            PuPrice = g.Key.PuPrice,
+                            ItemId = g.Key.ItemId
+                        }
+                    );
+
+                // STEP 2.7: Get ALL stock entries for ALL items from other sources
+                var allItemIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+                var allOldItemIds = oldItems.Select(i => i.ItemId).Distinct().ToList();
+                var allIds = allItemIds.Union(allOldItemIds).ToList();
+
+                var allOtherStockEntries = await _context.StockEntries
+                    .Where(se => allIds.Contains(se.ItemId) && se.PurchaseBillId != id)
+                    .OrderBy(se => se.CreatedAt)
+                    .ToListAsync();
+
+                // Group negative stock by ItemId + BatchNumber + PuPrice
+                var negativeStockQuantities = allOtherStockEntries
+                    .Where(se => se.Quantity < 0)
+                    .GroupBy(se => new { se.ItemId, se.BatchNumber, se.PuPrice })
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Sum(se => se.Quantity)
+                    );
+
+                // STEP 3: Identify removed batches (items in old bill but not in new DTO) - GROUPED by batch
+                var newBatchKeys = dto.Items
+                    .Select(i => new { i.ItemId, i.BatchNumber, i.PuPrice })
+                    .ToHashSet();
+
+                var removedBatchKeys = oldItemGroups.Keys.Where(key => !newBatchKeys.Contains(key)).ToList();
+
+                if (removedBatchKeys.Any())
+                {
+                    _logger.LogInformation($"Found {removedBatchKeys.Count} batches removed from the voucher");
+
+                    foreach (var removedKey in removedBatchKeys)
+                    {
+                        var oldBatchData = oldItemGroups[removedKey];
+                        decimal removedNetQuantity = oldBatchData.TotalNetQuantity;
+
+                        _logger.LogInformation($"Batch removed - ItemId: {removedKey.ItemId}, Batch: {removedKey.BatchNumber}, PuPrice: {removedKey.PuPrice}, Old quantity: {removedNetQuantity}");
+
+                        // Get the existing stock entry for this batch from the bill
+                        decimal existingStockQty = 0;
+                        if (currentStockQuantities.ContainsKey(removedKey))
+                        {
+                            existingStockQty = currentStockQuantities[removedKey];
+                        }
+
+                        // Formula for removed batch:
+                        // New Stock Entry = 0 (removed) - Total Old Batch Qty + Existing Stock Entry
+                        decimal newStockQuantity = 0 - removedNetQuantity + existingStockQty;
+
+                        _logger.LogInformation($"New Stock Entry for removed batch: 0 - {removedNetQuantity} + {existingStockQty} = {newStockQuantity}");
+
+                        if (Math.Abs(newStockQuantity) > 0.001m)
+                        {
+                            // Check if there's an existing stock entry for this batch (from other sources)
+                            var existingGlobalStockEntry = allOtherStockEntries
+                                .Where(se => se.ItemId == removedKey.ItemId
+                                    && se.BatchNumber == removedKey.BatchNumber
+                                    && se.PuPrice == removedKey.PuPrice
+                                    && se.PurchaseBillId == null)
+                                .FirstOrDefault();
+
+                            var firstItem = oldBatchData.FirstItem;
+
+                            if (newStockQuantity > 0)
+                            {
+                                if (existingGlobalStockEntry != null)
+                                {
+                                    existingGlobalStockEntry.Quantity = newStockQuantity;
+                                    existingGlobalStockEntry.UpdatedAt = DateTime.UtcNow;
+                                    _context.Entry(existingGlobalStockEntry).State = EntityState.Modified;
+                                    _logger.LogInformation($"Updated existing global stock entry to {newStockQuantity}");
+                                }
+                                else
+                                {
+                                    var positiveEntry = new StockEntry
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        ItemId = removedKey.ItemId,
+                                        Quantity = newStockQuantity,
+                                        Price = firstItem.Price,
+                                        NetPrice = firstItem.Price,
+                                        PuPrice = firstItem.PuPrice,
+                                        NetPuPrice = firstItem.PuPrice,
+                                        Mrp = firstItem.Mrp,
+                                        MarginPercentage = firstItem.MarginPercentage,
+                                        DiscountPercentagePerItem = firstItem.DiscountPercentagePerItem,
+                                        DiscountAmountPerItem = firstItem.DiscountAmountPerItem,
+                                        BatchNumber = firstItem.BatchNumber ?? "XXX",
+                                        ExpiryDate = firstItem.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                                        UniqueUuid = Guid.NewGuid().ToString(),
+                                        PurchaseBillId = null,
+                                        CompanyId = companyId,
+                                        FiscalYearId = fiscalYearId,
+                                        ExpiryStatus = "safe",
+                                        DaysUntilExpiry = 730,
+                                        NepaliDate = dto.NepaliDate,
+                                        Date = dto.Date,
+                                        CreatedAt = DateTime.UtcNow,
+                                        UpdatedAt = DateTime.UtcNow
+                                    };
+                                    await _context.StockEntries.AddAsync(positiveEntry);
+                                    _logger.LogInformation($"Created new positive entry of {newStockQuantity} for removed batch");
+                                }
+                            }
+                            else if (newStockQuantity < 0)
+                            {
+                                if (existingGlobalStockEntry != null)
+                                {
+                                    existingGlobalStockEntry.Quantity = newStockQuantity;
+                                    existingGlobalStockEntry.UpdatedAt = DateTime.UtcNow;
+                                    _context.Entry(existingGlobalStockEntry).State = EntityState.Modified;
+                                    _logger.LogInformation($"Updated existing global stock entry to {newStockQuantity}");
+                                }
+                                else
+                                {
+                                    var negativeEntry = new StockEntry
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        ItemId = removedKey.ItemId,
+                                        Quantity = newStockQuantity,
+                                        Price = firstItem.Price,
+                                        NetPrice = firstItem.Price,
+                                        PuPrice = firstItem.PuPrice,
+                                        NetPuPrice = firstItem.PuPrice,
+                                        Mrp = firstItem.Mrp,
+                                        MarginPercentage = firstItem.MarginPercentage,
+                                        DiscountPercentagePerItem = firstItem.DiscountPercentagePerItem,
+                                        DiscountAmountPerItem = -firstItem.DiscountAmountPerItem,
+                                        BatchNumber = firstItem.BatchNumber ?? "XXX",
+                                        ExpiryDate = firstItem.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                                        UniqueUuid = Guid.NewGuid().ToString(),
+                                        PurchaseBillId = null,
+                                        CompanyId = companyId,
+                                        FiscalYearId = fiscalYearId,
+                                        ExpiryStatus = "safe",
+                                        DaysUntilExpiry = 730,
+                                        NepaliDate = dto.NepaliDate,
+                                        Date = dto.Date,
+                                        CreatedAt = DateTime.UtcNow,
+                                        UpdatedAt = DateTime.UtcNow
+                                    };
+                                    await _context.StockEntries.AddAsync(negativeEntry);
+                                    _logger.LogInformation($"Created new negative entry of {newStockQuantity} for removed batch");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogInformation($"Stock quantity is 0 for removed batch. No entry needed.");
+                        }
+                    }
+                }
+
+                // STEP 4: RESTORE STOCK by removing all stock entries for this purchase bill
                 var existingStockEntries = await _context.StockEntries
                     .Where(se => se.PurchaseBillId == id)
                     .ToListAsync();
@@ -2347,7 +3238,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     _logger.LogInformation("Removed {Count} existing stock entries", existingStockEntries.Count);
                 }
 
-                // STEP 3: Delete all associated transactions AND their transaction items
+                // STEP 5: Delete all associated transactions AND their transaction items
                 var existingTransactions = await _context.Transactions
                     .Where(t => t.PurchaseBillId == id)
                     .Include(t => t.TransactionItems)
@@ -2355,12 +3246,11 @@ namespace SkyForge.Services.Retailer.PurchaseServices
 
                 foreach (var trans in existingTransactions)
                 {
-                    // TransactionItems will be deleted automatically due to Cascade delete
                     _context.Transactions.Remove(trans);
                 }
                 _logger.LogInformation("Deleted {Count} existing transactions with their items", existingTransactions.Count);
 
-                // STEP 4: Delete existing items
+                // STEP 6: Delete existing items
                 if (existingBill.Items.Any())
                 {
                     _context.PurchaseBillItems.RemoveRange(existingBill.Items);
@@ -2400,7 +3290,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 // Store item calculations for transaction items
                 var itemCalculations = new List<ItemCalculation>();
 
-                // STEP 5: UPDATE BILL PROPERTIES
+                // STEP 7: UPDATE BILL PROPERTIES
                 existingBill.AccountId = dto.AccountId;
                 existingBill.IsVatExempt = isVatExempt;
                 existingBill.VatPercentage = isVatExempt ? 0 : dto.VatPercentage;
@@ -2425,39 +3315,45 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 _context.PurchaseBills.Update(existingBill);
                 await _context.SaveChangesAsync();
 
-                // STEP 6: Process new items and create stock entries
+                // STEP 8: Process each unique batch separately
                 decimal overallDiscountPercentage = dto.DiscountPercentage;
 
-                foreach (var itemDto in dto.Items)
+                foreach (var batchGroup in newItemGroups)
                 {
+                    var batchKey = batchGroup.Key;
+                    var batchData = batchGroup.Value;
+                    var totalNewNetQuantity = batchData.TotalNetQuantity;
+                    var itemDtos = batchData.Items;
+                    var firstItemDto = batchData.FirstItem;
+
                     var product = await _context.Items
-                        .FirstOrDefaultAsync(i => i.Id == itemDto.ItemId && i.CompanyId == companyId);
+                        .FirstOrDefaultAsync(i => i.Id == batchKey.ItemId && i.CompanyId == companyId);
 
                     if (product == null)
-                        throw new ArgumentException($"Item with id {itemDto.ItemId} not found");
+                        throw new ArgumentException($"Item with id {batchKey.ItemId} not found");
 
-                    // Calculate values
-                    decimal wsUnit = itemDto.WsUnit ?? 1m;
-                    decimal quantity = itemDto.Quantity;
-                    decimal bonus = itemDto.Bonus ?? 0m;
-                    decimal ccAmountForItem = itemDto.ItemCcAmount;
-                    decimal ccPercentage = itemDto.CcPercentage;
+                    // Calculate values using the aggregated quantity for this batch
+                    decimal wsUnit = firstItemDto.WsUnit ?? 1m;
+                    decimal totalQuantity = itemDtos.Sum(i => i.Quantity);
+                    decimal totalBonus = itemDtos.Sum(i => i.Bonus ?? 0m);
+                    decimal totalCcAmountForItem = itemDtos.Sum(i => i.ItemCcAmount);
+                    decimal ccPercentage = firstItemDto.CcPercentage;
                     decimal roundOffAmount = dto.RoundOffAmount;
 
                     // Total quantity including bonus multiplied by WS Unit
-                    decimal totalQuantityWithBonus = quantity + bonus;
+                    decimal totalQuantityWithBonus = totalQuantity + totalBonus;
                     decimal netQuantity = totalQuantityWithBonus * wsUnit;
-                    decimal altQuantityWithoutBonus = quantity * wsUnit;
-                    decimal altBonusQuantity = bonus * wsUnit;
+                    decimal altQuantityWithoutBonus = totalQuantity * wsUnit;
+                    decimal altBonusQuantity = totalBonus * wsUnit;
 
                     // Calculate total purchase value before discount
-                    decimal totalPurchaseValueBeforeDiscount = itemDto.PuPrice * quantity;
+                    decimal totalPurchaseValueBeforeDiscount = firstItemDto.PuPrice * totalQuantity;
 
-                    // Calculate discount amount for this item
+                    // Calculate discount amount for this item based on total quantity
                     decimal discountAmountForItem = (totalPurchaseValueBeforeDiscount * overallDiscountPercentage) / 100m;
 
                     // Calculate net value after discount and CC
-                    decimal netValueAfterDiscountAndCC = totalPurchaseValueBeforeDiscount - discountAmountForItem + ccAmountForItem;
+                    decimal netValueAfterDiscountAndCC = totalPurchaseValueBeforeDiscount - discountAmountForItem + totalCcAmountForItem;
 
                     // Calculate total purchase value before round-off for proportional distribution
                     decimal totalPurchaseValueBeforeRoundOff = dto.Items.Sum(i =>
@@ -2505,120 +3401,308 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     totalVatDebit += itemVatAmount;
 
                     // Calculate MRP for stock
-                    decimal mrpForStock = itemDto.Currency == "INR" ? itemDto.Mrp * 1.6m : itemDto.Mrp;
+                    decimal mrpForStock = firstItemDto.Currency == "INR" ? firstItemDto.Mrp * 1.6m : firstItemDto.Mrp;
                     decimal mrpPerUnit = wsUnit > 0 ? mrpForStock / wsUnit : 0m;
 
                     // Calculate net pu price per unit
-                    decimal netPuPrice = itemDto.PuPrice - (itemDto.PuPrice * overallDiscountPercentage / 100m);
+                    decimal netPuPrice = firstItemDto.PuPrice - (firstItemDto.PuPrice * overallDiscountPercentage / 100m);
 
-                    if (quantity > 0 && ccAmountForItem != 0)
-                        netPuPrice += (ccAmountForItem / quantity);
-                    if (quantity > 0 && itemRoundOffAmount != 0)
-                        netPuPrice += (itemRoundOffAmount / quantity);
+                    if (totalQuantity > 0 && totalCcAmountForItem != 0)
+                        netPuPrice += (totalCcAmountForItem / totalQuantity);
+                    if (totalQuantity > 0 && itemRoundOffAmount != 0)
+                        netPuPrice += (itemRoundOffAmount / totalQuantity);
 
-                    string uniqueUuid = itemDto.UniqueUuid ?? Guid.NewGuid().ToString();
+                    string uniqueUuid = firstItemDto.UniqueUuid ?? Guid.NewGuid().ToString();
 
-                    // CREATE NEW PURCHASE BILL ITEM
-                    var newItem = new PurchaseBillItem
+                    // ========== CORRECT FORMULA PER BATCH ==========
+
+                    // Get the OLD total quantity for this specific batch
+                    decimal oldBatchTotalQuantity = 0;
+                    bool isExistingBatch = oldItemGroups.ContainsKey(batchKey);
+                    if (isExistingBatch)
                     {
-                        Id = Guid.NewGuid(),
-                        PurchaseBillId = existingBill.Id,
-                        ItemId = itemDto.ItemId,
-                        UnitId = itemDto.UnitId,
-                        WsUnit = wsUnit,
-                        Quantity = quantity,
-                        AltQuantity = altQuantityWithoutBonus,
-                        Bonus = bonus,
-                        AltBonus = altBonusQuantity,
-                        Price = itemDto.Price ?? 0,
-                        PuPrice = itemDto.PuPrice,
-                        DiscountPercentagePerItem = overallDiscountPercentage,
-                        DiscountAmountPerItem = discountAmountForItem,
-                        NetPuPrice = netPuPrice,
-                        CcPercentage = ccPercentage,
-                        ItemCcAmount = ccAmountForItem,
-                        Mrp = itemDto.Mrp,
-                        AltMrp = wsUnit > 0 ? itemDto.Mrp / wsUnit : 0m,
-                        MarginPercentage = itemDto.MarginPercentage,
-                        Currency = itemDto.Currency ?? "NPR",
-                        AltPrice = wsUnit > 0 ? itemDto.Price / wsUnit : 0m,
-                        AltPuPrice = wsUnit > 0 ? itemDto.PuPrice / wsUnit : 0m,
-                        BatchNumber = itemDto.BatchNumber ?? "XXX",
-                        ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
-                        VatStatus = itemDto.VatStatus ?? product.VatStatus ?? "13",
-                        UniqueUuid = uniqueUuid,
-                        Date = dto.Date,
-                        TransactionDate = dto.TransactionDate,
-                        NepaliDate = dto.NepaliDate,
-                        TransactionDateNepali = dto.TransactionDateNepali
-                    };
+                        oldBatchTotalQuantity = oldItemGroups[batchKey].TotalNetQuantity;
+                    }
 
-                    await _context.PurchaseBillItems.AddAsync(newItem);
-
-                    // CREATE NEW STOCK ENTRY
-                    var newStock = new StockEntry
+                    // Get the existing stock entry quantity for this batch from the bill
+                    decimal existingStockQty = 0;
+                    if (currentStockQuantities.ContainsKey(batchKey))
                     {
-                        Id = Guid.NewGuid(),
-                        ItemId = itemDto.ItemId,
-                        WsUnit = wsUnit,
-                        Quantity = netQuantity,
-                        Bonus = bonus * wsUnit,
-                        BatchNumber = itemDto.BatchNumber ?? "XXX",
-                        ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
-                        Price = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m,
-                        NetPrice = wsUnit > 0 ? (itemDto.Price ?? 0m) / wsUnit : 0m,
-                        PuPrice = finalPuPricePerUnit,
-                        NetPuPrice = finalPuPricePerUnit,
-                        ItemCcAmount = ccAmountForItem,
-                        DiscountPercentagePerItem = overallDiscountPercentage,
-                        DiscountAmountPerItem = discountAmountForItem,
-                        MainUnitPuPrice = itemDto.PuPrice,
-                        Mrp = mrpPerUnit,
-                        MarginPercentage = itemDto.MarginPercentage,
-                        Currency = itemDto.Currency ?? "NPR",
-                        CompanyId = companyId,
-                        FiscalYearId = fiscalYearId,
-                        UniqueUuid = uniqueUuid,
-                        PurchaseBillId = existingBill.Id,
-                        ExpiryStatus = CalculateExpiryStatus(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
-                        DaysUntilExpiry = CalculateDaysUntilExpiry(itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
-                        NepaliDate = dto.NepaliDate,
-                        Date = dto.Date,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
+                        existingStockQty = currentStockQuantities[batchKey];
+                    }
 
-                    await _context.StockEntries.AddAsync(newStock);
-
-                    // Store calculation for transaction items
-                    itemCalculations.Add(new ItemCalculation
+                    // Get existing negative stock for this specific batch from other sources
+                    decimal existingNegativeStock = 0;
+                    if (negativeStockQuantities.ContainsKey(batchKey))
                     {
-                        ItemId = itemDto.ItemId,
-                        UnitId = itemDto.UnitId,
-                        WsUnit = wsUnit,
-                        Quantity = quantity,
-                        Bonus = bonus,
-                        Price = itemDto.Price ?? 0,
-                        PuPrice = itemDto.PuPrice,
-                        DiscountPercentagePerItem = overallDiscountPercentage,
-                        DiscountAmountPerItem = discountAmountForItem,
-                        NetPuPrice = netPuPrice,
-                        TaxableAmount = itemTaxableAmount,
-                        VatPercentage = itemVatPercentage,
-                        VatAmount = itemVatAmount,
-                        ItemValueAfterDiscount = itemValueAfterDiscount
-                    });
+                        existingNegativeStock = negativeStockQuantities[batchKey]; // This will be negative
+                    }
 
-                    _logger.LogInformation($"Created new item and stock entry for {product.Name}, batch {itemDto.BatchNumber}");
+                    // Calculate the base new stock using the formula PER BATCH
+                    // New Stock = Total New Batch Qty - Total Old Batch Qty + Existing Stock Entry (from bill)
+                    decimal baseNewStockQuantity = totalNewNetQuantity - oldBatchTotalQuantity + existingStockQty;
+
+                    _logger.LogInformation($"Batch - ItemId: {batchKey.ItemId}, Batch: {batchKey.BatchNumber}, PuPrice: {batchKey.PuPrice}");
+                    _logger.LogInformation($"Is Existing Batch: {isExistingBatch}");
+                    _logger.LogInformation($"Total Old Batch Qty: {oldBatchTotalQuantity}, Total New Batch Qty: {totalNewNetQuantity}");
+                    _logger.LogInformation($"Existing Stock from bill: {existingStockQty}");
+                    _logger.LogInformation($"Existing Negative Stock (other sources): {existingNegativeStock}");
+                    _logger.LogInformation($"Base New Stock Entry: {totalNewNetQuantity} - {oldBatchTotalQuantity} + {existingStockQty} = {baseNewStockQuantity}");
+
+                    decimal finalStockQuantity = baseNewStockQuantity;
+
+                    // If there's existing negative stock for this specific batch, settle against it
+                    if (existingNegativeStock < 0)
+                    {
+                        decimal negativeAmount = Math.Abs(existingNegativeStock);
+                        decimal quantityToSettle = Math.Min(Math.Abs(baseNewStockQuantity), negativeAmount);
+
+                        _logger.LogInformation($"Settling {quantityToSettle} against negative stock of {existingNegativeStock} for this batch");
+
+                        // Get the actual negative entry to update/remove
+                        var negativeEntry = allOtherStockEntries
+                            .Where(se => se.ItemId == batchKey.ItemId
+                                && se.BatchNumber == batchKey.BatchNumber
+                                && se.PuPrice == batchKey.PuPrice
+                                && se.Quantity < 0)
+                            .OrderBy(se => se.CreatedAt)
+                            .FirstOrDefault();
+
+                        if (negativeEntry != null)
+                        {
+                            if (baseNewStockQuantity >= 0)
+                            {
+                                // We're adding positive stock, so we can settle the negative
+                                if (baseNewStockQuantity >= negativeAmount)
+                                {
+                                    // Fully settle - remove the negative entry
+                                    _context.StockEntries.Remove(negativeEntry);
+                                    _logger.LogInformation($"Fully settled negative stock of {existingNegativeStock} for this batch");
+                                    finalStockQuantity = baseNewStockQuantity + existingNegativeStock;
+                                    _logger.LogInformation($"Final stock after full settlement: {finalStockQuantity}");
+                                }
+                                else
+                                {
+                                    // Partially settle - update the negative entry
+                                    negativeEntry.Quantity += baseNewStockQuantity;
+                                    negativeEntry.UpdatedAt = DateTime.UtcNow;
+                                    negativeEntry.PuPrice = finalPuPricePerUnit;
+                                    negativeEntry.NetPuPrice = netPuPrice;
+                                    negativeEntry.Price = wsUnit > 0 ? (firstItemDto.Price ?? 0m) / wsUnit : 0m;
+                                    negativeEntry.NetPrice = wsUnit > 0 ? (firstItemDto.Price ?? 0m) / wsUnit : 0m;
+                                    negativeEntry.Mrp = mrpPerUnit;
+                                    negativeEntry.MainUnitPuPrice = firstItemDto.PuPrice;
+                                    negativeEntry.DiscountPercentagePerItem = overallDiscountPercentage;
+                                    negativeEntry.DiscountAmountPerItem = (baseNewStockQuantity / netQuantity) * discountAmountForItem;
+                                    negativeEntry.BatchNumber = batchKey.BatchNumber;
+                                    negativeEntry.ExpiryDate = firstItemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2));
+                                    negativeEntry.ExpiryStatus = CalculateExpiryStatus(firstItemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)));
+                                    negativeEntry.DaysUntilExpiry = CalculateDaysUntilExpiry(firstItemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)));
+                                    negativeEntry.Date = dto.Date;
+                                    negativeEntry.NepaliDate = dto.NepaliDate;
+
+                                    _context.Entry(negativeEntry).State = EntityState.Modified;
+                                    _logger.LogInformation($"Partially settled negative stock. Remaining: {negativeEntry.Quantity}");
+
+                                    finalStockQuantity = 0;
+                                    _logger.LogInformation($"Final stock after partial settlement: {finalStockQuantity}");
+                                }
+                            }
+                            else
+                            {
+                                // We're adding negative stock
+                                finalStockQuantity = baseNewStockQuantity;
+                                _logger.LogInformation($"Adding negative stock: {finalStockQuantity}");
+                            }
+                        }
+                    }
+
+                    // If the final stock quantity is 0, we don't need to create an entry
+                    if (Math.Abs(finalStockQuantity) > 0.001m)
+                    {
+                        if (finalStockQuantity > 0)
+                        {
+                            // POSITIVE STOCK ENTRY - ONE PER BATCH
+                            _logger.LogInformation($"Creating positive stock entry of {finalStockQuantity} for batch {batchKey.BatchNumber}");
+
+                            var newStockEntry = new StockEntry
+                            {
+                                Id = Guid.NewGuid(),
+                                ItemId = batchKey.ItemId,
+                                WsUnit = wsUnit,
+                                Quantity = finalStockQuantity,
+                                BillQty = finalStockQuantity / wsUnit,
+                                ActualQty = finalStockQuantity,
+                                Bonus = 0,
+                                BatchNumber = batchKey.BatchNumber ?? "XXX",
+                                ExpiryDate = firstItemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                                Price = wsUnit > 0 ? (firstItemDto.Price ?? 0m) / wsUnit : 0m,
+                                NetPrice = wsUnit > 0 ? (firstItemDto.Price ?? 0m) / wsUnit : 0m,
+                                PuPrice = finalPuPricePerUnit,
+                                NetPuPrice = netPuPrice,
+                                ItemCcAmount = totalCcAmountForItem,
+                                DiscountPercentagePerItem = overallDiscountPercentage,
+                                DiscountAmountPerItem = discountAmountForItem,
+                                MainUnitPuPrice = firstItemDto.PuPrice,
+                                Mrp = mrpPerUnit,
+                                MarginPercentage = firstItemDto.MarginPercentage,
+                                Currency = firstItemDto.Currency ?? "NPR",
+                                CompanyId = companyId,
+                                FiscalYearId = fiscalYearId,
+                                UniqueUuid = uniqueUuid,
+                                PurchaseBillId = existingBill.Id,
+                                ExpiryStatus = CalculateExpiryStatus(firstItemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+                                DaysUntilExpiry = CalculateDaysUntilExpiry(firstItemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+                                NepaliDate = dto.NepaliDate,
+                                Date = dto.Date,
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedAt = DateTime.UtcNow,
+                                StoreId = firstItemDto.StoreId,
+                                RackId = firstItemDto.RackId
+                            };
+
+                            await _context.StockEntries.AddAsync(newStockEntry);
+                            _logger.LogInformation($"Created positive stock entry of {finalStockQuantity} for batch {batchKey.BatchNumber}");
+                        }
+                        else
+                        {
+                            // NEGATIVE STOCK ENTRY - ONE PER BATCH
+                            _logger.LogInformation($"Creating negative stock entry of {finalStockQuantity} for batch {batchKey.BatchNumber}");
+
+                            var negativeEntry = new StockEntry
+                            {
+                                Id = Guid.NewGuid(),
+                                ItemId = batchKey.ItemId,
+                                WsUnit = wsUnit,
+                                Quantity = finalStockQuantity,
+                                BillQty = 0,
+                                ActualQty = finalStockQuantity,
+                                Bonus = 0,
+                                BatchNumber = batchKey.BatchNumber ?? "XXX",
+                                ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                                Price = wsUnit > 0 ? (firstItemDto.Price ?? 0m) / wsUnit : 0m,
+                                NetPrice = wsUnit > 0 ? (firstItemDto.Price ?? 0m) / wsUnit : 0m,
+                                PuPrice = finalPuPricePerUnit,
+                                NetPuPrice = netPuPrice,
+                                ItemCcAmount = -totalCcAmountForItem,
+                                DiscountPercentagePerItem = overallDiscountPercentage,
+                                DiscountAmountPerItem = -discountAmountForItem,
+                                MainUnitPuPrice = firstItemDto.PuPrice,
+                                Mrp = mrpPerUnit,
+                                MarginPercentage = firstItemDto.MarginPercentage,
+                                Currency = firstItemDto.Currency ?? "NPR",
+                                CompanyId = companyId,
+                                FiscalYearId = fiscalYearId,
+                                UniqueUuid = Guid.NewGuid().ToString(),
+                                PurchaseBillId = existingBill.Id,
+                                ExpiryStatus = "safe",
+                                DaysUntilExpiry = 730,
+                                NepaliDate = dto.NepaliDate,
+                                Date = dto.Date,
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedAt = DateTime.UtcNow,
+                                StoreId = firstItemDto.StoreId,
+                                RackId = firstItemDto.RackId
+                            };
+
+                            await _context.StockEntries.AddAsync(negativeEntry);
+                            _logger.LogInformation($"Created negative stock entry of {finalStockQuantity} for batch {batchKey.BatchNumber}");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Stock quantity is 0. No entry needed for batch {batchKey.BatchNumber}");
+                    }
+
+                    // CREATE NEW PURCHASE BILL ITEMS (one for each entry in this batch)
+                    foreach (var itemDto in itemDtos)
+                    {
+                        // Calculate individual values for each entry
+                        decimal individualWsUnit = itemDto.WsUnit ?? 1m;
+                        decimal individualQuantity = itemDto.Quantity;
+                        decimal individualBonus = itemDto.Bonus ?? 0m;
+                        decimal individualCcAmount = itemDto.ItemCcAmount;
+
+                        decimal individualAltQuantityWithoutBonus = individualQuantity * individualWsUnit;
+                        decimal individualAltBonusQuantity = individualBonus * individualWsUnit;
+
+                        // Calculate individual discount amount
+                        decimal individualDiscountAmountForItem = (itemDto.PuPrice * individualQuantity * overallDiscountPercentage) / 100m;
+
+                        // Calculate individual net pu price
+                        decimal individualNetPuPrice = itemDto.PuPrice - (itemDto.PuPrice * overallDiscountPercentage / 100m);
+
+                        if (individualQuantity > 0 && individualCcAmount != 0)
+                            individualNetPuPrice += (individualCcAmount / individualQuantity);
+                        if (individualQuantity > 0 && itemRoundOffAmount != 0)
+                            individualNetPuPrice += (itemRoundOffAmount / individualQuantity);
+
+                        var newItem = new PurchaseBillItem
+                        {
+                            Id = Guid.NewGuid(),
+                            PurchaseBillId = existingBill.Id,
+                            ItemId = itemDto.ItemId,
+                            UnitId = itemDto.UnitId,
+                            WsUnit = individualWsUnit,
+                            Quantity = individualQuantity,
+                            AltQuantity = individualAltQuantityWithoutBonus,
+                            Bonus = individualBonus,
+                            AltBonus = individualAltBonusQuantity,
+                            Price = itemDto.Price ?? 0,
+                            PuPrice = itemDto.PuPrice,
+                            DiscountPercentagePerItem = overallDiscountPercentage,
+                            DiscountAmountPerItem = individualDiscountAmountForItem,
+                            NetPuPrice = individualNetPuPrice,
+                            CcPercentage = itemDto.CcPercentage,
+                            ItemCcAmount = individualCcAmount,
+                            Mrp = itemDto.Mrp,
+                            AltMrp = individualWsUnit > 0 ? itemDto.Mrp / individualWsUnit : 0m,
+                            MarginPercentage = itemDto.MarginPercentage,
+                            Currency = itemDto.Currency ?? "NPR",
+                            AltPrice = individualWsUnit > 0 ? itemDto.Price / individualWsUnit : 0m,
+                            AltPuPrice = individualWsUnit > 0 ? itemDto.PuPrice / individualWsUnit : 0m,
+                            BatchNumber = itemDto.BatchNumber ?? "XXX",
+                            ExpiryDate = itemDto.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                            VatStatus = itemDto.VatStatus ?? product.VatStatus ?? "13",
+                            UniqueUuid = uniqueUuid,
+                            Date = dto.Date,
+                            TransactionDate = dto.TransactionDate,
+                            NepaliDate = dto.NepaliDate,
+                            TransactionDateNepali = dto.TransactionDateNepali
+                        };
+
+                        await _context.PurchaseBillItems.AddAsync(newItem);
+
+                        // Store calculation for transaction items
+                        itemCalculations.Add(new ItemCalculation
+                        {
+                            ItemId = itemDto.ItemId,
+                            UnitId = itemDto.UnitId,
+                            WsUnit = individualWsUnit,
+                            Quantity = individualQuantity,
+                            Bonus = individualBonus,
+                            Price = itemDto.Price ?? 0,
+                            PuPrice = itemDto.PuPrice,
+                            DiscountPercentagePerItem = overallDiscountPercentage,
+                            DiscountAmountPerItem = individualDiscountAmountForItem,
+                            NetPuPrice = individualNetPuPrice,
+                            TaxableAmount = (itemDto.Price * individualQuantity) - individualDiscountAmountForItem ?? 0,
+                            VatPercentage = itemVatPercentage,
+                            VatAmount = 0,
+                            ItemValueAfterDiscount = (itemDto.Price * individualQuantity) - individualDiscountAmountForItem ?? 0
+                        });
+                    }
+
+                    _logger.LogInformation($"Processed batch - Item: {product.Name}, Batch: {batchKey.BatchNumber}, PuPrice: {batchKey.PuPrice}, Total Qty: {totalQuantity}");
                 }
 
                 // Save items and stock entries
                 await _context.SaveChangesAsync();
 
-                // STEP 7: CREATE NEW TRANSACTIONS WITH TRANSACTION ITEMS
+                // STEP 9: CREATE NEW TRANSACTIONS WITH TRANSACTION ITEMS
                 var transactionsList = new List<Transaction>();
 
-                // 1. PARTY ACCOUNT TRANSACTION (Header - Credit to party)
+                // 1. PARTY ACCOUNT TRANSACTION
                 if (dto.AccountId != Guid.Empty && totalPartyCredit > 0)
                 {
                     var partyTransaction = new Transaction
@@ -2648,7 +3732,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     };
                     transactionsList.Add(partyTransaction);
 
-                    // Add Transaction Items for Party Transaction
                     foreach (var calc in itemCalculations)
                     {
                         var transactionItem = new TransactionItem
@@ -2676,7 +3759,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     }
                 }
 
-                // 2. PURCHASE ACCOUNT TRANSACTION (Header - Debit to Purchase account)
+                // 2. PURCHASE ACCOUNT TRANSACTION
                 if (purchaseAccount != null && totalPurchaseDebit > 0)
                 {
                     var purchaseTransaction = new Transaction
@@ -2706,7 +3789,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     };
                     transactionsList.Add(purchaseTransaction);
 
-                    // Add Transaction Items for Purchase Transaction
                     foreach (var calc in itemCalculations)
                     {
                         var transactionItem = new TransactionItem
@@ -2734,7 +3816,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     }
                 }
 
-                // 3. VAT TRANSACTION (Header) if applicable
+                // 3. VAT TRANSACTION
                 if (totalVatDebit > 0 && vatAccount != null && !isVatExempt)
                 {
                     var vatTransaction = new Transaction
@@ -2765,7 +3847,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     };
                     transactionsList.Add(vatTransaction);
 
-                    // Add Transaction Items for VAT Transaction
                     foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
                     {
                         var transactionItem = new TransactionItem
@@ -2793,7 +3874,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     }
                 }
 
-                // 4. ROUND-OFF TRANSACTION (Header) if applicable
+                // 4. ROUND-OFF TRANSACTION
                 if (dto.RoundOffAmount != 0 && roundOffAccount != null)
                 {
                     var roundOffTransaction = new Transaction
@@ -2822,7 +3903,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     transactionsList.Add(roundOffTransaction);
                 }
 
-                // 5. CASH TRANSACTION (Header) if payment mode is cash
+                // 5. CASH TRANSACTION
                 if (paymentMode == PaymentMode.Cash && cashAccount != null && dto.TotalAmount > 0)
                 {
                     var cashTransaction = new Transaction
@@ -2848,7 +3929,6 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         IsActive = true,
                     };
                     transactionsList.Add(cashTransaction);
-                    // Cash transactions don't need TransactionItems
                 }
 
                 // Add all transactions
@@ -2861,7 +3941,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 await transaction.CommitAsync();
                 _logger.LogInformation("Transaction committed successfully");
 
-                // STEP 8: ADD UPDATED PURCHASE BILL TO CASH COUNTER (if payment mode is cash)
+                // STEP 10: ADD UPDATED PURCHASE BILL TO CASH COUNTER
                 if (dto.PaymentMode?.ToLower() == "cash" && dto.TotalAmount > 0)
                 {
                     try
@@ -2872,13 +3952,11 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, $"Error adding purchase bill {existingBill.BillNumber} to cash counter");
-                        // Continue with update even if cash counter fails
                     }
                 }
 
                 _logger.LogInformation("=== Successfully updated purchase bill: {BillId} ===", id);
 
-                // Reload the bill with account and items for response
                 var updatedBill = await _context.PurchaseBills
                     .Include(pb => pb.Account)
                     .Include(pb => pb.Items)

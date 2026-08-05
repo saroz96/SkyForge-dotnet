@@ -11,7 +11,9 @@ namespace SkyForge.Dto.RetailerDto.SalesReturnDto
 
         [Required]
         public Guid UnitId { get; set; }
-
+        
+        [Range(0.001, double.MaxValue)]
+        public decimal? WsUnit { get; set; }
         [Required]
         [Range(0.001, double.MaxValue)]
         public decimal Quantity { get; set; }

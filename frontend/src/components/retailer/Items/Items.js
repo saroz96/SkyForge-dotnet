@@ -1798,7 +1798,7 @@
 
 // export default Items;
 
-//--------------------------------------------------------end
+//--------------------------------------------------------end1
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
@@ -3607,7 +3607,7 @@ const Items = () => {
                                         </div>
 
                                         <div className="col-md-4">
-                                            <div className="position-relative">
+                                            {/* <div className="position-relative">
                                                 <Form.Control
                                                     type="number"
                                                     name="openingStock"
@@ -3629,6 +3629,30 @@ const Items = () => {
                                                 />
                                                 <label className="position-absolute"
                                                     style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: currentItem && itemsWithTransactions[currentItem._id] ? '#f8f9fa' : 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+                                                    Opening Stock
+                                                </label>
+                                            </div> */}
+
+                                            <div className="position-relative">
+                                                <Form.Control
+                                                    type="number"
+                                                    name="openingStock"
+                                                    value={formData.openingStock}
+                                                    onChange={(e) => {
+                                                        const openingStock = parseFloat(e.target.value) || 0;
+                                                        const puPrice = parseFloat(formData.puPrice) || 0;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            openingStock: e.target.value,
+                                                            openingStockBalance: (puPrice * openingStock).toFixed(2)
+                                                        }));
+                                                    }}
+                                                    placeholder=" "
+                                                    autoComplete="off"
+                                                    style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.75rem' }}
+                                                />
+                                                <label className="position-absolute"
+                                                    style={{ top: '-8px', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                     Opening Stock
                                                 </label>
                                             </div>

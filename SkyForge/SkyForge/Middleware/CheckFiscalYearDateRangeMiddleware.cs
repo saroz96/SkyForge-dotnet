@@ -1227,6 +1227,7 @@ namespace SkyForge.Middleware
                 "/api/retailer/credit-sales",
                 "/api/retailer/cash-sales",
                 "/api/retailer/sales-return",
+                "/api/retailer/cash/sales-return",
                 "/api/retailer/purchase-return",
                 "/api/retailer/payments",
                 "/api/retailer/receipts",
@@ -1235,7 +1236,8 @@ namespace SkyForge.Middleware
                 "/api/retailer/credit-note",
                 "/api/accounts",
                 "/api/transactions",
-                "/api/invoices"
+                "/api/invoices",
+                "/api/retailer/stock-adjustments"
             };
 
             foreach (var endpoint in transactionEndpoints)
