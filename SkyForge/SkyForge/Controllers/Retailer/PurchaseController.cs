@@ -1398,6 +1398,216 @@ namespace SkyForge.Controllers.Retailer
         }
 
         // PUT: api/retailer/purchase/edit/{id}
+        // [HttpPut("purchase/edit/{id}")]
+        // public async Task<IActionResult> UpdatePurchaseBill(Guid id, [FromBody] UpdatePurchaseBillDTO request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== UpdatePurchaseBill Started for ID: {BillId} ===", id);
+
+        //         // Extract claims from JWT
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // Handle fiscal year - get from claims first, then fallback
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             // If not in claims, get active fiscal year for the company
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 // Try to get any fiscal year as fallback
+        //                 activeFiscalYear = await _context.FiscalYears
+        //                     .Where(f => f.CompanyId == companyIdGuid)
+        //                     .OrderByDescending(f => f.StartDate)
+        //                     .FirstOrDefaultAsync();
+
+        //                 if (activeFiscalYear == null)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "No fiscal year found for this company."
+        //                     });
+        //                 }
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+
+        //             _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+        //         }
+
+        //         // Validate request
+        //         if (!ModelState.IsValid)
+        //         {
+        //             var errors = ModelState.Values
+        //                 .SelectMany(v => v.Errors)
+        //                 .Select(e => e.ErrorMessage)
+        //                 .ToList();
+
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Validation failed",
+        //                 details = errors
+        //             });
+        //         }
+
+        //         // Validate required fields
+        //         if (request.AccountId == Guid.Empty)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Account ID is required"
+        //             });
+        //         }
+
+        //         if (request.Items == null || !request.Items.Any())
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "At least one item is required"
+        //             });
+        //         }
+
+        //         if (string.IsNullOrEmpty(request.PaymentMode))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Payment mode is required"
+        //             });
+        //         }
+
+        //         // Validate dates based on company format
+        //         var company = await _context.Companies.FindAsync(companyIdGuid);
+        //         if (company != null)
+        //         {
+        //             bool isNepaliFormat = company.DateFormat == DateFormatEnum.Nepali;
+
+        //             if (isNepaliFormat)
+        //             {
+        //                 if (request.TransactionDateNepali == default)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "Invalid transaction date"
+        //                     });
+        //                 }
+        //                 if (request.NepaliDate == default)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "Invalid invoice date"
+        //                     });
+        //                 }
+        //             }
+        //             else
+        //             {
+        //                 if (request.TransactionDate == default)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "Invalid transaction date"
+        //                     });
+        //                 }
+        //                 if (request.Date == default)
+        //                 {
+        //                     return BadRequest(new
+        //                     {
+        //                         success = false,
+        //                         error = "Invalid invoice date"
+        //                     });
+        //                 }
+        //             }
+        //         }
+
+        //         // Update purchase bill using service - PASS ALL REQUIRED PARAMETERS
+        //         var updatedBill = await _purchaseService.UpdatePurchaseBillAsync(
+        //             id,
+        //             request,
+        //             companyIdGuid,
+        //             fiscalYearIdGuid,  // Add fiscalYearId
+        //             userIdGuid         // Add userId
+        //         );
+
+        //         // Get response DTO
+        //         var responseDto = await _purchaseService.GetPurchaseBillAsync(updatedBill.Id, companyIdGuid);
+
+        //         _logger.LogInformation($"Successfully updated purchase bill: {id}");
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = "Purchase updated successfully",
+        //             data = new
+        //             {
+        //                 billId = updatedBill.Id,
+        //                 billNumber = updatedBill.BillNumber,
+        //                 // print = request.Print
+        //             }
+        //         });
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in UpdatePurchaseBill");
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in UpdatePurchaseBill for bill {BillId}", id);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while updating purchase bill",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         [HttpPut("purchase/edit/{id}")]
         public async Task<IActionResult> UpdatePurchaseBill(Guid id, [FromBody] UpdatePurchaseBillDTO request)
         {
@@ -1566,8 +1776,8 @@ namespace SkyForge.Controllers.Retailer
                     id,
                     request,
                     companyIdGuid,
-                    fiscalYearIdGuid,  // Add fiscalYearId
-                    userIdGuid         // Add userId
+                    fiscalYearIdGuid,
+                    userIdGuid
                 );
 
                 // Get response DTO
@@ -1587,8 +1797,19 @@ namespace SkyForge.Controllers.Retailer
                     }
                 });
             }
+            catch (InvalidOperationException ex)
+            {
+                // ✅ Catch InvalidOperationException for business logic errors (like negative stock)
+                _logger.LogWarning(ex, "Business logic error in UpdatePurchaseBill");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
             catch (ArgumentException ex)
             {
+                // ✅ Catch ArgumentException for validation errors
                 _logger.LogWarning(ex, "Validation error in UpdatePurchaseBill");
                 return BadRequest(new
                 {
@@ -1598,6 +1819,7 @@ namespace SkyForge.Controllers.Retailer
             }
             catch (Exception ex)
             {
+                // ✅ Catch all other unexpected errors
                 _logger.LogError(ex, "Error in UpdatePurchaseBill for bill {BillId}", id);
                 return StatusCode(500, new
                 {
