@@ -86,6 +86,7 @@ import SalesQuotationPrint from './components/retailer/salesQuotation.js/Print';
 import EditSalesQuotation from './components/retailer/salesQuotation.js/EditSalesQuotation';
 import SalesQuotationVoucherNumber from './components/retailer/salesQuotation.js/VoucherNumber';
 import PurchaseVoucherNumber from './components/retailer/purchase/VoucherNumber';
+import StockRegeneration from './components/retailer/purchase/StockRegeneration';
 import EditCreditSales from './components/retailer/sales/EditCreditSales';
 import CreditSalesVoucherNumber from './components/retailer/sales/CreditVoucherNumber';
 import EditCashSales from './components/retailer/sales/EditCashSales';
@@ -423,6 +424,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <PurchaseVoucherNumber />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="/retailer/purchase/regenerate-stock/:billId"
+              element={
+                <ProtectedRoute>
+                  <StockRegeneration />
                 </ProtectedRoute>
               }
             />

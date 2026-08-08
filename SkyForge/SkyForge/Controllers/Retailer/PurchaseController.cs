@@ -2461,6 +2461,222 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // GET: api/retailer/purchase/{id}
+        [HttpGet("purchase/{id}")]
+        public async Task<IActionResult> GetPurchaseBill(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetPurchaseBill Started for ID: {BillId} ===", id);
 
+                // Extract claims from JWT
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // Get purchase bill from service
+                var bill = await _purchaseService.GetPurchaseBillAsync(id, companyIdGuid);
+
+                if (bill == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Purchase bill not found"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    data = bill
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetPurchaseBill for ID: {BillId}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while fetching purchase bill",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // GET: api/retailer/purchase/{id}/stock-entries
+        [HttpGet("purchase/{id}/stock-entries")]
+        public async Task<IActionResult> GetStockEntriesForBill(Guid id)
+        {
+            try
+            {
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new { success = false, error = "Company not found" });
+                }
+
+                var stockEntries = await _context.StockEntries
+                    .Include(se => se.Item)
+                    .Where(se => se.PurchaseBillId == id && se.CompanyId == companyIdGuid)
+                    .Select(se => new
+                    {
+                        se.Id,
+                        se.ItemId,
+                        ItemName = se.Item != null ? se.Item.Name : "Unknown",
+                        se.BatchNumber,
+                        se.ExpiryDate,
+                        se.Quantity,
+                        se.PuPrice,
+                        se.CreatedAt
+                    })
+                    .ToListAsync();
+
+                return Ok(new { success = true, data = stockEntries });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting stock entries for bill {id}");
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        // POST: api/retailer/purchase/regenerate-stock
+        [HttpPost("purchase/regenerate-stock")]
+        public async Task<IActionResult> RegenerateStockEntries([FromBody] StockRegenerationRequestDto request)
+        {
+            try
+            {
+                _logger.LogInformation($"=== RegenerateStockEntries Started for Bill: {request.PurchaseBillId} ===");
+
+                // Extract claims from JWT
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+                // Validate user
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        error = "Invalid user token. Please login again."
+                    });
+                }
+
+                // Validate company
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "No company selected. Please select a company first."
+                    });
+                }
+
+                // Validate trade type
+                if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        error = "Access restricted to retailer accounts"
+                    });
+                }
+
+                // Validate request
+                if (request.PurchaseBillId == Guid.Empty)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Purchase bill ID is required"
+                    });
+                }
+
+                // Handle fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "No active fiscal year found for this company."
+                        });
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Call service to regenerate stock entries
+                var result = await _purchaseService.RegenerateStockEntriesAsync(
+                    request.PurchaseBillId,
+                    companyIdGuid,
+                    fiscalYearIdGuid,
+                    request.OverwriteExisting
+                );
+
+                if (!result.Success)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = result.Message,
+                        data = new
+                        {
+                            purchaseBillInfo = result.PurchaseBillInfo,
+                            errors = result.Errors
+                        }
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = result.Message,
+                    data = new
+                    {
+                        entriesRegenerated = result.EntriesRegenerated,
+                        stockEntries = result.StockEntries,
+                        purchaseBillInfo = result.PurchaseBillInfo,
+                        errors = result.Errors
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error regenerating stock entries for bill {request.PurchaseBillId}");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while regenerating stock entries",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
     }
 }

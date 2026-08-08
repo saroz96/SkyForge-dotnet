@@ -884,6 +884,412 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // [HttpGet("items/{id}")]
+        // public async Task<IActionResult> GetItemById(Guid id)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation($"=== GetItemById Started for ID: {id} ===");
+
+        //         // 1. Extract ALL required info from JWT claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+        //         var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+        //         var isAdminClaim = User.FindFirst("isAdmin")?.Value;
+        //         var roleName = User.FindFirst(ClaimTypes.Role)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var companyName = User.FindFirst("currentCompanyName")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearId = User.FindFirst("currentFiscalYear")?.Value;
+
+        //         // 2. Validate ID format
+        //         if (id == Guid.Empty)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid item ID format"
+        //             });
+        //         }
+
+        //         // 3. Parse boolean claims
+        //         bool isAdmin = bool.TryParse(isAdminClaim, out bool admin) && admin;
+
+        //         // 4. Validate required claims exist
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             _logger.LogError("Invalid or missing userId claim");
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again.",
+        //                 redirectTo = "/login"
+        //             });
+        //         }
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             _logger.LogError("No company selected in JWT token");
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Company ID is required"
+        //             });
+        //         }
+
+        //         // 5. Validate trade type is Retailer
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             _logger.LogWarning($"Access denied: TradeType is {tradeTypeClaim}, not Retailer");
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access denied for this trade type. This is a Retailer-only feature."
+        //             });
+        //         }
+
+        //         // 6. Get company details
+        //         var company = await _context.Companies
+        //             .Where(c => c.Id == companyIdGuid)
+        //             .Select(c => new
+        //             {
+        //                 c.Id,
+        //                 c.Name,
+        //                 c.RenewalDate,
+        //                 DateFormat = c.DateFormat,
+        //                 VatEnabled = c.VatEnabled
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         if (company == null)
+        //         {
+        //             _logger.LogError($"Company not found: {companyIdGuid}");
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Company not found"
+        //             });
+        //         }
+
+        //         // 7. Get current fiscal year (from JWT claim or database)
+        //         Models.FiscalYearModel.FiscalYear? currentFiscalYear = null;
+
+        //         // First try from JWT claim
+        //         if (!string.IsNullOrEmpty(fiscalYearId) && Guid.TryParse(fiscalYearId, out Guid fiscalYearIdGuid))
+        //         {
+        //             currentFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == fiscalYearIdGuid && f.CompanyId == companyIdGuid);
+        //         }
+
+        //         // Fallback to active fiscal year for the company
+        //         if (currentFiscalYear == null)
+        //         {
+        //             currentFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //         }
+
+        //         // Fallback to any fiscal year
+        //         if (currentFiscalYear == null)
+        //         {
+        //             currentFiscalYear = await _context.FiscalYears
+        //                 .Where(f => f.CompanyId == companyIdGuid)
+        //                 .OrderByDescending(f => f.StartDate)
+        //                 .FirstOrDefaultAsync();
+        //         }
+
+        //         if (currentFiscalYear == null)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No fiscal year found for this company"
+        //             });
+        //         }
+
+        //         // 8. Fetch the item details with all related data
+        //         var item = await _context.Items
+        //             .Where(i => i.Id == id && i.CompanyId == companyIdGuid)
+        //             .Include(i => i.Category)
+        //             .Include(i => i.ItemCompany)
+        //             .Include(i => i.Unit)
+        //             .Include(i => i.MainUnit)
+        //             .Include(i => i.ItemCompositions)
+        //                 .ThenInclude(ic => ic.Composition)
+        //             .Include(i => i.StockEntries)
+        //             .Include(i => i.InitialOpeningStock)
+        //                 .ThenInclude(ios => ios!.InitialFiscalYear)
+        //             .Include(i => i.OpeningStocksByFiscalYear)
+        //                 .ThenInclude(os => os.FiscalYear)
+        //             .AsSplitQuery()
+        //             .FirstOrDefaultAsync();
+
+        //         if (item == null)
+        //         {
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Item not found"
+        //             });
+        //         }
+
+        //         // 9. Initialize opening stock values with defaults
+        //         decimal openingStock = 0;
+        //         decimal openingStockValue = 0;
+        //         decimal salesPrice = 0;
+        //         decimal purchasePrice = 0;
+
+        //         // ✅ FIX: Get opening stock from ItemOpeningStockByFiscalYear for current fiscal year
+        //         if (item.OpeningStocksByFiscalYear != null && item.OpeningStocksByFiscalYear.Any())
+        //         {
+        //             var openingStockForFiscalYear = item.OpeningStocksByFiscalYear
+        //                 .FirstOrDefault(stockEntry => stockEntry.FiscalYearId == currentFiscalYear.Id);
+
+        //             if (openingStockForFiscalYear != null)
+        //             {
+        //                 openingStock = openingStockForFiscalYear.OpeningStock;
+        //                 openingStockValue = openingStockForFiscalYear.OpeningStockValue;
+        //                 salesPrice = openingStockForFiscalYear.SalesPrice;        // ✅ Get from opening stock record
+        //                 purchasePrice = openingStockForFiscalYear.PurchasePrice;  // ✅ Get from opening stock record
+
+        //                 _logger.LogInformation($"Using opening stock from fiscal year {currentFiscalYear.Name}: " +
+        //                     $"OpeningStock={openingStock}, SalesPrice={salesPrice}, PurchasePrice={purchasePrice}");
+        //             }
+        //             else
+        //             {
+        //                 // Fallback to item's default prices if no opening stock record for this fiscal year
+        //                 salesPrice = item.Price ?? 0;
+        //                 purchasePrice = item.PuPrice ?? 0;
+        //                 _logger.LogWarning($"No opening stock for fiscal year {currentFiscalYear.Name}, using default prices");
+        //             }
+        //         }
+        //         else
+        //         {
+        //             // No opening stock records found, use item's default prices
+        //             salesPrice = item.Price ?? 0;
+        //             purchasePrice = item.PuPrice ?? 0;
+        //             _logger.LogWarning("No OpeningStocksByFiscalYear found for item {ItemId}, using default prices", item.Id);
+        //         }
+
+        //         // 10. Process stock entries with null checks
+        //         var stockEntries = (item.StockEntries ?? new List<StockEntry>())
+        //             .Select(entry => new
+        //             {
+        //                 entry.Id,
+        //                 entry.ItemId,
+        //                 entry.Quantity,
+        //                 entry.Price,
+        //                 entry.NetPrice,
+        //                 entry.PuPrice,
+        //                 entry.NetPuPrice,
+        //                 entry.MainUnitPuPrice,
+        //                 entry.Mrp,
+        //                 entry.BatchNumber,
+        //                 entry.UniqueUuid,
+        //                 ExpiryDate = entry.ExpiryDate.ToString("yyyy-MM-dd"),
+        //                 entry.ExpiryStatus,
+        //                 entry.DaysUntilExpiry,
+        //                 entry.Date,
+        //                 entry.CreatedAt,
+        //                 entry.UpdatedAt,
+        //                 BarcodeData = $"{companyName}|{item.UniqueNumber}|{entry.Mrp}|{entry.BatchNumber ?? "N/A"}|{entry.ExpiryDate.ToString("yyyy-MM-dd") ?? "N/A"}"
+        //             })
+        //             .ToList();
+
+        //         // 11. Get barcode preferences
+        //         var barcodePrefs = await _context.BarcodePreferences
+        //             .Where(bp => bp.UserId == userIdGuid)
+        //             .Select(bp => new
+        //             {
+        //                 bp.LabelWidth,
+        //                 bp.LabelHeight,
+        //                 bp.LabelsPerRow,
+        //                 bp.BarcodeType,
+        //                 bp.DefaultQuantity,
+        //                 bp.IncludeItemName,
+        //                 bp.IncludePrice,
+        //                 bp.IncludeBatch,
+        //                 bp.IncludeExpiry,
+        //                 bp.FontSize,
+        //                 bp.Border,
+        //                 bp.PaperSize,
+        //                 bp.Orientation,
+        //                 bp.Margin
+        //             })
+        //             .FirstOrDefaultAsync();
+
+        //         var printPreferences = barcodePrefs ?? new
+        //         {
+        //             LabelWidth = 70,
+        //             LabelHeight = 40,
+        //             LabelsPerRow = 3,
+        //             BarcodeType = "code128",
+        //             DefaultQuantity = 1,
+        //             IncludeItemName = true,
+        //             IncludePrice = true,
+        //             IncludeBatch = true,
+        //             IncludeExpiry = true,
+        //             FontSize = 12,
+        //             Border = true,
+        //             PaperSize = "A4",
+        //             Orientation = "portrait",
+        //             Margin = 10
+        //         };
+
+        //         // 12. Check if item has transactions using TransactionItems (new structure)
+        //         var hasTransactions = await _context.TransactionItems
+        //             .AnyAsync(ti => ti.ItemId == id && ti.Transaction != null && ti.Transaction.CompanyId == companyIdGuid);
+
+        //         // 13. Prepare user info
+        //         var userInfo = new
+        //         {
+        //             _id = userId,
+        //             id = userId,
+        //             name = userName ?? "User",
+        //             email = userEmail ?? "",
+        //             isAdmin = isAdmin,
+        //             role = roleName ?? "User",
+        //             preferences = new { theme = "light" }
+        //         };
+
+        //         // 14. Determine if user is admin or supervisor
+        //         bool isAdminOrSupervisor = isAdmin || (roleName == "Supervisor" || roleName == "Admin");
+
+        //         // 15. Calculate current stock
+        //         decimal currentStock = item.OpeningStock;
+        //         if (item.StockEntries != null && item.StockEntries.Any())
+        //         {
+        //             currentStock = item.StockEntries.Sum(se => se.Quantity);
+        //         }
+
+        //         // 16. Prepare compositions - Check for null
+        //         List<object> compositions;
+        //         if (item.ItemCompositions != null && item.ItemCompositions.Any())
+        //         {
+        //             compositions = item.ItemCompositions.Select(ic => new
+        //             {
+        //                 _id = ic.Composition?.Id ?? Guid.Empty,
+        //                 id = ic.Composition?.Id ?? Guid.Empty,
+        //                 name = ic.Composition?.Name ?? string.Empty,
+        //                 uniqueNumber = ic.Composition?.UniqueNumber ?? 0
+        //             }).ToList<object>();
+        //         }
+        //         else
+        //         {
+        //             compositions = new List<object>();
+        //             _logger.LogWarning("No ItemCompositions found for item {ItemId}", item.Id);
+        //         }
+
+        //         // 17. Prepare opening stocks by fiscal year - Check for null
+        //         List<object> openingStockByFiscalYear;
+        //         if (item.OpeningStocksByFiscalYear != null && item.OpeningStocksByFiscalYear.Any())
+        //         {
+        //             openingStockByFiscalYear = item.OpeningStocksByFiscalYear.Select(os => new
+        //             {
+        //                 fiscalYearId = os.FiscalYearId,
+        //                 fiscalYearName = os.FiscalYear?.Name,
+        //                 openingStock = os.OpeningStock,
+        //                 openingStockValue = os.OpeningStockValue,
+        //                 purchasePrice = os.PurchasePrice,
+        //                 salesPrice = os.SalesPrice
+        //             }).ToList<object>();
+        //         }
+        //         else
+        //         {
+        //             openingStockByFiscalYear = new List<object>();
+        //             _logger.LogWarning("No OpeningStocksByFiscalYear found for item {ItemId}", item.Id);
+        //         }
+
+        //         // 18. Prepare the response with detailed stock info
+        //         var responseData = new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 company = new
+        //                 {
+        //                     company.Id,
+        //                     company.Name,
+        //                     company.RenewalDate,
+        //                     DateFormat = company.DateFormat?.ToString()?.ToLower() ?? "english",
+        //                     VatEnabled = company.VatEnabled
+        //                 },
+        //                 currentFiscalYear = new
+        //                 {
+        //                     _id = currentFiscalYear.Id,
+        //                     id = currentFiscalYear.Id,
+        //                     name = currentFiscalYear.Name,
+        //                     startDate = currentFiscalYear.StartDate,
+        //                     endDate = currentFiscalYear.EndDate,
+        //                     startDateNepali = currentFiscalYear.StartDateNepali,
+        //                     endDateNepali = currentFiscalYear.EndDateNepali,
+        //                     dateFormat = currentFiscalYear.DateFormat?.ToString()?.ToLower() ?? "english",
+        //                     isActive = currentFiscalYear.IsActive
+        //                 },
+        //                 item = new
+        //                 {
+        //                     _id = item.Id,
+        //                     id = item.Id,
+        //                     item.Name,
+        //                     item.Hscode,
+        //                     categoryId = item.CategoryId,
+        //                     categoryName = item.Category?.Name,
+        //                     itemsCompanyId = item.ItemsCompanyId,
+        //                     itemsCompanyName = item.ItemCompany?.Name,
+        //                     item.Price,
+        //                     item.PuPrice,
+        //                     item.MainUnitPuPrice,
+        //                     mainUnitId = item.MainUnitId,
+        //                     mainUnitName = item.MainUnit?.Name,
+        //                     wsUnit = item.WsUnit,
+        //                     unitId = item.UnitId,
+        //                     unitName = item.Unit?.Name,
+        //                     vatStatus = item.VatStatus,
+        //                     status = item.Status,
+        //                     barcodeNumber = item.BarcodeNumber,
+        //                     uniqueNumber = item.UniqueNumber,
+        //                     reorderLevel = item.ReorderLevel,
+        //                     openingStock = item.OpeningStock,
+        //                     createdAt = item.CreatedAt,
+        //                     stockEntries = item.StockEntries,
+        //                     compositions = compositions,
+        //                     openingStockByFiscalYear = openingStockByFiscalYear
+        //                 },
+        //                 hasTransactions = hasTransactions,
+        //                 stockInfo = new
+        //                 {
+        //                     openingStock,           // ✅ From opening stock record
+        //                     openingStockValue,      // ✅ From opening stock record
+        //                     salesPrice,             // ✅ From opening stock record (or fallback)
+        //                     purchasePrice           // ✅ From opening stock record (or fallback)
+        //                 },
+        //                 stockEntries,
+        //                 printPreferences,
+        //                 barcodeBaseUrl = $"/item/{item.Id}/barcode",
+        //                 fiscalYear = currentFiscalYear.Id,
+        //                 currentCompanyName = companyName ?? company.Name,
+        //                 user = userInfo,
+        //                 theme = "light",
+        //                 isAdminOrSupervisor = isAdminOrSupervisor
+        //             }
+        //         };
+
+        //         _logger.LogInformation($"Successfully fetched item details: {item.Name} (ID: {item.Id})");
+        //         _logger.LogInformation($"Stock Info - OpeningStock: {openingStock}, SalesPrice: {salesPrice}, PurchasePrice: {purchasePrice}");
+
+        //         return Ok(responseData);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, $"Error fetching item {id}");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Server error",
+        //             message = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
         [HttpGet("items/{id}")]
         public async Task<IActionResult> GetItemById(Guid id)
         {
@@ -1015,7 +1421,7 @@ namespace SkyForge.Controllers.Retailer
                     .Include(i => i.MainUnit)
                     .Include(i => i.ItemCompositions)
                         .ThenInclude(ic => ic.Composition)
-                    .Include(i => i.StockEntries)
+                    .Include(i => i.StockEntries) // Include stock entries
                     .Include(i => i.InitialOpeningStock)
                         .ThenInclude(ios => ios!.InitialFiscalYear)
                     .Include(i => i.OpeningStocksByFiscalYear)
@@ -1038,7 +1444,7 @@ namespace SkyForge.Controllers.Retailer
                 decimal salesPrice = 0;
                 decimal purchasePrice = 0;
 
-                // ✅ FIX: Get opening stock from ItemOpeningStockByFiscalYear for current fiscal year
+                // Get opening stock from ItemOpeningStockByFiscalYear for current fiscal year
                 if (item.OpeningStocksByFiscalYear != null && item.OpeningStocksByFiscalYear.Any())
                 {
                     var openingStockForFiscalYear = item.OpeningStocksByFiscalYear
@@ -1048,8 +1454,8 @@ namespace SkyForge.Controllers.Retailer
                     {
                         openingStock = openingStockForFiscalYear.OpeningStock;
                         openingStockValue = openingStockForFiscalYear.OpeningStockValue;
-                        salesPrice = openingStockForFiscalYear.SalesPrice;        // ✅ Get from opening stock record
-                        purchasePrice = openingStockForFiscalYear.PurchasePrice;  // ✅ Get from opening stock record
+                        salesPrice = openingStockForFiscalYear.SalesPrice;
+                        purchasePrice = openingStockForFiscalYear.PurchasePrice;
 
                         _logger.LogInformation($"Using opening stock from fiscal year {currentFiscalYear.Name}: " +
                             $"OpeningStock={openingStock}, SalesPrice={salesPrice}, PurchasePrice={purchasePrice}");
@@ -1070,7 +1476,19 @@ namespace SkyForge.Controllers.Retailer
                     _logger.LogWarning("No OpeningStocksByFiscalYear found for item {ItemId}, using default prices", item.Id);
                 }
 
-                // 10. Process stock entries with null checks
+                // 10. ✅ CORRECTED: Check stock availability from StockEntry table
+                // Check if there are any stock entries with quantity > 0 for this item and company
+                var hasStockEntries = await _context.StockEntries
+                    .AnyAsync(se => se.ItemId == id && se.CompanyId == companyIdGuid && se.Quantity > 0);
+
+                // Combined stock availability check - TRUE if ANY stock exists
+                var hasStockAvailable = hasStockEntries;
+
+                _logger.LogInformation($"Stock availability check for item {id}: " +
+                    $"StockEntries={hasStockEntries} " +
+                    $"Total={hasStockAvailable}");
+
+                // 11. Process stock entries with null checks
                 var stockEntries = (item.StockEntries ?? new List<StockEntry>())
                     .Select(entry => new
                     {
@@ -1091,11 +1509,11 @@ namespace SkyForge.Controllers.Retailer
                         entry.Date,
                         entry.CreatedAt,
                         entry.UpdatedAt,
-                        BarcodeData = $"{companyName}|{item.UniqueNumber}|{entry.Mrp}|{entry.BatchNumber ?? "N/A"}|{entry.ExpiryDate.ToString("yyyy-MM-dd") ?? "N/A"}"
+                        BarcodeData = $"{companyName}|{item.UniqueNumber}|{entry.Mrp}|{entry.BatchNumber ?? ""}|{entry.ExpiryDate.ToString("yyyy-MM-dd") ?? ""}"
                     })
                     .ToList();
 
-                // 11. Get barcode preferences
+                // 12. Get barcode preferences
                 var barcodePrefs = await _context.BarcodePreferences
                     .Where(bp => bp.UserId == userIdGuid)
                     .Select(bp => new
@@ -1135,10 +1553,6 @@ namespace SkyForge.Controllers.Retailer
                     Margin = 10
                 };
 
-                // 12. Check if item has transactions using TransactionItems (new structure)
-                var hasTransactions = await _context.TransactionItems
-                    .AnyAsync(ti => ti.ItemId == id && ti.Transaction != null && ti.Transaction.CompanyId == companyIdGuid);
-
                 // 13. Prepare user info
                 var userInfo = new
                 {
@@ -1154,14 +1568,7 @@ namespace SkyForge.Controllers.Retailer
                 // 14. Determine if user is admin or supervisor
                 bool isAdminOrSupervisor = isAdmin || (roleName == "Supervisor" || roleName == "Admin");
 
-                // 15. Calculate current stock
-                decimal currentStock = item.OpeningStock;
-                if (item.StockEntries != null && item.StockEntries.Any())
-                {
-                    currentStock = item.StockEntries.Sum(se => se.Quantity);
-                }
-
-                // 16. Prepare compositions - Check for null
+                // 15. Prepare compositions - Check for null
                 List<object> compositions;
                 if (item.ItemCompositions != null && item.ItemCompositions.Any())
                 {
@@ -1179,7 +1586,7 @@ namespace SkyForge.Controllers.Retailer
                     _logger.LogWarning("No ItemCompositions found for item {ItemId}", item.Id);
                 }
 
-                // 17. Prepare opening stocks by fiscal year - Check for null
+                // 16. Prepare opening stocks by fiscal year - Check for null
                 List<object> openingStockByFiscalYear;
                 if (item.OpeningStocksByFiscalYear != null && item.OpeningStocksByFiscalYear.Any())
                 {
@@ -1199,7 +1606,7 @@ namespace SkyForge.Controllers.Retailer
                     _logger.LogWarning("No OpeningStocksByFiscalYear found for item {ItemId}", item.Id);
                 }
 
-                // 18. Prepare the response with detailed stock info
+                // 17. Prepare the response with detailed stock info
                 var responseData = new
                 {
                     success = true,
@@ -1254,13 +1661,13 @@ namespace SkyForge.Controllers.Retailer
                             compositions = compositions,
                             openingStockByFiscalYear = openingStockByFiscalYear
                         },
-                        hasTransactions = hasTransactions,
+                        hasStockAvailable = hasStockAvailable, // ✅ This is the key field
                         stockInfo = new
                         {
-                            openingStock,           // ✅ From opening stock record
-                            openingStockValue,      // ✅ From opening stock record
-                            salesPrice,             // ✅ From opening stock record (or fallback)
-                            purchasePrice           // ✅ From opening stock record (or fallback)
+                            openingStock,
+                            openingStockValue,
+                            salesPrice,
+                            purchasePrice
                         },
                         stockEntries,
                         printPreferences,
@@ -1275,6 +1682,7 @@ namespace SkyForge.Controllers.Retailer
 
                 _logger.LogInformation($"Successfully fetched item details: {item.Name} (ID: {item.Id})");
                 _logger.LogInformation($"Stock Info - OpeningStock: {openingStock}, SalesPrice: {salesPrice}, PurchasePrice: {purchasePrice}");
+                _logger.LogInformation($"Has Stock Available: {hasStockAvailable}");
 
                 return Ok(responseData);
             }
@@ -1511,7 +1919,7 @@ namespace SkyForge.Controllers.Retailer
                             MarginPercentage = se.MarginPercentage,
                             Mrp = se.Mrp,
                             UniqueUuid = se.UniqueUuid,
-                            PurchaseBillId=se.PurchaseBillId,
+                            PurchaseBillId = se.PurchaseBillId,
                             BatchNumber = se.BatchNumber,
                             ExpiryDate = se.ExpiryDate,
                             ExpiryStatus = se.ExpiryStatus,
@@ -2140,7 +2548,7 @@ namespace SkyForge.Controllers.Retailer
                         MaxStock = item.MaxStock,
                         NeededStock = neededStock,
                         OverStock = overStock,
-                        Unit = item.Unit?.Name ?? "N/A",
+                        Unit = item.Unit?.Name ?? "",
                         FiscalYearId = fiscalYearId.Value
                     };
                 })

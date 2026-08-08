@@ -4,6 +4,7 @@ import axios from 'axios';
 import Header from '../Header';
 import NepaliDate from 'nepali-datetime';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
+import { Container, Card, Row, Col, ListGroup, Button, Badge, Alert } from 'react-bootstrap';
 import '../../../stylesheet/noDateIcon.css';
 import Loader from '../../Loader';
 import ProductModal from '../dashboard/modals/ProductModal';
@@ -12,6 +13,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
+import CashSettlementModal from './CashSettlementModal';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -139,6 +141,9 @@ const Statement = () => {
     const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
     const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
     const accountSearchRef = useRef(null);
+
+    const [showCashSettlementModal, setShowCashSettlementModal] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState(null);
 
     const [company, setCompany] = useState({
         dateFormat: 'english',
@@ -377,7 +382,129 @@ const Statement = () => {
         return 'account';
     };
 
-    // Save data to draft context
+
+    const handleCashSettlement = async (transactionId, status, remarks) => {
+        console.log('handleCashSettlement called with:', { transactionId, status, remarks });
+
+        if (!transactionId) {
+            console.error('No transaction ID provided');
+            setNotification({
+                show: true,
+                message: 'Transaction ID is required',
+                type: 'error'
+            });
+            return;
+        }
+
+        try {
+            console.log('Settling transaction with ID:', transactionId);
+            console.log('Status:', status);
+            console.log('Remarks:', remarks);
+
+            const response = await api.put(`/api/retailer/transaction/${transactionId}/cash-settlement`, {
+                status: status,
+                remarks: remarks
+            });
+
+            if (response.data.success) {
+                // Update the statement data with the new status
+                setData(prev => ({
+                    ...prev,
+                    statement: prev.statement.map(item => {
+                        // Find the matching item based on transaction type
+                        let itemId = null;
+                        switch (item.type) {
+                            case 'Sale':
+                                itemId = item.salesBillId;
+                                break;
+                            case 'Purc':
+                                itemId = item.purchaseBillId;
+                                break;
+                            case 'SlRt':
+                                itemId = item.salesReturnBillId;
+                                break;
+                            case 'PrRt':
+                                itemId = item.purchaseReturnBillId;
+                                break;
+                            default:
+                                itemId = item.billId || item.id;
+                        }
+
+                        if (itemId === transactionId) {
+                            return {
+                                ...item,
+                                cashSettlementStatus: status,
+                                cashSettlementDate: response.data.data.date,
+                                cashSettlementUserName: response.data.data.user,
+                                cashSettlementRemarks: remarks,
+                                isCashSettled: status === 'Received' || status === 'Paid' || status === 'Refunded' || status === 'Returned'
+                            };
+                        }
+                        return item;
+                    })
+                }));
+
+                setNotification({
+                    show: true,
+                    message: response.data.message,
+                    type: 'success'
+                });
+
+                setShowCashSettlementModal(false);
+            }
+        } catch (error) {
+            console.error('Error updating cash settlement:', error);
+            setNotification({
+                show: true,
+                message: error.response?.data?.error || 'Failed to update cash settlement',
+                type: 'error'
+            });
+        }
+    };
+
+    const handleCashSettlementClick = (item) => {
+        // Determine the correct ID based on transaction type
+        let transactionId = null;
+
+        switch (item.type) {
+            case 'Sale':
+                transactionId = item.salesBillId;
+                break;
+            case 'Purc':
+                transactionId = item.purchaseBillId;
+                break;
+            case 'SlRt':
+                transactionId = item.salesReturnBillId;
+                break;
+            case 'PrRt':
+                transactionId = item.purchaseReturnBillId;
+                break;
+            default:
+                // Fallback to any available ID
+                transactionId = item.billId || item.id || item.transactionId || item.BillId || item.Id;
+        }
+
+        console.log('Transaction ID found:', transactionId);
+
+        const isCashTransaction = item.paymentMode === 'Cash' || item.paymentMode === 'cash';
+        const isAllowedType = ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type);
+
+        if (isCashTransaction && isAllowedType && transactionId) {
+            setSelectedTransaction({
+                ...item,
+                transactionId: transactionId // Explicitly set the transaction ID
+            });
+            setShowCashSettlementModal(true);
+        } else if (!transactionId) {
+            console.error('No transaction ID found for item:', item);
+            setNotification({
+                show: true,
+                message: 'Transaction ID not found. Please check the data.',
+                type: 'warning'
+            });
+        }
+    };
+
     useEffect(() => {
         setDraftSave({
             ...draftSave,
@@ -725,6 +852,7 @@ const Statement = () => {
     const handleRowDoubleClick = (item) => {
         let route = '';
         const billId = item.billId || item.id;
+        const salesReturnBillId = item.salesReturnBillId || item.id;
         const purchaseBillId = item.purchaseBillId || item.id;
         const purchaseReturnBillId = item.purchaseReturnBillId || item.id;
         const paymentAccountId = item.paymentAccountId || item.id;
@@ -739,6 +867,13 @@ const Statement = () => {
                     route = `/retailer/cash-sales/edit/${salesBillId || billId}`;
                 } else if (item.paymentMode === 'credit') {
                     route = `/retailer/credit-sales/edit/${salesBillId || billId}`;
+                }
+                break;
+            case 'slrt': // Sales Return
+                if (item.paymentMode === 'cash') {
+                    route = `/retailer/cash-sales-return/edit/${salesReturnBillId || billId}`;
+                } else if (item.paymentMode === 'credit') {
+                    route = `/retailer/credit-sales-return/edit/${salesReturnBillId || billId}`;
                 }
                 break;
             case 'purc':
@@ -1679,16 +1814,493 @@ const Statement = () => {
         );
     });
 
+    // const TableRow = React.memo(({ index, style, data: rowData }) => {
+    //     const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
+    //     const item = statement[index];
+    //     const isNepaliFormat = company.dateFormat === 'nepali';
+
+    //     if (!item) return null;
+
+    //     const isSelected = selectedRowIndex === index;
+
+    //     const getFormattedAccountName = (item) => {
+    //         if (item.type === 'Purc') {
+    //             if (item.partyBillNumber) {
+    //                 return `Purchase ${item.partyBillNumber}`;
+    //             }
+    //             return item.accountType || item.purchaseSalesType || 'Purchase';
+    //         }
+    //         if (item.type === 'PrRt') {
+    //             if (item.partyBillNumber) {
+    //                 return `Purchase Return ${item.partyBillNumber}`;
+    //             }
+    //             return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
+    //         }
+    //         return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
+    //             item.PaymentReceiptType || item.journalAccountType || 'Opening';
+    //     };
+
+    //     // Helper function to subtract days from AD date
+    //     const subtractDaysFromAdDate = (adDateStr, days) => {
+    //         if (!adDateStr) return adDateStr;
+    //         try {
+    //             const date = new Date(adDateStr);
+    //             date.setDate(date.getDate() - days);
+    //             return date.toISOString().split('T')[0];
+    //         } catch (error) {
+    //             console.error('Error subtracting days from AD date:', error);
+    //             return adDateStr;
+    //         }
+    //     };
+
+    //     // Helper function to subtract days from Nepali date
+    //     const subtractDaysFromNepaliDate = (nepaliDateStr, days) => {
+    //         if (!nepaliDateStr || !isNepaliFormat) return nepaliDateStr;
+    //         try {
+    //             const nepaliDate = new NepaliDate(nepaliDateStr);
+    //             const jsDate = nepaliDate.getDateObject();
+    //             jsDate.setDate(jsDate.getDate() - days);
+    //             const newNepaliDate = new NepaliDate(jsDate);
+    //             const year = newNepaliDate.getYear();
+    //             const month = String(newNepaliDate.getMonth() + 1).padStart(2, '0');
+    //             const day = String(newNepaliDate.getDate()).padStart(2, '0');
+    //             return `${year}-${month}-${day}`;
+    //         } catch (error) {
+    //             console.error('Error subtracting days from Nepali date:', error);
+    //             return nepaliDateStr;
+    //         }
+    //     };
+
+    //     // Check if this is an opening balance entry
+    //     const isOpeningBalance = item.accountType === 'Opening' ||
+    //         item.type === 'Opening' ||
+    //         (!item.type && item.accountType === 'Opening') ||
+    //         (item.accountType === 'Opening');
+
+    //     let bsDate = '';
+    //     let adDateDisplay = '';
+
+    //     if (isOpeningBalance) {
+    //         // For opening balance, show the from date (not subtracted)
+    //         if (isNepaliFormat && dateRange.fromDate) {
+    //             // Show the from date as-is for the opening balance
+    //             bsDate = dateRange.fromDate;
+    //         } else if (dateRange.fromDateAd) {
+    //             // For AD date, show the from date
+    //             adDateDisplay = dateRange.fromDateAd;
+    //         }
+    //     } else {
+    //         // For regular transactions, use the transaction date
+    //         bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+    //         adDateDisplay = item.date ? new Date(item.date).toLocaleDateString() : '';
+    //     }
+
+    //     return (
+    //         <div
+    //             style={{
+    //                 ...style,
+    //                 display: 'flex',
+    //                 alignItems: 'center',
+    //                 height: '28px',
+    //                 minHeight: '28px',
+    //                 padding: '0',
+    //                 borderBottom: '1px solid #dee2e6',
+    //                 cursor: 'pointer',
+    //                 backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
+    //             }}
+    //             onClick={() => handleRowClick(index)}
+    //             onDoubleClick={() => handleRowDoubleClick(item)}
+    //         >
+    //             {/* BS Date Column */}
+    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{bsDate || '-'}</span>
+    //             </div>
+
+    //             {/* AD Date Column */}
+    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{adDateDisplay || '-'}</span>
+    //             </div>
+
+    //             {/* Voucher No Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.billNumber || ''}</span>
+    //             </div>
+
+    //             {/* Type Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.type || ''}</span>
+    //             </div>
+
+    //             {/* Pay Mode Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
+    //             </div>
+
+    //             {/* Account Column */}
+    //             <div
+    //                 className="d-flex align-items-center px-1 border-end"
+    //                 style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
+    //                 title={getFormattedAccountName(item)}
+    //             >
+    //                 <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+    //                     {getFormattedAccountName(item)}
+    //                 </span>
+    //             </div>
+
+    //             {/* Debit Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.debit)}</span>
+    //             </div>
+
+    //             {/* Credit Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.credit)}</span>
+    //             </div>
+
+    //             {/* Balance Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{formatBalance(item.balance)}</span>
+    //             </div>
+    //         </div>
+    //     );
+    // });
+
+    // const TableRow = React.memo(({ index, style, data: rowData }) => {
+    //     const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
+    //     const item = statement[index];
+    //     const isNepaliFormat = company.dateFormat === 'nepali';
+
+    //     // In the TableRow component, add a settlement status column or badge
+    //     const getSettlementStatusBadge = (item) => {
+    //         if (!item.isCashTransaction) return null;
+    //         if (!item.cashSettlementStatus) {
+    //             return (
+    //                 <Badge bg="secondary" style={{ fontSize: '8px' }}>
+    //                     <i className="bi bi-clock me-1"></i>Pending
+    //                 </Badge>
+    //             );
+    //         }
+
+    //         const statusColors = {
+    //             'Received': 'success',
+    //             'Paid': 'info',
+    //             'Refunded': 'warning',
+    //             'Pending': 'secondary'
+    //         };
+
+    //         const statusIcons = {
+    //             'Received': '⬇',
+    //             'Paid': '⬆',
+    //             'Refunded': '↩',
+    //             'Pending': '⏳'
+    //         };
+
+    //         return (
+    //             <Badge bg={statusColors[item.cashSettlementStatus] || 'secondary'} style={{ fontSize: '8px' }}>
+    //                 {statusIcons[item.cashSettlementStatus] || ''} {item.cashSettlementStatus}
+    //             </Badge>
+    //         );
+    //     };
+
+    //     if (!item) return null;
+
+    //     const isSelected = selectedRowIndex === index;
+
+    //     // Check if this is a cash entry (cash received/paid)
+    //     const isCashEntry = item.isCashEntry || false;
+    //     const isCashTransaction = item.isCashTransaction || false;
+    //     const isSundryAccount = item.isSundryAccount || false;
+
+    //     // Only show cash entry styling if it's a Sundry account
+    //     const showCashEntry = isCashEntry && isSundryAccount;
+
+    //     const getFormattedAccountName = (item) => {
+    //         // For cash entries on Sundry accounts
+    //         if (showCashEntry) {
+    //             return item.accountType || 'Cash Entry';
+    //         }
+
+    //         // For original cash transactions on Sundry accounts
+    //         if (isCashTransaction && isSundryAccount && item.paymentDirection) {
+    //             if (item.type === 'Sale' && item.paymentMode === 'Cash') {
+    //                 return 'Cash Sale';
+    //             }
+    //             if (item.type === 'Purc' && item.paymentMode === 'Cash') {
+    //                 return 'Cash Purchase';
+    //             }
+    //             if (item.type === 'SlRt' && item.paymentMode === 'Cash') {
+    //                 return 'Cash Sales Rtn.';
+    //             }
+    //             if (item.type === 'PrRt' && item.paymentMode === 'Cash') {
+    //                 return 'Cash Purchase Rtn.';
+    //             }
+    //         }
+
+    //         // Existing logic for other transactions
+    //         if (item.type === 'Purc') {
+    //             if (item.partyBillNumber) {
+    //                 return `Purchase ${item.partyBillNumber}`;
+    //             }
+    //             return item.accountType || item.purchaseSalesType || 'Purchase';
+    //         }
+    //         if (item.type === 'PrRt') {
+    //             if (item.partyBillNumber) {
+    //                 return `Purchase Return ${item.partyBillNumber}`;
+    //             }
+    //             return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
+    //         }
+    //         if (item.type === 'Pymt') {
+    //             return 'Payment';
+    //         }
+    //         if (item.type === 'Rcpt') {
+    //             return 'Receipt';
+    //         }
+    //         return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
+    //             item.PaymentReceiptType || item.journalAccountType || 'Opening';
+    //     };
+
+    //     // Check if this is an opening balance entry
+    //     const isOpeningBalance = item.accountType === 'Opening' ||
+    //         item.type === 'Opening' ||
+    //         (!item.type && item.accountType === 'Opening') ||
+    //         (item.accountType === 'Opening');
+
+    //     // Calculate BS Date and AD Date
+    //     let bsDate = '';
+    //     let adDateDisplay = '';
+
+    //     if (isOpeningBalance) {
+    //         if (isNepaliFormat && dateRange.fromDate) {
+    //             bsDate = dateRange.fromDate;
+    //         } else if (dateRange.fromDateAd) {
+    //             adDateDisplay = dateRange.fromDateAd;
+    //         }
+    //     } else {
+    //         bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+    //         adDateDisplay = item.date ? new Date(item.date).toLocaleDateString() : '';
+    //     }
+
+    //     // Determine row background color
+    //     let backgroundColor = isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white');
+
+    //     // Special highlighting for cash entries (cash received/paid) - ONLY for Sundry accounts
+    //     if (showCashEntry) {
+    //         backgroundColor = isSelected ? '#d4edda' : (index % 2 === 0 ? '#e8f5e9' : '#f1f8e9');
+    //     }
+
+    //     // Determine if we should show the cash indicators
+    //     const showCashIndicators = isCashTransaction && isSundryAccount;
+
+    //     return (
+    //         <div
+    //             style={{
+    //                 ...style,
+    //                 display: 'flex',
+    //                 alignItems: 'center',
+    //                 height: '28px',
+    //                 minHeight: '28px',
+    //                 padding: '0',
+    //                 borderBottom: '1px solid #dee2e6',
+    //                 cursor: 'pointer',
+    //                 backgroundColor: backgroundColor,
+    //                 borderLeft: showCashEntry ? '3px solid #28a745' : 'none'
+    //             }}
+    //             onClick={() => handleRowClick(index)}
+    //             onDoubleClick={() => handleRowDoubleClick(item)}
+    //         >
+    //             {/* BS Date Column */}
+    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{bsDate || '-'}</span>
+    //             </div>
+
+    //             {/* AD Date Column */}
+    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{ fontSize: '0.75rem' }}>{adDateDisplay || '-'}</span>
+    //             </div>
+
+    //             {/* Voucher No Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{
+    //                     fontSize: '0.75rem',
+    //                     fontWeight: showCashEntry ? '600' : 'normal'
+    //                 }}>
+    //                     {item.billNumber || ''}
+    //                 </span>
+    //             </div>
+
+    //             {/* Type Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{
+    //                     fontSize: '0.75rem',
+    //                     fontWeight: showCashEntry ? '600' : 'normal',
+    //                     color: showCashEntry ? '#28a745' :
+    //                         showCashIndicators ? '#856404' : 'inherit'
+    //                 }}>
+    //                     {showCashEntry ? 'Cash' : (item.type || '')}
+    //                     {showCashEntry && (
+    //                         <span style={{ fontSize: '0.65rem', marginLeft: '2px' }}>
+    //                             {item.paymentDirection === 'Received' ? '⬇' : '⬆'}
+    //                         </span>
+    //                     )}
+    //                 </span>
+    //             </div>
+
+    //             {/* Pay Mode Column */}
+    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+    //                 <span style={{
+    //                     fontSize: '0.75rem',
+    //                     fontWeight: showCashEntry ? '600' : 'normal'
+    //                 }}>
+    //                     {showCashEntry ? 'Cash' : (item.paymentMode || '')}
+    //                     {showCashEntry && (
+    //                         <span style={{
+    //                             fontSize: '0.6rem',
+    //                             marginLeft: '2px',
+    //                             color: item.paymentDirection === 'Received' ? '#28a745' : '#dc3545'
+    //                         }}>
+    //                             {item.paymentDirection === 'Received' ? '' : ''}
+    //                         </span>
+    //                     )}
+    //                 </span>
+    //             </div>
+
+    //             {/* Account Column */}
+    //             <div
+    //                 className="d-flex align-items-center px-1 border-end"
+    //                 style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
+    //                 // title={getFormattedAccountName(item)}
+    //                 title={`${getFormattedAccountName(item)}${item.cashSettlementStatus ? ` - ${item.cashSettlementStatus}` : ''}`}
+    //                 onDoubleClick={() => handleCashSettlementClick(item)}
+    //             >
+    //                 <span style={{
+    //                     fontSize: '0.75rem',
+    //                     whiteSpace: 'nowrap',
+    //                     overflow: 'hidden',
+    //                     textOverflow: 'ellipsis',
+    //                     fontWeight: showCashEntry ? '600' : 'normal',
+    //                     color: showCashEntry ? '#28a745' : 'inherit',
+    //                     cursor: (item.paymentMode === 'Cash' && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type)) ? 'pointer' : 'default'
+    //                 }}>
+    //                     {getFormattedAccountName(item)}
+    //                     {item.isCashTransaction && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type) && (
+    //                         <span style={{ marginLeft: '4px' }}>
+    //                             {getSettlementStatusBadge(item)}
+    //                         </span>
+    //                     )}
+    //                 </span>
+    //             </div>
+
+    //             {/* Debit Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{
+    //                     fontSize: '0.75rem',
+    //                     color: item.debit > 0 ? (showCashEntry ? '#28a745' : '#000') : 'inherit',
+    //                     fontWeight: showCashEntry ? '600' : 'normal'
+    //                 }}>
+    //                     {item.debit > 0 ? formatCurrency(item.debit) : '-'}
+    //                 </span>
+    //             </div>
+
+    //             {/* Credit Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{
+    //                     fontSize: '0.75rem',
+    //                     color: item.credit > 0 ? (showCashEntry ? '#dc3545' : '#000') : 'inherit',
+    //                     fontWeight: showCashEntry ? '600' : 'normal'
+    //                 }}>
+    //                     {item.credit > 0 ? formatCurrency(item.credit) : '-'}
+    //                 </span>
+    //             </div>
+
+    //             {/* Balance Column */}
+    //             <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
+    //                 <span style={{
+    //                     fontSize: '0.75rem',
+    //                     fontWeight: showCashEntry ? '600' : 'normal',
+    //                     color: showCashEntry ? '#1a73e8' : 'inherit'
+    //                 }}>
+    //                     {item.balance > 0 ? `${formatCurrency(item.balance)} Dr` : `${formatCurrency(Math.abs(item.balance))} Cr`}
+    //                 </span>
+    //             </div>
+    //         </div>
+    //     );
+    // });
+
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
         const item = statement[index];
         const isNepaliFormat = company.dateFormat === 'nepali';
 
+        const getSettlementStatusBadge = (item) => {
+            if (!item.isCashTransaction) return null;
+
+            const status = item.cashSettlementStatus;
+            if (!status || status === 'Pending') {
+                return (
+                    <Badge bg="secondary" style={{ fontSize: '8px' }}>
+                        <i className="bi bi-clock me-1"></i>Pending
+                    </Badge>
+                );
+            }
+
+            const statusColors = {
+                'Received': 'success',
+                'Paid': 'info',
+                'Refunded': 'warning',
+                'Returned': 'success',
+                'Pending': 'secondary'
+            };
+
+            const statusIcons = {
+                'Received': '✓',
+                'Paid': '✓',
+                'Refunded': '↩',
+                'Returned': '↩',
+                'Pending': '⏳'
+            };
+
+            return (
+                <Badge bg={statusColors[status] || 'secondary'} style={{ fontSize: '8px' }}>
+                    {statusIcons[status] || ''} {status}
+                </Badge>
+            );
+        };
+
         if (!item) return null;
 
         const isSelected = selectedRowIndex === index;
 
+        // Check if this is a cash entry (cash received/paid)
+        const isCashEntry = item.isCashEntry || false;
+        const isCashTransaction = item.isCashTransaction || false;
+        const isSundryAccount = item.isSundryAccount || false;
+
+        // Only show cash entry styling if it's a Sundry account
+        const showCashEntry = isCashEntry && isSundryAccount;
+
         const getFormattedAccountName = (item) => {
+            // For cash entries on Sundry accounts
+            if (showCashEntry) {
+                return item.accountType || 'Cash Entry';
+            }
+
+            // For original cash transactions on Sundry accounts
+            if (isCashTransaction && isSundryAccount && item.paymentDirection) {
+                if (item.type === 'Sale' && item.paymentMode === 'Cash') {
+                    return 'Cash Sale';
+                }
+                if (item.type === 'Purc' && item.paymentMode === 'Cash') {
+                    return 'Cash Purchase';
+                }
+                if (item.type === 'SlRt' && item.paymentMode === 'Cash') {
+                    return 'Cash Sales Rtn.';
+                }
+                if (item.type === 'PrRt' && item.paymentMode === 'Cash') {
+                    return 'Cash Purchase Rtn.';
+                }
+            }
+
+            // Existing logic for other transactions
             if (item.type === 'Purc') {
                 if (item.partyBillNumber) {
                     return `Purchase ${item.partyBillNumber}`;
@@ -1701,39 +2313,14 @@ const Statement = () => {
                 }
                 return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
             }
+            if (item.type === 'Pymt') {
+                return 'Payment';
+            }
+            if (item.type === 'Rcpt') {
+                return 'Receipt';
+            }
             return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
                 item.PaymentReceiptType || item.journalAccountType || 'Opening';
-        };
-
-        // Helper function to subtract days from AD date
-        const subtractDaysFromAdDate = (adDateStr, days) => {
-            if (!adDateStr) return adDateStr;
-            try {
-                const date = new Date(adDateStr);
-                date.setDate(date.getDate() - days);
-                return date.toISOString().split('T')[0];
-            } catch (error) {
-                console.error('Error subtracting days from AD date:', error);
-                return adDateStr;
-            }
-        };
-
-        // Helper function to subtract days from Nepali date
-        const subtractDaysFromNepaliDate = (nepaliDateStr, days) => {
-            if (!nepaliDateStr || !isNepaliFormat) return nepaliDateStr;
-            try {
-                const nepaliDate = new NepaliDate(nepaliDateStr);
-                const jsDate = nepaliDate.getDateObject();
-                jsDate.setDate(jsDate.getDate() - days);
-                const newNepaliDate = new NepaliDate(jsDate);
-                const year = newNepaliDate.getYear();
-                const month = String(newNepaliDate.getMonth() + 1).padStart(2, '0');
-                const day = String(newNepaliDate.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            } catch (error) {
-                console.error('Error subtracting days from Nepali date:', error);
-                return nepaliDateStr;
-            }
         };
 
         // Check if this is an opening balance entry
@@ -1742,23 +2329,31 @@ const Statement = () => {
             (!item.type && item.accountType === 'Opening') ||
             (item.accountType === 'Opening');
 
+        // Calculate BS Date and AD Date
         let bsDate = '';
         let adDateDisplay = '';
 
         if (isOpeningBalance) {
-            // For opening balance, show the from date (not subtracted)
             if (isNepaliFormat && dateRange.fromDate) {
-                // Show the from date as-is for the opening balance
                 bsDate = dateRange.fromDate;
             } else if (dateRange.fromDateAd) {
-                // For AD date, show the from date
                 adDateDisplay = dateRange.fromDateAd;
             }
         } else {
-            // For regular transactions, use the transaction date
             bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
             adDateDisplay = item.date ? new Date(item.date).toLocaleDateString() : '';
         }
+
+        // Determine row background color
+        let backgroundColor = isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white');
+
+        // Special highlighting for cash entries (cash received/paid) - ONLY for Sundry accounts
+        if (showCashEntry) {
+            backgroundColor = isSelected ? '#d4edda' : (index % 2 === 0 ? '#e8f5e9' : '#f1f8e9');
+        }
+
+        // Determine if we should show the cash indicators
+        const showCashIndicators = isCashTransaction && isSundryAccount;
 
         return (
             <div
@@ -1771,7 +2366,8 @@ const Statement = () => {
                     padding: '0',
                     borderBottom: '1px solid #dee2e6',
                     cursor: 'pointer',
-                    backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
+                    backgroundColor: backgroundColor,
+                    borderLeft: showCashEntry ? '3px solid #28a745' : 'none'
                 }}
                 onClick={() => handleRowClick(index)}
                 onDoubleClick={() => handleRowDoubleClick(item)}
@@ -1788,43 +2384,114 @@ const Statement = () => {
 
                 {/* Voucher No Column */}
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{item.billNumber || ''}</span>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {item.billNumber || ''}
+                    </span>
                 </div>
 
                 {/* Type Column */}
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{item.type || ''}</span>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal',
+                        color: showCashEntry ? '#28a745' :
+                            showCashIndicators ? '#856404' : 'inherit'
+                    }}>
+                        {showCashEntry ? 'Cash' : (item.type || '')}
+                        {showCashEntry && (
+                            <span style={{ fontSize: '0.65rem', marginLeft: '2px' }}>
+                                {item.paymentDirection === 'Received' ? '⬇' : '⬆'}
+                            </span>
+                        )}
+                    </span>
                 </div>
 
                 {/* Pay Mode Column */}
                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {showCashEntry ? 'Cash' : (item.paymentMode || '')}
+                        {showCashEntry && (
+                            <span style={{
+                                fontSize: '0.6rem',
+                                marginLeft: '2px',
+                                color: item.paymentDirection === 'Received' ? '#28a745' : '#dc3545'
+                            }}>
+                                {item.paymentDirection === 'Received' ? '' : ''}
+                            </span>
+                        )}
+                    </span>
                 </div>
 
-                {/* Account Column */}
+                {/* Account Column - CHANGED: onClick instead of onDoubleClick */}
                 <div
                     className="d-flex align-items-center px-1 border-end"
                     style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
-                    title={getFormattedAccountName(item)}
+                    title={`${getFormattedAccountName(item)}${item.cashSettlementStatus ? ` - ${item.cashSettlementStatus}` : ''}`}
+                    onClick={() => {
+                        // First check if it's a clickable cash transaction
+                        const isCashTransactionType = item.paymentMode === 'Cash' && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type);
+                        if (isCashTransactionType) {
+                            // Prevent the row click from triggering
+                            event?.stopPropagation();
+                            handleCashSettlementClick(item);
+                        }
+                    }}
                 >
-                    <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        fontWeight: showCashEntry ? '600' : 'normal',
+                        color: showCashEntry ? '#28a745' : 'inherit',
+                        cursor: (item.paymentMode === 'Cash' && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type)) ? 'pointer' : 'default'
+                    }}>
                         {getFormattedAccountName(item)}
+                        {item.isCashTransaction && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type) && (
+                            <span style={{ marginLeft: '4px' }}>
+                                {getSettlementStatusBadge(item)}
+                            </span>
+                        )}
                     </span>
                 </div>
 
                 {/* Debit Column */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.debit)}</span>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        color: item.debit > 0 ? (showCashEntry ? '#28a745' : '#000') : 'inherit',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {item.debit > 0 ? formatCurrency(item.debit) : '-'}
+                    </span>
                 </div>
 
                 {/* Credit Column */}
                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.credit)}</span>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        color: item.credit > 0 ? (showCashEntry ? '#dc3545' : '#000') : 'inherit',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {item.credit > 0 ? formatCurrency(item.credit) : '-'}
+                    </span>
                 </div>
 
                 {/* Balance Column */}
                 <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{formatBalance(item.balance)}</span>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal',
+                        color: showCashEntry ? '#1a73e8' : 'inherit'
+                    }}>
+                        {item.balance > 0 ? `${formatCurrency(item.balance)} Dr` : `${formatCurrency(Math.abs(item.balance))} Cr`}
+                    </span>
                 </div>
             </div>
         );
@@ -2275,7 +2942,7 @@ const Statement = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                   {filteredItemwiseStatement.map((bill, billIndex) => (
+                                                    {filteredItemwiseStatement.map((bill, billIndex) => (
                                                         bill.items && bill.items.map((item, itemIndex) => {
                                                             const isNepaliFormatLocal = company.dateFormat === 'nepali';
                                                             const bsDate = bill.nepaliDate || (isNepaliFormatLocal ? new NepaliDate(bill.nepaliDate).format('YYYY-MM-DD') : '');
@@ -2468,6 +3135,17 @@ const Statement = () => {
 
             {/* Product Modal */}
             {showProductModal && <ProductModal onClose={() => setShowProductModal(false)} />}
+
+            <CashSettlementModal
+                show={showCashSettlementModal}
+                onClose={() => {
+                    setShowCashSettlementModal(false);
+                    setSelectedTransaction(null);
+                }}
+                transaction={selectedTransaction}
+                onSettle={handleCashSettlement}
+                formatCurrency={formatCurrency}
+            />
 
             {/* Notification Toast */}
             <NotificationToast

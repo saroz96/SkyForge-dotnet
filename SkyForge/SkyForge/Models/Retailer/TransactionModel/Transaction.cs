@@ -12,6 +12,7 @@ using SkyForge.Models.Retailer.ReceiptModel;
 using SkyForge.Models.Retailer.Sales;
 using SkyForge.Models.Retailer.SalesReturnModel;
 using SkyForge.Models.UnitModel;
+using SkyForge.Models.UserModel;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -230,5 +231,23 @@ namespace SkyForge.Models.Retailer.TransactionModel
 
         // Navigation property for transaction items
         public virtual ICollection<TransactionItem> TransactionItems { get; set; } = new List<TransactionItem>();
+
+        // Add these properties to the Transaction model
+        [Column("cash_settlement_status")]
+        [MaxLength(50)]
+        public string? CashSettlementStatus { get; set; } // "Pending", "Received", "Paid", "Refunded","Returned"
+
+        [Column("cash_settlement_date")]
+        public DateTime? CashSettlementDate { get; set; }
+
+        [Column("cash_settlement_user_id")]
+        public Guid? CashSettlementUserId { get; set; }
+
+        [ForeignKey("CashSettlementUserId")]
+        public virtual User? CashSettlementUser { get; set; }
+
+        [Column("cash_settlement_remarks")]
+        [MaxLength(500)]
+        public string? CashSettlementRemarks { get; set; }
     }
 }

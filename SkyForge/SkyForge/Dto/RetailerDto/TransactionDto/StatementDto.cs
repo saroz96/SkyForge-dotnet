@@ -111,6 +111,7 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public decimal Credit { get; set; }
         public decimal Balance { get; set; }
         public Guid? BillId { get; set; }
+        public Guid? SalesReturnBillId { get; set; }
         public Guid? PurchaseBillId { get; set; }
         public Guid? PurchaseReturnBillId { get; set; }
         public Guid? PaymentAccountId { get; set; }
@@ -118,6 +119,19 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public Guid? JournalBillId { get; set; }
         public Guid? DebitNoteId { get; set; }
         public Guid? SalesBillId { get; set; }
+
+        public string? PaymentDirection { get; set; } // "Received" or "Paid"
+        public bool IsCashTransaction { get; set; }
+        public bool IsCashEntry { get; set; }
+        public bool IsSundryAccount { get; set; }
+        public string? CashSettlementStatus { get; set; }
+        public DateTime? CashSettlementDate { get; set; }
+        public string? CashSettlementUserName { get; set; }
+        public string? CashSettlementRemarks { get; set; }
+        public bool IsCashSettled => CashSettlementStatus == "Received" ||
+                                  CashSettlementStatus == "Paid" ||
+                                  CashSettlementStatus == "Refunded" ||
+                                  CashSettlementStatus == "Returned";
     }
 
     public class PaymentAccountDTO

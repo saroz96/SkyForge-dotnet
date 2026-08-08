@@ -1365,6 +1365,13 @@ const PurchaseBillsList = () => {
                     <button className="btn btn-sm btn-warning py-0 px-1 d-flex align-items-center" onClick={handleEditClick} style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold' }}>
                         <i class="bi bi-pencil-square"></i>
                     </button>
+                    <button
+                        className="btn btn-sm btn-warning me-1"
+                        title="Regenerate Stock"
+                        onClick={() => navigate(`/retailer/purchase/regenerate-stock/${bill.id}`)}
+                    >
+                        <i className="bi bi-arrow-repeat"></i>
+                    </button>
                 </div>
             </div>
         );

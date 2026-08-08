@@ -171,7 +171,9 @@ namespace SkyForge.Services.Retailer.StatementServices
                     transactions,
                     request.FromDate,
                     request.PaymentMode,
-                    request.DateFormat);
+                    request.DateFormat,
+                    request.AccountId,
+                    companyId);
 
                 // Prepare itemwise statement if requested
                 var itemwiseStatement = new List<ItemwiseStatementDTO>();
@@ -346,88 +348,7 @@ namespace SkyForge.Services.Retailer.StatementServices
             return query;
         }
 
-        // private async Task<decimal> CalculateOpeningBalanceAsync(
-        //     Guid companyId,
-        //     Guid accountId,
-        //     DateTime? fromDate,
-        //     InitialOpeningBalanceDTO initialOpeningBalance,
-        //     string? paymentMode)
-        // {
-        //     // Start with initial opening balance
-        //     decimal openingBalance = initialOpeningBalance.Type == "Dr"
-        //         ? initialOpeningBalance.Amount
-        //         : -initialOpeningBalance.Amount;
 
-        //     if (fromDate.HasValue)
-        //     {
-        //         var fromDateOnly = fromDate.Value.Date;
-
-        //         // Get all transactions before the fromDate - ALWAYS use Date field (AD dates)
-        //         var openingBalanceQuery = _context.Transactions
-        //             .Where(t => t.CompanyId == companyId &&
-        //                        t.IsActive &&
-        //                        t.Date.Date < fromDateOnly &&
-        //                        (t.AccountId == accountId ||
-        //                         t.PaymentAccountId2 == accountId ||
-        //                         t.ReceiptAccountId2 == accountId ||
-        //                         t.DebitAccountId == accountId ||
-        //                         t.CreditAccountId == accountId));
-
-        //         if (paymentMode == "exclude-cash")
-        //         {
-        //             openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
-        //         }
-
-        //         // Order by date
-        //         openingBalanceQuery = openingBalanceQuery.OrderBy(t => t.Date).ThenBy(t => t.CreatedAt);
-
-        //         var transactionsBeforeFromDate = await openingBalanceQuery.ToListAsync();
-
-        //         var processedTransactions = new HashSet<string>();
-
-        //         foreach (var tx in transactionsBeforeFromDate)
-        //         {
-        //             var txIdentifier = $"{tx.Date}-{tx.Type}-{tx.BillNumber}-{tx.TotalDebit}-{tx.TotalCredit}";
-
-        //             if (!processedTransactions.Contains(txIdentifier))
-        //             {
-        //                 processedTransactions.Add(txIdentifier);
-
-        //                 decimal amount = 0;
-
-        //                 if (tx.AccountId == accountId)
-        //                 {
-        //                     amount = tx.TotalDebit - tx.TotalCredit;
-        //                 }
-        //                 else if (tx.PaymentAccountId2 == accountId)
-        //                 {
-        //                     amount = -tx.TotalCredit;
-        //                 }
-        //                 else if (tx.ReceiptAccountId2 == accountId)
-        //                 {
-        //                     amount = tx.TotalDebit;
-        //                 }
-        //                 else if (tx.DebitAccountId == accountId)
-        //                 {
-        //                     amount = tx.TotalDebit;
-        //                 }
-        //                 else if (tx.CreditAccountId == accountId)
-        //                 {
-        //                     amount = -tx.TotalCredit;
-        //                 }
-
-        //                 openingBalance += amount;
-        //             }
-        //         }
-        //     }
-
-        //     return openingBalance;
-        // }
-
-        /// <summary>
-        /// Account groups that should have opening balances from previous fiscal years (Real Accounts)
-        /// These are Balance Sheet accounts that carry forward
-        /// </summary>
         private static readonly HashSet<string> _realAccountGroups = new HashSet<string>
     {
     "Sundry Debtors",
@@ -646,6 +567,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 .Include(t => t.DebitAccount)
                 .Include(t => t.CreditAccount)
                 .Include(t => t.Account)
+                .Include(t => t.CashSettlementUser)
                 .Include(t => t.TransactionItems)
                     .ThenInclude(ti => ti.Item)
                 .Include(t => t.TransactionItems)
@@ -653,18 +575,191 @@ namespace SkyForge.Services.Retailer.StatementServices
                 .ToListAsync();
         }
 
+        // private (List<StatementEntryDTO> statement, decimal totalDebit, decimal totalCredit) PrepareStatementWithOpeningBalanceAndTotals(
+        //     decimal openingBalance,
+        //     List<Transaction> transactions,
+        //     DateTime? fromDate,
+        //     string? paymentMode,
+        //     string? dateFormat)
+        // {
+        //     decimal balance = openingBalance;
+        //     decimal totalDebit = 0;
+        //     decimal totalCredit = 0;
+
+        //     var statement = new List<StatementEntryDTO>();
+
+        //     // Add opening balance entry if not cash mode
+        //     if (paymentMode != "cash")
+        //     {
+        //         statement.Add(new StatementEntryDTO
+        //         {
+        //             Date = fromDate,
+        //             Type = string.Empty,
+        //             BillNumber = string.Empty,
+        //             PaymentMode = string.Empty,
+        //             AccountType = "Opening",
+        //             Debit = 0,
+        //             Credit = 0,
+        //             Balance = openingBalance,
+        //             NepaliDate = null // Will be set by frontend based on date format
+        //         });
+        //     }
+
+        //     // Group transactions by bill ID to avoid duplicates
+        //     var transactionsByBill = new Dictionary<string, Transaction>();
+
+        //     foreach (var tx in transactions)
+        //     {
+        //         string billId = tx.PaymentAccountId2?.ToString() ??
+        //                        tx.ReceiptAccountId2?.ToString() ??
+        //                        tx.JournalBillId?.ToString() ??
+        //                        tx.DebitNoteId?.ToString() ??
+        //                        tx.PurchaseBillId?.ToString() ??
+        //                        tx.PurchaseReturnBillId?.ToString() ??
+        //                        tx.SalesBillId?.ToString() ??
+        //                        tx.SalesReturnBillId?.ToString() ??
+        //                        tx.CreditNoteId?.ToString() ??
+        //                        tx.Id.ToString();
+
+        //         if (!transactionsByBill.ContainsKey(billId))
+        //         {
+        //             transactionsByBill[billId] = tx;
+        //         }
+        //         else
+        //         {
+        //             var existing = transactionsByBill[billId];
+        //             existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
+        //             existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
+        //         }
+        //     }
+
+        //     // Process grouped transactions
+        //     foreach (var tx in transactionsByBill.Values)
+        //     {
+        //         balance += tx.TotalDebit - tx.TotalCredit;
+        //         totalDebit += tx.TotalDebit;
+        //         totalCredit += tx.TotalCredit;
+
+        //         // Determine which date to display based on format - use AD date for Date field
+        //         // The frontend will convert to BS if needed using the NepaliDate library
+        //         DateTime? displayDate = tx.Date;
+
+        //         // Determine account type display
+        //         string accountType = "Opening Balance";
+        //         if (tx.Type == TransactionType.Purc) // Purchase
+        //         {
+        //             if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+        //             {
+        //                 accountType = $"Purchase {tx.PartyBillNumber}";
+        //             }
+        //             else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
+        //             {
+        //                 accountType = tx.PurchaseSalesType;
+        //             }
+        //         }
+        //         else if (tx.Type == TransactionType.PrRt) // Purchase Return
+        //         {
+        //             if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+        //             {
+        //                 accountType = $"Purchase Return {tx.PartyBillNumber}";
+        //             }
+        //             else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
+        //             {
+        //                 accountType = tx.PurchaseSalesReturnType;
+        //             }
+        //         }
+        //         else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
+        //             accountType = tx.PurchaseSalesType;
+        //         else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
+        //             accountType = tx.PurchaseSalesReturnType;
+        //         else if (!string.IsNullOrEmpty(tx.PaymentReceiptType))
+        //             accountType = tx.PaymentReceiptType;
+        //         else if (!string.IsNullOrEmpty(tx.JournalAccountType))
+        //             accountType = tx.JournalAccountType;
+        //         else if (!string.IsNullOrEmpty(tx.DrCrNoteAccountType))
+        //             accountType = tx.DrCrNoteAccountType;
+        //         else if (tx.PaymentAccount != null)
+        //             accountType = tx.PaymentAccount.Name;
+        //         else if (tx.ReceiptAccount != null)
+        //             accountType = tx.ReceiptAccount.Name;
+        //         else if (tx.DebitAccount != null)
+        //             accountType = tx.DebitAccount.Name;
+        //         else if (tx.CreditAccount != null)
+        //             accountType = tx.CreditAccount.Name;
+
+        //         statement.Add(new StatementEntryDTO
+        //         {
+        //             Date = displayDate,
+        //             Type = tx.Type.ToString(),
+        //             BillNumber = tx.BillNumber,
+        //             PaymentMode = tx.PaymentMode.ToString(),
+        //             PartyBillNumber = tx.PartyBillNumber,
+        //             PaymentAccount = tx.PaymentAccount != null ? new PaymentAccountDTO { Name = tx.PaymentAccount.Name } : null,
+        //             ReceiptAccount = tx.ReceiptAccount != null ? new ReceiptAccountDTO { Name = tx.ReceiptAccount.Name } : null,
+        //             DebitAccount = tx.DebitAccount != null ? new DebitAccountDTO { Name = tx.DebitAccount.Name } : null,
+        //             CreditAccount = tx.CreditAccount != null ? new CreditAccountDTO { Name = tx.CreditAccount.Name } : null,
+        //             AccountType = accountType,
+        //             PurchaseSalesType = tx.PurchaseSalesType,
+        //             PaymentReceiptType = tx.PaymentReceiptType,
+        //             PurchaseSalesReturnType = tx.PurchaseSalesReturnType,
+        //             JournalAccountType = tx.JournalAccountType,
+        //             DrCrNoteAccountType = tx.DrCrNoteAccountType,
+        //             InstType = tx.InstType.ToString(),
+        //             InstNo = tx.InstNo,
+        //             Account = tx.Account != null ? new AccountReferenceDTO
+        //             {
+        //                 Id = tx.Account.Id,
+        //                 Name = tx.Account.Name
+        //             } : null,
+        //             Debit = tx.TotalDebit,
+        //             Credit = tx.TotalCredit,
+        //             Balance = balance,
+        //             BillId = tx.PaymentAccountId2 ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId,
+        //             SalesBillId = tx.SalesBillId,
+        //             PurchaseBillId = tx.PurchaseBillId,
+        //             PurchaseReturnBillId = tx.PurchaseReturnBillId,
+        //             PaymentAccountId = tx.PaymentAccountId2,
+        //             ReceiptAccountId = tx.ReceiptAccountId2,
+        //             JournalBillId = tx.JournalBillId,
+        //             DebitNoteId = tx.DebitNoteId,
+        //             NepaliDate = tx.NepaliDate // Include Nepali date for frontend display
+        //         });
+        //     }
+
+        //     return (statement, totalDebit, totalCredit);
+        // }
+
+        //--------------------------------------------------------end1
+
         private (List<StatementEntryDTO> statement, decimal totalDebit, decimal totalCredit) PrepareStatementWithOpeningBalanceAndTotals(
             decimal openingBalance,
             List<Transaction> transactions,
             DateTime? fromDate,
             string? paymentMode,
-            string? dateFormat)
+            string? dateFormat,
+            Guid? accountId,
+            Guid companyId)
         {
             decimal balance = openingBalance;
             decimal totalDebit = 0;
             decimal totalCredit = 0;
 
             var statement = new List<StatementEntryDTO>();
+
+            // Check if the account is Sundry Debtor or Sundry Creditor
+            bool isSundryAccount = false;
+            if (accountId.HasValue)
+            {
+                var account = _context.Accounts
+                    .Include(a => a.AccountGroup)
+                    .FirstOrDefault(a => a.Id == accountId.Value && a.CompanyId == companyId);
+
+                if (account != null)
+                {
+                    var accountGroupName = account.AccountGroup?.Name ?? string.Empty;
+                    isSundryAccount = accountGroupName == "Sundry Debtors" || accountGroupName == "Sundry Creditors";
+                }
+            }
 
             // Add opening balance entry if not cash mode
             if (paymentMode != "cash")
@@ -679,7 +774,15 @@ namespace SkyForge.Services.Retailer.StatementServices
                     Debit = 0,
                     Credit = 0,
                     Balance = openingBalance,
-                    NepaliDate = null // Will be set by frontend based on date format
+                    NepaliDate = null,
+                    IsCashTransaction = false,
+                    PaymentDirection = null,
+                    IsCashEntry = false,
+                    IsSundryAccount = isSundryAccount,
+                    CashSettlementStatus = null,
+                    CashSettlementDate = null,
+                    CashSettlementUserName = null,
+                    CashSettlementRemarks = null
                 });
             }
 
@@ -701,6 +804,7 @@ namespace SkyForge.Services.Retailer.StatementServices
 
                 if (!transactionsByBill.ContainsKey(billId))
                 {
+                    // Store the full transaction with all its properties
                     transactionsByBill[billId] = tx;
                 }
                 else
@@ -708,105 +812,337 @@ namespace SkyForge.Services.Retailer.StatementServices
                     var existing = transactionsByBill[billId];
                     existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
                     existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
+                    // IMPORTANT: Keep the cash settlement status from the original transaction
+                    // Don't override it with null or empty
+                    if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
+                    {
+                        existing.CashSettlementStatus = tx.CashSettlementStatus;
+                        existing.CashSettlementDate = tx.CashSettlementDate;
+                        existing.CashSettlementUserId = tx.CashSettlementUserId;
+                        existing.CashSettlementUser = tx.CashSettlementUser;
+                        existing.CashSettlementRemarks = tx.CashSettlementRemarks;
+                    }
                 }
             }
 
             // Process grouped transactions
             foreach (var tx in transactionsByBill.Values)
             {
-                balance += tx.TotalDebit - tx.TotalCredit;
-                totalDebit += tx.TotalDebit;
-                totalCredit += tx.TotalCredit;
-
-                // Determine which date to display based on format - use AD date for Date field
-                // The frontend will convert to BS if needed using the NepaliDate library
-                DateTime? displayDate = tx.Date;
-
-                // Determine account type display
-                string accountType = "Opening Balance";
-                if (tx.Type == TransactionType.Purc) // Purchase
+                // Log the cash settlement status for debugging
+                if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
                 {
-                    if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+                    _logger.LogInformation($"Processing transaction {tx.Id} - Type: {tx.Type}, CashSettlementStatus: {tx.CashSettlementStatus}, User: {tx.CashSettlementUser?.Name}");
+                }
+
+                bool isCashTransaction = tx.PaymentMode == PaymentMode.Cash;
+                decimal debitAmount = tx.TotalDebit;
+                decimal creditAmount = tx.TotalCredit;
+
+                // Get cash settlement fields from the transaction
+                string cashSettlementStatus = tx.CashSettlementStatus ?? string.Empty;
+                DateTime? cashSettlementDate = tx.CashSettlementDate;
+                string cashSettlementRemarks = tx.CashSettlementRemarks ?? string.Empty;
+                string cashSettlementUserName = tx.CashSettlementUser?.Name ?? string.Empty;
+
+                // For cash transactions on Sundry Debtors/Creditors, create TWO entries
+                if (isCashTransaction && isSundryAccount)
+                {
+                    // ENTRY 1: The original transaction
+                    string accountType1 = string.Empty;
+                    string paymentDirection1 = string.Empty;
+                    decimal firstDebit = 0;
+                    decimal firstCredit = 0;
+
+                    if (tx.Type == TransactionType.Sale)
                     {
-                        accountType = $"Purchase {tx.PartyBillNumber}";
+                        accountType1 = "Cash Sale";
+                        paymentDirection1 = "Sale";
+                        firstDebit = debitAmount;
+                        firstCredit = 0;
+                    }
+                    else if (tx.Type == TransactionType.Purc)
+                    {
+                        accountType1 = "Cash Purchase";
+                        paymentDirection1 = "Purchase";
+                        firstDebit = 0;
+                        firstCredit = creditAmount;
+                    }
+                    else if (tx.Type == TransactionType.SlRt)
+                    {
+                        accountType1 = "Cash Sales Rtn.";
+                        paymentDirection1 = "Return";
+                        firstDebit = 0;
+                        firstCredit = creditAmount;
+                    }
+                    else if (tx.Type == TransactionType.PrRt)
+                    {
+                        accountType1 = "Cash Purchase Rtn.";
+                        paymentDirection1 = "Return";
+                        firstDebit = debitAmount;
+                        firstCredit = 0;
+                    }
+
+                    balance += firstDebit - firstCredit;
+                    totalDebit += firstDebit;
+                    totalCredit += firstCredit;
+
+                    Guid? billId = tx.PaymentAccountId2 ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId;
+                    Guid? salesBillId = tx.SalesBillId;
+                    Guid? salesReturnBillId = tx.SalesReturnBillId;
+                    Guid? purchaseBillId = tx.PurchaseBillId;
+                    Guid? purchaseReturnBillId = tx.PurchaseReturnBillId;
+
+                    statement.Add(new StatementEntryDTO
+                    {
+                        Date = tx.Date,
+                        Type = tx.Type.ToString(),
+                        BillNumber = tx.BillNumber,
+                        PaymentMode = tx.PaymentMode.ToString(),
+                        PartyBillNumber = tx.PartyBillNumber,
+                        AccountType = accountType1,
+                        Debit = firstDebit,
+                        Credit = firstCredit,
+                        Balance = balance,
+                        BillId = billId,
+                        SalesBillId = salesBillId,
+                        SalesReturnBillId = salesReturnBillId,
+                        PurchaseBillId = purchaseBillId,
+                        PurchaseReturnBillId = purchaseReturnBillId,
+                        PaymentAccountId = tx.PaymentAccountId2,
+                        ReceiptAccountId = tx.ReceiptAccountId2,
+                        JournalBillId = tx.JournalBillId,
+                        DebitNoteId = tx.DebitNoteId,
+                        NepaliDate = tx.NepaliDate,
+                        IsCashTransaction = true,
+                        PaymentDirection = paymentDirection1,
+                        IsCashEntry = false,
+                        IsSundryAccount = isSundryAccount,
+                        // Cash settlement fields
+                        CashSettlementStatus = cashSettlementStatus,
+                        CashSettlementDate = cashSettlementDate,
+                        CashSettlementUserName = cashSettlementUserName,
+                        CashSettlementRemarks = cashSettlementRemarks
+                    });
+
+                    // ENTRY 2: The cash received/paid entry
+                    string accountType2 = string.Empty;
+                    string paymentDirection2 = string.Empty;
+                    decimal secondDebit = 0;
+                    decimal secondCredit = 0;
+
+                    if (tx.Type == TransactionType.Sale)
+                    {
+                        accountType2 = "Cash Received";
+                        paymentDirection2 = "Received";
+                        secondCredit = debitAmount;
+                    }
+                    else if (tx.Type == TransactionType.Purc)
+                    {
+                        accountType2 = "Cash Paid";
+                        paymentDirection2 = "Paid";
+                        secondDebit = creditAmount;
+                    }
+                    else if (tx.Type == TransactionType.SlRt)
+                    {
+                        accountType2 = "Cash Refund";
+                        paymentDirection2 = "Paid";
+                        secondDebit = creditAmount;
+                    }
+                    else if (tx.Type == TransactionType.PrRt)
+                    {
+                        accountType2 = "Cash Return";
+                        paymentDirection2 = "Received";
+                        secondCredit = debitAmount;
+                    }
+
+                    balance += secondDebit - secondCredit;
+                    totalDebit += secondDebit;
+                    totalCredit += secondCredit;
+
+                    statement.Add(new StatementEntryDTO
+                    {
+                        Date = tx.Date,
+                        Type = "Cash",
+                        BillNumber = tx.BillNumber,
+                        PaymentMode = tx.PaymentMode.ToString(),
+                        PartyBillNumber = tx.PartyBillNumber,
+                        AccountType = accountType2,
+                        Debit = secondDebit,
+                        Credit = secondCredit,
+                        Balance = balance,
+                        BillId = billId,
+                        SalesBillId = salesBillId,
+                        SalesReturnBillId = salesReturnBillId,
+                        PurchaseBillId = purchaseBillId,
+                        PurchaseReturnBillId = purchaseReturnBillId,
+                        PaymentAccountId = tx.PaymentAccountId2,
+                        ReceiptAccountId = tx.ReceiptAccountId2,
+                        JournalBillId = tx.JournalBillId,
+                        DebitNoteId = tx.DebitNoteId,
+                        NepaliDate = tx.NepaliDate,
+                        IsCashTransaction = true,
+                        PaymentDirection = paymentDirection2,
+                        IsCashEntry = true,
+                        IsSundryAccount = isSundryAccount,
+                        CashSettlementStatus = cashSettlementStatus,
+                        CashSettlementDate = cashSettlementDate,
+                        CashSettlementUserName = cashSettlementUserName,
+                        CashSettlementRemarks = cashSettlementRemarks
+                    });
+                }
+                else
+                {
+                    // Non-cash transactions OR cash transactions for non-sundry accounts
+                    string accountType = string.Empty;
+                    string paymentDirection = string.Empty;
+
+                    if (tx.PaymentMode == PaymentMode.Cash)
+                    {
+                        if (tx.Type == TransactionType.Sale)
+                        {
+                            accountType = "Cash Sale";
+                        }
+                        else if (tx.Type == TransactionType.Purc)
+                        {
+                            accountType = "Cash Purchase";
+                        }
+                        else if (tx.Type == TransactionType.SlRt)
+                        {
+                            accountType = "Cash Sales Return";
+                        }
+                        else if (tx.Type == TransactionType.PrRt)
+                        {
+                            accountType = "Cash Purchase Return";
+                        }
+                    }
+                    else if (tx.Type == TransactionType.Purc)
+                    {
+                        if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+                        {
+                            accountType = $"Purchase {tx.PartyBillNumber}";
+                        }
+                        else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
+                        {
+                            accountType = tx.PurchaseSalesType;
+                        }
+                    }
+                    else if (tx.Type == TransactionType.PrRt)
+                    {
+                        if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+                        {
+                            accountType = $"Purchase Return {tx.PartyBillNumber}";
+                        }
+                        else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
+                        {
+                            accountType = tx.PurchaseSalesReturnType;
+                        }
+                    }
+                    else if (tx.Type == TransactionType.Sale)
+                    {
+                        if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+                        {
+                            accountType = $"Sale {tx.PartyBillNumber}";
+                        }
+                        else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
+                        {
+                            accountType = tx.PurchaseSalesType;
+                        }
+                        else
+                        {
+                            accountType = "Credit Sale";
+                        }
+                    }
+                    else if (tx.Type == TransactionType.SlRt)
+                    {
+                        if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+                        {
+                            accountType = $"Sales Return {tx.PartyBillNumber}";
+                        }
+                        else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
+                        {
+                            accountType = tx.PurchaseSalesReturnType;
+                        }
+                        else
+                        {
+                            accountType = "Sales Return";
+                        }
+                    }
+                    else if (tx.Type == TransactionType.Pymt)
+                    {
+                        accountType = "Payment";
+                        paymentDirection = "Paid";
+                    }
+                    else if (tx.Type == TransactionType.Rcpt)
+                    {
+                        accountType = "Receipt";
+                        paymentDirection = "Received";
                     }
                     else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
-                    {
                         accountType = tx.PurchaseSalesType;
-                    }
-                }
-                else if (tx.Type == TransactionType.PrRt) // Purchase Return
-                {
-                    if (!string.IsNullOrEmpty(tx.PartyBillNumber))
-                    {
-                        accountType = $"Purchase Return {tx.PartyBillNumber}";
-                    }
                     else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
-                    {
                         accountType = tx.PurchaseSalesReturnType;
-                    }
-                }
-                else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
-                    accountType = tx.PurchaseSalesType;
-                else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
-                    accountType = tx.PurchaseSalesReturnType;
-                else if (!string.IsNullOrEmpty(tx.PaymentReceiptType))
-                    accountType = tx.PaymentReceiptType;
-                else if (!string.IsNullOrEmpty(tx.JournalAccountType))
-                    accountType = tx.JournalAccountType;
-                else if (!string.IsNullOrEmpty(tx.DrCrNoteAccountType))
-                    accountType = tx.DrCrNoteAccountType;
-                else if (tx.PaymentAccount != null)
-                    accountType = tx.PaymentAccount.Name;
-                else if (tx.ReceiptAccount != null)
-                    accountType = tx.ReceiptAccount.Name;
-                else if (tx.DebitAccount != null)
-                    accountType = tx.DebitAccount.Name;
-                else if (tx.CreditAccount != null)
-                    accountType = tx.CreditAccount.Name;
+                    else if (!string.IsNullOrEmpty(tx.PaymentReceiptType))
+                        accountType = tx.PaymentReceiptType;
+                    else if (!string.IsNullOrEmpty(tx.JournalAccountType))
+                        accountType = tx.JournalAccountType;
+                    else if (!string.IsNullOrEmpty(tx.DrCrNoteAccountType))
+                        accountType = tx.DrCrNoteAccountType;
+                    else if (tx.PaymentAccount != null)
+                        accountType = tx.PaymentAccount.Name;
+                    else if (tx.ReceiptAccount != null)
+                        accountType = tx.ReceiptAccount.Name;
+                    else if (tx.DebitAccount != null)
+                        accountType = tx.DebitAccount.Name;
+                    else if (tx.CreditAccount != null)
+                        accountType = tx.CreditAccount.Name;
 
-                statement.Add(new StatementEntryDTO
-                {
-                    Date = displayDate,
-                    Type = tx.Type.ToString(),
-                    BillNumber = tx.BillNumber,
-                    PaymentMode = tx.PaymentMode.ToString(),
-                    PartyBillNumber = tx.PartyBillNumber,
-                    PaymentAccount = tx.PaymentAccount != null ? new PaymentAccountDTO { Name = tx.PaymentAccount.Name } : null,
-                    ReceiptAccount = tx.ReceiptAccount != null ? new ReceiptAccountDTO { Name = tx.ReceiptAccount.Name } : null,
-                    DebitAccount = tx.DebitAccount != null ? new DebitAccountDTO { Name = tx.DebitAccount.Name } : null,
-                    CreditAccount = tx.CreditAccount != null ? new CreditAccountDTO { Name = tx.CreditAccount.Name } : null,
-                    AccountType = accountType,
-                    PurchaseSalesType = tx.PurchaseSalesType,
-                    PaymentReceiptType = tx.PaymentReceiptType,
-                    PurchaseSalesReturnType = tx.PurchaseSalesReturnType,
-                    JournalAccountType = tx.JournalAccountType,
-                    DrCrNoteAccountType = tx.DrCrNoteAccountType,
-                    InstType = tx.InstType.ToString(),
-                    InstNo = tx.InstNo,
-                    Account = tx.Account != null ? new AccountReferenceDTO
+                    balance += debitAmount - creditAmount;
+                    totalDebit += debitAmount;
+                    totalCredit += creditAmount;
+
+                    Guid? billId = tx.PaymentAccountId2 ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId;
+                    Guid? salesBillId = tx.SalesBillId;
+                    Guid? salesReturnBillId = tx.SalesReturnBillId;
+                    Guid? purchaseBillId = tx.PurchaseBillId;
+                    Guid? purchaseReturnBillId = tx.PurchaseReturnBillId;
+
+                    statement.Add(new StatementEntryDTO
                     {
-                        Id = tx.Account.Id,
-                        Name = tx.Account.Name
-                    } : null,
-                    Debit = tx.TotalDebit,
-                    Credit = tx.TotalCredit,
-                    Balance = balance,
-                    BillId = tx.PaymentAccountId2 ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId,
-                    SalesBillId = tx.SalesBillId,
-                    PurchaseBillId = tx.PurchaseBillId,
-                    PurchaseReturnBillId = tx.PurchaseReturnBillId,
-                    PaymentAccountId = tx.PaymentAccountId2,
-                    ReceiptAccountId = tx.ReceiptAccountId2,
-                    JournalBillId = tx.JournalBillId,
-                    DebitNoteId = tx.DebitNoteId,
-                    NepaliDate = tx.NepaliDate // Include Nepali date for frontend display
-                });
+                        Date = tx.Date,
+                        Type = tx.Type.ToString(),
+                        BillNumber = tx.BillNumber,
+                        PaymentMode = tx.PaymentMode.ToString(),
+                        PartyBillNumber = tx.PartyBillNumber,
+                        AccountType = accountType,
+                        Debit = debitAmount,
+                        Credit = creditAmount,
+                        Balance = balance,
+                        BillId = billId,
+                        SalesBillId = salesBillId,
+                        SalesReturnBillId = salesReturnBillId,
+                        PurchaseBillId = purchaseBillId,
+                        PurchaseReturnBillId = purchaseReturnBillId,
+                        PaymentAccountId = tx.PaymentAccountId2,
+                        ReceiptAccountId = tx.ReceiptAccountId2,
+                        JournalBillId = tx.JournalBillId,
+                        DebitNoteId = tx.DebitNoteId,
+                        NepaliDate = tx.NepaliDate,
+                        IsCashTransaction = tx.PaymentMode == PaymentMode.Cash,
+                        PaymentDirection = paymentDirection,
+                        IsCashEntry = false,
+                        IsSundryAccount = isSundryAccount,
+                        CashSettlementStatus = cashSettlementStatus,
+                        CashSettlementDate = cashSettlementDate,
+                        CashSettlementUserName = cashSettlementUserName,
+                        CashSettlementRemarks = cashSettlementRemarks
+                    });
+                }
             }
 
             return (statement, totalDebit, totalCredit);
         }
 
+        
         private async Task<List<ItemwiseStatementDTO>> PrepareItemwiseStatementAsync(
             Guid companyId,
             Guid accountId,

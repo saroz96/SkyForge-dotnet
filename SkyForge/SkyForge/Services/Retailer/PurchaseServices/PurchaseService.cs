@@ -614,11 +614,11 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Purc,
                         PurchaseSalesType = "Purchase",
-                        TotalDebit = totalVatDebit,
+                        TotalDebit = dto.VatAmount ?? 0,
                         TotalCredit = 0,
                         TaxableAmount = dto.TaxableAmount,
                         VatPercentage = dto.VatPercentage,
-                        VatAmount = totalVatDebit,
+                        VatAmount = dto.VatAmount ?? 0,
                         PaymentMode = paymentMode,
                         Date = dto.TransactionDate,
                         TransactionDate = dto.Date,
@@ -4366,11 +4366,11 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Purc,
                         PurchaseSalesType = "Purchase",
-                        TotalDebit = totalVatDebit,
+                        TotalDebit = dto.VatAmount,
                         TotalCredit = 0,
                         TaxableAmount = dto.TaxableAmount,
                         VatPercentage = dto.VatPercentage,
-                        VatAmount = totalVatDebit,
+                        VatAmount = dto.VatAmount,
                         PaymentMode = paymentMode,
                         Date = existingBill.TransactionDate,
                         TransactionDate = existingBill.Date,
@@ -5070,5 +5070,218 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 TransactionDate = purchaseBill.TransactionDate,
             };
         }
+
+
+        public async Task<StockRegenerationResponseDto> RegenerateStockEntriesAsync(
+    Guid purchaseBillId,
+    Guid companyId,
+    Guid fiscalYearId,
+    bool overwriteExisting = true)
+        {
+            try
+            {
+                _logger.LogInformation($"=== RegenerateStockEntriesAsync started for Bill ID: {purchaseBillId} ===");
+
+                var errors = new List<string>();
+
+                // Step 1: Get the purchase bill with all items
+                var purchaseBill = await _context.PurchaseBills
+                    .Include(pb => pb.Account)
+                    .Include(pb => pb.Items)
+                        .ThenInclude(i => i.Item)
+                    .FirstOrDefaultAsync(pb => pb.Id == purchaseBillId && pb.CompanyId == companyId);
+
+                if (purchaseBill == null)
+                {
+                    return new StockRegenerationResponseDto
+                    {
+                        Success = false,
+                        Message = "Purchase bill not found"
+                    };
+                }
+
+                if (!purchaseBill.Items.Any())
+                {
+                    return new StockRegenerationResponseDto
+                    {
+                        Success = false,
+                        Message = "No items found in this purchase bill"
+                    };
+                }
+
+                // Step 2: Check if existing stock entries exist
+                var existingStockEntries = await _context.StockEntries
+                    .Where(se => se.PurchaseBillId == purchaseBillId)
+                    .ToListAsync();
+
+                if (existingStockEntries.Any() && !overwriteExisting)
+                {
+                    return new StockRegenerationResponseDto
+                    {
+                        Success = false,
+                        Message = $"Found {existingStockEntries.Count} existing stock entries. Set overwriteExisting to true to replace them.",
+                        PurchaseBillInfo = new PurchaseBillInfoDto
+                        {
+                            Id = purchaseBill.Id,
+                            BillNumber = purchaseBill.BillNumber,
+                            PartyBillNumber = purchaseBill.PartyBillNumber,
+                            Date = purchaseBill.Date,
+                            NepaliDate = purchaseBill.NepaliDate,
+                            AccountName = purchaseBill.Account?.Name,
+                            ItemCount = purchaseBill.Items.Count,
+                            TotalAmount = purchaseBill.TotalAmount ?? 0
+                        }
+                    };
+                }
+
+                // Step 3: Remove existing stock entries if overwrite is enabled
+                if (existingStockEntries.Any() && overwriteExisting)
+                {
+                    _context.StockEntries.RemoveRange(existingStockEntries);
+                    _logger.LogInformation($"Removed {existingStockEntries.Count} existing stock entries");
+                    await _context.SaveChangesAsync();
+                }
+
+                // Step 4: Get default store and rack
+                var defaultStore = await GetDefaultStoreAsync(companyId);
+                var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
+
+                // Step 5: Regenerate stock entries from bill items
+                var regeneratedEntries = new List<RegeneratedStockEntryDto>();
+                var stockEntriesToAdd = new List<StockEntry>();
+
+                foreach (var item in purchaseBill.Items)
+                {
+                    if (item.ItemId == null || item.Quantity <= 0)
+                    {
+                        errors.Add($"Skipping item: Invalid quantity or missing item ID");
+                        continue;
+                    }
+
+                    try
+                    {
+                        // Get the item details
+                        var inventoryItem = await _context.Items
+                            .FirstOrDefaultAsync(i => i.Id == item.ItemId && i.CompanyId == companyId);
+
+                        if (inventoryItem == null)
+                        {
+                            errors.Add($"Item with ID {item.ItemId} not found");
+                            continue;
+                        }
+
+                        // Calculate quantities
+                        decimal wsUnit = item.WsUnit ?? 1m;
+                        decimal quantity = item.Quantity;
+                        decimal bonus = item.Bonus ?? 0m;
+                        decimal netQuantity = (quantity + bonus) * wsUnit;
+
+                        // Calculate prices
+                        decimal pricePerUnit = wsUnit > 0 ? item.Price / wsUnit : 0m;
+                        decimal mrpPerUnit = wsUnit > 0 ? item.Mrp / wsUnit : 0m;
+                        decimal netPuPrice = item.NetPuPrice;
+
+                        // Create stock entry using the exact values from the bill
+                        var stockEntry = new StockEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ItemId = item.ItemId,
+                            WsUnit = wsUnit,
+                            Quantity = netQuantity,
+                            BillQty = quantity,
+                            ActualQty = netQuantity,
+                            Bonus = bonus * wsUnit,
+                            BatchNumber = item.BatchNumber ?? "XXX",
+                            ExpiryDate = item.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                            Price = pricePerUnit,
+                            NetPrice = pricePerUnit,
+                            PuPrice = item.PuPrice,
+                            NetPuPrice = netPuPrice,
+                            ItemCcAmount = item.ItemCcAmount,
+                            DiscountPercentagePerItem = item.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = item.DiscountAmountPerItem,
+                            MainUnitPuPrice = item.PuPrice,
+                            Mrp = mrpPerUnit,
+                            MarginPercentage = item.MarginPercentage,
+                            Currency = item.Currency ?? "NPR",
+                            CompanyId = companyId,
+                            FiscalYearId = fiscalYearId,
+                            UniqueUuid = item.UniqueUuid ?? Guid.NewGuid().ToString(),
+                            PurchaseBillId = purchaseBill.Id,
+                            ExpiryStatus = CalculateExpiryStatus(item.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+                            DaysUntilExpiry = CalculateDaysUntilExpiry(item.ExpiryDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2))),
+                            StoreId = defaultStore?.Id,
+                            RackId = defaultRack?.Id,
+                            Date = purchaseBill.Date,
+                            NepaliDate = purchaseBill.NepaliDate,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        stockEntriesToAdd.Add(stockEntry);
+
+                        regeneratedEntries.Add(new RegeneratedStockEntryDto
+                        {
+                            Id = stockEntry.Id,
+                            ItemId = item.ItemId,
+                            ItemName = inventoryItem.Name,
+                            BatchNumber = stockEntry.BatchNumber,
+                            ExpiryDate = stockEntry.ExpiryDate,
+                            Quantity = netQuantity,
+                            PuPrice = stockEntry.PuPrice,
+                            Status = "Success"
+                        });
+
+                        _logger.LogInformation($"Created stock entry for Item: {inventoryItem.Name}, Batch: {item.BatchNumber}, Quantity: {netQuantity}");
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"Error processing item {item.ItemId}: {ex.Message}");
+                        _logger.LogError(ex, $"Error processing item {item.ItemId}");
+                    }
+                }
+
+                // Step 6: Save all stock entries
+                if (stockEntriesToAdd.Any())
+                {
+                    await _context.StockEntries.AddRangeAsync(stockEntriesToAdd);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"Successfully added {stockEntriesToAdd.Count} stock entries");
+                }
+
+                // Step 7: Return response
+                return new StockRegenerationResponseDto
+                {
+                    Success = true,
+                    Message = $"Successfully regenerated {stockEntriesToAdd.Count} stock entries",
+                    EntriesRegenerated = stockEntriesToAdd.Count,
+                    StockEntries = regeneratedEntries,
+                    Errors = errors.Any() ? errors : null,
+                    PurchaseBillInfo = new PurchaseBillInfoDto
+                    {
+                        Id = purchaseBill.Id,
+                        BillNumber = purchaseBill.BillNumber,
+                        PartyBillNumber = purchaseBill.PartyBillNumber,
+                        Date = purchaseBill.Date,
+                        NepaliDate = purchaseBill.NepaliDate,
+                        AccountName = purchaseBill.Account?.Name,
+                        ItemCount = purchaseBill.Items.Count,
+                        TotalAmount = purchaseBill.TotalAmount ?? 0
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error regenerating stock entries for bill {purchaseBillId}");
+                return new StockRegenerationResponseDto
+                {
+                    Success = false,
+                    Message = $"Error: {ex.Message}",
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+        }
+    
+    
     }
 }
