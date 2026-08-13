@@ -1988,7 +1988,7 @@ const Statement = () => {
         if (!generatedShareLink) {
             setNotification({
                 show: true,
-                message: 'Please wait while we generate the shareable link...',
+                message: 'Please wait while we generate the link...',
                 type: 'info'
             });
             handleOpenWhatsAppModal();
@@ -2060,7 +2060,7 @@ const Statement = () => {
                 navigator.clipboard.writeText(shareableUrl).then(() => {
                     setNotification({
                         show: true,
-                        message: `✅ Permanent shareable link copied to clipboard! Share it with anyone.`,
+                        message: `✅ Link copied to clipboard! Share it with anyone.`,
                         type: 'success',
                         duration: 5000
                     });
