@@ -124,7 +124,7 @@ namespace SkyForge.Models.Retailer.TransactionModel
 
         [ForeignKey("Receipt")]
         public Guid? ReceiptAccountId { get; set; }
-        
+
         public virtual Receipt? Receipt { get; set; }
 
         // Transaction header details
@@ -153,10 +153,18 @@ namespace SkyForge.Models.Retailer.TransactionModel
         [Precision(18, 2)]
         public decimal? TaxableAmount { get; set; }
 
+        [Column("non_taxable_amount")]
+        [Precision(18, 2)]
+        public decimal? NonTaxableAmount { get; set; }
+
         public decimal? VatPercentage { get; set; }
 
         [Precision(18, 2)]
         public decimal? VatAmount { get; set; }
+
+        [Column("round_off_amount")]
+        [Precision(18, 2)]
+        public decimal? RoundOffAmount { get; set; }
 
         [Column(TypeName = "varchar(50)")]
         public PaymentMode PaymentMode { get; set; } = PaymentMode.Cash;

@@ -1416,6 +1416,7 @@ const VATConfirmationLetter = () => {
                 </Modal.Footer>
             </Modal>
 
+
             {/* Account Selection Modal with Virtualized List */}
             {showAccountModal && (
                 <>
@@ -1434,7 +1435,7 @@ const VATConfirmationLetter = () => {
                         }}
                     >
                         <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '70%' }}>
-                            <div className="modal-content" style={{ height: '500px' }}>
+                            <div className="modal-content" style={{ height: '400px' }}>
                                 <div className="modal-header py-1">
                                     <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
                                         Select Account
@@ -1459,7 +1460,7 @@ const VATConfirmationLetter = () => {
                                         className="form-control form-control-sm"
                                         placeholder="Search Account..."
                                         autoFocus
-                                        autoComplete='off'
+                                        autoComplete="off"
                                         value={accountSearchQuery}
                                         onChange={handleAccountSearch}
                                         onKeyDown={(e) => {
@@ -1488,7 +1489,7 @@ const VATConfirmationLetter = () => {
                                 <div className="modal-body p-0">
                                     <div style={{ height: 'calc(500px - 120px)' }}>
                                         <VirtualizedAccountList
-                                            accounts={accountSearchResults}
+                                            accounts={accounts}
                                             onAccountClick={selectAccount}
                                             searchRef={accountSearchRef}
                                             hasMore={hasMoreAccountResults}

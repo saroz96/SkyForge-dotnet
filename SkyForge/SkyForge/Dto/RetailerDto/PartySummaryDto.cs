@@ -39,63 +39,13 @@ namespace SkyForge.Dto.RetailerDto
         public DateTime End { get; set; }
     }
 
-    // public class PartySummaryDataDto
-    // {
-    //     // Sales related
-    //     public decimal TaxableSales { get; set; }
-    //     public decimal TaxableSalesVAT { get; set; }
-    //     public decimal NonTaxableSales { get; set; }
-    //     public decimal SalesReturn { get; set; }
-    //     public decimal SalesReturnVAT { get; set; }
-
-    //     // Purchase related
-    //     public decimal TaxablePurchase { get; set; }
-    //     public decimal TaxablePurchaseVAT { get; set; }
-    //     public decimal NonTaxablePurchase { get; set; }
-    //     public decimal PurchaseReturn { get; set; }
-    //     public decimal PurchaseReturnVAT { get; set; }
-
-    //     // Other transactions
-    //     public decimal Payments { get; set; }
-    //     public decimal Receipts { get; set; }
-    //     public decimal JournalDebit { get; set; }
-    //     public decimal JournalCredit { get; set; }
-    //     public decimal DebitNotes { get; set; }
-    //     public decimal CreditNotes { get; set; }
-
-    //     // Balance information
-    //     public decimal OpeningBalance { get; set; }
-    //     public decimal ClosingBalance { get; set; }
-    //     public decimal TotalDebit { get; set; }
-    //     public decimal TotalCredit { get; set; }
-
-    //     // Additional
-    //     public decimal StockAdjustment { get; set; }
-    //     public decimal RoundOff { get; set; }
-
-    //     // Calculated values
-    //     public decimal NetSales { get; set; }
-    //     public decimal NetSalesVAT { get; set; }
-    //     public decimal NetPurchase { get; set; }
-    //     public decimal NetPurchaseVAT { get; set; }
-    //     public decimal NetPaymentReceipt { get; set; }
-
-    //     // Counts
-    //     public int TransactionCount { get; set; }
-    //     public int SalesBillCount { get; set; }
-    //     public int PurchaseBillCount { get; set; }
-    //     public int SalesReturnCount { get; set; }
-    //     public int PurchaseReturnCount { get; set; }
-    //     public int PaymentCount { get; set; }
-    //     public int ReceiptCount { get; set; }
-    // }
-
     public class PartySummaryDataDto
     {
         // Sales related
         public decimal TaxableSales { get; set; }
         public decimal TaxableSalesVAT { get; set; }
         public decimal NonTaxableSales { get; set; }
+        public decimal RoundOffAmount { get; set; }
         public decimal SalesReturn { get; set; }
         public decimal SalesReturnVAT { get; set; }
 

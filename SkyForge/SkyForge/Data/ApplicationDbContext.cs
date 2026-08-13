@@ -2491,8 +2491,8 @@ namespace SkyForge.Data
                     .HasDatabaseName("IX_CashCounterPurchaseReturn_Session_PurchaseReturn");
             });
 
-            modelBuilder.Entity<AccountShareToken>(entity =>
-    {
+        modelBuilder.Entity<AccountShareToken>(entity =>
+        {
         entity.HasKey(e => e.Id);
 
         entity.HasIndex(e => e.Token)
