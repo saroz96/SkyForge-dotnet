@@ -1,0 +1,271 @@
+
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Statement - A & B Traders</title>
+                <style>
+                    body { 
+                        font-family: Arial, Helvetica, sans-serif; 
+                        padding: 20px; 
+                        max-width: 1100px;
+                        margin: 0 auto;
+                        background: #fff;
+                        color: #333;
+                    }
+                    .print-header { 
+                        text-align: center; 
+                        margin-bottom: 20px; 
+                        border-bottom: 2px solid #333;
+                        padding-bottom: 15px;
+                    }
+                    .company-name { 
+                        font-size: 22px; 
+                        font-weight: bold; 
+                        margin: 10px 0;
+                        color: #1a1a1a;
+                    }
+                    .company-details {
+                        font-size: 12px;
+                        color: #555;
+                        margin: 5px 0;
+                    }
+                    .report-title { 
+                        font-size: 18px; 
+                        font-weight: bold; 
+                        margin: 15px 0 10px 0;
+                        text-decoration: underline;
+                        color: #1a1a1a;
+                    }
+                    .statement-info {
+                        font-size: 13px;
+                        margin: 8px 0;
+                        text-align: left;
+                        background: #f8f9fa;
+                        padding: 10px;
+                        border-radius: 4px;
+                    }
+                    .statement-info strong {
+                        color: #1a1a1a;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin: 15px 0;
+                        font-size: 12px;
+                    }
+                    th, td { 
+                        border: 1px solid #ddd; 
+                        padding: 8px 10px; 
+                        text-align: left; 
+                    }
+                    th { 
+                        background-color: #f5f5f5; 
+                        font-weight: bold;
+                        color: #1a1a1a;
+                    }
+                    .text-end { 
+                        text-align: right; 
+                    }
+                    .text-center {
+                        text-align: center;
+                    }
+                    .grand-total-row td {
+                        font-weight: bold;
+                        border-top: 3px double #333;
+                        background-color: #f9f9f9;
+                    }
+                    .footer { 
+                        margin-top: 25px; 
+                        text-align: center; 
+                        font-size: 11px; 
+                        color: #888; 
+                        border-top: 1px solid #ddd;
+                        padding-top: 15px;
+                    }
+                    .label-bold {
+                        font-weight: 600;
+                    }
+                    @media print {
+                        body { padding: 10px; }
+                        .no-print { display: none; }
+                    }
+                    @media (max-width: 768px) {
+                        table { font-size: 10px; }
+                        th, td { padding: 4px 6px; }
+                    }
+                </style>
+            </head>
+            <body>
+                
+    <div class="print-header">
+        <div class="company-name">Surginep Health Concern Pvt.Ltd</div>
+        <div class="company-details">
+            Tripureshwor, Kathmandu<br>
+            PAN: 999999999 | Phone: +9779843714188
+        </div>
+        <hr style="margin:6px 0; border: 1px solid #ccc;">
+        <div class="report-title">STATEMENT OF ACCOUNT</div>
+        <div class="statement-info">
+            <strong>Party:</strong> A & B Traders &nbsp;|&nbsp;
+            <strong>From (BS):</strong> 2082-04-01 &nbsp;|&nbsp;
+            <strong>To (BS):</strong> 2083-04-27 &nbsp;|&nbsp;
+            <strong>From (AD):</strong> 2025-07-17 &nbsp;|&nbsp;
+            <strong>To (AD):</strong> 2026-08-12 &nbsp;|&nbsp;
+            <strong>Payment Mode:</strong> All (Include Cash)
+        </div>
+    </div>
+    <table cellspacing="0">
+        <thead>
+            <tr>
+                <th class="nowrap col-miti">Miti</th>
+                <th class="nowrap col-date">Date</th>
+                <th class="nowrap col-vch">Vch No.</th>
+                <th class="nowrap col-type">Type</th>
+                <th class="nowrap col-paymode">Pay Mode</th>
+                <th class="nowrap col-account">Account</th>
+                <th class="nowrap col-amount text-end">Debit (Rs.)</th>
+                <th class="nowrap col-amount text-end">Credit (Rs.)</th>
+                <th class="nowrap col-balance text-end">Balance (Rs.)</th>
+                <th class="nowrap col-remarks">Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+
+        <tr>
+            <td class="nowrap">2082-04-01</td>
+            <td class="nowrap">-</td>
+            <td class="nowrap"></td>
+            <td class="nowrap voucher-type"></td>
+            <td class="nowrap"></td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">Opening</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end balance-text">2,000.00 Dr</td>
+            <td class="nowrap" style="font-size: 8px;"></td>
+        </tr>
+    
+        <tr>
+            <td class="nowrap">2082-04-27</td>
+            <td class="nowrap">8/12/2025</td>
+            <td class="nowrap">YKPE0000015</td>
+            <td class="nowrap voucher-type">Rcpt</td>
+            <td class="nowrap">Receipt</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">AGRICULTURAL DEVELOPMENT BANK</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end amount-positive">1,000.00</td>
+            <td class="text-end balance-text">1,000.00 Dr</td>
+            <td class="nowrap" style="font-size: 8px;">ConnectIps 123456789</td>
+        </tr>
+    
+        <tr>
+            <td class="nowrap">2082-04-27</td>
+            <td class="nowrap">8/12/2025</td>
+            <td class="nowrap">YKPE0000014</td>
+            <td class="nowrap voucher-type">Rcpt</td>
+            <td class="nowrap">Receipt</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">RASTRIYA BANIJYA BANK</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end amount-positive">100.00</td>
+            <td class="text-end balance-text">900.00 Dr</td>
+            <td class="nowrap" style="font-size: 8px;">Cheque 123456789</td>
+        </tr>
+    
+        <tr>
+            <td class="nowrap">2082-04-27</td>
+            <td class="nowrap">8/12/2025</td>
+            <td class="nowrap">YKPE0000013</td>
+            <td class="nowrap voucher-type">Rcpt</td>
+            <td class="nowrap">Receipt</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">SANIMA BANK LIMITED</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end amount-positive">1,000.00</td>
+            <td class="text-end balance-text">100.00 Cr</td>
+            <td class="nowrap" style="font-size: 8px;">Fonepay 123456789</td>
+        </tr>
+    
+        <tr>
+            <td class="nowrap">2082-04-27</td>
+            <td class="nowrap">8/12/2025</td>
+            <td class="nowrap">NLQQ0000011</td>
+            <td class="nowrap voucher-type">Pymt</td>
+            <td class="nowrap">Payment</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">SANIMA BANK LIMITED</td>
+            <td class="text-end amount-positive">200.00</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end balance-text">100.00 Dr</td>
+            <td class="nowrap" style="font-size: 8px;">RTGS 123456789</td>
+        </tr>
+    
+        <tr>
+            <td class="nowrap">2082-04-27</td>
+            <td class="nowrap">8/12/2025</td>
+            <td class="nowrap">NLQQ0000012</td>
+            <td class="nowrap voucher-type">Pymt</td>
+            <td class="nowrap">Payment</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">Global IME Bank Ltd.</td>
+            <td class="text-end amount-positive">300.00</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end balance-text">400.00 Dr</td>
+            <td class="nowrap" style="font-size: 8px;">NA</td>
+        </tr>
+    
+        <tr>
+            <td class="nowrap">2082-04-27</td>
+            <td class="nowrap">8/12/2025</td>
+            <td class="nowrap">NLQQ0000013</td>
+            <td class="nowrap voucher-type">Pymt</td>
+            <td class="nowrap">Payment</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">RASTRIYA BANIJYA BANK</td>
+            <td class="text-end amount-positive">200.00</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end balance-text">600.00 Dr</td>
+            <td class="nowrap" style="font-size: 8px;">NA</td>
+        </tr>
+    
+        <tr>
+            <td class="nowrap">2082-04-27</td>
+            <td class="nowrap">8/12/2025</td>
+            <td class="nowrap">NLQQ0000014</td>
+            <td class="nowrap voucher-type">Pymt</td>
+            <td class="nowrap">Payment</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">RASTRIYA BANIJYA BANK</td>
+            <td class="text-end amount-positive">200.00</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end balance-text">800.00 Dr</td>
+            <td class="nowrap" style="font-size: 8px;">NA</td>
+        </tr>
+    
+        <tr>
+            <td class="nowrap">2082-04-27</td>
+            <td class="nowrap">8/12/2025</td>
+            <td class="nowrap">NLQQ0000015</td>
+            <td class="nowrap voucher-type">Pymt</td>
+            <td class="nowrap">Payment</td>
+            <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">Cash in Hand</td>
+            <td class="text-end amount-positive">300.00</td>
+            <td class="text-end amount-positive">-</td>
+            <td class="text-end balance-text">1,100.00 Dr</td>
+            <td class="nowrap" style="font-size: 8px;">NA</td>
+        </tr>
+    
+        <tr class="grand-total-row">
+            <td colspan="6" class="text-end total-label">TOTALS</td>
+            <td class="text-end total-label">1,200.00</td>
+            <td class="text-end total-label">2,100.00</td>
+            <td class="text-end total-label">1,100.00 Dr</td>
+            <td class="text-end total-label"></td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="footer">
+        Generated on: 8/12/2026, 11:41:55 PM | Powered by Ams Software
+    </div>
+
+                <div class="footer">
+                    Generated on: 8/12/2026, 11:41:55 PM | Powered by Ams Software
+                </div>
+            </body>
+        </html>
+        

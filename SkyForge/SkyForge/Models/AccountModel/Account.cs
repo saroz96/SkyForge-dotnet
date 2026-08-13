@@ -82,13 +82,6 @@ namespace SkyForge.Models.AccountModel
         [ForeignKey("CompanyId")]
         public virtual Company Company { get; set; } = null!;
 
-        // [Required]
-        // [Column("fiscal_year_id")]
-        // public Guid FiscalYearId { get; set; }
-
-        // [ForeignKey("FiscalYearId")]
-        // public FiscalYear FiscalYear { get; set; } = null!;
-
         [Column("original_fiscal_year_id")]
         public Guid? OriginalFiscalYearId { get; set; }
 
@@ -98,11 +91,6 @@ namespace SkyForge.Models.AccountModel
         [Column("date")]
         public DateTime Date { get; set; } = DateTime.UtcNow;
         public string? NepaliDate { get; set; }
-
-        // public Guid? OriginalFiscalYearId { get; set; }
-
-        // [ForeignKey("OriginalFiscalYearId")]
-        // public virtual FiscalYear? OriginalFiscalYear { get; set; }
 
         // Flags
         public bool DefaultCashAccount { get; set; } = false;

@@ -124,6 +124,7 @@ namespace SkyForge.Models.Retailer.TransactionModel
 
         [ForeignKey("Receipt")]
         public Guid? ReceiptAccountId { get; set; }
+        
         public virtual Receipt? Receipt { get; set; }
 
         // Transaction header details

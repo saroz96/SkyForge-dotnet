@@ -428,6 +428,7 @@ namespace SkyForge.Services.Retailer.CreditNoteServices
                             Id = Guid.NewGuid(),
                             CreditNoteId = creditNote.Id,
                             AccountId = entryDto.AccountId,
+                            BillNumber = billNumber,
                             Type = TransactionType.CrNt, // Credit Note
                             DrCrNoteAccountTypes = entryDto.EntryType, // "Debit" or "Credit"
                             DrCrNoteAccountType = oppositeAccountNamesStr,

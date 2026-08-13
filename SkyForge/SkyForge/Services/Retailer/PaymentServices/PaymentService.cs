@@ -292,11 +292,16 @@ namespace SkyForge.Services.Retailer.PaymentServices
                         DrCrNoteAccountTypes = "Debit",
                         PaymentReceiptType = creditAccount.Name,  // Store the payment account name
                         BillNumber = billNumber,
-                        InstType = debitEntry.InstType.HasValue
-                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+                        // InstType = debitEntry.InstType.HasValue
+                        //     ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+                        //     : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        // InstNo = debitEntry.InstNo,
+                        // BankAcc = debitEntry.BankAcc,
+                        InstType = creditEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
                             : Models.Retailer.TransactionModel.InstrumentType.NA,
-                        InstNo = debitEntry.InstNo,
-                        BankAcc = debitEntry.BankAcc,
+                        InstNo = creditEntry.InstNo,
+                        BankAcc = creditEntry.BankAcc,
                         TotalDebit = debitEntry.Amount,
                         TotalCredit = 0,
                         PaymentMode = PaymentMode.Payment,
@@ -1184,11 +1189,16 @@ namespace SkyForge.Services.Retailer.PaymentServices
                         DrCrNoteAccountTypes = "Debit",
                         PaymentReceiptType = creditAccount.Name,  // Store the payment account name (Credit account name)
                         BillNumber = existingPayment.BillNumber,
-                        InstType = debitEntry.InstType.HasValue
-                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+                        // InstType = debitEntry.InstType.HasValue
+                        //     ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
+                        //     : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        // InstNo = debitEntry.InstNo,
+                        // BankAcc = debitEntry.BankAcc,
+                        InstType = creditEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
                             : Models.Retailer.TransactionModel.InstrumentType.NA,
-                        InstNo = debitEntry.InstNo,
-                        BankAcc = debitEntry.BankAcc,
+                        InstNo = creditEntry.InstNo,
+                        BankAcc = creditEntry.BankAcc,
                         TotalDebit = debitEntry.Amount,
                         TotalCredit = 0,
                         PaymentMode = PaymentMode.Payment,

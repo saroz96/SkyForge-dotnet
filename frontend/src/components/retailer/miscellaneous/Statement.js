@@ -114,6 +114,19 @@ const isValidNepaliDate = (dateStr) => {
 const Statement = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
+    const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+    const [whatsAppNumber, setWhatsAppNumber] = useState('');
+    const [whatsAppMessage, setWhatsAppMessage] = useState('');
+    const [generatedShareLink, setGeneratedShareLink] = useState('');
+    const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [emailAddress, setEmailAddress] = useState('');
+    const [emailSubject, setEmailSubject] = useState('');
+    const [emailBody, setEmailBody] = useState('');
+    const [emailLoading, setEmailLoading] = useState(false);
+
+    const [emailClient, setEmailClient] = useState('gmail'); // 'gmail', 'outlook', 'yahoo', 'default'
+
 
     const [dateErrors, setDateErrors] = useState({
         fromDate: '',
@@ -188,7 +201,8 @@ const Statement = () => {
                 nepaliDate: draftSave.statementData.nepaliDate || '',
                 user: draftSave.statementData.user || null,
                 selectedAccountUniqueNumber: draftSave.statementData.selectedAccountUniqueNumber || null,
-                selectedAccountName: draftSave.statementData.selectedAccountName || null
+                selectedAccountName: draftSave.statementData.selectedAccountName || null,
+                selectedAccountPhone: draftSave.statementData.selectedAccountPhone || null
             };
         }
         return {
@@ -208,7 +222,8 @@ const Statement = () => {
             nepaliDate: '',
             user: null,
             selectedAccountUniqueNumber: null,
-            selectedAccountName: null
+            selectedAccountName: null,
+            selectedAccountPhone: null
         };
     });
 
@@ -267,7 +282,7 @@ const Statement = () => {
         account: 200,
         debit: 100,
         credit: 100,
-        balance: 100
+        balance: 100,
     });
 
     const [isResizing, setIsResizing] = useState(false);
@@ -669,6 +684,14 @@ const Statement = () => {
                 if (response.data.success) {
                     const responseData = response.data.data;
 
+                    let selectedAccountPhone = null;
+                    if (responseData.selectedCompany) {
+                        const selectedAccount = accounts.find(a => a.id === responseData.selectedCompany);
+                        if (selectedAccount) {
+                            selectedAccountPhone = selectedAccount.phone || null;
+                        }
+                    }
+
                     const selectedAccount = accounts.find(a => a.id === responseData.selectedCompany);
                     const formattedPartyName = selectedAccount && selectedAccount.uniqueNumber
                         ? `${selectedAccount.uniqueNumber} ${selectedAccount.name}`.trim()
@@ -681,6 +704,7 @@ const Statement = () => {
                         itemwiseStatement: responseData.itemwiseStatement || [],
                         partyName: formattedPartyName,
                         selectedCompany: responseData.selectedCompany || prev.selectedCompany,
+                        selectedAccountPhone: selectedAccountPhone || prev.selectedAccountPhone,
                         totalDebit: responseData.totalDebit || 0,
                         totalCredit: responseData.totalCredit || 0,
                         openingBalance: responseData.openingBalance || 0,
@@ -803,7 +827,8 @@ const Statement = () => {
             selectedCompany: account.id,
             partyName: formattedName,
             selectedAccountUniqueNumber: account.uniqueNumber,
-            selectedAccountName: account.name
+            selectedAccountName: account.name,
+            selectedAccountPhone: account.phone || ''
         }));
         setShowAccountModal(false);
         setAccountSearchQuery('');
@@ -851,55 +876,100 @@ const Statement = () => {
 
     const handleRowDoubleClick = (item) => {
         let route = '';
+
+        console.log('🔍 Full item data:', item);
+        console.log('🔍 AccountGroupName:', item.accountGroupName);
+        console.log('🔍 AccountGroupName type:', typeof item.accountGroupName);
+        console.log('🔍 AccountGroupName length:', item.accountGroupName?.length);
+        console.log('🔍 AccountGroupName raw:', JSON.stringify(item.accountGroupName));
+
+        // Get IDs
         const billId = item.billId || item.id;
-        const salesReturnBillId = item.salesReturnBillId || item.id;
+        const salesBillId = item.salesBillId || item.id;
         const purchaseBillId = item.purchaseBillId || item.id;
+        const salesReturnBillId = item.salesReturnBillId || item.id;
         const purchaseReturnBillId = item.purchaseReturnBillId || item.id;
         const paymentAccountId = item.paymentAccountId || item.id;
         const receiptAccountId = item.receiptAccountId || item.id;
         const journalBillId = item.journalBillId || item.id;
         const debitNoteId = item.debitNoteId || item.id;
-        const salesBillId = item.salesBillId || item.id;
+
+        // Get account group name (case-insensitive)
+        const accountGroupName = (item.accountGroupName || '').toLowerCase().trim();
+
+        // Log for debugging
+        console.log('Transaction details:', {
+            type: item.type,
+            accountGroupName: accountGroupName,
+            salesBillId: salesBillId,
+            purchaseBillId: purchaseBillId
+        });
+
+        // Check account group type
+        const isSundryDebtor = accountGroupName === 'sundry debtors';
+        const isSundryCreditor = accountGroupName === 'sundry creditors';
+        const isCashInHand = accountGroupName === 'cash in hand';
 
         switch (item.type?.toLowerCase()) {
             case 'sale':
-                if (item.paymentMode === 'cash') {
-                    route = `/retailer/cash-sales/edit/${salesBillId || billId}`;
-                } else if (item.paymentMode === 'credit') {
+                // For Sundry Debtors -> Credit Sale
+                if (isSundryDebtor || isSundryCreditor) {
                     route = `/retailer/credit-sales/edit/${salesBillId || billId}`;
                 }
-                break;
-            case 'slrt': // Sales Return
-                if (item.paymentMode === 'cash') {
-                    route = `/retailer/cash-sales-return/edit/${salesReturnBillId || billId}`;
-                } else if (item.paymentMode === 'credit') {
-                    route = `/retailer/credit-sales-return/edit/${salesReturnBillId || billId}`;
+                // For Cash in Hand -> Cash Sale
+                else if (isCashInHand) {
+                    route = `/retailer/cash-sales/edit/${salesBillId || billId}`;
                 }
                 break;
+
             case 'purc':
                 route = `/retailer/purchase/edit/${purchaseBillId}`;
                 break;
+
+            case 'slrt': // Sales Return
+                if (isSundryDebtor || isSundryCreditor) {
+                    route = `/retailer/sales-return/edit/${salesReturnBillId || billId}`;
+                } else if (isCashInHand) {
+                    route = `/retailer/cash/sales-return/edit/${salesReturnBillId || billId}`;
+                }
+                break;
+
             case 'prrt':
                 route = `/retailer/purchase-return/edit/${purchaseReturnBillId}`;
                 break;
+
             case 'pymt':
-                route = `/retailer/payments/${paymentAccountId}`;
+                route = `/retailer/payments/edit/${paymentAccountId || billId}`;
                 break;
+
             case 'rcpt':
-                route = `/retailer/receipts/${receiptAccountId}`;
+                route = `/retailer/receipts/edit/${receiptAccountId || billId}`;
                 break;
+
             case 'jrnl':
-                route = `/retailer/journal/${journalBillId}`;
+                route = `/retailer/journal/edit/${journalBillId || billId}`;
                 break;
+
             case 'drnt':
-                route = `/retailer/debit-note/${debitNoteId}`;
+                route = `/retailer/debit-note/edit/${debitNoteId || billId}`;
                 break;
+            case 'crnt':
+                route = `/retailer/credit-note/edit/${debitNoteId || billId}`;
+                break;
+
             default:
+                console.warn('Unknown transaction type:', item.type);
                 return;
         }
 
         if (route) {
+            console.log('✅ Navigating to:', route);
             navigate(route);
+        } else {
+            console.warn('❌ No route found for:', {
+                type: item.type,
+                accountGroupName: accountGroupName
+            });
         }
     };
 
@@ -1119,14 +1189,15 @@ const Statement = () => {
                         display: table-row-group;
                     }
                     /* Responsive cell sizing */
-                    .col-miti { min-width: 80px; }
-                    .col-date { min-width: 80px; }
+                    .col-miti { min-width: 60px; }
+                    .col-date { min-width: 60px; }
                     .col-vch { min-width: 70px; }
-                    .col-type { min-width: 60px; }
-                    .col-paymode { min-width: 80px; }
-                    .col-account { min-width: 120px; }
-                    .col-amount { min-width: 80px; }
-                    .col-balance { min-width: 90px; }
+                    .col-type { min-width: 30px; }
+                    .col-paymode { min-width: 50px; }
+                    .col-account { min-width: 180px; }
+                    .col-amount { min-width: 50px; }
+                    .col-balance { min-width: 60px; }
+                    .col-remarks { min-width: 130px; }
                     
                     /* Itemwise specific */
                     .col-item { min-width: 120px; }
@@ -1201,6 +1272,7 @@ const Statement = () => {
                 <th class="nowrap col-amount text-end">Debit (Rs.)</th>
                 <th class="nowrap col-amount text-end">Credit (Rs.)</th>
                 <th class="nowrap col-balance text-end">Balance (Rs.)</th>
+                <th class="nowrap col-remarks">Remarks</th>
             </tr>
         </thead>
         <tbody>
@@ -1251,6 +1323,17 @@ const Statement = () => {
                 accountName = item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.journalAccountType || '';
             }
 
+            let remarks = '';
+            if (item.cashSettlementRemarks) {
+                remarks = item.cashSettlementRemarks;
+            } else if (item.instType && item.instNo) {
+                remarks = `${item.instType} ${item.instNo}`;
+            } else if (item.instType) {
+                remarks = item.instType;
+            } else if (item.instNo) {
+                remarks = item.instNo;
+            }
+
             tableContent += `
         <tr>
             <td class="nowrap">${bsDate || '-'}</td>
@@ -1262,6 +1345,7 @@ const Statement = () => {
             <td class="text-end amount-positive">${debitAmount > 0 ? formatCurrencyForPrint(debitAmount) : '-'}</td>
             <td class="text-end amount-positive">${creditAmount > 0 ? formatCurrencyForPrint(creditAmount) : '-'}</td>
             <td class="text-end balance-text">${balanceText}</td>
+            <td class="nowrap" style="font-size: 8px;">${remarks || ''}</td>
         </tr>
     `;
         });
@@ -1274,6 +1358,7 @@ const Statement = () => {
             <td class="text-end total-label">${formatCurrencyForPrint(totalDebit)}</td>
             <td class="text-end total-label">${formatCurrencyForPrint(totalCredit)}</td>
             <td class="text-end total-label">${finalBalanceText}</td>
+            <td class="text-end total-label"></td>
         </tr>
         </tbody>
     </table>
@@ -1457,7 +1542,7 @@ const Statement = () => {
 
                 const headers = [
                     'Miti', 'Date', 'Voucher No.', 'Voucher Type', 'Payment Mode',
-                    'Account', 'Debit Amount', 'Credit Amount', 'Balance'
+                    'Account', 'Debit Amount', 'Credit Amount', 'Balance', 'Remarks'
                 ];
                 excelData.push(headers);
 
@@ -1514,6 +1599,17 @@ const Statement = () => {
 
                     const balanceText = balance > 0 ? `${formatCurrencyForExport(Math.abs(balance))} Dr` : `${formatCurrencyForExport(Math.abs(balance))} Cr`;
 
+                    let remarks = '';
+                    if (item.cashSettlementRemarks) {
+                        remarks = item.cashSettlementRemarks;
+                    } else if (item.instType && item.instNo) {
+                        remarks = `${item.instType} ${item.instNo}`;
+                    } else if (item.instType) {
+                        remarks = item.instType;
+                    } else if (item.instNo) {
+                        remarks = item.instNo;
+                    }
+
                     const rowData = [
                         bsDate || '-',
                         adDate || '-',
@@ -1523,7 +1619,8 @@ const Statement = () => {
                         accountName,
                         debitAmount > 0 ? formatCurrencyForExport(debitAmount) : '-',
                         creditAmount > 0 ? formatCurrencyForExport(creditAmount) : '-',
-                        balanceText
+                        balanceText,
+                        remarks || ''
                     ];
                     excelData.push(rowData);
                 });
@@ -1540,7 +1637,8 @@ const Statement = () => {
                     'Grand Total:', // Column 6: Account
                     formatCurrencyForExport(totalDebit),  // Column 7: Debit Amount
                     formatCurrencyForExport(totalCredit), // Column 8: Credit Amount
-                    finalBalanceText  // Column 9: Balance
+                    finalBalanceText, // Column 9: Balance
+                    ''
                 ]);
 
                 // Add opening balance info for reference
@@ -1629,7 +1727,7 @@ const Statement = () => {
             const ws = XLSX.utils.aoa_to_sheet(excelData);
 
             ws['!cols'] = viewMode === 'regular'
-                ? [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
+                ? [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }]
                 : [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 15 }];
 
             const wb = XLSX.utils.book_new();
@@ -1679,8 +1777,309 @@ const Statement = () => {
             account: 200,
             debit: 100,
             credit: 100,
-            balance: 100
+            balance: 100,
         });
+    };
+    // Function to build WhatsApp message
+    // const buildWhatsAppMessage = useCallback(() => {
+    //     let message = '';
+
+    //     // Header
+    //     message += `📊 *STATEMENT OF ACCOUNT*\n\n`;
+    //     message += `🏢 *Company:* ${data.currentCompanyName || 'N/A'}\n`;
+    //     message += `👤 *Party:* ${data.partyName || 'N/A'}\n`;
+    //     message += `📅 *From (BS):* ${dateRange.fromDate}\n`;
+    //     message += `📅 *To (BS):* ${dateRange.toDate}\n`;
+    //     message += `💳 *Payment Mode:* ${data.paymentMode === 'all' ? 'All (Include Cash)' : data.paymentMode === 'exclude-cash' ? 'All (Exclude Cash)' : data.paymentMode}\n\n`;
+    //     message += `─────────────────────\n\n`;
+
+    //     if (viewMode === 'regular') {
+    //         const statementToShare = filteredStatement.length > 0 ? filteredStatement : data.statement;
+
+    //         // Add header
+    //         message += `*Miti* | *Vch No.* | *Type* | *Debit* | *Credit* | *Balance*\n`;
+    //         message += `───────────────────────────────────────────────────────\n`;
+
+    //         // Limit to first 20 entries to avoid message too long
+    //         const entriesToShow = statementToShare.slice(0, 20);
+    //         entriesToShow.forEach((item) => {
+    //             const bsDate = item.nepaliDate || '-';
+    //             const billNumber = item.billNumber || '-';
+    //             const type = item.type || '-';
+    //             const debit = item.debit > 0 ? formatCurrency(item.debit) : '-';
+    //             const credit = item.credit > 0 ? formatCurrency(item.credit) : '-';
+    //             const balance = item.balance > 0 ? `${formatCurrency(item.balance)} Dr` : `${formatCurrency(Math.abs(item.balance))} Cr`;
+
+    //             message += `${bsDate} | ${billNumber} | ${type} | ${debit} | ${credit} | ${balance}\n`;
+    //         });
+
+    //         if (statementToShare.length > 20) {
+    //             message += `... and ${statementToShare.length - 20} more entries\n`;
+    //         }
+
+    //         message += `───────────────────────────────────────────────────────\n`;
+    //         message += `*Totals:* Debit: ${formatCurrency(data.totalDebit)} | Credit: ${formatCurrency(data.totalCredit)}\n`;
+    //         message += `*Opening Balance:* ${data.openingBalance > 0 ? formatCurrency(data.openingBalance) : formatCurrency(Math.abs(data.openingBalance))}\n`;
+
+    //     } else {
+    //         // Itemwise view
+    //         message += `*Itemwise Statement*\n\n`;
+    //         message += `*Bill No.* | *Type* | *Item* | *Qty* | *Rate* | *Total*\n`;
+    //         message += `───────────────────────────────────────────────────────\n`;
+
+    //         // Limit items to avoid long message
+    //         let itemCount = 0;
+    //         data.itemwiseStatement.forEach((bill) => {
+    //             if (bill.items && bill.items.length > 0) {
+    //                 bill.items.forEach((item) => {
+    //                     if (itemCount < 30) {
+    //                         const quantity = item.quantity ? parseFloat(item.quantity) : 0;
+    //                         const rate = item.puPrice || item.price || 0;
+    //                         const total = item.totalAmount || 0;
+
+    //                         message += `${bill.billNumber || '-'} | ${bill.type || '-'} | ${item.item?.name || item.productName || 'N/A'} | ${quantity.toFixed(2)} | ${formatCurrency(rate)} | ${formatCurrency(total)}\n`;
+    //                         itemCount++;
+    //                     }
+    //                 });
+    //             }
+    //         });
+
+    //         if (itemCount >= 30) {
+    //             message += `... and more items\n`;
+    //         }
+    //     }
+
+    //     // Footer
+    //     message += `\n─────────────────────\n`;
+    //     message += `📅 Generated on: ${new Date().toLocaleString()}\n`;
+    //     message += `🔹 Powered by Ams Software\n`;
+
+    //     return message;
+    // }, [data, viewMode, filteredStatement, dateRange, formatCurrency]);
+
+    // Function to build WhatsApp message - ONLY the link
+    const buildWhatsAppMessage = useCallback(() => {
+        let message = '';
+
+        if (!generatedShareLink) {
+            return 'Generating link...';
+        }
+
+        // Build a clean message with just the link and basic info
+        message += `📊 *STATEMENT OF ACCOUNT*\n\n`;
+        message += `🏢 *Company:* ${data.currentCompanyName || 'N/A'}\n`;
+        message += `👤 *Party:* ${data.partyName || 'N/A'}\n`;
+        message += `📅 *Period:* ${dateRange.fromDate} to ${dateRange.toDate}\n\n`;
+        message += `─────────────────────\n\n`;
+        message += `🔗 *View your statement anytime:*\n`;
+        message += `${generatedShareLink}\n\n`;
+        message += `💡 *This link is permanent and always shows your latest statement.*\n\n`;
+        message += `─────────────────────\n`;
+        message += `📅 Generated: ${new Date().toLocaleString()}\n`;
+        message += `🔹 Powered by Ams Software`;
+
+        return message;
+    }, [data, dateRange, generatedShareLink]);
+
+
+    const handleOpenWhatsAppModal = async () => {
+        // Check if there's data to share
+        const rowsToShare = viewMode === 'regular'
+            ? (filteredStatement.length > 0 ? filteredStatement : data.statement)
+            : data.itemwiseStatement;
+
+        if (!rowsToShare || rowsToShare.length === 0) {
+            setNotification({
+                show: true,
+                message: 'No statement data to share. Please generate a report first.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        if (!data.selectedCompany) {
+            setNotification({
+                show: true,
+                message: 'Please select an account first',
+                type: 'warning'
+            });
+            return;
+        }
+
+        try {
+            setIsGeneratingLink(true);
+
+            // Generate the permanent shareable link
+            const response = await api.post('/api/retailer/generate-share-token', {
+                accountId: data.selectedCompany
+            });
+
+            if (response.data.success) {
+                const shareableUrl = response.data.shareableUrl;
+                setGeneratedShareLink(shareableUrl);
+
+                // Build the message with the link (wait a moment for state to update)
+                // We need to use the updated shareableUrl directly
+                const message = `📊 *STATEMENT OF ACCOUNT*\n\n` +
+                    `🏢 *Company:* ${data.currentCompanyName || 'N/A'}\n` +
+                    `👤 *Party:* ${data.partyName || 'N/A'}\n` +
+                    `📅 *Period:* ${dateRange.fromDate} to ${dateRange.toDate}\n\n` +
+                    `─────────────────────\n\n` +
+                    `🔗 *View your statement anytime:*\n` +
+                    `${shareableUrl}\n\n` +
+                    `💡 *This link is permanent and always shows your latest statement.*\n\n` +
+                    `─────────────────────\n` +
+                    `📅 Generated: ${new Date().toLocaleString()}\n` +
+                    `🔹 Powered by Ams Software`;
+
+                setWhatsAppMessage(message);
+
+                // Pre-fill with the selected account's phone number
+                let defaultNumber = '';
+                if (data.selectedAccountPhone) {
+                    defaultNumber = data.selectedAccountPhone.replace(/[^0-9]/g, '');
+                } else if (data.selectedCompany) {
+                    const selectedAccount = accounts.find(a => a.id === data.selectedCompany);
+                    if (selectedAccount?.phone) {
+                        defaultNumber = selectedAccount.phone.replace(/[^0-9]/g, '');
+                    }
+                } else if (data.company?.phone) {
+                    defaultNumber = data.company.phone.replace(/[^0-9]/g, '');
+                }
+                setWhatsAppNumber(defaultNumber);
+
+                setShowWhatsAppModal(true);
+
+                // setNotification({
+                //     show: true,
+                //     message: '✅ Shareable link generated! Ready to send via WhatsApp.',
+                //     type: 'success',
+                //     duration: 3000
+                // });
+            } else {
+                throw new Error(response.data.error || 'Failed to generate share link');
+            }
+
+            setIsGeneratingLink(false);
+        } catch (error) {
+            console.error('Error generating share link for WhatsApp:', error);
+            setNotification({
+                show: true,
+                message: 'Failed to generate share link: ' + (error.response?.data?.error || error.message),
+                type: 'error'
+            });
+            setIsGeneratingLink(false);
+            setShowWhatsAppModal(false);
+        }
+    };
+
+
+    const handleSendWhatsApp = () => {
+        if (!whatsAppNumber || whatsAppNumber.length < 10) {
+            setNotification({
+                show: true,
+                message: 'Please enter a valid WhatsApp number (minimum 10 digits)',
+                type: 'warning'
+            });
+            return;
+        }
+
+        // If no link is generated, generate one first
+        if (!generatedShareLink) {
+            setNotification({
+                show: true,
+                message: 'Please wait while we generate the shareable link...',
+                type: 'info'
+            });
+            handleOpenWhatsAppModal();
+            return;
+        }
+
+        // Use the current WhatsApp message (which contains the link)
+        const messageToSend = whatsAppMessage || buildWhatsAppMessage();
+
+        // Encode the message
+        const encodedMessage = encodeURIComponent(messageToSend);
+
+        // Clean the number (remove any non-numeric characters)
+        const cleanNumber = whatsAppNumber.replace(/[^0-9]/g, '');
+
+        // Check if user is on mobile or desktop
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        // Choose appropriate URL
+        let whatsappUrl;
+        if (isMobile) {
+            // Mobile: Use wa.me - this will open the app if installed
+            whatsappUrl = `https://wa.me/${cleanNumber}?text=${encodedMessage}`;
+        } else {
+            // Desktop: Use web.whatsapp.com
+            whatsappUrl = `https://web.whatsapp.com/send?phone=${cleanNumber}&text=${encodedMessage}`;
+        }
+
+        // Close the modal
+        setShowWhatsAppModal(false);
+        setWhatsAppNumber('');
+        setGeneratedShareLink('');
+        setWhatsAppMessage('');
+
+        // Open WhatsApp
+        window.open(whatsappUrl, '_blank');
+
+        setNotification({
+            show: true,
+            message: '✅ WhatsApp opened with the statement link!',
+            type: 'success',
+            duration: 3000
+        });
+    };
+
+    const generatePermanentShareLink = async () => {
+        if (!data.selectedCompany) {
+            setNotification({
+                show: true,
+                message: 'Please select an account first',
+                type: 'warning'
+            });
+            return;
+        }
+
+        try {
+            setEmailLoading(true);
+
+            const response = await api.post('/api/retailer/generate-share-token', {
+                accountId: data.selectedCompany
+            });
+
+            console.log('Share token response:', response.data);
+
+            if (response.data.success) {
+                const shareableUrl = response.data.shareableUrl;
+
+                // Copy to clipboard
+                navigator.clipboard.writeText(shareableUrl).then(() => {
+                    setNotification({
+                        show: true,
+                        message: `✅ Permanent shareable link copied to clipboard! Share it with anyone.`,
+                        type: 'success',
+                        duration: 5000
+                    });
+                }).catch(() => {
+                    // Fallback: show the link in a prompt
+                    prompt('Copy this link to share the statement:', shareableUrl);
+                });
+            }
+
+            setEmailLoading(false);
+        } catch (error) {
+            console.error('Error generating share link:', error);
+            setNotification({
+                show: true,
+                message: 'Failed to generate share link: ' + (error.response?.data?.error || error.message),
+                type: 'error'
+            });
+            setEmailLoading(false);
+        }
     };
 
     // Resize Handle Component
@@ -1711,7 +2110,7 @@ const Statement = () => {
     const TableHeader = React.memo(() => {
         const totalWidth = columnWidths.bsDate + columnWidths.adDate + columnWidths.voucherNo +
             columnWidths.voucherType + columnWidths.payMode + columnWidths.account +
-            columnWidths.debit + columnWidths.credit + columnWidths.balance;
+            columnWidths.debit + columnWidths.credit + columnWidths.balance + columnWidths.remarks;
 
         const handleResizeStart = (e, columnName) => {
             setIsResizing(true);
@@ -1806,425 +2205,17 @@ const Statement = () => {
                     <strong style={{ fontSize: '0.75rem' }}>Balance</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.balance - 2} columnName="balance" />
                 </div>
-
+                {/* Remarks */}
+                <div className="d-flex align-items-center justify-content-end px-1 position-relative" style={{ width: `${columnWidths.remarks}px`, flexShrink: 0, minWidth: '80px' }}>
+                    <strong style={{ fontSize: '0.75rem' }}>Remarks</strong>
+                    <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.remarks - 2} columnName="remarks" />
+                </div>
                 {isResizing && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, cursor: 'col-resize' }} />
                 )}
             </div>
         );
     });
-
-    // const TableRow = React.memo(({ index, style, data: rowData }) => {
-    //     const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
-    //     const item = statement[index];
-    //     const isNepaliFormat = company.dateFormat === 'nepali';
-
-    //     if (!item) return null;
-
-    //     const isSelected = selectedRowIndex === index;
-
-    //     const getFormattedAccountName = (item) => {
-    //         if (item.type === 'Purc') {
-    //             if (item.partyBillNumber) {
-    //                 return `Purchase ${item.partyBillNumber}`;
-    //             }
-    //             return item.accountType || item.purchaseSalesType || 'Purchase';
-    //         }
-    //         if (item.type === 'PrRt') {
-    //             if (item.partyBillNumber) {
-    //                 return `Purchase Return ${item.partyBillNumber}`;
-    //             }
-    //             return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
-    //         }
-    //         return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
-    //             item.PaymentReceiptType || item.journalAccountType || 'Opening';
-    //     };
-
-    //     // Helper function to subtract days from AD date
-    //     const subtractDaysFromAdDate = (adDateStr, days) => {
-    //         if (!adDateStr) return adDateStr;
-    //         try {
-    //             const date = new Date(adDateStr);
-    //             date.setDate(date.getDate() - days);
-    //             return date.toISOString().split('T')[0];
-    //         } catch (error) {
-    //             console.error('Error subtracting days from AD date:', error);
-    //             return adDateStr;
-    //         }
-    //     };
-
-    //     // Helper function to subtract days from Nepali date
-    //     const subtractDaysFromNepaliDate = (nepaliDateStr, days) => {
-    //         if (!nepaliDateStr || !isNepaliFormat) return nepaliDateStr;
-    //         try {
-    //             const nepaliDate = new NepaliDate(nepaliDateStr);
-    //             const jsDate = nepaliDate.getDateObject();
-    //             jsDate.setDate(jsDate.getDate() - days);
-    //             const newNepaliDate = new NepaliDate(jsDate);
-    //             const year = newNepaliDate.getYear();
-    //             const month = String(newNepaliDate.getMonth() + 1).padStart(2, '0');
-    //             const day = String(newNepaliDate.getDate()).padStart(2, '0');
-    //             return `${year}-${month}-${day}`;
-    //         } catch (error) {
-    //             console.error('Error subtracting days from Nepali date:', error);
-    //             return nepaliDateStr;
-    //         }
-    //     };
-
-    //     // Check if this is an opening balance entry
-    //     const isOpeningBalance = item.accountType === 'Opening' ||
-    //         item.type === 'Opening' ||
-    //         (!item.type && item.accountType === 'Opening') ||
-    //         (item.accountType === 'Opening');
-
-    //     let bsDate = '';
-    //     let adDateDisplay = '';
-
-    //     if (isOpeningBalance) {
-    //         // For opening balance, show the from date (not subtracted)
-    //         if (isNepaliFormat && dateRange.fromDate) {
-    //             // Show the from date as-is for the opening balance
-    //             bsDate = dateRange.fromDate;
-    //         } else if (dateRange.fromDateAd) {
-    //             // For AD date, show the from date
-    //             adDateDisplay = dateRange.fromDateAd;
-    //         }
-    //     } else {
-    //         // For regular transactions, use the transaction date
-    //         bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
-    //         adDateDisplay = item.date ? new Date(item.date).toLocaleDateString() : '';
-    //     }
-
-    //     return (
-    //         <div
-    //             style={{
-    //                 ...style,
-    //                 display: 'flex',
-    //                 alignItems: 'center',
-    //                 height: '28px',
-    //                 minHeight: '28px',
-    //                 padding: '0',
-    //                 borderBottom: '1px solid #dee2e6',
-    //                 cursor: 'pointer',
-    //                 backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
-    //             }}
-    //             onClick={() => handleRowClick(index)}
-    //             onDoubleClick={() => handleRowDoubleClick(item)}
-    //         >
-    //             {/* BS Date Column */}
-    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{bsDate || '-'}</span>
-    //             </div>
-
-    //             {/* AD Date Column */}
-    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{adDateDisplay || '-'}</span>
-    //             </div>
-
-    //             {/* Voucher No Column */}
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{item.billNumber || ''}</span>
-    //             </div>
-
-    //             {/* Type Column */}
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{item.type || ''}</span>
-    //             </div>
-
-    //             {/* Pay Mode Column */}
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{item.paymentMode || ''}</span>
-    //             </div>
-
-    //             {/* Account Column */}
-    //             <div
-    //                 className="d-flex align-items-center px-1 border-end"
-    //                 style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
-    //                 title={getFormattedAccountName(item)}
-    //             >
-    //                 <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-    //                     {getFormattedAccountName(item)}
-    //                 </span>
-    //             </div>
-
-    //             {/* Debit Column */}
-    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.debit)}</span>
-    //             </div>
-
-    //             {/* Credit Column */}
-    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{formatCurrency(item.credit)}</span>
-    //             </div>
-
-    //             {/* Balance Column */}
-    //             <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{formatBalance(item.balance)}</span>
-    //             </div>
-    //         </div>
-    //     );
-    // });
-
-    // const TableRow = React.memo(({ index, style, data: rowData }) => {
-    //     const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
-    //     const item = statement[index];
-    //     const isNepaliFormat = company.dateFormat === 'nepali';
-
-    //     // In the TableRow component, add a settlement status column or badge
-    //     const getSettlementStatusBadge = (item) => {
-    //         if (!item.isCashTransaction) return null;
-    //         if (!item.cashSettlementStatus) {
-    //             return (
-    //                 <Badge bg="secondary" style={{ fontSize: '8px' }}>
-    //                     <i className="bi bi-clock me-1"></i>Pending
-    //                 </Badge>
-    //             );
-    //         }
-
-    //         const statusColors = {
-    //             'Received': 'success',
-    //             'Paid': 'info',
-    //             'Refunded': 'warning',
-    //             'Pending': 'secondary'
-    //         };
-
-    //         const statusIcons = {
-    //             'Received': '⬇',
-    //             'Paid': '⬆',
-    //             'Refunded': '↩',
-    //             'Pending': '⏳'
-    //         };
-
-    //         return (
-    //             <Badge bg={statusColors[item.cashSettlementStatus] || 'secondary'} style={{ fontSize: '8px' }}>
-    //                 {statusIcons[item.cashSettlementStatus] || ''} {item.cashSettlementStatus}
-    //             </Badge>
-    //         );
-    //     };
-
-    //     if (!item) return null;
-
-    //     const isSelected = selectedRowIndex === index;
-
-    //     // Check if this is a cash entry (cash received/paid)
-    //     const isCashEntry = item.isCashEntry || false;
-    //     const isCashTransaction = item.isCashTransaction || false;
-    //     const isSundryAccount = item.isSundryAccount || false;
-
-    //     // Only show cash entry styling if it's a Sundry account
-    //     const showCashEntry = isCashEntry && isSundryAccount;
-
-    //     const getFormattedAccountName = (item) => {
-    //         // For cash entries on Sundry accounts
-    //         if (showCashEntry) {
-    //             return item.accountType || 'Cash Entry';
-    //         }
-
-    //         // For original cash transactions on Sundry accounts
-    //         if (isCashTransaction && isSundryAccount && item.paymentDirection) {
-    //             if (item.type === 'Sale' && item.paymentMode === 'Cash') {
-    //                 return 'Cash Sale';
-    //             }
-    //             if (item.type === 'Purc' && item.paymentMode === 'Cash') {
-    //                 return 'Cash Purchase';
-    //             }
-    //             if (item.type === 'SlRt' && item.paymentMode === 'Cash') {
-    //                 return 'Cash Sales Rtn.';
-    //             }
-    //             if (item.type === 'PrRt' && item.paymentMode === 'Cash') {
-    //                 return 'Cash Purchase Rtn.';
-    //             }
-    //         }
-
-    //         // Existing logic for other transactions
-    //         if (item.type === 'Purc') {
-    //             if (item.partyBillNumber) {
-    //                 return `Purchase ${item.partyBillNumber}`;
-    //             }
-    //             return item.accountType || item.purchaseSalesType || 'Purchase';
-    //         }
-    //         if (item.type === 'PrRt') {
-    //             if (item.partyBillNumber) {
-    //                 return `Purchase Return ${item.partyBillNumber}`;
-    //             }
-    //             return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
-    //         }
-    //         if (item.type === 'Pymt') {
-    //             return 'Payment';
-    //         }
-    //         if (item.type === 'Rcpt') {
-    //             return 'Receipt';
-    //         }
-    //         return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
-    //             item.PaymentReceiptType || item.journalAccountType || 'Opening';
-    //     };
-
-    //     // Check if this is an opening balance entry
-    //     const isOpeningBalance = item.accountType === 'Opening' ||
-    //         item.type === 'Opening' ||
-    //         (!item.type && item.accountType === 'Opening') ||
-    //         (item.accountType === 'Opening');
-
-    //     // Calculate BS Date and AD Date
-    //     let bsDate = '';
-    //     let adDateDisplay = '';
-
-    //     if (isOpeningBalance) {
-    //         if (isNepaliFormat && dateRange.fromDate) {
-    //             bsDate = dateRange.fromDate;
-    //         } else if (dateRange.fromDateAd) {
-    //             adDateDisplay = dateRange.fromDateAd;
-    //         }
-    //     } else {
-    //         bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
-    //         adDateDisplay = item.date ? new Date(item.date).toLocaleDateString() : '';
-    //     }
-
-    //     // Determine row background color
-    //     let backgroundColor = isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white');
-
-    //     // Special highlighting for cash entries (cash received/paid) - ONLY for Sundry accounts
-    //     if (showCashEntry) {
-    //         backgroundColor = isSelected ? '#d4edda' : (index % 2 === 0 ? '#e8f5e9' : '#f1f8e9');
-    //     }
-
-    //     // Determine if we should show the cash indicators
-    //     const showCashIndicators = isCashTransaction && isSundryAccount;
-
-    //     return (
-    //         <div
-    //             style={{
-    //                 ...style,
-    //                 display: 'flex',
-    //                 alignItems: 'center',
-    //                 height: '28px',
-    //                 minHeight: '28px',
-    //                 padding: '0',
-    //                 borderBottom: '1px solid #dee2e6',
-    //                 cursor: 'pointer',
-    //                 backgroundColor: backgroundColor,
-    //                 borderLeft: showCashEntry ? '3px solid #28a745' : 'none'
-    //             }}
-    //             onClick={() => handleRowClick(index)}
-    //             onDoubleClick={() => handleRowDoubleClick(item)}
-    //         >
-    //             {/* BS Date Column */}
-    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{bsDate || '-'}</span>
-    //             </div>
-
-    //             {/* AD Date Column */}
-    //             <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{ fontSize: '0.75rem' }}>{adDateDisplay || '-'}</span>
-    //             </div>
-
-    //             {/* Voucher No Column */}
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{
-    //                     fontSize: '0.75rem',
-    //                     fontWeight: showCashEntry ? '600' : 'normal'
-    //                 }}>
-    //                     {item.billNumber || ''}
-    //                 </span>
-    //             </div>
-
-    //             {/* Type Column */}
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{
-    //                     fontSize: '0.75rem',
-    //                     fontWeight: showCashEntry ? '600' : 'normal',
-    //                     color: showCashEntry ? '#28a745' :
-    //                         showCashIndicators ? '#856404' : 'inherit'
-    //                 }}>
-    //                     {showCashEntry ? 'Cash' : (item.type || '')}
-    //                     {showCashEntry && (
-    //                         <span style={{ fontSize: '0.65rem', marginLeft: '2px' }}>
-    //                             {item.paymentDirection === 'Received' ? '⬇' : '⬆'}
-    //                         </span>
-    //                     )}
-    //                 </span>
-    //             </div>
-
-    //             {/* Pay Mode Column */}
-    //             <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-    //                 <span style={{
-    //                     fontSize: '0.75rem',
-    //                     fontWeight: showCashEntry ? '600' : 'normal'
-    //                 }}>
-    //                     {showCashEntry ? 'Cash' : (item.paymentMode || '')}
-    //                     {showCashEntry && (
-    //                         <span style={{
-    //                             fontSize: '0.6rem',
-    //                             marginLeft: '2px',
-    //                             color: item.paymentDirection === 'Received' ? '#28a745' : '#dc3545'
-    //                         }}>
-    //                             {item.paymentDirection === 'Received' ? '' : ''}
-    //                         </span>
-    //                     )}
-    //                 </span>
-    //             </div>
-
-    //             {/* Account Column */}
-    //             <div
-    //                 className="d-flex align-items-center px-1 border-end"
-    //                 style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
-    //                 // title={getFormattedAccountName(item)}
-    //                 title={`${getFormattedAccountName(item)}${item.cashSettlementStatus ? ` - ${item.cashSettlementStatus}` : ''}`}
-    //                 onDoubleClick={() => handleCashSettlementClick(item)}
-    //             >
-    //                 <span style={{
-    //                     fontSize: '0.75rem',
-    //                     whiteSpace: 'nowrap',
-    //                     overflow: 'hidden',
-    //                     textOverflow: 'ellipsis',
-    //                     fontWeight: showCashEntry ? '600' : 'normal',
-    //                     color: showCashEntry ? '#28a745' : 'inherit',
-    //                     cursor: (item.paymentMode === 'Cash' && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type)) ? 'pointer' : 'default'
-    //                 }}>
-    //                     {getFormattedAccountName(item)}
-    //                     {item.isCashTransaction && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type) && (
-    //                         <span style={{ marginLeft: '4px' }}>
-    //                             {getSettlementStatusBadge(item)}
-    //                         </span>
-    //                     )}
-    //                 </span>
-    //             </div>
-
-    //             {/* Debit Column */}
-    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{
-    //                     fontSize: '0.75rem',
-    //                     color: item.debit > 0 ? (showCashEntry ? '#28a745' : '#000') : 'inherit',
-    //                     fontWeight: showCashEntry ? '600' : 'normal'
-    //                 }}>
-    //                     {item.debit > 0 ? formatCurrency(item.debit) : '-'}
-    //                 </span>
-    //             </div>
-
-    //             {/* Credit Column */}
-    //             <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{
-    //                     fontSize: '0.75rem',
-    //                     color: item.credit > 0 ? (showCashEntry ? '#dc3545' : '#000') : 'inherit',
-    //                     fontWeight: showCashEntry ? '600' : 'normal'
-    //                 }}>
-    //                     {item.credit > 0 ? formatCurrency(item.credit) : '-'}
-    //                 </span>
-    //             </div>
-
-    //             {/* Balance Column */}
-    //             <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
-    //                 <span style={{
-    //                     fontSize: '0.75rem',
-    //                     fontWeight: showCashEntry ? '600' : 'normal',
-    //                     color: showCashEntry ? '#1a73e8' : 'inherit'
-    //                 }}>
-    //                     {item.balance > 0 ? `${formatCurrency(item.balance)} Dr` : `${formatCurrency(Math.abs(item.balance))} Cr`}
-    //                 </span>
-    //             </div>
-    //         </div>
-    //     );
-    // });
 
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { statement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick } = rowData;
@@ -2314,11 +2305,35 @@ const Statement = () => {
                 return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
             }
             if (item.type === 'Pymt') {
-                return 'Payment';
+                return item.accountType || 'Payment';
             }
             if (item.type === 'Rcpt') {
-                return 'Receipt';
+                return item.accountType || 'Receipt';
             }
+
+            // if (item.type === 'Rcpt') {
+            //     const accountName = item.accountType || 'Receipt';
+            //     const instType = item.instType || '';
+            //     const instNo = item.instNo || '';
+            //     return instType ? `${accountName} ${instType} ${instNo}` : accountName;
+            // }
+            // if (item.type === 'Rcpt') {
+            //     const accountName = item.accountType || 'Receipt';
+            //     const instType = item.instType || '';
+            //     const instNo = item.instNo || '';
+            //     const showInstrument = instType && instType !== 'NA' && instType !== 'na';
+
+            //     if (showInstrument) {
+            //         return (
+            //             <>
+            //                 {accountName}
+            //                 <br />
+            //                 {instType} {instNo}
+            //             </>
+            //         );
+            //     }
+            //     return accountName;
+            // }
             return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
                 item.PaymentReceiptType || item.journalAccountType || 'Opening';
         };
@@ -2492,6 +2507,18 @@ const Statement = () => {
                     }}>
                         {item.balance > 0 ? `${formatCurrency(item.balance)} Dr` : `${formatCurrency(Math.abs(item.balance))} Cr`}
                     </span>
+                </div>
+                {/* Remarks Column */}
+                <div className="d-flex align-items-center justify-content-end px-1">
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal',
+                        color: showCashEntry ? '#1a73e8' : 'inherit'
+                    }}>
+                        {(item.cashSettlementRemarks)}
+                        {(item.instType)} {(item.instNo)}
+                    </span>
+
                 </div>
             </div>
         );
@@ -2855,6 +2882,59 @@ const Statement = () => {
                             >
                                 <i className="bi bi-x-circle"></i>
                             </button>
+                            {/* <button
+                                className="btn btn-success btn-sm"
+                                onClick={handleOpenWhatsAppModal}
+                                disabled={data.statement.length === 0 && data.itemwiseStatement.length === 0}
+                                style={{
+                                    height: '30px',
+                                    fontSize: '0.8rem',
+                                    padding: '0 12px',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap',
+                                    backgroundColor: '#25D366',
+                                    borderColor: '#25D366'
+                                }}
+                            >
+                                <i className="bi bi-whatsapp me-1"></i>WhatsApp
+                            </button> */}
+
+                            <button
+                                className="btn btn-success btn-sm"
+                                onClick={handleOpenWhatsAppModal}
+                                disabled={data.statement.length === 0 && data.itemwiseStatement.length === 0 || isGeneratingLink}
+                                style={{
+                                    height: '30px',
+                                    fontSize: '0.8rem',
+                                    padding: '0 12px',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap',
+                                    backgroundColor: '#25D366',
+                                    borderColor: '#25D366'
+                                }}
+                            >
+                                {isGeneratingLink ? (
+                                    <span className="spinner-border spinner-border-sm me-1" />
+                                ) : (
+                                    <i className="bi bi-whatsapp me-1"></i>
+                                )}
+                                {isGeneratingLink ? 'Generating...' : 'Share via WhatsApp'}
+                            </button>
+                            <button
+                                className="btn btn-warning btn-sm"
+                                onClick={generatePermanentShareLink}
+                                disabled={!data.selectedCompany || emailLoading}
+                                style={{
+                                    height: '30px',
+                                    fontSize: '0.8rem',
+                                    padding: '0 12px',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                <i className="bi bi-link-45deg me-1"></i>
+                                {emailLoading ? 'Generating...' : 'Get Share Link'}
+                            </button>
                         </div>
                     </div>
 
@@ -2872,7 +2952,6 @@ const Statement = () => {
                                         <div className="spinner-border spinner-border-sm text-primary" role="status">
                                             <span className="visually-hidden">Loading...</span>
                                         </div>
-                                        <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>Loading statement...</p>
                                     </div>
                                 ) : viewMode === 'regular' ? (
                                     filteredStatement.length === 0 ? (
@@ -3126,6 +3205,176 @@ const Statement = () => {
                                             searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
                                         />
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* WhatsApp Modal */}
+            {showWhatsAppModal && (
+                <>
+                    <div className="modal-backdrop fade show" style={{ zIndex: 1040 }}></div>
+                    <div
+                        className="modal fade show"
+                        tabIndex="-1"
+                        style={{ display: 'block', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                                setShowWhatsAppModal(false);
+                                setWhatsAppNumber('');
+                                setGeneratedShareLink('');
+                            }
+                        }}
+                    >
+                        <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '450px' }}>
+                            <div className="modal-content">
+                                <div className="modal-header py-2">
+                                    <h5 className="modal-title" style={{ fontSize: '0.95rem' }}>
+                                        <i className="bi bi-whatsapp text-success me-2"></i>
+                                        Share Statement via WhatsApp
+                                    </h5>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        onClick={() => {
+                                            setShowWhatsAppModal(false);
+                                            setWhatsAppNumber('');
+                                            setGeneratedShareLink('');
+                                        }}
+                                    />
+                                </div>
+                                <div className="modal-body">
+                                    {/* Display account info */}
+                                    {data.selectedAccountName && (
+                                        <div className="mb-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
+                                            <strong>Account:</strong> {data.selectedAccountName}
+                                            {data.selectedAccountPhone && (
+                                                <span className="ms-2 text-muted">
+                                                    <i className="bi bi-phone me-1"></i>
+                                                    {data.selectedAccountPhone}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Show generated link prominently */}
+                                    {generatedShareLink && (
+                                        <div className="mb-3 p-3 bg-success bg-opacity-10 rounded border border-success">
+                                            <div className="d-flex align-items-center mb-2">
+                                                <i className="bi bi-link-45deg text-success fs-5 me-2"></i>
+                                                <strong className="text-success">Permanent Link Generated</strong>
+                                            </div>
+                                            <div className="bg-white p-2 rounded" style={{
+                                                fontSize: '0.75rem',
+                                                wordBreak: 'break-all',
+                                                border: '1px solid #dee2e6'
+                                            }}>
+                                                <code>{generatedShareLink}</code>
+                                            </div>
+                                            <small className="text-muted d-block mt-1">
+                                                <i className="bi bi-info-circle me-1"></i>
+                                                This link will always show the latest statement.
+                                            </small>
+                                        </div>
+                                    )}
+
+                                    {/* WhatsApp Number Input */}
+                                    <div className="mb-3">
+                                        <label className="form-label fw-bold" style={{ fontSize: '0.85rem' }}>
+                                            WhatsApp Number <span className="text-danger">*</span>
+                                        </label>
+                                        <div className="input-group">
+                                            <span className="input-group-text" style={{ fontSize: '0.8rem' }}>
+                                                <i className="bi bi-plus-circle"></i>
+                                            </span>
+                                            <input
+                                                type="text"
+                                                className="form-control form-control-sm"
+                                                placeholder="e.g., 9779812345678"
+                                                value={whatsAppNumber}
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/[^0-9]/g, '');
+                                                    setWhatsAppNumber(value);
+                                                }}
+                                                autoFocus
+                                                style={{ fontSize: '0.85rem' }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        handleSendWhatsApp();
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                            <i className="bi bi-info-circle me-1"></i>
+                                            Enter number without + sign (e.g., 9779812345678)
+                                        </small>
+                                    </div>
+
+                                    {/* Message Preview */}
+                                    <div className="mb-2">
+                                        <label className="form-label fw-bold" style={{ fontSize: '0.85rem' }}>
+                                            Message Preview
+                                        </label>
+                                        <div className="border rounded p-2 bg-light" style={{
+                                            fontSize: '0.75rem',
+                                            maxHeight: '150px',
+                                            overflow: 'auto',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word'
+                                        }}>
+                                            {whatsAppMessage || 'Generating message...'}
+                                        </div>
+                                    </div>
+
+                                    {/* Copy Link Button
+                                    {generatedShareLink && (
+                                        <button
+                                            className="btn btn-outline-primary btn-sm w-100"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(generatedShareLink);
+                                                setNotification({
+                                                    show: true,
+                                                    message: '✅ Link copied to clipboard!',
+                                                    type: 'success',
+                                                    duration: 2000
+                                                });
+                                            }}
+                                            style={{ fontSize: '0.75rem' }}
+                                        >
+                                            <i className="bi bi-clipboard me-1"></i>
+                                            Copy Link
+                                        </button>
+                                    )} */}
+                                </div>
+                                <div className="modal-footer py-2">
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => {
+                                            setShowWhatsAppModal(false);
+                                            setWhatsAppNumber('');
+                                            setGeneratedShareLink('');
+                                        }}
+                                        style={{ fontSize: '0.8rem' }}
+                                        disabled={isGeneratingLink}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        className="btn btn-success btn-sm"
+                                        onClick={handleSendWhatsApp}
+                                        disabled={!whatsAppNumber || whatsAppNumber.length < 10 || isGeneratingLink || !generatedShareLink}
+                                        style={{
+                                            fontSize: '0.8rem',
+                                            backgroundColor: '#25D366',
+                                            borderColor: '#25D366'
+                                        }}
+                                    >
+                                        <i className="bi bi-whatsapp me-1"></i>
+                                        Send Link
+                                    </button>
                                 </div>
                             </div>
                         </div>

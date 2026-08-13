@@ -99,6 +99,8 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public DebitAccountDTO? DebitAccount { get; set; }
         public CreditAccountDTO? CreditAccount { get; set; }
         public string? AccountType { get; set; }
+        public string? AccountGroupName { get; set; }
+        public string? AccountGroupType { get; set; }
         public string? PurchaseSalesType { get; set; }
         public string? PurchaseSalesReturnType { get; set; }
         public string? PaymentReceiptType { get; set; }

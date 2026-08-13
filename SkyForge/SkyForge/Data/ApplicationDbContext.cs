@@ -113,6 +113,8 @@ namespace SkyForge.Data
         public DbSet<Attendance> Attendances { get; set; }
         public DbSet<DutySchedule> DutySchedules { get; set; }
 
+        public DbSet<AccountShareToken> AccountShareTokens { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -2488,6 +2490,33 @@ namespace SkyForge.Data
                     .IsUnique()
                     .HasDatabaseName("IX_CashCounterPurchaseReturn_Session_PurchaseReturn");
             });
+
+            modelBuilder.Entity<AccountShareToken>(entity =>
+    {
+        entity.HasKey(e => e.Id);
+
+        entity.HasIndex(e => e.Token)
+            .IsUnique()
+            .HasDatabaseName("IX_AccountShareToken_Token");
+
+        entity.HasIndex(e => e.AccountId)
+            .HasDatabaseName("IX_AccountShareToken_AccountId");
+
+        entity.HasIndex(e => new { e.AccountId, e.IsActive })
+            .HasDatabaseName("IX_AccountShareToken_Account_Active");
+
+        entity.HasOne(e => e.Account)
+            .WithMany()
+            .HasForeignKey(e => e.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.Property(e => e.Token)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        entity.Property(e => e.CreatedBy)
+            .HasMaxLength(100);
+    });
 
         }
 

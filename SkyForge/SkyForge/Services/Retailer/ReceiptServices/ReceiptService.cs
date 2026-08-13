@@ -359,11 +359,16 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         DrCrNoteAccountTypes = "Credit",
                         PaymentReceiptType = debitAccount.Name,  // Store the party account name (money source)
                         BillNumber = billNumber,
-                        InstType = creditEntry.InstType.HasValue
-                            ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+                        // InstType = creditEntry.InstType.HasValue
+                        //     ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+                        //     : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
+                        // InstNo = creditEntry.InstNo,
+                        // BankAcc = creditEntry.BankAcc,
+                        InstType = debitEntry.InstType.HasValue
+                            ? (SkyForge.Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
                             : SkyForge.Models.Retailer.TransactionModel.InstrumentType.NA,
-                        InstNo = creditEntry.InstNo,
-                        BankAcc = creditEntry.BankAcc,
+                        InstNo = debitEntry.InstNo,
+                        BankAcc = debitEntry.BankAcc,
                         TotalDebit = 0,
                         TotalCredit = creditEntry.Amount,
                         PaymentMode = PaymentMode.Receipt,
@@ -412,6 +417,7 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 }
             });
         }
+
         private PaymentMode ParsePaymentMode(string? paymentMode)
         {
             return paymentMode?.ToLower() switch
@@ -1269,11 +1275,16 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                         DrCrNoteAccountTypes = "Credit",
                         PaymentReceiptType = debitAccount.Name,  // Store the party account name (Debit account name - money source)
                         BillNumber = existingReceipt.BillNumber,
-                        InstType = creditEntry.InstType.HasValue
-                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+                        // InstType = creditEntry.InstType.HasValue
+                        //     ? (Models.Retailer.TransactionModel.InstrumentType)(int)creditEntry.InstType.Value
+                        //     : Models.Retailer.TransactionModel.InstrumentType.NA,
+                        // InstNo = creditEntry.InstNo,
+                        // BankAcc = creditEntry.BankAcc,
+                        InstType = debitEntry.InstType.HasValue
+                            ? (Models.Retailer.TransactionModel.InstrumentType)(int)debitEntry.InstType.Value
                             : Models.Retailer.TransactionModel.InstrumentType.NA,
-                        InstNo = creditEntry.InstNo,
-                        BankAcc = creditEntry.BankAcc,
+                        InstNo = debitEntry.InstNo,
+                        BankAcc = debitEntry.BankAcc,
                         TotalDebit = 0,
                         TotalCredit = creditEntry.Amount,
                         PaymentMode = PaymentMode.Receipt,

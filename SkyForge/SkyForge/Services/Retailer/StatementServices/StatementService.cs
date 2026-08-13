@@ -575,162 +575,6 @@ namespace SkyForge.Services.Retailer.StatementServices
                 .ToListAsync();
         }
 
-        // private (List<StatementEntryDTO> statement, decimal totalDebit, decimal totalCredit) PrepareStatementWithOpeningBalanceAndTotals(
-        //     decimal openingBalance,
-        //     List<Transaction> transactions,
-        //     DateTime? fromDate,
-        //     string? paymentMode,
-        //     string? dateFormat)
-        // {
-        //     decimal balance = openingBalance;
-        //     decimal totalDebit = 0;
-        //     decimal totalCredit = 0;
-
-        //     var statement = new List<StatementEntryDTO>();
-
-        //     // Add opening balance entry if not cash mode
-        //     if (paymentMode != "cash")
-        //     {
-        //         statement.Add(new StatementEntryDTO
-        //         {
-        //             Date = fromDate,
-        //             Type = string.Empty,
-        //             BillNumber = string.Empty,
-        //             PaymentMode = string.Empty,
-        //             AccountType = "Opening",
-        //             Debit = 0,
-        //             Credit = 0,
-        //             Balance = openingBalance,
-        //             NepaliDate = null // Will be set by frontend based on date format
-        //         });
-        //     }
-
-        //     // Group transactions by bill ID to avoid duplicates
-        //     var transactionsByBill = new Dictionary<string, Transaction>();
-
-        //     foreach (var tx in transactions)
-        //     {
-        //         string billId = tx.PaymentAccountId2?.ToString() ??
-        //                        tx.ReceiptAccountId2?.ToString() ??
-        //                        tx.JournalBillId?.ToString() ??
-        //                        tx.DebitNoteId?.ToString() ??
-        //                        tx.PurchaseBillId?.ToString() ??
-        //                        tx.PurchaseReturnBillId?.ToString() ??
-        //                        tx.SalesBillId?.ToString() ??
-        //                        tx.SalesReturnBillId?.ToString() ??
-        //                        tx.CreditNoteId?.ToString() ??
-        //                        tx.Id.ToString();
-
-        //         if (!transactionsByBill.ContainsKey(billId))
-        //         {
-        //             transactionsByBill[billId] = tx;
-        //         }
-        //         else
-        //         {
-        //             var existing = transactionsByBill[billId];
-        //             existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
-        //             existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
-        //         }
-        //     }
-
-        //     // Process grouped transactions
-        //     foreach (var tx in transactionsByBill.Values)
-        //     {
-        //         balance += tx.TotalDebit - tx.TotalCredit;
-        //         totalDebit += tx.TotalDebit;
-        //         totalCredit += tx.TotalCredit;
-
-        //         // Determine which date to display based on format - use AD date for Date field
-        //         // The frontend will convert to BS if needed using the NepaliDate library
-        //         DateTime? displayDate = tx.Date;
-
-        //         // Determine account type display
-        //         string accountType = "Opening Balance";
-        //         if (tx.Type == TransactionType.Purc) // Purchase
-        //         {
-        //             if (!string.IsNullOrEmpty(tx.PartyBillNumber))
-        //             {
-        //                 accountType = $"Purchase {tx.PartyBillNumber}";
-        //             }
-        //             else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
-        //             {
-        //                 accountType = tx.PurchaseSalesType;
-        //             }
-        //         }
-        //         else if (tx.Type == TransactionType.PrRt) // Purchase Return
-        //         {
-        //             if (!string.IsNullOrEmpty(tx.PartyBillNumber))
-        //             {
-        //                 accountType = $"Purchase Return {tx.PartyBillNumber}";
-        //             }
-        //             else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
-        //             {
-        //                 accountType = tx.PurchaseSalesReturnType;
-        //             }
-        //         }
-        //         else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
-        //             accountType = tx.PurchaseSalesType;
-        //         else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
-        //             accountType = tx.PurchaseSalesReturnType;
-        //         else if (!string.IsNullOrEmpty(tx.PaymentReceiptType))
-        //             accountType = tx.PaymentReceiptType;
-        //         else if (!string.IsNullOrEmpty(tx.JournalAccountType))
-        //             accountType = tx.JournalAccountType;
-        //         else if (!string.IsNullOrEmpty(tx.DrCrNoteAccountType))
-        //             accountType = tx.DrCrNoteAccountType;
-        //         else if (tx.PaymentAccount != null)
-        //             accountType = tx.PaymentAccount.Name;
-        //         else if (tx.ReceiptAccount != null)
-        //             accountType = tx.ReceiptAccount.Name;
-        //         else if (tx.DebitAccount != null)
-        //             accountType = tx.DebitAccount.Name;
-        //         else if (tx.CreditAccount != null)
-        //             accountType = tx.CreditAccount.Name;
-
-        //         statement.Add(new StatementEntryDTO
-        //         {
-        //             Date = displayDate,
-        //             Type = tx.Type.ToString(),
-        //             BillNumber = tx.BillNumber,
-        //             PaymentMode = tx.PaymentMode.ToString(),
-        //             PartyBillNumber = tx.PartyBillNumber,
-        //             PaymentAccount = tx.PaymentAccount != null ? new PaymentAccountDTO { Name = tx.PaymentAccount.Name } : null,
-        //             ReceiptAccount = tx.ReceiptAccount != null ? new ReceiptAccountDTO { Name = tx.ReceiptAccount.Name } : null,
-        //             DebitAccount = tx.DebitAccount != null ? new DebitAccountDTO { Name = tx.DebitAccount.Name } : null,
-        //             CreditAccount = tx.CreditAccount != null ? new CreditAccountDTO { Name = tx.CreditAccount.Name } : null,
-        //             AccountType = accountType,
-        //             PurchaseSalesType = tx.PurchaseSalesType,
-        //             PaymentReceiptType = tx.PaymentReceiptType,
-        //             PurchaseSalesReturnType = tx.PurchaseSalesReturnType,
-        //             JournalAccountType = tx.JournalAccountType,
-        //             DrCrNoteAccountType = tx.DrCrNoteAccountType,
-        //             InstType = tx.InstType.ToString(),
-        //             InstNo = tx.InstNo,
-        //             Account = tx.Account != null ? new AccountReferenceDTO
-        //             {
-        //                 Id = tx.Account.Id,
-        //                 Name = tx.Account.Name
-        //             } : null,
-        //             Debit = tx.TotalDebit,
-        //             Credit = tx.TotalCredit,
-        //             Balance = balance,
-        //             BillId = tx.PaymentAccountId2 ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId,
-        //             SalesBillId = tx.SalesBillId,
-        //             PurchaseBillId = tx.PurchaseBillId,
-        //             PurchaseReturnBillId = tx.PurchaseReturnBillId,
-        //             PaymentAccountId = tx.PaymentAccountId2,
-        //             ReceiptAccountId = tx.ReceiptAccountId2,
-        //             JournalBillId = tx.JournalBillId,
-        //             DebitNoteId = tx.DebitNoteId,
-        //             NepaliDate = tx.NepaliDate // Include Nepali date for frontend display
-        //         });
-        //     }
-
-        //     return (statement, totalDebit, totalCredit);
-        // }
-
-        //--------------------------------------------------------end1
-
         private (List<StatementEntryDTO> statement, decimal totalDebit, decimal totalCredit) PrepareStatementWithOpeningBalanceAndTotals(
             decimal openingBalance,
             List<Transaction> transactions,
@@ -791,8 +635,8 @@ namespace SkyForge.Services.Retailer.StatementServices
 
             foreach (var tx in transactions)
             {
-                string billId = tx.PaymentAccountId2?.ToString() ??
-                               tx.ReceiptAccountId2?.ToString() ??
+                string billId = tx.PaymentAccountId?.ToString() ??
+                               tx.ReceiptAccountId?.ToString() ??
                                tx.JournalBillId?.ToString() ??
                                tx.DebitNoteId?.ToString() ??
                                tx.PurchaseBillId?.ToString() ??
@@ -828,10 +672,43 @@ namespace SkyForge.Services.Retailer.StatementServices
             // Process grouped transactions
             foreach (var tx in transactionsByBill.Values)
             {
+                _logger.LogInformation($"Processing transaction {tx.Id}: Remarks='{tx.CashSettlementRemarks}', Status='{tx.CashSettlementStatus}'");
+
                 // Log the cash settlement status for debugging
                 if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
                 {
                     _logger.LogInformation($"Processing transaction {tx.Id} - Type: {tx.Type}, CashSettlementStatus: {tx.CashSettlementStatus}, User: {tx.CashSettlementUser?.Name}");
+                }
+
+                string accountGroupName = string.Empty;
+
+                // For Sale/Sales Return - get from the Account (Sundry Debtor)
+                if (tx.Type == TransactionType.Sale || tx.Type == TransactionType.SlRt)
+                {
+                    accountGroupName = tx.Account?.AccountGroup?.Name ?? string.Empty;
+                }
+                // For Purchase/Purchase Return - get from the Account (Sundry Creditor)
+                else if (tx.Type == TransactionType.Purc || tx.Type == TransactionType.PrRt)
+                {
+                    accountGroupName = tx.Account?.AccountGroup?.Name ?? string.Empty;
+                }
+                // For Payment - get from PaymentAccount
+                else if (tx.Type == TransactionType.Pymt)
+                {
+                    accountGroupName = tx.PaymentAccount?.AccountGroup?.Name ?? string.Empty;
+                }
+                // For Receipt - get from ReceiptAccount
+                else if (tx.Type == TransactionType.Rcpt)
+                {
+                    accountGroupName = tx.ReceiptAccount?.AccountGroup?.Name ?? string.Empty;
+                }
+                // Fallback for other types
+                else
+                {
+                    accountGroupName = tx.Account?.AccountGroup?.Name ??
+                                      tx.PaymentAccount?.AccountGroup?.Name ??
+                                      tx.ReceiptAccount?.AccountGroup?.Name ??
+                                      string.Empty;
                 }
 
                 bool isCashTransaction = tx.PaymentMode == PaymentMode.Cash;
@@ -886,7 +763,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                     totalDebit += firstDebit;
                     totalCredit += firstCredit;
 
-                    Guid? billId = tx.PaymentAccountId2 ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId;
+                    Guid? billId = tx.PaymentAccountId ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId;
                     Guid? salesBillId = tx.SalesBillId;
                     Guid? salesReturnBillId = tx.SalesReturnBillId;
                     Guid? purchaseBillId = tx.PurchaseBillId;
@@ -900,6 +777,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                         PaymentMode = tx.PaymentMode.ToString(),
                         PartyBillNumber = tx.PartyBillNumber,
                         AccountType = accountType1,
+                        AccountGroupName = accountGroupName,
                         Debit = firstDebit,
                         Credit = firstCredit,
                         Balance = balance,
@@ -908,8 +786,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                         SalesReturnBillId = salesReturnBillId,
                         PurchaseBillId = purchaseBillId,
                         PurchaseReturnBillId = purchaseReturnBillId,
-                        PaymentAccountId = tx.PaymentAccountId2,
-                        ReceiptAccountId = tx.ReceiptAccountId2,
+                        PaymentAccountId = tx.PaymentAccountId,
+                        ReceiptAccountId = tx.ReceiptAccountId,
                         JournalBillId = tx.JournalBillId,
                         DebitNoteId = tx.DebitNoteId,
                         NepaliDate = tx.NepaliDate,
@@ -967,6 +845,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                         PaymentMode = tx.PaymentMode.ToString(),
                         PartyBillNumber = tx.PartyBillNumber,
                         AccountType = accountType2,
+                        AccountGroupName = accountGroupName,
                         Debit = secondDebit,
                         Credit = secondCredit,
                         Balance = balance,
@@ -975,8 +854,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                         SalesReturnBillId = salesReturnBillId,
                         PurchaseBillId = purchaseBillId,
                         PurchaseReturnBillId = purchaseReturnBillId,
-                        PaymentAccountId = tx.PaymentAccountId2,
-                        ReceiptAccountId = tx.ReceiptAccountId2,
+                        PaymentAccountId = tx.PaymentAccountId,
+                        ReceiptAccountId = tx.ReceiptAccountId,
                         JournalBillId = tx.JournalBillId,
                         DebitNoteId = tx.DebitNoteId,
                         NepaliDate = tx.NepaliDate,
@@ -994,6 +873,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                 {
                     // Non-cash transactions OR cash transactions for non-sundry accounts
                     string accountType = string.Empty;
+                    string instType = string.Empty;
+                    string instNo = string.Empty;
                     string paymentDirection = string.Empty;
 
                     if (tx.PaymentMode == PaymentMode.Cash)
@@ -1069,12 +950,16 @@ namespace SkyForge.Services.Retailer.StatementServices
                     }
                     else if (tx.Type == TransactionType.Pymt)
                     {
-                        accountType = "Payment";
+                        accountType = $"{tx.PaymentReceiptType}";
+                        instType = $"{tx.InstType}";
+                        instNo = $"{tx.InstNo}";
                         paymentDirection = "Paid";
                     }
                     else if (tx.Type == TransactionType.Rcpt)
                     {
-                        accountType = "Receipt";
+                        accountType = $"{tx.PaymentReceiptType}";
+                        instType = $"{tx.InstType}";
+                        instNo = $"{tx.InstNo}";
                         paymentDirection = "Received";
                     }
                     else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
@@ -1100,7 +985,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                     totalDebit += debitAmount;
                     totalCredit += creditAmount;
 
-                    Guid? billId = tx.PaymentAccountId2 ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId;
+                    Guid? billId = tx.PaymentAccountId ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId;
                     Guid? salesBillId = tx.SalesBillId;
                     Guid? salesReturnBillId = tx.SalesReturnBillId;
                     Guid? purchaseBillId = tx.PurchaseBillId;
@@ -1114,6 +999,9 @@ namespace SkyForge.Services.Retailer.StatementServices
                         PaymentMode = tx.PaymentMode.ToString(),
                         PartyBillNumber = tx.PartyBillNumber,
                         AccountType = accountType,
+                        AccountGroupName = accountGroupName,
+                        InstType = instType,
+                        InstNo = instNo,
                         Debit = debitAmount,
                         Credit = creditAmount,
                         Balance = balance,
@@ -1122,8 +1010,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                         SalesReturnBillId = salesReturnBillId,
                         PurchaseBillId = purchaseBillId,
                         PurchaseReturnBillId = purchaseReturnBillId,
-                        PaymentAccountId = tx.PaymentAccountId2,
-                        ReceiptAccountId = tx.ReceiptAccountId2,
+                        PaymentAccountId = tx.PaymentAccountId,
+                        ReceiptAccountId = tx.ReceiptAccountId,
                         JournalBillId = tx.JournalBillId,
                         DebitNoteId = tx.DebitNoteId,
                         NepaliDate = tx.NepaliDate,
@@ -1142,7 +1030,7 @@ namespace SkyForge.Services.Retailer.StatementServices
             return (statement, totalDebit, totalCredit);
         }
 
-        
+
         private async Task<List<ItemwiseStatementDTO>> PrepareItemwiseStatementAsync(
             Guid companyId,
             Guid accountId,
