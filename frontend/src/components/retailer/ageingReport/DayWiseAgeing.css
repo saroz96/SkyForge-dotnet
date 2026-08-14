@@ -1,0 +1,151 @@
+/* DayWiseAgeing.css */
+.dw-page {
+  --dw-primary: #1e3a5f;
+  --dw-primary-light: #2563eb;
+  --dw-primary-soft: #eff6ff;
+  --dw-surface: #eef2f7;
+  --dw-card: #ffffff;
+  --dw-border: #e2e8f0;
+  --dw-border-strong: #cbd5e1;
+  --dw-text: #0f172a;
+  --dw-muted: #64748b;
+  --dw-danger: #dc2626;
+  --dw-success: #059669;
+  --dw-warning: #d97706;
+  --dw-radius: 6px;
+
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--dw-surface);
+}
+
+.dw-page > .container-fluid, .dw-page > div:first-child { flex-shrink: 0; }
+
+.dw-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0.4rem 0.6rem 0.5rem;
+  gap: 0.4rem;
+}
+
+/* Top Bar */
+.dw-topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  background: linear-gradient(135deg, var(--dw-primary) 0%, #1e40af 100%);
+  color: #fff; border-radius: var(--dw-radius); padding: 0.4rem 0.75rem; flex-shrink: 0;
+}
+.dw-topbar__left { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.dw-topbar__icon { width: 28px; height: 28px; border-radius: 6px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
+.dw-topbar h1 { font-size: 0.875rem; font-weight: 700; margin: 0; white-space: nowrap; }
+.dw-topbar__actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+
+.dw-btn-icon {
+  display: inline-flex; align-items: center; gap: 0.25rem; height: 26px; padding: 0 0.55rem;
+  border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff;
+  border-radius: 5px; font-size: 0.7rem; font-weight: 500; cursor: pointer; transition: background 0.15s;
+}
+.dw-btn-icon:hover:not(:disabled) { background: rgba(255,255,255,0.2); }
+.dw-btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Toolbar */
+.dw-toolbar {
+  display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 0.5rem;
+  background: var(--dw-card); border: 1px solid var(--dw-border); border-radius: var(--dw-radius);
+  padding: 0.35rem 0.5rem; flex-shrink: 0; overflow-x: auto;
+}
+.dw-toolbar::-webkit-scrollbar { height: 4px; }
+.dw-toolbar::-webkit-scrollbar-thumb { background: var(--dw-border-strong); border-radius: 2px; }
+
+.dw-field { position: relative; flex-shrink: 0; }
+.dw-field label {
+  position: absolute; top: -0.45rem; left: 0.6rem; font-size: 0.58rem; font-weight: 600; color: var(--dw-muted);
+  background: var(--dw-card); padding: 0 0.2rem; z-index: 1; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap;
+}
+.dw-field label .req { color: var(--dw-danger); }
+.dw-field input, .dw-field select {
+  height: 30px; border: 1px solid var(--dw-border-strong); border-radius: 5px; font-size: 0.75rem;
+  padding: 0.4rem 0.45rem 0.1rem; color: var(--dw-text); background: #fff; width: 100%; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.dw-field input:focus, .dw-field select:focus { outline: none; border-color: var(--dw-primary-light); box-shadow: 0 0 0 2px rgba(37,99,235,0.12); }
+.dw-field input.is-invalid { border-color: var(--dw-danger); }
+.dw-field-error { font-size: 0.6rem; color: var(--dw-danger); margin-top: 0.1rem; position: absolute; bottom: -1.2rem; left: 0; }
+
+.dw-field--account { width: 180px; cursor: pointer; }
+.dw-field--account input { cursor: pointer; }
+.dw-field--date { width: 120px; }
+
+.dw-btn-gen { height: 30px; padding: 0 0.8rem; background: var(--dw-primary-light); color: #fff; border: none; border-radius: 5px; font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; min-width: 72px; transition: background 0.15s; }
+.dw-btn-gen:hover:not(:disabled) { background: #1d4ed8; }
+.dw-btn-gen:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.dw-toolbar-divider { width: 1px; height: 24px; background: var(--dw-border); flex-shrink: 0; align-self: center; }
+
+.dw-toggle-item { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; flex-shrink: 0; }
+.dw-toggle-item span { font-size: 0.55rem; font-weight: 600; color: var(--dw-muted); text-transform: uppercase; }
+.dw-toggle-item .form-check-input { width: 1.8rem; height: 0.9rem; margin: 0; cursor: pointer; }
+.dw-toggle-item .form-check-input:checked { background-color: var(--dw-primary-light); border-color: var(--dw-primary-light); }
+
+/* Alert */
+.dw-alert { display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.6rem; border-radius: 5px; font-size: 0.72rem; flex-shrink: 0; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+/* Main Content */
+.dw-main { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--dw-card); border: 1px solid var(--dw-border); border-radius: var(--dw-radius); overflow: hidden; }
+.dw-main__bar { display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.6rem; background: #f8fafc; border-bottom: 1px solid var(--dw-border); font-size: 0.68rem; color: var(--dw-muted); flex-shrink: 0; }
+.dw-main__bar strong { color: var(--dw-text); }
+
+.dw-table-scroll { flex: 1; overflow: auto; min-height: 0; }
+.dw-table {
+  width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.7rem;
+}
+.dw-table thead th {
+  position: sticky; top: 0; z-index: 2; background: #f1f5f9; border-bottom: 2px solid var(--dw-border-strong);
+  padding: 0.3rem 0.4rem; font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--dw-muted); white-space: nowrap; user-select: none;
+}
+.dw-table tbody tr { transition: background 0.15s; }
+.dw-table tbody tr:nth-child(even) { background: #fafbfc; }
+.dw-table tbody tr:hover { background: var(--dw-primary-soft); }
+.dw-table td { padding: 0.25rem 0.4rem; border-bottom: 1px solid var(--dw-border); vertical-align: middle; }
+.dw-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.dw-table .fw-bold { font-weight: 700; }
+
+.dw-row-selected { background: var(--dw-primary-soft) !important; border-left: 3px solid var(--dw-primary-light); }
+.dw-row-total td { background: #e8edf3; font-weight: 700; border-top: 2px solid var(--dw-border-strong); }
+
+.dw-text-green { color: var(--dw-success); }
+.dw-text-red { color: var(--dw-danger); }
+
+/* Chips */
+.dw-chips { display: flex; gap: 0.5rem; padding: 0.4rem 0.6rem; border-top: 1px solid var(--dw-border); flex-shrink: 0; flex-wrap: wrap; background: #fafbfc; }
+.dw-chip { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0.5rem; border: 1px solid var(--dw-border); border-radius: 12px; font-size: 0.7rem; background: #fff; }
+.dw-chip__label { color: var(--dw-muted); }
+.dw-chip__val { font-weight: 700; }
+.dw-chip__val--primary { color: var(--dw-primary-light); }
+.dw-chip__val--info { color: #0891b2; }
+.dw-chip__val--warning { color: var(--dw-warning); }
+.dw-chip__val--danger { color: var(--dw-danger); }
+
+/* States */
+.dw-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--dw-muted); padding: 1rem; text-align: center; }
+.dw-state h3 { font-size: 0.85rem; font-weight: 600; color: var(--dw-text); margin: 0 0 0.25rem; }
+.dw-state p { font-size: 0.72rem; margin: 0; }
+
+/* Modal */
+.dw-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1050; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.dw-modal { background: var(--dw-card); border-radius: var(--dw-radius); max-width: 900px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+.dw-modal--xl { max-width: 1100px; }
+.dw-modal-header { display: flex; align-items: center; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--dw-border); flex-shrink: 0; gap: 0.5rem; }
+.dw-modal-header h5 { font-size: 0.85rem; font-weight: 600; margin: 0; color: var(--dw-text); }
+.dw-modal-body { flex: 1; overflow: auto; padding: 0.5rem; }
+.dw-search-input { width: 100%; height: 30px; border: 1px solid var(--dw-border-strong); border-radius: 5px; font-size: 0.75rem; padding: 0 0.5rem; color: var(--dw-text); background: #fff; }
+.dw-search-input:focus { outline: none; border-color: var(--dw-primary-light); box-shadow: 0 0 0 2px rgba(37,99,235,0.12); }
+
+@media (max-width: 992px) {
+  .dw-toolbar { flex-wrap: wrap; gap: 0.4rem; }
+  .dw-field--account { width: 100%; }
+  .dw-field--date { width: calc(50% - 0.2rem); }
+}

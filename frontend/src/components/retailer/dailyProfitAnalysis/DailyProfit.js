@@ -636,3 +636,369 @@ const DailyProfit = () => {
 };
 
 export default DailyProfit;
+
+//-----------------------------------------------------------end
+
+// import React, { useState, useEffect, useRef, useCallback } from 'react';
+// import { useNavigate } from 'react-router-dom';
+// import axios from 'axios';
+// import Header from '../Header';
+// import NepaliDate from 'nepali-datetime';
+// import NotificationToast from '../../NotificationToast';
+// import { FiCalendar, FiFileText, FiArrowRight } from 'react-icons/fi';
+// import './DailyProfit.css';
+
+// // Helper functions for date conversion
+// const convertBsToAd = (bsDate) => {
+//     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+//     try {
+//         const nepaliDate = new NepaliDate(bsDate);
+//         const jsDate = nepaliDate?.getDateObject?.();
+//         if (!jsDate || isNaN(jsDate.getTime())) return null;
+//         return `${jsDate.getFullYear()}-${String(jsDate.getMonth() + 1).padStart(2, '0')}-${String(jsDate.getDate()).padStart(2, '0')}`;
+//     } catch { return null; }
+// };
+
+// const convertAdToBs = (adDate) => {
+//     if (!adDate) return null;
+//     try {
+//         const date = typeof adDate === 'string'
+//             ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(adDate) ? adDate + 'T00:00:00' : adDate)
+//             : adDate instanceof Date ? adDate : null;
+//         if (!date || isNaN(date.getTime())) return null;
+//         const nepaliDate = new NepaliDate(date);
+//         return `${nepaliDate.getYear()}-${String(nepaliDate.getMonth() + 1).padStart(2, '0')}-${String(nepaliDate.getDate()).padStart(2, '0')}`;
+//     } catch { return null; }
+// };
+
+// const isValidNepaliDate = (dateStr) => {
+//     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+//     try {
+//         const [year, month, day] = dateStr.split('-').map(Number);
+//         if (month < 1 || month > 12) return false;
+//         if (day < 1 || day > 32) return false;
+//         const nepaliDate = new NepaliDate(dateStr);
+//         return nepaliDate.getYear() === year && nepaliDate.getMonth() + 1 === month && nepaliDate.getDate() === day;
+//     } catch { return false; }
+// };
+
+// const DailyProfit = () => {
+//     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+//     const currentEnglishDate = new Date().toISOString().split('T')[0];
+//     const navigate = useNavigate();
+
+//     const [dateRange, setDateRange] = useState({
+//         fromDate: '', toDate: '', fromDateAd: '', toDateAd: ''
+//     });
+//     const [company, setCompany] = useState({ dateFormat: 'english', vatEnabled: true });
+//     const [dateErrors, setDateErrors] = useState({ fromDate: '', toDate: '' });
+//     const [loading, setLoading] = useState(true);
+//     const [error, setError] = useState(null);
+//     const [submitting, setSubmitting] = useState(false);
+//     const [notification, setNotification] = useState({
+//         show: false, message: '', type: 'success', duration: 3000
+//     });
+
+//     const fromDateRef = useRef(null);
+//     const toDateRef = useRef(null);
+//     const fromDateAdRef = useRef(null);
+//     const toDateAdRef = useRef(null);
+
+//     const api = axios.create({
+//         baseURL: process.env.REACT_APP_API_BASE_URL,
+//         withCredentials: true,
+//     });
+//     api.interceptors.request.use((config) => {
+//         const token = localStorage.getItem('token');
+//         if (token) config.headers.Authorization = `Bearer ${token}`;
+//         return config;
+//     });
+
+//     const validateAndCorrectNepaliDate = useCallback((dateStr) => {
+//         if (!dateStr) return null;
+//         if (isValidNepaliDate(dateStr)) return dateStr;
+//         const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+//         if (match) {
+//             let [_, year, month, day] = match;
+//             month = Math.min(12, Math.max(1, parseInt(month, 10)));
+//             day = Math.min(32, Math.max(1, parseInt(day, 10)));
+//             const correctedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+//             return isValidNepaliDate(correctedDate) ? correctedDate : null;
+//         }
+//         return null;
+//     }, []);
+
+//     useEffect(() => {
+//         const fetchInitialData = async () => {
+//             try {
+//                 const response = await api.get('/api/retailer/daily-profit/sales-analysis');
+//                 if (response.data.success) {
+//                     const data = response.data.data;
+//                     const dateFormat = data.companyDateFormat?.toLowerCase() || 'english';
+//                     setCompany({ dateFormat: dateFormat, vatEnabled: data.company?.vatEnabled || true });
+
+//                     let fromDateFormatted = '', toDateFormatted = '', fromDateAd = '', toDateAd = '';
+//                     if (dateFormat === 'nepali') {
+//                         fromDateFormatted = data.currentFiscalYear?.startDateNepali || currentNepaliDate;
+//                         toDateFormatted = currentNepaliDate;
+//                         fromDateAd = convertBsToAd(fromDateFormatted);
+//                         toDateAd = convertBsToAd(toDateFormatted);
+//                     } else {
+//                         fromDateFormatted = data.currentFiscalYear?.startDate 
+//                             ? new Date(data.currentFiscalYear.startDate).toISOString().split('T')[0]
+//                             : currentEnglishDate;
+//                         toDateFormatted = currentEnglishDate;
+//                         fromDateAd = fromDateFormatted;
+//                         toDateAd = toDateFormatted;
+//                     }
+//                     setDateRange({ fromDate: fromDateFormatted, toDate: toDateFormatted, fromDateAd, toDateAd });
+//                 } else {
+//                     setError(response.data.error || response.data.message);
+//                 }
+//             } catch (err) {
+//                 setError(err.response?.data?.error || 'Failed to fetch initial data');
+//             } finally {
+//                 setLoading(false);
+//             }
+//         };
+//         fetchInitialData();
+//     }, []);
+
+//     const handleBsDateChange = (e) => {
+//         const { name, value } = e.target;
+//         const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+//         const adDate = convertBsToAd(sanitizedValue);
+//         setDateRange(prev => ({
+//             ...prev, [name]: sanitizedValue, [`${name}Ad`]: adDate || prev[`${name}Ad`]
+//         }));
+//         setDateErrors(prev => ({ ...prev, [name]: '' }));
+//     };
+
+//     const handleAdDateChange = (e) => {
+//         const { name, value } = e.target;
+//         const bsDate = convertAdToBs(value);
+//         const fieldName = name.replace('Ad', '');
+//         setDateRange(prev => ({
+//             ...prev, [name]: value, [fieldName]: bsDate || prev[fieldName]
+//         }));
+//     };
+
+//     const handleKeyDown = (e, nextFieldId) => {
+//         if (e.key === 'Enter') {
+//             e.preventDefault();
+//             if (nextFieldId) {
+//                 document.getElementById(nextFieldId)?.focus();
+//             } else {
+//                 handleSubmit(e);
+//             }
+//         }
+//     };
+
+//     const handleBsDateBlur = (e) => {
+//         const fieldName = e.target.name;
+//         const dateStr = e.target.value.trim();
+//         if (!dateStr) return;
+//         const correctedDate = validateAndCorrectNepaliDate(dateStr);
+//         if (!correctedDate) {
+//             const fallbackDate = currentNepaliDate;
+//             const adDate = convertBsToAd(fallbackDate);
+//             setDateRange(prev => ({
+//                 ...prev, [fieldName]: fallbackDate, [`${fieldName}Ad`]: adDate
+//             }));
+//             setNotification({
+//                 show: true, message: 'Invalid Nepali date. Auto-corrected to current date.', type: 'warning', duration: 3000
+//             });
+//         } else if (correctedDate !== dateStr) {
+//             const adDate = convertBsToAd(correctedDate);
+//             setDateRange(prev => ({
+//                 ...prev, [fieldName]: correctedDate, [`${fieldName}Ad`]: adDate
+//             }));
+//         }
+//     };
+
+//     const handleSubmit = async (e) => {
+//         e.preventDefault();
+//         if (!dateRange.fromDate || !dateRange.toDate) {
+//             setError('Please select both from and to dates');
+//             return;
+//         }
+//         setSubmitting(true);
+//         setError(null);
+//         try {
+//             const response = await api.post('/api/retailer/daily-profit/sales-analysis', {
+//                 fromDate: dateRange.fromDateAd,
+//                 toDate: dateRange.toDateAd
+//             });
+//             if (response.data.success) {
+//                 const params = new URLSearchParams({
+//                     fromDate: dateRange.fromDate,
+//                     toDate: dateRange.toDate,
+//                     fromDateAd: dateRange.fromDateAd,
+//                     toDateAd: dateRange.toDateAd
+//                 });
+//                 navigate(`/retailer/daily-profit/sales-analysis/results?${params.toString()}`);
+//             } else {
+//                 setError(response.data.error || response.data.message || 'Failed to generate profit analysis');
+//             }
+//         } catch (err) {
+//             setError(err.response?.data?.error || 'Failed to generate profit analysis');
+//         } finally {
+//             setSubmitting(false);
+//         }
+//     };
+
+//     if (loading) {
+//         return (
+//             <div className="daily-profit-page">
+//                 <Header />
+//                 <div className="dp-shell">
+//                     <div className="dp-state">
+//                         <div className="spinner-border text-primary" />
+//                         <p style={{ marginTop: '0.5rem' }}>Loading form...</p>
+//                     </div>
+//                 </div>
+//             </div>
+//         );
+//     }
+
+//     if (error) {
+//         return (
+//             <div className="daily-profit-page">
+//                 <Header />
+//                 <div className="dp-shell">
+//                     <div className="dp-state">
+//                         <FiCalendar size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+//                         <h3>Error loading form</h3>
+//                         <p>{error}</p>
+//                         <button className="dp-btn-primary" onClick={() => window.location.reload()} style={{ marginTop: '1rem' }}>
+//                             <i className="fas fa-redo me-1" /> Retry
+//                         </button>
+//                     </div>
+//                 </div>
+//             </div>
+//         );
+//     }
+
+//     const isNepaliFormat = company.dateFormat === 'nepali';
+
+//     return (
+//         <div className="daily-profit-page">
+//             <Header />
+
+//             <div className="dp-shell">
+//                 {/* Compact top bar */}
+//                 <div className="dp-topbar">
+//                     <div className="dp-topbar__left">
+//                         <div className="dp-topbar__icon"><FiFileText /></div>
+//                         <div>
+//                             <h1>Daily Profit Analysis</h1>
+//                         </div>
+//                     </div>
+//                 </div>
+
+//                 {/* Single-row toolbar */}
+//                 <div className="dp-toolbar">
+//                     <div className="dp-field dp-field--date">
+//                         <label>From (BS) <span className="req">*</span></label>
+//                         <input
+//                             type="text"
+//                             name="fromDate"
+//                             id="fromDate"
+//                             ref={fromDateRef}
+//                             className={dateErrors.fromDate ? 'is-invalid' : ''}
+//                             value={dateRange.fromDate || ''}
+//                             onChange={handleBsDateChange}
+//                             onKeyDown={(e) => handleKeyDown(e, 'fromDateAd')}
+//                             onBlur={handleBsDateBlur}
+//                             placeholder={isNepaliFormat ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+//                             autoComplete="off"
+//                             autoFocus
+//                         />
+//                     </div>
+
+//                     <div className="dp-field dp-field--date">
+//                         <label>From (AD)</label>
+//                         <input
+//                             type="date"
+//                             name="fromDateAd"
+//                             id="fromDateAd"
+//                             ref={fromDateAdRef}
+//                             value={dateRange.fromDateAd || ''}
+//                             onChange={handleAdDateChange}
+//                             onKeyDown={(e) => handleKeyDown(e, 'toDate')}
+//                         />
+//                     </div>
+
+//                     <div className="dp-field dp-field--date">
+//                         <label>To (BS) <span className="req">*</span></label>
+//                         <input
+//                             type="text"
+//                             name="toDate"
+//                             id="toDate"
+//                             ref={toDateRef}
+//                             className={dateErrors.toDate ? 'is-invalid' : ''}
+//                             value={dateRange.toDate || ''}
+//                             onChange={handleBsDateChange}
+//                             onKeyDown={(e) => handleKeyDown(e, 'toDateAd')}
+//                             onBlur={handleBsDateBlur}
+//                             placeholder={isNepaliFormat ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+//                             autoComplete="off"
+//                         />
+//                     </div>
+
+//                     <div className="dp-field dp-field--date">
+//                         <label>To (AD)</label>
+//                         <input
+//                             type="date"
+//                             name="toDateAd"
+//                             id="toDateAd"
+//                             ref={toDateAdRef}
+//                             value={dateRange.toDateAd || ''}
+//                             onChange={handleAdDateChange}
+//                             onKeyDown={(e) => handleKeyDown(e, 'submitBtn')}
+//                         />
+//                     </div>
+
+//                     <button
+//                         type="submit"
+//                         id="submitBtn"
+//                         className="dp-btn-gen"
+//                         onClick={handleSubmit}
+//                         disabled={submitting}
+//                     >
+//                         {submitting
+//                             ? <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12 }} />
+//                             : <><FiArrowRight className="me-1" /> View Report</>
+//                         }
+//                     </button>
+//                 </div>
+
+//                 {error && (
+//                     <div className="dp-alert">
+//                         <i className="bi bi-exclamation-circle" />{error}
+//                         <button type="button" className="btn-close btn-sm ms-auto" onClick={() => setError(null)} />
+//                     </div>
+//                 )}
+
+//                 {/* Main content area - Empty state */}
+//                 <div className="dp-main">
+//                     <div className="dp-state">
+//                         <FiCalendar size={48} style={{ opacity: 0.15, marginBottom: '1rem' }} />
+//                         <h3>Select Date Range</h3>
+//                         <p>Choose the start and end dates above, then click "View Report" to analyze daily profit.</p>
+//                     </div>
+//                 </div>
+//             </div>
+
+//             <NotificationToast
+//                 show={notification.show}
+//                 message={notification.message}
+//                 type={notification.type}
+//                 duration={notification.duration}
+//                 onClose={() => setNotification({ ...notification, show: false })}
+//             />
+//         </div>
+//     );
+// };
+
+// export default DailyProfit;
