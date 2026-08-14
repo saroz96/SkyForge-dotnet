@@ -1198,13 +1198,13 @@
 //                     .col-amount { min-width: 50px; }
 //                     .col-balance { min-width: 60px; }
 //                     .col-remarks { min-width: 130px; }
-                    
+
 //                     /* Itemwise specific */
 //                     .col-item { min-width: 120px; }
 //                     .col-qty { min-width: 60px; }
 //                     .col-unit { min-width: 50px; }
 //                     .col-rate { min-width: 70px; }
-                    
+
 //                     @media print {
 //                         body { 
 //                             padding: 10px;
@@ -3425,7 +3425,7 @@ import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import CashSettlementModal from './CashSettlementModal';
-import { FiFileText, FiPrinter, FiDownload, FiSearch,FiRefreshCw, FiUser, FiCalendar, FiShare2, FiLink } from 'react-icons/fi';
+import { FiFileText, FiPrinter, FiDownload, FiSearch, FiRefreshCw, FiUser, FiCalendar, FiShare2, FiLink } from 'react-icons/fi';
 import { Badge } from 'react-bootstrap';
 import './Statement.css';
 
@@ -3626,7 +3626,8 @@ const Statement = () => {
                 setAccountSearchPage(page);
                 if (searchTerm.trim() !== '') { setAccountLastSearchQuery(searchTerm); setAccountShouldShowLastSearchResults(true); }
             }
-        } catch (error) { console.error('Error fetching accounts:', error); setNotification({ show: true, message: 'Error loading accounts', type: 'error' });
+        } catch (error) {
+            console.error('Error fetching accounts:', error); setNotification({ show: true, message: 'Error loading accounts', type: 'error' });
         } finally { setIsAccountSearching(false); }
     };
 
@@ -3697,7 +3698,8 @@ const Statement = () => {
                         user: responseData.user
                     }));
                 }
-            } catch (err) { setNotification({ show: true, message: 'Error loading account data', type: 'error' });
+            } catch (err) {
+                setNotification({ show: true, message: 'Error loading account data', type: 'error' });
             } finally { setLoading(false); }
         };
         fetchInitialData();
@@ -3842,7 +3844,7 @@ const Statement = () => {
 
     useEffect(() => {
         const savedWidths = localStorage.getItem('statementTableColumnWidths');
-        if (savedWidths) try { setColumnWidths(JSON.parse(savedWidths)); } catch (e) {}
+        if (savedWidths) try { setColumnWidths(JSON.parse(savedWidths)); } catch (e) { }
     }, []);
     useEffect(() => localStorage.setItem('statementTableColumnWidths', JSON.stringify(columnWidths)), [columnWidths]);
 
@@ -4161,7 +4163,8 @@ const Statement = () => {
             XLSX.utils.book_append_sheet(wb, ws, 'Statement Report');
             XLSX.writeFile(wb, `Statement_${data.partyName}_${dateRange.fromDate}_to_${dateRange.toDate}_${viewMode}.xlsx`);
             setNotification({ show: true, message: 'Excel exported successfully!', type: 'success' });
-        } catch (err) { setNotification({ show: true, message: 'Failed to export Excel file: ' + err.message, type: 'error' });
+        } catch (err) {
+            setNotification({ show: true, message: 'Failed to export Excel file: ' + err.message, type: 'error' });
         } finally { setExporting(false); }
     };
 
@@ -4208,35 +4211,274 @@ const Statement = () => {
         const item = statement[index];
         const isNepaliFormat = company.dateFormat === 'nepali';
 
-        if (!item) return null;
-        const isSelected = selectedRowIndex === index;
-        const isOpening = item.accountType === 'Opening' || item.type === 'Opening' || (!item.type && item.accountType === 'Opening');
-        const bsDate = isOpening ? dateRange.fromDate : (item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : ''));
-        const adDateDisplay = isOpening ? dateRange.fromDateAd : (item.date ? new Date(item.date).toLocaleDateString() : '');
+        const getSettlementStatusBadge = (item) => {
+            if (!item.isCashTransaction) return null;
 
-        let accountName = isOpening ? 'Opening' : (item.type === 'Pymt' || item.type === 'Rcpt' ? item.PaymentReceiptType || item.accountType || '' : item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType || item.journalAccountType || '');
-        let remarks = item.cashSettlementRemarks || (item.instType && item.instNo ? `${item.instType} ${item.instNo}` : item.instType || item.instNo || '');
+            const status = item.cashSettlementStatus;
+            if (!status || status === 'Pending') {
+                return (
+                    <Badge bg="secondary" style={{ fontSize: '8px' }}>
+                        <i className="bi bi-clock me-1"></i>Pending
+                    </Badge>
+                );
+            }
+
+            const statusColors = {
+                'Received': 'success',
+                'Paid': 'info',
+                'Refunded': 'warning',
+                'Returned': 'success',
+                'Pending': 'secondary'
+            };
+
+            const statusIcons = {
+                'Received': '✓',
+                'Paid': '✓',
+                'Refunded': '↩',
+                'Returned': '↩',
+                'Pending': '⏳'
+            };
+
+            return (
+                <Badge bg={statusColors[status] || 'secondary'} style={{ fontSize: '8px' }}>
+                    {statusIcons[status] || ''} {status}
+                </Badge>
+            );
+        };
+
+        if (!item) return null;
+
+        const isSelected = selectedRowIndex === index;
+
+        // Check if this is a cash entry (cash received/paid)
+        const isCashEntry = item.isCashEntry || false;
+        const isCashTransaction = item.isCashTransaction || false;
+        const isSundryAccount = item.isSundryAccount || false;
+
+        // Only show cash entry styling if it's a Sundry account
+        const showCashEntry = isCashEntry && isSundryAccount;
+
+        const getFormattedAccountName = (item) => {
+            // For cash entries on Sundry accounts
+            if (showCashEntry) {
+                return item.accountType || 'Cash Entry';
+            }
+
+            // For original cash transactions on Sundry accounts
+            if (isCashTransaction && isSundryAccount && item.paymentDirection) {
+                if (item.type === 'Sale' && item.paymentMode === 'Cash') {
+                    return 'Cash Sale';
+                }
+                if (item.type === 'Purc' && item.paymentMode === 'Cash') {
+                    return 'Cash Purchase';
+                }
+                if (item.type === 'SlRt' && item.paymentMode === 'Cash') {
+                    return 'Cash Sales Rtn.';
+                }
+                if (item.type === 'PrRt' && item.paymentMode === 'Cash') {
+                    return 'Cash Purchase Rtn.';
+                }
+            }
+
+            // Existing logic for other transactions
+            if (item.type === 'Purc') {
+                if (item.partyBillNumber) {
+                    return `Purchase ${item.partyBillNumber}`;
+                }
+                return item.accountType || item.purchaseSalesType || 'Purchase';
+            }
+            if (item.type === 'PrRt') {
+                if (item.partyBillNumber) {
+                    return `Purchase Return ${item.partyBillNumber}`;
+                }
+                return item.accountType || item.purchaseSalesReturnType || 'Purchase Return';
+            }
+            if (item.type === 'Pymt') {
+                return item.accountType || 'Payment';
+            }
+            if (item.type === 'Rcpt') {
+                return item.accountType || 'Receipt';
+            }
+
+            return item.accountType || item.purchaseSalesType || item.purchaseSalesReturnType ||
+                item.PaymentReceiptType || item.journalAccountType || 'Opening';
+        };
+
+        // Check if this is an opening balance entry
+        const isOpeningBalance = item.accountType === 'Opening' ||
+            item.type === 'Opening' ||
+            (!item.type && item.accountType === 'Opening') ||
+            (item.accountType === 'Opening');
+
+        // Calculate BS Date and AD Date
+        let bsDate = '';
+        let adDateDisplay = '';
+
+        if (isOpeningBalance) {
+            if (isNepaliFormat && dateRange.fromDate) {
+                bsDate = dateRange.fromDate;
+            } else if (dateRange.fromDateAd) {
+                adDateDisplay = dateRange.fromDateAd;
+            }
+        } else {
+            bsDate = item.nepaliDate || (isNepaliFormat ? new NepaliDate(item.date).format('YYYY-MM-DD') : '');
+            adDateDisplay = item.date ? new Date(item.date).toLocaleDateString() : '';
+        }
+
+        // Determine row background color
+        let backgroundColor = isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white');
+
+        // Special highlighting for cash entries (cash received/paid) - ONLY for Sundry accounts
+        if (showCashEntry) {
+            backgroundColor = isSelected ? '#d4edda' : (index % 2 === 0 ? '#e8f5e9' : '#f1f8e9');
+        }
+
+        // Determine if we should show the cash indicators
+        const showCashIndicators = isCashTransaction && isSundryAccount;
 
         return (
-            <div style={{ ...style, display: 'flex', alignItems: 'center', height: '28px', borderBottom: '1px solid #e2e8f0', cursor: 'pointer', backgroundColor: isSelected ? '#eff6ff' : (index % 2 === 0 ? '#f8fafc' : 'white') }} className="st-row" onClick={() => handleRowClick(index)} onDoubleClick={() => handleRowDoubleClick(item)}>
-                <div className="st-cell st-cell--center" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0 }}><span>{bsDate || '-'}</span></div>
-                <div className="st-cell st-cell--center" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0 }}><span>{adDateDisplay || '-'}</span></div>
-                <div className="st-cell" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0 }}><span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.billNumber || ''}</span></div>
-                <div className="st-cell" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0 }}><span>{item.type || ''}</span></div>
-                <div className="st-cell" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0 }}><span>{item.paymentMode || ''}</span></div>
-                <div className="st-cell" style={{ width: `${columnWidths.account}px`, flexShrink: 0 }} title={accountName}><span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{accountName}</span></div>
-                <div className="st-cell st-cell--end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0 }}><span>{item.debit > 0 ? formatCurrency(item.debit) : '-'}</span></div>
-                <div className="st-cell st-cell--end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0 }}><span>{item.credit > 0 ? formatCurrency(item.credit) : '-'}</span></div>
-                <div className="st-cell st-cell--end" style={{ width: `${columnWidths.balance}px`, flexShrink: 0 }}><span>{item.balance > 0 ? `${formatCurrency(item.balance)} Dr` : `${formatCurrency(Math.abs(item.balance))} Cr`}</span></div>
-                <div className="st-cell" style={{ width: `${columnWidths.remarks}px`, flexShrink: 0 }}><span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{remarks}</span></div>
+            <div
+                style={{
+                    ...style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '28px',
+                    minHeight: '28px',
+                    padding: '0',
+                    borderBottom: '1px solid #dee2e6',
+                    cursor: 'pointer',
+                    backgroundColor: backgroundColor,
+                    borderLeft: showCashEntry ? '3px solid #28a745' : 'none'
+                }}
+                onClick={() => handleRowClick(index)}
+                onDoubleClick={() => handleRowDoubleClick(item)}
+            >
+                {/* BS Date Column */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{bsDate || '-'}</span>
+                </div>
+
+                {/* AD Date Column */}
+                <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{adDateDisplay || '-'}</span>
+                </div>
+
+                {/* Voucher No Column */}
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {item.billNumber || ''}
+                    </span>
+                </div>
+
+                {/* Type Column */}
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.voucherType}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal',
+                        color: showCashEntry ? '#28a745' :
+                            showCashIndicators ? '#856404' : 'inherit'
+                    }}>
+                        {showCashEntry ? 'Cash' : (item.type || '')}
+                        {showCashEntry && (
+                            <span style={{ fontSize: '0.65rem', marginLeft: '2px' }}>
+                                {item.paymentDirection === 'Received' ? '⬇' : '⬆'}
+                            </span>
+                        )}
+                    </span>
+                </div>
+
+                {/* Pay Mode Column */}
+                <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.payMode}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {showCashEntry ? 'Cash' : (item.paymentMode || '')}
+                    </span>
+                </div>
+
+                {/* Account Column - FIXED: Added (e) parameter and correct event handling */}
+                <div
+                    className="d-flex align-items-center px-1 border-end"
+                    style={{ width: `${columnWidths.account}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}
+                    title={`${getFormattedAccountName(item)}${item.cashSettlementStatus ? ` - ${item.cashSettlementStatus}` : ''}`}
+                    onClick={(e) => {
+                        // First check if it's a clickable cash transaction
+                        const isCashTransactionType = item.paymentMode === 'Cash' && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type);
+                        if (isCashTransactionType) {
+                            // Prevent the row click from triggering
+                            e.stopPropagation();
+                            handleCashSettlementClick(item);
+                        }
+                    }}
+                >
+                    <span style={{
+                        fontSize: '0.75rem',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        fontWeight: showCashEntry ? '600' : 'normal',
+                        color: showCashEntry ? '#28a745' : 'inherit',
+                        cursor: (item.paymentMode === 'Cash' && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type)) ? 'pointer' : 'default'
+                    }}>
+                        {getFormattedAccountName(item)}
+                        {item.isCashTransaction && ['Sale', 'Purc', 'SlRt', 'PrRt'].includes(item.type) && (
+                            <span style={{ marginLeft: '4px' }}>
+                                {getSettlementStatusBadge(item)}
+                            </span>
+                        )}
+                    </span>
+                </div>
+
+                {/* Debit Column */}
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        color: item.debit > 0 ? (showCashEntry ? '#28a745' : '#000') : 'inherit',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {item.debit > 0 ? formatCurrency(item.debit) : '-'}
+                    </span>
+                </div>
+
+                {/* Credit Column */}
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        color: item.credit > 0 ? (showCashEntry ? '#dc3545' : '#000') : 'inherit',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {item.credit > 0 ? formatCurrency(item.credit) : '-'}
+                    </span>
+                </div>
+
+                {/* Balance Column */}
+                <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.balance}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal',
+                        color: showCashEntry ? '#1a73e8' : 'inherit'
+                    }}>
+                        {item.balance > 0 ? `${formatCurrency(item.balance)} Dr` : `${formatCurrency(Math.abs(item.balance))} Cr`}
+                    </span>
+                </div>
+
+                {/* Remarks Column */}
+                <div className="d-flex align-items-center justify-content-end px-1">
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: showCashEntry ? '600' : 'normal',
+                        color: showCashEntry ? '#1a73e8' : 'inherit'
+                    }}>
+                        {(item.cashSettlementRemarks)}
+                        {(item.instType)} {(item.instNo)}
+                    </span>
+                </div>
             </div>
         );
-    }, (prevProps, nextProps) => {
-        if (prevProps.index !== nextProps.index) return false;
-        if (prevProps.style !== nextProps.style) return false;
-        const prevItem = prevProps.data.statement[prevProps.index];
-        const nextItem = nextProps.data.statement[nextProps.index];
-        return shallowEqual(prevItem, nextItem) && prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex;
     });
 
     function shallowEqual(objA, objB) {
