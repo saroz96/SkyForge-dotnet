@@ -1054,6 +1054,11 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     BillNumber = billNumber,
                     PurchaseSalesType = "Sales",
                     AccountId = dto.AccountId,
+                    CashAccount = dto.CashAccount,
+                    CashAccountAddress = dto.CashAccountAddress,
+                    CashAccountPan = dto.CashAccountPan,
+                    CashAccountEmail = dto.CashAccountEmail,
+                    CashAccountPhone = dto.CashAccountPhone,
                     FiscalYearId = fiscalYearId,
                     Type = "Sale",
                     SubTotal = dto.SubTotal ?? 0,
@@ -1578,8 +1583,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 // EXCLUDE bills that have CashAccount populated (not null)
                 var latestBillQuery = _context.SalesBills
                     .Where(pb => pb.CompanyId == companyId &&
-                                pb.FiscalYearId == fiscalYearId &&
-                                pb.CashAccount == null); // CHANGED: Exclude bills with CashAccount
+                                pb.FiscalYearId == fiscalYearId); // CHANGED: Exclude bills with CashAccount
 
                 if (isNepaliFormat)
                 {
@@ -1719,181 +1723,1042 @@ namespace SkyForge.Services.Retailer.SalesBillServices
             }
         }
 
-        public async Task<ChangeCreditSalesPartyResponseDTO> ChangeCreditSalesPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
+        // public async Task<ChangeCreditSalesPartyResponseDTO> ChangeCreditSalesPartyAsync(string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
+
+        //     // Start a database transaction to ensure data consistency
+        //     using var dbTransaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         // 1. Verify the new account exists, is active, and is a party account
+        //         var newAccount = await VerifyAndGetPartyAccountAsync(newAccountId, companyId);
+
+        //         // 2. Get the original sales bill with account and items
+        //         var originalBill = await _context.SalesBills
+        //             .Include(pb => pb.Account)
+        //             .Include(pb => pb.Items)
+        //             .FirstOrDefaultAsync(pb => pb.BillNumber == billNumber &&
+        //                                        pb.CompanyId == companyId &&
+        //                                        pb.FiscalYearId == fiscalYearId);
+
+        //         if (originalBill == null)
+        //         {
+        //             throw new Exception("Voucher not found");
+        //         }
+
+        //         // Check if party is actually changed
+        //         if (originalBill.AccountId == newAccountId)
+        //         {
+        //             throw new Exception("Selected party is same as current party");
+        //         }
+
+        //         var oldAccountId = originalBill.AccountId;
+        //         var oldAccountName = originalBill.Account?.Name ?? "Unknown";
+
+        //         // 3. Calculate amounts
+        //         var totalAmount = originalBill.TotalAmount;
+        //         var taxableAmount = originalBill.TaxableAmount;
+        //         var nonVatSales = originalBill.NonVatSales;
+        //         var vatAmount = originalBill.VatAmount;
+        //         var roundOffAmount = originalBill.RoundOffAmount;
+        //         var creditSalesAmount = taxableAmount + nonVatSales;
+
+        //         // 4. Get default account IDs
+        //         var creditSalesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+
+        //         // Parse payment mode
+        //         var paymentMode = ParsePaymentMode(originalBill.PaymentMode ?? "Credit");
+
+        //         // 5. Get all transactions linked to this sales bill WITH their transaction items
+        //         var transactions = await _context.Transactions
+        //             .Where(t => t.SalesBillId == originalBill.Id &&
+        //                        t.CompanyId == companyId &&
+        //                        t.FiscalYearId == fiscalYearId &&
+        //                        t.Status == TransactionStatus.Active)
+        //             .Include(t => t.TransactionItems) // Include transaction items
+        //             .ToListAsync();
+
+        //         _logger.LogInformation($"Found {transactions.Count} transactions for bill {billNumber}");
+
+        //         // 6. Update sales bill with new account
+        //         originalBill.AccountId = newAccountId;
+        //         originalBill.PurchaseSalesType = "Sales";
+
+        //         // 7. Process each transaction
+        //         foreach (var trans in transactions)
+        //         {
+        //             // Check if this is the main party transaction (old party)
+        //             // Party transaction is identified by having AccountId = oldAccountId AND TotalDebit = 0, TotalCredit = totalAmount
+        //             var isMainPartyTransaction = trans.AccountId == oldAccountId &&
+        //                                          trans.TotalDebit == 0 &&
+        //                                          trans.TotalCredit == totalAmount &&
+        //                                          trans.Type == TransactionType.Sale;
+
+        //             if (isMainPartyTransaction)
+        //             {
+        //                 // Update to new party - Party account should be CREDIT side (amount receivable)
+        //                 trans.AccountId = newAccountId;
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated main party transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
+
+        //                 // Update all transaction items under this transaction
+        //                 foreach (var transactionItem in trans.TransactionItems)
+        //                 {
+        //                     transactionItem.UpdatedAt = DateTime.UtcNow;
+        //                     _logger.LogInformation($"Updated transaction item {transactionItem.Id} under party transaction {trans.Id}");
+        //                 }
+        //             }
+        //             // Check if this is a sales account transaction (Credit to Sales account)
+        //             else if (creditSalesAccountId.HasValue && trans.AccountId == creditSalesAccountId.Value)
+        //             {
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 // Update transaction items if any
+        //                 foreach (var transactionItem in trans.TransactionItems)
+        //                 {
+        //                     transactionItem.UpdatedAt = DateTime.UtcNow;
+        //                 }
+
+        //                 _logger.LogInformation($"Updated sales account transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a VAT transaction (Credit to VAT account)
+        //             else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
+        //             {
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 // Update transaction items (VAT items per product)
+        //                 foreach (var transactionItem in trans.TransactionItems)
+        //                 {
+        //                     transactionItem.UpdatedAt = DateTime.UtcNow;
+        //                 }
+
+        //                 _logger.LogInformation($"Updated VAT transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a RoundOff transaction
+        //             else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
+        //             {
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated RoundOff transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a cash transaction (if payment mode was cash)
+        //             else if (trans.PaymentMode == PaymentMode.Cash && trans.TotalDebit == totalAmount && trans.TotalCredit == 0)
+        //             {
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated cash transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // For any other transactions that might have items
+        //             else if (trans.TransactionItems.Any() && trans.Type == TransactionType.Sale)
+        //             {
+        //                 // Update the transaction header
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 // Update all transaction items
+        //                 foreach (var transactionItem in trans.TransactionItems)
+        //                 {
+        //                     transactionItem.UpdatedAt = DateTime.UtcNow;
+        //                 }
+
+        //                 _logger.LogInformation($"Updated transaction {trans.Id} with {trans.TransactionItems.Count} items");
+        //             }
+        //         }
+
+        //         // 8. Save changes
+        //         await _context.SaveChangesAsync();
+
+        //         // 9. Commit transaction
+        //         await dbTransaction.CommitAsync();
+
+        //         _logger.LogInformation($"Successfully changed party for bill: {billNumber} from {oldAccountName} to {newAccount.Name}");
+
+        //         return new ChangeCreditSalesPartyResponseDTO
+        //         {
+        //             BillNumber = billNumber,
+        //             AccountId = newAccountId,
+        //             AccountName = newAccount.Name,
+        //             Message = $"Party changed successfully from \"{oldAccountName}\" to \"{newAccount.Name}\""
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, $"Error changing party for bill: {billNumber}");
+        //         await dbTransaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
+        // public async Task<ChangeCreditSalesPartyResponseDTO> ChangeCreditSalesPartyAsync(
+        //     string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
+        // {
+        //     _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
+
+        //     // Start a database transaction to ensure data consistency
+        //     using var dbTransaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         // 1. Verify the new account exists, is active, and is a party account
+        //         var newAccount = await VerifyAndGetPartyAccountAsync(newAccountId, companyId);
+
+        //         // 2. Get the original sales bill with account and items
+        //         var originalBill = await _context.SalesBills
+        //             .Include(pb => pb.Account)
+        //             .Include(pb => pb.Items)
+        //             .FirstOrDefaultAsync(pb => pb.BillNumber == billNumber &&
+        //                                        pb.CompanyId == companyId &&
+        //                                        pb.FiscalYearId == fiscalYearId);
+
+        //         if (originalBill == null)
+        //         {
+        //             throw new Exception("Voucher not found");
+        //         }
+
+        //         // Check if party is actually changed
+        //         if (originalBill.AccountId == newAccountId)
+        //         {
+        //             throw new Exception("Selected party is same as current party");
+        //         }
+
+        //         var oldAccountId = originalBill.AccountId;
+        //         var oldAccountName = originalBill.Account?.Name ?? "Unknown";
+
+        //         // 3. Calculate amounts
+        //         var totalAmount = originalBill.TotalAmount;
+        //         var taxableAmount = originalBill.TaxableAmount;
+        //         var nonVatSales = originalBill.NonVatSales;
+        //         var vatAmount = originalBill.VatAmount;
+        //         var roundOffAmount = originalBill.RoundOffAmount;
+        //         var creditSalesAmount = taxableAmount + nonVatSales;
+
+        //         // 4. Get default account IDs
+        //         var creditSalesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);
+        //         var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+        //         var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+
+        //         // Parse payment mode
+        //         var paymentMode = ParsePaymentMode(originalBill.PaymentMode ?? "Credit");
+
+        //         // 5. Get all transactions linked to this sales bill WITH their transaction items
+        //         var transactions = await _context.Transactions
+        //             .Where(t => t.SalesBillId == originalBill.Id &&
+        //                        t.CompanyId == companyId &&
+        //                        t.FiscalYearId == fiscalYearId &&
+        //                        t.Status == TransactionStatus.Active)
+        //             .Include(t => t.TransactionItems) // Include transaction items
+        //             .ToListAsync();
+
+        //         _logger.LogInformation($"Found {transactions.Count} transactions for bill {billNumber}");
+
+        //         // 6. Update sales bill with new account
+        //         originalBill.AccountId = newAccountId;
+        //         originalBill.PurchaseSalesType = "Sales";
+
+        //         // 7. Process each transaction
+        //         foreach (var trans in transactions)
+        //         {
+        //             // 🔥 NEW: Update EVERY transaction that has the old account ID
+        //             // This ensures ALL transactions referencing the old party are updated
+        //             if (trans.AccountId == oldAccountId)
+        //             {
+        //                 trans.AccountId = newAccountId;
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
+
+        //                 // 🔥 NEW: Update all transaction items under this transaction
+        //                 foreach (var transactionItem in trans.TransactionItems)
+        //                 {
+        //                     transactionItem.UpdatedAt = DateTime.UtcNow;
+        //                     _logger.LogInformation($"Updated transaction item {transactionItem.Id} under transaction {trans.Id}");
+        //                 }
+        //             }
+        //             // Check if this is a sales account transaction (Credit to Sales account)
+        //             else if (creditSalesAccountId.HasValue && trans.AccountId == creditSalesAccountId.Value)
+        //             {
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 // Update transaction items if any
+        //                 foreach (var transactionItem in trans.TransactionItems)
+        //                 {
+        //                     transactionItem.UpdatedAt = DateTime.UtcNow;
+        //                 }
+
+        //                 _logger.LogInformation($"Updated sales account transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a VAT transaction (Credit to VAT account)
+        //             else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
+        //             {
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 // Update transaction items (VAT items per product)
+        //                 foreach (var transactionItem in trans.TransactionItems)
+        //                 {
+        //                     transactionItem.UpdatedAt = DateTime.UtcNow;
+        //                 }
+
+        //                 _logger.LogInformation($"Updated VAT transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a RoundOff transaction
+        //             else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
+        //             {
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated RoundOff transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // Check if this is a cash transaction (if payment mode was cash)
+        //             else if (trans.PaymentMode == PaymentMode.Cash && trans.TotalDebit == totalAmount && trans.TotalCredit == 0)
+        //             {
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 _logger.LogInformation($"Updated cash transaction {trans.Id} with new party name: {newAccount.Name}");
+        //             }
+        //             // For any other transactions that might have items
+        //             else if (trans.TransactionItems.Any() && trans.Type == TransactionType.Sale)
+        //             {
+        //                 // Update the transaction header
+        //                 trans.PurchaseSalesType = "Sales";
+        //                 trans.UpdatedAt = DateTime.UtcNow;
+
+        //                 // Update all transaction items
+        //                 foreach (var transactionItem in trans.TransactionItems)
+        //                 {
+        //                     transactionItem.UpdatedAt = DateTime.UtcNow;
+        //                 }
+
+        //                 _logger.LogInformation($"Updated transaction {trans.Id} with {trans.TransactionItems.Count} items");
+        //             }
+        //         }
+
+        //         // 8. Save changes
+        //         await _context.SaveChangesAsync();
+
+        //         // 9. Commit transaction
+        //         await dbTransaction.CommitAsync();
+
+        //         _logger.LogInformation($"Successfully changed party for bill: {billNumber} from {oldAccountName} to {newAccount.Name}");
+
+        //         return new ChangeCreditSalesPartyResponseDTO
+        //         {
+        //             BillNumber = billNumber,
+        //             AccountId = newAccountId,
+        //             AccountName = newAccount.Name,
+        //             Message = $"Party changed successfully from \"{oldAccountName}\" to \"{newAccount.Name}\""
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, $"Error changing party for bill: {billNumber}");
+        //         await dbTransaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
+
+    //     public async Task<ChangeCreditSalesPartyResponseDTO> ChangeCreditSalesPartyAsync(
+    //  string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
+    //     {
+    //         _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
+
+    //         // Start a database transaction to ensure data consistency
+    //         using var dbTransaction = await _context.Database.BeginTransactionAsync();
+
+    //         try
+    //         {
+    //             // 1. Verify the new account exists, is active, and is a party account
+    //             var newAccount = await VerifyAndGetPartyAccountAsync(newAccountId, companyId);
+
+    //             // 2. Get the original sales bill with account and items
+    //             var originalBill = await _context.SalesBills
+    //                 .Include(pb => pb.Account)
+    //                 .Include(pb => pb.Items)
+    //                 .FirstOrDefaultAsync(pb => pb.BillNumber == billNumber &&
+    //                                            pb.CompanyId == companyId &&
+    //                                            pb.FiscalYearId == fiscalYearId);
+
+    //             if (originalBill == null)
+    //             {
+    //                 throw new Exception("Voucher not found");
+    //             }
+
+    //             // Check if party is actually changed
+    //             if (originalBill.AccountId == newAccountId)
+    //             {
+    //                 throw new Exception("Selected party is same as current party");
+    //             }
+
+    //             var oldAccountId = originalBill.AccountId;
+    //             var oldAccountName = originalBill.Account?.Name ?? "Unknown";
+    //             var isCashSales = originalBill.PaymentMode?.ToLower() == "cash";
+    //             var totalAmount = originalBill.TotalAmount;
+
+    //             // 3. Get the Cash in Hand account ID
+    //             var cashInHandAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
+    //             var salesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);
+    //             var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+    //             var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+
+    //             _logger.LogInformation($"Is Cash Sales: {isCashSales}");
+    //             _logger.LogInformation($"Old Account ID: {oldAccountId}, New Account ID: {newAccountId}");
+    //             _logger.LogInformation($"Cash in Hand Account ID: {cashInHandAccountId}");
+
+    //             // 4. Get all transactions linked to this sales bill
+    //             var transactions = await _context.Transactions
+    //                 .Where(t => t.SalesBillId == originalBill.Id &&
+    //                            t.CompanyId == companyId &&
+    //                            t.FiscalYearId == fiscalYearId &&
+    //                            t.Status == TransactionStatus.Active)
+    //                 .Include(t => t.TransactionItems)
+    //                 .ToListAsync();
+
+    //             _logger.LogInformation($"Found {transactions.Count} transactions for bill {billNumber}");
+
+    //             // 5. Update sales bill with new account
+    //             originalBill.AccountId = newAccountId;
+    //             originalBill.PurchaseSalesType = "Sales";
+
+    //             // Clear CashAccount if it exists (for cash sales)
+    //             if (!string.IsNullOrEmpty(originalBill.CashAccount))
+    //             {
+    //                 originalBill.CashAccount = null;
+    //                 _logger.LogInformation($"Cleared CashAccount from bill {billNumber}");
+    //             }
+
+    //             // ✅ DO NOT change PaymentMode - keep it as-is
+    //             originalBill.UpdatedAt = DateTime.UtcNow;
+
+    //             // Track updates
+    //             int partyTransactionsUpdated = 0;
+    //             int cashTransactionsPreserved = 0;
+
+    //             // 6. Process each transaction
+    //             foreach (var trans in transactions)
+    //             {
+    //                 bool isCashInHandTransaction = cashInHandAccountId.HasValue &&
+    //                                                trans.AccountId == cashInHandAccountId.Value;
+
+    //                 // 🔥 CRITICAL: If this is a Cash in Hand transaction, PRESERVE IT
+    //                 if (isCashInHandTransaction)
+    //                 {
+    //                     trans.PurchaseSalesType = "Sales";
+    //                     trans.UpdatedAt = DateTime.UtcNow;
+
+    //                     foreach (var transactionItem in trans.TransactionItems)
+    //                     {
+    //                         transactionItem.UpdatedAt = DateTime.UtcNow;
+    //                     }
+
+    //                     cashTransactionsPreserved++;
+    //                     _logger.LogInformation($"🔒 CASH IN HAND transaction {trans.Id} PRESERVED: AccountId {trans.AccountId} unchanged");
+    //                     continue;
+    //                 }
+
+    //                 // 🔥 Identify PARTY TRANSACTION (for credit sales only)
+    //                 bool isPartyTransaction = false;
+
+    //                 if (!isCashSales)
+    //                 {
+    //                     if (trans.AccountId == oldAccountId &&
+    //                         trans.TotalDebit == totalAmount &&
+    //                         trans.TotalCredit == 0 &&
+    //                         trans.Type == TransactionType.Sale)
+    //                     {
+    //                         isPartyTransaction = true;
+    //                         _logger.LogInformation($"Transaction {trans.Id} identified as CREDIT PARTY transaction");
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     if (trans.AccountId == oldAccountId &&
+    //                         trans.Type == TransactionType.Sale)
+    //                     {
+    //                         isPartyTransaction = true;
+    //                         _logger.LogInformation($"Transaction {trans.Id} identified as existing PARTY transaction for cash sale");
+    //                     }
+    //                 }
+
+    //                 if (isPartyTransaction)
+    //                 {
+    //                     trans.AccountId = newAccountId;
+    //                     trans.PurchaseSalesType = "Sales";
+    //                     trans.UpdatedAt = DateTime.UtcNow;
+
+    //                     foreach (var transactionItem in trans.TransactionItems)
+    //                     {
+    //                         transactionItem.UpdatedAt = DateTime.UtcNow;
+    //                     }
+
+    //                     partyTransactionsUpdated++;
+    //                     _logger.LogInformation($"✅ PARTY transaction {trans.Id} updated: AccountId {oldAccountId} → {newAccountId}");
+    //                 }
+    //                 else if (salesAccountId.HasValue && trans.AccountId == salesAccountId.Value)
+    //                 {
+    //                     trans.PurchaseSalesType = "Sales";
+    //                     trans.UpdatedAt = DateTime.UtcNow;
+
+    //                     foreach (var transactionItem in trans.TransactionItems)
+    //                     {
+    //                         transactionItem.UpdatedAt = DateTime.UtcNow;
+    //                     }
+    //                     _logger.LogInformation($"Updated SALES account transaction {trans.Id}");
+    //                 }
+    //                 else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
+    //                 {
+    //                     trans.PurchaseSalesType = "Sales";
+    //                     trans.UpdatedAt = DateTime.UtcNow;
+
+    //                     foreach (var transactionItem in trans.TransactionItems)
+    //                     {
+    //                         transactionItem.UpdatedAt = DateTime.UtcNow;
+    //                     }
+    //                     _logger.LogInformation($"Updated VAT transaction {trans.Id}");
+    //                 }
+    //                 else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
+    //                 {
+    //                     trans.PurchaseSalesType = "Sales";
+    //                     trans.UpdatedAt = DateTime.UtcNow;
+    //                     _logger.LogInformation($"Updated RoundOff transaction {trans.Id}");
+    //                 }
+    //                 else if (trans.Type == TransactionType.Sale)
+    //                 {
+    //                     trans.PurchaseSalesType = "Sales";
+    //                     trans.UpdatedAt = DateTime.UtcNow;
+
+    //                     foreach (var transactionItem in trans.TransactionItems)
+    //                     {
+    //                         transactionItem.UpdatedAt = DateTime.UtcNow;
+    //                     }
+    //                     _logger.LogInformation($"Updated other transaction {trans.Id}");
+    //                 }
+    //                 else
+    //                 {
+    //                     _logger.LogWarning($"⚠️ Unhandled transaction {trans.Id}: AccountId={trans.AccountId}, Type={trans.Type}");
+    //                 }
+    //             }
+
+    //             // 7. 🔥 If this is a cash sale and no party transaction exists, CREATE ONE
+    //             if (isCashSales && partyTransactionsUpdated == 0)
+    //             {
+    //                 _logger.LogInformation($"Creating new party transaction for cash sale {billNumber} with AccountId {newAccountId}");
+
+    //                 // Check if there's already a transaction with the new AccountId
+    //                 var existingTransaction = transactions.FirstOrDefault(t =>
+    //                     t.AccountId == newAccountId && t.Type == TransactionType.Sale);
+
+    //                 if (existingTransaction != null)
+    //                 {
+    //                     _logger.LogInformation($"Transaction with AccountId {newAccountId} already exists, skipping creation");
+    //                 }
+    //                 else
+    //                 {
+    //                     // 🔥 Get VAT and tax information from existing transactions
+    //                     // Find the VAT transaction to get VAT details
+    //                     var vatTransaction = transactions.FirstOrDefault(t =>
+    //                         vatAccountId.HasValue && t.AccountId == vatAccountId.Value &&
+    //                         t.IsType == TransactionIsType.VAT);
+
+    //                     // Find the Sales transaction to get tax details
+    //                     var salesTransaction = transactions.FirstOrDefault(t =>
+    //                         salesAccountId.HasValue && t.AccountId == salesAccountId.Value);
+
+    //                     // Get VAT and tax values from the transactions
+    //                     decimal? taxableAmount = salesTransaction?.TaxableAmount ?? originalBill.TaxableAmount;
+    //                     decimal? nonTaxableAmount = salesTransaction?.NonTaxableAmount ?? originalBill.NonVatSales;
+    //                     decimal? vatPercentage = vatTransaction?.VatPercentage ?? originalBill.VatPercentage;
+    //                     decimal? vatAmount = vatTransaction?.VatAmount ?? originalBill.VatAmount;
+
+    //                     // Create the party transaction (DEBIT side for the party)
+    //                     var partyTransaction = new Transaction
+    //                     {
+    //                         Id = Guid.NewGuid(),
+    //                         CompanyId = companyId,
+    //                         AccountId = newAccountId,
+    //                         SalesBillId = originalBill.Id,
+    //                         BillNumber = originalBill.BillNumber,
+    //                         IsType = TransactionIsType.Sale,
+    //                         Type = TransactionType.Sale,
+    //                         PurchaseSalesType = "Sales",
+    //                         TotalDebit = originalBill.TotalAmount,
+    //                         TotalCredit = 0,
+    //                         TaxableAmount = taxableAmount,
+    //                         NonTaxableAmount = nonTaxableAmount,
+    //                         VatPercentage = vatPercentage,
+    //                         VatAmount = vatAmount,
+    //                         PaymentMode = PaymentMode.Cash,
+    //                         Date = originalBill.TransactionDate,
+    //                         TransactionDate = originalBill.Date,
+    //                         NepaliDate = originalBill.NepaliDate,
+    //                         TransactionDateNepali = originalBill.TransactionDateNepali,
+    //                         FiscalYearId = fiscalYearId,
+    //                         CreatedAt = DateTime.UtcNow,
+    //                         Status = TransactionStatus.Active,
+    //                         IsActive = true
+    //                     };
+
+    //                     await _context.Transactions.AddAsync(partyTransaction);
+
+    //                     // 🔥 Add Transaction Items for Party Transaction
+    //                     // Get transaction items from the Sales transaction to copy item details
+    //                     var salesTransactionItems = salesTransaction?.TransactionItems ?? new List<TransactionItem>();
+
+    //                     if (salesTransactionItems.Any())
+    //                     {
+    //                         // Copy items from Sales transaction
+    //                         foreach (var item in salesTransactionItems)
+    //                         {
+    //                             var transactionItem = new TransactionItem
+    //                             {
+    //                                 Id = Guid.NewGuid(),
+    //                                 TransactionId = partyTransaction.Id,
+    //                                 ItemId = item.ItemId,
+    //                                 UnitId = item.UnitId,
+    //                                 WSUnit = item.WSUnit,
+    //                                 Quantity = item.Quantity,
+    //                                 Bonus = item.Bonus,
+    //                                 Price = item.Price,
+    //                                 PuPrice = item.PuPrice,
+    //                                 DiscountPercentagePerItem = item.DiscountPercentagePerItem,
+    //                                 DiscountAmountPerItem = item.DiscountAmountPerItem,
+    //                                 NetPuPrice = item.NetPuPrice,
+    //                                 TaxableAmount = item.TaxableAmount,
+    //                                 VatPercentage = item.VatPercentage,
+    //                                 VatAmount = item.VatAmount,
+    //                                 Debit = 0,
+    //                                 Credit = item.Credit, // Use the credit amount from the sales transaction
+    //                                 CreatedAt = DateTime.UtcNow
+    //                             };
+    //                             await _context.TransactionItems.AddAsync(transactionItem);
+    //                         }
+    //                     }
+    //                     else
+    //                     {
+    //                         // Fallback: Create items from SalesBill items
+    //                         foreach (var item in originalBill.Items)
+    //                         {
+    //                             decimal itemTotal = item.Quantity * item.Price;
+
+    //                             var transactionItem = new TransactionItem
+    //                             {
+    //                                 Id = Guid.NewGuid(),
+    //                                 TransactionId = partyTransaction.Id,
+    //                                 ItemId = item.ItemId,
+    //                                 UnitId = item.UnitId,
+    //                                 WSUnit = 0,
+    //                                 Quantity = item.Quantity,
+    //                                 Bonus = 0,
+    //                                 Price = item.Price,
+    //                                 PuPrice = item.PuPrice,
+    //                                 DiscountPercentagePerItem = item.DiscountPercentagePerItem,
+    //                                 DiscountAmountPerItem = item.DiscountAmountPerItem,
+    //                                 NetPuPrice = item.NetPuPrice ?? 0,
+    //                                 TaxableAmount = 0,
+    //                                 VatPercentage = 0,
+    //                                 VatAmount = 0,
+    //                                 Debit = 0,
+    //                                 Credit = itemTotal,
+    //                                 CreatedAt = DateTime.UtcNow
+    //                             };
+    //                             await _context.TransactionItems.AddAsync(transactionItem);
+    //                         }
+    //                     }
+
+    //                     partyTransactionsUpdated++;
+    //                     _logger.LogInformation($"✅ Created new PARTY transaction with AccountId {newAccountId} (PaymentMode: Cash)");
+    //                 }
+    //             }
+
+    //             // 8. Save changes
+    //             await _context.SaveChangesAsync();
+
+    //             // 9. Commit transaction
+    //             await dbTransaction.CommitAsync();
+
+    //             _logger.LogInformation($"=== Party Change Summary for Bill {billNumber} ===");
+    //             _logger.LogInformation($"- Party transactions updated/created: {partyTransactionsUpdated}");
+    //             _logger.LogInformation($"- Cash in Hand transactions preserved: {cashTransactionsPreserved}");
+    //             _logger.LogInformation($"- PaymentMode kept as: {originalBill.PaymentMode}");
+    //             _logger.LogInformation($"- CashAccount cleared: {(string.IsNullOrEmpty(originalBill.CashAccount) ? "Yes" : "No")}");
+
+    //             return new ChangeCreditSalesPartyResponseDTO
+    //             {
+    //                 BillNumber = billNumber,
+    //                 AccountId = newAccountId,
+    //                 AccountName = newAccount.Name,
+    //                 Message = $"Party changed successfully from \"{oldAccountName}\" to \"{newAccount.Name}\"" +
+    //                           (isCashSales ? " (Cash sale - party transaction added, PaymentMode kept as Cash)" : "")
+    //             };
+    //         }
+    //         catch (Exception ex)
+    //         {
+    //             _logger.LogError(ex, $"Error changing party for bill: {billNumber}");
+    //             await dbTransaction.RollbackAsync();
+    //             throw;
+    //         }
+    //     }
+
+public async Task<ChangeCreditSalesPartyResponseDTO> ChangeCreditSalesPartyAsync(
+    string billNumber, Guid newAccountId, Guid companyId, Guid fiscalYearId, Guid userId)
+{
+    _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
+
+    // Start a database transaction to ensure data consistency
+    using var dbTransaction = await _context.Database.BeginTransactionAsync();
+
+    try
+    {
+        // 1. Verify the new account exists, is active, and is a party account
+        var newAccount = await VerifyAndGetPartyAccountAsync(newAccountId, companyId);
+
+        // 2. Get the original sales bill with account and items
+        var originalBill = await _context.SalesBills
+            .Include(pb => pb.Account)
+            .Include(pb => pb.Items)
+            .FirstOrDefaultAsync(pb => pb.BillNumber == billNumber &&
+                                       pb.CompanyId == companyId &&
+                                       pb.FiscalYearId == fiscalYearId);
+
+        if (originalBill == null)
         {
-            _logger.LogInformation($"Changing party for credit sales: {billNumber} to new account: {newAccountId}");
+            throw new Exception("Voucher not found");
+        }
 
-            // Start a database transaction to ensure data consistency
-            using var dbTransaction = await _context.Database.BeginTransactionAsync();
+        // Check if party is actually changed
+        if (originalBill.AccountId == newAccountId)
+        {
+            throw new Exception("Selected party is same as current party");
+        }
 
-            try
+        var oldAccountId = originalBill.AccountId;
+        var oldAccountName = originalBill.Account?.Name ?? "Unknown";
+        var isCashSales = originalBill.PaymentMode?.ToLower() == "cash";
+        var totalAmount = originalBill.TotalAmount;
+
+        // 3. Get the Cash in Hand account ID
+        var cashInHandAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
+        var salesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);
+        var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+        var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
+
+        _logger.LogInformation($"Is Cash Sales: {isCashSales}");
+        _logger.LogInformation($"Old Account ID: {oldAccountId}, New Account ID: {newAccountId}");
+        _logger.LogInformation($"Cash in Hand Account ID: {cashInHandAccountId}");
+
+        // 4. Get all transactions linked to this sales bill
+        var transactions = await _context.Transactions
+            .Where(t => t.SalesBillId == originalBill.Id &&
+                       t.CompanyId == companyId &&
+                       t.FiscalYearId == fiscalYearId &&
+                       t.Status == TransactionStatus.Active)
+            .Include(t => t.TransactionItems)
+            .ToListAsync();
+
+        _logger.LogInformation($"Found {transactions.Count} transactions for bill {billNumber}");
+
+        // 5. Update sales bill with new account
+        originalBill.AccountId = newAccountId;
+        originalBill.PurchaseSalesType = "Sales";
+
+        // 🔥 NEW: Update CashAccount fields with new account information
+        if (isCashSales)
+        {
+            // Clear CashAccount if it exists (for cash sales)
+            if (!string.IsNullOrEmpty(originalBill.CashAccount))
             {
-                // 1. Verify the new account exists, is active, and is a party account
-                var newAccount = await VerifyAndGetPartyAccountAsync(newAccountId, companyId);
-
-                // 2. Get the original sales bill with account and items
-                var originalBill = await _context.SalesBills
-                    .Include(pb => pb.Account)
-                    .Include(pb => pb.Items)
-                    .FirstOrDefaultAsync(pb => pb.BillNumber == billNumber &&
-                                               pb.CompanyId == companyId &&
-                                               pb.FiscalYearId == fiscalYearId);
-
-                if (originalBill == null)
-                {
-                    throw new Exception("Voucher not found");
-                }
-
-                // Check if party is actually changed
-                if (originalBill.AccountId == newAccountId)
-                {
-                    throw new Exception("Selected party is same as current party");
-                }
-
-                var oldAccountId = originalBill.AccountId;
-                var oldAccountName = originalBill.Account?.Name ?? "Unknown";
-
-                // 3. Calculate amounts
-                var totalAmount = originalBill.TotalAmount;
-                var taxableAmount = originalBill.TaxableAmount;
-                var nonVatSales = originalBill.NonVatSales;
-                var vatAmount = originalBill.VatAmount;
-                var roundOffAmount = originalBill.RoundOffAmount;
-                var creditSalesAmount = taxableAmount + nonVatSales;
-
-                // 4. Get default account IDs
-                var creditSalesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);
-                var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
-                var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
-
-                // Parse payment mode
-                var paymentMode = ParsePaymentMode(originalBill.PaymentMode ?? "Credit");
-
-                // 5. Get all transactions linked to this sales bill WITH their transaction items
-                var transactions = await _context.Transactions
-                    .Where(t => t.SalesBillId == originalBill.Id &&
-                               t.CompanyId == companyId &&
-                               t.FiscalYearId == fiscalYearId &&
-                               t.Status == TransactionStatus.Active)
-                    .Include(t => t.TransactionItems) // Include transaction items
-                    .ToListAsync();
-
-                _logger.LogInformation($"Found {transactions.Count} transactions for bill {billNumber}");
-
-                // 6. Update sales bill with new account
-                originalBill.AccountId = newAccountId;
-                originalBill.PurchaseSalesType = "Sales";
-
-                // 7. Process each transaction
-                foreach (var trans in transactions)
-                {
-                    // Check if this is the main party transaction (old party)
-                    // Party transaction is identified by having AccountId = oldAccountId AND TotalDebit = 0, TotalCredit = totalAmount
-                    var isMainPartyTransaction = trans.AccountId == oldAccountId &&
-                                                 trans.TotalDebit == 0 &&
-                                                 trans.TotalCredit == totalAmount &&
-                                                 trans.Type == TransactionType.Sale;
-
-                    if (isMainPartyTransaction)
-                    {
-                        // Update to new party - Party account should be CREDIT side (amount receivable)
-                        trans.AccountId = newAccountId;
-                        trans.PurchaseSalesType = "Sales";
-                        trans.UpdatedAt = DateTime.UtcNow;
-
-                        _logger.LogInformation($"Updated main party transaction {trans.Id} from account {oldAccountId} to {newAccountId}");
-
-                        // Update all transaction items under this transaction
-                        foreach (var transactionItem in trans.TransactionItems)
-                        {
-                            transactionItem.UpdatedAt = DateTime.UtcNow;
-                            _logger.LogInformation($"Updated transaction item {transactionItem.Id} under party transaction {trans.Id}");
-                        }
-                    }
-                    // Check if this is a sales account transaction (Credit to Sales account)
-                    else if (creditSalesAccountId.HasValue && trans.AccountId == creditSalesAccountId.Value)
-                    {
-                        trans.PurchaseSalesType = "Sales";
-                        trans.UpdatedAt = DateTime.UtcNow;
-
-                        // Update transaction items if any
-                        foreach (var transactionItem in trans.TransactionItems)
-                        {
-                            transactionItem.UpdatedAt = DateTime.UtcNow;
-                        }
-
-                        _logger.LogInformation($"Updated sales account transaction {trans.Id} with new party name: {newAccount.Name}");
-                    }
-                    // Check if this is a VAT transaction (Credit to VAT account)
-                    else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
-                    {
-                        trans.PurchaseSalesType = "Sales";
-                        trans.UpdatedAt = DateTime.UtcNow;
-
-                        // Update transaction items (VAT items per product)
-                        foreach (var transactionItem in trans.TransactionItems)
-                        {
-                            transactionItem.UpdatedAt = DateTime.UtcNow;
-                        }
-
-                        _logger.LogInformation($"Updated VAT transaction {trans.Id} with new party name: {newAccount.Name}");
-                    }
-                    // Check if this is a RoundOff transaction
-                    else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
-                    {
-                        trans.PurchaseSalesType = "Sales";
-                        trans.UpdatedAt = DateTime.UtcNow;
-
-                        _logger.LogInformation($"Updated RoundOff transaction {trans.Id} with new party name: {newAccount.Name}");
-                    }
-                    // Check if this is a cash transaction (if payment mode was cash)
-                    else if (trans.PaymentMode == PaymentMode.Cash && trans.TotalDebit == totalAmount && trans.TotalCredit == 0)
-                    {
-                        trans.PurchaseSalesType = "Sales";
-                        trans.UpdatedAt = DateTime.UtcNow;
-
-                        _logger.LogInformation($"Updated cash transaction {trans.Id} with new party name: {newAccount.Name}");
-                    }
-                    // For any other transactions that might have items
-                    else if (trans.TransactionItems.Any() && trans.Type == TransactionType.Sale)
-                    {
-                        // Update the transaction header
-                        trans.PurchaseSalesType = "Sales";
-                        trans.UpdatedAt = DateTime.UtcNow;
-
-                        // Update all transaction items
-                        foreach (var transactionItem in trans.TransactionItems)
-                        {
-                            transactionItem.UpdatedAt = DateTime.UtcNow;
-                        }
-
-                        _logger.LogInformation($"Updated transaction {trans.Id} with {trans.TransactionItems.Count} items");
-                    }
-                }
-
-                // 8. Save changes
-                await _context.SaveChangesAsync();
-
-                // 9. Commit transaction
-                await dbTransaction.CommitAsync();
-
-                _logger.LogInformation($"Successfully changed party for bill: {billNumber} from {oldAccountName} to {newAccount.Name}");
-
-                return new ChangeCreditSalesPartyResponseDTO
-                {
-                    BillNumber = billNumber,
-                    AccountId = newAccountId,
-                    AccountName = newAccount.Name,
-                    Message = $"Party changed successfully from \"{oldAccountName}\" to \"{newAccount.Name}\""
-                };
+                originalBill.CashAccount = null;
+                _logger.LogInformation($"Cleared old CashAccount from bill {billNumber}");
             }
-            catch (Exception ex)
+
+            // 🔥 Update CashAccount fields with new account details
+            originalBill.CashAccount = newAccount.Name;
+            originalBill.CashAccountAddress = newAccount.Address;
+            originalBill.CashAccountPan = newAccount.Pan;
+            originalBill.CashAccountEmail = newAccount.Email;
+            originalBill.CashAccountPhone = newAccount.Phone;
+
+            _logger.LogInformation($"Updated CashAccount fields with new account: {newAccount.Name}");
+        }
+
+        // ✅ DO NOT change PaymentMode - keep it as-is
+        originalBill.UpdatedAt = DateTime.UtcNow;
+
+        // Track updates
+        int partyTransactionsUpdated = 0;
+        int cashTransactionsPreserved = 0;
+
+        // 6. Process each transaction
+        foreach (var trans in transactions)
+        {
+            bool isCashInHandTransaction = cashInHandAccountId.HasValue &&
+                                           trans.AccountId == cashInHandAccountId.Value;
+
+            // 🔥 CRITICAL: If this is a Cash in Hand transaction, PRESERVE IT
+            if (isCashInHandTransaction)
             {
-                _logger.LogError(ex, $"Error changing party for bill: {billNumber}");
-                await dbTransaction.RollbackAsync();
-                throw;
+                trans.PurchaseSalesType = "Sales";
+                trans.UpdatedAt = DateTime.UtcNow;
+
+                foreach (var transactionItem in trans.TransactionItems)
+                {
+                    transactionItem.UpdatedAt = DateTime.UtcNow;
+                }
+
+                cashTransactionsPreserved++;
+                _logger.LogInformation($"🔒 CASH IN HAND transaction {trans.Id} PRESERVED: AccountId {trans.AccountId} unchanged");
+                continue;
+            }
+
+            // 🔥 Identify PARTY TRANSACTION (for credit sales only)
+            bool isPartyTransaction = false;
+
+            if (!isCashSales)
+            {
+                if (trans.AccountId == oldAccountId &&
+                    trans.TotalDebit == totalAmount &&
+                    trans.TotalCredit == 0 &&
+                    trans.Type == TransactionType.Sale)
+                {
+                    isPartyTransaction = true;
+                    _logger.LogInformation($"Transaction {trans.Id} identified as CREDIT PARTY transaction");
+                }
+            }
+            else
+            {
+                if (trans.AccountId == oldAccountId &&
+                    trans.Type == TransactionType.Sale)
+                {
+                    isPartyTransaction = true;
+                    _logger.LogInformation($"Transaction {trans.Id} identified as existing PARTY transaction for cash sale");
+                }
+            }
+
+            if (isPartyTransaction)
+            {
+                trans.AccountId = newAccountId;
+                trans.PurchaseSalesType = "Sales";
+                trans.UpdatedAt = DateTime.UtcNow;
+
+                foreach (var transactionItem in trans.TransactionItems)
+                {
+                    transactionItem.UpdatedAt = DateTime.UtcNow;
+                }
+
+                partyTransactionsUpdated++;
+                _logger.LogInformation($"✅ PARTY transaction {trans.Id} updated: AccountId {oldAccountId} → {newAccountId}");
+            }
+            else if (salesAccountId.HasValue && trans.AccountId == salesAccountId.Value)
+            {
+                trans.PurchaseSalesType = "Sales";
+                trans.UpdatedAt = DateTime.UtcNow;
+
+                foreach (var transactionItem in trans.TransactionItems)
+                {
+                    transactionItem.UpdatedAt = DateTime.UtcNow;
+                }
+                _logger.LogInformation($"Updated SALES account transaction {trans.Id}");
+            }
+            else if (vatAccountId.HasValue && trans.AccountId == vatAccountId.Value && trans.IsType == TransactionIsType.VAT)
+            {
+                trans.PurchaseSalesType = "Sales";
+                trans.UpdatedAt = DateTime.UtcNow;
+
+                foreach (var transactionItem in trans.TransactionItems)
+                {
+                    transactionItem.UpdatedAt = DateTime.UtcNow;
+                }
+                _logger.LogInformation($"Updated VAT transaction {trans.Id}");
+            }
+            else if (roundOffAccountId.HasValue && trans.AccountId == roundOffAccountId.Value && trans.IsType == TransactionIsType.RoundOff)
+            {
+                trans.PurchaseSalesType = "Sales";
+                trans.UpdatedAt = DateTime.UtcNow;
+                _logger.LogInformation($"Updated RoundOff transaction {trans.Id}");
+            }
+            else if (trans.Type == TransactionType.Sale)
+            {
+                trans.PurchaseSalesType = "Sales";
+                trans.UpdatedAt = DateTime.UtcNow;
+
+                foreach (var transactionItem in trans.TransactionItems)
+                {
+                    transactionItem.UpdatedAt = DateTime.UtcNow;
+                }
+                _logger.LogInformation($"Updated other transaction {trans.Id}");
+            }
+            else
+            {
+                _logger.LogWarning($"⚠️ Unhandled transaction {trans.Id}: AccountId={trans.AccountId}, Type={trans.Type}");
             }
         }
+
+        // 7. 🔥 If this is a cash sale and no party transaction exists, CREATE ONE
+        if (isCashSales && partyTransactionsUpdated == 0)
+        {
+            _logger.LogInformation($"Creating new party transaction for cash sale {billNumber} with AccountId {newAccountId}");
+
+            // Check if there's already a transaction with the new AccountId
+            var existingTransaction = transactions.FirstOrDefault(t =>
+                t.AccountId == newAccountId && t.Type == TransactionType.Sale);
+
+            if (existingTransaction != null)
+            {
+                _logger.LogInformation($"Transaction with AccountId {newAccountId} already exists, skipping creation");
+            }
+            else
+            {
+                // 🔥 Get VAT and tax information from existing transactions
+                var vatTransaction = transactions.FirstOrDefault(t =>
+                    vatAccountId.HasValue && t.AccountId == vatAccountId.Value &&
+                    t.IsType == TransactionIsType.VAT);
+
+                var salesTransaction = transactions.FirstOrDefault(t =>
+                    salesAccountId.HasValue && t.AccountId == salesAccountId.Value);
+
+                decimal? taxableAmount = salesTransaction?.TaxableAmount ?? originalBill.TaxableAmount;
+                decimal? nonTaxableAmount = salesTransaction?.NonTaxableAmount ?? originalBill.NonVatSales;
+                decimal? vatPercentage = vatTransaction?.VatPercentage ?? originalBill.VatPercentage;
+                decimal? vatAmount = vatTransaction?.VatAmount ?? originalBill.VatAmount;
+
+                // Create the party transaction (DEBIT side for the party)
+                var partyTransaction = new Transaction
+                {
+                    Id = Guid.NewGuid(),
+                    CompanyId = companyId,
+                    AccountId = newAccountId,
+                    SalesBillId = originalBill.Id,
+                    BillNumber = originalBill.BillNumber,
+                    IsType = TransactionIsType.Sale,
+                    Type = TransactionType.Sale,
+                    PurchaseSalesType = "Sales",
+                    TotalDebit = originalBill.TotalAmount,
+                    TotalCredit = 0,
+                    TaxableAmount = taxableAmount,
+                    NonTaxableAmount = nonTaxableAmount,
+                    VatPercentage = vatPercentage,
+                    VatAmount = vatAmount,
+                    PaymentMode = PaymentMode.Cash,
+                    Date = originalBill.TransactionDate,
+                    TransactionDate = originalBill.Date,
+                    NepaliDate = originalBill.NepaliDate,
+                    TransactionDateNepali = originalBill.TransactionDateNepali,
+                    FiscalYearId = fiscalYearId,
+                    CreatedAt = DateTime.UtcNow,
+                    Status = TransactionStatus.Active,
+                    IsActive = true
+                };
+
+                await _context.Transactions.AddAsync(partyTransaction);
+
+                // 🔥 Add Transaction Items for Party Transaction
+                var salesTransactionItems = salesTransaction?.TransactionItems ?? new List<TransactionItem>();
+
+                if (salesTransactionItems.Any())
+                {
+                    foreach (var item in salesTransactionItems)
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = partyTransaction.Id,
+                            ItemId = item.ItemId,
+                            UnitId = item.UnitId,
+                            WSUnit = item.WSUnit,
+                            Quantity = item.Quantity,
+                            Bonus = item.Bonus,
+                            Price = item.Price,
+                            PuPrice = item.PuPrice,
+                            DiscountPercentagePerItem = item.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = item.DiscountAmountPerItem,
+                            NetPuPrice = item.NetPuPrice,
+                            TaxableAmount = item.TaxableAmount,
+                            VatPercentage = item.VatPercentage,
+                            VatAmount = item.VatAmount,
+                            Debit = 0,
+                            Credit = item.Credit,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+                }
+                else
+                {
+                    foreach (var item in originalBill.Items)
+                    {
+                        decimal itemTotal = item.Quantity * item.Price;
+
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = partyTransaction.Id,
+                            ItemId = item.ItemId,
+                            UnitId = item.UnitId,
+                            WSUnit = 0,
+                            Quantity = item.Quantity,
+                            Bonus = 0,
+                            Price = item.Price,
+                            PuPrice = item.PuPrice,
+                            DiscountPercentagePerItem = item.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = item.DiscountAmountPerItem,
+                            NetPuPrice = item.NetPuPrice ?? 0,
+                            TaxableAmount = 0,
+                            VatPercentage = 0,
+                            VatAmount = 0,
+                            Debit = 0,
+                            Credit = itemTotal,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
+                }
+
+                partyTransactionsUpdated++;
+                _logger.LogInformation($"✅ Created new PARTY transaction with AccountId {newAccountId} (PaymentMode: Cash)");
+            }
+        }
+
+        // 8. Save changes
+        await _context.SaveChangesAsync();
+
+        // 9. Commit transaction
+        await dbTransaction.CommitAsync();
+
+        _logger.LogInformation($"=== Party Change Summary for Bill {billNumber} ===");
+        _logger.LogInformation($"- Party transactions updated/created: {partyTransactionsUpdated}");
+        _logger.LogInformation($"- Cash in Hand transactions preserved: {cashTransactionsPreserved}");
+        _logger.LogInformation($"- PaymentMode kept as: {originalBill.PaymentMode}");
+        _logger.LogInformation($"- CashAccount updated to: {(isCashSales ? newAccount.Name : "N/A")}");
+        _logger.LogInformation($"- CashAccount cleared: {(string.IsNullOrEmpty(originalBill.CashAccount) ? "Yes" : "No")}");
+
+        return new ChangeCreditSalesPartyResponseDTO
+        {
+            BillNumber = billNumber,
+            AccountId = newAccountId,
+            AccountName = newAccount.Name,
+            Message = $"Party changed successfully from \"{oldAccountName}\" to \"{newAccount.Name}\"" +
+                      (isCashSales ? " (Cash sale - party transaction added, CashAccount updated)" : "")
+        };
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, $"Error changing party for bill: {billNumber}");
+        await dbTransaction.RollbackAsync();
+        throw;
+    }
+}
 
         private async Task<Account> VerifyAndGetPartyAccountAsync(Guid accountId, Guid companyId)
         {

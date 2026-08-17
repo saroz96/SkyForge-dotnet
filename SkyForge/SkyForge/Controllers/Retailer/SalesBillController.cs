@@ -149,8 +149,8 @@ namespace SkyForge.Controllers.Retailer
         }
 
 
-        // GET: api/retailer/credit-sales
-        [HttpGet("credit-sales")]
+        // GET: api/retailer/sales
+        [HttpGet("sales")]
         public async Task<IActionResult> GetCreditSalesData()
         {
             try
@@ -232,7 +232,7 @@ namespace SkyForge.Controllers.Retailer
         }
 
 
-        [HttpGet("credit-sales/next-number")]
+        [HttpGet("sales/next-number")]
         public async Task<IActionResult> GetNextCreditSalesBillNumber()
         {
             try
@@ -313,8 +313,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // GET: api/retailer/credit-sales/current-number
-        [HttpGet("credit-sales/current-number")]
+        // GET: api/retailer/sales/current-number
+        [HttpGet("sales/current-number")]
         public async Task<IActionResult> GetCurrentCreditSalesBillNumber()
         {
             try
@@ -366,8 +366,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // // POST: api/retailer/credit-sales
-        [HttpPost("credit-sales")]
+        // // POST: api/retailer/sales
+        [HttpPost("sales")]
         public async Task<IActionResult> CreateCreditSales([FromBody] CreateSalesBillDTO dto)
         {
             try
@@ -554,8 +554,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // POST: api/retailer/credit-sales
-        // [HttpPost("credit-sales")]
+        // POST: api/retailer/sales
+        // [HttpPost("sales")]
         // public async Task<IActionResult> CreateCreditSales([FromBody] CreateSalesBillDTO dto)
         // {
         //     try
@@ -773,8 +773,8 @@ namespace SkyForge.Controllers.Retailer
         //     }
         // }
 
-        // GET: api/retailer/credit-sales/open
-        [HttpGet("credit-sales/open")]
+        // GET: api/retailer/sales-open
+        [HttpGet("sales-open")]
         public async Task<IActionResult> GetCreditSalesOpenData()
         {
             try
@@ -855,7 +855,7 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        [HttpGet("credit-sales/open/next-number")]
+        [HttpGet("sales-open/next-number")]
         public async Task<IActionResult> GetNextCreditSalesOpenBillNumber()
         {
             try
@@ -936,8 +936,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // GET: api/retailer/credit-sales/current-number
-        [HttpGet("credit-sales/open/current-number")]
+        // GET: api/retailer/sales-open/current-number
+        [HttpGet("sales-open/current-number")]
         public async Task<IActionResult> GetCurrentCreditSalesOpenBillNumber()
         {
             try
@@ -989,8 +989,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // POST: api/retailer/credit-sales/open
-        [HttpPost("credit-sales/open")]
+        // POST: api/retailer/sales-open
+        [HttpPost("sales-open")]
         public async Task<IActionResult> CreateCreditSalesOpen([FromBody] CreateSalesOpenDTO dto)
         {
             try
@@ -1156,8 +1156,8 @@ namespace SkyForge.Controllers.Retailer
         }
 
 
-        // GET: api/retailer/credit-sales/finds
-        [HttpGet("credit-sales/finds")]
+        // GET: api/retailer/sales/finds
+        [HttpGet("sales/finds")]
         public async Task<IActionResult> GetCreditSalesFinds()
         {
             try
@@ -1256,98 +1256,93 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // GET: api/retailer/credit-sales/check-editable
-        [HttpGet("credit-sales/check-editable")]
-        public async Task<IActionResult> CheckCreditSalesBillEditable([FromQuery] string billNumber)
-        {
-            try
-            {
-                _logger.LogInformation("Checking if bill {BillNumber} is editable", billNumber);
+        // // GET: api/retailer/sales/check-editable
+        // [HttpGet("sales/check-editable")]
+        // public async Task<IActionResult> CheckCreditSalesBillEditable([FromQuery] string billNumber)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("Checking if bill {BillNumber} is editable", billNumber);
 
-                // Extract claims from JWT token
-                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var companyId = User.FindFirst("currentCompany")?.Value;
-                var tradeType = User.FindFirst("tradeType")?.Value;
+        //         // Extract claims from JWT token
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeType = User.FindFirst("tradeType")?.Value;
 
-                // Validate trade type
-                if (string.IsNullOrEmpty(tradeType) || tradeType.ToLower() != "retailer")
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "Invalid trade type"
-                    });
-                }
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeType) || tradeType.ToLower() != "retailer")
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid trade type"
+        //             });
+        //         }
 
-                // Validate user ID
-                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
-                {
-                    return Unauthorized(new
-                    {
-                        success = false,
-                        error = "Invalid user token. Please login again."
-                    });
-                }
+        //         // Validate user ID
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
 
-                // Validate company ID
-                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "No company selected. Please select a company first."
-                    });
-                }
+        //         // Validate company ID
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
 
-                // Check if bill exists and is editable
-                var bill = await _context.SalesBills
-                    .Where(b => b.CompanyId == companyIdGuid &&
-                               b.BillNumber == billNumber)
-                    .Select(b => new
-                    {
-                        b.Id,
-                        b.BillNumber,
-                        b.CashAccount,
-                        b.PaymentMode
-                    })
-                    .FirstOrDefaultAsync();
+        //         // Check if bill exists and is editable
+        //         var bill = await _context.SalesBills
+        //             .Where(b => b.CompanyId == companyIdGuid &&
+        //                        b.BillNumber == billNumber)
+        //             .Select(b => new
+        //             {
+        //                 b.Id,
+        //                 b.BillNumber,
+        //                 b.CashAccount,
+        //                 b.PaymentMode
+        //             })
+        //             .FirstOrDefaultAsync();
 
-                if (bill == null)
-                {
-                    return Ok(new
-                    {
-                        success = false,
-                        error = "Voucher not found",
-                        isEditable = false
-                    });
-                }
+        //         if (bill == null)
+        //         {
+        //             return Ok(new
+        //             {
+        //                 success = false,
+        //                 error = "Voucher not found",
+        //                 isEditable = false
+        //             });
+        //         }
 
-                // Bill is not editable if CashAccount is not null
-                bool isEditable = bill.CashAccount == null;
 
-                return Ok(new
-                {
-                    success = true,
-                    isEditable = isEditable,
-                    billNumber = bill.BillNumber,
-                    message = isEditable ?
-                        "Voucher is editable" :
-                        "This is a cash sales voucher and cannot be edited as credit sales",
-                    hasCashAccount = bill.CashAccount != null
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error checking if bill is editable for number: {BillNumber}", billNumber);
-                return StatusCode(500, new
-                {
-                    success = false,
-                    error = "Internal server error"
-                });
-            }
-        }
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             billNumber = bill.BillNumber,
+        //             hasCashAccount = bill.CashAccount != null,
+        //              paymentMode = bill.PaymentMode
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error checking if bill is editable for number: {BillNumber}", billNumber);
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error"
+        //         });
+        //     }
+        // }
 
-        [HttpGet("credit-sales/find-party")]
+        [HttpGet("sales/find-party")]
         public async Task<IActionResult> GetCreditSalesPartyInfo([FromQuery] string billNumber)
         {
             try
@@ -1462,7 +1457,7 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        [HttpPut("credit-sales/change-party/{billNumber}")]
+        [HttpPut("sales/change-party/{billNumber}")]
         public async Task<IActionResult> ChangeCreditSalesParty([FromRoute] string billNumber, [FromBody] ChangeCreditSalesPartyRequestDTO request)
         {
             try
@@ -1605,7 +1600,7 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        [HttpGet("credit-sales/get-id-by-number")]
+        [HttpGet("sales/get-id-by-number")]
         public async Task<IActionResult> GetCreditSalesBillIdByNumber([FromQuery] string billNumber)
         {
             try
@@ -1702,8 +1697,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // GET: api/retailer/credit-sales/edit/{id}
-        [HttpGet("credit-sales/edit/{id}")]
+        // GET: api/retailer/sales/edit/{id}
+        [HttpGet("sales/edit/{id}")]
         public async Task<IActionResult> GetCreditSalesEditData(Guid id)
         {
             try
@@ -1837,8 +1832,8 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // PUT: api/retailer/credit-sales/edit/{id}
-        [HttpPut("credit-sales/edit/{id}")]
+        // PUT: api/retailer/sales/edit/{id}
+        [HttpPut("sales/edit/{id}")]
         public async Task<IActionResult> UpdateCreditSalesBill(Guid id, [FromBody] UpdateSalesBillDTO dto)
         {
             try
@@ -2911,7 +2906,7 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // GET: api/retailer/credit-sales/check-editable
+        // GET: api/retailer/cash-sales/check-editable
         [HttpGet("cash-sales/check-editable")]
         public async Task<IActionResult> CheckCashSalesBillEditable([FromQuery] string billNumber)
         {

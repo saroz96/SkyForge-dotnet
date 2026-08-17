@@ -256,7 +256,7 @@ const ItemsLedger = () => {
             //     }
             //     break;
             case 'Sale':
-                route = `/retailer/credit-sales/edit/${entry.transactionId}`;
+                route = `/retailer/sales/edit/${entry.transactionId}`;
                 break;
             case 'SlRt':
                 route = `/retailer/sales-return/edit/${entry.transactionId}`;

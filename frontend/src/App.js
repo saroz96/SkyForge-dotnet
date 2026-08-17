@@ -88,7 +88,7 @@ import SalesQuotationVoucherNumber from './components/retailer/salesQuotation.js
 import PurchaseVoucherNumber from './components/retailer/purchase/VoucherNumber';
 import StockRegeneration from './components/retailer/purchase/StockRegeneration';
 import EditCreditSales from './components/retailer/sales/EditCreditSales';
-import CreditSalesVoucherNumber from './components/retailer/sales/CreditVoucherNumber';
+import SalesVoucherNumber from './components/retailer/sales/CreditVoucherNumber';
 import EditCashSales from './components/retailer/sales/EditCashSales';
 import CashSalesVoucherNumber from './components/retailer/sales/CashVoucherNumber';
 import AgeingReportAllAccounts from './components/retailer/ageingReport/AgeingAllAccounts';
@@ -438,7 +438,7 @@ function AppContent() {
 
             {/**Sales */}
             <Route
-              path="/retailer/credit-sales"
+              path="/retailer/sales"
               element={
                 <ProtectedRoute>
                   <AddSales />
@@ -446,7 +446,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/retailer/credit-sales/open"
+              path="/retailer/sales-open"
               element={
                 <ProtectedRoute>
                   <AddSalesOpen />
@@ -469,54 +469,54 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-            <Route
+            {/* <Route
               path="/retailer/cash-sales"
               element={
                 <ProtectedRoute>
                   <AddCashSales />
                 </ProtectedRoute>
               }
-            />
-            <Route
+            /> */}
+            {/* <Route
               path="/retailer/cash-sales/open"
               element={
                 <ProtectedRoute>
                   <AddCashSalesOpen />
                 </ProtectedRoute>
               }
-            />
+            /> */}
             <Route
-              path="/retailer/credit-sales/finds"
+              path="/retailer/sales/finds"
               element={
                 <ProtectedRoute>
-                  <CreditSalesVoucherNumber />
+                  <SalesVoucherNumber />
                 </ProtectedRoute>
               }
             />
-            <Route
+            {/* <Route
               path="/retailer/cash-sales/finds"
               element={
                 <ProtectedRoute>
                   <CashSalesVoucherNumber />
                 </ProtectedRoute>
               }
-            />
+            /> */}
             <Route
-              path="/retailer/credit-sales/edit/:id"
+              path="/retailer/sales/edit/:id"
               element={
                 <ProtectedRoute>
                   <EditCreditSales />
                 </ProtectedRoute>
               }
             />
-            <Route
+            {/* <Route
               path="/retailer/cash-sales/edit/:id"
               element={
                 <ProtectedRoute>
                   <EditCashSales />
                 </ProtectedRoute>
               }
-            />
+            /> */}
             <Route
               path="/retailer/sales-vat-report"
               element={

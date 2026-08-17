@@ -322,12 +322,20 @@ const AddSalesOpen = () => {
     const [manualAccountName, setManualAccountName] = useState('');
     const [cashInHandAccountId, setCashInHandAccountId] = useState('');
 
+    const [cashAccountDetails, setCashAccountDetails] = useState({
+        address: '',
+        pan: '',
+        email: '',
+        phone: ''
+    });
+
 
     const [formData, setFormData] = useState(salesOpenDraftSave?.formData || {
         accountId: '',
         accountName: '',
         accountAddress: '',
         accountPan: '',
+        accountPhone: '',
         transactionDateNepali: currentNepaliDate,
         transactionDateRoman: new Date().toISOString().split('T')[0],
         nepaliDate: currentNepaliDate,
@@ -400,7 +408,7 @@ const AddSalesOpen = () => {
     // Function to get the current bill number (does NOT increment)
     const getCurrentBillNumber = async () => {
         try {
-            const response = await api.get('/api/retailer/credit-sales/open/current-number');
+            const response = await api.get('/api/retailer/sales-open/current-number');
             return response.data.data.currentCreditSalesOpenBillNumber;
         } catch (error) {
             console.error('Error getting current bill number:', error);
@@ -481,7 +489,7 @@ const AddSalesOpen = () => {
     //             const currentBillNum = await getCurrentBillNumber();
 
     //             // Fetch company settings and initial data
-    //             const companyResponse = await api.get('/api/retailer/credit-sales/open');
+    //             const companyResponse = await api.get('/api/retailer/sales-open');
     //             const { data } = companyResponse.data;
 
     //             // Set company settings
@@ -534,7 +542,7 @@ const AddSalesOpen = () => {
                 const currentBillNum = await getCurrentBillNumber();
 
                 // Fetch company settings and initial data
-                const companyResponse = await api.get('/api/retailer/credit-sales/open');
+                const companyResponse = await api.get('/api/retailer/sales-open');
                 const { data } = companyResponse.data;
 
                 // Set company settings FIRST (needed for date format)
@@ -1248,7 +1256,8 @@ const AddSalesOpen = () => {
                 accountName: searchText,
                 accountId: cashInHandAccountId,
                 accountAddress: '',
-                accountPan: ''
+                accountPan: '',
+                accountPhone: ''
             }));
         }
 
@@ -1574,10 +1583,10 @@ const AddSalesOpen = () => {
                 await fetchLastTransactions(selectedItemForBatch.id);
             } else {
                 setTimeout(() => {
-                    const batchInput = document.getElementById('selectedItemBatch');
-                    if (batchInput) {
-                        batchInput.focus();
-                        batchInput.select();
+                    const quantityInput = document.getElementById('selectedItemQuantity');
+                    if (quantityInput) {
+                        quantityInput.focus();
+                        quantityInput.select();
                     }
                 }, 100);
             }
@@ -2162,7 +2171,7 @@ const AddSalesOpen = () => {
     //         const currentBillNum = await getCurrentBillNumber();
 
     //         // Fetch other data
-    //         const response = await api.get('/api/retailer/credit-sales/open');
+    //         const response = await api.get('/api/retailer/sales-open');
     //         const { data } = response.data;
 
     //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
@@ -2240,7 +2249,7 @@ const AddSalesOpen = () => {
             const currentBillNum = await getCurrentBillNumber();
 
             // Fetch other data
-            const response = await api.get('/api/retailer/credit-sales/open');
+            const response = await api.get('/api/retailer/sales-open');
             const { data } = response.data;
 
             const isNepaliFormat = data.company.dateFormat === 'nepali' ||
@@ -2287,6 +2296,7 @@ const AddSalesOpen = () => {
                 accountName: '',
                 accountAddress: '',
                 accountPan: '',
+                accountPhone: '',
                 transactionDateNepali: isNepaliFormat ? transactionDate : '',
                 transactionDateRoman: !isNepaliFormat ? transactionDate : '',
                 nepaliDate: isNepaliFormat ? invoiceDate : '',
@@ -2349,12 +2359,12 @@ const AddSalesOpen = () => {
     // const resetAfterSave = async () => {
     //     try {
     //         // Get next bill number (this increments the counter)
-    //         // const response = await api.get('/api/retailer/credit-sales/open/next-number');
+    //         // const response = await api.get('/api/retailer/sales-open/next-number');
     //         // const nextBillNum = response.data.data.nextCreditSalesOpenBillNumber;
     //         const currentBillNum = await getCurrentBillNumber();
 
     //         // Fetch other data
-    //         const companyResponse = await api.get('/api/retailer/credit-sales/open');
+    //         const companyResponse = await api.get('/api/retailer/sales-open');
     //         const { data } = companyResponse.data;
 
     //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
@@ -2428,7 +2438,7 @@ const AddSalesOpen = () => {
             const currentBillNum = await getCurrentBillNumber();
 
             // Fetch other data
-            const response = await api.get('/api/retailer/credit-sales/open');
+            const response = await api.get('/api/retailer/sales-open');
             const { data } = response.data;
 
             const isNepaliFormat = data.company.dateFormat === 'nepali' ||
@@ -2475,6 +2485,7 @@ const AddSalesOpen = () => {
                 accountName: '',
                 accountAddress: '',
                 accountPan: '',
+                accountPhone: '',
                 transactionDateNepali: isNepaliFormat ? transactionDate : '',
                 transactionDateRoman: !isNepaliFormat ? transactionDate : '',
                 nepaliDate: isNepaliFormat ? invoiceDate : '',
@@ -2579,14 +2590,18 @@ const AddSalesOpen = () => {
                         cashAccountAddress: formData.accountAddress || null,
                         cashAccountPan: formData.accountPan || null,
                         cashAccountEmail: formData.accountEmail || null,
-                        cashAccountPhone: formData.accountPhone || null
+                        cashAccountPhone: formData.accountPhone || formData.phone || null
                     };
                     console.log('Manual cash entry - using Cash in Hand account ID:', cashInHandAccountId);
                 } else {
                     // Cash mode with existing account - send account ID
                     accountData = {
                         accountId: formData.accountId,
-                        cashAccount: formData.accountName
+                        cashAccount: formData.accountName,
+                        cashAccountAddress: formData.accountAddress || null,
+                        cashAccountPan: formData.accountPan || null,
+                        cashAccountEmail: formData.accountEmail || null,
+                        cashAccountPhone: formData.accountPhone || formData.phone || null
                     };
                 }
             } else {
@@ -2631,7 +2646,7 @@ const AddSalesOpen = () => {
                 print
             };
 
-            const response = await api.post('/api/retailer/credit-sales/open', billData);
+            const response = await api.post('/api/retailer/sales-open', billData);
 
             setTransactionCache(new Map());
 
@@ -2929,7 +2944,7 @@ const AddSalesOpen = () => {
             printWindow.document.write(`
             <html>
                 <head>
-                    <title>Open_Credit_Sales_Invoice_${printData.bill.billNumber}</title>
+                    <title>Open_Sales_Invoice_${printData.bill.billNumber}</title>
                     <style>${styles}</style>
                 </head>
                 <body>
@@ -3170,7 +3185,7 @@ const AddSalesOpen = () => {
                     <div className="d-flex justify-content-between align-items-center">
                         <h2 className="card-title mb-0">
                             <i className="bi bi-file-text me-2"></i>
-                            Open Credit Sales Entry
+                            Open Sales Entry
                         </h2>
                         <div>
                             {formData.billNumber === '' && (
@@ -3853,7 +3868,7 @@ const AddSalesOpen = () => {
 
                         <div className="row g-1 mb-2">
                             {/* Party Name Field */}
-                            <div className="col-12 col-md-6">
+                            <div className="col-12 col-md-5">
                                 <div className="position-relative">
                                     <input
                                         type="text"
@@ -3895,7 +3910,7 @@ const AddSalesOpen = () => {
                                 </div>
                             </div>
 
-                            <div className="col-12 col-md-2">
+                            <div className="col-12 col-md">
                                 <div className="position-relative">
                                     <div
                                         className="form-control form-control-sm"
@@ -3931,19 +3946,24 @@ const AddSalesOpen = () => {
                             </div>
 
                             {/* Party Address Field */}
-                            <div className="col-12 col-md-2">
+                            <div className="col-12 col-md">
                                 <div className="position-relative">
                                     <input
                                         type="text"
                                         id="address"
                                         className="form-control form-control-sm"
                                         value={formData.accountAddress}
+                                        onChange={(e) => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                accountAddress: e.target.value
+                                            }));
+                                        }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 handleKeyDown(e, 'address');
                                             }
                                         }}
-                                        readOnly
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
@@ -3969,7 +3989,7 @@ const AddSalesOpen = () => {
                             </div>
 
                             {/* VAT No Field */}
-                            <div className="col-12 col-md-2">
+                            <div className="col-12 col-md">
                                 <div className="position-relative">
                                     <input
                                         type="text"
@@ -3977,12 +3997,17 @@ const AddSalesOpen = () => {
                                         name="pan"
                                         className="form-control form-control-sm"
                                         value={formData.accountPan}
+                                        onChange={(e) => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                accountPan: e.target.value
+                                            }));
+                                        }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 handleKeyDown(e, 'pan');
                                             }
                                         }}
-                                        readOnly
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
@@ -4006,6 +4031,51 @@ const AddSalesOpen = () => {
                                     </label>
                                 </div>
                             </div>
+
+                            {/* Phone Field - Only show in cash mode */}
+                            {formData.paymentMode === 'cash' && isManualAccountEntry && (
+                                <div className="col-12 col-md">
+                                    <div className="position-relative">
+                                        <input
+                                            type="text"
+                                            id="phone"
+                                            className="form-control form-control-sm"
+                                            value={cashAccountDetails.phone}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setCashAccountDetails(prev => ({ ...prev, phone: value }));
+                                                // Also update formData.accountPhone
+                                                setFormData(prev => ({ ...prev, accountPhone: value }));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    handleKeyDown(e, 'phone');
+                                                }
+                                            }}
+                                            style={{
+                                                height: '26px',
+                                                fontSize: '0.875rem',
+                                                paddingTop: '0.75rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                        <label
+                                            className="position-absolute"
+                                            style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            Phone:
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Items Table */}
@@ -4164,6 +4234,7 @@ const AddSalesOpen = () => {
                                                         document.getElementById('selectedItemBatch').focus();
                                                     }
                                                 }}
+                                                readOnly
                                                 style={{
                                                     height: '20px',
                                                     fontSize: '0.75rem',
@@ -4886,105 +4957,6 @@ const AddSalesOpen = () => {
                     </form>
                 </div>
             </div >
-
-            {/* Account Modal */}
-            {/* {showAccountModal && (
-                    <div
-                        className="modal fade show"
-                        id="accountModal"
-                        tabIndex="-1"
-                        style={{ display: 'block' }}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                                handleAccountModalClose();
-                                setTimeout(() => {
-                                    document.getElementById('address').focus();
-                                }, 0);
-                            }
-                        }}
-                    >
-                        <div className="modal-dialog modal-xl modal-dialog-centered">
-                            <div className="modal-content" style={{ height: '400px' }}>
-                                <div className="modal-header py-1">
-                                    <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                        Select an Account
-                                    </h5>
-                                    <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
-                                        {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
-                                    </small>
-                                    <button
-                                        type="button"
-                                        className="btn-close"
-                                        onClick={handleAccountModalClose}
-                                        aria-label="Close"
-                                        style={{ fontSize: '0.6rem', padding: '0.25rem' }}
-                                    ></button>
-                                </div>
-                                <div className="p-2 bg-white sticky-top">
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Search Account... (Press F6 to create new account)"
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={accountSearchQuery}
-                                        onChange={handleAccountSearch}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) {
-                                                    firstAccountItem.focus();
-                                                }
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item.active');
-                                                if (firstAccountItem) {
-                                                    const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                    const account = accounts.find(a => a.id === accountId);
-                                                    if (account) {
-                                                        selectAccount(account);
-                                                        document.getElementById('address').focus();
-                                                    }
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                setShowAccountCreationModal(true);
-                                                handleAccountModalClose();
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{
-                                            height: '24px',
-                                            fontSize: '0.75rem',
-                                            padding: '0.25rem 0.5rem'
-                                        }}
-                                    />
-                                </div>
-                                <div className="modal-body p-0">
-                                    <div style={{ height: 'calc(320px - 40px)' }}>
-                                        <VirtualizedAccountList
-                                            accounts={accounts}
-                                            onAccountClick={(account) => {
-                                                selectAccount(account);
-                                                document.getElementById('address').focus();
-                                            }}
-                                            searchRef={accountSearchRef}
-                                            hasMore={hasMoreAccountResults}
-                                            isSearching={isAccountSearching}
-                                            onLoadMore={loadMoreAccounts}
-                                            totalAccounts={totalAccounts}
-                                            page={accountSearchPage}
-                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            } */}
 
             {showAccountModal && (
                 <div

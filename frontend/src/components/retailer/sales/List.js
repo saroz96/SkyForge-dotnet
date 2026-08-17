@@ -3056,9 +3056,7 @@ const SalesBillsList = () => {
             e.stopPropagation();
             if (bill && bill.id) {
                 if (bill.accountId) {
-                    navigate(`/retailer/credit-sales/edit/${bill.id}`);
-                } else if (bill.cashAccount) {
-                    navigate(`/retailer/cash-sales/edit/${bill.id}`);
+                    navigate(`/retailer/sales/edit/${bill.id}`);
                 }
             }
         };

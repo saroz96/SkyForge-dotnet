@@ -1698,6 +1698,56 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        [HttpDelete("stock-entries/{id}")]
+        public async Task<IActionResult> DeleteStockEntry(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation($"DeleteStockEntry started for ID: {id}");
+
+                // Get user and company info from JWT
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                {
+                    return BadRequest(new { success = false, error = "Company ID is required" });
+                }
+
+                // Find the stock entry
+                var stockEntry = await _context.StockEntries
+                    .FirstOrDefaultAsync(se => se.Id == id && se.CompanyId == companyIdGuid);
+
+                if (stockEntry == null)
+                {
+                    return NotFound(new { success = false, error = "Stock entry not found" });
+                }
+
+                // Optional: Check if stock entry is linked to any sales/purchase bills
+                // You might want to prevent deletion if it's linked to a purchase bill
+                // if (stockEntry.PurchaseBillId.HasValue)
+                // {
+                //     return BadRequest(new
+                //     {
+                //         success = false,
+                //         error = "Cannot delete stock entry linked to a purchase bill. Delete the purchase bill first."
+                //     });
+                // }
+
+                // Remove the stock entry
+                _context.StockEntries.Remove(stockEntry);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Stock entry {id} deleted successfully");
+                return Ok(new { success = true, message = "Stock entry deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error deleting stock entry {id}");
+                return StatusCode(500, new { success = false, error = "Server error" });
+            }
+        }
+
         [HttpGet("items/search")]
         public async Task<IActionResult> SearchItems([FromQuery] DateTime? asOfDate = null)
         {

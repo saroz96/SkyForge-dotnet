@@ -367,24 +367,25 @@ const Header = () => {
                 {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
                   finalUser?.menuPermissions?.get('creditSales')) && (
                     <li className="menu-item dropdown">
-                      <Link to="#">Credit Sales</Link>
+                      <Link to="#">Sales</Link>
                       <ul className="sub-menu">
                         <li className="menu-item">
-                          <Link to="/retailer/credit-sales">Add Sales</Link>
+                          <Link to="/retailer/sales">Add Sales</Link>
                         </li>
                         <li className="menu-item">
-                          <Link to="/retailer/credit-sales/open">Add Sales Open</Link>
+                          <Link to="/retailer/sales-open">Add Sales Open</Link>
                         </li>
                         {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
                           finalUser?.menuPermissions?.get('creditSalesModify')) && (
                             <li className="menu-item">
-                              <Link to="/retailer/credit-sales/finds">Edit Sales</Link>
+                              <Link to="/retailer/sales/finds">Edit Sales</Link>
                             </li>
                           )}
                       </ul>
                     </li>
                   )}
-                {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
+
+                {/* {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
                   finalUser?.menuPermissions?.get('cashSales')) && (
                     <li className="menu-item dropdown">
                       <Link to="#">Cash Sales</Link>
@@ -403,7 +404,7 @@ const Header = () => {
                           )}
                       </ul>
                     </li>
-                  )}
+                  )} */}
                 {(finalUser?.role === 'ADMINISTRATOR' || finalUser?.role === 'Supervisor' || finalUser?.role === 'Sales' || finalUser?.isAdmin ||
                   finalUser?.menuPermissions?.get('creditSalesRtn')) && (
                     <li className="menu-item dropdown">

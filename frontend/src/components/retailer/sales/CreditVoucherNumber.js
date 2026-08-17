@@ -5,7 +5,7 @@ import Header from '../Header';
 import ProductModal from '../dashboard/modals/ProductModal';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 
-const CreditSalesVoucherNumber = () => {
+const SalesVoucherNumber = () => {
     const [billNumber, setBillNumber] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -25,10 +25,6 @@ const CreditSalesVoucherNumber = () => {
     const [accountSearchPage, setAccountSearchPage] = useState(1);
     const [hasMoreAccountResults, setHasMoreAccountResults] = useState(false);
     const [totalAccounts, setTotalAccounts] = useState(0);
-
-    // NEW: State for cash sales warning
-    const [showCashSalesWarning, setShowCashSalesWarning] = useState(false);
-    const [cashSalesBillNumber, setCashSalesBillNumber] = useState('');
 
     const accountSearchRef = useRef(null);
     const navigate = useNavigate();
@@ -63,24 +59,11 @@ const CreditSalesVoucherNumber = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    // Also focus when modal closes
-    useEffect(() => {
-        if (!showPartyModal && !showCashSalesWarning) {
-            const timer = setTimeout(() => {
-                if (billNumberInputRef.current) {
-                    billNumberInputRef.current.focus();
-                }
-            }, 200);
-
-            return () => clearTimeout(timer);
-        }
-    }, [showPartyModal, showCashSalesWarning]);
-
     // Fetch the latest bill number when component mounts
     useEffect(() => {
         const fetchLatestBillNumber = async () => {
             try {
-                const response = await api.get('/api/retailer/credit-sales/finds');
+                const response = await api.get('/api/retailer/sales/finds');
                 if (response.data.success) {
                     setBillNumber(response.data.data.billNumber || '');
                 }
@@ -156,30 +139,30 @@ const CreditSalesVoucherNumber = () => {
     };
 
     // NEW: Check if bill is editable before proceeding
-    const checkBillEditable = async (billNum) => {
-        try {
-            const response = await api.get('/api/retailer/credit-sales/check-editable', {
-                params: { billNumber: billNum }
-            });
+    // const checkBillEditable = async (billNum) => {
+    //     try {
+    //         const response = await api.get('/api/retailer/sales/check-editable', {
+    //             params: { billNumber: billNum }
+    //         });
 
-            if (response.data.success) {
-                return {
-                    isEditable: response.data.isEditable,
-                    hasCashAccount: response.data.hasCashAccount,
-                    message: response.data.message
-                };
-            }
-            return { isEditable: false, hasCashAccount: false, message: response.data.error };
-        } catch (err) {
-            console.error('Error checking bill editability:', err);
-            return { isEditable: false, hasCashAccount: false, message: 'Error checking voucher' };
-        }
-    };
+    //         if (response.data.success) {
+    //             return {
+    //                 isEditable: response.data.isEditable,
+    //                 hasCashAccount: response.data.hasCashAccount,
+    //                 message: response.data.message
+    //             };
+    //         }
+    //         return { isEditable: false, hasCashAccount: false, message: response.data.error };
+    //     } catch (err) {
+    //         console.error('Error checking bill editability:', err);
+    //         return { isEditable: false, hasCashAccount: false, message: 'Error checking voucher' };
+    //     }
+    // };
 
     const handleFindCreditSales = async (e) => {
         e.preventDefault();
         setError('');
-        setShowCashSalesWarning(false);
+        // setShowCashSalesWarning(false);
 
         if (!billNumber.trim()) {
             setError('Please enter a voucher number');
@@ -189,22 +172,22 @@ const CreditSalesVoucherNumber = () => {
         setIsLoading(true);
         try {
             // NEW: First check if bill is editable
-            const editableCheck = await checkBillEditable(billNumber);
+            // const editableCheck = await checkBillEditable(billNumber);
 
-            if (!editableCheck.isEditable) {
-                if (editableCheck.hasCashAccount) {
-                    // Show cash sales warning
-                    setCashSalesBillNumber(billNumber);
-                    setShowCashSalesWarning(true);
-                } else {
-                    setError(editableCheck.message || 'Voucher not found or cannot be edited');
-                }
-                setIsLoading(false);
-                return;
-            }
+            // if (!editableCheck.isEditable) {
+            //     if (editableCheck.hasCashAccount) {
+            //         // Show cash sales warning
+            //         setCashSalesBillNumber(billNumber);
+            //         setShowCashSalesWarning(true);
+            //     } else {
+            //         setError(editableCheck.message || 'Voucher not found or cannot be edited');
+            //     }
+            //     setIsLoading(false);
+            //     return;
+            // }
 
             // Step 1: Fetch party information for the voucher
-            const response = await api.get('/api/retailer/credit-sales/find-party', {
+            const response = await api.get('/api/retailer/sales/find-party', {
                 params: { billNumber: billNumber }
             });
 
@@ -249,17 +232,6 @@ const CreditSalesVoucherNumber = () => {
         setAccounts([]);
     };
 
-    // NEW: Handle close cash sales warning
-    const handleCloseCashSalesWarning = () => {
-        setShowCashSalesWarning(false);
-        setCashSalesBillNumber('');
-        // Focus back on input
-        setTimeout(() => {
-            if (billNumberInputRef.current) {
-                billNumberInputRef.current.focus();
-            }
-        }, 100);
-    };
 
     const handleChangeParty = async () => {
         if (!selectedAccount || !currentPartyInfo) {
@@ -275,7 +247,7 @@ const CreditSalesVoucherNumber = () => {
 
         setIsLoading(true);
         try {
-            const response = await api.put(`/api/retailer/credit-sales/change-party/${billNumber}`, {
+            const response = await api.put(`/api/retailer/sales/change-party/${billNumber}`, {
                 accountId: selectedAccount.id
             });
 
@@ -317,13 +289,13 @@ const CreditSalesVoucherNumber = () => {
         setIsLoading(true);
         try {
             // Get the GUID ID for navigation using the correct endpoint
-            const response = await api.get('/api/retailer/credit-sales/get-id-by-number', {
+            const response = await api.get('/api/retailer/sales/get-id-by-number', {
                 params: { billNumber: billNumber }
             });
 
             if (response.data.success) {
                 // Navigate to edit page with GUID ID
-                navigate(`/retailer/credit-sales/edit/${response.data.data.id}`);
+                navigate(`/retailer/sales/edit/${response.data.data.id}`);
             } else {
                 setError('Could not find voucher details for editing');
             }
@@ -339,7 +311,7 @@ const CreditSalesVoucherNumber = () => {
         if (e.key === 'Enter') {
             e.preventDefault();
 
-            if (!showPartyModal && !showCashSalesWarning) {
+            if (!showPartyModal) {
                 // Programmatically click the submit button
                 document.getElementById('findBill').click();
             }
@@ -405,43 +377,6 @@ const CreditSalesVoucherNumber = () => {
                     </form>
                 </div>
             </div>
-
-            {/* NEW: Cash Sales Warning Modal */}
-            {showCashSalesWarning && (
-                <>
-                    <div className="modal-backdrop fade show" style={{ zIndex: 1040 }}></div>
-                    <div className="modal fade show" tabIndex="-1" style={{ display: 'block', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}>
-                        <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }}>
-                            <div className="modal-content">
-                                <div className="modal-header bg-warning text-dark">
-                                    <h5 className="modal-title">
-                                        <i className="bi bi-exclamation-triangle me-2"></i>
-                                        Cannot Edit Cash Sales
-                                    </h5>
-                                    <button type="button" className="btn-close" onClick={handleCloseCashSalesWarning}></button>
-                                </div>
-                                <div className="modal-body text-center py-4">
-                                    <i className="bi bi-cash-stack text-warning" style={{ fontSize: '3rem' }}></i>
-                                    <h6 className="mt-3">Voucher #{cashSalesBillNumber}</h6>
-                                    <p className="mt-2">
-                                        This is a cash sales voucher and cannot be edited as credit sales.
-                                        Cash sales vouchers are processed through the cash sales module.
-                                    </p>
-                                </div>
-                                <div className="modal-footer">
-                                    <button
-                                        type="button"
-                                        className="btn btn-primary w-100"
-                                        onClick={handleCloseCashSalesWarning}
-                                    >
-                                        OK, Got It
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
 
             {/* Party Selection Modal - SHOWS AFTER FINDING VOUCHER */}
             {showPartyModal && currentPartyInfo && (
@@ -610,4 +545,4 @@ const CreditSalesVoucherNumber = () => {
     );
 };
 
-export default CreditSalesVoucherNumber;
+export default SalesVoucherNumber;

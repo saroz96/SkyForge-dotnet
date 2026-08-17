@@ -3886,7 +3886,7 @@ const Statement = () => {
             //     if (isSundryDebtor || isSundryCreditor) route = `/retailer/credit-sales/edit/${item.salesBillId || item.id}`;
             //     else if (isCashInHand) route = `/retailer/cash-sales/edit/${item.salesBillId || item.id}`;
             //     break;
-            case 'sale': route = `/retailer/credit-sales/edit/${item.salesBillId || item.id}`; break;
+            case 'sale': route = `/retailer/sales/edit/${item.salesBillId || item.id}`; break;
 
             case 'purc': route = `/retailer/purchase/edit/${item.purchaseBillId}`; break;
             case 'slrt':

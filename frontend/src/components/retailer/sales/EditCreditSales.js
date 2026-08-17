@@ -863,7 +863,7 @@ const EditCreditSales = () => {
             try {
                 setIsLoading(true);
 
-                const response = await api.get(`/api/retailer/credit-sales/edit/${id}`);
+                const response = await api.get(`/api/retailer/sales/edit/${id}`);
                 const { data } = response.data;
 
                 setCompany({
@@ -2256,7 +2256,7 @@ const EditCreditSales = () => {
                 }))
             };
 
-            const response = await api.put(`/api/retailer/credit-sales/edit/${id}`, billData);
+            const response = await api.put(`/api/retailer/sales/edit/${id}`, billData);
 
             setNotification({
                 show: true,

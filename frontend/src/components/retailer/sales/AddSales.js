@@ -327,13 +327,6 @@ const AddSales = () => {
         phone: ''
     });
 
-    // Helper to check if cash account is selected
-    const isCashAccountSelected = () => {
-        return formData.paymentMode === 'cash' &&
-            (formData.accountId === cashInHandAccountId ||
-                (isManualAccountEntry && formData.accountName.trim() !== ''));
-    };
-
     const [formData, setFormData] = useState(salesDraftSave?.formData || {
         accountId: '',
         accountName: '',
@@ -410,7 +403,7 @@ const AddSales = () => {
     // Function to get the current bill number (does NOT increment)
     const getCurrentBillNumber = async () => {
         try {
-            const response = await api.get('/api/retailer/credit-sales/current-number');
+            const response = await api.get('/api/retailer/sales/current-number');
             return response.data.data.currentCreditSalesBillNumber;
         } catch (error) {
             console.error('Error getting current bill number:', error);
@@ -492,7 +485,7 @@ const AddSales = () => {
                 const currentBillNum = await getCurrentBillNumber();
 
                 // Fetch company settings and initial data
-                const companyResponse = await api.get('/api/retailer/credit-sales');
+                const companyResponse = await api.get('/api/retailer/sales');
                 const { data } = companyResponse.data;
 
                 // Set company settings FIRST (needed for date format)
@@ -2250,7 +2243,7 @@ const AddSales = () => {
             const currentBillNum = await getCurrentBillNumber();
 
             // Fetch other data
-            const response = await api.get('/api/retailer/credit-sales');
+            const response = await api.get('/api/retailer/sales');
             const { data } = response.data;
 
             const isNepaliFormat = data.company.dateFormat === 'nepali' ||
@@ -2364,7 +2357,7 @@ const AddSales = () => {
             const currentBillNum = await getCurrentBillNumber();
 
             // Fetch other data
-            const response = await api.get('/api/retailer/credit-sales');
+            const response = await api.get('/api/retailer/sales');
             const { data } = response.data;
 
             const isNepaliFormat = data.company.dateFormat === 'nepali' ||
@@ -2593,7 +2586,7 @@ const AddSales = () => {
                 print
             };
 
-            const response = await api.post('/api/retailer/credit-sales', billData);
+            const response = await api.post('/api/retailer/sales', billData);
 
             setTransactionCache(new Map());
 
@@ -3087,7 +3080,7 @@ const AddSales = () => {
                     <div className="d-flex justify-content-between align-items-center">
                         <h2 className="card-title mb-0">
                             <i className="bi bi-file-text me-2"></i>
-                            Credit Sales Entry
+                            Sales Entry
                         </h2>
                         <div>
                             {formData.billNumber === '' && (
@@ -4028,7 +4021,7 @@ const AddSales = () => {
                                             textAlign: 'center',
                                             backgroundColor: '#ffffff'
                                         }}>
-                                            {selectedItemForInsert ? selectedItemForInsert.uniqueNumber || 'N/A' : ''}
+                                            {selectedItemForInsert ? selectedItemForInsert.uniqueNumber || '' : ''}
                                         </td>
                                         <td width="8%" style={{
                                             padding: '2px',
@@ -4036,7 +4029,7 @@ const AddSales = () => {
                                             textAlign: 'center',
                                             backgroundColor: '#ffffff'
                                         }}>
-                                            {selectedItemForInsert ? selectedItemForInsert.hscode || 'N/A' : ''}
+                                            {selectedItemForInsert ? selectedItemForInsert.hscode || '' : ''}
                                         </td>
                                         <td width="20%" style={{
                                             padding: '2px',
@@ -4055,6 +4048,9 @@ const AddSales = () => {
                                                 onChange={(e) => {
                                                     setSelectedItemBatchNumber(e.target.value);
                                                 }}
+                                                onFocus={(e) => {
+                                                    e.target.select();
+                                                }}
                                                 onKeyDown={(e) => {
                                                     if ((e.key === 'Tab' || e.key === 'Enter')) {
                                                         e.preventDefault();
@@ -4066,6 +4062,7 @@ const AddSales = () => {
                                                         }, 100);
                                                     }
                                                 }}
+                                                readOnly
                                                 style={{
                                                     height: '20px',
                                                     fontSize: '0.75rem',
@@ -4092,6 +4089,7 @@ const AddSales = () => {
                                                         document.getElementById('selectedItemBatch').focus();
                                                     }
                                                 }}
+                                                readOnly
                                                 style={{
                                                     height: '20px',
                                                     fontSize: '0.75rem',
@@ -4180,6 +4178,7 @@ const AddSales = () => {
                                                         document.getElementById('insertButton').focus();
                                                     }
                                                 }}
+                                                readOnly
                                                 style={{
                                                     height: '20px',
                                                     fontSize: '0.75rem',
@@ -4375,6 +4374,7 @@ const AddSales = () => {
                                                                 itemSearchRef.current?.focus();
                                                             }
                                                         }}
+                                                        readOnly
                                                         style={{
                                                             height: '20px',
                                                             fontSize: '0.75rem',
