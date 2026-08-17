@@ -751,24 +751,8 @@ const SalesBillPrint = () => {
                             <h2 className="compact-text">{firstBill ? 'TAX INVOICE' : 'INVOICE'}</h2>
                         </div>
                         <br />
-                        <div className="details-container compact-text">
+                        {/* <div className="details-container compact-text">
                             <div className="left wrap-text">
-                                {/* {billData.bill.account ? (
-                                    <>
-                                        <div><strong>M/S:</strong> {billData.bill.account.name}</div>
-                                        <div><strong>Address:</strong> {billData.bill.account.address || ''}</div>
-                                        <div><strong>PAN:</strong> {billData.bill.account.pan || ''}</div>
-                                        <div><strong>Email:</strong> {billData.bill.account.email || ''}, <strong>Phone:</strong> {billData.bill.account.phone || ''}</div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div><strong>Customer:</strong> {billData.bill.cashAccount || 'Cash'}</div>
-                                        <div><strong>Address:</strong> {billData.bill.cashAccountAddress || ''}</div>
-                                        <div><strong>PAN:</strong> {billData.bill.cashAccountPan || ''}</div>
-                                        <div><strong>Email:</strong> {billData.bill.cashAccountEmail || ''}, <strong>Phone:</strong> {billData.bill.cashAccountPhone || ''}</div>
-                                    </>
-                                )} */}
-                                {/* Display account or cash account details */}
                                 {billData.bill.account ? (
                                     // Credit Sales - Display account details
                                     <>
@@ -801,8 +785,55 @@ const SalesBillPrint = () => {
                                 <div><strong>Invoice Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.nepaliDate, 'Nepali') : formatDate(billData.bill.date)}({new Date(billData.bill.date).toLocaleDateString()})</div>
                                 <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
                             </div>
+                        </div> */}
+                        <div className="details-container compact-text">
+                            <div className="left wrap-text">
+                                {/* Display account or cash account details based on payment mode */}
+                                {billData.bill.paymentMode === 'credit' ? (
+                                    // Credit Sales - Display account details
+                                    billData.bill.account ? (
+                                        <>
+                                            <div><strong>M/S:</strong> {billData.bill.account.name}</div>
+                                            <div><strong>Address:</strong> {billData.bill.account.address || ''}</div>
+                                            <div><strong>PAN:</strong> {billData.bill.account.pan || ''}</div>
+                                            <div><strong>Email:</strong> {billData.bill.account.email || ''}, <strong>Phone:</strong> {billData.bill.account.phone || ''}</div>
+                                        </>
+                                    ) : (
+                                        // Fallback - Account not found (should not happen for credit)
+                                        <>
+                                            <div><strong>M/S:</strong> Unknown</div>
+                                            <div><strong>Address:</strong> N/A</div>
+                                            <div><strong>PAN:</strong> N/A</div>
+                                            <div><strong>Email:</strong> N/A, <strong>Phone:</strong> N/A</div>
+                                        </>
+                                    )
+                                ) : (
+                                    // Cash Sales - Display cash account details
+                                    billData.bill.cashAccount ? (
+                                        <>
+                                            <div><strong>Customer:</strong> {billData.bill.cashAccount}</div>
+                                            <div><strong>Address:</strong> {billData.bill.cashAccountAddress || ''}</div>
+                                            <div><strong>PAN:</strong> {billData.bill.cashAccountPan || ''}</div>
+                                            <div><strong>Email:</strong> {billData.bill.cashAccountEmail || ''}, <strong>Phone:</strong> {billData.bill.cashAccountPhone || ''}</div>
+                                        </>
+                                    ) : (
+                                        // Fallback - Cash account not found (should not happen for cash)
+                                        <>
+                                            <div><strong>Customer:</strong> Cash Customer</div>
+                                            <div><strong>Address:</strong> N/A</div>
+                                            <div><strong>PAN:</strong> N/A</div>
+                                            <div><strong>Email:</strong> N/A, <strong>Phone:</strong> N/A</div>
+                                        </>
+                                    )
+                                )}
+                            </div>
+                            <div className="right">
+                                <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
+                                <div><strong>Trans. Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.transactionDateNepali, 'Nepali') : formatDate(billData.bill.transactionDate)}({new Date(billData.bill.transactionDate).toLocaleDateString()})</div>
+                                <div><strong>Invoice Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.nepaliDate, 'Nepali') : formatDate(billData.bill.date)}({new Date(billData.bill.date).toLocaleDateString()})</div>
+                                <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
+                            </div>
                         </div>
-
                         <hr className="my-1" />
 
                         <Table bordered size="sm">
@@ -908,25 +939,8 @@ const SalesBillPrint = () => {
                         <div className="print-invoice-title">{firstBill ? 'TAX INVOICE' : 'INVOICE'}</div>
                     </div>
 
-                    <div className="print-invoice-details">
+                    {/* <div className="print-invoice-details">
                         <div>
-                            {/* Display account or cash account details */}
-                            {/* {billData.bill.account ? (
-                                <>
-                                    <div><strong>M/S:</strong> {billData.bill.account.name}</div>
-                                    <div><strong>Address:</strong> {billData.bill.account.address || ''}</div>
-                                    <div><strong>PAN:</strong> {billData.bill.account.pan || ''}</div>
-                                    <div><strong>Email:</strong> {billData.bill.account.email || ''}, <strong>Phone:</strong> {billData.bill.account.phone || ''}</div>
-                                </>
-                            ) : (
-                                <>
-                                    <div><strong>Customer:</strong> {billData.bill.cashAccount || 'Cash'}</div>
-                                    <div><strong>Address:</strong> {billData.bill.cashAccountAddress || ''}</div>
-                                    <div><strong>PAN:</strong> {billData.bill.cashAccountPan || ''}</div>
-                                    <div><strong>Email:</strong> {billData.bill.cashAccountEmail || ''}, <strong>Phone:</strong> {billData.bill.cashAccountPhone || ''}</div>
-                                </>
-                            )} */}
-                            {/* Display account or cash account details */}
                             {billData.bill.account ? (
                                 // Credit Sales - Display account details
                                 <>
@@ -951,6 +965,55 @@ const SalesBillPrint = () => {
                                     <div><strong>PAN:</strong> N/A</div>
                                     <div><strong>Email:</strong> N/A, <strong>Phone:</strong> N/A</div>
                                 </>
+                            )}
+                        </div>
+                        <div className="right">
+                            <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
+                            <div><strong>Trans. Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.transactionDateNepali, 'Nepali') : formatDate(billData.bill.transactionDate)}({new Date(billData.bill.transactionDate).toLocaleDateString()})</div>
+                            <div><strong>Invoice Date:</strong> {billData.companyDateFormat === 'nepali' ? formatDate(billData.nepaliDate, 'Nepali') : formatDate(billData.bill.date)}({new Date(billData.bill.date).toLocaleDateString()})</div>
+                            <div><strong>Payment Mode:</strong> {billData.bill.paymentMode}</div>
+                        </div>
+                    </div> */}
+
+                    <div className="print-invoice-details">
+                        <div>
+                            {/* Display account or cash account details based on payment mode */}
+                            {billData.bill.paymentMode === 'credit' ? (
+                                // Credit Sales - Display account details
+                                billData.bill.account ? (
+                                    <>
+                                        <div><strong>M/S:</strong> {billData.bill.account.name}</div>
+                                        <div><strong>Address:</strong> {billData.bill.account.address || ''}</div>
+                                        <div><strong>PAN:</strong> {billData.bill.account.pan || ''}</div>
+                                        <div><strong>Email:</strong> {billData.bill.account.email || ''}, <strong>Phone:</strong> {billData.bill.account.phone || ''}</div>
+                                    </>
+                                ) : (
+                                    // Fallback - Account not found (should not happen for credit)
+                                    <>
+                                        <div><strong>M/S:</strong> Unknown</div>
+                                        <div><strong>Address:</strong> N/A</div>
+                                        <div><strong>PAN:</strong> N/A</div>
+                                        <div><strong>Email:</strong> N/A, <strong>Phone:</strong> N/A</div>
+                                    </>
+                                )
+                            ) : (
+                                // Cash Sales - Display cash account details
+                                billData.bill.cashAccount ? (
+                                    <>
+                                        <div><strong>Customer:</strong> {billData.bill.cashAccount}</div>
+                                        <div><strong>Address:</strong> {billData.bill.cashAccountAddress || ''}</div>
+                                        <div><strong>PAN:</strong> {billData.bill.cashAccountPan || ''}</div>
+                                        <div><strong>Email:</strong> {billData.bill.cashAccountEmail || ''}, <strong>Phone:</strong> {billData.bill.cashAccountPhone || ''}</div>
+                                    </>
+                                ) : (
+                                    // Fallback - Cash account not found (should not happen for cash)
+                                    <>
+                                        <div><strong>Customer:</strong> Cash Customer</div>
+                                        <div><strong>Address:</strong> N/A</div>
+                                        <div><strong>PAN:</strong> N/A</div>
+                                        <div><strong>Email:</strong> N/A, <strong>Phone:</strong> N/A</div>
+                                    </>
+                                )
                             )}
                         </div>
                         <div className="right">

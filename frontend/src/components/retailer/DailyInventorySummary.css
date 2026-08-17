@@ -1,0 +1,865 @@
+/* DailyInventorySummary.css */
+
+/* ============================================
+   Variables - Matching SalesBillsList
+   ============================================ */
+:root {
+    --dis-primary: #1e3a5f;
+    --dis-primary-light: #2563eb;
+    --dis-primary-soft: #eff6ff;
+    --dis-surface: #eef2f7;
+    --dis-card: #ffffff;
+    --dis-border: #e2e8f0;
+    --dis-border-strong: #cbd5e1;
+    --dis-text: #0f172a;
+    --dis-muted: #64748b;
+    --dis-danger: #dc2626;
+    --dis-success: #059669;
+    --dis-warning: #d97706;
+    --dis-info: #0284c7;
+    --dis-radius: 6px;
+}
+
+/* ============================================
+   Modal Overlay
+   ============================================ */
+.dis-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+/* ============================================
+   Modal Container
+   ============================================ */
+.dis-modal {
+    background: var(--dis-card);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 95%;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+/* ============================================
+   Modal Header - Matches SalesBillsList topbar
+   ============================================ */
+.dis-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, var(--dis-primary) 0%, #1e40af 100%);
+    border-bottom: none;
+    flex-shrink: 0;
+}
+
+.dis-modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.dis-modal-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.dis-modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.dis-modal-subtitle {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+}
+
+.dis-modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.85rem;
+}
+
+.dis-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   Modal Body
+   ============================================ */
+.dis-modal-body {
+    padding: 1.25rem;
+    background: var(--dis-surface);
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ============================================
+   Stats Cards
+   ============================================ */
+.dis-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.dis-stat-card {
+    background: var(--dis-card);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--dis-border);
+}
+
+.dis-stat-card-body {
+    padding: 0.6rem 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dis-stat-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--dis-muted);
+    font-weight: 600;
+    display: block;
+}
+
+.dis-stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dis-text);
+    margin: 0;
+}
+
+.dis-stat-value--blue {
+    color: var(--dis-primary-light);
+}
+
+.dis-stat-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.dis-stat-icon--purple {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+}
+
+.dis-stat-icon--pink {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: #fff;
+}
+
+.dis-stat-icon--blue {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: #fff;
+}
+
+/* ============================================
+   Search Card - Matches SalesBillsList toolbar
+   ============================================ */
+.dis-search-card {
+    background: var(--dis-card);
+    border: 1px solid var(--dis-border);
+    border-radius: var(--dis-radius);
+    margin-bottom: 0.75rem;
+}
+
+.dis-search-card-body {
+    padding: 0.5rem 0.75rem;
+}
+
+.dis-search-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.dis-search-input-wrap {
+    flex: 1;
+    position: relative;
+}
+
+.dis-search-icon {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--dis-muted);
+    font-size: 0.8rem;
+}
+
+.dis-search-input {
+    width: 100%;
+    height: 34px;
+    padding: 0 0.6rem 0 2rem;
+    border: 1px solid var(--dis-border-strong);
+    border-radius: var(--dis-radius);
+    font-size: 0.78rem;
+    color: var(--dis-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dis-search-input:focus {
+    outline: none;
+    border-color: var(--dis-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.dis-search-input::placeholder {
+    color: var(--dis-muted);
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   Buttons - Matches SalesBillsList
+   ============================================ */
+.dis-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    height: 34px;
+    padding: 0 1rem;
+    background: var(--dis-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--dis-radius);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+
+.dis-btn-primary:hover {
+    background: #1d4ed8;
+}
+
+.dis-btn-search {
+    flex-shrink: 0;
+}
+
+.dis-btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    width: 34px;
+    border: 1px solid var(--dis-border-strong);
+    background: transparent;
+    color: var(--dis-muted);
+    border-radius: var(--dis-radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.dis-btn-outline:hover {
+    background: var(--dis-surface);
+    border-color: var(--dis-border);
+}
+
+.dis-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 1.2rem;
+    border: 1px solid var(--dis-border-strong);
+    background: var(--dis-card);
+    color: var(--dis-text);
+    border-radius: var(--dis-radius);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dis-btn-secondary:hover {
+    background: var(--dis-surface);
+    border-color: var(--dis-border);
+}
+
+/* ============================================
+   Table Card - Matches SalesBillsList main
+   ============================================ */
+.dis-table-card {
+    background: var(--dis-card);
+    border: 1px solid var(--dis-border);
+    border-radius: var(--dis-radius);
+    overflow: hidden;
+}
+
+.dis-table-card-body {
+    padding: 0;
+}
+
+/* ============================================
+   Table
+   ============================================ */
+.dis-table-wrap {
+    overflow: auto;
+    max-height: 400px;
+}
+
+.dis-table-wrap::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.dis-table-wrap::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.dis-table-wrap::-webkit-scrollbar-thumb {
+    background: var(--dis-border-strong);
+    border-radius: 4px;
+}
+
+.dis-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #a8aeb4;
+}
+
+.dis-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+
+.dis-table-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8fafc;
+    border-bottom: 2px solid var(--dis-border-strong);
+}
+
+.dis-table-header th {
+    padding: 0.5rem 0.5rem;
+    font-weight: 600;
+    color: var(--dis-muted);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.dis-table-row {
+    cursor: pointer;
+    transition: background-color 0.15s;
+    border-bottom: 1px solid var(--dis-border);
+}
+
+.dis-table-row:hover {
+    background-color: var(--dis-primary-soft) !important;
+}
+
+.dis-table-row td {
+    padding: 0.4rem 0.5rem;
+    vertical-align: middle;
+}
+
+.dis-row-index {
+    color: var(--dis-muted);
+    font-weight: 500;
+    font-size: 0.7rem;
+}
+
+.dis-item-name strong {
+    color: var(--dis-text);
+    font-size: 0.8rem;
+}
+
+.dis-muted {
+    color: var(--dis-muted);
+}
+
+.dis-qty-value {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--dis-text);
+}
+
+.dis-value-text {
+    font-weight: 500;
+    color: var(--dis-text);
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.dis-badge-code {
+    background: #e9ecef;
+    color: var(--dis-text);
+    font-weight: 500;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.dis-badge-batches {
+    background: #e3f2fd;
+    color: #1976d2;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.dis-badge-stock {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dis-badge-stock--success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dis-badge-stock--warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.dis-badge-stock--danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dis-badge-stock--info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.dis-badge-expiry {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dis-badge-expiry--success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dis-badge-expiry--warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.dis-badge-expiry--danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dis-badge-expiry--dark {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.dis-badge-expiry--secondary {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* ============================================
+   Expand Button
+   ============================================ */
+.dis-btn-expand {
+    background: transparent;
+    border: 1px solid var(--dis-border);
+    border-radius: 6px;
+    padding: 0.15rem 0.4rem;
+    color: var(--dis-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.7rem;
+}
+
+.dis-btn-expand:hover {
+    background: var(--dis-surface);
+    border-color: var(--dis-border-strong);
+}
+
+.dis-btn-expand--active {
+    background: var(--dis-primary-soft);
+    border-color: var(--dis-primary-light);
+    color: var(--dis-primary-light);
+}
+
+/* ============================================
+   Expanded Row
+   ============================================ */
+.dis-expanded-row {
+    padding: 0 !important;
+    background: #f8fafc;
+}
+
+.dis-expanded-content {
+    padding: 0.6rem 1rem;
+}
+
+.dis-expanded-table-wrap {
+    overflow-x: auto;
+}
+
+.dis-expanded-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.65rem;
+}
+
+.dis-expanded-table thead th {
+    padding: 0.3rem 0.5rem;
+    font-weight: 600;
+    color: var(--dis-muted);
+    border-bottom: 2px solid var(--dis-border);
+    text-align: left;
+    background: #f1f5f9;
+    white-space: nowrap;
+}
+
+.dis-expanded-table tbody td {
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--dis-border);
+}
+
+.dis-expanded-table tbody tr:hover {
+    background: var(--dis-primary-soft);
+}
+
+.dis-batch-number {
+    font-weight: 500;
+    font-size: 0.65rem;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.dis-empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.dis-empty-icon {
+    font-size: 2rem;
+    color: #dee2e6;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.dis-empty-text {
+    color: var(--dis-muted);
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+/* ============================================
+   Loading State
+   ============================================ */
+.dis-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+}
+
+.dis-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid var(--dis-border);
+    border-top-color: var(--dis-primary-light);
+    border-radius: 50%;
+    animation: dis-spin 0.8s linear infinite;
+}
+
+@keyframes dis-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.dis-loading-text {
+    color: var(--dis-muted);
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+}
+
+/* ============================================
+   Pagination - Matches SalesBillsList
+   ============================================ */
+.dis-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--dis-border);
+    background: #fafafa;
+    gap: 0.5rem;
+}
+
+.dis-pagination-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dis-pagination-label {
+    font-size: 0.7rem;
+    color: var(--dis-muted);
+    margin: 0;
+}
+
+.dis-pagination-select {
+    height: 28px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--dis-border-strong);
+    border-radius: var(--dis-radius);
+    font-size: 0.7rem;
+    background: #fff;
+    color: var(--dis-text);
+    cursor: pointer;
+}
+
+.dis-pagination-select:focus {
+    outline: none;
+    border-color: var(--dis-primary-light);
+}
+
+.dis-pagination-info {
+    font-size: 0.7rem;
+    color: var(--dis-muted);
+}
+
+.dis-pagination-right {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.dis-pagination-btn {
+    height: 28px;
+    min-width: 28px;
+    padding: 0 0.4rem;
+    border: 1px solid var(--dis-border);
+    border-radius: var(--dis-radius);
+    background: #fff;
+    color: var(--dis-text);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dis-pagination-btn:hover:not(.dis-pagination-btn--disabled) {
+    background: var(--dis-primary-soft);
+    border-color: var(--dis-primary-light);
+}
+
+.dis-pagination-btn--active {
+    background: var(--dis-primary-light);
+    border-color: var(--dis-primary-light);
+    color: #fff;
+}
+
+.dis-pagination-btn--active:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.dis-pagination-btn--disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dis-pagination-ellipsis {
+    padding: 0 0.2rem;
+    color: var(--dis-muted);
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   Modal Footer
+   ============================================ */
+.dis-modal-footer {
+    padding: 0.6rem 1.25rem;
+    border-top: 1px solid var(--dis-border);
+    background: var(--dis-card);
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 992px) {
+    .dis-modal {
+        max-width: 100%;
+        max-height: 98vh;
+        border-radius: 8px;
+    }
+
+    .dis-modal-body {
+        padding: 0.75rem;
+    }
+
+    .dis-stats-row {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+    }
+
+    .dis-stat-card-body {
+        padding: 0.4rem 0.6rem;
+    }
+
+    .dis-stat-value {
+        font-size: 0.9rem;
+    }
+
+    .dis-search-form {
+        flex-wrap: wrap;
+    }
+
+    .dis-search-input-wrap {
+        flex: 1 1 100%;
+        order: 1;
+    }
+
+    .dis-btn-search {
+        order: 2;
+    }
+
+    .dis-btn-outline {
+        order: 3;
+    }
+
+    .dis-table-wrap {
+        max-height: 300px;
+    }
+
+    .dis-pagination {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.4rem;
+    }
+
+    .dis-pagination-left {
+        justify-content: center;
+    }
+
+    .dis-pagination-right {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .dis-modal-header {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .dis-modal-header-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    .dis-modal-title {
+        font-size: 0.85rem;
+    }
+
+    .dis-stats-row {
+        grid-template-columns: 1fr;
+        gap: 0.4rem;
+    }
+
+    .dis-stat-card-body {
+        padding: 0.35rem 0.6rem;
+    }
+
+    .dis-modal-body {
+        padding: 0.5rem;
+    }
+
+    .dis-table {
+        font-size: 0.65rem;
+    }
+
+    .dis-table-header th,
+    .dis-table-row td {
+        padding: 0.25rem 0.3rem;
+    }
+
+    .dis-table-wrap {
+        max-height: 250px;
+    }
+
+    .dis-expanded-content {
+        padding: 0.3rem 0.5rem;
+    }
+
+    .dis-expanded-table {
+        font-size: 0.6rem;
+    }
+
+    .dis-expanded-table thead th,
+    .dis-expanded-table tbody td {
+        padding: 0.2rem 0.3rem;
+    }
+
+    .dis-modal-footer {
+        padding: 0.4rem 0.75rem;
+    }
+}

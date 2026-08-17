@@ -1,0 +1,811 @@
+/* DailySalesSummary.css */
+
+/* ============================================
+   Variables - Matching SalesBillsList
+   ============================================ */
+:root {
+    --dss-primary: #1e3a5f;
+    --dss-primary-light: #2563eb;
+    --dss-primary-soft: #eff6ff;
+    --dss-surface: #eef2f7;
+    --dss-card: #ffffff;
+    --dss-border: #e2e8f0;
+    --dss-border-strong: #cbd5e1;
+    --dss-text: #0f172a;
+    --dss-muted: #64748b;
+    --dss-success: #059669;
+    --dss-danger: #dc2626;
+    --dss-warning: #d97706;
+    --dss-info: #0284c7;
+    --dss-primary-bg: #1e3a5f;
+    --dss-radius: 6px;
+}
+
+/* ============================================
+   Modal Overlay
+   ============================================ */
+.dss-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+/* ============================================
+   Modal Container
+   ============================================ */
+.dss-modal {
+    background: var(--dss-card);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 95%;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+/* ============================================
+   Modal Header
+   ============================================ */
+.dss-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, var(--dss-primary) 0%, #1e40af 100%);
+    border-bottom: none;
+    flex-shrink: 0;
+}
+
+.dss-modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.dss-modal-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.dss-modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.dss-modal-subtitle {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+}
+
+.dss-modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.85rem;
+}
+
+.dss-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   Modal Body
+   ============================================ */
+.dss-modal-body {
+    padding: 1.25rem;
+    background: var(--dss-surface);
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ============================================
+   Filters & Stats - Single Row
+   ============================================ */
+.dss-filters-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--dss-card);
+    border: 1px solid var(--dss-border);
+    border-radius: var(--dss-radius);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Date Filters Group */
+.dss-filters-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
+.dss-filter-item {
+    position: relative;
+}
+
+.dss-filter-item--date {
+    width: 140px;
+}
+
+.dss-filter-label {
+    display: block;
+    font-size: 0.55rem;
+    font-weight: 600;
+    color: var(--dss-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.15rem;
+}
+
+.dss-filter-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--dss-border-strong);
+    border-radius: var(--dss-radius);
+    font-size: 0.75rem;
+    color: var(--dss-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dss-filter-input:focus {
+    outline: none;
+    border-color: var(--dss-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.dss-filter-input--error {
+    border-color: var(--dss-danger);
+}
+
+.dss-filter-input--error:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.dss-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    padding: 0 1rem;
+    background: var(--dss-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--dss-radius);
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.dss-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.dss-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.dss-btn-generate {
+    min-width: 80px;
+}
+
+.dss-spinner-small {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: dss-spin 0.6s linear infinite;
+    display: inline-block;
+}
+
+@keyframes dss-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Stats Inline */
+.dss-stats-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.dss-stat-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--dss-radius);
+    background: var(--dss-surface);
+    border: 1px solid var(--dss-border);
+    min-width: 90px;
+}
+
+.dss-stat-inline--success {
+    border-left: 3px solid var(--dss-success);
+}
+
+.dss-stat-inline--primary {
+    border-left: 3px solid var(--dss-primary-light);
+}
+
+.dss-stat-inline--danger {
+    border-left: 3px solid var(--dss-danger);
+}
+
+.dss-stat-inline--info {
+    border-left: 3px solid var(--dss-info);
+}
+
+.dss-stat-inline-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.dss-stat-inline--success .dss-stat-inline-icon {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dss-stat-inline--primary .dss-stat-inline-icon {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.dss-stat-inline--danger .dss-stat-inline-icon {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dss-stat-inline--info .dss-stat-inline-icon {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.dss-stat-inline-content {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.dss-stat-inline-label {
+    font-size: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--dss-muted);
+    font-weight: 600;
+}
+
+.dss-stat-inline-value {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dss-text);
+}
+
+.dss-stat-inline-value--positive {
+    color: var(--dss-success);
+}
+
+.dss-rupee-symbol {
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-right: 1px;
+}
+
+/* ============================================
+   Table Card
+   ============================================ */
+.dss-table-card {
+    background: var(--dss-card);
+    border: 1px solid var(--dss-border);
+    border-radius: var(--dss-radius);
+    overflow: hidden;
+}
+
+.dss-table-card-body {
+    padding: 0;
+}
+
+/* ============================================
+   Table
+   ============================================ */
+.dss-table-wrap {
+    overflow: auto;
+    max-height: 350px;
+}
+
+.dss-table-wrap::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.dss-table-wrap::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.dss-table-wrap::-webkit-scrollbar-thumb {
+    background: var(--dss-border-strong);
+    border-radius: 4px;
+}
+
+.dss-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #a8aeb4;
+}
+
+.dss-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+
+.dss-table-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8fafc;
+    border-bottom: 2px solid var(--dss-border-strong);
+}
+
+.dss-table-header th {
+    padding: 0.5rem 0.6rem;
+    font-weight: 600;
+    color: var(--dss-muted);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.dss-table-row {
+    border-bottom: 1px solid var(--dss-border);
+    transition: background-color 0.15s;
+}
+
+.dss-table-row:hover {
+    background-color: var(--dss-primary-soft);
+}
+
+.dss-table-row td {
+    padding: 0.4rem 0.6rem;
+    vertical-align: middle;
+}
+
+.dss-party-name {
+    font-weight: 500;
+    color: var(--dss-text);
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.dss-badge-inv {
+    font-weight: 500;
+    font-size: 0.7rem;
+    color: var(--dss-text);
+}
+
+.dss-badge-transaction {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dss-badge-transaction--success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dss-badge-transaction--primary {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.dss-badge-transaction--danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dss-badge-transaction--secondary {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.dss-badge-transaction--info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.dss-badge-transaction--warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.dss-badge-payment {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dss-badge-payment--cash {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dss-badge-payment--credit {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* ============================================
+   Amounts
+   ============================================ */
+.dss-amount-sale {
+    color: var(--dss-success);
+    font-weight: 600;
+}
+
+.dss-amount-return {
+    color: var(--dss-danger);
+    font-weight: 600;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.dss-empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.dss-empty-icon {
+    font-size: 2rem;
+    color: #dee2e6;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.dss-empty-text {
+    color: var(--dss-muted);
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+/* ============================================
+   Loading State
+   ============================================ */
+.dss-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+}
+
+.dss-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid var(--dss-border);
+    border-top-color: var(--dss-primary-light);
+    border-radius: 50%;
+    animation: dss-spin 0.8s linear infinite;
+}
+
+.dss-loading-text {
+    color: var(--dss-muted);
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+}
+
+/* ============================================
+   Pagination
+   ============================================ */
+.dss-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--dss-border);
+    background: #fafafa;
+    gap: 0.5rem;
+}
+
+.dss-pagination-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dss-pagination-label {
+    font-size: 0.7rem;
+    color: var(--dss-muted);
+    margin: 0;
+}
+
+.dss-pagination-select {
+    height: 28px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--dss-border-strong);
+    border-radius: var(--dss-radius);
+    font-size: 0.7rem;
+    background: #fff;
+    color: var(--dss-text);
+    cursor: pointer;
+}
+
+.dss-pagination-select:focus {
+    outline: none;
+    border-color: var(--dss-primary-light);
+}
+
+.dss-pagination-info {
+    font-size: 0.7rem;
+    color: var(--dss-muted);
+}
+
+.dss-pagination-right {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.dss-pagination-btn {
+    height: 28px;
+    min-width: 28px;
+    padding: 0 0.4rem;
+    border: 1px solid var(--dss-border);
+    border-radius: var(--dss-radius);
+    background: #fff;
+    color: var(--dss-text);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dss-pagination-btn:hover:not(.dss-pagination-btn--disabled) {
+    background: var(--dss-primary-soft);
+    border-color: var(--dss-primary-light);
+}
+
+.dss-pagination-btn--active {
+    background: var(--dss-primary-light);
+    border-color: var(--dss-primary-light);
+    color: #fff;
+}
+
+.dss-pagination-btn--active:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.dss-pagination-btn--disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dss-pagination-ellipsis {
+    padding: 0 0.2rem;
+    color: var(--dss-muted);
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   Modal Footer
+   ============================================ */
+.dss-modal-footer {
+    padding: 0.6rem 1.25rem;
+    border-top: 1px solid var(--dss-border);
+    background: var(--dss-card);
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.dss-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 1.2rem;
+    border: 1px solid var(--dss-border-strong);
+    background: var(--dss-card);
+    color: var(--dss-text);
+    border-radius: var(--dss-radius);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dss-btn-secondary:hover {
+    background: var(--dss-surface);
+    border-color: var(--dss-border);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 1200px) {
+    .dss-filter-item--date {
+        width: 120px;
+    }
+
+    .dss-stat-inline {
+        min-width: 75px;
+        padding: 0.15rem 0.4rem;
+    }
+
+    .dss-stat-inline-value {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .dss-modal {
+        max-width: 100%;
+        max-height: 98vh;
+        border-radius: 8px;
+    }
+
+    .dss-modal-body {
+        padding: 0.75rem;
+    }
+
+    .dss-filters-stats-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .dss-filters-group {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .dss-filter-item--date {
+        width: calc(50% - 0.25rem);
+        flex: 1 1 auto;
+    }
+
+    .dss-btn-generate {
+        flex: 1;
+        min-width: 60px;
+    }
+
+    .dss-stats-inline {
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+    }
+
+    .dss-stat-inline {
+        min-width: 65px;
+        flex: 1 1 auto;
+        max-width: 130px;
+    }
+
+    .dss-stat-inline-value {
+        font-size: 0.65rem;
+    }
+
+    .dss-table-wrap {
+        max-height: 250px;
+    }
+}
+
+@media (max-width: 576px) {
+    .dss-modal-header {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .dss-modal-header-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    .dss-modal-title {
+        font-size: 0.85rem;
+    }
+
+    .dss-modal-body {
+        padding: 0.5rem;
+    }
+
+    .dss-filter-item--date {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    .dss-filters-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dss-btn-generate {
+        width: 100%;
+    }
+
+    .dss-stats-inline {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
+    }
+
+    .dss-stat-inline {
+        max-width: 100%;
+        min-width: unset;
+        padding: 0.3rem 0.6rem;
+    }
+
+    .dss-table {
+        font-size: 0.65rem;
+    }
+
+    .dss-table-header th,
+    .dss-table-row td {
+        padding: 0.25rem 0.3rem;
+    }
+
+    .dss-table-wrap {
+        max-height: 200px;
+    }
+
+    .dss-modal-footer {
+        padding: 0.4rem 0.75rem;
+    }
+}

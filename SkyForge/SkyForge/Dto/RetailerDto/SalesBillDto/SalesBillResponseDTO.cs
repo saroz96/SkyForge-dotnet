@@ -64,6 +64,11 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public string? CashAccountEmail { get; set; }
         public string? CashAccountPhone { get; set; }
 
+        public string? AccountAddress { get; set; }
+        public string? AccountPan { get; set; }
+        public string? AccountEmail { get; set; }
+        public string? AccountPhone { get; set; }
+
         public Guid? SettingsId { get; set; }
 
         public Guid FiscalYearId { get; set; }
@@ -94,7 +99,7 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal? TotalAmount { get; set; }
         public string? PaymentMode { get; set; }
 
-       public DateTime Date { get; set; }
+        public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }
         public string? NepaliDate { get; set; }
         public string? TransactionDateNepali { get; set; }

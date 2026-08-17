@@ -366,7 +366,7 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
-        // POST: api/retailer/credit-sales
+        // // POST: api/retailer/credit-sales
         [HttpPost("credit-sales")]
         public async Task<IActionResult> CreateCreditSales([FromBody] CreateSalesBillDTO dto)
         {
@@ -553,6 +553,225 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
+
+        // POST: api/retailer/credit-sales
+        // [HttpPost("credit-sales")]
+        // public async Task<IActionResult> CreateCreditSales([FromBody] CreateSalesBillDTO dto)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== CreateCreditSales Started ===");
+
+        //         // Get user claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // Validate user
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // Validate company
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // Validate trade type
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access forbidden for this trade type"
+        //             });
+        //         }
+
+        //         // Validate fiscal year
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //             if (activeFiscalYear == null)
+        //             {
+        //                 return BadRequest(new
+        //                 {
+        //                     success = false,
+        //                     error = "No active fiscal year found for this company."
+        //                 });
+        //             }
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+        //         }
+
+        //         // Validate required fields
+        //         if (string.IsNullOrEmpty(dto.PaymentMode))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Payment mode is required."
+        //             });
+        //         }
+
+        //         // Conditional validation based on payment mode
+        //         bool isCashPayment = dto.PaymentMode?.ToLower() == "cash";
+        //         bool isCreditPayment = dto.PaymentMode?.ToLower() == "credit";
+
+        //         if (isCreditPayment)
+        //         {
+        //             // Credit payment - must have valid account ID
+        //             if (dto.AccountId == null || dto.AccountId == Guid.Empty)
+        //             {
+        //                 return BadRequest(new
+        //                 {
+        //                     success = false,
+        //                     error = "Account ID is required for credit sales."
+        //                 });
+        //             }
+        //         }
+        //         else if (isCashPayment)
+        //         {
+        //             // Cash payment - can have either AccountId OR CashAccount
+        //             bool hasAccountId = dto.AccountId != null && dto.AccountId != Guid.Empty;
+        //             bool hasCashAccount = !string.IsNullOrEmpty(dto.CashAccount);
+
+        //             if (!hasAccountId && !hasCashAccount)
+        //             {
+        //                 return BadRequest(new
+        //                 {
+        //                     success = false,
+        //                     error = "Either Account ID or Cash Account name is required for cash sales."
+        //                 });
+        //             }
+        //         }
+        //         else
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid payment mode. Must be 'cash' or 'credit'."
+        //             });
+        //         }
+
+        //         // Validate items
+        //         if (dto.Items == null || dto.Items.Count == 0)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "At least one item is required."
+        //             });
+        //         }
+
+        //         // Validate calculated amounts are provided (as per requirement: accept from frontend, don't calculate)
+        //         if (!dto.SubTotal.HasValue || !dto.TaxableAmount.HasValue ||
+        //             !dto.NonVatSales.HasValue || !dto.TotalAmount.HasValue)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "SubTotal, TaxableAmount, NonVatSales, and TotalAmount are required from frontend."
+        //             });
+        //         }
+
+        //         // Create sales bill
+        //         var result = await _salesBillService.CreateCreditSalesBillAsync(
+        //             dto, userIdGuid, companyIdGuid, fiscalYearIdGuid);
+
+        //         // Prepare response (matching Express.js structure)
+        //         var response = new
+        //         {
+        //             success = true,
+        //             message = "Sales bill saved successfully!",
+        //             data = new
+        //             {
+        //                 bill = new
+        //                 {
+        //                     _id = result.Id,
+        //                     billNumber = result.BillNumber,
+        //                     account = new
+        //                     {
+        //                         id = result.AccountId,
+        //                         name = result.Account?.Name,
+        //                         address = result.Account?.Address,
+        //                         pan = result.Account?.Pan,
+        //                     },
+        //                     totalAmount = result.TotalAmount,
+        //                     date = result.Date,
+        //                     transactionDate = result.TransactionDate,
+        //                     items = result.Items.Select(i => new
+        //                     {
+        //                         item = i.ItemId,
+        //                         quantity = i.Quantity,
+        //                         price = i.Price,
+        //                         puPrice = i.PuPrice,
+        //                         batchNumber = i.BatchNumber,
+        //                         expiryDate = i.ExpiryDate,
+        //                         vatStatus = i.VatStatus
+        //                     }),
+        //                     vatAmount = result.VatAmount,
+        //                     discountAmount = result.DiscountAmount,
+        //                     roundOffAmount = result.RoundOffAmount,
+        //                     subTotal = result.SubTotal,
+        //                     taxableAmount = result.TaxableAmount,
+        //                     nonVatSales = result.NonVatSales,
+        //                     isVatExempt = result.IsVatExempt,
+        //                     vatPercentage = result.VatPercentage,
+        //                     paymentMode = result.PaymentMode,
+        //                     cashAccount = result.CashAccount,
+        //                     cashAccountAddress = result.CashAccountAddress,
+        //                     cashAccountPan = result.CashAccountPan,
+        //                     cashAccountEmail = result.CashAccountEmail,
+        //                     cashAccountPhone = result.CashAccountPhone
+        //                 }
+        //             },
+        //             redirectUrl = "/bills"  // Default redirect
+        //         };
+
+        //         return StatusCode(201, response);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in CreateCreditSales");
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (InvalidOperationException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Stock validation error in CreateCreditSales");
+        //         return BadRequest(new
+        //         {
+        //             success = false,
+        //             error = ex.Message
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in CreateCreditSales");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Error creating sales bill",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
 
         // GET: api/retailer/credit-sales/open
         [HttpGet("credit-sales/open")]

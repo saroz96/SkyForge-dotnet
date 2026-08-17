@@ -3425,7 +3425,7 @@ import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import CashSettlementModal from './CashSettlementModal';
-import { FiFileText, FiPrinter, FiDownload, FiSearch, FiRefreshCw, FiUser, FiCalendar, FiShare2, FiLink } from 'react-icons/fi';
+import { FiFileText, FiPrinter, FiDownload, FiBox, FiSearch, FiRefreshCw, FiUser, FiCalendar, FiShare2, FiLink } from 'react-icons/fi';
 import { Badge } from 'react-bootstrap';
 import './Statement.css';
 
@@ -3882,10 +3882,12 @@ const Statement = () => {
         const isCashInHand = accountGroupName === 'cash in hand';
 
         switch (item.type?.toLowerCase()) {
-            case 'sale':
-                if (isSundryDebtor || isSundryCreditor) route = `/retailer/credit-sales/edit/${item.salesBillId || item.id}`;
-                else if (isCashInHand) route = `/retailer/cash-sales/edit/${item.salesBillId || item.id}`;
-                break;
+            // case 'sale':
+            //     if (isSundryDebtor || isSundryCreditor) route = `/retailer/credit-sales/edit/${item.salesBillId || item.id}`;
+            //     else if (isCashInHand) route = `/retailer/cash-sales/edit/${item.salesBillId || item.id}`;
+            //     break;
+            case 'sale': route = `/retailer/credit-sales/edit/${item.salesBillId || item.id}`; break;
+
             case 'purc': route = `/retailer/purchase/edit/${item.purchaseBillId}`; break;
             case 'slrt':
                 if (isSundryDebtor || isSundryCreditor) route = `/retailer/sales-return/edit/${item.salesReturnBillId || item.id}`;
@@ -4557,7 +4559,7 @@ const Statement = () => {
                         </select>
                     </div>
 
-                    <button type="button" id="generateReport" ref={generateReportRef} className="st-btn-gen" onClick={handleGenerateReport} disabled={loading}>
+                    <button type="button" id="generateReport" ref={generateReportRef} className="st-btn-gen" onClick={handleGenerateReport} disabled={loading} disabled={loading || !data.selectedCompany}>
                         {loading ? <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12 }} /> : <><FiSearch className="me-1" /> Generate</>}
                     </button>
 

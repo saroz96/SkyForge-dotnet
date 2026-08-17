@@ -46,15 +46,17 @@ namespace SkyForge.Dto.RetailerDto
         public decimal TaxableSalesVAT { get; set; }
         public decimal NonTaxableSales { get; set; }
         public decimal RoundOffAmount { get; set; }
-        public decimal SalesReturn { get; set; }
-        public decimal SalesReturnVAT { get; set; }
+        public decimal TaxableSalesReturn { get; set; }
+        public decimal TaxableSalesReturnVAT { get; set; }
+        public decimal NonTaxableSalesReturn { get; set; }
 
         // Purchase related
         public decimal TaxablePurchase { get; set; }
         public decimal TaxablePurchaseVAT { get; set; }
         public decimal NonTaxablePurchase { get; set; }
-        public decimal PurchaseReturn { get; set; }
-        public decimal PurchaseReturnVAT { get; set; }
+        public decimal TaxablePurchaseReturn { get; set; }
+        public decimal TaxablePurchaseReturnVAT { get; set; }
+        public decimal NonTaxablePurchaseReturn { get; set; }
 
         // Other transactions
         public decimal Payments { get; set; }

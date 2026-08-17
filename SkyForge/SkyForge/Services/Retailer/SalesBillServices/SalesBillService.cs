@@ -482,8 +482,44 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
                 // ========== CREATE HEADER TRANSACTIONS WITH TRANSACTION ITEMS ==========
 
+                bool isCashPayment = dto.PaymentMode?.ToLower() == "cash";
+                bool isCreditPayment = dto.PaymentMode?.ToLower() == "credit";
+                bool isCashInHandAccount = false;
+
+                // Check if the account is Cash in Hand
+                if (dto.AccountId != Guid.Empty)
+                {
+                    var accountEntity = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
+
+                    if (accountEntity != null)
+                    {
+                        // Check if this account belongs to Cash in Hand group
+                        var accountGroup = await _context.AccountGroups
+                            .FirstOrDefaultAsync(ag => ag.Id == accountEntity.AccountGroupsId);
+
+                        isCashInHandAccount = accountGroup != null &&
+                                              accountGroup.Name == "Cash in Hand";
+                    }
+                }
+
+                // Determine if we should create a party transaction
+                bool shouldCreatePartyTransaction = false;
+
+                if (isCreditPayment)
+                {
+                    // Credit payment - ALWAYS create party transaction
+                    shouldCreatePartyTransaction = true;
+                }
+                else if (isCashPayment && !isCashInHandAccount)
+                {
+                    // Cash payment with non-Cash-in-Hand account - create party transaction
+                    shouldCreatePartyTransaction = true;
+                }
+
+
                 // 1. PARTY ACCOUNT TRANSACTION (Header - Credit to party - amount receivable)
-                if (dto.AccountId != Guid.Empty && totalPartyCredit > 0)
+                if (shouldCreatePartyTransaction && dto.AccountId != Guid.Empty && totalPartyCredit > 0)
                 {
                     var partyTransaction = new Transaction
                     {
@@ -1164,9 +1200,42 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 await _context.SaveChangesAsync();
 
                 // ========== CREATE HEADER TRANSACTIONS WITH TRANSACTION ITEMS ==========
+                bool isCashPayment = dto.PaymentMode?.ToLower() == "cash";
+                bool isCreditPayment = dto.PaymentMode?.ToLower() == "credit";
+                bool isCashInHandAccount = false;
 
+                // Check if the account is Cash in Hand
+                if (dto.AccountId != Guid.Empty)
+                {
+                    var accountEntity = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
+
+                    if (accountEntity != null)
+                    {
+                        // Check if this account belongs to Cash in Hand group
+                        var accountGroup = await _context.AccountGroups
+                            .FirstOrDefaultAsync(ag => ag.Id == accountEntity.AccountGroupsId);
+
+                        isCashInHandAccount = accountGroup != null &&
+                                              accountGroup.Name == "Cash in Hand";
+                    }
+                }
+
+                // Determine if we should create a party transaction
+                bool shouldCreatePartyTransaction = false;
+
+                if (isCreditPayment)
+                {
+                    // Credit payment - ALWAYS create party transaction
+                    shouldCreatePartyTransaction = true;
+                }
+                else if (isCashPayment && !isCashInHandAccount)
+                {
+                    // Cash payment with non-Cash-in-Hand account - create party transaction
+                    shouldCreatePartyTransaction = true;
+                }
                 // 1. PARTY ACCOUNT TRANSACTION (Header - Credit to party - amount receivable)
-                if (dto.AccountId != Guid.Empty && totalPartyCredit > 0)
+                if (shouldCreatePartyTransaction && dto.AccountId != Guid.Empty && totalPartyCredit > 0)
                 {
                     var partyTransaction = new Transaction
                     {
@@ -2215,6 +2284,72 @@ namespace SkyForge.Services.Retailer.SalesBillServices
         {
             bool isNepaliFormat = companyDateFormat?.ToLower() == "nepali";
 
+            string accountName = "";
+            string accountAddress = "";
+            string accountPan = "";
+            string accountEmail = "";
+            string accountPhone = "";
+
+            if (salesBill.PaymentMode?.ToLower() == "cash")
+            {
+                // For cash sales, priority: CashAccount → Account.Name → fallback
+                if (!string.IsNullOrEmpty(salesBill.CashAccount))
+                {
+                    // Use the display name (e.g., "Ram")
+                    accountName = salesBill.CashAccount;
+                    accountAddress = salesBill.CashAccountAddress ?? "";
+                    accountPan = salesBill.CashAccountPan ?? "";
+                    accountEmail = salesBill.CashAccountEmail ?? "";
+                    accountPhone = salesBill.CashAccountPhone ?? "";
+                }
+                else if (salesBill.Account != null)
+                {
+                    // Fallback to actual account name (e.g., "Cash in Hand")
+                    accountName = salesBill.Account.Name;
+                    accountAddress = salesBill.Account.Address ?? "";
+                    accountPan = salesBill.Account.Pan ?? "";
+                    accountEmail = salesBill.Account.Email ?? "";
+                    accountPhone = salesBill.Account.Phone ?? "";
+                }
+                else
+                {
+                    // Final fallback
+                    accountName = "Cash Customer";
+                }
+            }
+            else if (salesBill.PaymentMode?.ToLower() == "credit")
+            {
+                // For credit sales, use the account from the Account table
+                if (salesBill.Account != null)
+                {
+                    accountName = salesBill.Account.Name;
+                    accountAddress = salesBill.Account.Address ?? "";
+                    accountPan = salesBill.Account.Pan ?? "";
+                    accountEmail = salesBill.Account.Email ?? "";
+                    accountPhone = salesBill.Account.Phone ?? "";
+                }
+                else
+                {
+                    accountName = "Unknown";
+                }
+            }
+            else
+            {
+                // Fallback for any other payment mode
+                if (!string.IsNullOrEmpty(salesBill.CashAccount))
+                {
+                    accountName = salesBill.CashAccount;
+                }
+                else if (salesBill.Account != null)
+                {
+                    accountName = salesBill.Account.Name;
+                }
+                else
+                {
+                    accountName = "Customer";
+                }
+            }
+
             return new SalesBillResponseDTO
             {
                 Id = salesBill.Id,
@@ -2228,13 +2363,11 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 UserName = salesBill.User?.Name,
                 BillNumber = salesBill.BillNumber,
                 AccountId = salesBill.AccountId,
-                // AccountName = salesBill.Account?.Name,
-                AccountName = salesBill.Account != null ? salesBill.Account.Name : salesBill.CashAccount,
-                CashAccount = salesBill.CashAccount,
-                CashAccountAddress = salesBill.CashAccountAddress,
-                CashAccountPan = salesBill.CashAccountPan,
-                CashAccountEmail = salesBill.CashAccountEmail,
-                CashAccountPhone = salesBill.CashAccountPhone,
+                AccountName = accountName, // ← FIXED: Uses CashAccount for cash sales
+                AccountAddress = accountAddress, // ← FIXED: Uses CashAccountAddress for cash sales
+                AccountPan = accountPan, // ← FIXED: Uses CashAccountPan for cash sales
+                AccountEmail = accountEmail, // ← FIXED: Uses CashAccountEmail for cash sales
+                AccountPhone = accountPhone, // ← FIXED: Uses CashAccountPhone for cash sales
                 SettingsId = salesBill.SettingsId,
                 FiscalYearId = salesBill.FiscalYearId,
                 FiscalYearName = salesBill.FiscalYear?.Name,
@@ -2383,6 +2516,11 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
                 // STEP 6: UPDATE BILL PROPERTIES
                 existingBill.AccountId = dto.AccountId;
+                existingBill.CashAccount = dto.CashAccount;
+                existingBill.CashAccountAddress = dto.CashAccountAddress;
+                existingBill.CashAccountPan = dto.CashAccountPan;
+                existingBill.CashAccountEmail = dto.CashAccountEmail;
+                existingBill.CashAccountPhone = dto.CashAccountPhone;
                 existingBill.SubTotal = dto.SubTotal ?? 0;
                 existingBill.NonVatSales = dto.NonTaxableAmount ?? 0;
                 existingBill.TaxableAmount = dto.TaxableAmount ?? 0;
@@ -2521,8 +2659,43 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
                 // STEP 8: CREATE NEW TRANSACTIONS WITH TRANSACTION ITEMS
 
+                bool isCashPayment = dto.PaymentMode?.ToLower() == "cash";
+                bool isCreditPayment = dto.PaymentMode?.ToLower() == "credit";
+                bool isCashInHandAccount = false;
+
+                // Check if the account is Cash in Hand
+                if (dto.AccountId != Guid.Empty)
+                {
+                    var accountEntity = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.Id == dto.AccountId && a.CompanyId == companyId);
+
+                    if (accountEntity != null)
+                    {
+                        // Check if this account belongs to Cash in Hand group
+                        var accountGroup = await _context.AccountGroups
+                            .FirstOrDefaultAsync(ag => ag.Id == accountEntity.AccountGroupsId);
+
+                        isCashInHandAccount = accountGroup != null &&
+                                              accountGroup.Name == "Cash in Hand";
+                    }
+                }
+
+                // Determine if we should create a party transaction
+                bool shouldCreatePartyTransaction = false;
+
+                if (isCreditPayment)
+                {
+                    // Credit payment - ALWAYS create party transaction
+                    shouldCreatePartyTransaction = true;
+                }
+                else if (isCashPayment && !isCashInHandAccount)
+                {
+                    // Cash payment with non-Cash-in-Hand account - create party transaction
+                    shouldCreatePartyTransaction = true;
+                }
+
                 // 1. PARTY ACCOUNT TRANSACTION (Header - Credit to party - amount receivable)
-                if (dto.AccountId != Guid.Empty && totalPartyCredit > 0)
+                if (shouldCreatePartyTransaction && dto.AccountId != Guid.Empty && totalPartyCredit > 0)
                 {
                     var partyTransaction = new Transaction
                     {
@@ -4771,6 +4944,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 throw;
             }
         }
+
         public async Task<SalesBill> UpdateCashSalesBillAsync(Guid billId, UpdateSalesBillDTO dto, Guid userId, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();

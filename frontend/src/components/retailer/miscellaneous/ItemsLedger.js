@@ -248,12 +248,15 @@ const ItemsLedger = () => {
             case 'PrRt':
                 route = `/retailer/purchase-return/edit/${entry.transactionId}`;
                 break;
+            // case 'Sale':
+            //     if (entry.paymentMode === 'cash') {
+            //         route = `/retailer/cash-sales/edit/${entry.transactionId}`;
+            //     } else {
+            //         route = `/retailer/credit-sales/edit/${entry.transactionId}`;
+            //     }
+            //     break;
             case 'Sale':
-                if (entry.paymentMode === 'cash') {
-                    route = `/retailer/cash-sales/edit/${entry.transactionId}`;
-                } else {
-                    route = `/retailer/credit-sales/edit/${entry.transactionId}`;
-                }
+                route = `/retailer/credit-sales/edit/${entry.transactionId}`;
                 break;
             case 'SlRt':
                 route = `/retailer/sales-return/edit/${entry.transactionId}`;

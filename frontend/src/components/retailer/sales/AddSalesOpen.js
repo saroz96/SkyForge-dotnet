@@ -318,6 +318,11 @@ const AddSalesOpen = () => {
     const [selectedItemIndex, setSelectedItemIndex] = useState(-1);
     const continueButtonRef = useRef(null);
 
+    const [isManualAccountEntry, setIsManualAccountEntry] = useState(false);
+    const [manualAccountName, setManualAccountName] = useState('');
+    const [cashInHandAccountId, setCashInHandAccountId] = useState('');
+
+
     const [formData, setFormData] = useState(salesOpenDraftSave?.formData || {
         accountId: '',
         accountName: '',
@@ -942,6 +947,14 @@ const AddSalesOpen = () => {
         }
     }, [showAccountModal]);
 
+    // Refetch accounts when payment mode changes
+    useEffect(() => {
+        if (showAccountModal) {
+            fetchAccountsFromBackend(accountSearchQuery, 1);
+        }
+    }, [formData.paymentMode]); // Add this dependency
+
+
     // Functions
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
         try {
@@ -952,6 +965,7 @@ const AddSalesOpen = () => {
                     search: searchTerm,
                     page: page,
                     limit: searchTerm.trim() ? 15 : 25,
+                    paymentMode: formData.paymentMode
                 }
             });
 
@@ -971,6 +985,40 @@ const AddSalesOpen = () => {
                     setAccountLastSearchQuery(searchTerm);
                     setAccountShouldShowLastSearchResults(true);
                 }
+
+                // === NEW: Check if we found Cash in Hand account ===
+                if (formData.paymentMode === 'cash') {
+                    const cashInHandAccount = response.data.accounts.find(account =>
+                        account.name.toLowerCase().includes('cash in hand') ||
+                        account.name.toLowerCase().includes('cash')
+                    );
+
+                    if (cashInHandAccount) {
+                        setCashInHandAccountId(cashInHandAccount.id);
+                        console.log('Cash in Hand account ID found via search:', cashInHandAccount.id);
+                    } else {
+                        // If not found in this page, try searching specifically for it
+                        try {
+                            const specificSearch = await api.get('/api/retailer/accounts/search', {
+                                params: {
+                                    search: 'Cash in Hand',
+                                    page: 1,
+                                    limit: 1,
+                                    paymentMode: 'cash'
+                                }
+                            });
+
+                            if (specificSearch.data.success && specificSearch.data.accounts.length > 0) {
+                                const cashAccount = specificSearch.data.accounts[0];
+                                setCashInHandAccountId(cashAccount.id);
+                                console.log('Cash in Hand account ID found via specific search:', cashAccount.id);
+                            }
+                        } catch (searchError) {
+                            console.error('Error searching for Cash in Hand account:', searchError);
+                        }
+                    }
+                }
+                // === END NEW ===
             }
         } catch (error) {
             console.error('Error fetching accounts:', error);
@@ -1192,6 +1240,18 @@ const AddSalesOpen = () => {
         setAccountSearchQuery(searchText);
         setAccountSearchPage(1);
 
+        // If payment mode is cash, allow manual entry
+        if (formData.paymentMode === 'cash') {
+            setIsManualAccountEntry(true);
+            setFormData(prev => ({
+                ...prev,
+                accountName: searchText,
+                accountId: cashInHandAccountId,
+                accountAddress: '',
+                accountPan: ''
+            }));
+        }
+
         if (searchText.trim() !== '' && accountShouldShowLastSearchResults) {
             setAccountShouldShowLastSearchResults(false);
             setAccountLastSearchQuery('');
@@ -1214,7 +1274,9 @@ const AddSalesOpen = () => {
             accountId: account.id,
             accountName: `${account.uniqueNumber || ''} ${account.name}`.trim(),
             accountAddress: account.address,
-            accountPan: account.pan
+            accountPan: account.pan,
+            accountEmail: account.email || '',
+            accountPhone: account.phone || ''
         });
         setShowAccountModal(false);
     };
@@ -2507,8 +2569,36 @@ const AddSalesOpen = () => {
                 return new Date(dateString).toISOString();
             };
 
+            let accountData = {};
+            if (formData.paymentMode === 'cash') {
+                if (isManualAccountEntry || !formData.accountId) {
+                    // === FIX: Cash mode with manual entry - use Cash in Hand account ID ===
+                    accountData = {
+                        accountId: cashInHandAccountId, // Use the Cash in Hand account ID
+                        cashAccount: formData.accountName, // Store the entered name for display
+                        cashAccountAddress: formData.accountAddress || null,
+                        cashAccountPan: formData.accountPan || null,
+                        cashAccountEmail: formData.accountEmail || null,
+                        cashAccountPhone: formData.accountPhone || null
+                    };
+                    console.log('Manual cash entry - using Cash in Hand account ID:', cashInHandAccountId);
+                } else {
+                    // Cash mode with existing account - send account ID
+                    accountData = {
+                        accountId: formData.accountId,
+                        cashAccount: formData.accountName
+                    };
+                }
+            } else {
+                // Credit mode - send account ID
+                accountData = {
+                    accountId: formData.accountId
+                };
+            }
+
             const billData = {
-                accountId: formData.accountId,
+                // accountId: formData.accountId,
+                ...accountData,
                 paymentMode: formData.paymentMode,
                 isVatExempt: formData.isVatExempt, // "all", "true", or "false"
                 discountPercentage: formData.discountPercentage,
@@ -4798,8 +4888,7 @@ const AddSalesOpen = () => {
             </div >
 
             {/* Account Modal */}
-            {
-                showAccountModal && (
+            {/* {showAccountModal && (
                     <div
                         className="modal fade show"
                         id="accountModal"
@@ -4895,23 +4984,279 @@ const AddSalesOpen = () => {
                         </div>
                     </div>
                 )
-            }
+            } */}
 
-            {/* {showTransactionModal && (
+            {showAccountModal && (
                 <div
                     className="modal fade show"
-                    id="transactionModal"
+                    id="accountModal"
                     tabIndex="-1"
-                    style={{
-                        display: 'block',
-                        backgroundColor: 'rgba(0,0,0,0.5)'
+                    style={{ display: 'block' }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            handleAccountModalClose();
+                            setTimeout(() => {
+                                document.getElementById('address').focus();
+                            }, 0);
+                        }
                     }}
-                    role="dialog"
-                    aria-labelledby="transactionModalLabel"
-                    aria-modal="true"
                 >
+                    <div className="modal-dialog modal-xl modal-dialog-centered">
+                        <div className="modal-content" style={{ height: '400px' }}>
+                            <div className="modal-header py-1">
+                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
+                                    {formData.paymentMode === 'cash' ? 'Select Cash Account' : 'Select Account'}
+                                </h5>
+                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
+                                    {formData.paymentMode === 'cash'
+                                        ? (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Type to search or enter new account')
+                                        : (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...')
+                                    }
+                                </small>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={handleAccountModalClose}
+                                    aria-label="Close"
+                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
+                                ></button>
+                            </div>
+                            <div className="p-2 bg-white sticky-top">
+                                {formData.paymentMode === 'cash' ? (
+                                    // Cash mode - allow typing new account
+                                    <input
+                                        type="text"
+                                        id="searchAccount"
+                                        className="form-control form-control-sm"
+                                        placeholder="Type to search or enter new account name..."
+                                        autoFocus
+                                        autoComplete='off'
+                                        value={formData.accountName}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                accountName: value,
+                                                accountId: '',
+                                                accountAddress: '',
+                                                accountPan: '',
+                                                accountEmail: '',
+                                                accountPhone: ''
+                                            }));
+                                            setIsManualAccountEntry(true);
+
+                                            setAccountSearchQuery(value);
+                                            setAccountSearchPage(1);
+
+                                            if (value.trim() !== '' && accountShouldShowLastSearchResults) {
+                                                setAccountShouldShowLastSearchResults(false);
+                                                setAccountLastSearchQuery('');
+                                            }
+
+                                            const timer = setTimeout(() => {
+                                                fetchAccountsFromBackend(value, 1);
+                                            }, 300);
+
+                                            return () => clearTimeout(timer);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item');
+                                                if (firstAccountItem) {
+                                                    firstAccountItem.focus();
+                                                }
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                // Use the entered name as account
+                                                const enteredName = document.getElementById('searchAccount').value.trim();
+                                                if (enteredName) {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        accountName: enteredName,
+                                                        accountId: '',
+                                                        accountAddress: '',
+                                                        accountPan: '',
+                                                        accountEmail: '',
+                                                        accountPhone: ''
+                                                    }));
+                                                    setIsManualAccountEntry(true);
+                                                    setShowAccountModal(false);
+                                                    setTimeout(() => {
+                                                        document.getElementById('address').focus();
+                                                    }, 100);
+                                                }
+                                            } else if (e.key === 'F6') {
+                                                e.preventDefault();
+                                                setShowAccountCreationModal(true);
+                                                handleAccountModalClose();
+                                            }
+                                        }}
+                                        ref={accountSearchRef}
+                                        style={{
+                                            height: '24px',
+                                            fontSize: '0.75rem',
+                                            padding: '0.25rem 0.5rem'
+                                        }}
+                                    />
+                                ) : (
+                                    // Credit mode - keep existing behavior (search only)
+                                    <input
+                                        type="text"
+                                        id="searchAccount"
+                                        className="form-control form-control-sm"
+                                        placeholder="Search Account... (Press F6 to create new account)"
+                                        autoFocus
+                                        autoComplete='off'
+                                        value={accountSearchQuery}
+                                        onChange={handleAccountSearch}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item');
+                                                if (firstAccountItem) {
+                                                    firstAccountItem.focus();
+                                                }
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item.active');
+                                                if (firstAccountItem) {
+                                                    const accountId = firstAccountItem.getAttribute('data-account-id');
+                                                    const account = accounts.find(a => a.id === accountId);
+                                                    if (account) {
+                                                        selectAccount(account);
+                                                        document.getElementById('address').focus();
+                                                    }
+                                                }
+                                            } else if (e.key === 'F6') {
+                                                e.preventDefault();
+                                                setShowAccountCreationModal(true);
+                                                handleAccountModalClose();
+                                            }
+                                        }}
+                                        ref={accountSearchRef}
+                                        style={{
+                                            height: '24px',
+                                            fontSize: '0.75rem',
+                                            padding: '0.25rem 0.5rem'
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            <div className="modal-body p-0">
+                                <div style={{ height: 'calc(320px - 40px)' }}>
+                                    {formData.paymentMode === 'cash' && formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry ? (
+                                        <div className="text-center py-4">
+                                            <i className="bi bi-person-plus text-primary mb-2" style={{ fontSize: '1.5rem' }}></i>
+                                            <p className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
+                                                No accounts found for "<strong>{formData.accountName}</strong>"
+                                            </p>
+                                            <p className="text-muted mb-3" style={{ fontSize: '0.7rem' }}>
+                                                Press Enter to use as new account, or F6 to create full account
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <VirtualizedAccountList
+                                            accounts={accounts}
+                                            onAccountClick={(account) => {
+                                                setFormData({
+                                                    ...formData,
+                                                    accountId: account.id,
+                                                    accountName: `${account.uniqueNumber || ''} ${account.name}`.trim(),
+                                                    accountAddress: account.address || '',
+                                                    accountPan: account.pan || '',
+                                                    accountEmail: account.email || '',
+                                                    accountPhone: account.phone || ''
+                                                });
+                                                setIsManualAccountEntry(false);
+                                                setShowAccountModal(false);
+                                                setTimeout(() => {
+                                                    document.getElementById('address').focus();
+                                                }, 100);
+                                            }}
+                                            searchRef={accountSearchRef}
+                                            hasMore={hasMoreAccountResults}
+                                            isSearching={isAccountSearching}
+                                            onLoadMore={loadMoreAccounts}
+                                            totalAccounts={totalAccounts}
+                                            page={accountSearchPage}
+                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                            {formData.paymentMode === 'cash' && (
+                                <div className="modal-footer py-1" style={{
+                                    borderTop: '1px solid #dee2e6',
+                                    backgroundColor: '#f8f9fa'
+                                }}>
+                                    <div className="d-flex justify-content-between w-100 align-items-center">
+                                        <div>
+                                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                                {formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry
+                                                    ? 'Type account name and press Enter to use'
+                                                    : 'Select account or continue typing'}
+                                            </small>
+                                        </div>
+                                        <div className="d-flex gap-2">
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-primary py-0 px-2"
+                                                onClick={() => {
+                                                    const enteredName = document.getElementById('searchAccount').value.trim();
+                                                    if (enteredName) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            accountName: enteredName,
+                                                            accountId: '',
+                                                            accountAddress: '',
+                                                            accountPan: '',
+                                                            accountEmail: '',
+                                                            accountPhone: ''
+                                                        }));
+                                                        setIsManualAccountEntry(true);
+                                                        setShowAccountModal(false);
+                                                        setTimeout(() => {
+                                                            document.getElementById('address').focus();
+                                                        }, 100);
+                                                    }
+                                                }}
+                                                style={{
+                                                    height: '24px',
+                                                    fontSize: '0.75rem'
+                                                }}
+                                            >
+                                                Use Entered Name
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                onClick={handleAccountModalClose}
+                                                style={{
+                                                    height: '24px',
+                                                    fontSize: '0.75rem'
+                                                }}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+            {showTransactionModal && (
+                <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{
+                    display: 'block',
+                    backgroundColor: 'rgba(0,0,0,0.5)'
+                }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
                     <div className="modal-dialog modal-lg modal-dialog-centered">
                         <div className="modal-content shadow-sm border-0 rounded-2">
+                            {/* Modal Header */}
                             <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
                                 <div className="d-flex align-items-center">
                                     <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
@@ -4919,21 +5264,12 @@ const AddSalesOpen = () => {
                                         {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
                                     </h6>
                                 </div>
-                                <button
-                                    type="button"
-                                    className="btn-close btn-close-white"
-                                    style={{ fontSize: '0.5rem', padding: '0.5rem' }}
-                                    onClick={handleTransactionModalClose}
-                                    aria-label="Close"
-                                ></button>
+                                <button type="button" className="btn-close btn-close-white" style={{ fontSize: '0.5rem', padding: '0.5rem' }} onClick={handleTransactionModalClose} aria-label="Close"></button>
                             </div>
 
+                            {/* Modal Body */}
                             <div className="modal-body p-0">
-                                <div
-                                    className="table-responsive"
-                                    style={{ maxHeight: '220px', overflowY: 'auto' }}
-                                    id="transactionTableContainer"
-                                >
+                                <div className="table-responsive" style={{ maxHeight: '220px', overflowY: 'auto' }} id="transactionTableContainer">
                                     <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
                                         <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
                                             <tr>
@@ -4953,31 +5289,120 @@ const AddSalesOpen = () => {
                                         <tbody>
                                             {transactions.length > 0 ? (
                                                 transactions.map((transaction, index) => {
-                                                    // Format date based on company date format
-                                                    let formattedDate = '';
-                                                    if (company.dateFormat === 'nepali' || company.dateFormat === 'Nepali') {
+                                                    // Helper function to format Nepali date
+                                                    const formatNepaliDate = (dateValue) => {
+                                                        if (!dateValue) return null;
+
                                                         try {
-                                                            const dateObj = new Date(transaction.date);
-                                                            if (!isNaN(dateObj.getTime())) {
-                                                                const nepaliDate = new NepaliDate(dateObj);
-                                                                formattedDate = nepaliDate.format('YYYY-MM-DD');
-                                                            } else {
-                                                                formattedDate = transaction.date?.split('T')[0] || 'N/A';
+                                                            // If it's a string in YYYY-MM-DD format
+                                                            if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                                                                // Validate it's a valid Nepali date
+                                                                const nepaliDate = new NepaliDate(dateValue);
+                                                                if (nepaliDate && typeof nepaliDate.getYear === 'function') {
+                                                                    const year = nepaliDate.getYear();
+                                                                    const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+                                                                    const day = String(nepaliDate.getDate()).padStart(2, '0');
+
+                                                                    // Verify the date is valid by checking if components match
+                                                                    if (year && month && day &&
+                                                                        year === parseInt(dateValue.split('-')[0]) &&
+                                                                        month === dateValue.split('-')[1] &&
+                                                                        day === dateValue.split('-')[2]) {
+                                                                        return `${year}-${month}-${day}`;
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            // Try to create NepaliDate from string or Date object
+                                                            const nepaliDate = new NepaliDate(dateValue);
+                                                            if (nepaliDate && typeof nepaliDate.getYear === 'function') {
+                                                                const year = nepaliDate.getYear();
+                                                                const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+                                                                const day = String(nepaliDate.getDate()).padStart(2, '0');
+
+                                                                if (year && month && day) {
+                                                                    return `${year}-${month}-${day}`;
+                                                                }
                                                             }
                                                         } catch (error) {
                                                             console.error('Error formatting Nepali date:', error);
-                                                            formattedDate = transaction.date?.split('T')[0] || 'N/A';
+                                                        }
+
+                                                        return null;
+                                                    };
+
+                                                    // Helper function to format English date
+                                                    const formatEnglishDate = (dateValue) => {
+                                                        if (!dateValue) return null;
+
+                                                        try {
+                                                            if (typeof dateValue === 'string') {
+                                                                if (dateValue.includes('T')) {
+                                                                    return dateValue.split('T')[0];
+                                                                } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                                                                    return dateValue;
+                                                                } else {
+                                                                    const dateObj = new Date(dateValue);
+                                                                    if (!isNaN(dateObj.getTime())) {
+                                                                        return dateObj.toISOString().split('T')[0];
+                                                                    }
+                                                                }
+                                                            } else if (dateValue instanceof Date) {
+                                                                if (!isNaN(dateValue.getTime())) {
+                                                                    return dateValue.toISOString().split('T')[0];
+                                                                }
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error formatting English date:', error);
+                                                        }
+
+                                                        return null;
+                                                    };
+
+                                                    let formattedDate = '';
+                                                    const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
+
+                                                    if (isNepaliFormat) {
+                                                        // Priority 1: Use transactionDateNepali (same as voucher input)
+                                                        if (transaction.transactionDateNepali) {
+                                                            formattedDate = formatNepaliDate(transaction.transactionDateNepali);
+                                                        }
+
+                                                        // Priority 2: Use nepaliDate field (fallback)
+                                                        if (!formattedDate && transaction.nepaliDate) {
+                                                            formattedDate = formatNepaliDate(transaction.nepaliDate);
+                                                        }
+
+                                                        // Priority 3: Convert from AD date as last resort
+                                                        if (!formattedDate && transaction.date) {
+                                                            try {
+                                                                const dateObj = new Date(transaction.date);
+                                                                if (!isNaN(dateObj.getTime())) {
+                                                                    const nepaliDate = new NepaliDate(dateObj);
+                                                                    if (nepaliDate && typeof nepaliDate.getYear === 'function') {
+                                                                        const year = nepaliDate.getYear();
+                                                                        const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+                                                                        const day = String(nepaliDate.getDate()).padStart(2, '0');
+                                                                        formattedDate = `${year}-${month}-${day}`;
+                                                                    }
+                                                                }
+                                                            } catch (error) {
+                                                                console.error('Error converting AD to BS:', error);
+                                                            }
                                                         }
                                                     } else {
-                                                        formattedDate = transaction.date?.split('T')[0] || 'N/A';
+                                                        // For English format
+                                                        formattedDate = formatEnglishDate(transaction.date) ||
+                                                            formatEnglishDate(transaction.transactionDateRoman) ||
+                                                            'N/A';
                                                     }
 
+                                                    // If still no date, show N/A
+                                                    if (!formattedDate) {
+                                                        formattedDate = 'N/A';
+                                                    }
                                                     return (
-                                                        <tr
-                                                            key={index}
-                                                            id={`transaction-row-${index}`}
-                                                            className="transaction-row"
-                                                            data-index={index}
+                                                        <tr key={index} id={`transaction-row-${index}`} className="transaction-row" data-index={index}
                                                             style={{
                                                                 cursor: 'pointer',
                                                                 height: '28px',
@@ -4999,7 +5424,7 @@ const AddSalesOpen = () => {
                                                             }}
                                                             onClick={() => {
                                                                 if (transactionType === 'purchase') {
-                                                                    const billId = transaction.purchaseBillId || transaction.billId;
+                                                                    const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
                                                                     if (billId) navigate(`/retailer/purchase/${billId}/print`);
                                                                 } else {
                                                                     const billId = transaction.salesBillId || transaction.billId;
@@ -5010,7 +5435,7 @@ const AddSalesOpen = () => {
                                                                 if (e.key === 'Enter') {
                                                                     e.preventDefault();
                                                                     if (transactionType === 'purchase') {
-                                                                        const billId = transaction.purchaseBillId || transaction.billId;
+                                                                        const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
                                                                         if (billId) navigate(`/retailer/purchase/${billId}/print`);
                                                                     } else {
                                                                         const billId = transaction.salesBillId || transaction.billId;
@@ -5018,11 +5443,10 @@ const AddSalesOpen = () => {
                                                                     }
                                                                 }
                                                             }}
-                                                            tabIndex={-1}
-                                                        >
+                                                            tabIndex={-1}>
                                                             <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
-                                                            <td className="py-1 px-1 text-nowrap">{formattedDate}</td>
-                                                            <td className="py-1 px-1 fw-semibold">{transaction.billNumber || 'N/A'}</td>
+                                                            <td className="py-1 px-1 text-nowrap">{formattedDate || 'N/A'}</td>
+                                                            <td className="py-1 px-1 fw-semibold">{transaction.billNumber || transaction.purchaseBillNumber || 'N/A'}</td>
                                                             <td className="py-1 px-1">
                                                                 <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
                                                                     {transaction.type?.substring(0, 4) || 'N/A'}
@@ -5043,20 +5467,17 @@ const AddSalesOpen = () => {
                                                                     : (transaction.price ? Math.round(transaction.price * 100) / 100 : 0)}
                                                             </td>
                                                             <td className="py-1 px-1 text-center">
-                                                                <button
-                                                                    className="btn btn-sm btn-outline-primary py-0 px-1"
-                                                                    style={{ fontSize: '0.6rem' }}
+                                                                <button className="btn btn-sm btn-outline-primary py-0 px-1" style={{ fontSize: '0.6rem' }}
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         if (transactionType === 'purchase') {
-                                                                            const billId = transaction.purchaseBillId || transaction.billId;
+                                                                            const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
                                                                             if (billId) navigate(`/retailer/purchase/${billId}/print`);
                                                                         } else {
                                                                             const billId = transaction.salesBillId || transaction.billId;
                                                                             if (billId) navigate(`/retailer/sales/${billId}/print`);
                                                                         }
-                                                                    }}
-                                                                >
+                                                                    }}>
                                                                     <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
                                                                 </button>
                                                             </td>
@@ -5076,49 +5497,29 @@ const AddSalesOpen = () => {
                                         </tbody>
                                     </table>
                                 </div>
-
-                                {transactions.length > 7 && (
-                                    <div className="text-center py-1 bg-light border-top" style={{ fontSize: '0.6rem', color: '#6c757d' }}>
-                                        <i className="bi bi-arrow-down-short me-1"></i>Scroll for more ({transactions.length} total)<i className="bi bi-arrow-down-short ms-1"></i>
-                                    </div>
-                                )}
                             </div>
 
+                            {/* Modal Footer */}
                             <div className="modal-footer py-1 px-2 bg-light border-top">
                                 <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
                                     <div>
                                         {transactionType === 'purchase' && (
-                                            <button
-                                                id="showSalesTransactions"
-                                                className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                onClick={fetchSalesTransactions}
-                                                style={{ fontSize: '0.65rem', height: '24px' }}
-                                            >
+                                            <button id="showSalesTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                onClick={fetchSalesTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
                                                 <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
                                                 Show Sales Transaction
                                             </button>
                                         )}
-
                                         {transactionType === 'sales' && (
-                                            <button
-                                                id="showPurchaseTransactions"
-                                                className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                onClick={fetchPurchaseTransactions}
-                                                style={{ fontSize: '0.65rem', height: '24px' }}
-                                            >
+                                            <button id="showPurchaseTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
+                                                onClick={fetchPurchaseTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
                                                 <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
                                                 Show Purchase Transaction
                                             </button>
                                         )}
                                     </div>
-
-                                    <button
-                                        ref={continueButtonRef}
-                                        type="button"
-                                        className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
-                                        onClick={handleTransactionModalClose}
-                                        style={{ fontSize: '0.65rem', height: '24px' }}
-                                    >
+                                    <button ref={continueButtonRef} type="button" className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
+                                        onClick={handleTransactionModalClose} style={{ fontSize: '0.65rem', height: '24px' }}>
                                         <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
                                         Continue
                                     </button>
@@ -5127,289 +5528,7 @@ const AddSalesOpen = () => {
                         </div>
                     </div>
                 </div>
-            )} */}
-
-            {
-                showTransactionModal && (
-                    <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{
-                        display: 'block',
-                        backgroundColor: 'rgba(0,0,0,0.5)'
-                    }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
-                        <div className="modal-dialog modal-lg modal-dialog-centered">
-                            <div className="modal-content shadow-sm border-0 rounded-2">
-                                {/* Modal Header */}
-                                <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
-                                    <div className="d-flex align-items-center">
-                                        <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
-                                        <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                                            {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
-                                        </h6>
-                                    </div>
-                                    <button type="button" className="btn-close btn-close-white" style={{ fontSize: '0.5rem', padding: '0.5rem' }} onClick={handleTransactionModalClose} aria-label="Close"></button>
-                                </div>
-
-                                {/* Modal Body */}
-                                <div className="modal-body p-0">
-                                    <div className="table-responsive" style={{ maxHeight: '220px', overflowY: 'auto' }} id="transactionTableContainer">
-                                        <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
-                                            <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
-                                                <tr>
-                                                    <th className="py-1 px-1 text-center" style={{ width: '5%' }}>#</th>
-                                                    <th className="py-1 px-1" style={{ width: '12%' }}>Date</th>
-                                                    <th className="py-1 px-1" style={{ width: '12%' }}>Inv.No</th>
-                                                    <th className="py-1 px-1" style={{ width: '8%' }}>Type</th>
-                                                    <th className="py-1 px-1" style={{ width: '10%' }}>A/c</th>
-                                                    <th className="py-1 px-1" style={{ width: '8%' }}>Pay</th>
-                                                    <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Qty</th>
-                                                    <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Free</th>
-                                                    <th className="py-1 px-1" style={{ width: '8%' }}>Unit</th>
-                                                    <th className="py-1 px-1 text-end" style={{ width: '13%' }}>Rate</th>
-                                                    <th className="py-1 px-1 text-center" style={{ width: '10%' }}></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {transactions.length > 0 ? (
-                                                    transactions.map((transaction, index) => {
-                                                        // Helper function to format Nepali date
-                                                        const formatNepaliDate = (dateValue) => {
-                                                            if (!dateValue) return null;
-
-                                                            try {
-                                                                // If it's a string in YYYY-MM-DD format
-                                                                if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-                                                                    // Validate it's a valid Nepali date
-                                                                    const nepaliDate = new NepaliDate(dateValue);
-                                                                    if (nepaliDate && typeof nepaliDate.getYear === 'function') {
-                                                                        const year = nepaliDate.getYear();
-                                                                        const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
-                                                                        const day = String(nepaliDate.getDate()).padStart(2, '0');
-
-                                                                        // Verify the date is valid by checking if components match
-                                                                        if (year && month && day &&
-                                                                            year === parseInt(dateValue.split('-')[0]) &&
-                                                                            month === dateValue.split('-')[1] &&
-                                                                            day === dateValue.split('-')[2]) {
-                                                                            return `${year}-${month}-${day}`;
-                                                                        }
-                                                                    }
-                                                                }
-
-                                                                // Try to create NepaliDate from string or Date object
-                                                                const nepaliDate = new NepaliDate(dateValue);
-                                                                if (nepaliDate && typeof nepaliDate.getYear === 'function') {
-                                                                    const year = nepaliDate.getYear();
-                                                                    const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
-                                                                    const day = String(nepaliDate.getDate()).padStart(2, '0');
-
-                                                                    if (year && month && day) {
-                                                                        return `${year}-${month}-${day}`;
-                                                                    }
-                                                                }
-                                                            } catch (error) {
-                                                                console.error('Error formatting Nepali date:', error);
-                                                            }
-
-                                                            return null;
-                                                        };
-
-                                                        // Helper function to format English date
-                                                        const formatEnglishDate = (dateValue) => {
-                                                            if (!dateValue) return null;
-
-                                                            try {
-                                                                if (typeof dateValue === 'string') {
-                                                                    if (dateValue.includes('T')) {
-                                                                        return dateValue.split('T')[0];
-                                                                    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-                                                                        return dateValue;
-                                                                    } else {
-                                                                        const dateObj = new Date(dateValue);
-                                                                        if (!isNaN(dateObj.getTime())) {
-                                                                            return dateObj.toISOString().split('T')[0];
-                                                                        }
-                                                                    }
-                                                                } else if (dateValue instanceof Date) {
-                                                                    if (!isNaN(dateValue.getTime())) {
-                                                                        return dateValue.toISOString().split('T')[0];
-                                                                    }
-                                                                }
-                                                            } catch (error) {
-                                                                console.error('Error formatting English date:', error);
-                                                            }
-
-                                                            return null;
-                                                        };
-
-                                                        let formattedDate = '';
-                                                        const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
-
-                                                        if (isNepaliFormat) {
-                                                            // Priority 1: Use transactionDateNepali (same as voucher input)
-                                                            if (transaction.transactionDateNepali) {
-                                                                formattedDate = formatNepaliDate(transaction.transactionDateNepali);
-                                                            }
-
-                                                            // Priority 2: Use nepaliDate field (fallback)
-                                                            if (!formattedDate && transaction.nepaliDate) {
-                                                                formattedDate = formatNepaliDate(transaction.nepaliDate);
-                                                            }
-
-                                                            // Priority 3: Convert from AD date as last resort
-                                                            if (!formattedDate && transaction.date) {
-                                                                try {
-                                                                    const dateObj = new Date(transaction.date);
-                                                                    if (!isNaN(dateObj.getTime())) {
-                                                                        const nepaliDate = new NepaliDate(dateObj);
-                                                                        if (nepaliDate && typeof nepaliDate.getYear === 'function') {
-                                                                            const year = nepaliDate.getYear();
-                                                                            const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
-                                                                            const day = String(nepaliDate.getDate()).padStart(2, '0');
-                                                                            formattedDate = `${year}-${month}-${day}`;
-                                                                        }
-                                                                    }
-                                                                } catch (error) {
-                                                                    console.error('Error converting AD to BS:', error);
-                                                                }
-                                                            }
-                                                        } else {
-                                                            // For English format
-                                                            formattedDate = formatEnglishDate(transaction.date) ||
-                                                                formatEnglishDate(transaction.transactionDateRoman) ||
-                                                                'N/A';
-                                                        }
-
-                                                        // If still no date, show N/A
-                                                        if (!formattedDate) {
-                                                            formattedDate = 'N/A';
-                                                        }
-                                                        return (
-                                                            <tr key={index} id={`transaction-row-${index}`} className="transaction-row" data-index={index}
-                                                                style={{
-                                                                    cursor: 'pointer',
-                                                                    height: '28px',
-                                                                    backgroundColor: highlightedRowIndex === index ? '#0d6efd' : 'transparent',
-                                                                    color: highlightedRowIndex === index ? 'white' : 'inherit',
-                                                                    transition: 'background-color 0.2s ease'
-                                                                }}
-                                                                onMouseEnter={(e) => {
-                                                                    if (highlightedRowIndex !== index) {
-                                                                        e.currentTarget.style.backgroundColor = '#f8f9fa';
-                                                                        e.currentTarget.style.color = 'inherit';
-                                                                    }
-                                                                }}
-                                                                onMouseLeave={(e) => {
-                                                                    if (highlightedRowIndex !== index) {
-                                                                        e.currentTarget.style.backgroundColor = '';
-                                                                        e.currentTarget.style.color = '';
-                                                                    }
-                                                                }}
-                                                                onClick={() => {
-                                                                    if (transactionType === 'purchase') {
-                                                                        const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
-                                                                        if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                    } else {
-                                                                        const billId = transaction.salesBillId || transaction.billId;
-                                                                        if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                    }
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault();
-                                                                        if (transactionType === 'purchase') {
-                                                                            const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
-                                                                            if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                        } else {
-                                                                            const billId = transaction.salesBillId || transaction.billId;
-                                                                            if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                tabIndex={-1}>
-                                                                <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
-                                                                <td className="py-1 px-1 text-nowrap">{formattedDate || 'N/A'}</td>
-                                                                <td className="py-1 px-1 fw-semibold">{transaction.billNumber || transaction.purchaseBillNumber || 'N/A'}</td>
-                                                                <td className="py-1 px-1">
-                                                                    <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
-                                                                        {transaction.type?.substring(0, 4) || 'N/A'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="py-1 px-1 text-muted">{transaction.purchaseSalesType?.substring(0, 8) || 'N/A'}</td>
-                                                                <td className="py-1 px-1">
-                                                                    <span className={`badge ${transaction.paymentMode === 'Cash' ? 'bg-warning' : 'bg-primary'} bg-opacity-25 text-dark px-1 py-0`} style={{ fontSize: '0.6rem' }}>
-                                                                        {transaction.paymentMode?.substring(0, 6) || 'N/A'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="py-1 px-1 text-end fw-medium">{transaction.quantity || 0}</td>
-                                                                <td className="py-1 px-1 text-end text-secondary">{transaction.bonus || 0}</td>
-                                                                <td className="py-1 px-1">{transaction.unitName || transaction.unit || 'N/A'}</td>
-                                                                <td className="py-1 px-1 text-end fw-semibold">
-                                                                    {transactionType === 'purchase'
-                                                                        ? (transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0)
-                                                                        : (transaction.price ? Math.round(transaction.price * 100) / 100 : 0)}
-                                                                </td>
-                                                                <td className="py-1 px-1 text-center">
-                                                                    <button className="btn btn-sm btn-outline-primary py-0 px-1" style={{ fontSize: '0.6rem' }}
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            if (transactionType === 'purchase') {
-                                                                                const billId = transaction.purchaseBillId || transaction.billId || transaction.id;
-                                                                                if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                            } else {
-                                                                                const billId = transaction.salesBillId || transaction.billId;
-                                                                                if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                            }
-                                                                        }}>
-                                                                        <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <tr>
-                                                        <td colSpan="11" className="text-center py-3">
-                                                            <div className="d-flex flex-column align-items-center">
-                                                                <i className="bi bi-inbox text-muted" style={{ fontSize: '1.5rem' }}></i>
-                                                                <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>No transactions found</p>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                {/* Modal Footer */}
-                                <div className="modal-footer py-1 px-2 bg-light border-top">
-                                    <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
-                                        <div>
-                                            {transactionType === 'purchase' && (
-                                                <button id="showSalesTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                    onClick={fetchSalesTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
-                                                    <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
-                                                    Show Sales Transaction
-                                                </button>
-                                            )}
-                                            {transactionType === 'sales' && (
-                                                <button id="showPurchaseTransactions" className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                    onClick={fetchPurchaseTransactions} style={{ fontSize: '0.65rem', height: '24px' }}>
-                                                    <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
-                                                    Show Purchase Transaction
-                                                </button>
-                                            )}
-                                        </div>
-                                        <button ref={continueButtonRef} type="button" className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
-                                            onClick={handleTransactionModalClose} style={{ fontSize: '0.65rem', height: '24px' }}>
-                                            <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
-                                            Continue
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
+            )
             }
 
             {/* Header Item Modal */}

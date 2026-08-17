@@ -99,8 +99,12 @@ namespace SkyForge.Services.Retailer.PartySummaryServices
                     break;
 
                 case TransactionType.SlRt:
-                    summary.SalesReturn += transaction.TaxableAmount ?? 0;
-                    summary.SalesReturnVAT += transaction.VatAmount ?? 0;
+                    summary.TaxableSalesReturn += transaction.TaxableAmount ?? 0;
+                    summary.TaxableSalesReturnVAT += transaction.VatAmount ?? 0;
+                      if (transaction.IsType != TransactionIsType.VAT && transaction.IsType != TransactionIsType.RoundOff)
+                    {
+                        summary.NonTaxableSalesReturn += transaction.NonTaxableAmount ?? 0;
+                    }
                     summary.SalesReturnCount++;
                     break;
 
@@ -115,8 +119,12 @@ namespace SkyForge.Services.Retailer.PartySummaryServices
                     break;
 
                 case TransactionType.PrRt:
-                    summary.PurchaseReturn += transaction.TaxableAmount ?? 0;
-                    summary.PurchaseReturnVAT += transaction.VatAmount ?? 0;
+                    summary.TaxablePurchaseReturn += transaction.TaxableAmount ?? 0;
+                    summary.TaxablePurchaseReturnVAT += transaction.VatAmount ?? 0;
+                    if (transaction.IsType != TransactionIsType.VAT && transaction.IsType != TransactionIsType.RoundOff)
+                    {
+                        summary.NonTaxablePurchaseReturn += transaction.NonTaxableAmount ?? 0;
+                    }
                     summary.PurchaseReturnCount++;
                     break;
 
@@ -297,10 +305,10 @@ namespace SkyForge.Services.Retailer.PartySummaryServices
                 _logger.LogInformation($"Closing Balance: {summary.ClosingBalance}");
 
                 // --- STEP 3: Calculate net values ---
-                summary.NetSales = summary.TaxableSales + summary.NonTaxableSales - summary.SalesReturn;
-                summary.NetSalesVAT = summary.TaxableSalesVAT - summary.SalesReturnVAT;
-                summary.NetPurchase = summary.TaxablePurchase + summary.NonTaxablePurchase - summary.PurchaseReturn;
-                summary.NetPurchaseVAT = summary.TaxablePurchaseVAT - summary.PurchaseReturnVAT;
+                summary.NetSales = summary.TaxableSales + summary.NonTaxableSales - (summary.TaxableSalesReturn+summary.NonTaxableSalesReturn);
+                summary.NetSalesVAT = summary.TaxableSalesVAT - summary.TaxableSalesReturnVAT;
+                summary.NetPurchase = summary.TaxablePurchase + summary.NonTaxablePurchase - (summary.TaxablePurchaseReturn + summary.NonTaxablePurchaseReturn);
+                summary.NetPurchaseVAT = summary.TaxablePurchaseVAT - summary.TaxablePurchaseReturnVAT;
                 summary.NetPaymentReceipt = summary.Receipts - summary.Payments;
 
                 // Create date strings for display
@@ -491,8 +499,12 @@ namespace SkyForge.Services.Retailer.PartySummaryServices
                             break;
 
                         case TransactionType.SlRt:
-                            summary.SalesReturn += transaction.TaxableAmount ?? 0;
-                            summary.SalesReturnVAT += transaction.VatAmount ?? 0;
+                            summary.TaxableSalesReturn += transaction.TaxableAmount ?? 0;
+                            summary.TaxableSalesReturnVAT += transaction.VatAmount ?? 0;
+                            if (transaction.IsType != TransactionIsType.VAT && transaction.IsType != TransactionIsType.RoundOff)
+                            {
+                                summary.NonTaxableSalesReturn += transaction.NonTaxableAmount ?? 0;
+                            }
                             summary.SalesReturnCount++;
                             break;
 
@@ -507,8 +519,12 @@ namespace SkyForge.Services.Retailer.PartySummaryServices
                             break;
 
                         case TransactionType.PrRt:
-                            summary.PurchaseReturn += transaction.TaxableAmount ?? 0;
-                            summary.PurchaseReturnVAT += transaction.VatAmount ?? 0;
+                            summary.TaxablePurchaseReturn += transaction.TaxableAmount ?? 0;
+                            summary.TaxablePurchaseReturnVAT += transaction.VatAmount ?? 0;
+                            if (transaction.IsType != TransactionIsType.VAT && transaction.IsType != TransactionIsType.RoundOff)
+                            {
+                                summary.NonTaxablePurchaseReturn += transaction.NonTaxableAmount ?? 0;
+                            }
                             summary.PurchaseReturnCount++;
                             break;
 
@@ -545,10 +561,10 @@ namespace SkyForge.Services.Retailer.PartySummaryServices
                 summary.ClosingBalance = runningBalance;
 
                 // Calculate net values
-                summary.NetSales = summary.TaxableSales + summary.NonTaxableSales - summary.SalesReturn;
-                summary.NetSalesVAT = summary.TaxableSalesVAT - summary.SalesReturnVAT;
-                summary.NetPurchase = summary.TaxablePurchase + summary.NonTaxablePurchase - summary.PurchaseReturn;
-                summary.NetPurchaseVAT = summary.TaxablePurchaseVAT - summary.PurchaseReturnVAT;
+                summary.NetSales = summary.TaxableSales + summary.NonTaxableSales - (summary.TaxableSalesReturn+summary.NonTaxableSalesReturn);
+                summary.NetSalesVAT = summary.TaxableSalesVAT - summary.TaxableSalesReturnVAT;
+                summary.NetPurchase = summary.TaxablePurchase + summary.NonTaxablePurchase - (summary.TaxablePurchaseReturn + summary.NonTaxablePurchaseReturn);
+                summary.NetPurchaseVAT = summary.TaxablePurchaseVAT - summary.TaxablePurchaseReturnVAT;
                 summary.NetPaymentReceipt = summary.Receipts - summary.Payments;
 
                 // Prepare response

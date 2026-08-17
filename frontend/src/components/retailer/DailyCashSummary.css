@@ -1,0 +1,798 @@
+/* DailyCashSummary.css */
+
+/* ============================================
+   Variables - Matching SalesBillsList
+   ============================================ */
+:root {
+    --dcs-primary: #1e3a5f;
+    --dcs-primary-light: #2563eb;
+    --dcs-primary-soft: #eff6ff;
+    --dcs-surface: #eef2f7;
+    --dcs-card: #ffffff;
+    --dcs-border: #e2e8f0;
+    --dcs-border-strong: #cbd5e1;
+    --dcs-text: #0f172a;
+    --dcs-muted: #64748b;
+    --dcs-success: #059669;
+    --dcs-danger: #dc2626;
+    --dcs-warning: #d97706;
+    --dcs-info: #0284c7;
+    --dcs-primary-bg: #1e3a5f;
+    --dcs-radius: 6px;
+}
+
+/* ============================================
+   Modal Overlay
+   ============================================ */
+.dcs-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+/* ============================================
+   Modal Container
+   ============================================ */
+.dcs-modal {
+    background: var(--dcs-card);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 95%;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+/* ============================================
+   Modal Header
+   ============================================ */
+.dcs-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, var(--dcs-primary) 0%, #1e40af 100%);
+    border-bottom: none;
+    flex-shrink: 0;
+}
+
+.dcs-modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.dcs-modal-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.dcs-modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.dcs-modal-subtitle {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+}
+
+.dcs-modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.85rem;
+}
+
+.dcs-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   Modal Body
+   ============================================ */
+.dcs-modal-body {
+    padding: 1.25rem;
+    background: var(--dcs-surface);
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ============================================
+   Filters & Stats - Single Row
+   ============================================ */
+.dcs-filters-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--dcs-card);
+    border: 1px solid var(--dcs-border);
+    border-radius: var(--dcs-radius);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Date Filters Group */
+.dcs-filters-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
+.dcs-filter-item {
+    position: relative;
+}
+
+.dcs-filter-item--date {
+    width: 140px;
+}
+
+.dcs-filter-label {
+    display: block;
+    font-size: 0.55rem;
+    font-weight: 600;
+    color: var(--dcs-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.15rem;
+}
+
+.dcs-filter-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--dcs-border-strong);
+    border-radius: var(--dcs-radius);
+    font-size: 0.75rem;
+    color: var(--dcs-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dcs-filter-input:focus {
+    outline: none;
+    border-color: var(--dcs-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.dcs-filter-input--error {
+    border-color: var(--dcs-danger);
+}
+
+.dcs-filter-input--error:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.dcs-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    padding: 0 1rem;
+    background: var(--dcs-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--dcs-radius);
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.dcs-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.dcs-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.dcs-btn-generate {
+    min-width: 80px;
+}
+
+.dcs-spinner-small {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: dcs-spin 0.6s linear infinite;
+    display: inline-block;
+}
+
+@keyframes dcs-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Stats Inline */
+.dcs-stats-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.dcs-stat-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--dcs-radius);
+    background: var(--dcs-surface);
+    border: 1px solid var(--dcs-border);
+    min-width: 90px;
+}
+
+.dcs-stat-inline--success {
+    border-left: 3px solid var(--dcs-success);
+}
+
+.dcs-stat-inline--danger {
+    border-left: 3px solid var(--dcs-danger);
+}
+
+.dcs-stat-inline--primary {
+    border-left: 3px solid var(--dcs-primary-light);
+}
+
+.dcs-stat-inline-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.dcs-stat-inline--success .dcs-stat-inline-icon {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dcs-stat-inline--danger .dcs-stat-inline-icon {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dcs-stat-inline--primary .dcs-stat-inline-icon {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.dcs-stat-inline-content {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.dcs-stat-inline-label {
+    font-size: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--dcs-muted);
+    font-weight: 600;
+}
+
+.dcs-stat-inline-value {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dcs-text);
+}
+
+.dcs-stat-inline-value--positive {
+    color: var(--dcs-success);
+}
+
+.dcs-stat-inline-value--negative {
+    color: var(--dcs-danger);
+}
+
+.dcs-rupee-symbol {
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-right: 1px;
+}
+
+/* ============================================
+   Table Card
+   ============================================ */
+.dcs-table-card {
+    background: var(--dcs-card);
+    border: 1px solid var(--dcs-border);
+    border-radius: var(--dcs-radius);
+    overflow: hidden;
+}
+
+.dcs-table-card-body {
+    padding: 0;
+}
+
+/* ============================================
+   Table
+   ============================================ */
+.dcs-table-wrap {
+    overflow: auto;
+    max-height: 350px;
+}
+
+.dcs-table-wrap::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.dcs-table-wrap::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.dcs-table-wrap::-webkit-scrollbar-thumb {
+    background: var(--dcs-border-strong);
+    border-radius: 4px;
+}
+
+.dcs-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #a8aeb4;
+}
+
+.dcs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+
+.dcs-table-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8fafc;
+    border-bottom: 2px solid var(--dcs-border-strong);
+}
+
+.dcs-table-header th {
+    padding: 0.5rem 0.6rem;
+    font-weight: 600;
+    color: var(--dcs-muted);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.dcs-table-row {
+    border-bottom: 1px solid var(--dcs-border);
+    transition: background-color 0.15s;
+}
+
+.dcs-table-row:hover {
+    background-color: var(--dcs-primary-soft);
+}
+
+.dcs-table-row td {
+    padding: 0.4rem 0.6rem;
+    vertical-align: middle;
+}
+
+.dcs-party-name {
+    font-weight: 500;
+    color: var(--dcs-text);
+}
+
+.dcs-description {
+    color: var(--dcs-muted);
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.dcs-badge-inv {
+    font-weight: 500;
+    font-size: 0.7rem;
+    color: var(--dcs-text);
+}
+
+.dcs-badge-transaction {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dcs-badge-transaction--success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dcs-badge-transaction--danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dcs-badge-transaction--warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.dcs-badge-transaction--info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.dcs-badge-transaction--primary {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.dcs-badge-transaction--secondary {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.dcs-badge-transaction--dark {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* ============================================
+   Amounts
+   ============================================ */
+.dcs-amount-inflow {
+    color: var(--dcs-success);
+    font-weight: 600;
+}
+
+.dcs-amount-outflow {
+    color: var(--dcs-danger);
+    font-weight: 600;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.dcs-empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.dcs-empty-icon {
+    font-size: 2rem;
+    color: #dee2e6;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.dcs-empty-text {
+    color: var(--dcs-muted);
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+/* ============================================
+   Loading State
+   ============================================ */
+.dcs-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+}
+
+.dcs-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid var(--dcs-border);
+    border-top-color: var(--dcs-primary-light);
+    border-radius: 50%;
+    animation: dcs-spin 0.8s linear infinite;
+}
+
+.dcs-loading-text {
+    color: var(--dcs-muted);
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+}
+
+/* ============================================
+   Pagination
+   ============================================ */
+.dcs-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--dcs-border);
+    background: #fafafa;
+    gap: 0.5rem;
+}
+
+.dcs-pagination-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dcs-pagination-label {
+    font-size: 0.7rem;
+    color: var(--dcs-muted);
+    margin: 0;
+}
+
+.dcs-pagination-select {
+    height: 28px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--dcs-border-strong);
+    border-radius: var(--dcs-radius);
+    font-size: 0.7rem;
+    background: #fff;
+    color: var(--dcs-text);
+    cursor: pointer;
+}
+
+.dcs-pagination-select:focus {
+    outline: none;
+    border-color: var(--dcs-primary-light);
+}
+
+.dcs-pagination-info {
+    font-size: 0.7rem;
+    color: var(--dcs-muted);
+}
+
+.dcs-pagination-right {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.dcs-pagination-btn {
+    height: 28px;
+    min-width: 28px;
+    padding: 0 0.4rem;
+    border: 1px solid var(--dcs-border);
+    border-radius: var(--dcs-radius);
+    background: #fff;
+    color: var(--dcs-text);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dcs-pagination-btn:hover:not(.dcs-pagination-btn--disabled) {
+    background: var(--dcs-primary-soft);
+    border-color: var(--dcs-primary-light);
+}
+
+.dcs-pagination-btn--active {
+    background: var(--dcs-primary-light);
+    border-color: var(--dcs-primary-light);
+    color: #fff;
+}
+
+.dcs-pagination-btn--active:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.dcs-pagination-btn--disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dcs-pagination-ellipsis {
+    padding: 0 0.2rem;
+    color: var(--dcs-muted);
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   Modal Footer
+   ============================================ */
+.dcs-modal-footer {
+    padding: 0.6rem 1.25rem;
+    border-top: 1px solid var(--dcs-border);
+    background: var(--dcs-card);
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.dcs-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 1.2rem;
+    border: 1px solid var(--dcs-border-strong);
+    background: var(--dcs-card);
+    color: var(--dcs-text);
+    border-radius: var(--dcs-radius);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dcs-btn-secondary:hover {
+    background: var(--dcs-surface);
+    border-color: var(--dcs-border);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 1200px) {
+    .dcs-filter-item--date {
+        width: 120px;
+    }
+
+    .dcs-stat-inline {
+        min-width: 75px;
+        padding: 0.15rem 0.4rem;
+    }
+
+    .dcs-stat-inline-value {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .dcs-modal {
+        max-width: 100%;
+        max-height: 98vh;
+        border-radius: 8px;
+    }
+
+    .dcs-modal-body {
+        padding: 0.75rem;
+    }
+
+    .dcs-filters-stats-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .dcs-filters-group {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .dcs-filter-item--date {
+        width: calc(50% - 0.25rem);
+        flex: 1 1 auto;
+    }
+
+    .dcs-btn-generate {
+        flex: 1;
+        min-width: 60px;
+    }
+
+    .dcs-stats-inline {
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+    }
+
+    .dcs-stat-inline {
+        min-width: 65px;
+        flex: 1 1 auto;
+        max-width: 130px;
+    }
+
+    .dcs-stat-inline-value {
+        font-size: 0.65rem;
+    }
+
+    .dcs-table-wrap {
+        max-height: 250px;
+    }
+}
+
+@media (max-width: 576px) {
+    .dcs-modal-header {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .dcs-modal-header-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    .dcs-modal-title {
+        font-size: 0.85rem;
+    }
+
+    .dcs-modal-body {
+        padding: 0.5rem;
+    }
+
+    .dcs-filter-item--date {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    .dcs-filters-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dcs-btn-generate {
+        width: 100%;
+    }
+
+    .dcs-stats-inline {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
+    }
+
+    .dcs-stat-inline {
+        max-width: 100%;
+        min-width: unset;
+        padding: 0.3rem 0.6rem;
+    }
+
+    .dcs-table {
+        font-size: 0.65rem;
+    }
+
+    .dcs-table-header th,
+    .dcs-table-row td {
+        padding: 0.25rem 0.3rem;
+    }
+
+    .dcs-table-wrap {
+        max-height: 200px;
+    }
+
+    .dcs-modal-footer {
+        padding: 0.4rem 0.75rem;
+    }
+}

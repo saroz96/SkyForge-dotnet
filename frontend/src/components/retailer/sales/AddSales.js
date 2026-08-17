@@ -316,11 +316,30 @@ const AddSales = () => {
     const [selectedItemIndex, setSelectedItemIndex] = useState(-1);
     const continueButtonRef = useRef(null);
 
+    const [isManualAccountEntry, setIsManualAccountEntry] = useState(false);
+    const [manualAccountName, setManualAccountName] = useState('');
+    const [cashInHandAccountId, setCashInHandAccountId] = useState('');
+
+    const [cashAccountDetails, setCashAccountDetails] = useState({
+        address: '',
+        pan: '',
+        email: '',
+        phone: ''
+    });
+
+    // Helper to check if cash account is selected
+    const isCashAccountSelected = () => {
+        return formData.paymentMode === 'cash' &&
+            (formData.accountId === cashInHandAccountId ||
+                (isManualAccountEntry && formData.accountName.trim() !== ''));
+    };
+
     const [formData, setFormData] = useState(salesDraftSave?.formData || {
         accountId: '',
         accountName: '',
         accountAddress: '',
         accountPan: '',
+        accountPhone: '',
         transactionDateNepali: currentNepaliDate,
         transactionDateRoman: new Date().toISOString().split('T')[0],
         nepaliDate: currentNepaliDate,
@@ -873,6 +892,13 @@ const AddSales = () => {
         }
     }, [showAccountModal]);
 
+    // Refetch accounts when payment mode changes
+    useEffect(() => {
+        if (showAccountModal) {
+            fetchAccountsFromBackend(accountSearchQuery, 1);
+        }
+    }, [formData.paymentMode]); // Add this dependency
+
     // Functions
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
         try {
@@ -883,6 +909,7 @@ const AddSales = () => {
                     search: searchTerm,
                     page: page,
                     limit: searchTerm.trim() ? 15 : 25,
+                    paymentMode: formData.paymentMode
                 }
             });
 
@@ -902,6 +929,40 @@ const AddSales = () => {
                     setAccountLastSearchQuery(searchTerm);
                     setAccountShouldShowLastSearchResults(true);
                 }
+
+                // === NEW: Check if we found Cash in Hand account ===
+                if (formData.paymentMode === 'cash') {
+                    const cashInHandAccount = response.data.accounts.find(account =>
+                        account.name.toLowerCase().includes('cash in hand') ||
+                        account.name.toLowerCase().includes('cash')
+                    );
+
+                    if (cashInHandAccount) {
+                        setCashInHandAccountId(cashInHandAccount.id);
+                        console.log('Cash in Hand account ID found via search:', cashInHandAccount.id);
+                    } else {
+                        // If not found in this page, try searching specifically for it
+                        try {
+                            const specificSearch = await api.get('/api/retailer/accounts/search', {
+                                params: {
+                                    search: 'Cash in Hand',
+                                    page: 1,
+                                    limit: 1,
+                                    paymentMode: 'cash'
+                                }
+                            });
+
+                            if (specificSearch.data.success && specificSearch.data.accounts.length > 0) {
+                                const cashAccount = specificSearch.data.accounts[0];
+                                setCashInHandAccountId(cashAccount.id);
+                                console.log('Cash in Hand account ID found via specific search:', cashAccount.id);
+                            }
+                        } catch (searchError) {
+                            console.error('Error searching for Cash in Hand account:', searchError);
+                        }
+                    }
+                }
+                // === END NEW ===
             }
         } catch (error) {
             console.error('Error fetching accounts:', error);
@@ -1114,6 +1175,19 @@ const AddSales = () => {
         setAccountSearchQuery(searchText);
         setAccountSearchPage(1);
 
+        // If payment mode is cash, allow manual entry
+        if (formData.paymentMode === 'cash') {
+            setIsManualAccountEntry(true);
+            setFormData(prev => ({
+                ...prev,
+                accountName: searchText,
+                accountId: cashInHandAccountId,
+                accountAddress: '',
+                accountPan: '',
+                accountPhone: ''
+            }));
+        }
+
         if (searchText.trim() !== '' && accountShouldShowLastSearchResults) {
             setAccountShouldShowLastSearchResults(false);
             setAccountLastSearchQuery('');
@@ -1136,7 +1210,9 @@ const AddSales = () => {
             accountId: account.id,
             accountName: `${account.uniqueNumber || ''} ${account.name}`.trim(),
             accountAddress: account.address,
-            accountPan: account.pan
+            accountPan: account.pan,
+            accountEmail: account.email || '',
+            accountPhone: account.phone || ''
         });
         setShowAccountModal(false);
     };
@@ -1507,159 +1583,6 @@ const AddSales = () => {
             remainingQuantity: remainingQty
         };
     };
-
-    // const insertSelectedItem = () => {
-    //     if (showTransactionModal) {
-    //         setShowTransactionModal(false);
-    //     }
-
-    //     if (!selectedItemForInsert) {
-    //         setNotification({
-    //             show: true,
-    //             message: 'Please select an item first',
-    //             type: 'error'
-    //         });
-    //         return;
-    //     }
-
-    //     // Check if batch number is provided
-    //     if (!selectedItemBatchNumber.trim()) {
-    //         setNotification({
-    //             show: true,
-    //             message: 'Batch number is required',
-    //             type: 'error'
-    //         });
-    //         setTimeout(() => {
-    //             const batchInput = document.getElementById('selectedItemBatch');
-    //             if (batchInput) {
-    //                 batchInput.focus();
-    //                 batchInput.select();
-    //             }
-    //         }, 100);
-    //         return;
-    //     }
-
-    //     // Check if expiry date is provided
-    //     if (!selectedItemExpiryDate.trim()) {
-    //         setNotification({
-    //             show: true,
-    //             message: 'Expiry date is required',
-    //             type: 'error'
-    //         });
-    //         setTimeout(() => {
-    //             const expiryInput = document.getElementById('headerExpiryDate');
-    //             if (expiryInput) {
-    //                 expiryInput.focus();
-    //                 expiryInput.select();
-    //             }
-    //         }, 100);
-    //         return;
-    //     }
-
-    //     // Check stock availability
-    //     const totalStock = selectedItemForInsert.stockEntries?.reduce((sum, entry) => sum + (entry.quantity || 0), 0) || 0;
-
-    //     if (selectedItemQuantity > totalStock) {
-    //         setNotification({
-    //             show: true,
-    //             message: `Quantity (${selectedItemQuantity}) exceeds available stock (${totalStock}) for "${selectedItemForInsert.name}"`,
-    //             type: 'error'
-    //         });
-    //         setTimeout(() => {
-    //             const quantityInput = document.getElementById('selectedItemQuantity');
-    //             if (quantityInput) {
-    //                 quantityInput.focus();
-    //                 quantityInput.select();
-    //             }
-    //         }, 100);
-    //         return;
-    //     }
-
-    //     // Check if this item already exists and total would exceed stock
-    //     if (selectedItemQuantity > 0) {
-    //         const existingItems = items.filter(item => item.itemId === selectedItemForInsert.id);
-    //         if (existingItems.length > 0) {
-    //             const totalExistingQuantity = existingItems.reduce((sum, item) => {
-    //                 return sum + (parseFloat(item.quantity) || 0);
-    //             }, 0);
-
-    //             const combinedQuantity = totalExistingQuantity + parseFloat(selectedItemQuantity);
-
-    //             if (combinedQuantity > totalStock) {
-    //                 setNotification({
-    //                     show: true,
-    //                     message: `Stock exceeded (${combinedQuantity}/${totalStock})`,
-    //                     type: 'error'
-    //                 });
-    //                 setTimeout(() => {
-    //                     const quantityInput = document.getElementById('selectedItemQuantity');
-    //                     if (quantityInput) {
-    //                         quantityInput.focus();
-    //                         quantityInput.select();
-    //                     }
-    //                 }, 100);
-    //                 return;
-    //             }
-    //         }
-    //     }
-
-    //     // Sort stock entries to find the one matching the selected batch
-    //     const sortedStockEntries = [...(selectedItemForInsert.stockEntries || [])].sort((a, b) =>
-    //         new Date(a.date) - new Date(b.date)
-    //     );
-    //     const matchingStockEntry = sortedStockEntries.find(entry =>
-    //         entry.batchNumber === selectedItemBatchNumber
-    //     ) || sortedStockEntries[0] || {};
-
-    //     const newItem = {
-    //         itemId: selectedItemForInsert.id,
-    //         uniqueNumber: selectedItemForInsert.uniqueNumber || 'N/A',
-    //         hscode: selectedItemForInsert.hscode,
-    //         name: selectedItemForInsert.name,
-    //         category: selectedItemForInsert.category?.name || 'No Category',
-    //         batchNumber: selectedItemBatchNumber,
-    //         expiryDate: selectedItemExpiryDate,
-    //         quantity: selectedItemQuantity || 0,
-    //         unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
-    //         unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
-    //         price: selectedItemRate || Math.round(matchingStockEntry.price * 100) / 100,
-    //         puPrice: matchingStockEntry.puPrice || 0,
-    //         netPuPrice: matchingStockEntry.netPuPrice || 0,
-    //         mrp: matchingStockEntry.mrp || 0,
-    //         amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(matchingStockEntry.price * 100) / 100),
-    //         vatStatus: selectedItemForInsert.vatStatus,
-    //         uniqueUuid: matchingStockEntry.uniqueUuid
-    //     };
-
-    //     const updatedItems = [...items, newItem];
-    //     setItems(updatedItems);
-
-    //     setSelectedItemForInsert(null);
-    //     setSelectedItemQuantity(0);
-    //     setSelectedItemRate(0);
-    //     setSelectedItemBatchNumber('');
-    //     setSelectedItemExpiryDate('');
-    //     setHeaderQuantityError('');
-    //     setHeaderSearchQuery('');
-
-    //     setTimeout(() => {
-    //         const searchInput = document.getElementById('headerItemSearch');
-    //         if (searchInput) {
-    //             searchInput.focus();
-    //             searchInput.select();
-    //         }
-    //     }, 50);
-
-    //     setTimeout(() => {
-    //         if (itemsTableRef.current) {
-    //             itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
-    //         }
-    //     }, 50);
-
-    //     setTimeout(() => {
-    //         validateAllQuantities(updatedItems);
-    //     }, 0);
-    // };
 
     const insertSelectedItem = () => {
         if (showTransactionModal) {
@@ -2374,6 +2297,7 @@ const AddSales = () => {
                 accountName: '',
                 accountAddress: '',
                 accountPan: '',
+                accountPhone: '',
                 transactionDateNepali: isNepaliFormat ? transactionDate : '',
                 transactionDateRoman: !isNepaliFormat ? transactionDate : '',
                 nepaliDate: isNepaliFormat ? invoiceDate : '',
@@ -2487,6 +2411,7 @@ const AddSales = () => {
                 accountName: '',
                 accountAddress: '',
                 accountPan: '',
+                accountPhone: '',
                 transactionDateNepali: isNepaliFormat ? transactionDate : '',
                 transactionDateRoman: !isNepaliFormat ? transactionDate : '',
                 nepaliDate: isNepaliFormat ? invoiceDate : '',
@@ -2582,8 +2507,58 @@ const AddSales = () => {
                 return new Date(dateString).toISOString();
             };
 
+            // Prepare account data based on payment mode
+            // let accountData = {};
+            // if (formData.paymentMode === 'cash' && (isManualAccountEntry || !formData.accountId)) {
+            //     // Cash mode with manual entry - send account details directly
+            //     accountData = {
+            //         accountName: formData.accountName,
+            //         accountAddress: formData.accountAddress || null,
+            //         accountPan: formData.accountPan || null,
+            //         accountEmail: formData.accountEmail || null,
+            //         accountPhone: formData.accountPhone || null
+            //     };
+            // } else {
+            //     // Credit mode or cash mode with existing account - send account ID
+            //     accountData = {
+            //         accountId: formData.accountId
+            //     };
+            // }
+
+            let accountData = {};
+            if (formData.paymentMode === 'cash') {
+                if (isManualAccountEntry || !formData.accountId) {
+                    // === FIX: Cash mode with manual entry - use Cash in Hand account ID ===
+                    accountData = {
+                        accountId: cashInHandAccountId, // Use the Cash in Hand account ID
+                        cashAccount: formData.accountName, // Store the entered name for display
+                        cashAccountAddress: formData.accountAddress || null,
+                        cashAccountPan: formData.accountPan || null,
+                        cashAccountEmail: formData.accountEmail || null,
+                        cashAccountPhone: formData.accountPhone || formData.phone || null
+                    };
+                    console.log('Manual cash entry - using Cash in Hand account ID:', cashInHandAccountId);
+                } else {
+                    // Cash mode with existing account - send account ID
+                    accountData = {
+                        accountId: formData.accountId,
+                        cashAccount: formData.accountName,
+                        cashAccountAddress: formData.accountAddress || null,
+                        cashAccountPan: formData.accountPan || null,
+                        cashAccountEmail: formData.accountEmail || null,
+                        cashAccountPhone: formData.accountPhone || formData.phone || null
+                    };
+                }
+            } else {
+                // Credit mode - send account ID
+                accountData = {
+                    accountId: formData.accountId
+                };
+            }
+
             const billData = {
-                accountId: formData.accountId,
+                // accountId: formData.accountId,
+                ...accountData,
                 paymentMode: formData.paymentMode,
                 isVatExempt: formData.isVatExempt,
                 discountPercentage: formData.discountPercentage,
@@ -3729,7 +3704,7 @@ const AddSales = () => {
 
                         <div className="row g-1 mb-2">
                             {/* Party Name Field */}
-                            <div className="col-12 col-md-6">
+                            <div className="col-12 col-md-5">
                                 <div className="position-relative">
                                     <input
                                         type="text"
@@ -3771,7 +3746,7 @@ const AddSales = () => {
                                 </div>
                             </div>
 
-                            <div className="col-12 col-md-2">
+                            <div className="col-12 col-md">
                                 <div className="position-relative">
                                     <div
                                         className="form-control form-control-sm"
@@ -3807,19 +3782,24 @@ const AddSales = () => {
                             </div>
 
                             {/* Party Address Field */}
-                            <div className="col-12 col-md-2">
+                            <div className="col-12 col-md">
                                 <div className="position-relative">
                                     <input
                                         type="text"
                                         id="address"
                                         className="form-control form-control-sm"
                                         value={formData.accountAddress}
+                                        onChange={(e) => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                accountAddress: e.target.value
+                                            }));
+                                        }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 handleKeyDown(e, 'address');
                                             }
                                         }}
-                                        readOnly
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
@@ -3845,7 +3825,7 @@ const AddSales = () => {
                             </div>
 
                             {/* VAT No Field */}
-                            <div className="col-12 col-md-2">
+                            <div className="col-12 col-md">
                                 <div className="position-relative">
                                     <input
                                         type="text"
@@ -3853,12 +3833,17 @@ const AddSales = () => {
                                         name="pan"
                                         className="form-control form-control-sm"
                                         value={formData.accountPan}
+                                        onChange={(e) => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                accountPan: e.target.value
+                                            }));
+                                        }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 handleKeyDown(e, 'pan');
                                             }
                                         }}
-                                        readOnly
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
@@ -3882,6 +3867,93 @@ const AddSales = () => {
                                     </label>
                                 </div>
                             </div>
+
+                            {/* Email Field - Only show in cash mode */}
+                            {/* {formData.paymentMode === 'cash' && isManualAccountEntry && (
+                                <div className="col-12 col-md">
+                                    <div className="position-relative">
+                                        <input
+                                            type="email"
+                                            id="email"
+                                            className="form-control form-control-sm"
+                                            value={cashAccountDetails.email}
+                                            onChange={(e) => {
+                                                setCashAccountDetails(prev => ({ ...prev, email: e.target.value }));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    handleKeyDown(e, 'email');
+                                                }
+                                            }}
+                                            style={{
+                                                height: '26px',
+                                                fontSize: '0.875rem',
+                                                paddingTop: '0.75rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                        <label
+                                            className="position-absolute"
+                                            style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            Email:
+                                        </label>
+                                    </div>
+                                </div>
+                            )} */}
+
+                            {/* Phone Field - Only show in cash mode */}
+                            {formData.paymentMode === 'cash' && isManualAccountEntry && (
+                                <div className="col-12 col-md">
+                                    <div className="position-relative">
+                                        <input
+                                            type="text"
+                                            id="phone"
+                                            className="form-control form-control-sm"
+                                            value={cashAccountDetails.phone}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setCashAccountDetails(prev => ({ ...prev, phone: value }));
+                                                // Also update formData.accountPhone
+                                                setFormData(prev => ({ ...prev, accountPhone: value }));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    handleKeyDown(e, 'phone');
+                                                }
+                                            }}
+                                            style={{
+                                                height: '26px',
+                                                fontSize: '0.875rem',
+                                                paddingTop: '0.75rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                        <label
+                                            className="position-absolute"
+                                            style={{
+                                                top: '-0.5rem',
+                                                left: '0.75rem',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: 'white',
+                                                padding: '0 0.25rem',
+                                                color: '#6c757d',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            Phone:
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Items Table - same structure as AddPurcRtn but with sales-specific fields */}
@@ -4703,7 +4775,7 @@ const AddSales = () => {
             {/* Modals - same as AddPurcRtn but with sales-specific transaction types */}
 
             {/* Account Modal */}
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div
                     className="modal fade show"
                     id="accountModal"
@@ -4795,6 +4867,268 @@ const AddSales = () => {
                                     />
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {showAccountModal && (
+                <div
+                    className="modal fade show"
+                    id="accountModal"
+                    tabIndex="-1"
+                    style={{ display: 'block' }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            handleAccountModalClose();
+                            setTimeout(() => {
+                                document.getElementById('address').focus();
+                            }, 0);
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-xl modal-dialog-centered">
+                        <div className="modal-content" style={{ height: '400px' }}>
+                            <div className="modal-header py-1">
+                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
+                                    {formData.paymentMode === 'cash' ? 'Select Cash Account' : 'Select Account'}
+                                </h5>
+                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
+                                    {formData.paymentMode === 'cash'
+                                        ? (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Type to search or enter new account')
+                                        : (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...')
+                                    }
+                                </small>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={handleAccountModalClose}
+                                    aria-label="Close"
+                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
+                                ></button>
+                            </div>
+                            <div className="p-2 bg-white sticky-top">
+                                {formData.paymentMode === 'cash' ? (
+                                    // Cash mode - allow typing new account
+                                    <input
+                                        type="text"
+                                        id="searchAccount"
+                                        className="form-control form-control-sm"
+                                        placeholder="Type to search or enter new account name..."
+                                        autoFocus
+                                        autoComplete='off'
+                                        value={formData.accountName}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                accountName: value,
+                                                accountId: '',
+                                                accountAddress: '',
+                                                accountPan: '',
+                                                accountEmail: '',
+                                                accountPhone: ''
+                                            }));
+                                            setIsManualAccountEntry(true);
+
+                                            setAccountSearchQuery(value);
+                                            setAccountSearchPage(1);
+
+                                            if (value.trim() !== '' && accountShouldShowLastSearchResults) {
+                                                setAccountShouldShowLastSearchResults(false);
+                                                setAccountLastSearchQuery('');
+                                            }
+
+                                            const timer = setTimeout(() => {
+                                                fetchAccountsFromBackend(value, 1);
+                                            }, 300);
+
+                                            return () => clearTimeout(timer);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item');
+                                                if (firstAccountItem) {
+                                                    firstAccountItem.focus();
+                                                }
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                // Use the entered name as account
+                                                const enteredName = document.getElementById('searchAccount').value.trim();
+                                                if (enteredName) {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        accountName: enteredName,
+                                                        accountId: '',
+                                                        accountAddress: '',
+                                                        accountPan: '',
+                                                        accountEmail: '',
+                                                        accountPhone: ''
+                                                    }));
+                                                    setIsManualAccountEntry(true);
+                                                    setShowAccountModal(false);
+                                                    setTimeout(() => {
+                                                        document.getElementById('address').focus();
+                                                    }, 100);
+                                                }
+                                            } else if (e.key === 'F6') {
+                                                e.preventDefault();
+                                                setShowAccountCreationModal(true);
+                                                handleAccountModalClose();
+                                            }
+                                        }}
+                                        ref={accountSearchRef}
+                                        style={{
+                                            height: '24px',
+                                            fontSize: '0.75rem',
+                                            padding: '0.25rem 0.5rem'
+                                        }}
+                                    />
+                                ) : (
+                                    // Credit mode - keep existing behavior (search only)
+                                    <input
+                                        type="text"
+                                        id="searchAccount"
+                                        className="form-control form-control-sm"
+                                        placeholder="Search Account... (Press F6 to create new account)"
+                                        autoFocus
+                                        autoComplete='off'
+                                        value={accountSearchQuery}
+                                        onChange={handleAccountSearch}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item');
+                                                if (firstAccountItem) {
+                                                    firstAccountItem.focus();
+                                                }
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const firstAccountItem = document.querySelector('.account-item.active');
+                                                if (firstAccountItem) {
+                                                    const accountId = firstAccountItem.getAttribute('data-account-id');
+                                                    const account = accounts.find(a => a.id === accountId);
+                                                    if (account) {
+                                                        selectAccount(account);
+                                                        document.getElementById('address').focus();
+                                                    }
+                                                }
+                                            } else if (e.key === 'F6') {
+                                                e.preventDefault();
+                                                setShowAccountCreationModal(true);
+                                                handleAccountModalClose();
+                                            }
+                                        }}
+                                        ref={accountSearchRef}
+                                        style={{
+                                            height: '24px',
+                                            fontSize: '0.75rem',
+                                            padding: '0.25rem 0.5rem'
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            <div className="modal-body p-0">
+                                <div style={{ height: 'calc(320px - 40px)' }}>
+                                    {formData.paymentMode === 'cash' && formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry ? (
+                                        <div className="text-center py-4">
+                                            <i className="bi bi-person-plus text-primary mb-2" style={{ fontSize: '1.5rem' }}></i>
+                                            <p className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
+                                                No accounts found for "<strong>{formData.accountName}</strong>"
+                                            </p>
+                                            <p className="text-muted mb-3" style={{ fontSize: '0.7rem' }}>
+                                                Press Enter to use as new account, or F6 to create full account
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <VirtualizedAccountList
+                                            accounts={accounts}
+                                            onAccountClick={(account) => {
+                                                setFormData({
+                                                    ...formData,
+                                                    accountId: account.id,
+                                                    accountName: `${account.uniqueNumber || ''} ${account.name}`.trim(),
+                                                    accountAddress: account.address || '',
+                                                    accountPan: account.pan || '',
+                                                    accountEmail: account.email || '',
+                                                    accountPhone: account.phone || ''
+                                                });
+                                                setIsManualAccountEntry(false);
+                                                setShowAccountModal(false);
+                                                setTimeout(() => {
+                                                    document.getElementById('address').focus();
+                                                }, 100);
+                                            }}
+                                            searchRef={accountSearchRef}
+                                            hasMore={hasMoreAccountResults}
+                                            isSearching={isAccountSearching}
+                                            onLoadMore={loadMoreAccounts}
+                                            totalAccounts={totalAccounts}
+                                            page={accountSearchPage}
+                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                            {formData.paymentMode === 'cash' && (
+                                <div className="modal-footer py-1" style={{
+                                    borderTop: '1px solid #dee2e6',
+                                    backgroundColor: '#f8f9fa'
+                                }}>
+                                    <div className="d-flex justify-content-between w-100 align-items-center">
+                                        <div>
+                                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                                {formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry
+                                                    ? 'Type account name and press Enter to use'
+                                                    : 'Select account or continue typing'}
+                                            </small>
+                                        </div>
+                                        <div className="d-flex gap-2">
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-primary py-0 px-2"
+                                                onClick={() => {
+                                                    const enteredName = document.getElementById('searchAccount').value.trim();
+                                                    if (enteredName) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            accountName: enteredName,
+                                                            accountId: '',
+                                                            accountAddress: '',
+                                                            accountPan: '',
+                                                            accountEmail: '',
+                                                            accountPhone: ''
+                                                        }));
+                                                        setIsManualAccountEntry(true);
+                                                        setShowAccountModal(false);
+                                                        setTimeout(() => {
+                                                            document.getElementById('address').focus();
+                                                        }, 100);
+                                                    }
+                                                }}
+                                                style={{
+                                                    height: '24px',
+                                                    fontSize: '0.75rem'
+                                                }}
+                                            >
+                                                Use Entered Name
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                onClick={handleAccountModalClose}
+                                                style={{
+                                                    height: '24px',
+                                                    fontSize: '0.75rem'
+                                                }}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

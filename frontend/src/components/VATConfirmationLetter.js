@@ -1894,183 +1894,6 @@ const VATConfirmationLetter = () => {
         return startMonthRef.current ? 'startMonth' : 'startMonth';
     }, []);
 
-    // Print functions
-    // const handlePrint = useCallback(() => {
-    //     if (!summary) {
-    //         setNotification({ show: true, message: 'No data to print', type: 'warning' });
-    //         return;
-    //     }
-    //     const printWindow = window.open("", "_blank");
-    //     if (!printWindow) {
-    //         setNotification({ show: true, message: 'Popup blocked', type: 'error' });
-    //         return;
-    //     }
-    //     const summaryData = summary.summary;
-    //     const company = summary.company;
-    //     const party = summary.party;
-    //     const currentFiscalYear = summary.fiscalYear || fiscalYear;
-
-    //     const printContent = `
-    //     <!DOCTYPE html>
-    //     <html>
-    //     <head>
-    //         <title>VAT and Balance Confirmation Letter</title>
-    //         <style>
-    //             @page { size: A4; margin: 10mm 15mm; }
-    //             body { font-family: "Times New Roman", Times, serif; font-size: 11pt; margin: 0; padding: 15px; }
-    //             .document-title { text-align: center; margin: 12px 0; padding: 6px; background: #f5f5f5; border: 1px solid #000; }
-    //             .document-title h1 { margin: 0; font-size: 14pt; }
-    //             .details-container { display: flex; gap: 15px; margin-bottom: 12px; }
-    //             .company-info, .party-info { border: 1px solid #000; padding: 8px; flex: 1; }
-    //             .info-header { background: #000; color: white; padding: 4px 8px; margin: -8px -8px 6px -8px; }
-    //             .info-content p { margin: 1px 0; font-size: 9pt; }
-    //             .meta-info { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 6px; background: #f8f9fa; }
-    //             .transaction-table { width: 100%; border-collapse: collapse; margin: 12px 0; border: 1px solid #000; }
-    //             .transaction-table th, .transaction-table td { border: 1px solid #000; padding: 4px 5px; }
-    //             .transaction-table th { background: #000; color: white; text-align: center; }
-    //             .text-end { text-align: right; }
-    //             .section-header { background: #d3d3d3; font-weight: bold; }
-    //             .total-row { background: #e8f5e8; font-weight: bold; }
-    //             .balance-row { background: #fffacd; font-weight: bold; }
-    //             .content-section { margin: 10px 0; }
-    //             .signature-container { display: flex; gap: 20px; margin-top: 25px; }
-    //             .signature-box { flex: 1; text-align: center; }
-    //             .signature-line { border-top: 1px solid #000; margin: 30px 0 4px 0; }
-    //             .footer { margin-top: 12px; text-align: center; font-size: 7pt; border-top: 1px solid #ccc; padding-top: 5px; }
-    //         </style>
-    //     </head>
-    //     <body>
-    //         <div class="document-title"><h1>VAT AND BALANCE CONFIRMATION LETTER</h1><p>Fiscal Year: ${currentFiscalYear || ''} | Generated on: ${formatDate(new Date())}</p></div>
-    //         <div class="details-container">
-    //             <div class="company-info"><div class="info-header">FROM</div><div class="info-content"><p><strong>${company.name || ''}</strong></p><p>Address: ${company.address || ''}</p><p>Phone: ${company.phone || ''}</p><p>PAN: ${company.pan || ''}</p></div></div>
-    //             <div class="party-info"><div class="info-header">TO</div><div class="info-content"><p><strong>${party.name || ''}</strong></p><p>Address: ${party.address || ''}</p><p>Phone: ${party.phone || ''}</p><p>PAN: ${party.pan || ''}</p></div></div>
-    //         </div>
-    //         <div class="meta-info"><div><strong>Reference No:</strong><br>CONF${(currentFiscalYear || '').replace('/', '')}/${Date.now().toString().slice(-4)}</div><div><strong>Period:</strong><br>${getMonthYearDisplay(startMonth)} to ${getMonthYearDisplay(endMonth)}</div><div><strong>Page:</strong><br>1 of 1</div></div>
-    //         <div class="content-section"><p>Dear Sir/Madam,</p><p>In accordance with standard accounting practices, we hereby submit the transaction summary for the fiscal year <strong>${currentFiscalYear || ''}</strong>.</p><p>Please find below the detailed transaction summary for the period <strong>${getMonthYearDisplay(startMonth)} to ${getMonthYearDisplay(endMonth)}</strong>:</p></div>
-    //         <table class="transaction-table">
-    //             <thead><tr><th>Particulars</th><th class="text-end">Amount (Rs.)</th><th class="text-end">VAT Amount (Rs.)</th><th>Remarks</th></tr></thead>
-    //             <tbody>
-    //                 <tr class="section-header"><td colspan="4"><strong>SALES TRANSACTIONS</strong></td></tr>
-    //                 <tr><td style="padding-left: 10px;">Taxable Sales</td><td class="text-end">${formatCurrency(summaryData?.taxableSales)}</td><td class="text-end">${formatCurrency(summaryData?.taxableSalesVAT)}</td><td class="text-center">-</td></tr>
-    //                 <tr><td style="padding-left: 10px;">Non-Taxable Sales</td><td class="text-end">${formatCurrency(summaryData?.nonTaxableSales)}</td><td class="text-end">-</td><td class="text-center">Exempt</td></tr>
-    //                 <tr><td style="padding-left: 10px;">Sales Return</td><td class="text-end">(${formatCurrency(summaryData?.salesReturn)})</td><td class="text-end">(${formatCurrency(summaryData?.salesReturnVAT)})</td><td class="text-center">Credit Note</td></tr>
-    //                 <tr class="total-row"><td><strong>NET SALES</strong></td><td class="text-end"><strong>${formatCurrency(summaryData?.netSales)}</strong></td><td class="text-end"><strong>${formatCurrency(summaryData?.netSalesVAT)}</strong></td><td class="text-center">-</td></tr>
-    //                 <tr class="section-header"><td colspan="4"><strong>PURCHASE TRANSACTIONS</strong></td></tr>
-    //                 <tr><td style="padding-left: 10px;">Taxable Purchases</td><td class="text-end">${formatCurrency(summaryData?.taxablePurchase)}</td><td class="text-end">${formatCurrency(summaryData?.taxablePurchaseVAT)}</td><td class="text-center">-</td></tr>
-    //                 <tr><td style="padding-left: 10px;">Non-Taxable Purchase</td><td class="text-end">${formatCurrency(summaryData?.nonTaxablePurchase)}</td><td class="text-end">-</td><td class="text-center">Exempt</td></tr>
-    //                 <tr><td style="padding-left: 10px;">Purchase Return</td><td class="text-end">(${formatCurrency(summaryData?.purchaseReturn)})</td><td class="text-end">(${formatCurrency(summaryData?.purchaseReturnVAT)})</td><td class="text-center">Debit Note</td></tr>
-    //                 <tr class="total-row"><td><strong>NET PURCHASES</strong></td><td class="text-end"><strong>${formatCurrency(summaryData?.netPurchase)}</strong></td><td class="text-end"><strong>${formatCurrency(summaryData?.netPurchaseVAT)}</strong></td><td class="text-center">-</td></tr>
-    //                 <tr class="section-header"><td colspan="4"><strong>ACCOUNT BALANCES</strong></td></tr>
-    //                 <tr class="balance-row"><td>Opening Balance as on ${getMonthYearDisplay(startMonth)} 1st</td><td class="text-end"><strong>${formatCurrency(Math.abs(summaryData?.openingBalance || 0))} ${summaryData?.openingBalance > 0 ? 'Cr' : (summaryData?.openingBalance < 0 ? 'Dr' : '')}</strong></td><td class="text-end">-</td><td class="text-center">B/F</td></tr>
-    //                 <tr class="balance-row"><td>Closing Balance as on ${getMonthYearDisplay(endMonth)} End</td><td class="text-end"><strong>${formatCurrency(Math.abs(summaryData?.closingBalance || 0))} ${summaryData?.closingBalance > 0 ? 'Cr' : (summaryData?.closingBalance < 0 ? 'Dr' : '')}</strong></td><td class="text-end">-</td><td class="text-center">C/F</td></tr>
-    //             </tbody>
-    //         </table>
-    //         <div class="content-section">
-    //             <p>Kindly verify the above transactions and account balances. If the details are correct, please sign and return the duplicate copy of this letter within <strong>15 days</strong>. Any discrepancies should be communicated to us in writing within the same period.</p>
-    //             <p>If no communication is received within the stipulated time, the balances will be considered as confirmed and correct for all purposes.</p>
-    //         </div>
-    //         <div class="signature-section"><div class="signature-container"><div class="signature-box"><div class="signature-line"></div><div class="signature-label">For ${company.name || 'Company'}</div></div><div class="signature-box"><div class="signature-line"></div><div class="signature-label">For ${party.name || 'Party'}</div></div></div></div>
-    //         <div class="footer"><p>Document ID: VAT-CONF-${Date.now()} | Printed on: ${new Date().toLocaleDateString()}</p></div>
-    //         <script>window.onload = function() { setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 300); };</script>
-    //     </body>
-    //     </html>`;
-
-    //     printWindow.document.write(printContent);
-    //     printWindow.document.close();
-    // }, [summary, fiscalYear, startMonth, endMonth, formatCurrency, formatDate, getMonthYearDisplay]);
-
-    // const handlePrintNepali = useCallback(() => {
-    //     if (!summary) {
-    //         setNotification({ show: true, message: 'कृपया पहिले रिपोर्ट जेनरेट गर्नुहोस्', type: 'warning' });
-    //         return;
-    //     }
-    //     const printWindow = window.open("", "_blank");
-    //     if (!printWindow) {
-    //         setNotification({ show: true, message: 'पपअप ब्लक गरिएको छ। कृपया अनुमति दिनुहोस्।', type: 'error' });
-    //         return;
-    //     }
-
-    //     const summaryData = summary.summary;
-    //     const company = summary.company;
-    //     const party = summary.party;
-    //     const currentFiscalYear = summary.fiscalYear || fiscalYear;
-    //     const startMonthNum = parseInt(startMonth);
-    //     const endMonthNum = parseInt(endMonth);
-    //     const startMonthNameNepali = nepaliMonthsNames[startMonthNum] || '';
-    //     const endMonthNameNepali = nepaliMonthsNames[endMonthNum] || '';
-    //     const startYear = getYearForMonth(startMonth);
-    //     const endYear = getYearForMonth(endMonth);
-
-    //     const printContent = `
-    //     <!DOCTYPE html>
-    //     <html>
-    //     <head>
-    //         <meta charset="UTF-8">
-    //         <title>भ्याट तथा बाँकी सुनिश्चितता पत्र</title>
-    //         <style>
-    //             @page { size: A4; margin: 10mm 15mm; }
-    //             body { font-family: 'Mangal', 'Nirmala UI', 'Preeti', 'Times New Roman', Times, serif; font-size: 11pt; margin: 0; padding: 15px; }
-    //             .document-title { text-align: center; margin: 12px 0; padding: 6px; background: #f5f5f5; border: 1px solid #000; }
-    //             .document-title h1 { margin: 0; font-size: 14pt; }
-    //             .details-container { display: flex; gap: 15px; margin-bottom: 12px; }
-    //             .company-info, .party-info { border: 1px solid #000; padding: 8px; flex: 1; }
-    //             .info-header { background: #000; color: white; padding: 4px 8px; margin: -8px -8px 6px -8px; }
-    //             .info-content p { margin: 1px 0; font-size: 9pt; }
-    //             .meta-info { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 6px; background: #f8f9fa; }
-    //             .transaction-table { width: 100%; border-collapse: collapse; margin: 12px 0; border: 1px solid #000; }
-    //             .transaction-table th, .transaction-table td { border: 1px solid #000; padding: 4px 5px; }
-    //             .transaction-table th { background: #000; color: white; text-align: center; }
-    //             .text-end { text-align: right; }
-    //             .section-header { background: #d3d3d3; font-weight: bold; }
-    //             .total-row { background: #e8f5e8; font-weight: bold; }
-    //             .balance-row { background: #fffacd; font-weight: bold; }
-    //             .content-section { margin: 10px 0; }
-    //             .signature-container { display: flex; gap: 20px; margin-top: 25px; }
-    //             .signature-box { flex: 1; text-align: center; }
-    //             .signature-line { border-top: 1px solid #000; margin: 30px 0 4px 0; }
-    //             .footer { margin-top: 12px; text-align: center; font-size: 7pt; border-top: 1px solid #ccc; padding-top: 5px; }
-    //         </style>
-    //     </head>
-    //     <body>
-    //         <div class="document-title"><h1>भ्याट तथा बाँकी सुनिश्चितता पत्र</h1><p>आर्थिक वर्ष: ${currentFiscalYear || ''} | जारी मिति: ${formatDate(new Date())}</p></div>
-    //         <div class="details-container">
-    //             <div class="company-info"><div class="info-header">बाट</div><div class="info-content"><p><strong>${company.name || ''}</strong></p><p>ठेगाना: ${company.address || ''}</p><p>फोन: ${company.phone || ''}</p><p>प्यान: ${company.pan || ''}</p></div></div>
-    //             <div class="party-info"><div class="info-header">लाई</div><div class="info-content"><p><strong>${party.name || ''}</strong></p><p>ठेगाना: ${party.address || ''}</p><p>फोन: ${party.phone || ''}</p><p>प्यान: ${party.pan || ''}</p></div></div>
-    //         </div>
-    //         <div class="meta-info"><div><strong>सन्दर्भ नम्बर:</strong><br>CONF${(currentFiscalYear || '').replace('/', '')}/${Date.now().toString().slice(-4)}</div><div><strong>अवधि:</strong><br>${startMonthNameNepali} ${startYear} देखि ${endMonthNameNepali} ${endYear}</div><div><strong>पृष्ठ:</strong><br>१/१</div></div>
-    //         <div class="content-section"><p>प्रिय महोदय/महोदया,</p><p>प्रचलित लेखा मान्यता र नियामक आवश्यकताहरू अनुसार, हामी तपाईंको पुनरावलोकन र सुनिश्चितताको लागि आर्थिक वर्ष <strong>${currentFiscalYear || ''}</strong> को निम्नलिखित कारोबार सारांश र बाँकी सुनिश्चितता पेश गर्दछौं।</p><p>कृपया तल विस्तृत कारोबार सारांश र मिति समाप्त हुँदाको बाँकी रकम हेर्नुहोस्:</p></div>
-    //         <table class="transaction-table">
-    //             <thead><tr><th>विवरण</th><th class="text-end">रकम (रु.)</th><th class="text-end">भ्याट रकम (रु.)</th><th>टिप्पणी</th></tr></thead>
-    //             <tbody>
-    //                 <tr class="section-header"><td colspan="4"><strong>बिक्री कारोबारहरू</strong></td></tr>
-    //                 <tr><td style="padding-left: 10px;">कर योग्य बिक्री</td><td class="text-end">${formatCurrency(summaryData?.taxableSales)}</td><td class="text-end">${formatCurrency(summaryData?.taxableSalesVAT)}</td><td class="text-center">-</td></tr>
-    //                 <tr><td style="padding-left: 10px;">कर छुटको बिक्री</td><td class="text-end">${formatCurrency(summaryData?.nonTaxableSales)}</td><td class="text-end">-</td><td class="text-center">छुट</td></tr>
-    //                 <tr><td style="padding-left: 10px;">बिक्री फिर्ता</td><td class="text-end">(${formatCurrency(summaryData?.salesReturn)})</td><td class="text-end">(${formatCurrency(summaryData?.salesReturnVAT)})</td><td class="text-center">क्रेडिट नोट</td></tr>
-    //                 <tr class="total-row"><td><strong>कुल बिक्री</strong></td><td class="text-end"><strong>${formatCurrency(summaryData?.netSales)}</strong></td><td class="text-end"><strong>${formatCurrency(summaryData?.netSalesVAT)}</strong></td><td class="text-center">-</td></tr>
-    //                 <tr class="section-header"><td colspan="4"><strong>खरिद कारोबारहरू</strong></td></tr>
-    //                 <tr><td style="padding-left: 10px;">कर योग्य खरिद</td><td class="text-end">${formatCurrency(summaryData?.taxablePurchase)}</td><td class="text-end">${formatCurrency(summaryData?.taxablePurchaseVAT)}</td><td class="text-center">-</td></tr>
-    //                 <tr><td style="padding-left: 10px;">कर छुटको खरिद</td><td class="text-end">${formatCurrency(summaryData?.nonTaxablePurchase)}</td><td class="text-end">-</td><td class="text-center">छुट</td></tr>
-    //                 <tr><td style="padding-left: 10px;">खरिद फिर्ता</td><td class="text-end">(${formatCurrency(summaryData?.purchaseReturn)})</td><td class="text-end">(${formatCurrency(summaryData?.purchaseReturnVAT)})</td><td class="text-center">डेबिट नोट</td></tr>
-    //                 <tr class="total-row"><td><strong>कुल खरिद</strong></td><td class="text-end"><strong>${formatCurrency(summaryData?.netPurchase)}</strong></td><td class="text-end"><strong>${formatCurrency(summaryData?.netPurchaseVAT)}</strong></td><td class="text-center">-</td></tr>
-    //                 <tr class="section-header"><td colspan="4"><strong>खाता बाँकीहरू</strong></td></tr>
-    //                 <tr class="balance-row"><td>${startMonthNameNepali} ${startYear} १ गतेको प्रारम्भिक बाँकी</td><td class="text-end"><strong>${formatCurrency(Math.abs(summaryData?.openingBalance || 0))} ${summaryData?.openingBalance > 0 ? 'Cr' : (summaryData?.openingBalance < 0 ? 'Dr' : '')}</strong></td><td class="text-end">-</td><td class="text-center">B/F</td></tr>
-    //                 <tr class="balance-row"><td>${endMonthNameNepali} ${endYear} को अन्तिम बाँकी</td><td class="text-end"><strong>${formatCurrency(Math.abs(summaryData?.closingBalance || 0))} ${summaryData?.closingBalance > 0 ? 'Cr' : (summaryData?.closingBalance < 0 ? 'Dr' : '')}</strong></td><td class="text-end">-</td><td class="text-center">C/F</td></tr>
-    //             </tbody>
-    //         </table>
-    //         <div class="content-section">
-    //             <p>कृपया माथिको कारोबार र खाता बाँकीहरू सुनिश्चित गर्नुहोस्। यदि विवरणहरू सही छन् भने, कृपया यो पत्रको प्रतिलिपि हस्ताक्षर गरी <strong>१५ दिन</strong> भित्र फिर्ता पठाउनुहोस्। कुनै पनि विसंगति उही अवधि भित्र हामीलाई लिखित रूपमा सूचित गर्नुहोस्।</p>
-    //             <p>यदि निर्धारित समय भित्र कुनै सञ्चार प्राप्त भएन भने, बाँकी रकमहरू सबै उद्देश्यका लागि पुष्टि र सही मानिनेछ।</p>
-    //         </div>
-    //         <div class="signature-section"><div class="signature-container"><div class="signature-box"><div class="signature-line"></div><div class="signature-label">${company.name || 'कम्पनी'} को लागि</div></div><div class="signature-box"><div class="signature-line"></div><div class="signature-label">${party.name || 'पार्टी'} को लागि</div></div></div></div>
-    //         <div class="footer"><p>कागजात आइडी: VAT-CONF-${Date.now()} | छापिएको मिति: ${new Date().toLocaleDateString('ne-NP')}</p></div>
-    //         <script>window.onload = function() { setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 300); };</script>
-    //     </body>
-    //     </html>`;
-
-    //     printWindow.document.write(printContent);
-    //     printWindow.document.close();
-    // }, [summary, fiscalYear, startMonth, endMonth, formatCurrency, formatDate, getYearForMonth]);
-
 
     const handlePrint = () => {
         if (!summary) {
@@ -2774,13 +2597,13 @@ const VATConfirmationLetter = () => {
                                         <tr className="vc-section-header"><td colSpan="4"><strong>Sales Transactions</strong></td></tr>
                                         <tr><td style={{ paddingLeft: '10px' }}>Taxable Sales</td><td className="num">{formatCurrency(summary.summary?.taxableSales)}</td><td className="num">{formatCurrency(summary.summary?.taxableSalesVAT)}</td><td>—</td></tr>
                                         <tr><td style={{ paddingLeft: '10px' }}>Non-Taxable Sales</td><td className="num">{formatCurrency(summary.summary?.nonTaxableSales)}</td><td className="num">—</td><td>Exempt</td></tr>
-                                        <tr><td style={{ paddingLeft: '10px' }}>Sales Return</td><td className="num">({formatCurrency(summary.summary?.salesReturn)})</td><td className="num">({formatCurrency(summary.summary?.salesReturnVAT)})</td><td>Credit Note</td></tr>
+                                        <tr><td style={{ paddingLeft: '10px' }}>Sales Return</td><td className="num">({formatCurrency(summary.summary?.taxableSalesReturn+summary.summary?.nonTaxableSalesReturn)})</td><td className="num">({formatCurrency(summary.summary?.taxableSalesReturnVAT)})</td><td>Credit Note</td></tr>
                                         <tr className="vc-total-row"><td><strong>Net Sales</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netSales)}</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netSalesVAT)}</strong></td><td>—</td></tr>
                                         <tr className="vc-spacer"><td colSpan="4">&nbsp;</td></tr>
                                         <tr className="vc-section-header"><td colSpan="4"><strong>Purchase Transactions</strong></td></tr>
                                         <tr><td style={{ paddingLeft: '10px' }}>Taxable Purchases</td><td className="num">{formatCurrency(summary.summary?.taxablePurchase)}</td><td className="num">{formatCurrency(summary.summary?.taxablePurchaseVAT)}</td><td>—</td></tr>
                                         <tr><td style={{ paddingLeft: '10px' }}>Non-Taxable Purchase</td><td className="num">{formatCurrency(summary.summary?.nonTaxablePurchase)}</td><td className="num">—</td><td>Exempt</td></tr>
-                                        <tr><td style={{ paddingLeft: '10px' }}>Purchase Return</td><td className="num">({formatCurrency(summary.summary?.purchaseReturn)})</td><td className="num">({formatCurrency(summary.summary?.purchaseReturnVAT)})</td><td>Debit Note</td></tr>
+                                        <tr><td style={{ paddingLeft: '10px' }}>Purchase Return</td><td className="num">({formatCurrency(summary.summary?.taxablePurchaseReturn+summary.summary?.nonTaxablePurchaseReturn)})</td><td className="num">({formatCurrency(summary.summary?.taxablePurchaseReturnVAT)})</td><td>Debit Note</td></tr>
                                         <tr className="vc-total-row"><td><strong>Net Purchases</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netPurchase)}</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netPurchaseVAT)}</strong></td><td>—</td></tr>
                                         <tr className="vc-spacer"><td colSpan="4">&nbsp;</td></tr>
                                         <tr className="vc-section-header"><td colSpan="4"><strong>Account Balances</strong></td></tr>

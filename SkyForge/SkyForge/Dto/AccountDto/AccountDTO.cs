@@ -99,6 +99,7 @@ namespace SkyForge.Dto.AccountDto
         public int Page { get; set; } = 1;
         public int Limit { get; set; } = 25;
         public Guid? FiscalYear { get; set; }
+        public string? PaymentMode { get; set; }
     }
 
     public class AccountSearchResultDTO
