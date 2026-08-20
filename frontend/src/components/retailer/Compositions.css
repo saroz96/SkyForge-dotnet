@@ -1,0 +1,894 @@
+/* Compositions.css - Matching DailyInventorySummary design */
+
+/* ============================================
+   Variables
+   ============================================ */
+:root {
+    --comp-primary: #1e3a5f;
+    --comp-primary-light: #2563eb;
+    --comp-primary-soft: #eff6ff;
+    --comp-surface: #eef2f7;
+    --comp-card: #ffffff;
+    --comp-border: #e2e8f0;
+    --comp-border-strong: #cbd5e1;
+    --comp-text: #0f172a;
+    --comp-muted: #64748b;
+    --comp-danger: #dc2626;
+    --comp-success: #059669;
+    --comp-warning: #d97706;
+    --comp-info: #0284c7;
+    --comp-radius: 6px;
+    --comp-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================
+   Container
+   ============================================ */
+.comp-container {
+    padding: 0.5rem 1rem;
+    max-width: 100%;
+    margin: 0 auto;
+    background: var(--comp-surface);
+    min-height: 100vh;
+}
+
+/* ============================================
+   Main Layout
+   ============================================ */
+.comp-main {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* ============================================
+   Cards
+   ============================================ */
+.comp-card {
+    background: var(--comp-card);
+    border: 1px solid var(--comp-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--comp-shadow);
+}
+
+.comp-card--form {
+    height: 100%;
+}
+
+.comp-card--list {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.comp-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, var(--comp-primary) 0%, #1e40af 100%);
+    border-bottom: none;
+}
+
+.comp-card-header--list {
+    background: linear-gradient(135deg, var(--comp-primary) 0%, #1e40af 100%);
+}
+
+.comp-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.comp-card-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.comp-card-header-icon--form {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.comp-card-header-icon--list {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.comp-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.comp-card-subtitle {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+}
+
+.comp-card-body {
+    padding: 0.75rem 1rem;
+}
+
+.comp-card-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* ============================================
+   Form Styles
+   ============================================ */
+.comp-form-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.comp-form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.comp-form-group--full {
+    flex: 0 0 100%;
+}
+
+.comp-form-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--comp-muted);
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.comp-required {
+    color: var(--comp-danger);
+}
+
+.comp-form-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--comp-border-strong);
+    border-radius: var(--comp-radius);
+    font-size: 0.78rem;
+    color: var(--comp-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.comp-form-input:focus {
+    outline: none;
+    border-color: var(--comp-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Form Actions */
+.comp-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.comp-form-actions--right {
+    justify-content: flex-end;
+}
+
+.comp-btn-save {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--comp-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--comp-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    height: 30px;
+}
+
+.comp-btn-save:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.comp-btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.comp-btn-cancel {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--comp-radius);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.comp-btn-cancel:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.comp-btn-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.comp-shortcut-hint {
+    font-size: 0.6rem;
+    color: var(--comp-muted);
+    opacity: 0.6;
+}
+
+/* ============================================
+   Search Bar
+   ============================================ */
+.comp-search-bar {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--comp-border);
+}
+
+.comp-search-wrapper {
+    position: relative;
+}
+
+.comp-search-icon {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--comp-muted);
+    font-size: 0.8rem;
+}
+
+.comp-search-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 1.8rem;
+    border: 1px solid var(--comp-border-strong);
+    border-radius: var(--comp-radius);
+    font-size: 0.75rem;
+    color: var(--comp-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.comp-search-input:focus {
+    outline: none;
+    border-color: var(--comp-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.comp-search-input::placeholder {
+    color: var(--comp-muted);
+    font-size: 0.7rem;
+}
+
+.comp-search-clear {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--comp-muted);
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 50%;
+    transition: background 0.15s;
+}
+
+.comp-search-clear:hover {
+    background: var(--comp-surface);
+}
+
+/* ============================================
+   Toolbar Buttons
+   ============================================ */
+.comp-btn-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--comp-radius);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.7rem;
+}
+
+.comp-btn-toolbar:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.comp-btn-toolbar:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Table Styles
+   ============================================ */
+.comp-table-wrapper {
+    flex: 1;
+    overflow: hidden;
+    min-height: 300px;
+}
+
+.comp-header {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border-bottom: 2px solid var(--comp-border-strong);
+    height: 28px;
+    min-height: 28px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.comp-header-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--comp-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    height: 100%;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.comp-header-cell--sn {
+    width: 50px;
+    justify-content: center;
+}
+
+.comp-header-cell--resizable {
+    border-right: 1px solid var(--comp-border);
+    position: relative;
+}
+
+.comp-header-cell--resizable:last-child {
+    border-right: none;
+}
+
+.comp-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    user-select: none;
+}
+
+.comp-resize-handle:hover {
+    background: var(--comp-primary-light);
+    opacity: 0.3;
+}
+
+/* Table Rows */
+.comp-row-even {
+    background: #f8fafc;
+}
+
+.comp-row-odd {
+    background: #ffffff;
+}
+
+.comp-row-even:hover,
+.comp-row-odd:hover {
+    background: var(--comp-primary-soft) !important;
+}
+
+.comp-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    height: 100%;
+    font-size: 0.7rem;
+    color: var(--comp-text);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.comp-cell--sn {
+    width: 50px;
+    justify-content: center;
+    color: var(--comp-muted);
+    font-weight: 500;
+}
+
+.comp-cell--name {
+    border-right: 1px solid var(--comp-border);
+    gap: 0.4rem;
+}
+
+.comp-cell--status {
+    border-right: 1px solid var(--comp-border);
+    justify-content: center;
+}
+
+.comp-cell--code {
+    border-right: 1px solid var(--comp-border);
+    justify-content: center;
+}
+
+.comp-cell--items {
+    border-right: 1px solid var(--comp-border);
+    justify-content: center;
+}
+
+.comp-cell--actions {
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.comp-item-name {
+    font-weight: 500;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.comp-code-badge {
+    background: #e9ecef;
+    color: var(--comp-text);
+    font-weight: 500;
+    font-size: 0.6rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.comp-item-count {
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: var(--comp-muted);
+}
+
+.comp-item-count--has {
+    color: var(--comp-primary-light);
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.comp-badge {
+    font-size: 0.55rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.comp-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.comp-status-badge {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.comp-status-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.comp-status-badge--inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ============================================
+   Action Buttons
+   ============================================ */
+.comp-btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--comp-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--comp-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.6rem;
+}
+
+.comp-btn-action:hover:not(:disabled) {
+    background: var(--comp-surface);
+    border-color: var(--comp-border-strong);
+}
+
+.comp-btn-action:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.comp-btn-action--edit:hover:not(:disabled) {
+    color: var(--comp-warning);
+    border-color: var(--comp-warning);
+}
+
+.comp-btn-action--delete:hover:not(:disabled) {
+    color: var(--comp-danger);
+    border-color: var(--comp-danger);
+}
+
+.comp-btn-action--select:hover:not(:disabled) {
+    color: var(--comp-success);
+    border-color: var(--comp-success);
+}
+
+/* ============================================
+   Table Footer
+   ============================================ */
+.comp-table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.75rem;
+    border-top: 1px solid var(--comp-border);
+    background: #fafafa;
+    font-size: 0.65rem;
+    color: var(--comp-muted);
+}
+
+.comp-btn-load-more {
+    background: transparent;
+    border: none;
+    color: var(--comp-primary-light);
+    font-size: 0.65rem;
+    cursor: pointer;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--comp-radius);
+    transition: background 0.15s;
+}
+
+.comp-btn-load-more:hover:not(:disabled) {
+    background: var(--comp-primary-soft);
+}
+
+.comp-btn-load-more:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Loading States
+   ============================================ */
+.comp-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.comp-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--comp-border);
+    border-top-color: var(--comp-primary-light);
+    border-radius: 50%;
+    animation: comp-spin 0.8s linear infinite;
+}
+
+.comp-spinner-small {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid var(--comp-border);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: comp-spin 0.8s linear infinite;
+}
+
+@keyframes comp-spin {
+    to { transform: rotate(360deg); }
+}
+
+.comp-loading-text {
+    color: var(--comp-muted);
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.comp-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--comp-muted);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.comp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.comp-empty-icon {
+    color: #dee2e6;
+    margin-bottom: 0.5rem;
+}
+
+.comp-empty-title {
+    color: var(--comp-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.comp-empty-text {
+    color: var(--comp-muted);
+    font-size: 0.7rem;
+    margin: 0.2rem 0 0;
+}
+
+/* ============================================
+   Print Modal
+   ============================================ */
+.comp-print-options {
+    padding: 0.5rem 0;
+}
+
+.comp-print-options-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--comp-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+
+.comp-print-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+.comp-print-option {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--comp-border-strong);
+    border-radius: var(--comp-radius);
+    background: var(--comp-card);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.comp-print-option:hover {
+    background: var(--comp-surface);
+}
+
+.comp-print-option--active {
+    background: var(--comp-primary-light);
+    color: #fff;
+    border-color: var(--comp-primary-light);
+}
+
+.comp-print-option--active:hover {
+    background: #1d4ed8;
+}
+
+.comp-print-summary {
+    border-top: 1px solid var(--comp-border);
+    padding-top: 0.75rem;
+}
+
+.comp-print-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.comp-print-stat {
+    text-align: center;
+    padding: 0.3rem;
+    background: var(--comp-surface);
+    border-radius: var(--comp-radius);
+}
+
+.comp-print-stat-label {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--comp-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.comp-print-stat-label--success {
+    color: var(--comp-success);
+}
+
+.comp-print-stat-label--danger {
+    color: var(--comp-danger);
+}
+
+.comp-print-stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--comp-text);
+}
+
+.comp-print-stat-value--success {
+    color: var(--comp-success);
+}
+
+.comp-print-stat-value--danger {
+    color: var(--comp-danger);
+}
+
+/* ============================================
+   Modal Overrides
+   ============================================ */
+.comp-modal-header {
+    background: linear-gradient(135deg, var(--comp-primary) 0%, #1e40af 100%);
+    color: #fff;
+    border-bottom: none;
+}
+
+.comp-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+/* ============================================
+   Button Styles
+   ============================================ */
+.comp-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--comp-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--comp-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.comp-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.comp-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.comp-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    border: 1px solid var(--comp-border-strong);
+    background: var(--comp-card);
+    color: var(--comp-text);
+    border-radius: var(--comp-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.comp-btn-secondary:hover {
+    background: var(--comp-surface);
+    border-color: var(--comp-border);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 1200px) {
+    .comp-main {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .comp-container {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .comp-form-row {
+        flex-wrap: wrap;
+    }
+
+    .comp-form-group--full {
+        flex: 1 1 100%;
+    }
+
+    .comp-card-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .comp-card-actions {
+        flex-wrap: wrap;
+    }
+
+    .comp-print-options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .comp-print-stats {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .comp-card-title {
+        font-size: 0.8rem;
+    }
+
+    .comp-card-subtitle {
+        font-size: 0.6rem;
+    }
+
+    .comp-form-label {
+        font-size: 0.6rem;
+    }
+
+    .comp-form-input {
+        font-size: 0.7rem;
+        height: 28px;
+    }
+
+    .comp-btn-save {
+        font-size: 0.7rem;
+        height: 28px;
+        padding: 0.2rem 1rem;
+    }
+}

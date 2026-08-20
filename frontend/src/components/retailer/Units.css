@@ -1,0 +1,879 @@
+/* Units.css - Matching DailyInventorySummary design */
+
+/* ============================================
+   Variables
+   ============================================ */
+:root {
+    --un-primary: #1e3a5f;
+    --un-primary-light: #2563eb;
+    --un-primary-soft: #eff6ff;
+    --un-surface: #eef2f7;
+    --un-card: #ffffff;
+    --un-border: #e2e8f0;
+    --un-border-strong: #cbd5e1;
+    --un-text: #0f172a;
+    --un-muted: #64748b;
+    --un-danger: #dc2626;
+    --un-success: #059669;
+    --un-warning: #d97706;
+    --un-info: #0284c7;
+    --un-radius: 6px;
+    --un-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================
+   Container
+   ============================================ */
+.un-container {
+    padding: 0.5rem 1rem;
+    max-width: 100%;
+    margin: 0 auto;
+    background: var(--un-surface);
+    min-height: 100vh;
+}
+
+/* ============================================
+   Main Layout
+   ============================================ */
+.un-main {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* ============================================
+   Cards
+   ============================================ */
+.un-card {
+    background: var(--un-card);
+    border: 1px solid var(--un-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--un-shadow);
+}
+
+.un-card--form {
+    height: 100%;
+}
+
+.un-card--list {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.un-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, var(--un-primary) 0%, #1e40af 100%);
+    border-bottom: none;
+}
+
+.un-card-header--list {
+    background: linear-gradient(135deg, var(--un-primary) 0%, #1e40af 100%);
+}
+
+.un-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.un-card-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.un-card-header-icon--form {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.un-card-header-icon--list {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.un-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.un-card-subtitle {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+}
+
+.un-card-body {
+    padding: 0.75rem 1rem;
+}
+
+.un-card-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* ============================================
+   Form Styles
+   ============================================ */
+.un-form-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.un-form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.un-form-group--full {
+    flex: 0 0 100%;
+}
+
+.un-form-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--un-muted);
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.un-required {
+    color: var(--un-danger);
+}
+
+.un-form-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--un-border-strong);
+    border-radius: var(--un-radius);
+    font-size: 0.78rem;
+    color: var(--un-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.un-form-input:focus {
+    outline: none;
+    border-color: var(--un-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Form Actions */
+.un-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.un-form-actions--right {
+    justify-content: flex-end;
+}
+
+.un-btn-save {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--un-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--un-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    height: 30px;
+}
+
+.un-btn-save:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.un-btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.un-btn-cancel {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--un-radius);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.un-btn-cancel:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.un-btn-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.un-shortcut-hint {
+    font-size: 0.6rem;
+    color: var(--un-muted);
+    opacity: 0.6;
+}
+
+/* ============================================
+   Search Bar
+   ============================================ */
+.un-search-bar {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--un-border);
+}
+
+.un-search-wrapper {
+    position: relative;
+}
+
+.un-search-icon {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--un-muted);
+    font-size: 0.8rem;
+}
+
+.un-search-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 1.8rem;
+    border: 1px solid var(--un-border-strong);
+    border-radius: var(--un-radius);
+    font-size: 0.75rem;
+    color: var(--un-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.un-search-input:focus {
+    outline: none;
+    border-color: var(--un-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.un-search-input::placeholder {
+    color: var(--un-muted);
+    font-size: 0.7rem;
+}
+
+.un-search-clear {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--un-muted);
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 50%;
+    transition: background 0.15s;
+}
+
+.un-search-clear:hover {
+    background: var(--un-surface);
+}
+
+/* ============================================
+   Toolbar Buttons
+   ============================================ */
+.un-btn-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--un-radius);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.7rem;
+}
+
+.un-btn-toolbar:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.un-btn-toolbar:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Table Styles
+   ============================================ */
+.un-table-wrapper {
+    flex: 1;
+    overflow: hidden;
+    min-height: 300px;
+}
+
+.un-header {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border-bottom: 2px solid var(--un-border-strong);
+    height: 28px;
+    min-height: 28px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.un-header-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--un-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    height: 100%;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.un-header-cell--sn {
+    width: 50px;
+    justify-content: center;
+}
+
+.un-header-cell--resizable {
+    border-right: 1px solid var(--un-border);
+    position: relative;
+}
+
+.un-header-cell--resizable:last-child {
+    border-right: none;
+}
+
+.un-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    user-select: none;
+}
+
+.un-resize-handle:hover {
+    background: var(--un-primary-light);
+    opacity: 0.3;
+}
+
+/* Table Rows */
+.un-row-even {
+    background: #f8fafc;
+}
+
+.un-row-odd {
+    background: #ffffff;
+}
+
+.un-row-even:hover,
+.un-row-odd:hover {
+    background: var(--un-primary-soft) !important;
+}
+
+.un-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    height: 100%;
+    font-size: 0.7rem;
+    color: var(--un-text);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.un-cell--sn {
+    width: 50px;
+    justify-content: center;
+    color: var(--un-muted);
+    font-weight: 500;
+}
+
+.un-cell--name {
+    border-right: 1px solid var(--un-border);
+    gap: 0.4rem;
+}
+
+.un-cell--status {
+    border-right: 1px solid var(--un-border);
+    justify-content: center;
+}
+
+.un-cell--code {
+    border-right: 1px solid var(--un-border);
+    justify-content: center;
+}
+
+.un-cell--actions {
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.un-item-name {
+    font-weight: 500;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.un-code-badge {
+    background: #e9ecef;
+    color: var(--un-text);
+    font-weight: 500;
+    font-size: 0.6rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.un-badge {
+    font-size: 0.55rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.un-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.un-status-badge {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.un-status-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.un-status-badge--inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ============================================
+   Action Buttons
+   ============================================ */
+.un-btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--un-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--un-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.6rem;
+}
+
+.un-btn-action:hover:not(:disabled) {
+    background: var(--un-surface);
+    border-color: var(--un-border-strong);
+}
+
+.un-btn-action:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.un-btn-action--edit:hover:not(:disabled) {
+    color: var(--un-warning);
+    border-color: var(--un-warning);
+}
+
+.un-btn-action--delete:hover:not(:disabled) {
+    color: var(--un-danger);
+    border-color: var(--un-danger);
+}
+
+.un-btn-action--select:hover:not(:disabled) {
+    color: var(--un-success);
+    border-color: var(--un-success);
+}
+
+/* ============================================
+   Table Footer
+   ============================================ */
+.un-table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.75rem;
+    border-top: 1px solid var(--un-border);
+    background: #fafafa;
+    font-size: 0.65rem;
+    color: var(--un-muted);
+}
+
+.un-btn-load-more {
+    background: transparent;
+    border: none;
+    color: var(--un-primary-light);
+    font-size: 0.65rem;
+    cursor: pointer;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--un-radius);
+    transition: background 0.15s;
+}
+
+.un-btn-load-more:hover:not(:disabled) {
+    background: var(--un-primary-soft);
+}
+
+.un-btn-load-more:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Loading States
+   ============================================ */
+.un-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.un-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--un-border);
+    border-top-color: var(--un-primary-light);
+    border-radius: 50%;
+    animation: un-spin 0.8s linear infinite;
+}
+
+.un-spinner-small {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid var(--un-border);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: un-spin 0.8s linear infinite;
+}
+
+@keyframes un-spin {
+    to { transform: rotate(360deg); }
+}
+
+.un-loading-text {
+    color: var(--un-muted);
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.un-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--un-muted);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.un-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.un-empty-icon {
+    color: #dee2e6;
+    margin-bottom: 0.5rem;
+}
+
+.un-empty-title {
+    color: var(--un-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.un-empty-text {
+    color: var(--un-muted);
+    font-size: 0.7rem;
+    margin: 0.2rem 0 0;
+}
+
+/* ============================================
+   Print Modal
+   ============================================ */
+.un-print-options {
+    padding: 0.5rem 0;
+}
+
+.un-print-options-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--un-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+
+.un-print-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+.un-print-option {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--un-border-strong);
+    border-radius: var(--un-radius);
+    background: var(--un-card);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.un-print-option:hover {
+    background: var(--un-surface);
+}
+
+.un-print-option--active {
+    background: var(--un-primary-light);
+    color: #fff;
+    border-color: var(--un-primary-light);
+}
+
+.un-print-option--active:hover {
+    background: #1d4ed8;
+}
+
+.un-print-summary {
+    border-top: 1px solid var(--un-border);
+    padding-top: 0.75rem;
+}
+
+.un-print-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.un-print-stat {
+    text-align: center;
+    padding: 0.3rem;
+    background: var(--un-surface);
+    border-radius: var(--un-radius);
+}
+
+.un-print-stat-label {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--un-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.un-print-stat-label--success {
+    color: var(--un-success);
+}
+
+.un-print-stat-label--danger {
+    color: var(--un-danger);
+}
+
+.un-print-stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--un-text);
+}
+
+.un-print-stat-value--success {
+    color: var(--un-success);
+}
+
+.un-print-stat-value--danger {
+    color: var(--un-danger);
+}
+
+/* ============================================
+   Modal Overrides
+   ============================================ */
+.un-modal-header {
+    background: linear-gradient(135deg, var(--un-primary) 0%, #1e40af 100%);
+    color: #fff;
+    border-bottom: none;
+}
+
+.un-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+/* ============================================
+   Button Styles
+   ============================================ */
+.un-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--un-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--un-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.un-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.un-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.un-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    border: 1px solid var(--un-border-strong);
+    background: var(--un-card);
+    color: var(--un-text);
+    border-radius: var(--un-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.un-btn-secondary:hover {
+    background: var(--un-surface);
+    border-color: var(--un-border);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 1200px) {
+    .un-main {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .un-container {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .un-form-row {
+        flex-wrap: wrap;
+    }
+
+    .un-form-group--full {
+        flex: 1 1 100%;
+    }
+
+    .un-card-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .un-card-actions {
+        flex-wrap: wrap;
+    }
+
+    .un-print-options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .un-print-stats {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .un-card-title {
+        font-size: 0.8rem;
+    }
+
+    .un-card-subtitle {
+        font-size: 0.6rem;
+    }
+
+    .un-form-label {
+        font-size: 0.6rem;
+    }
+
+    .un-form-input {
+        font-size: 0.7rem;
+        height: 28px;
+    }
+
+    .un-btn-save {
+        font-size: 0.7rem;
+        height: 28px;
+        padding: 0.2rem 1rem;
+    }
+}

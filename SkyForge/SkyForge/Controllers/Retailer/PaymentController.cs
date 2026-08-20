@@ -314,6 +314,60 @@ namespace SkyForge.Controllers.Retailer
         }
 
         // GET: api/retailer/payments/current-number
+        // [HttpGet("payments/current-number")]
+        // public async Task<IActionResult> GetCurrentPaymentsBillNumber()
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetCurrentPaymentsBillNumber Started ===");
+
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //         if (fiscalYear == null)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "Fiscal year not found"
+        //             });
+        //         }
+
+        //         var currentBillNumber = await _paymentService.GetCurrentBillNumberAsync(companyIdGuid, fiscalYear.Id);
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 currentPaymentsBillNumber = currentBillNumber
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetCurrentPaymentsBillNumber");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error"
+        //         });
+        //     }
+        // }
+
+        // In your PaymentController
+
         [HttpGet("payments/current-number")]
         public async Task<IActionResult> GetCurrentPaymentsBillNumber()
         {
@@ -344,6 +398,7 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
+                // Get the NEXT available number (counter + 1)
                 var currentBillNumber = await _paymentService.GetCurrentBillNumberAsync(companyIdGuid, fiscalYear.Id);
 
                 return Ok(new
@@ -351,7 +406,9 @@ namespace SkyForge.Controllers.Retailer
                     success = true,
                     data = new
                     {
-                        currentPaymentsBillNumber = currentBillNumber
+                        currentPaymentsBillNumber = currentBillNumber,
+                        // Add a flag to indicate this is just a preview
+                        isNextNumber = true
                     }
                 });
             }

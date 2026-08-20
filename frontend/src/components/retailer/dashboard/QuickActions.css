@@ -1,0 +1,486 @@
+/* QuickActions.css - Matching DailyInventorySummary design */
+
+/* ============================================
+   Variables
+   ============================================ */
+:root {
+    --qa-primary: #1e3a5f;
+    --qa-primary-light: #2563eb;
+    --qa-primary-soft: #eff6ff;
+    --qa-surface: #f1f5f9;
+    --qa-card: #ffffff;
+    --qa-border: #e2e8f0;
+    --qa-text: #0f172a;
+    --qa-muted: #64748b;
+    --qa-radius: 12px;
+    --qa-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --qa-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   Container
+   ============================================ */
+.qa-container {
+    background: var(--qa-card);
+    border-radius: var(--qa-radius);
+    border: 1px solid var(--qa-border);
+    box-shadow: var(--qa-shadow);
+    height: 100%;
+    overflow: hidden;
+    transition: var(--qa-transition);
+}
+
+.qa-container:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    border-color: var(--qa-primary-light);
+}
+
+/* ============================================
+   Header
+   ============================================ */
+.qa-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--qa-border);
+    background: #fafbfc;
+}
+
+.qa-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.qa-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    background: var(--qa-primary-soft);
+    color: var(--qa-primary-light);
+    flex-shrink: 0;
+    transition: var(--qa-transition);
+}
+
+.qa-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--qa-text);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.qa-subtitle {
+    font-size: 0.65rem;
+    color: var(--qa-muted);
+    display: block;
+}
+
+/* ============================================
+   Body
+   ============================================ */
+.qa-body {
+    padding: 1rem 1.25rem;
+}
+
+/* ============================================
+   Grid
+   ============================================ */
+.qa-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.75rem;
+}
+
+/* ============================================
+   Action Buttons
+   ============================================ */
+.qa-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid var(--qa-border);
+    border-radius: 10px;
+    background: var(--qa-card);
+    cursor: pointer;
+    transition: var(--qa-transition);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    min-height: 85px;
+    position: relative;
+    overflow: hidden;
+}
+
+.qa-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    opacity: 0;
+    transition: var(--qa-transition);
+}
+
+/* Top accent colors for each button */
+.qa-btn:hover::before {
+    opacity: 1;
+}
+
+.qa-btn:nth-child(1)::before { background: #059669; }
+.qa-btn:nth-child(2)::before { background: #2563eb; }
+.qa-btn:nth-child(3)::before { background: #d97706; }
+.qa-btn:nth-child(4)::before { background: #7c3aed; }
+.qa-btn:nth-child(5)::before { background: #0891b2; }
+.qa-btn:nth-child(6)::before { background: #0d9488; }
+.qa-btn:nth-child(7)::before { background: #4f46e5; }
+.qa-btn:nth-child(8)::before { background: #6d28d9; }
+.qa-btn:nth-child(9)::before { background: #dc2626; }
+.qa-btn:nth-child(10)::before { background: #059669; }
+
+.qa-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    border-color: var(--qa-primary-light);
+}
+
+.qa-btn:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================
+   Icon Wrapper
+   ============================================ */
+.qa-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    transition: var(--qa-transition);
+    font-size: 1.1rem;
+}
+
+.qa-btn:hover .qa-icon-wrapper {
+    transform: scale(1.05);
+}
+
+/* Icon Variants */
+.qa-icon--cash {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.qa-icon--party {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.qa-icon--items {
+    background: #fffbeb;
+    color: #d97706;
+}
+
+.qa-icon--purchase {
+    background: #f5f3ff;
+    color: #7c3aed;
+}
+
+.qa-icon--cash-sales {
+    background: #ecfeff;
+    color: #0891b2;
+}
+
+.qa-icon--cash-open {
+    background: #f0fdfa;
+    color: #0d9488;
+}
+
+.qa-icon--credit {
+    background: #eef2ff;
+    color: #4f46e5;
+}
+
+.qa-icon--credit-open {
+    background: #f5f3ff;
+    color: #6d28d9;
+}
+
+.qa-icon--payment {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.qa-icon--receipt {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+/* ============================================
+   Button Label
+   ============================================ */
+.qa-btn-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--qa-text);
+    text-align: center;
+    line-height: 1.2;
+    transition: var(--qa-transition);
+}
+
+.qa-btn:hover .qa-btn-label {
+    color: var(--qa-primary-light);
+}
+
+/* ============================================
+   Animation
+   ============================================ */
+@keyframes qa-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.qa-container {
+    animation: qa-fadeIn 0.4s ease-out forwards;
+}
+
+.qa-btn {
+    animation: qa-fadeIn 0.4s ease-out forwards;
+}
+
+.qa-btn:nth-child(1) { animation-delay: 0.02s; }
+.qa-btn:nth-child(2) { animation-delay: 0.04s; }
+.qa-btn:nth-child(3) { animation-delay: 0.06s; }
+.qa-btn:nth-child(4) { animation-delay: 0.08s; }
+.qa-btn:nth-child(5) { animation-delay: 0.10s; }
+.qa-btn:nth-child(6) { animation-delay: 0.12s; }
+.qa-btn:nth-child(7) { animation-delay: 0.14s; }
+.qa-btn:nth-child(8) { animation-delay: 0.16s; }
+.qa-btn:nth-child(9) { animation-delay: 0.18s; }
+.qa-btn:nth-child(10) { animation-delay: 0.20s; }
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+/* Tablets */
+@media (max-width: 992px) {
+    .qa-header {
+        padding: 0.6rem 1rem;
+    }
+
+    .qa-body {
+        padding: 0.75rem 1rem;
+    }
+
+    .qa-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 0.6rem;
+    }
+
+    .qa-btn {
+        padding: 0.6rem 0.4rem;
+        min-height: 75px;
+        border-radius: 8px;
+    }
+
+    .qa-icon-wrapper {
+        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
+        border-radius: 8px;
+    }
+
+    .qa-btn-label {
+        font-size: 0.6rem;
+    }
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+    .qa-header {
+        padding: 0.5rem 0.75rem;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .qa-body {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .qa-grid {
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 0.5rem;
+    }
+
+    .qa-btn {
+        padding: 0.5rem 0.3rem;
+        min-height: 65px;
+        border-radius: 6px;
+    }
+
+    .qa-icon-wrapper {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+        border-radius: 6px;
+        margin-bottom: 0.3rem;
+    }
+
+    .qa-btn-label {
+        font-size: 0.55rem;
+    }
+
+    .qa-title {
+        font-size: 0.8rem;
+    }
+
+    .qa-subtitle {
+        font-size: 0.6rem;
+    }
+
+    .qa-header-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 400px) {
+    .qa-grid {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 0.4rem;
+    }
+
+    .qa-btn {
+        padding: 0.4rem 0.2rem;
+        min-height: 55px;
+        border-radius: 4px;
+    }
+
+    .qa-icon-wrapper {
+        width: 28px;
+        height: 28px;
+        font-size: 0.7rem;
+        border-radius: 4px;
+        margin-bottom: 0.2rem;
+    }
+
+    .qa-btn-label {
+        font-size: 0.5rem;
+    }
+
+    .qa-body {
+        padding: 0.4rem 0.5rem;
+    }
+
+    .qa-header {
+        padding: 0.4rem 0.5rem;
+    }
+}
+
+/* ============================================
+   Dark Mode Support (Optional)
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --qa-card: #1e293b;
+        --qa-border: #334155;
+        --qa-text: #f1f5f9;
+        --qa-muted: #94a3b8;
+    }
+
+    .qa-header {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .qa-header-icon {
+        background: rgba(37, 99, 235, 0.15);
+    }
+
+    .qa-btn {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    .qa-btn:hover {
+        border-color: var(--qa-primary-light);
+        background: #263348;
+    }
+
+    .qa-btn-label {
+        color: #e2e8f0;
+    }
+
+    .qa-btn:hover .qa-btn-label {
+        color: var(--qa-primary-light);
+    }
+
+    /* Dark mode icon variants */
+    .qa-icon--cash {
+        background: rgba(5, 150, 105, 0.2);
+        color: #34d399;
+    }
+
+    .qa-icon--party {
+        background: rgba(37, 99, 235, 0.2);
+        color: #60a5fa;
+    }
+
+    .qa-icon--items {
+        background: rgba(217, 119, 6, 0.2);
+        color: #fbbf24;
+    }
+
+    .qa-icon--purchase {
+        background: rgba(124, 58, 237, 0.2);
+        color: #a78bfa;
+    }
+
+    .qa-icon--cash-sales {
+        background: rgba(8, 145, 178, 0.2);
+        color: #22d3ee;
+    }
+
+    .qa-icon--cash-open {
+        background: rgba(13, 148, 136, 0.2);
+        color: #5eead4;
+    }
+
+    .qa-icon--credit {
+        background: rgba(79, 70, 229, 0.2);
+        color: #818cf8;
+    }
+
+    .qa-icon--credit-open {
+        background: rgba(109, 40, 217, 0.2);
+        color: #a78bfa;
+    }
+
+    .qa-icon--payment {
+        background: rgba(220, 38, 38, 0.2);
+        color: #f87171;
+    }
+
+    .qa-icon--receipt {
+        background: rgba(5, 150, 105, 0.2);
+        color: #34d399;
+    }
+}

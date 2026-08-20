@@ -8,38 +8,33 @@ import AccountBalanceDisplay from './AccountBalanceDisplay';
 import ProductModal from '../dashboard/modals/ProductModal';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import useDebounce from '../../../hooks/useDebounce';
+import NepaliDatePicker from '../../NepaliDatePicker';
+import api, { refreshToken } from '../../services/api';
 
+import {
+    isValidNepaliDate,
+    getCurrentNepaliDate,
+    getNepaliMonthDaysComprehensive
+} from '../../NepaliDateUtils';
 
 const convertBsToAd = (bsDate) => {
     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
-
     try {
         const nepaliDate = new NepaliDate(bsDate);
-        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
-            console.error('Invalid NepaliDate object or missing getDateObject method');
-            return null;
-        }
-
         const jsDate = nepaliDate.getDateObject();
-        if (!jsDate || isNaN(jsDate.getTime())) {
-            console.error('Invalid AD date generated from BS date:', bsDate);
-            return null;
-        }
-
+        if (!jsDate || isNaN(jsDate.getTime())) return null;
         const year = jsDate.getFullYear();
         const month = String(jsDate.getMonth() + 1).padStart(2, '0');
         const day = String(jsDate.getDate()).padStart(2, '0');
-
         return `${year}-${month}-${day}`;
     } catch (error) {
-        console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
+        console.error('Error converting BS to AD:', error);
         return null;
     }
 };
 
 const convertAdToBs = (adDate) => {
     if (!adDate) return null;
-
     try {
         let date;
         if (typeof adDate === 'string') {
@@ -50,81 +45,16 @@ const convertAdToBs = (adDate) => {
             }
         } else if (adDate instanceof Date) {
             date = adDate;
-        } else {
-            return null;
-        }
-
-        if (isNaN(date.getTime())) {
-            console.error('Invalid AD date:', adDate);
-            return null;
-        }
-
+        } else { return null; }
+        if (isNaN(date.getTime())) return null;
         const nepaliDate = new NepaliDate(date);
-        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
-            console.error('Invalid NepaliDate object');
-            return null;
-        }
-
-        const year = nepaliDate.getYear();
-        const month = nepaliDate.getMonth();
-        const day = nepaliDate.getDate();
-
-        if (!year || !month === undefined || !day) {
-            console.error('Invalid BS components generated');
-            return null;
-        }
-
-        return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return `${nepaliDate.getYear()}-${String(nepaliDate.getMonth() + 1).padStart(2, '0')}-${String(nepaliDate.getDate()).padStart(2, '0')}`;
     } catch (error) {
-        console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
+        console.error('Error converting AD to BS:', error);
         return null;
     }
 };
 
-const isValidNepaliDate = (dateStr) => {
-    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
-
-    try {
-        const [year, month, day] = dateStr.split('-').map(Number);
-        if (month < 1 || month > 12) return false;
-        if (day < 1 || day > 32) return false;
-
-        const nepaliDate = new NepaliDate(dateStr);
-        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
-            return false;
-        }
-
-        const bsYear = nepaliDate.getYear();
-        const bsMonth = nepaliDate.getMonth() + 1;
-        const bsDay = nepaliDate.getDate();
-
-        return (bsYear === year && bsMonth === month && bsDay === day);
-    } catch (error) {
-        console.warn('Invalid Nepali date:', dateStr, error.message);
-        return false;
-    }
-};
-
-const getCurrentNepaliDate = () => {
-    try {
-        const now = new NepaliDate();
-        if (!now || typeof now.getYear !== 'function') {
-            return '2080-01-01';
-        }
-        const year = now.getYear();
-        const month = now.getMonth() + 1;
-        const day = now.getDate();
-
-        if (!year || !month || !day) {
-            return '2080-01-01';
-        }
-
-        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    } catch (error) {
-        console.error('Error getting current Nepali date:', error);
-        return '2080-01-01';
-    }
-};
 
 // Helper function to format AD date to YYYY-MM-DD
 const formatAdDate = (date) => {
@@ -282,24 +212,24 @@ const AddPayment = () => {
         localStorage.getItem('printAfterSavePayment') === 'true' || false
     );
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
 
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
+    // // Add authorization header to all requests
+    // api.interceptors.request.use(
+    //     (config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     (error) => {
+    //         return Promise.reject(error);
+    //     }
+    // );
 
     // Function to get the current bill number (does NOT increment)
     const getCurrentBillNumber = async () => {
@@ -1122,7 +1052,7 @@ const AddPayment = () => {
         <div className="container-fluid">
             <Header />
             <div className="container mt-4 wow-form">
-                <div className="card mt-2 shadow-lg p-2 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+                <div className="card mt-2 shadow-lg p-2 animate__animated animate__fadeInUp expanded-card ledger-card compact" style={{ minHeight: '450px' }}>
                     <div className="card-header">
                         <div className="d-flex justify-content-between align-items-center">
                             <h2 className="card-title mb-0">
@@ -1141,127 +1071,39 @@ const AddPayment = () => {
                             <div className="row g-2 mb-3">
                                 {(company.dateFormat === 'nepali' || company.dateFormat === 'Nepali') ? (
                                     <>
-                                        {/* Nepali Transaction Date (Primary editable field) */}
                                         <div className="col-12 col-md-6 col-lg-2">
                                             <div className="position-relative">
-                                                <input
-                                                    type="text"
-                                                    name="nepaliDate"
-                                                    id="nepaliDate"
-                                                    autoComplete='off'
-                                                    autoFocus
-                                                    ref={transactionDateRef}
-                                                    className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
+                                                <NepaliDatePicker
                                                     value={formData.nepaliDate}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+                                                    onChange={(bsDate) => {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            nepaliDate: bsDate
+                                                        }));
+                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
 
-                                                        if (sanitizedValue.length <= 10) {
-                                                            setFormData(prev => ({
-                                                                ...prev,
-                                                                nepaliDate: sanitizedValue
-                                                            }));
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                            // Auto-convert to AD when we have a complete valid date (10 characters)
-                                                            if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
-                                                                console.log('Converting BS to AD:', sanitizedValue);
-                                                                const adDate = convertBsToAd(sanitizedValue);
-                                                                console.log('Converted AD date:', adDate);
-                                                                if (adDate) {
-                                                                    setFormData(prev => ({
-                                                                        ...prev,
-                                                                        billDate: adDate
-                                                                    }));
-                                                                }
-                                                            }
-                                                        }
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        const allowedKeys = [
-                                                            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                                            'Home', 'End'
-                                                        ];
-
-                                                        if (!allowedKeys.includes(e.key) &&
-                                                            !/^\d$/.test(e.key) &&
-                                                            e.key !== '/' &&
-                                                            e.key !== '-' &&
-                                                            !e.ctrlKey && !e.metaKey) {
-                                                            e.preventDefault();
-                                                        }
-
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            const dateStr = e.target.value.trim();
-
-                                                            if (!dateStr) {
-                                                                const currentDate = getCurrentNepaliDate();
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    nepaliDate: currentDate
-                                                                });
-                                                                setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                                setNotification({
-                                                                    show: true,
-                                                                    message: 'Date required. Auto-corrected to current date.',
-                                                                    type: 'warning',
-                                                                    duration: 3000
-                                                                });
-
-                                                                handleKeyDown(e, 'nepaliDate');
-                                                            } else if (dateErrors.nepaliDate) {
-                                                                e.target.focus();
-                                                            } else {
-                                                                handleKeyDown(e, 'nepaliDate');
-                                                            }
-                                                        }
-                                                    }}
-                                                    onBlur={(e) => {
-                                                        const dateStr = e.target.value.trim();
-                                                        if (!dateStr) {
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                            return;
-                                                        }
-
-                                                        if (isValidNepaliDate(dateStr)) {
-                                                            const adDate = convertBsToAd(dateStr);
+                                                        // Auto-convert to AD when we have a complete valid date
+                                                        if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
+                                                            console.log('Converting BS to AD:', bsDate);
+                                                            const adDate = convertBsToAd(bsDate);
+                                                            console.log('Converted AD date:', adDate);
                                                             if (adDate) {
                                                                 setFormData(prev => ({
                                                                     ...prev,
-                                                                    nepaliDate: dateStr,
                                                                     billDate: adDate
                                                                 }));
                                                             }
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                        } else {
-                                                            // Auto-correct to current date
-                                                            const currentDate = getCurrentNepaliDate();
-                                                            const adDate = convertBsToAd(currentDate);
-                                                            setFormData(prev => ({
-                                                                ...prev,
-                                                                nepaliDate: currentDate,
-                                                                billDate: adDate || prev.billDate
-                                                            }));
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
                                                         }
                                                     }}
-                                                    placeholder="YYYY-MM-DD"
-                                                    required
-                                                    style={{
-                                                        height: '26px',
-                                                        fontSize: '0.875rem',
-                                                        paddingTop: '0.75rem',
-                                                        width: '100%'
+                                                    autoFocus={true}
+                                                    required={true}
+                                                    className={dateErrors.nepaliDate ? 'is-invalid' : ''}
+                                                    onKeyDown={(e) => {
+                                                        // This calls handleKeyDown to move to next field
+                                                        handleKeyDown(e, 'nepaliDate');
                                                     }}
+                                                    dateErrors={dateErrors}
+                                                    setDateErrors={setDateErrors}
                                                 />
                                                 <label
                                                     className="position-absolute"

@@ -1,0 +1,880 @@
+/* ItemsCompany.css - Matching DailyInventorySummary design */
+
+/* ============================================
+   Variables
+   ============================================ */
+:root {
+    --ic-primary: #1e3a5f;
+    --ic-primary-light: #2563eb;
+    --ic-primary-soft: #eff6ff;
+    --ic-surface: #eef2f7;
+    --ic-card: #ffffff;
+    --ic-border: #e2e8f0;
+    --ic-border-strong: #cbd5e1;
+    --ic-text: #0f172a;
+    --ic-muted: #64748b;
+    --ic-danger: #dc2626;
+    --ic-success: #059669;
+    --ic-warning: #d97706;
+    --ic-info: #0284c7;
+    --ic-radius: 6px;
+    --ic-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================
+   Container
+   ============================================ */
+.ic-container {
+    padding: 0.5rem 1rem;
+    max-width: 100%;
+    margin: 0 auto;
+    background: var(--ic-surface);
+    min-height: 100vh;
+}
+
+/* ============================================
+   Main Layout
+   ============================================ */
+.ic-main {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* ============================================
+   Cards
+   ============================================ */
+.ic-card {
+    background: var(--ic-card);
+    border: 1px solid var(--ic-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--ic-shadow);
+}
+
+.ic-card--form {
+    height: 100%;
+}
+
+.ic-card--list {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.ic-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, var(--ic-primary) 0%, #1e40af 100%);
+    border-bottom: none;
+}
+
+.ic-card-header--list {
+    background: linear-gradient(135deg, var(--ic-primary) 0%, #1e40af 100%);
+}
+
+.ic-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.ic-card-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.ic-card-header-icon--form {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.ic-card-header-icon--list {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.ic-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.ic-card-subtitle {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+}
+
+.ic-card-body {
+    padding: 0.75rem 1rem;
+}
+
+.ic-card-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* ============================================
+   Form Styles
+   ============================================ */
+.ic-form-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.ic-form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.ic-form-group--full {
+    flex: 0 0 100%;
+}
+
+.ic-form-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--ic-muted);
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ic-required {
+    color: var(--ic-danger);
+}
+
+.ic-form-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--ic-border-strong);
+    border-radius: var(--ic-radius);
+    font-size: 0.78rem;
+    color: var(--ic-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ic-form-input:focus {
+    outline: none;
+    border-color: var(--ic-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Form Actions */
+.ic-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ic-form-actions--right {
+    justify-content: flex-end;
+}
+
+.ic-btn-save {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--ic-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--ic-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    height: 30px;
+}
+
+.ic-btn-save:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.ic-btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ic-btn-cancel {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--ic-radius);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.ic-btn-cancel:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.ic-btn-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ic-shortcut-hint {
+    font-size: 0.6rem;
+    color: var(--ic-muted);
+    opacity: 0.6;
+}
+
+/* ============================================
+   Search Bar
+   ============================================ */
+.ic-search-bar {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--ic-border);
+}
+
+.ic-search-wrapper {
+    position: relative;
+}
+
+.ic-search-icon {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ic-muted);
+    font-size: 0.8rem;
+}
+
+.ic-search-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 1.8rem;
+    border: 1px solid var(--ic-border-strong);
+    border-radius: var(--ic-radius);
+    font-size: 0.75rem;
+    color: var(--ic-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ic-search-input:focus {
+    outline: none;
+    border-color: var(--ic-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.ic-search-input::placeholder {
+    color: var(--ic-muted);
+    font-size: 0.7rem;
+}
+
+.ic-search-clear {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--ic-muted);
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 50%;
+    transition: background 0.15s;
+}
+
+.ic-search-clear:hover {
+    background: var(--ic-surface);
+}
+
+/* ============================================
+   Toolbar Buttons
+   ============================================ */
+.ic-btn-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--ic-radius);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.7rem;
+}
+
+.ic-btn-toolbar:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.ic-btn-toolbar:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Table Styles
+   ============================================ */
+.ic-table-wrapper {
+    flex: 1;
+    overflow: hidden;
+    min-height: 300px;
+}
+
+.ic-header {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border-bottom: 2px solid var(--ic-border-strong);
+    height: 28px;
+    min-height: 28px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.ic-header-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--ic-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    height: 100%;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.ic-header-cell--sn {
+    width: 50px;
+    justify-content: center;
+}
+
+.ic-header-cell--resizable {
+    border-right: 1px solid var(--ic-border);
+    position: relative;
+}
+
+.ic-header-cell--resizable:last-child {
+    border-right: none;
+}
+
+.ic-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    user-select: none;
+}
+
+.ic-resize-handle:hover {
+    background: var(--ic-primary-light);
+    opacity: 0.3;
+}
+
+/* Table Rows */
+.ic-row-even {
+    background: #f8fafc;
+}
+
+.ic-row-odd {
+    background: #ffffff;
+}
+
+.ic-row-even:hover,
+.ic-row-odd:hover {
+    background: var(--ic-primary-soft) !important;
+}
+
+.ic-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    height: 100%;
+    font-size: 0.7rem;
+    color: var(--ic-text);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.ic-cell--sn {
+    width: 50px;
+    justify-content: center;
+    color: var(--ic-muted);
+    font-weight: 500;
+}
+
+.ic-cell--name {
+    border-right: 1px solid var(--ic-border);
+    gap: 0.4rem;
+}
+
+.ic-cell--status {
+    border-right: 1px solid var(--ic-border);
+    justify-content: center;
+}
+
+.ic-cell--items {
+    border-right: 1px solid var(--ic-border);
+    justify-content: center;
+}
+
+.ic-cell--actions {
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.ic-item-name {
+    font-weight: 500;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ic-item-count {
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: var(--ic-primary-light);
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.ic-badge {
+    font-size: 0.55rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ic-badge--default {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.ic-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.ic-status-badge {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.ic-status-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.ic-status-badge--inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ============================================
+   Action Buttons
+   ============================================ */
+.ic-btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--ic-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ic-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.6rem;
+}
+
+.ic-btn-action:hover:not(:disabled) {
+    background: var(--ic-surface);
+    border-color: var(--ic-border-strong);
+}
+
+.ic-btn-action:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.ic-btn-action--edit:hover:not(:disabled) {
+    color: var(--ic-warning);
+    border-color: var(--ic-warning);
+}
+
+.ic-btn-action--delete:hover:not(:disabled) {
+    color: var(--ic-danger);
+    border-color: var(--ic-danger);
+}
+
+.ic-btn-action--select:hover:not(:disabled) {
+    color: var(--ic-success);
+    border-color: var(--ic-success);
+}
+
+/* ============================================
+   Table Footer
+   ============================================ */
+.ic-table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.75rem;
+    border-top: 1px solid var(--ic-border);
+    background: #fafafa;
+    font-size: 0.65rem;
+    color: var(--ic-muted);
+}
+
+.ic-btn-load-more {
+    background: transparent;
+    border: none;
+    color: var(--ic-primary-light);
+    font-size: 0.65rem;
+    cursor: pointer;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--ic-radius);
+    transition: background 0.15s;
+}
+
+.ic-btn-load-more:hover:not(:disabled) {
+    background: var(--ic-primary-soft);
+}
+
+.ic-btn-load-more:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Loading States
+   ============================================ */
+.ic-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.ic-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--ic-border);
+    border-top-color: var(--ic-primary-light);
+    border-radius: 50%;
+    animation: ic-spin 0.8s linear infinite;
+}
+
+.ic-spinner-small {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid var(--ic-border);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: ic-spin 0.8s linear infinite;
+}
+
+@keyframes ic-spin {
+    to { transform: rotate(360deg); }
+}
+
+.ic-loading-text {
+    color: var(--ic-muted);
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.ic-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--ic-muted);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.ic-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.ic-empty-icon {
+    color: #dee2e6;
+    margin-bottom: 0.5rem;
+}
+
+.ic-empty-title {
+    color: var(--ic-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.ic-empty-text {
+    color: var(--ic-muted);
+    font-size: 0.7rem;
+    margin: 0.2rem 0 0;
+}
+
+/* ============================================
+   Print Modal
+   ============================================ */
+.ic-print-options {
+    padding: 0.5rem 0;
+}
+
+.ic-print-options-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--ic-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+
+.ic-print-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+.ic-print-option {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--ic-border-strong);
+    border-radius: var(--ic-radius);
+    background: var(--ic-card);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.ic-print-option:hover {
+    background: var(--ic-surface);
+}
+
+.ic-print-option--active {
+    background: var(--ic-primary-light);
+    color: #fff;
+    border-color: var(--ic-primary-light);
+}
+
+.ic-print-option--active:hover {
+    background: #1d4ed8;
+}
+
+.ic-print-summary {
+    border-top: 1px solid var(--ic-border);
+    padding-top: 0.75rem;
+}
+
+.ic-print-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.ic-print-stat {
+    text-align: center;
+    padding: 0.3rem;
+    background: var(--ic-surface);
+    border-radius: var(--ic-radius);
+}
+
+.ic-print-stat-label {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--ic-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ic-print-stat-label--success {
+    color: var(--ic-success);
+}
+
+.ic-print-stat-label--danger {
+    color: var(--ic-danger);
+}
+
+.ic-print-stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ic-text);
+}
+
+.ic-print-stat-value--success {
+    color: var(--ic-success);
+}
+
+.ic-print-stat-value--danger {
+    color: var(--ic-danger);
+}
+
+/* ============================================
+   Modal Overrides
+   ============================================ */
+.ic-modal-header {
+    background: linear-gradient(135deg, var(--ic-primary) 0%, #1e40af 100%);
+    color: #fff;
+    border-bottom: none;
+}
+
+.ic-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+/* ============================================
+   Button Styles
+   ============================================ */
+.ic-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--ic-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--ic-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.ic-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.ic-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ic-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    border: 1px solid var(--ic-border-strong);
+    background: var(--ic-card);
+    color: var(--ic-text);
+    border-radius: var(--ic-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ic-btn-secondary:hover {
+    background: var(--ic-surface);
+    border-color: var(--ic-border);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 1200px) {
+    .ic-main {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .ic-container {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .ic-form-row {
+        flex-wrap: wrap;
+    }
+
+    .ic-form-group--full {
+        flex: 1 1 100%;
+    }
+
+    .ic-card-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .ic-card-actions {
+        flex-wrap: wrap;
+    }
+
+    .ic-print-options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ic-print-stats {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .ic-card-title {
+        font-size: 0.8rem;
+    }
+
+    .ic-card-subtitle {
+        font-size: 0.6rem;
+    }
+
+    .ic-form-label {
+        font-size: 0.6rem;
+    }
+
+    .ic-form-input {
+        font-size: 0.7rem;
+        height: 28px;
+    }
+
+    .ic-btn-save {
+        font-size: 0.7rem;
+        height: 28px;
+        padding: 0.2rem 1rem;
+    }
+}

@@ -1,0 +1,293 @@
+/* Add to your global CSS or component CSS */
+.nepali-calendar-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 12px;
+    z-index: 1000;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    width: 280px;
+    margin-top: 4px;
+    background: #ffffff;
+}
+
+.nepali-calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 4px;
+}
+
+.calendar-nav-btn {
+    background: none;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 12px;
+    color: #333;
+    transition: all 0.2s;
+}
+
+.calendar-nav-btn:hover {
+    background: #f0f0f0;
+    border-color: #ccc;
+}
+
+.calendar-month-year {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.nepali-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.calendar-weekday {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 0;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.calendar-day {
+    text-align: center;
+    padding: 6px 0;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: all 0.15s;
+    color: #333;
+}
+
+.calendar-day:hover:not(.empty) {
+    background: #f0f0f0;
+}
+
+.calendar-day.empty {
+    cursor: default;
+    color: #ddd;
+}
+
+.calendar-day.today {
+    background: #e8f0fe;
+    font-weight: 600;
+    color: #1a73e8;
+}
+
+.calendar-day.selected {
+    background: #1a73e8;
+    color: white;
+    font-weight: 600;
+}
+
+.calendar-day.selected:hover {
+    background: #1557b0;
+}
+
+.nepali-calendar-footer {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+
+.calendar-today-btn {
+    background: none;
+    border: 1px solid #1a73e8;
+    color: #1a73e8;
+    padding: 4px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.calendar-today-btn:hover {
+    background: #e8f0fe;
+}
+
+.calendar-close-btn {
+    background: #f1f3f4;
+    color: #333;
+    border: none;
+    padding: 4px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.calendar-close-btn:hover {
+    background: #e0e0e0;
+}
+
+/* Add to your global CSS or component CSS - Add these styles */
+
+/* 🔥 Red color for Sunday and Saturday (weekend) */
+.calendar-day.weekend {
+    color: #dc3545 !important; /* Red color */
+}
+
+/* Keep selected day with white text on blue background */
+.calendar-day.selected.weekend {
+    color: white !important;
+    background: #1a73e8 !important;
+}
+
+/* Keep today styling for weekend days */
+.calendar-day.today.weekend {
+    background: #e8f0fe;
+    color: #dc3545 !important;
+}
+
+/* Hover effect for weekend days */
+.calendar-day.weekend:hover:not(.empty):not(.selected) {
+    background: #fce4e4;
+}
+
+/* Existing styles remain the same */
+.nepali-calendar-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 12px;
+    z-index: 1000;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    width: 280px;
+    margin-top: 4px;
+    background: #ffffff;
+}
+
+.nepali-calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 4px;
+}
+
+.calendar-nav-btn {
+    background: none;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 12px;
+    color: #333;
+    transition: all 0.2s;
+}
+
+.calendar-nav-btn:hover {
+    background: #f0f0f0;
+    border-color: #ccc;
+}
+
+.calendar-month-year {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.nepali-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.calendar-weekday {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 0;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.calendar-day {
+    text-align: center;
+    padding: 6px 0;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: all 0.15s;
+    color: #333;
+}
+
+.calendar-day:hover:not(.empty) {
+    background: #f0f0f0;
+}
+
+.calendar-day.empty {
+    cursor: default;
+    color: #ddd;
+}
+
+.calendar-day.today {
+    background: #e8f0fe;
+    font-weight: 600;
+    color: #1a73e8;
+}
+
+.calendar-day.selected {
+    background: #1a73e8;
+    color: white;
+    font-weight: 600;
+}
+
+.calendar-day.selected:hover {
+    background: #1557b0;
+}
+
+.nepali-calendar-footer {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+
+.calendar-today-btn {
+    background: none;
+    border: 1px solid #1a73e8;
+    color: #1a73e8;
+    padding: 4px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.calendar-today-btn:hover {
+    background: #e8f0fe;
+}
+
+.calendar-close-btn {
+    background: #f1f3f4;
+    color: #333;
+    border: none;
+    padding: 4px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.calendar-close-btn:hover {
+    background: #e0e0e0;
+}

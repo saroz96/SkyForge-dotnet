@@ -1,0 +1,879 @@
+/* MainUnits.css - Matching DailyInventorySummary design */
+
+/* ============================================
+   Variables
+   ============================================ */
+:root {
+    --mu-primary: #1e3a5f;
+    --mu-primary-light: #2563eb;
+    --mu-primary-soft: #eff6ff;
+    --mu-surface: #eef2f7;
+    --mu-card: #ffffff;
+    --mu-border: #e2e8f0;
+    --mu-border-strong: #cbd5e1;
+    --mu-text: #0f172a;
+    --mu-muted: #64748b;
+    --mu-danger: #dc2626;
+    --mu-success: #059669;
+    --mu-warning: #d97706;
+    --mu-info: #0284c7;
+    --mu-radius: 6px;
+    --mu-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================
+   Container
+   ============================================ */
+.mu-container {
+    padding: 0.5rem 1rem;
+    max-width: 100%;
+    margin: 0 auto;
+    background: var(--mu-surface);
+    min-height: 100vh;
+}
+
+/* ============================================
+   Main Layout
+   ============================================ */
+.mu-main {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* ============================================
+   Cards
+   ============================================ */
+.mu-card {
+    background: var(--mu-card);
+    border: 1px solid var(--mu-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--mu-shadow);
+}
+
+.mu-card--form {
+    height: 100%;
+}
+
+.mu-card--list {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.mu-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, var(--mu-primary) 0%, #1e40af 100%);
+    border-bottom: none;
+}
+
+.mu-card-header--list {
+    background: linear-gradient(135deg, var(--mu-primary) 0%, #1e40af 100%);
+}
+
+.mu-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.mu-card-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.mu-card-header-icon--form {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.mu-card-header-icon--list {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.mu-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.mu-card-subtitle {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+}
+
+.mu-card-body {
+    padding: 0.75rem 1rem;
+}
+
+.mu-card-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* ============================================
+   Form Styles
+   ============================================ */
+.mu-form-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.mu-form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.mu-form-group--full {
+    flex: 0 0 100%;
+}
+
+.mu-form-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--mu-muted);
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mu-required {
+    color: var(--mu-danger);
+}
+
+.mu-form-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--mu-border-strong);
+    border-radius: var(--mu-radius);
+    font-size: 0.78rem;
+    color: var(--mu-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mu-form-input:focus {
+    outline: none;
+    border-color: var(--mu-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Form Actions */
+.mu-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mu-form-actions--right {
+    justify-content: flex-end;
+}
+
+.mu-btn-save {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--mu-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--mu-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    height: 30px;
+}
+
+.mu-btn-save:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.mu-btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.mu-btn-cancel {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--mu-radius);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.mu-btn-cancel:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.mu-btn-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.mu-shortcut-hint {
+    font-size: 0.6rem;
+    color: var(--mu-muted);
+    opacity: 0.6;
+}
+
+/* ============================================
+   Search Bar
+   ============================================ */
+.mu-search-bar {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--mu-border);
+}
+
+.mu-search-wrapper {
+    position: relative;
+}
+
+.mu-search-icon {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--mu-muted);
+    font-size: 0.8rem;
+}
+
+.mu-search-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 1.8rem;
+    border: 1px solid var(--mu-border-strong);
+    border-radius: var(--mu-radius);
+    font-size: 0.75rem;
+    color: var(--mu-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mu-search-input:focus {
+    outline: none;
+    border-color: var(--mu-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.mu-search-input::placeholder {
+    color: var(--mu-muted);
+    font-size: 0.7rem;
+}
+
+.mu-search-clear {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--mu-muted);
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 50%;
+    transition: background 0.15s;
+}
+
+.mu-search-clear:hover {
+    background: var(--mu-surface);
+}
+
+/* ============================================
+   Toolbar Buttons
+   ============================================ */
+.mu-btn-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--mu-radius);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.7rem;
+}
+
+.mu-btn-toolbar:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.mu-btn-toolbar:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Table Styles
+   ============================================ */
+.mu-table-wrapper {
+    flex: 1;
+    overflow: hidden;
+    min-height: 300px;
+}
+
+.mu-header {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border-bottom: 2px solid var(--mu-border-strong);
+    height: 28px;
+    min-height: 28px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.mu-header-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--mu-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    height: 100%;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.mu-header-cell--sn {
+    width: 50px;
+    justify-content: center;
+}
+
+.mu-header-cell--resizable {
+    border-right: 1px solid var(--mu-border);
+    position: relative;
+}
+
+.mu-header-cell--resizable:last-child {
+    border-right: none;
+}
+
+.mu-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    user-select: none;
+}
+
+.mu-resize-handle:hover {
+    background: var(--mu-primary-light);
+    opacity: 0.3;
+}
+
+/* Table Rows */
+.mu-row-even {
+    background: #f8fafc;
+}
+
+.mu-row-odd {
+    background: #ffffff;
+}
+
+.mu-row-even:hover,
+.mu-row-odd:hover {
+    background: var(--mu-primary-soft) !important;
+}
+
+.mu-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    height: 100%;
+    font-size: 0.7rem;
+    color: var(--mu-text);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.mu-cell--sn {
+    width: 50px;
+    justify-content: center;
+    color: var(--mu-muted);
+    font-weight: 500;
+}
+
+.mu-cell--name {
+    border-right: 1px solid var(--mu-border);
+    gap: 0.4rem;
+}
+
+.mu-cell--status {
+    border-right: 1px solid var(--mu-border);
+    justify-content: center;
+}
+
+.mu-cell--code {
+    border-right: 1px solid var(--mu-border);
+    justify-content: center;
+}
+
+.mu-cell--actions {
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.mu-item-name {
+    font-weight: 500;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mu-code-badge {
+    background: #e9ecef;
+    color: var(--mu-text);
+    font-weight: 500;
+    font-size: 0.6rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.mu-badge {
+    font-size: 0.55rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.mu-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.mu-status-badge {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.mu-status-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.mu-status-badge--inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ============================================
+   Action Buttons
+   ============================================ */
+.mu-btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--mu-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--mu-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.6rem;
+}
+
+.mu-btn-action:hover:not(:disabled) {
+    background: var(--mu-surface);
+    border-color: var(--mu-border-strong);
+}
+
+.mu-btn-action:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.mu-btn-action--edit:hover:not(:disabled) {
+    color: var(--mu-warning);
+    border-color: var(--mu-warning);
+}
+
+.mu-btn-action--delete:hover:not(:disabled) {
+    color: var(--mu-danger);
+    border-color: var(--mu-danger);
+}
+
+.mu-btn-action--select:hover:not(:disabled) {
+    color: var(--mu-success);
+    border-color: var(--mu-success);
+}
+
+/* ============================================
+   Table Footer
+   ============================================ */
+.mu-table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.75rem;
+    border-top: 1px solid var(--mu-border);
+    background: #fafafa;
+    font-size: 0.65rem;
+    color: var(--mu-muted);
+}
+
+.mu-btn-load-more {
+    background: transparent;
+    border: none;
+    color: var(--mu-primary-light);
+    font-size: 0.65rem;
+    cursor: pointer;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--mu-radius);
+    transition: background 0.15s;
+}
+
+.mu-btn-load-more:hover:not(:disabled) {
+    background: var(--mu-primary-soft);
+}
+
+.mu-btn-load-more:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Loading States
+   ============================================ */
+.mu-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.mu-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--mu-border);
+    border-top-color: var(--mu-primary-light);
+    border-radius: 50%;
+    animation: mu-spin 0.8s linear infinite;
+}
+
+.mu-spinner-small {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid var(--mu-border);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: mu-spin 0.8s linear infinite;
+}
+
+@keyframes mu-spin {
+    to { transform: rotate(360deg); }
+}
+
+.mu-loading-text {
+    color: var(--mu-muted);
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.mu-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--mu-muted);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.mu-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.mu-empty-icon {
+    color: #dee2e6;
+    margin-bottom: 0.5rem;
+}
+
+.mu-empty-title {
+    color: var(--mu-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.mu-empty-text {
+    color: var(--mu-muted);
+    font-size: 0.7rem;
+    margin: 0.2rem 0 0;
+}
+
+/* ============================================
+   Print Modal
+   ============================================ */
+.mu-print-options {
+    padding: 0.5rem 0;
+}
+
+.mu-print-options-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--mu-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+
+.mu-print-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+.mu-print-option {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--mu-border-strong);
+    border-radius: var(--mu-radius);
+    background: var(--mu-card);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.mu-print-option:hover {
+    background: var(--mu-surface);
+}
+
+.mu-print-option--active {
+    background: var(--mu-primary-light);
+    color: #fff;
+    border-color: var(--mu-primary-light);
+}
+
+.mu-print-option--active:hover {
+    background: #1d4ed8;
+}
+
+.mu-print-summary {
+    border-top: 1px solid var(--mu-border);
+    padding-top: 0.75rem;
+}
+
+.mu-print-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.mu-print-stat {
+    text-align: center;
+    padding: 0.3rem;
+    background: var(--mu-surface);
+    border-radius: var(--mu-radius);
+}
+
+.mu-print-stat-label {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--mu-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mu-print-stat-label--success {
+    color: var(--mu-success);
+}
+
+.mu-print-stat-label--danger {
+    color: var(--mu-danger);
+}
+
+.mu-print-stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--mu-text);
+}
+
+.mu-print-stat-value--success {
+    color: var(--mu-success);
+}
+
+.mu-print-stat-value--danger {
+    color: var(--mu-danger);
+}
+
+/* ============================================
+   Modal Overrides
+   ============================================ */
+.mu-modal-header {
+    background: linear-gradient(135deg, var(--mu-primary) 0%, #1e40af 100%);
+    color: #fff;
+    border-bottom: none;
+}
+
+.mu-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+/* ============================================
+   Button Styles
+   ============================================ */
+.mu-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--mu-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--mu-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.mu-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.mu-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.mu-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    border: 1px solid var(--mu-border-strong);
+    background: var(--mu-card);
+    color: var(--mu-text);
+    border-radius: var(--mu-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.mu-btn-secondary:hover {
+    background: var(--mu-surface);
+    border-color: var(--mu-border);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 1200px) {
+    .mu-main {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .mu-container {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .mu-form-row {
+        flex-wrap: wrap;
+    }
+
+    .mu-form-group--full {
+        flex: 1 1 100%;
+    }
+
+    .mu-card-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .mu-card-actions {
+        flex-wrap: wrap;
+    }
+
+    .mu-print-options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .mu-print-stats {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .mu-card-title {
+        font-size: 0.8rem;
+    }
+
+    .mu-card-subtitle {
+        font-size: 0.6rem;
+    }
+
+    .mu-form-label {
+        font-size: 0.6rem;
+    }
+
+    .mu-form-input {
+        font-size: 0.7rem;
+        height: 28px;
+    }
+
+    .mu-btn-save {
+        font-size: 0.7rem;
+        height: 28px;
+        padding: 0.2rem 1rem;
+    }
+}

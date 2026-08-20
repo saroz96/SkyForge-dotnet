@@ -213,6 +213,8 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.AddMemoryCache();
+
 // Learn more about configuring Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

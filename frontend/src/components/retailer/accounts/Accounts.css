@@ -1,0 +1,938 @@
+/* Accounts.css - Matching DailyInventorySummary design */
+
+/* ============================================
+   Variables
+   ============================================ */
+:root {
+    --acc-primary: #1e3a5f;
+    --acc-primary-light: #2563eb;
+    --acc-primary-soft: #eff6ff;
+    --acc-surface: #eef2f7;
+    --acc-card: #ffffff;
+    --acc-border: #e2e8f0;
+    --acc-border-strong: #cbd5e1;
+    --acc-text: #0f172a;
+    --acc-muted: #64748b;
+    --acc-danger: #dc2626;
+    --acc-success: #059669;
+    --acc-warning: #d97706;
+    --acc-info: #0284c7;
+    --acc-radius: 6px;
+    --acc-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================
+   Container
+   ============================================ */
+.acc-container {
+    padding: 0.5rem 1rem;
+    max-width: 100%;
+    margin: 0 auto;
+    background: var(--acc-surface);
+    min-height: 100vh;
+}
+
+/* ============================================
+   Main Layout
+   ============================================ */
+.acc-main {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* ============================================
+   Cards
+   ============================================ */
+.acc-card {
+    background: var(--acc-card);
+    border: 1px solid var(--acc-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--acc-shadow);
+}
+
+.acc-card--form {
+    height: 100%;
+}
+
+.acc-card--list {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.acc-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, var(--acc-primary) 0%, #1e40af 100%);
+    border-bottom: none;
+}
+
+.acc-card-header--list {
+    background: linear-gradient(135deg, var(--acc-primary) 0%, #1e40af 100%);
+}
+
+.acc-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.acc-card-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.acc-card-header-icon--form {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.acc-card-header-icon--list {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.acc-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.acc-card-subtitle {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+}
+
+.acc-card-body {
+    padding: 0.75rem 1rem;
+}
+
+.acc-card-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* ============================================
+   Form Styles
+   ============================================ */
+.acc-form-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.acc-form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.acc-form-group--full {
+    flex: 0 0 100%;
+}
+
+.acc-form-group--half {
+    flex: 0 0 calc(50% - 0.25rem);
+}
+
+.acc-form-group--third {
+    flex: 0 0 calc(33.33% - 0.33rem);
+}
+
+.acc-form-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--acc-muted);
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.acc-required {
+    color: var(--acc-danger);
+}
+
+.acc-form-input,
+.acc-form-select {
+    width: 100%;
+    height: 30px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--acc-border-strong);
+    border-radius: var(--acc-radius);
+    font-size: 0.78rem;
+    color: var(--acc-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.acc-form-input:focus,
+.acc-form-select:focus {
+    outline: none;
+    border-color: var(--acc-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.acc-form-hint {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--acc-muted);
+    margin-top: 0.15rem;
+}
+
+/* Balance Input */
+.acc-balance-input {
+    display: flex;
+    gap: 0;
+    position: relative;
+}
+
+.acc-balance-input .acc-form-input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-right: 50px;
+}
+
+.acc-balance-type-select {
+    position: absolute;
+    right: 2px;
+    top: 2px;
+    height: 26px;
+    width: 44px;
+    border: none;
+    background: transparent;
+    font-size: 0.7rem;
+    color: var(--acc-text);
+    cursor: pointer;
+    padding: 0 2px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.acc-balance-type-select:focus {
+    outline: none;
+}
+
+.acc-balance-type-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Form Actions */
+.acc-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.acc-form-actions--right {
+    justify-content: flex-end;
+}
+
+.acc-btn-save {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--acc-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--acc-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    height: 30px;
+}
+
+.acc-btn-save:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.acc-btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.acc-btn-cancel {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--acc-radius);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.acc-btn-cancel:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.acc-btn-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.acc-shortcut-hint {
+    font-size: 0.6rem;
+    color: var(--acc-muted);
+    opacity: 0.6;
+}
+
+/* ============================================
+   Search Bar
+   ============================================ */
+.acc-search-bar {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--acc-border);
+}
+
+.acc-search-wrapper {
+    position: relative;
+}
+
+.acc-search-icon {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--acc-muted);
+    font-size: 0.8rem;
+}
+
+.acc-search-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 1.8rem;
+    border: 1px solid var(--acc-border-strong);
+    border-radius: var(--acc-radius);
+    font-size: 0.75rem;
+    color: var(--acc-text);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.acc-search-input:focus {
+    outline: none;
+    border-color: var(--acc-primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.acc-search-input::placeholder {
+    color: var(--acc-muted);
+    font-size: 0.7rem;
+}
+
+.acc-search-clear {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--acc-muted);
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 50%;
+    transition: background 0.15s;
+}
+
+.acc-search-clear:hover {
+    background: var(--acc-surface);
+}
+
+/* ============================================
+   Toolbar Buttons
+   ============================================ */
+.acc-btn-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--acc-radius);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.7rem;
+}
+
+.acc-btn-toolbar:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.acc-btn-toolbar:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Table Styles
+   ============================================ */
+.acc-table-wrapper {
+    flex: 1;
+    overflow: hidden;
+    min-height: 300px;
+}
+
+.acc-header {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border-bottom: 2px solid var(--acc-border-strong);
+    height: 28px;
+    min-height: 28px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.acc-header-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--acc-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    height: 100%;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.acc-header-cell--sn {
+    width: 50px;
+    justify-content: center;
+}
+
+.acc-header-cell--resizable {
+    border-right: 1px solid var(--acc-border);
+    position: relative;
+}
+
+.acc-header-cell--resizable:last-child {
+    border-right: none;
+}
+
+.acc-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    user-select: none;
+}
+
+.acc-resize-handle:hover {
+    background: var(--acc-primary-light);
+    opacity: 0.3;
+}
+
+/* Table Rows */
+.acc-row-even {
+    background: #f8fafc;
+}
+
+.acc-row-odd {
+    background: #ffffff;
+}
+
+.acc-row-even:hover,
+.acc-row-odd:hover {
+    background: var(--acc-primary-soft) !important;
+}
+
+.acc-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    height: 100%;
+    font-size: 0.7rem;
+    color: var(--acc-text);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.acc-cell--sn {
+    width: 50px;
+    justify-content: center;
+    color: var(--acc-muted);
+    font-weight: 500;
+}
+
+.acc-cell--name {
+    border-right: 1px solid var(--acc-border);
+    gap: 0.4rem;
+}
+
+.acc-cell--group {
+    border-right: 1px solid var(--acc-border);
+}
+
+.acc-cell--balance {
+    border-right: 1px solid var(--acc-border);
+    justify-content: center;
+}
+
+.acc-cell--actions {
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.acc-item-name {
+    font-weight: 500;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.acc-text-muted {
+    color: var(--acc-muted);
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.acc-balance {
+    font-weight: 600;
+    font-size: 0.7rem;
+}
+
+.acc-balance--dr {
+    color: var(--acc-danger);
+}
+
+.acc-balance--cr {
+    color: var(--acc-success);
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.acc-badge {
+    font-size: 0.55rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.acc-badge--pan {
+    background: #e9ecef;
+    color: var(--acc-text);
+}
+
+/* ============================================
+   Action Buttons
+   ============================================ */
+.acc-btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--acc-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--acc-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.6rem;
+}
+
+.acc-btn-action:hover:not(:disabled) {
+    background: var(--acc-surface);
+    border-color: var(--acc-border-strong);
+}
+
+.acc-btn-action:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.acc-btn-action--view:hover:not(:disabled) {
+    color: var(--acc-info);
+    border-color: var(--acc-info);
+}
+
+.acc-btn-action--edit:hover:not(:disabled) {
+    color: var(--acc-warning);
+    border-color: var(--acc-warning);
+}
+
+.acc-btn-action--delete:hover:not(:disabled) {
+    color: var(--acc-danger);
+    border-color: var(--acc-danger);
+}
+
+.acc-btn-action--select:hover:not(:disabled) {
+    color: var(--acc-success);
+    border-color: var(--acc-success);
+}
+
+/* ============================================
+   Table Footer
+   ============================================ */
+.acc-table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.75rem;
+    border-top: 1px solid var(--acc-border);
+    background: #fafafa;
+    font-size: 0.65rem;
+    color: var(--acc-muted);
+}
+
+.acc-btn-load-more {
+    background: transparent;
+    border: none;
+    color: var(--acc-primary-light);
+    font-size: 0.65rem;
+    cursor: pointer;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--acc-radius);
+    transition: background 0.15s;
+}
+
+.acc-btn-load-more:hover:not(:disabled) {
+    background: var(--acc-primary-soft);
+}
+
+.acc-btn-load-more:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Loading States
+   ============================================ */
+.acc-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.acc-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--acc-border);
+    border-top-color: var(--acc-primary-light);
+    border-radius: 50%;
+    animation: acc-spin 0.8s linear infinite;
+}
+
+.acc-spinner-small {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid var(--acc-border);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: acc-spin 0.8s linear infinite;
+}
+
+@keyframes acc-spin {
+    to { transform: rotate(360deg); }
+}
+
+.acc-loading-text {
+    color: var(--acc-muted);
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.acc-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--acc-muted);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.acc-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.acc-empty-icon {
+    color: #dee2e6;
+    margin-bottom: 0.5rem;
+}
+
+.acc-empty-title {
+    color: var(--acc-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.acc-empty-text {
+    color: var(--acc-muted);
+    font-size: 0.7rem;
+    margin: 0.2rem 0 0;
+}
+
+/* ============================================
+   Print Modal
+   ============================================ */
+.acc-print-options {
+    padding: 0.5rem 0;
+}
+
+.acc-print-options-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--acc-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+
+.acc-print-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.acc-print-option {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--acc-border-strong);
+    border-radius: var(--acc-radius);
+    background: var(--acc-card);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.acc-print-option:hover {
+    background: var(--acc-surface);
+}
+
+.acc-print-option--active {
+    background: var(--acc-primary-light);
+    color: #fff;
+    border-color: var(--acc-primary-light);
+}
+
+.acc-print-option--active:hover {
+    background: #1d4ed8;
+}
+
+.acc-print-filter {
+    margin-bottom: 1rem;
+}
+
+.acc-print-summary {
+    border-top: 1px solid var(--acc-border);
+    padding-top: 0.75rem;
+}
+
+.acc-print-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.acc-print-stat {
+    text-align: center;
+    padding: 0.3rem;
+    background: var(--acc-surface);
+    border-radius: var(--acc-radius);
+}
+
+.acc-print-stat-label {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--acc-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.acc-print-stat-label--success {
+    color: var(--acc-success);
+}
+
+.acc-print-stat-label--danger {
+    color: var(--acc-danger);
+}
+
+.acc-print-stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--acc-text);
+}
+
+.acc-print-stat-value--success {
+    color: var(--acc-success);
+}
+
+.acc-print-stat-value--danger {
+    color: var(--acc-danger);
+}
+
+/* ============================================
+   Modal Overrides
+   ============================================ */
+.acc-modal-header {
+    background: linear-gradient(135deg, var(--acc-primary) 0%, #1e40af 100%);
+    color: #fff;
+    border-bottom: none;
+}
+
+.acc-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+/* ============================================
+   Button Styles
+   ============================================ */
+.acc-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    background: var(--acc-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: var(--acc-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.acc-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.acc-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.acc-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1.2rem;
+    border: 1px solid var(--acc-border-strong);
+    background: var(--acc-card);
+    color: var(--acc-text);
+    border-radius: var(--acc-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.acc-btn-secondary:hover {
+    background: var(--acc-surface);
+    border-color: var(--acc-border);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 1200px) {
+    .acc-main {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .acc-container {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .acc-form-row {
+        flex-wrap: wrap;
+    }
+
+    .acc-form-group--half,
+    .acc-form-group--third {
+        flex: 1 1 100%;
+    }
+
+    .acc-card-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .acc-card-actions {
+        flex-wrap: wrap;
+    }
+
+    .acc-print-options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .acc-print-stats {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .acc-card-title {
+        font-size: 0.8rem;
+    }
+
+    .acc-card-subtitle {
+        font-size: 0.6rem;
+    }
+
+    .acc-form-label {
+        font-size: 0.6rem;
+    }
+
+    .acc-form-input,
+    .acc-form-select {
+        font-size: 0.7rem;
+        height: 28px;
+    }
+
+    .acc-btn-save {
+        font-size: 0.7rem;
+        height: 28px;
+        padding: 0.2rem 1rem;
+    }
+}
