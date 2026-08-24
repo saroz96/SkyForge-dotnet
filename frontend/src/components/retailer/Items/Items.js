@@ -2232,6 +2232,7 @@ import ProductModal from '../dashboard/modals/ProductModal';
 import NepaliDate from 'nepali-datetime';
 import * as XLSX from 'xlsx';
 import './Items.css';
+import api, { refreshToken } from '../../services/api';
 
 const Items = () => {
     const { itemsTableDraftSave, setItemsTableDraftSave } = usePageNotRefreshContext();
@@ -2303,6 +2304,7 @@ const Items = () => {
     const salesPriceInputRef = useRef(null);
     const purchasePriceInputRef = useRef(null);
     const openingStockInputRef = useRef(null);
+    const openingValueInputRef = useRef(null);
     const uniqueNumberInputRef = useRef(null);
     const submitButtonRef = useRef(null);
 
@@ -2339,37 +2341,37 @@ const Items = () => {
         uniqueNumber: ''
     });
 
-    // Create axios instance with interceptors
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142',
-        withCredentials: true,
-    });
+    // // Create axios instance with interceptors
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142',
+    //     withCredentials: true,
+    // });
 
-    api.interceptors.request.use(
-        config => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        error => Promise.reject(error)
-    );
+    // api.interceptors.request.use(
+    //     config => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     error => Promise.reject(error)
+    // );
 
-    api.interceptors.response.use(
-        response => response,
-        error => {
-            if (error.response?.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('userInfo');
-                localStorage.removeItem('currentCompany');
-                localStorage.removeItem('currentCompanyId');
-                localStorage.removeItem('userCompanies');
-                window.location.href = '/auth/login';
-            }
-            return Promise.reject(error);
-        }
-    );
+    // api.interceptors.response.use(
+    //     response => response,
+    //     error => {
+    //         if (error.response?.status === 401) {
+    //             localStorage.removeItem('token');
+    //             localStorage.removeItem('userInfo');
+    //             localStorage.removeItem('currentCompany');
+    //             localStorage.removeItem('currentCompanyId');
+    //             localStorage.removeItem('userCompanies');
+    //             window.location.href = '/auth/login';
+    //         }
+    //         return Promise.reject(error);
+    //     }
+    // );
 
     const showNotificationMessage = (message, type) => {
         setNotificationMessage(message);
@@ -3638,20 +3640,40 @@ const Items = () => {
                                             }}
                                             placeholder="0"
                                             step="any"
-                                            onKeyDown={(e) => handleFieldKeyDown(e, uniqueNumberInputRef)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    // ✅ Move focus to Opening Value input
+                                                    if (openingValueInputRef && openingValueInputRef.current) {
+                                                        openingValueInputRef.current.focus();
+                                                    }
+                                                }
+                                            }}
                                         />
                                     </div>
 
                                     <div className="it-form-group it-form-group--third">
                                         <label className="it-form-label">Opening Value</label>
                                         <input
+                                            ref={openingValueInputRef}
                                             type="number"
                                             name="openingStockBalance"
                                             className="it-form-input it-form-input--readonly"
                                             value={formData.openingStockBalance}
-                                            readOnly
+                                            onChange={handleFormChange}
+                                            readOnly={currentItem ? itemsWithTransactions[currentItem._id] : false}
                                             placeholder="0.00"
+                                            autoComplete="off"
                                             step="any"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    // Move focus to the submit button
+                                                    if (submitButtonRef && submitButtonRef.current) {
+                                                        submitButtonRef.current.focus();
+                                                    }
+                                                }
+                                            }}
                                         />
                                     </div>
                                 </div>

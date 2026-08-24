@@ -1545,6 +1545,7 @@ import NotificationToast from '../NotificationToast';
 import ProductModal from './dashboard/modals/ProductModal';
 import * as XLSX from 'xlsx';
 import './ItemsCompany.css';
+import api, { refreshToken } from '../services/api';
 
 const ItemsCompany = () => {
     const [exporting, setExporting] = useState(false);
@@ -1598,21 +1599,21 @@ const ItemsCompany = () => {
     const [startX, setStartX] = useState(0);
     const [startWidth, setStartWidth] = useState(0);
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: false,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: false,
+    // });
 
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => Promise.reject(error)
-    );
+    // api.interceptors.request.use(
+    //     (config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     (error) => Promise.reject(error)
+    // );
 
     const showNotificationMessage = (message, type) => {
         setNotificationMessage(message);

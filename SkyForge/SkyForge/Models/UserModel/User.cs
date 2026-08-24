@@ -62,7 +62,7 @@ namespace SkyForge.Models.UserModel
         // Navigation properties
         public virtual ICollection<Company> OwnedCompanies { get; set; }
         public virtual ICollection<Company> AccessibleCompanies { get; set; }
-        
+
         [NotMapped]
         public ICollection<Company> Companies => AccessibleCompanies;
 
@@ -118,6 +118,9 @@ namespace SkyForge.Models.UserModel
         public bool AutoBackupEnabled { get; set; } = false;
         public string BackupSchedule { get; set; } = "daily";
         public string BackupFormat { get; set; } = "json";
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpiry { get; set; }
+        public DateTime? LastActivityAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

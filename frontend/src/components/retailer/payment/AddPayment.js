@@ -16,6 +16,7 @@ import {
     getCurrentNepaliDate,
     getNepaliMonthDaysComprehensive
 } from '../../NepaliDateUtils';
+import AccountModalForPaymentReceipt from './AccountModalForPaymentReceipt';
 
 const convertBsToAd = (bsDate) => {
     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
@@ -212,25 +213,6 @@ const AddPayment = () => {
         localStorage.getItem('printAfterSavePayment') === 'true' || false
     );
 
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
     // Function to get the current bill number (does NOT increment)
     const getCurrentBillNumber = async () => {
         try {
@@ -243,7 +225,47 @@ const AddPayment = () => {
     };
 
     // Fetch accounts from backend
-    const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
+    // const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
+    //     try {
+    //         setIsAccountSearching(true);
+
+    //         const response = await api.get('/api/retailer/all/accounts/search/except-cash/bank', {
+    //             params: {
+    //                 search: searchTerm,
+    //                 page: page,
+    //                 limit: searchTerm.trim() ? 15 : 25,
+    //             }
+    //         });
+
+    //         if (response.data.success) {
+    //             if (page === 1) {
+    //                 setAccounts(response.data.accounts);
+    //             } else {
+    //                 setAccounts(prev => [...prev, ...response.data.accounts]);
+    //             }
+    //             setHasMoreAccountResults(response.data.pagination.hasNextPage);
+    //             setTotalAccounts(response.data.pagination.totalAccounts);
+    //             setAccountSearchPage(page);
+
+    //             if (searchTerm.trim() !== '') {
+    //                 setAccountLastSearchQuery(searchTerm);
+    //                 setAccountShouldShowLastSearchResults(true);
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching accounts:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error loading accounts',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsAccountSearching(false);
+    //     }
+    // };
+
+    // In AddPayment component - replace the fetchAccountsFromBackend function
+    const fetchAccountsFromBackend = async (searchTerm = '', page = 1, append = false) => {
         try {
             setIsAccountSearching(true);
 
@@ -256,10 +278,11 @@ const AddPayment = () => {
             });
 
             if (response.data.success) {
-                if (page === 1) {
-                    setAccounts(response.data.accounts);
-                } else {
+                if (append) {
+                    // APPEND to existing accounts instead of replacing
                     setAccounts(prev => [...prev, ...response.data.accounts]);
+                } else {
+                    setAccounts(response.data.accounts);
                 }
                 setHasMoreAccountResults(response.data.pagination.hasNextPage);
                 setTotalAccounts(response.data.pagination.totalAccounts);
@@ -768,9 +791,18 @@ const AddPayment = () => {
         }
     };
 
+    // const loadMoreAccounts = () => {
+    //     if (!isAccountSearching) {
+    //         fetchAccountsFromBackend(accountSearchQuery, accountSearchPage + 1);
+    //     }
+    // };
+
+    // In AddPayment component - replace the loadMoreAccounts function
     const loadMoreAccounts = () => {
-        if (!isAccountSearching) {
-            fetchAccountsFromBackend(accountSearchQuery, accountSearchPage + 1);
+        if (!isAccountSearching && hasMoreAccountResults) {
+            const nextPage = accountSearchPage + 1;
+            // Pass true for append parameter
+            fetchAccountsFromBackend(accountSearchQuery, nextPage, true);
         }
     };
 
@@ -1730,102 +1762,36 @@ const AddPayment = () => {
                 </div>
             </div>
 
-            {/* Account Modal */}
             {showAccountModal && (
-                <>
-                    <div className="modal-backdrop fade show" style={{ zIndex: 1040 }}></div>
-                    <div
-                        className="modal fade show"
-                        tabIndex="-1"
-                        style={{
-                            display: 'block',
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            zIndex: 1050
-                        }}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                                e.preventDefault();
-                                handleAccountModalClose();
-                            }
-                        }}
-                    >
-                        <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '70%' }}>
-                            <div className="modal-content" style={{ height: '400px' }}>
-                                <div className="modal-header py-1">
-                                    <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                        Select an Account
-                                    </h5>
-                                    <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
-                                        {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
-                                    </small>
-                                    <button type="button" className="btn-close" onClick={handleAccountModalClose}></button>
-                                </div>
-                                <div className="p-2 bg-white sticky-top">
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Search Account... (Press F6 to create new account)"
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={accountSearchQuery}
-                                        onChange={handleAccountSearch}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) {
-                                                    firstAccountItem.focus();
-                                                }
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item.active');
-                                                if (firstAccountItem) {
-                                                    const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                    const account = accounts.find(a => a.id === accountId);
-                                                    if (account) {
-                                                        selectAccount(account);
-                                                    }
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                setShowAccountCreationModal(true);
-                                                setShowAccountModal(false);
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{
-                                            height: '24px',
-                                            fontSize: '0.75rem',
-                                            padding: '0.25rem 0.5rem'
-                                        }}
-                                    />
-                                </div>
-                                <div className="modal-body p-0">
-                                    <div style={{ height: 'calc(400px - 120px)' }}>
-                                        <VirtualizedAccountList
-                                            accounts={accounts}
-                                            onAccountClick={(account) => {
-                                                selectAccount(account);
-                                            }}
-                                            searchRef={accountSearchRef}
-                                            hasMore={hasMoreAccountResults}
-                                            isSearching={isAccountSearching}
-                                            onLoadMore={loadMoreAccounts}
-                                            totalAccounts={totalAccounts}
-                                            page={accountSearchPage}
-                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </>
+                <AccountModalForPaymentReceipt
+                    show={showAccountModal}
+                    onClose={handleAccountModalClose}
+                    onSelectAccount={selectAccount}
+                    accounts={accounts}
+                    totalAccounts={totalAccounts}
+                    isSearching={isAccountSearching}
+                    hasMore={hasMoreAccountResults}
+                    searchQuery={accountSearchQuery}
+                    onSearch={(query) => {
+                        setAccountSearchQuery(query);
+                        setAccountSearchPage(1);
+                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                            setAccountShouldShowLastSearchResults(false);
+                            setAccountLastSearchQuery('');
+                        }
+                        const timer = setTimeout(() => {
+                            fetchAccountsFromBackend(query, 1);
+                        }, 300);
+                        return () => clearTimeout(timer);
+                    }}
+                    onLoadMore={loadMoreAccounts}
+                    page={accountSearchPage}
+                    onCreateAccount={() => {
+                        setShowAccountCreationModal(true);
+                        setShowAccountModal(false);
+                    }}
+                    selectedAccountId={selectedAccountId}
+                />
             )}
 
             {/* Account Creation Modal */}

@@ -5,6 +5,7 @@ import { FaInfoCircle } from 'react-icons/fa';
 import '../../../stylesheet/retailer/accounts/AccountsImport.css';
 import Header from '../Header';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
+import api, { refreshToken } from '../../services/api';
 
 const AccountsImport = () => {
     const navigate = useNavigate();
@@ -21,24 +22,24 @@ const AccountsImport = () => {
     const fileInputRef = useRef(null);
 
     // Create axios instance with JWT token
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
 
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
+    // // Add authorization header to all requests
+    // api.interceptors.request.use(
+    //     (config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     (error) => {
+    //         return Promise.reject(error);
+    //     }
+    // );
 
     // Fetch page data on component mount
     useEffect(() => {

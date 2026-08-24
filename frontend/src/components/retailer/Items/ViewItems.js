@@ -2425,6 +2425,7 @@ import axios from 'axios';
 import NotificationToast from '../../NotificationToast';
 import './ViewItems.css';
 import Header from '../Header';
+import api, { refreshToken } from '../../services/api';
 
 const ViewItems = () => {
     const { id } = useParams();
@@ -2448,16 +2449,16 @@ const ViewItems = () => {
     const [confirmItemName, setConfirmItemName] = useState('');
     const confirmInputRef = useRef(null);
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: false,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: false,
+    // });
 
-    api.interceptors.request.use(config => {
-        const token = localStorage.getItem('token');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
-    });
+    // api.interceptors.request.use(config => {
+    //     const token = localStorage.getItem('token');
+    //     if (token) config.headers.Authorization = `Bearer ${token}`;
+    //     return config;
+    // });
 
     useEffect(() => {
         const fetchItemData = async () => {

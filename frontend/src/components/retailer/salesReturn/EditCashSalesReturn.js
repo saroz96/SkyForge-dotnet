@@ -13,6 +13,7 @@ import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
+import api, { refreshToken } from '../../services/api';
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -279,24 +280,24 @@ const EditCashSalesReturn = () => {
     const accountSearchRef = useRef(null);
     const itemSearchRef = useRef(null);
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
 
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
+    // // Add authorization header to all requests
+    // api.interceptors.request.use(
+    //     (config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     (error) => {
+    //         return Promise.reject(error);
+    //     }
+    // );
 
     useEffect(() => {
         fetchRoundOffSetting();

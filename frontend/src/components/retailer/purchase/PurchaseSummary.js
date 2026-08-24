@@ -2018,6 +2018,7 @@ import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import { FiFileText, FiPrinter, FiSearch, FiRefreshCw, FiCalendar, FiDownload } from 'react-icons/fi';
 import './PurchaseSummary.css';
+import api, { refreshToken } from '../../services/api';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -2124,15 +2125,15 @@ const PurchaseSummary = () => {
     const [startX, setStartX] = useState(0);
     const [startWidth, setStartWidth] = useState(0);
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
-    api.interceptors.request.use((config) => {
-        const token = localStorage.getItem('token');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
+    // api.interceptors.request.use((config) => {
+    //     const token = localStorage.getItem('token');
+    //     if (token) config.headers.Authorization = `Bearer ${token}`;
+    //     return config;
+    // });
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);

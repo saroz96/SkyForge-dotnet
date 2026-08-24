@@ -917,11 +917,53 @@ namespace SkyForge.Data
             });
 
             // Configure User entity
+            // modelBuilder.Entity<User>(entity =>
+            // {
+            //     entity.HasIndex(e => e.Email).IsUnique();
+            //     entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
+            //     entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+
+            //     // Configure MenuPermissions JSON with value comparer
+            //     entity.Property(e => e.MenuPermissions)
+            //         .HasDefaultValueSql("'{}'::jsonb")
+            //         .HasConversion(
+            //             v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+            //             v => JsonSerializer.Deserialize<Dictionary<string, bool>>(v, (JsonSerializerOptions)null) ?? new Dictionary<string, bool>())
+            //         .Metadata.SetValueComparer(dictionaryStringBoolComparer);
+
+            //     // Configure self-referencing relationship (GrantedBy)
+            //     entity.HasOne(u => u.GrantedBy)
+            //         .WithMany()
+            //         .HasForeignKey(u => u.GrantedById)
+            //         .OnDelete(DeleteBehavior.Restrict);
+
+            //     // Configure complex types
+            //     entity.OwnsOne(u => u.Preferences);
+            //     entity.OwnsOne(u => u.AttendanceSettings, attendance =>
+            //     {
+            //         attendance.OwnsOne(a => a.LastKnownLocation);
+            //     });
+            // });
+
             modelBuilder.Entity<User>(entity =>
             {
+                // Existing unique index on Email
                 entity.HasIndex(e => e.Email).IsUnique();
+
+                // Property configurations
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+
+                // Configure refresh token and activity fields
+                entity.Property(e => e.RefreshToken)
+                    .HasMaxLength(512)
+                    .IsRequired(false);
+
+                entity.Property(e => e.RefreshTokenExpiry)
+                    .IsRequired(false);
+
+                entity.Property(e => e.LastActivityAt)
+                    .IsRequired(false);
 
                 // Configure MenuPermissions JSON with value comparer
                 entity.Property(e => e.MenuPermissions)
@@ -943,6 +985,17 @@ namespace SkyForge.Data
                 {
                     attendance.OwnsOne(a => a.LastKnownLocation);
                 });
+
+                // ADD INDEXES FOR NEW COLUMNS
+                entity.HasIndex(e => e.RefreshToken)
+                    .HasDatabaseName("IX_Users_RefreshToken");
+
+                entity.HasIndex(e => e.LastActivityAt)
+                    .HasDatabaseName("IX_Users_LastActivityAt");
+
+                // Compound index for active users with activity tracking
+                entity.HasIndex(e => new { e.IsActive, e.LastActivityAt })
+                    .HasDatabaseName("IX_Users_Active_LastActivity");
             });
 
             modelBuilder.Entity<Role>(entity =>
@@ -2491,32 +2544,32 @@ namespace SkyForge.Data
                     .HasDatabaseName("IX_CashCounterPurchaseReturn_Session_PurchaseReturn");
             });
 
-        modelBuilder.Entity<AccountShareToken>(entity =>
-        {
-        entity.HasKey(e => e.Id);
+            modelBuilder.Entity<AccountShareToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
 
-        entity.HasIndex(e => e.Token)
-            .IsUnique()
-            .HasDatabaseName("IX_AccountShareToken_Token");
+                entity.HasIndex(e => e.Token)
+                .IsUnique()
+                .HasDatabaseName("IX_AccountShareToken_Token");
 
-        entity.HasIndex(e => e.AccountId)
-            .HasDatabaseName("IX_AccountShareToken_AccountId");
+                entity.HasIndex(e => e.AccountId)
+                .HasDatabaseName("IX_AccountShareToken_AccountId");
 
-        entity.HasIndex(e => new { e.AccountId, e.IsActive })
-            .HasDatabaseName("IX_AccountShareToken_Account_Active");
+                entity.HasIndex(e => new { e.AccountId, e.IsActive })
+                .HasDatabaseName("IX_AccountShareToken_Account_Active");
 
-        entity.HasOne(e => e.Account)
-            .WithMany()
-            .HasForeignKey(e => e.AccountId)
-            .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Account)
+                .WithMany()
+                .HasForeignKey(e => e.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-        entity.Property(e => e.Token)
-            .IsRequired()
-            .HasMaxLength(100);
+                entity.Property(e => e.Token)
+                .IsRequired()
+                .HasMaxLength(100);
 
-        entity.Property(e => e.CreatedBy)
-            .HasMaxLength(100);
-    });
+                entity.Property(e => e.CreatedBy)
+                .HasMaxLength(100);
+            });
 
         }
 

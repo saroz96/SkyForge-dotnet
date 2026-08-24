@@ -1631,6 +1631,7 @@ import ProductModal from './dashboard/modals/ProductModal';
 import { FiCalendar, FiFileText, FiPrinter, FiSearch, FiX, FiRefreshCw } from 'react-icons/fi';
 import './InvoiceWiseProfitLossReport.css';
 import NotificationToast from '../NotificationToast';
+import api, { refreshToken } from '../services/api';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -1743,15 +1744,15 @@ const InvoiceWiseProfitLossReport = () => {
     const navigate = useNavigate();
 
     // API instance
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
-    api.interceptors.request.use((config) => {
-        const token = localStorage.getItem('token');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
+    // api.interceptors.request.use((config) => {
+    //     const token = localStorage.getItem('token');
+    //     if (token) config.headers.Authorization = `Bearer ${token}`;
+    //     return config;
+    // });
 
     const validateAndCorrectNepaliDate = (dateStr) => {
         if (!dateStr) return null;

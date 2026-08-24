@@ -1825,6 +1825,7 @@ import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import { FiFileText, FiPrinter, FiDownload, FiSearch, FiRefreshCw, FiUser, FiCalendar, FiPlus, FiEye, FiEdit2 } from 'react-icons/fi';
 import './SalesBillsList.css';
+import api, { refreshToken } from '../../services/api';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -2041,24 +2042,24 @@ const SalesBillsList = () => {
     const [startWidth, setStartWidth] = useState(0);
 
     // API instance with JWT token
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
 
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
+    // // Add authorization header to all requests
+    // api.interceptors.request.use(
+    //     (config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     (error) => {
+    //         return Promise.reject(error);
+    //     }
+    // );
 
     // Fetch company and fiscal year info - RUNS ONLY ONCE on mount
     useEffect(() => {

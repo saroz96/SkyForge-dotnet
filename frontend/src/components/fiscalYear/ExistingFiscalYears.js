@@ -340,31 +340,32 @@ import Loader from '../Loader';
 import NotificationToast from '../NotificationToast';
 import { useDispatch } from 'react-redux';
 import { setCurrentCompany } from '../../auth/authSlice';
+import api, { refreshToken } from '../services/api';
 
 const ExistingFiscalYears = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     
     // API instance with JWT token
-    const api = useMemo(() => {
-        const instance = axios.create({
-            baseURL: process.env.REACT_APP_API_BASE_URL,
-            withCredentials: true,
-        });
-        instance.interceptors.request.use(
-            (config) => {
-                const token = localStorage.getItem('token');
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
-                return config;
-            },
-            (error) => {
-                return Promise.reject(error);
-            }
-        );
-        return instance;
-    }, []);
+    // const api = useMemo(() => {
+    //     const instance = axios.create({
+    //         baseURL: process.env.REACT_APP_API_BASE_URL,
+    //         withCredentials: true,
+    //     });
+    //     instance.interceptors.request.use(
+    //         (config) => {
+    //             const token = localStorage.getItem('token');
+    //             if (token) {
+    //                 config.headers.Authorization = `Bearer ${token}`;
+    //             }
+    //             return config;
+    //         },
+    //         (error) => {
+    //             return Promise.reject(error);
+    //         }
+    //     );
+    //     return instance;
+    // }, []);
 
     const [fiscalYears, setFiscalYears] = useState([]);
     const [currentFiscalYear, setCurrentFiscalYear] = useState('');

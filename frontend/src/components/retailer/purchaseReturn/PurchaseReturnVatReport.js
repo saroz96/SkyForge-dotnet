@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import api, { refreshToken } from '../../services/api';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -180,25 +181,25 @@ const PurchaseReturnVatReport = () => {
     const [shouldFetch, setShouldFetch] = useState(false);
     const navigate = useNavigate();
 
-    // API instance with JWT token
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
+    // // API instance with JWT token
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
 
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
+    // // Add authorization header to all requests
+    // api.interceptors.request.use(
+    //     (config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     (error) => {
+    //         return Promise.reject(error);
+    //     }
+    // );
 
     // Helper function to check if date format is Nepali
     const isNepaliDateFormat = useCallback(() => {

@@ -942,6 +942,7 @@ import NotificationToast from '../../NotificationToast';
 import * as XLSX from 'xlsx';
 import { FiCalendar, FiFileText, FiPrinter, FiDownload, FiArrowLeft, FiSearch } from 'react-icons/fi';
 import './DailyProfitResult.css';
+import api, { refreshToken } from '../../services/api';
 
 // Helper functions for date conversion
 const convertAdToBs = (adDate) => {
@@ -1010,18 +1011,18 @@ const DailyProfitResult = () => {
         show: false, message: '', type: 'success', duration: 3000
     });
 
-    const api = useMemo(() => {
-        const instance = axios.create({
-            baseURL: process.env.REACT_APP_API_BASE_URL,
-            withCredentials: true,
-        });
-        instance.interceptors.request.use((config) => {
-            const token = localStorage.getItem('token');
-            if (token) config.headers.Authorization = `Bearer ${token}`;
-            return config;
-        });
-        return instance;
-    }, []);
+    // const api = useMemo(() => {
+    //     const instance = axios.create({
+    //         baseURL: process.env.REACT_APP_API_BASE_URL,
+    //         withCredentials: true,
+    //     });
+    //     instance.interceptors.request.use((config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) config.headers.Authorization = `Bearer ${token}`;
+    //         return config;
+    //     });
+    //     return instance;
+    // }, []);
 
     // Function to format date based on company date format
     const formatDate = useCallback((dateString, isBsDate = false) => {

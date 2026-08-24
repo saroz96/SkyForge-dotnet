@@ -54,7 +54,18 @@ namespace SkyForge.Controllers
             _passwordService = passwordService;
             _logger = logger;
         }
+        private string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[64]; // 64 bytes = 512 bits for better security
+            using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
 
+            // Convert to base64 and remove any problematic characters
+            return Convert.ToBase64String(randomNumber)
+                .Replace('+', '-')
+                .Replace('/', '_')
+                .TrimEnd('=');
+        }
         [HttpGet("protected")]
         [Authorize]
         public IActionResult GetProtectedData()
@@ -75,6 +86,105 @@ namespace SkyForge.Controllers
             });
         }
 
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("=== RefreshToken Started ===");
+
+                if (string.IsNullOrEmpty(request?.RefreshToken))
+                {
+                    return BadRequest(new { success = false, error = "Refresh token is required" });
+                }
+
+                // Find user with the refresh token
+                var user = await _context.Users
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken);
+
+                if (user == null)
+                {
+                    _logger.LogWarning("Invalid refresh token attempt");
+                    return Unauthorized(new { success = false, error = "Invalid refresh token" });
+                }
+
+                // Check if refresh token is expired
+                if (user.RefreshTokenExpiry == null || user.RefreshTokenExpiry < DateTime.UtcNow)
+                {
+                    _logger.LogWarning($"Refresh token expired for user {user.Email}");
+
+                    // Clear expired refresh token
+                    user.RefreshToken = null;
+                    user.RefreshTokenExpiry = null;
+                    await _context.SaveChangesAsync();
+
+                    return Unauthorized(new { success = false, error = "Refresh token expired. Please login again." });
+                }
+
+                // Check if user is active
+                if (!user.IsActive)
+                {
+                    return Unauthorized(new { success = false, error = "Account is deactivated" });
+                }
+
+                // Check if user has been inactive for more than 30 minutes
+                if (user.LastActivityAt.HasValue)
+                {
+                    var inactiveMinutes = (DateTime.UtcNow - user.LastActivityAt.Value).TotalMinutes;
+                    if (inactiveMinutes > 30)
+                    {
+                        _logger.LogWarning($"User {user.Email} has been inactive for {inactiveMinutes:F1} minutes. Logging out.");
+
+                        // Clear refresh token to force re-login
+                        user.RefreshToken = null;
+                        user.RefreshTokenExpiry = null;
+                        await _context.SaveChangesAsync();
+
+                        return Unauthorized(new
+                        {
+                            success = false,
+                            error = "Session expired due to inactivity. Please login again.",
+                            code = "INACTIVITY_TIMEOUT"
+                        });
+                    }
+                }
+
+                // Get user's primary role
+                var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
+
+                // Generate new JWT token
+                var newToken = GenerateJwtToken(user, primaryRole);
+
+                // Generate new refresh token
+                var newRefreshToken = GenerateRefreshToken();
+
+                // Update user's refresh token and last activity
+                user.RefreshToken = newRefreshToken;
+                user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7); // Refresh token valid for 7 days
+                user.LastActivityAt = DateTime.UtcNow;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Token refreshed successfully for user {user.Email}");
+
+                return Ok(new RefreshTokenResponse
+                {
+                    Success = true,
+                    Token = newToken,
+                    RefreshToken = newRefreshToken,
+                    ExpiresIn = Convert.ToInt32(_configuration["Jwt:ExpireMinutes"] ?? "60") * 60,
+                    Message = "Token refreshed successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing token");
+                return StatusCode(500, new { success = false, error = "An error occurred while refreshing token" });
+            }
+        }
         // GET: api/user/admin/users/list
         [HttpGet("admin/users/list")]
         public async Task<IActionResult> GetUsersList()
@@ -2452,10 +2562,22 @@ namespace SkyForge.Controllers
             // Generate JWT Token
             var token = GenerateJwtToken(user, primaryRole);
 
+            // Generate Refresh Token
+            var refreshToken = GenerateRefreshToken();
+
+            // Update user with refresh token and activity tracking
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7); // Refresh token valid for 7 days
+            user.LastActivityAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
             return Ok(new
             {
                 success = true,
                 token = token,
+                refreshToken = refreshToken,
                 user = new
                 {
                     id = user.Id,
@@ -2473,6 +2595,7 @@ namespace SkyForge.Controllers
                 expiresIn = 3600
             });
         }
+
 
         [HttpGet("current")]
         [Authorize]
@@ -2642,21 +2765,89 @@ namespace SkyForge.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        // [HttpPost("logout")]
+        // [Authorize]
+        // public IActionResult Logout()
+        // {
+        //     try
+        //     {
+        //         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+
+        //         Console.WriteLine($"User logout: ID={userId}, Email={userEmail}");
+
+        //         var response = new LogoutResponseDTO
+        //         {
+        //             Success = true,
+        //             Message = "Logged out successfully. Please clear your token on the client side.",
+        //             LoggedOutAt = DateTime.UtcNow
+        //         };
+
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Console.Error.WriteLine($"Logout error: {ex}");
+
+        //         var errorResponse = new LogoutResponseDTO
+        //         {
+        //             Success = false,
+        //             Message = $"Error during logout: {ex.Message}",
+        //             LoggedOutAt = DateTime.UtcNow
+        //         };
+
+        //         return StatusCode(500, errorResponse);
+        //     }
+        // }
+
         [HttpPost("logout")]
         [Authorize]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                _logger.LogInformation("=== Logout Started ===");
+
+                // Get user ID from claims - try multiple claim types
+                var userIdClaim = User.FindFirst("userId")?.Value ??
+                                 User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
                 var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
 
-                Console.WriteLine($"User logout: ID={userId}, Email={userEmail}");
+                _logger.LogInformation($"Logout attempt - User ID: {userIdClaim}, Email: {userEmail}");
 
+                if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out Guid userId))
+                {
+                    // Find the user in database
+                    var user = await _context.Users.FindAsync(userId);
+
+                    if (user != null)
+                    {
+                        // Clear refresh token and related fields
+                        user.RefreshToken = null;
+                        user.RefreshTokenExpiry = null;
+                        user.LastActivityAt = null;
+                        user.UpdatedAt = DateTime.UtcNow;
+
+                        await _context.SaveChangesAsync();
+
+                        _logger.LogInformation($"User {user.Email} (ID: {user.Id}) logged out successfully. Refresh token cleared.");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"User with ID {userId} not found during logout");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"Invalid user ID claim during logout: {userIdClaim}");
+                }
+
+                // Return success response
                 var response = new LogoutResponseDTO
                 {
                     Success = true,
-                    Message = "Logged out successfully. Please clear your token on the client side.",
+                    Message = "Logged out successfully.",
                     LoggedOutAt = DateTime.UtcNow
                 };
 
@@ -2664,7 +2855,7 @@ namespace SkyForge.Controllers
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Logout error: {ex}");
+                _logger.LogError(ex, $"Error during logout for user: {User.FindFirst(ClaimTypes.Email)?.Value ?? "Unknown"}");
 
                 var errorResponse = new LogoutResponseDTO
                 {
@@ -2676,67 +2867,6 @@ namespace SkyForge.Controllers
                 return StatusCode(500, errorResponse);
             }
         }
-
-
-        //     [HttpGet("verify-email")]
-        //     public async Task<IActionResult> VerifyEmail([FromQuery] string token)
-        //     {
-        //         if (string.IsNullOrEmpty(token))
-        //         {
-        //             return BadRequest(new { success = false, error = "Verification token is required" });
-        //         }
-
-        //         var result = await _userService.VerifyEmailAsync(token);
-
-        //         if (!result)
-        //         {
-        //             // Return a user-friendly HTML page for the browser
-        //             return Content(@"
-        //         <!DOCTYPE html>
-        //         <html>
-        //         <head>
-        //             <title>Email Verification Failed</title>
-        //             <style>
-        //                 body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-        //                 .error { color: #dc3545; }
-        //                 .container { max-width: 500px; margin: 0 auto; }
-        //             </style>
-        //         </head>
-        //         <body>
-        //             <div class='container'>
-        //                 <h1 class='error'>Verification Failed</h1>
-        //                 <p>The verification link is invalid or has expired.</p>
-        //                 <p>Please contact support if you need assistance.</p>
-        //                 <a href='/auth/login'>Go to Login</a>
-        //             </div>
-        //         </body>
-        //         </html>
-        //     ", "text/html");
-        //         }
-
-        //         // Return success HTML page
-        //         return Content(@"
-        //     <!DOCTYPE html>
-        //     <html>
-        //     <head>
-        //         <title>Email Verified Successfully</title>
-        //         <style>
-        //             body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-        //             .success { color: #28a745; }
-        //             .container { max-width: 500px; margin: 0 auto; }
-        //             .button { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
-        //         </style>
-        //     </head>
-        //     <body>
-        //         <div class='container'>
-        //             <h1 class='success'>Email Verified Successfully!</h1>
-        //             <p>Your email has been verified. You can now log in to your account.</p>
-        //             <a href='/auth/login' class='button'>Proceed to Login</a>
-        //         </div>
-        //     </body>
-        //     </html>
-        // ", "text/html");
-        //     }
 
         [HttpGet("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)

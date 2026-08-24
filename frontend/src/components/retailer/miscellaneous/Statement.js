@@ -3428,6 +3428,7 @@ import CashSettlementModal from './CashSettlementModal';
 import { FiFileText, FiPrinter, FiDownload, FiBox, FiSearch, FiRefreshCw, FiUser, FiCalendar, FiShare2, FiLink } from 'react-icons/fi';
 import { Badge } from 'react-bootstrap';
 import './Statement.css';
+import api, { refreshToken } from '../../services/api';
 
 // Helper functions for date conversion (Kept exactly as provided)
 const convertBsToAd = (bsDate) => {
@@ -3575,15 +3576,15 @@ const Statement = () => {
     const [startWidth, setStartWidth] = useState(0);
 
     // --- API ---
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
-    api.interceptors.request.use((config) => {
-        const token = localStorage.getItem('token');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
+    // api.interceptors.request.use((config) => {
+    //     const token = localStorage.getItem('token');
+    //     if (token) config.headers.Authorization = `Bearer ${token}`;
+    //     return config;
+    // });
 
     // --- Helpers ---
     const validateAndCorrectNepaliDate = (dateStr) => {
@@ -4559,7 +4560,7 @@ const Statement = () => {
                         </select>
                     </div>
 
-                    <button type="button" id="generateReport" ref={generateReportRef} className="st-btn-gen" onClick={handleGenerateReport} disabled={loading} disabled={loading || !data.selectedCompany}>
+                    <button type="button" id="generateReport" ref={generateReportRef} className="st-btn-gen" onClick={handleGenerateReport} disabled={loading || !data.selectedCompany}>
                         {loading ? <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12 }} /> : <><FiSearch className="me-1" /> Generate</>}
                     </button>
 

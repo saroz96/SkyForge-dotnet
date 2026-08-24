@@ -13,6 +13,7 @@ import useDebounce from '../../../hooks/useDebounce';
 import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import AccountCreationModal from '../sales/AccountCreationModal';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
+import api, { refreshToken } from '../../services/api';
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -342,24 +343,24 @@ const AddCashSalesReturn = () => {
     const accountModalRef = useRef(null);
     const transactionModalRef = useRef(null);
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
 
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
+    // // Add authorization header to all requests
+    // api.interceptors.request.use(
+    //     (config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     (error) => {
+    //         return Promise.reject(error);
+    //     }
+    // );
 
     // Fetch accounts from backend (cash accounts only)
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {

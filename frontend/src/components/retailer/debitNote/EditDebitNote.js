@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
-
 import NotificationToast from '../../NotificationToast';
 import Header from '../Header';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import ProductModal from '../dashboard/modals/ProductModal';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
+import api, { refreshToken } from '../../services/api';
+import NepaliDatePicker from '../../NepaliDatePicker';
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -230,24 +230,6 @@ const EditDebitNote = () => {
     const [accountSearchQuery, setAccountSearchQuery] = useState('');
     const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
     const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
-
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
-
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
 
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
         try {
@@ -1069,7 +1051,7 @@ const EditDebitNote = () => {
         document.body.removeChild(tempDiv);
     };
 
-        const formatDateForInput = (date) => {
+    const formatDateForInput = (date) => {
         if (!date) return '';
 
         if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -1160,202 +1142,55 @@ const EditDebitNote = () => {
                     }}>
                         {/* Date and Basic Info Row */}
                         <div className="row g-2 mb-3">
-                            {/* {companyDateFormat === 'nepali' ? (
-                                <div className="col-12 col-md-6 col-lg-2">
-                                    <div className="position-relative">
-                                        <input
-                                            type="text"
-                                            name="nepaliDate"
-                                            id="nepaliDate"
-                                            className="form-control form-control-sm"
-                                            required
-                                            autoComplete='off'
-                                            ref={transactionDateRef}
-                                            value={formData.nepaliDate}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-                                                if (sanitizedValue.length <= 10) {
-                                                    setFormData({ ...formData, nepaliDate: sanitizedValue });
-                                                    setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                }
-                                            }}
-                                            onKeyDown={(e) => handleKeyDown(e, 'nepaliDate')}
-                                            placeholder="YYYY-MM-DD"
-                                            disabled={isCanceled}
-                                            style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%', backgroundColor: isCanceled ? '#e9ecef' : '' }}
-                                        />
-                                        <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                            Date: <span className="text-danger">*</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="col-12 col-md-6 col-lg-2">
-                                    <div className="position-relative">
-                                        <input
-                                            type="date"
-                                            name="date"
-                                            id="date"
-                                            className="form-control form-control-sm"
-                                            ref={transactionDateRef}
-                                            value={formData.date}
-                                            onChange={(e) => {
-                                                const selectedDate = new Date(e.target.value);
-                                                const today = new Date();
-                                                today.setHours(0, 0, 0, 0);
-                                                if (selectedDate > today) {
-                                                    setFormData({ ...formData, date: today.toISOString().split('T')[0] });
-                                                    setNotification({ show: true, message: 'Future date not allowed. Auto-corrected to today.', type: 'warning', duration: 3000 });
-                                                } else {
-                                                    setFormData({ ...formData, date: e.target.value });
-                                                }
-                                            }}
-                                            onKeyDown={(e) => handleKeyDown(e, 'date')}
-                                            max={new Date().toISOString().split('T')[0]}
-                                            disabled={isCanceled}
-                                            style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%', backgroundColor: isCanceled ? '#e9ecef' : '' }}
-                                        />
-                                        <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-                                            Date: <span className="text-danger">*</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            )} */}
-
                             {companyDateFormat === 'nepali' ? (
                                 <>
                                     {/* Nepali Date (Primary editable field) */}
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="nepaliDate"
-                                                id="nepaliDate"
-                                                className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
-                                                required
-                                                autoComplete='off'
-                                                ref={transactionDateRef}
+                                            <NepaliDatePicker
                                                 value={formData.nepaliDate}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+                                                onChange={(bsDate) => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        nepaliDate: bsDate
+                                                    }));
+                                                    setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
 
-                                                    if (sanitizedValue.length <= 10) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            nepaliDate: sanitizedValue
-                                                        }));
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
-                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
-                                                            console.log('Converting BS to AD:', sanitizedValue);
-                                                            const adDate = convertBsToAd(sanitizedValue);
-                                                            console.log('Converted AD date:', adDate);
-                                                            if (adDate) {
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    date: adDate
-                                                                }));
-                                                            }
-                                                        }
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    const allowedKeys = [
-                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                                        'Home', 'End'
-                                                    ];
-
-                                                    if (!allowedKeys.includes(e.key) &&
-                                                        !/^\d$/.test(e.key) &&
-                                                        e.key !== '/' &&
-                                                        e.key !== '-' &&
-                                                        !e.ctrlKey && !e.metaKey) {
-                                                        e.preventDefault();
-                                                    }
-
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const dateStr = e.target.value.trim();
-
-                                                        if (!dateStr) {
-                                                            const currentDate = getCurrentNepaliDate();
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: currentDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Date required. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-
-                                                            handleKeyDown(e, 'nepaliDate');
-                                                        } else if (dateErrors.nepaliDate) {
-                                                            e.target.focus();
-                                                        } else {
-                                                            handleKeyDown(e, 'nepaliDate');
-                                                        }
-                                                    }
-                                                }}
-                                                onBlur={(e) => {
-                                                    const dateStr = e.target.value.trim();
-                                                    if (!dateStr) {
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                        return;
-                                                    }
-
-                                                    if (isValidNepaliDate(dateStr)) {
-                                                        const adDate = convertBsToAd(dateStr);
+                                                    // Auto-convert to AD when we have a complete valid date
+                                                    if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
+                                                        console.log('Converting BS to AD:', bsDate);
+                                                        const adDate = convertBsToAd(bsDate);
+                                                        console.log('Converted AD date:', adDate);
                                                         if (adDate) {
                                                             setFormData(prev => ({
                                                                 ...prev,
-                                                                nepaliDate: dateStr,
                                                                 date: adDate
                                                             }));
                                                         }
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                    } else {
-                                                        const currentDate = getCurrentNepaliDate();
-                                                        const adDate = convertBsToAd(currentDate);
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            nepaliDate: currentDate,
-                                                            date: adDate || prev.date
-                                                        }));
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
                                                     }
                                                 }}
-                                                placeholder="YYYY-MM-DD"
-                                                disabled={isCanceled}
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: isCanceled ? '#e9ecef' : ''
+                                                autoFocus={true}
+                                                required={true}
+                                                className={dateErrors.nepaliDate ? 'is-invalid' : ''}
+                                                onKeyDown={(e) => {
+                                                    handleKeyDown(e, 'nepaliDate');
                                                 }}
+                                                dateErrors={dateErrors}
+                                                setDateErrors={setDateErrors}
+                                                disabled={isCanceled}
                                             />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
                                                 Date (BS): <span className="text-danger">*</span>
                                             </label>
                                             {dateErrors.nepaliDate && (
@@ -1365,41 +1200,6 @@ const EditDebitNote = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="date"
-                                                id="date"
-                                                className="form-control form-control-sm"
-                                                value={formData.date || ''}
-                                                readOnly
-                                                disabled={isCanceled}
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: isCanceled ? '#e9ecef' : '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <div className="position-relative">
                                             <input

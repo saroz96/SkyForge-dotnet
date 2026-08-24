@@ -1533,6 +1533,7 @@ import NotificationToast from './NotificationToast';
 import VirtualizedAccountList from './VirtualizedAccountList';
 import NepaliDate from 'nepali-datetime';
 import './VATConfirmationLetter.css';
+import api, { refreshToken } from '../components/services/api';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -1684,18 +1685,18 @@ const VATConfirmationLetter = () => {
     }, [endMonth, fiscalYear]);
 
     // API instance
-    const api = useMemo(() => {
-        const instance = axios.create({
-            baseURL: process.env.REACT_APP_API_BASE_URL,
-            withCredentials: true,
-        });
-        instance.interceptors.request.use((config) => {
-            const token = localStorage.getItem('token');
-            if (token) config.headers.Authorization = `Bearer ${token}`;
-            return config;
-        });
-        return instance;
-    }, []);
+    // const api = useMemo(() => {
+    //     const instance = axios.create({
+    //         baseURL: process.env.REACT_APP_API_BASE_URL,
+    //         withCredentials: true,
+    //     });
+    //     instance.interceptors.request.use((config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) config.headers.Authorization = `Bearer ${token}`;
+    //         return config;
+    //     });
+    //     return instance;
+    // }, []);
 
     // Fetch accounts
     const fetchAccountsFromBackend = useCallback(async (searchTerm = '', page = 1) => {

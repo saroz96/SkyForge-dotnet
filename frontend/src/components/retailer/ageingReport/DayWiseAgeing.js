@@ -1467,6 +1467,7 @@ import NotificationToast from '../../NotificationToast';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { FiCalendar, FiFileText, FiPrinter, FiDownload, FiSearch, FiUser } from 'react-icons/fi';
 import './DayWiseAgeing.css';
+import api, { refreshToken } from '../../services/api';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -1559,15 +1560,15 @@ const DayWiseAgeing = () => {
     const tableBodyRef = useRef(null);
     const abortControllerRef = useRef(null);
 
-    const api = useMemo(() => {
-        const instance = axios.create({ baseURL: process.env.REACT_APP_API_BASE_URL, withCredentials: true });
-        instance.interceptors.request.use((config) => {
-            const token = localStorage.getItem('token');
-            if (token) config.headers.Authorization = `Bearer ${token}`;
-            return config;
-        });
-        return instance;
-    }, []);
+    // const api = useMemo(() => {
+    //     const instance = axios.create({ baseURL: process.env.REACT_APP_API_BASE_URL, withCredentials: true });
+    //     instance.interceptors.request.use((config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) config.headers.Authorization = `Bearer ${token}`;
+    //         return config;
+    //     });
+    //     return instance;
+    // }, []);
 
     const isNepaliDateFormat = useCallback(() => company.dateFormat && company.dateFormat.toLowerCase() === 'nepali', [company.dateFormat]);
 

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Row, Col, ListGroup, Button, Alert } from 'react-bootstrap';
 import { FaArrowLeft } from 'react-icons/fa';
 import axios from 'axios';
+import api, { refreshToken } from '../../services/api';
 
 const AccountDetails = () => {
     const { id } = useParams();
@@ -11,16 +12,16 @@ const AccountDetails = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: false,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: false,
+    // });
 
-    api.interceptors.request.use(config => {
-        const token = localStorage.getItem('token');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
-    });
+    // api.interceptors.request.use(config => {
+    //     const token = localStorage.getItem('token');
+    //     if (token) config.headers.Authorization = `Bearer ${token}`;
+    //     return config;
+    // });
 
     useEffect(() => {
         const fetchAccountDetails = async () => {

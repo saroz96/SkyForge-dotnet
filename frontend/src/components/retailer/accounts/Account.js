@@ -2463,6 +2463,7 @@ import ProductModal from '../dashboard/modals/ProductModal';
 import NepaliDate from 'nepali-datetime';
 import * as XLSX from 'xlsx';
 import './Accounts.css';
+import api, { refreshToken } from '../../services/api';
 
 const Accounts = () => {
     const navigate = useNavigate();
@@ -2537,37 +2538,37 @@ const Accounts = () => {
         }
     });
 
-    // Create axios instance with interceptors
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142',
-        withCredentials: true,
-    });
+    // // Create axios instance with interceptors
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142',
+    //     withCredentials: true,
+    // });
 
-    api.interceptors.request.use(
-        config => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        error => Promise.reject(error)
-    );
+    // api.interceptors.request.use(
+    //     config => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     error => Promise.reject(error)
+    // );
 
-    api.interceptors.response.use(
-        response => response,
-        error => {
-            if (error.response?.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('userInfo');
-                localStorage.removeItem('currentCompany');
-                localStorage.removeItem('currentCompanyId');
-                localStorage.removeItem('userCompanies');
-                window.location.href = '/auth/login';
-            }
-            return Promise.reject(error);
-        }
-    );
+    // api.interceptors.response.use(
+    //     response => response,
+    //     error => {
+    //         if (error.response?.status === 401) {
+    //             localStorage.removeItem('token');
+    //             localStorage.removeItem('userInfo');
+    //             localStorage.removeItem('currentCompany');
+    //             localStorage.removeItem('currentCompanyId');
+    //             localStorage.removeItem('userCompanies');
+    //             window.location.href = '/auth/login';
+    //         }
+    //         return Promise.reject(error);
+    //     }
+    // );
 
     const showNotificationMessage = (message, type) => {
         setNotificationMessage(message);

@@ -145,6 +145,7 @@ import AuditLogs from './components/audit/AuditLogs';
 
 import OpenCashCounterPage from './components/retailer/OpenCashCounterPage';
 import PartyTurnover from './components/retailer/miscellaneous/PartyTurnover';
+import { useSessionManager } from './hooks/useSessionManager';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
@@ -159,6 +160,12 @@ function AppContent() {
     setupInterceptors(showLoading, hideLoading, updateProgress);
   }, [showLoading, hideLoading, updateProgress]);
 
+  useSessionManager(() => {
+    // This callback is called when inactivity timeout occurs
+    console.log('Session expired due to inactivity');
+    logout(); // Call your logout function
+    navigate('/auth/login');
+  });
 
   return (
 

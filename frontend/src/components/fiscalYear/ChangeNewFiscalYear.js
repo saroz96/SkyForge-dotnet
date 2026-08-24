@@ -25,31 +25,31 @@ import {
 import Header from '../retailer/Header';
 import Loader from '../Loader';
 import NotificationToast from '../NotificationToast';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
+import api, { refreshToken } from '../services/api';
 
 const ChangeNewFiscalYear = () => {
     const navigate = useNavigate();
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
 
-    const api = useMemo(() => {
-        const instance = axios.create({
-            baseURL: process.env.REACT_APP_API_BASE_URL,
-            withCredentials: true,
-        });
-        instance.interceptors.request.use(
-            (config) => {
-                const token = localStorage.getItem('token');
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
-                return config;
-            },
-            (error) => Promise.reject(error)
-        );
-        return instance;
-    }, []);
+    // const api = useMemo(() => {
+    //     const instance = axios.create({
+    //         baseURL: process.env.REACT_APP_API_BASE_URL,
+    //         withCredentials: true,
+    //     });
+    //     instance.interceptors.request.use(
+    //         (config) => {
+    //             const token = localStorage.getItem('token');
+    //             if (token) {
+    //                 config.headers.Authorization = `Bearer ${token}`;
+    //             }
+    //             return config;
+    //         },
+    //         (error) => Promise.reject(error)
+    //     );
+    //     return instance;
+    // }, []);
 
     const [fiscalData, setFiscalData] = useState(null);
     const [loading, setLoading] = useState(true);

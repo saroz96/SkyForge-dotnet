@@ -1,9 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
-
 import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
@@ -11,8 +9,9 @@ import '../../../stylesheet/noDateIcon.css';
 import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase';
 import useDebounce from '../../../hooks/useDebounce';
 import ProductModal from '../dashboard/modals/ProductModal';
+import api, { refreshToken } from '../../services/api';
+import NepaliDatePicker from '../../NepaliDatePicker';
 
-// Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
 
@@ -285,27 +284,6 @@ const AddStockAdjustment = () => {
     const [totalHeaderSearchItems, setTotalHeaderSearchItems] = useState(0);
     const [isHeaderSearching, setIsHeaderSearching] = useState(false);
     const debouncedHeaderSearchQuery = useDebounce(headerSearchQuery, 50);
-
-    // Create axios instance with auth interceptor
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
-
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
-
     // Function to get current bill number (does NOT increment)
     const getCurrentBillNumber = async () => {
         try {
@@ -537,121 +515,6 @@ const AddStockAdjustment = () => {
             fetchItemsFromBackend(searchQuery, 1, false);
         }
     }, [formData.nepaliDate, formData.billDate]);
-
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-    //         // Determine which date to send based on company format
-    //         const isNepaliFormat = company.dateFormat === 'nepali' || company.dateFormat === 'Nepali';
-
-    //         let params = {
-    //             search: searchTerm,
-    //             page: page,
-    //             limit: searchTerm.trim() ? 15 : 25,
-    //             vatStatus: formData.isVatExempt,
-    //             sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //         };
-
-    //         // IMPORTANT: For stock adjustment, we need stock as of the adjustment date
-    //         // Use billDate (AD date) if available, otherwise convert from nepaliDate
-    //         if (formData.billDate) {
-    //             params.asOfDate = formData.billDate;
-    //             console.log('Stock Adjustment - Sending AD date filter:', formData.billDate);
-    //         } else if (formData.nepaliDate) {
-    //             const adDate = convertBsToAd(formData.nepaliDate);
-    //             if (adDate) {
-    //                 params.asOfDate = adDate;
-    //                 console.log('Stock Adjustment - Converted BS to AD for filter:', formData.nepaliDate, '->', adDate);
-    //             }
-    //         } else {
-    //             const today = new Date().toISOString().split('T')[0];
-    //             params.asOfDate = today;
-    //             console.log('Stock Adjustment - No date set, using current date:', today);
-    //         }
-
-    //         const response = await api.get('/api/retailer/items/search', { params });
-
-    //         if (response.data.success) {
-    //             // IMPORTANT: The backend already filtered stockEntries based on asOfDate
-    //             const itemsWithPrices = response.data.items.map(item => {
-    //                 let latestPrice = 0;
-    //                 let latestBatchNumber = '';
-    //                 let latestExpiryDate = '';
-
-    //                 // CRITICAL FIX: Calculate total stock from filtered stockEntries
-    //                 // The backend now returns stockEntries that are ONLY up to the asOfDate
-    //                 let totalStock = 0;
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     // Sum up all quantities from the filtered stockEntries
-    //                     totalStock = item.stockEntries.reduce((sum, entry) => sum + (entry.quantity || 0), 0);
-
-    //                     // For price, use the most recent stock entry's price
-    //                     const sortedEntries = [...item.stockEntries].sort((a, b) =>
-    //                         new Date(b.date) - new Date(a.date)
-    //                     );
-    //                     latestPrice = sortedEntries[0]?.puPrice || 0;
-    //                     latestBatchNumber = sortedEntries[0]?.batchNumber || '';
-    //                     latestExpiryDate = sortedEntries[0]?.expiryDate || '';
-
-    //                     console.log(`Item ${item.name}: Total stock as of ${params.asOfDate} = ${totalStock}, Stock entries count: ${item.stockEntries.length}`);
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     id: item.id,
-    //                     _id: item.id,
-    //                     latestPrice: latestPrice,
-    //                     latestBatchNumber: latestBatchNumber,
-    //                     latestExpiryDate: latestExpiryDate,
-    //                     // This is the STOCK AS OF THE ADJUSTMENT DATE
-    //                     stock: totalStock,
-    //                     // Keep the original stockEntries for reference
-    //                     stockEntries: item.stockEntries
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
-
-    // Calculate used stock from current items
 
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
@@ -2458,133 +2321,49 @@ const AddStockAdjustment = () => {
                                     {/* Nepali Date (Primary editable field) */}
                                     <div className="col-12 col-md-6 col-lg-3">
                                         <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="nepaliDate"
-                                                id="nepaliDate"
-                                                ref={dateInputRef}
-                                                autoFocus
-                                                autoComplete='off'
-                                                className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
+                                            <NepaliDatePicker
                                                 value={formData.nepaliDate}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+                                                onChange={(bsDate) => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        nepaliDate: bsDate
+                                                    }));
+                                                    setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
 
-                                                    if (sanitizedValue.length <= 10) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            nepaliDate: sanitizedValue
-                                                        }));
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
-                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
-                                                            console.log('Converting BS to AD:', sanitizedValue);
-                                                            const adDate = convertBsToAd(sanitizedValue);
-                                                            console.log('Converted AD date:', adDate);
-                                                            if (adDate) {
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    billDate: adDate
-                                                                }));
-                                                            }
-                                                        }
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    const allowedKeys = [
-                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                                        'Home', 'End'
-                                                    ];
-
-                                                    if (!allowedKeys.includes(e.key) &&
-                                                        !/^\d$/.test(e.key) &&
-                                                        e.key !== '/' &&
-                                                        e.key !== '-' &&
-                                                        !e.ctrlKey && !e.metaKey) {
-                                                        e.preventDefault();
-                                                    }
-
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const dateStr = e.target.value.trim();
-
-                                                        if (!dateStr) {
-                                                            const currentDate = getCurrentNepaliDate();
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: currentDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Date required. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-
-                                                            handleKeyDown(e, 'nepaliDate');
-                                                        } else if (dateErrors.nepaliDate) {
-                                                            e.target.focus();
-                                                        } else {
-                                                            handleKeyDown(e, 'nepaliDate');
-                                                        }
-                                                    }
-                                                }}
-                                                onBlur={(e) => {
-                                                    const dateStr = e.target.value.trim();
-                                                    if (!dateStr) {
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                        return;
-                                                    }
-
-                                                    if (isValidNepaliDate(dateStr)) {
-                                                        const adDate = convertBsToAd(dateStr);
+                                                    // Auto-convert to AD when we have a complete valid date
+                                                    if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
+                                                        console.log('Converting BS to AD:', bsDate);
+                                                        const adDate = convertBsToAd(bsDate);
+                                                        console.log('Converted AD date:', adDate);
                                                         if (adDate) {
                                                             setFormData(prev => ({
                                                                 ...prev,
-                                                                nepaliDate: dateStr,
-                                                                billDate: adDate
+                                                                date: adDate
                                                             }));
                                                         }
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                    } else {
-                                                        const currentDate = getCurrentNepaliDate();
-                                                        const adDate = convertBsToAd(currentDate);
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            nepaliDate: currentDate,
-                                                            billDate: adDate || prev.billDate
-                                                        }));
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
                                                     }
                                                 }}
-                                                placeholder="YYYY-MM-DD"
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
+                                                autoFocus={true}
+                                                required={true}
+                                                className={dateErrors.nepaliDate ? 'is-invalid' : ''}
+                                                onKeyDown={(e) => {
+                                                    handleKeyDown(e, 'nepaliDate');
                                                 }}
+                                                dateErrors={dateErrors}
+                                                setDateErrors={setDateErrors}
                                             />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
                                                 Date (BS): <span className="text-danger">*</span>
                                             </label>
                                             {dateErrors.nepaliDate && (

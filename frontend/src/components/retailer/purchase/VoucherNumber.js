@@ -5,6 +5,7 @@ import Header from '../Header';
 import ProductModal from '../dashboard/modals/ProductModal';
 import '../../../stylesheet/retailer/purchase/FindPurchase.css';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
+import api, { refreshToken } from '../../services/api';
 
 const PurchaseVoucherNumber = () => {
     const [billNumber, setBillNumber] = useState('');
@@ -30,24 +31,25 @@ const PurchaseVoucherNumber = () => {
     const accountSearchRef = useRef(null);
     const navigate = useNavigate();
 
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
+    // const api = axios.create({
+    //     baseURL: process.env.REACT_APP_API_BASE_URL,
+    //     withCredentials: true,
+    // });
 
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
+    // // Add authorization header to all requests
+    // api.interceptors.request.use(
+    //     (config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) {
+    //             config.headers.Authorization = `Bearer ${token}`;
+    //         }
+    //         return config;
+    //     },
+    //     (error) => {
+    //         return Promise.reject(error);
+    //     }
+    // );
+    
 
     // Focus the input when component mounts
     useEffect(() => {

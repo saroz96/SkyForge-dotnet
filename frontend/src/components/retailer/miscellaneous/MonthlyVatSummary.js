@@ -2621,6 +2621,7 @@ import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import { FiCalendar, FiFileText, FiPrinter, FiDownload } from 'react-icons/fi';
 import './MonthlyVatSummary.css';
+import api, { refreshToken } from '../../services/api';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -2703,18 +2704,18 @@ const MonthlyVatSummary = () => {
     const navigate = useNavigate();
 
     // API instance
-    const api = useMemo(() => {
-        const instance = axios.create({
-            baseURL: process.env.REACT_APP_API_BASE_URL,
-            withCredentials: true,
-        });
-        instance.interceptors.request.use((config) => {
-            const token = localStorage.getItem('token');
-            if (token) config.headers.Authorization = `Bearer ${token}`;
-            return config;
-        });
-        return instance;
-    }, []);
+    // const api = useMemo(() => {
+    //     const instance = axios.create({
+    //         baseURL: process.env.REACT_APP_API_BASE_URL,
+    //         withCredentials: true,
+    //     });
+    //     instance.interceptors.request.use((config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) config.headers.Authorization = `Bearer ${token}`;
+    //         return config;
+    //     });
+    //     return instance;
+    // }, []);
 
     // Get default values
     const getDefaultValues = useCallback((periodType, dateFormat) => {

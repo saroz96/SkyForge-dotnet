@@ -1232,6 +1232,7 @@ import * as XLSX from 'xlsx';
 import NotificationToast from '../../NotificationToast';
 import { FiCalendar, FiFileText, FiPrinter, FiDownload, FiSearch, FiFilter } from 'react-icons/fi';
 import './AgeingAllAccounts.css';
+import api, { refreshToken } from '../../services/api';
 
 // Helper functions for date conversion
 const convertBsToAd = (bsDate) => {
@@ -1325,15 +1326,15 @@ const AgeingReportAllAccounts = () => {
     const abortControllerRef = useRef(null);
     const tableBodyRef = useRef(null);
 
-    const api = useMemo(() => {
-        const instance = axios.create({ baseURL: process.env.REACT_APP_API_BASE_URL, withCredentials: true });
-        instance.interceptors.request.use((config) => {
-            const token = localStorage.getItem('token');
-            if (token) config.headers.Authorization = `Bearer ${token}`;
-            return config;
-        });
-        return instance;
-    }, []);
+    // const api = useMemo(() => {
+    //     const instance = axios.create({ baseURL: process.env.REACT_APP_API_BASE_URL, withCredentials: true });
+    //     instance.interceptors.request.use((config) => {
+    //         const token = localStorage.getItem('token');
+    //         if (token) config.headers.Authorization = `Bearer ${token}`;
+    //         return config;
+    //     });
+    //     return instance;
+    // }, []);
 
     const mapBuckets = useCallback((bucketData) => {
         if (!bucketData) return { '0-30': 0, '30-60': 0, '60-90': 0, '90-120': 0, '120-150': 0, 'over-150': 0, total: 0 };

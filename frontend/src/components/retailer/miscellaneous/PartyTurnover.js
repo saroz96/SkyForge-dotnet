@@ -1455,6 +1455,7 @@ import ProductModal from '../dashboard/modals/ProductModal';
 import NotificationToast from '../../NotificationToast';
 import { FiFileText, FiPrinter, FiDownload, FiSearch, FiCalendar, FiDollarSign } from 'react-icons/fi';
 import './PartyTurnover.css';
+import api, { refreshToken } from '../../services/api';
 
 // Date conversion utilities
 const convertBsToAd = (bsDate) => {
@@ -1627,21 +1628,21 @@ const PartyTurnover = () => {
         duration: 3000
     });
 
-    const api = useMemo(() => {
-        const instance = axios.create({
-            baseURL: process.env.REACT_APP_API_BASE_URL,
-            withCredentials: true,
-        });
-        instance.interceptors.request.use(
-            (config) => {
-                const token = localStorage.getItem('token');
-                if (token) config.headers.Authorization = `Bearer ${token}`;
-                return config;
-            },
-            (error) => Promise.reject(error)
-        );
-        return instance;
-    }, []);
+    // const api = useMemo(() => {
+    //     const instance = axios.create({
+    //         baseURL: process.env.REACT_APP_API_BASE_URL,
+    //         withCredentials: true,
+    //     });
+    //     instance.interceptors.request.use(
+    //         (config) => {
+    //             const token = localStorage.getItem('token');
+    //             if (token) config.headers.Authorization = `Bearer ${token}`;
+    //             return config;
+    //         },
+    //         (error) => Promise.reject(error)
+    //     );
+    //     return instance;
+    // }, []);
 
     // Fetch company and fiscal year info
     useEffect(() => {
