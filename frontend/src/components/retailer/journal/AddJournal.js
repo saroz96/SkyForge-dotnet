@@ -422,15 +422,34 @@ const AddJournalVoucher = () => {
         }
     }, [isInitialDataLoaded, companyDateFormat]);
 
+    // useEffect(() => {
+    //     if (showAccountModal) {
+    //         setAccountSearchQuery('');
+    //         setAccountSearchPage(1);
+    //         if (accountShouldShowLastSearchResults && accountLastSearchQuery.trim() !== '') {
+    //             fetchAccountsFromBackend(accountLastSearchQuery, 1, false);
+    //         } else {
+    //             fetchAccountsFromBackend('', 1, false);
+    //         }
+    //     }
+    // }, [showAccountModal]);
+
     useEffect(() => {
         if (showAccountModal) {
+            // Reset ALL search-related state
             setAccountSearchQuery('');
             setAccountSearchPage(1);
-            if (accountShouldShowLastSearchResults && accountLastSearchQuery.trim() !== '') {
-                fetchAccountsFromBackend(accountLastSearchQuery, 1, false);
-            } else {
+            setAccounts([]);
+            setHasMoreAccountResults(false);
+            setTotalAccounts(0);
+            setAccountLastSearchQuery('');
+            setAccountShouldShowLastSearchResults(false);
+
+            // Fetch fresh accounts from page 1 with no search
+            // Use a small delay to ensure state is reset first
+            setTimeout(() => {
                 fetchAccountsFromBackend('', 1, false);
-            }
+            }, 50);
         }
     }, [showAccountModal]);
 
@@ -964,156 +983,6 @@ const AddJournalVoucher = () => {
             fetchAccountsFromBackend(accountSearchQuery, nextPage, true);
         }
     };
-
-    // const printVoucherImmediately = (printData) => {
-    //     const tempDiv = document.createElement('div');
-    //     tempDiv.style.position = 'absolute';
-    //     tempDiv.style.left = '-9999px';
-    //     document.body.appendChild(tempDiv);
-
-    //     const debitEntries = printData.debitEntries || [];
-    //     const creditEntries = printData.creditEntries || [];
-
-    //     let rows = '';
-    //     let totalDebit = 0;
-    //     let totalCredit = 0;
-    //     let rowNumber = 1;
-
-    //     debitEntries.forEach(entry => {
-    //         rows += `
-    //             <tr>
-    //                 <td class="print-text-center">${rowNumber++}</td>
-    //                 <td>${entry.accountName}</td>
-    //                 <td class="print-text-right">${entry.amount.toFixed(2)}</td>
-    //                 <td class="print-text-right">0.00</td>
-    //             </tr>
-    //         `;
-    //         totalDebit += entry.amount;
-    //     });
-
-    //     creditEntries.forEach(entry => {
-    //         rows += `
-    //             <tr>
-    //                 <td class="print-text-center">${rowNumber++}</td>
-    //                 <td>${entry.accountName}</td>
-    //                 <td class="print-text-right">0.00</td>
-    //                 <td class="print-text-right">${entry.amount.toFixed(2)}</td>
-    //             </tr>
-    //         `;
-    //         totalCredit += entry.amount;
-    //     });
-
-    //     tempDiv.innerHTML = `
-    //         <div id="printableContent">
-    //             <div class="print-voucher-container">
-    //                 <div class="print-voucher-header">
-    //                     <div class="print-company-name">${printData.currentCompanyName}</div>
-    //                     <div class="print-company-details">
-    //                         ${printData.currentCompany?.address || ''}
-    //                         <br />
-    //                         Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
-    //                     </div>
-    //                     <div class="print-voucher-title">JOURNAL VOUCHER</div>
-    //                 </div>
-
-    //                 <div class="print-voucher-details">
-    //                     <div>
-    //                         <div><strong>Vch. No:</strong> ${printData.journalVoucher?.billNumber}</div>
-    //                     </div>
-    //                     <div>
-    //                         <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.journalVoucher.nepaliDate) : formatDateForInput(printData.journalVoucher.date)}(${new Date(printData.journalVoucher.date).toLocaleDateString()})</div>
-    //                     </div>
-    //                 </div>
-
-    //                 <table class="print-voucher-table">
-    //                     <thead>
-    //                         <tr>
-    //                             <th>S.N</th>
-    //                             <th>Particular</th>
-    //                             <th>Debit Amount</th>
-    //                             <th>Credit Amount</th>
-    //                         </tr>
-    //                     </thead>
-    //                     <tbody>
-    //                         ${rows}
-    //                     </tbody>
-    //                     <tfoot>
-    //                         <tr>
-    //                             <th colSpan="2">Total</th>
-    //                             <th>${totalDebit.toFixed(2)}</th>
-    //                             <th>${totalCredit.toFixed(2)}</th>
-    //                         </tr>
-    //                     </tfoot>
-    //                 </table>
-
-    //                 <div style="margin-top: 3mm;">
-    //                     <strong>Note:</strong> ${printData.journalVoucher?.description || 'N/A'}
-    //                 </div>
-
-    //                 <div class="print-signature-area">
-    //                     <div class="print-signature-box">
-    //                         <div style="margin-bottom: 1mm;">
-    //                             <strong>${printData.journalVoucher?.user?.name || 'N/A'}</strong>
-    //                         </div>
-    //                         Prepared By
-    //                     </div>
-    //                     <div class="print-signature-box">
-    //                         <div style="margin-bottom: 1mm;">&nbsp;</div>
-    //                         Checked By
-    //                     </div>
-    //                     <div class="print-signature-box">
-    //                         <div style="margin-bottom: 1mm;">&nbsp;</div>
-    //                         Approved By
-    //                     </div>
-    //                 </div>
-    //             </div>
-    //         </div>
-    //     `;
-
-    //     const styles = `
-    //         @media print {
-    //             @page { size: A4; margin: 5mm; }
-    //             body { font-family: 'Arial Narrow', Arial, sans-serif; font-size: 9pt; line-height: 1.2; color: #000; background: white; margin: 0; padding: 0; }
-    //             .print-voucher-container { width: 100%; max-width: 210mm; margin: 0 auto; padding: 2mm; }
-    //             .print-voucher-header { text-align: center; margin-bottom: 3mm; border-bottom: 1px dashed #000; padding-bottom: 2mm; }
-    //             .print-voucher-title { font-size: 12pt; font-weight: bold; margin: 2mm 0; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
-    //             .print-company-name { font-size: 16pt; font-weight: bold; }
-    //             .print-company-details { font-size: 8pt; margin: 1mm 0; }
-    //             .print-voucher-details { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
-    //             .print-voucher-table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; }
-    //             .print-voucher-table thead { border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
-    //             .print-voucher-table th { background-color: transparent; border: 1px solid #000; padding: 1mm; text-align: left; font-weight: bold; }
-    //             .print-voucher-table td { border: 1px solid #000; padding: 1mm; }
-    //             .print-text-right { text-align: right; }
-    //             .print-text-center { text-align: center; }
-    //             .print-signature-area { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 8pt; }
-    //             .print-signature-box { text-align: center; width: 30%; border-top: 1px dashed #000; padding-top: 1mm; font-weight: bold; }
-    //         }
-    //     `;
-
-    //     const printWindow = window.open('', '_blank');
-    //     printWindow.document.write(`
-    //         <html>
-    //             <head>
-    //                 <title>Journal_Voucher_${printData.journalVoucher?.billNumber}</title>
-    //                 <style>${styles}</style>
-    //             </head>
-    //             <body>
-    //                 ${tempDiv.innerHTML}
-    //                 <script>
-    //                     window.onload = function() {
-    //                         setTimeout(function() {
-    //                             window.print();
-    //                             window.close();
-    //                         }, 200);
-    //                     };
-    //                 </script>
-    //             </body>
-    //         </html>
-    //     `);
-    //     printWindow.document.close();
-    //     document.body.removeChild(tempDiv);
-    // };
 
     const printVoucherImmediately = (printData) => {
         const tempDiv = document.createElement('div');
