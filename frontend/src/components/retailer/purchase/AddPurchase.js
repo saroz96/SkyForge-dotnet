@@ -15,6 +15,7 @@ import VirtualizedItemListForPurchase from '../../VirtualizedItemListForPurchase
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import NepaliDate from 'nepali-datetime';
 import api, { refreshToken } from '../../services/api';
+import AccountModalForPaymentReceipt from '../payment/AccountModalForPaymentReceipt';
 
 
 // Date conversion utilities using nepali-datetime
@@ -421,6 +422,47 @@ const AddPurchase = () => {
     const accountModalRef = useRef(null);
     const transactionModalRef = useRef(null);
 
+    // const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
+    //     try {
+    //         setIsAccountSearching(true);
+
+    //         const response = await api.get('/api/retailer/accounts/search', {
+    //             params: {
+    //                 search: searchTerm,
+    //                 page: page,
+    //                 limit: searchTerm.trim() ? 15 : 25,
+    //             }
+    //         });
+
+    //         if (response.data.success) {
+    //             if (page === 1) {
+    //                 setAccountSearchResults(response.data.accounts);
+    //                 setAccounts(response.data.accounts);
+    //             } else {
+    //                 setAccountSearchResults(prev => [...prev, ...response.data.accounts]);
+    //                 setAccounts(prev => [...prev, ...response.data.accounts]);
+    //             }
+    //             setHasMoreAccountResults(response.data.pagination.hasNextPage);
+    //             setTotalAccounts(response.data.pagination.totalAccounts);
+    //             setAccountSearchPage(page);
+
+    //             if (searchTerm.trim() !== '') {
+    //                 setAccountLastSearchQuery(searchTerm);
+    //                 setAccountShouldShowLastSearchResults(true);
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching accounts:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error loading accounts',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsAccountSearching(false);
+    //     }
+    // };
+
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
         try {
             setIsAccountSearching(true);
@@ -435,6 +477,7 @@ const AddPurchase = () => {
 
             if (response.data.success) {
                 if (page === 1) {
+                    // ✅ Keep this
                     setAccountSearchResults(response.data.accounts);
                     setAccounts(response.data.accounts);
                 } else {
@@ -480,17 +523,6 @@ const AddPurchase = () => {
                 vatStatus: formData.isVatExempt,
                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
             };
-
-            // Add date filter based on date format
-            // if (isNepaliFormat && formData.transactionDateNepali) {
-            //     // Send Nepali date directly - no conversion needed
-            //     params.asOfNepaliDate = formData.transactionDateNepali;
-            //     console.log('Sending Nepali date filter:', formData.transactionDateNepali);
-            // } else if (!isNepaliFormat && formData.transactionDateRoman) {
-            //     // Send English date
-            //     params.asOfEnglishDate = formData.transactionDateRoman;
-            //     console.log('Sending English date filter:', formData.transactionDateRoman);
-            // }
 
             if (formData.transactionDateRoman) {
                 params.asOfDate = formData.transactionDateRoman;
@@ -1050,6 +1082,7 @@ const AddPurchase = () => {
         setShowAccountModal(false);
     };
 
+
     const selectAccount = (account) => {
         setFormData({
             ...formData,
@@ -1059,6 +1092,12 @@ const AddPurchase = () => {
             accountPan: account.pan
         });
         setShowAccountModal(false);
+        setTimeout(() => {
+            const addressField = document.getElementById('address');
+            if (addressField) {
+                addressField.focus();
+            }
+        }, 100);
     };
 
     const handleHeaderItemSearch = (e) => {
@@ -4798,7 +4837,7 @@ const AddPurchase = () => {
             )}
 
             {/* Account Modal */}
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div
                     className="modal fade show"
                     id="accountModal"
@@ -4897,6 +4936,40 @@ const AddPurchase = () => {
                         </div>
                     </div>
                 </div>
+            )} */}
+
+            {/* Account Modal - Using New Component */}
+            {showAccountModal && (
+                <AccountModalForPaymentReceipt
+                    show={showAccountModal}
+                    onClose={handleAccountModalClose}
+                    onSelectAccount={selectAccount}
+                    accounts={accounts}
+                    totalAccounts={totalAccounts}
+                    isSearching={isAccountSearching}
+                    hasMore={hasMoreAccountResults}
+                    searchQuery={accountSearchQuery}
+                    onSearch={(query) => {
+                        // Handle search
+                        setAccountSearchQuery(query);
+                        setAccountSearchPage(1);
+                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                            setAccountShouldShowLastSearchResults(false);
+                            setAccountLastSearchQuery('');
+                        }
+                        const timer = setTimeout(() => {
+                            fetchAccountsFromBackend(query, 1);
+                        }, 300);
+                        return () => clearTimeout(timer);
+                    }}
+                    onLoadMore={loadMoreAccounts}
+                    page={accountSearchPage}
+                    onCreateAccount={() => {
+                        setShowAccountCreationModal(true);
+                        setShowAccountModal(false);
+                    }}
+                    selectedAccountId={formData.accountId}
+                />
             )}
 
             {showTransactionModal && (

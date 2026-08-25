@@ -14,9 +14,9 @@ import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import api, { refreshToken } from '../../services/api';
+import AccountModalForPaymentReceipt from '../payment/AccountModalForPaymentReceipt';
 
 
-// Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
 
@@ -312,27 +312,6 @@ const AddSalesQuotation = () => {
     const accountModalRef = useRef(null);
     const transactionModalRef = useRef(null);
 
-    // Create axios instance with auth interceptor
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
-    // Function to get the current bill number (does NOT increment)
     const getCurrentBillNumber = async () => {
         try {
             const response = await api.get('/api/retailer/sales-quotation/current-number');
@@ -1001,6 +980,13 @@ const AddSalesQuotation = () => {
             accountPan: account.pan
         });
         setShowAccountModal(false);
+
+        setTimeout(() => {
+            const addressField = document.getElementById('address');
+            if (addressField) {
+                addressField.focus();
+            }
+        }, 100);
     };
 
     const handleItemSearch = (e) => {
@@ -2472,9 +2458,6 @@ const AddSalesQuotation = () => {
         );
     }, [showItemDropdown, searchResults, searchQuery, isSearching, hasMoreSearchResults, totalSearchItems, searchPage]);
 
-    // The JSX remains the same as your original AddSalesQuotation component
-    // with property names updated to match the pattern (itemId instead of item, unitId instead of unit, etc.)
-
     return (
         <div className="container-fluid">
             <Header />
@@ -3767,48 +3750,6 @@ const AddSalesQuotation = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <div className="position-relative">
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-control-sm"
-                                                    step="any"
-                                                    id="roundOffAmount"
-                                                    name="roundOffAmount"
-                                                    value={formData.roundOffAmount}
-                                                    onChange={(e) => setFormData({ ...formData, roundOffAmount: e.target.value })}
-                                                    onFocus={(e) => {
-                                                        e.target.select();
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            document.getElementById('description')?.focus();
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '22px',
-                                                        fontSize: '0.875rem',
-                                                        paddingTop: '0.5rem',
-                                                        width: '100%'
-                                                    }}
-                                                />
-                                                <label
-                                                    className="position-absolute"
-                                                    style={{
-                                                        top: '-0.4rem',
-                                                        left: '0.5rem',
-                                                        fontSize: '0.7rem',
-                                                        backgroundColor: 'white',
-                                                        padding: '0 0.25rem',
-                                                        color: '#6c757d',
-                                                        fontWeight: '500'
-                                                    }}
-                                                >
-                                                    Rs.
-                                                </label>
-                                            </div>
-                                        </td> */}
                                         <td style={{ padding: '1px', verticalAlign: 'middle' }}>
                                             <div className="position-relative" style={{ minWidth: '150px' }}>
                                                 <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
@@ -4051,7 +3992,7 @@ const AddSalesQuotation = () => {
             </div>
 
             {/* Account Modal */}
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div
                     className="modal fade show"
                     id="accountModal"
@@ -4150,6 +4091,40 @@ const AddSalesQuotation = () => {
                         </div>
                     </div>
                 </div>
+            )} */}
+
+            {/* Account Modal - Using New Component */}
+            {showAccountModal && (
+                <AccountModalForPaymentReceipt
+                    show={showAccountModal}
+                    onClose={handleAccountModalClose}
+                    onSelectAccount={selectAccount}
+                    accounts={accounts}
+                    totalAccounts={totalAccounts}
+                    isSearching={isAccountSearching}
+                    hasMore={hasMoreAccountResults}
+                    searchQuery={accountSearchQuery}
+                    onSearch={(query) => {
+                        // Handle search
+                        setAccountSearchQuery(query);
+                        setAccountSearchPage(1);
+                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                            setAccountShouldShowLastSearchResults(false);
+                            setAccountLastSearchQuery('');
+                        }
+                        const timer = setTimeout(() => {
+                            fetchAccountsFromBackend(query, 1);
+                        }, 300);
+                        return () => clearTimeout(timer);
+                    }}
+                    onLoadMore={loadMoreAccounts}
+                    page={accountSearchPage}
+                    onCreateAccount={() => {
+                        setShowAccountCreationModal(true);
+                        setShowAccountModal(false);
+                    }}
+                    selectedAccountId={formData.accountId}
+                />
             )}
 
             {showTransactionModal && (
@@ -4567,7 +4542,7 @@ const AddSalesQuotation = () => {
                                         <div className="dropdown-header" style={{
                                             display: 'grid',
                                             // gridTemplateColumns: 'repeat(7, 1fr)',
-                                             gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
                                             alignItems: 'center',
                                             padding: '0 8px',
                                             height: '20px',

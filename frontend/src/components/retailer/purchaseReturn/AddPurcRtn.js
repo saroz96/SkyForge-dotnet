@@ -1,10 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
-
-import axios from 'axios';
 import Header from '../Header';
 import '../../../stylesheet/retailer/purchaseReturn/AddPurcRtn.css';
 import NotificationToast from '../../NotificationToast';
@@ -15,6 +12,7 @@ import useDebounce from '../../../hooks/useDebounce';
 import VirtualizedItemListForPurchaseReturn from '../../VirtualizedItemListForPurchaseReturn';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import api, { refreshToken } from '../../services/api';
+import AccountModalForPaymentReceipt from '../payment/AccountModalForPaymentReceipt';
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -352,27 +350,6 @@ const AddPurcRtn = () => {
     const accountModalRef = useRef(null);
     const transactionModalRef = useRef(null);
 
-    // // Create axios instance with auth interceptor
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
-    // Function to get the current bill number (does NOT increment)
     const getCurrentBillNumber = async () => {
         try {
             const response = await api.get('/api/retailer/purchase-return/current-number');
@@ -1150,6 +1127,13 @@ const AddPurcRtn = () => {
             accountPan: account.pan
         });
         setShowAccountModal(false);
+
+        setTimeout(() => {
+            const addressField = document.getElementById('address');
+            if (addressField) {
+                addressField.focus();
+            }
+        }, 100);
     };
 
     const handleItemSearch = (e) => {
@@ -2928,641 +2912,6 @@ const AddPurcRtn = () => {
                 <div className="card-body p-2 p-md-3">
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
-                        {/* <div className="row g-2 mb-3">
-
-                            {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
-                                <>
-                                    <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateNepali"
-                                                id="transactionDateNepali"
-                                                ref={transactionDateRef}
-                                                autoComplete='off'
-                                                className={`form-control form-control-sm no-date-icon ${dateErrors.transactionDateNepali ? 'is-invalid' : ''}`}
-                                                value={formData.transactionDateNepali}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-
-                                                    if (sanitizedValue.length <= 10) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            transactionDateNepali: sanitizedValue
-                                                        }));
-                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-
-                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
-                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
-                                                            console.log('Converting BS to AD:', sanitizedValue);
-                                                            const adDate = convertBsToAd(sanitizedValue);
-                                                            console.log('Converted AD date:', adDate);
-                                                            if (adDate) {
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    transactionDateRoman: adDate,
-                                                                    billDate: adDate
-                                                                }));
-                                                            }
-                                                        }
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    const allowedKeys = [
-                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                                        'Home', 'End'
-                                                    ];
-
-                                                    if (!allowedKeys.includes(e.key) &&
-                                                        !/^\d$/.test(e.key) &&
-                                                        e.key !== '/' &&
-                                                        e.key !== '-' &&
-                                                        !e.ctrlKey && !e.metaKey) {
-                                                        e.preventDefault();
-                                                    }
-
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const dateStr = e.target.value.trim();
-
-                                                        if (!dateStr) {
-                                                            const currentDate = getCurrentNepaliDate();
-                                                            setFormData({
-                                                                ...formData,
-                                                                transactionDateNepali: currentDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Date required. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-
-                                                            handleKeyDown(e, 'transactionDateNepali');
-                                                        } else if (dateErrors.transactionDateNepali) {
-                                                            e.target.focus();
-                                                        } else {
-                                                            handleKeyDown(e, 'transactionDateNepali');
-                                                        }
-                                                    }
-                                                }}
-                                                onBlur={(e) => {
-                                                    const dateStr = e.target.value.trim();
-                                                    if (!dateStr) {
-                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-                                                        return;
-                                                    }
-
-                                                    if (isValidNepaliDate(dateStr)) {
-                                                        const adDate = convertBsToAd(dateStr);
-                                                        if (adDate) {
-                                                            setFormData(prev => ({
-                                                                ...prev,
-                                                                transactionDateNepali: dateStr,
-                                                                transactionDateRoman: adDate,
-                                                                billDate: adDate
-                                                            }));
-                                                        }
-                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-                                                    } else {
-                                                        // Auto-correct to current date
-                                                        const currentDate = getCurrentNepaliDate();
-                                                        const adDate = convertBsToAd(currentDate);
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            transactionDateNepali: currentDate,
-                                                            transactionDateRoman: adDate || prev.transactionDateRoman,
-                                                            billDate: adDate || prev.billDate
-                                                        }));
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
-                                                    }
-                                                }}
-                                                placeholder="YYYY-MM-DD"
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Transaction Date (BS): <span className="text-danger">*</span>
-                                            </label>
-                                            {dateErrors.transactionDateNepali && (
-                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
-                                                    {dateErrors.transactionDateNepali}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <input
-                                        type="hidden"
-                                        name="transactionDateRoman"
-                                        id="transactionDateRoman"
-                                        value={formData.transactionDateRoman || ''}
-                                    />
-
-                                    <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="nepaliDate"
-                                                id="nepaliDate"
-                                                autoComplete='off'
-                                                className={`form-control form-control-sm no-date-icon ${dateErrors.nepaliDate ? 'is-invalid' : ''}`}
-                                                value={formData.nepaliDate}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
-
-                                                    if (sanitizedValue.length <= 10) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            nepaliDate: sanitizedValue
-                                                        }));
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                        // Auto-convert to AD when we have a complete valid date
-                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
-                                                            console.log('Invoice - Converting BS to AD:', sanitizedValue);
-                                                            const adDate = convertBsToAd(sanitizedValue);
-                                                            console.log('Invoice - Converted AD date:', adDate);
-                                                            if (adDate) {
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    billDate: adDate
-                                                                }));
-                                                            }
-                                                        }
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    const allowedKeys = [
-                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                                                        'Home', 'End'
-                                                    ];
-
-                                                    if (!allowedKeys.includes(e.key) &&
-                                                        !/^\d$/.test(e.key) &&
-                                                        e.key !== '/' &&
-                                                        e.key !== '-' &&
-                                                        !e.ctrlKey && !e.metaKey) {
-                                                        e.preventDefault();
-                                                    }
-
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const dateStr = e.target.value.trim();
-
-                                                        if (!dateStr) {
-                                                            const currentDate = getCurrentNepaliDate();
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: currentDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Date required. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-
-                                                            handleKeyDown(e, 'nepaliDate');
-                                                        } else if (dateErrors.nepaliDate) {
-                                                            e.target.focus();
-                                                        } else {
-                                                            handleKeyDown(e, 'nepaliDate');
-                                                        }
-                                                    }
-                                                }}
-                                                onBlur={(e) => {
-                                                    const dateStr = e.target.value.trim();
-                                                    if (!dateStr) {
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                        return;
-                                                    }
-
-                                                    if (isValidNepaliDate(dateStr)) {
-                                                        const adDate = convertBsToAd(dateStr);
-                                                        if (adDate) {
-                                                            setFormData(prev => ({
-                                                                ...prev,
-                                                                nepaliDate: dateStr,
-                                                                billDate: adDate
-                                                            }));
-                                                        }
-                                                        setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                    } else {
-                                                        const currentDate = getCurrentNepaliDate();
-                                                        const adDate = convertBsToAd(currentDate);
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            nepaliDate: currentDate,
-                                                            billDate: adDate || prev.billDate
-                                                        }));
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
-                                                    }
-                                                }}
-                                                placeholder="YYYY-MM-DD"
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Invoice Date (BS): <span className="text-danger">*</span>
-                                            </label>
-                                            {dateErrors.nepaliDate && (
-                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
-                                                    {dateErrors.nepaliDate}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <input
-                                        type="hidden"
-                                        name="billDate"
-                                        id="billDate"
-                                        value={formData.billDate || ''}
-                                    />
-                                </>
-                            ) : (
-                                <>
-                                    <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="date"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                ref={company.dateFormat === 'nepali' ? null : transactionDateRef}
-                                                value={formData.transactionDateRoman}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const selectedDate = new Date(value);
-                                                    const today = new Date();
-                                                    today.setHours(0, 0, 0, 0);
-
-                                                    if (selectedDate > today) {
-                                                        const todayStr = today.toISOString().split('T')[0];
-                                                        setFormData({ ...formData, transactionDateRoman: todayStr });
-
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Future date not allowed. Auto-corrected to today.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
-                                                    } else {
-                                                        setFormData({ ...formData, transactionDateRoman: value });
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const value = e.target.value;
-
-                                                        if (!value) {
-                                                            const today = new Date();
-                                                            const todayStr = today.toISOString().split('T')[0];
-                                                            setFormData({ ...formData, transactionDateRoman: todayStr });
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Date required. Auto-corrected to today.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-                                                        }
-
-                                                        handleKeyDown(e, 'transactionDateRoman');
-                                                    }
-                                                }}
-                                                onBlur={(e) => {
-                                                    const value = e.target.value;
-                                                    if (!value) {
-                                                        const today = new Date();
-                                                        const todayStr = today.toISOString().split('T')[0];
-                                                        setFormData({ ...formData, transactionDateRoman: todayStr });
-
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Date required. Auto-corrected to today.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
-                                                    }
-                                                }}
-                                                max={new Date().toISOString().split('T')[0]}
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Transaction Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="date"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    const selectedDate = new Date(value);
-                                                    const today = new Date();
-                                                    today.setHours(0, 0, 0, 0);
-
-                                                    if (selectedDate > today) {
-                                                        const todayStr = today.toISOString().split('T')[0];
-                                                        setFormData({ ...formData, billDate: todayStr });
-
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Future date not allowed. Auto-corrected to today.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
-                                                    } else {
-                                                        setFormData({ ...formData, billDate: value });
-                                                    }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const value = e.target.value;
-
-                                                        if (!value) {
-                                                            const today = new Date();
-                                                            const todayStr = today.toISOString().split('T')[0];
-                                                            setFormData({ ...formData, billDate: todayStr });
-
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Date required. Auto-corrected to today.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-                                                        }
-
-                                                        handleKeyDown(e, 'billDate');
-                                                    }
-                                                }}
-                                                onBlur={(e) => {
-                                                    const value = e.target.value;
-                                                    if (!value) {
-                                                        const today = new Date();
-                                                        const todayStr = today.toISOString().split('T')[0];
-                                                        setFormData({ ...formData, billDate: todayStr });
-
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Date required. Auto-corrected to today.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
-                                                    }
-                                                }}
-                                                max={new Date().toISOString().split('T')[0]}
-                                                required
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Invoice Date: <span className="text-danger">*</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
-                            <div className="col-12 col-md-6 col-lg-2">
-                                <div className="position-relative">
-                                    <input
-                                        type="text"
-                                        name="billNumber"
-                                        id="billNumber"
-                                        className="form-control form-control-sm"
-                                        value={formData.billNumber}
-                                        readOnly
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleKeyDown(e, 'billNumber');
-                                            }
-                                        }}
-                                        style={{
-                                            height: '26px',
-                                            fontSize: '0.875rem',
-                                            paddingTop: '0.75rem',
-                                            width: '100%'
-                                        }}
-                                    />
-                                    <label
-                                        className="position-absolute"
-                                        style={{
-                                            top: '-0.5rem',
-                                            left: '0.75rem',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: 'white',
-                                            padding: '0 0.25rem',
-                                            color: '#6c757d',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        Inv. No:
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="col-12 col-md-6 col-lg-2">
-                                <div className="position-relative">
-                                    <select
-                                        className="form-control form-control-sm"
-                                        name="paymentMode"
-                                        id="paymentMode"
-                                        value={formData.paymentMode}
-                                        onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleKeyDown(e, 'paymentMode');
-                                            }
-                                        }}
-                                        style={{
-                                            height: '26px',
-                                            fontSize: '0.875rem',
-                                            paddingTop: '0.25rem',
-                                            width: '100%'
-                                        }}
-                                    >
-                                        <option value="credit">credit</option>
-                                        <option value="cash">cash</option>
-                                    </select>
-                                    <label
-                                        className="position-absolute"
-                                        style={{
-                                            top: '-0.5rem',
-                                            left: '0.75rem',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: 'white',
-                                            padding: '0 0.25rem',
-                                            color: '#6c757d',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        Payment Mode:
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="col-12 col-md-6 col-lg-2">
-                                <div className="position-relative">
-                                    <input
-                                        type="text"
-                                        id="partyBillNumber"
-                                        name="partyBillNumber"
-                                        className="form-control form-control-sm"
-                                        value={formData.partyBillNumber}
-                                        onChange={(e) => setFormData({ ...formData, partyBillNumber: e.target.value })}
-                                        required
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleKeyDown(e, 'partyBillNumber');
-                                            }
-                                        }}
-                                        style={{
-                                            height: '26px',
-                                            fontSize: '0.875rem',
-                                            paddingTop: '0.75rem',
-                                            width: '100%'
-                                        }}
-                                    />
-                                    <label
-                                        className="position-absolute"
-                                        style={{
-                                            top: '-0.5rem',
-                                            left: '0.75rem',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: 'white',
-                                            padding: '0 0.25rem',
-                                            color: '#6c757d',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        Supp. Inv. No: <span className="text-danger">*</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="col-12 col-md-6 col-lg-2">
-                                <div className="position-relative">
-                                    <select
-                                        className="form-control form-control-sm"
-                                        name="isVatExempt"
-                                        id="isVatExempt"
-                                        value={formData.isVatExempt}
-                                        onChange={(e) => setFormData({ ...formData, isVatExempt: e.target.value })}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleKeyDown(e, 'isVatExempt');
-                                            }
-                                        }}
-                                        style={{
-                                            height: '26px',
-                                            fontSize: '0.875rem',
-                                            paddingTop: '0.25rem',
-                                            width: '100%'
-                                        }}
-                                    >
-                                        {company.vatEnabled && <option value="all">All</option>}
-                                        {company.vatEnabled && <option value="false">13%</option>}
-                                        <option value="true">Exempt</option>
-                                    </select>
-                                    <label
-                                        className="position-absolute"
-                                        style={{
-                                            top: '-0.5rem',
-                                            left: '0.75rem',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: 'white',
-                                            padding: '0 0.25rem',
-                                            color: '#6c757d',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        VAT
-                                    </label>
-                                </div>
-                            </div>
-                        </div> */}
-
-                        {/* Date and Basic Info Row */}
                         <div className="row g-1 mb-2">
                             {/* Transaction Date - Toggle between BS and AD */}
                             <div className="col-12 col-md-6 col-lg-2">
@@ -5265,7 +4614,7 @@ const AddPurcRtn = () => {
             </div>
 
             {/* Account Modal */}
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div
                     className="modal fade show"
                     id="accountModal"
@@ -5364,6 +4713,40 @@ const AddPurcRtn = () => {
                         </div>
                     </div>
                 </div>
+            )} */}
+
+            {/* Account Modal - Using New Component */}
+            {showAccountModal && (
+                <AccountModalForPaymentReceipt
+                    show={showAccountModal}
+                    onClose={handleAccountModalClose}
+                    onSelectAccount={selectAccount}
+                    accounts={accounts}
+                    totalAccounts={totalAccounts}
+                    isSearching={isAccountSearching}
+                    hasMore={hasMoreAccountResults}
+                    searchQuery={accountSearchQuery}
+                    onSearch={(query) => {
+                        // Handle search
+                        setAccountSearchQuery(query);
+                        setAccountSearchPage(1);
+                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                            setAccountShouldShowLastSearchResults(false);
+                            setAccountLastSearchQuery('');
+                        }
+                        const timer = setTimeout(() => {
+                            fetchAccountsFromBackend(query, 1);
+                        }, 300);
+                        return () => clearTimeout(timer);
+                    }}
+                    onLoadMore={loadMoreAccounts}
+                    page={accountSearchPage}
+                    onCreateAccount={() => {
+                        setShowAccountCreationModal(true);
+                        setShowAccountModal(false);
+                    }}
+                    selectedAccountId={formData.accountId}
+                />
             )}
 
             {showTransactionModal && (
@@ -5781,7 +5164,7 @@ const AddPurcRtn = () => {
                                         <div className="dropdown-header" style={{
                                             display: 'grid',
                                             // gridTemplateColumns: 'repeat(7, 1fr)',
-                                             gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
                                             alignItems: 'center',
                                             padding: '0 8px',
                                             height: '20px',

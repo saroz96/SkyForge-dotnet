@@ -370,26 +370,6 @@ const AddSales = () => {
     const accountModalRef = useRef(null);
     const transactionModalRef = useRef(null);
 
-    // // Create axios instance with auth interceptor
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
     useEffect(() => {
         // Save draft to context whenever form data or items change
         if (formData.accountId || items.length > 0) {
@@ -4772,106 +4752,6 @@ const AddSales = () => {
                     </form>
                 </div>
             </div>
-
-            {/* Modals - same as AddPurcRtn but with sales-specific transaction types */}
-
-            {/* Account Modal */}
-            {/* {showAccountModal && (
-                <div
-                    className="modal fade show"
-                    id="accountModal"
-                    tabIndex="-1"
-                    style={{ display: 'block' }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            handleAccountModalClose();
-                            setTimeout(() => {
-                                document.getElementById('address').focus();
-                            }, 0);
-                        }
-                    }}
-                >
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content" style={{ height: '400px' }}>
-                            <div className="modal-header py-1">
-                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                    Select an Account
-                                </h5>
-                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
-                                    {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
-                                </small>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={handleAccountModalClose}
-                                    aria-label="Close"
-                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
-                                ></button>
-                            </div>
-                            <div className="p-2 bg-white sticky-top">
-                                <input
-                                    type="text"
-                                    id="searchAccount"
-                                    className="form-control form-control-sm"
-                                    placeholder="Search Account... (Press F6 to create new account)"
-                                    autoFocus
-                                    autoComplete='off'
-                                    value={accountSearchQuery}
-                                    onChange={handleAccountSearch}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                            e.preventDefault();
-                                            const firstAccountItem = document.querySelector('.account-item');
-                                            if (firstAccountItem) {
-                                                firstAccountItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const firstAccountItem = document.querySelector('.account-item.active');
-                                            if (firstAccountItem) {
-                                                const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                const account = accounts.find(a => a.id === accountId);
-                                                if (account) {
-                                                    selectAccount(account);
-                                                    document.getElementById('address').focus();
-                                                }
-                                            }
-                                        } else if (e.key === 'F6') {
-                                            e.preventDefault();
-                                            setShowAccountCreationModal(true);
-                                            handleAccountModalClose();
-                                        }
-                                    }}
-                                    ref={accountSearchRef}
-                                    style={{
-                                        height: '24px',
-                                        fontSize: '0.75rem',
-                                        padding: '0.25rem 0.5rem'
-                                    }}
-                                />
-                            </div>
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(320px - 40px)' }}>
-                                    <VirtualizedAccountList
-                                        accounts={accounts}
-                                        onAccountClick={(account) => {
-                                            selectAccount(account);
-                                            document.getElementById('address').focus();
-                                        }}
-                                        searchRef={accountSearchRef}
-                                        hasMore={hasMoreAccountResults}
-                                        isSearching={isAccountSearching}
-                                        onLoadMore={loadMoreAccounts}
-                                        totalAccounts={totalAccounts}
-                                        page={accountSearchPage}
-                                        searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )} */}
 
             {showAccountModal && (
                 <div

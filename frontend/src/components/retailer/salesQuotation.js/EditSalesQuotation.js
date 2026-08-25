@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-// import NepaliDate from 'nepali-date-converter';
 import NepaliDate from 'nepali-datetime';
-
-import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
 import { calculateExpiryStatus } from '../dashboard/modals/ExpiryStatus';
@@ -16,9 +13,8 @@ import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
 import api, { refreshToken } from '../../services/api';
+import AccountModalForPaymentReceipt from '../payment/AccountModalForPaymentReceipt';
 
-
-// Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
 
@@ -357,27 +353,6 @@ const EditSalesQuotation = () => {
         vatEnabled: true,
         fiscalYear: {}
     });
-
-    // // Create axios instance with auth interceptor
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
     useEffect(() => {
         fetchRoundOffSetting();
     }, []);
@@ -434,80 +409,6 @@ const EditSalesQuotation = () => {
             setIsAccountSearching(false);
         }
     };
-
-    // Fetch items from backend
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-    //         const response = await api.get('/api/retailer/items/search', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: 15,
-    //                 vatStatus: formData.isVatExempt,
-    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             const itemsWithPrices = response.data.items.map(item => {
-    //                 let latestPrice = 0;
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     const sortedEntries = item.stockEntries.sort((a, b) =>
-    //                         new Date(b.date) - new Date(a.date)
-    //                     );
-    //                     latestPrice = sortedEntries[0].price || 0;
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     id: item.id,
-    //                     _id: item.id,
-    //                     latestPrice,
-    //                     stock: item.currentStock || 0
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
 
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
@@ -1072,6 +973,13 @@ const EditSalesQuotation = () => {
             accountPan: account.pan || ''
         });
         setShowAccountModal(false);
+
+        setTimeout(() => {
+            const addressField = document.getElementById('address');
+            if (addressField) {
+                addressField.focus();
+            }
+        }, 100);
     };
 
     const handleItemSearch = (e) => {
@@ -1212,76 +1120,6 @@ const EditSalesQuotation = () => {
             }
         }, 100);
     };
-
-    // const selectItemForInsert = async (item) => {
-    //     setSelectedItemForInsert(item);
-    //     setShowHeaderItemModal(false);
-
-    //     if (headerSearchQuery.trim() !== '') {
-    //         setHeaderLastSearchQuery(headerSearchQuery);
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     }
-    //     setHeaderSearchQuery('');
-
-    //     if (item.stockEntries && item.stockEntries.length > 0) {
-    //         const sortedStockEntries = item.stockEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-    //         const firstStockEntry = sortedStockEntries[0];
-    //         setSelectedItemRate(firstStockEntry.price || 0);
-    //     }
-
-    //     let hasTransactions = false;
-    //     if (transactionSettings.displayTransactions && formData.accountId) {
-    //         const cacheKey = `${item.id}-${formData.accountId}`;
-    //         if (transactionCache.has(cacheKey)) {
-    //             const cachedTransactions = transactionCache.get(cacheKey);
-    //             if (cachedTransactions.length > 0) {
-    //                 setTransactions(cachedTransactions);
-    //                 setShowTransactionModal(true);
-    //                 hasTransactions = true;
-    //             }
-    //         }
-
-    //         if (!hasTransactions) {
-    //             try {
-    //                 setIsLoadingTransactions(true);
-    //                 const controller = new AbortController();
-    //                 const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    //                 const response = await api.get(`/api/retailer/transactions/${item.id}/${formData.accountId}/Sales`, {
-    //                     signal: controller.signal
-    //                 });
-
-    //                 clearTimeout(timeoutId);
-
-    //                 if (response.data.success && response.data.data.transactions.length > 0) {
-    //                     setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
-    //                     setTransactions(response.data.data.transactions);
-    //                     setShowTransactionModal(true);
-    //                     hasTransactions = true;
-    //                 }
-    //             } catch (error) {
-    //                 if (error.name !== 'AbortError') {
-    //                     console.error('Error fetching transactions:', error);
-    //                 }
-    //             } finally {
-    //                 setIsLoadingTransactions(false);
-    //             }
-    //         }
-    //     }
-
-    //     if (!hasTransactions) {
-    //         setTimeout(() => {
-    //             const descriptionInput = document.getElementById('headerItemDescription');
-    //             if (descriptionInput) {
-    //                 descriptionInput.focus();
-    //                 descriptionInput.select();
-    //             }
-    //         }, 100);
-    //     }
-    // };
-
 
     const selectItemForInsert = async (item) => {
         if (headerSearchQuery.trim() !== '') {
@@ -1554,57 +1392,6 @@ const EditSalesQuotation = () => {
             discountPercentage: discountPercentage.toFixed(2)
         }));
     };
-
-    // const fetchLastTransactions = async (itemId, index) => {
-    //     if (!formData.accountId) {
-    //         setNotification({
-    //             show: true,
-    //             message: 'Please select an account first',
-    //             type: 'error'
-    //         });
-    //         return;
-    //     }
-
-    //     setLoadingItems(prev => new Set(prev).add(itemId));
-    //     setIsLoadingTransactions(true);
-
-    //     try {
-    //         const cacheKey = `${itemId}-${formData.accountId}`;
-
-    //         if (transactionCache.has(cacheKey)) {
-    //             const cachedTransactions = transactionCache.get(cacheKey);
-    //             setTransactions(cachedTransactions);
-    //             setShowTransactionModal(true);
-    //             return;
-    //         }
-
-    //         const controller = new AbortController();
-    //         const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    //         const response = await api.get(`/api/retailer/transactions/${itemId}/${formData.accountId}/Sales`, {
-    //             signal: controller.signal
-    //         });
-
-    //         clearTimeout(timeoutId);
-
-    //         if (response.data.success) {
-    //             setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
-    //             setTransactions(response.data.data.transactions);
-    //             setShowTransactionModal(true);
-    //         }
-    //     } catch (error) {
-    //         if (error.name !== 'AbortError') {
-    //             console.error('Error fetching transactions:', error);
-    //         }
-    //     } finally {
-    //         setLoadingItems(prev => {
-    //             const newSet = new Set(prev);
-    //             newSet.delete(itemId);
-    //             return newSet;
-    //         });
-    //         setIsLoadingTransactions(false);
-    //     }
-    // };
 
     const fetchLastTransactions = async (itemId, index) => {
         if (!formData.accountId) {
@@ -2493,40 +2280,6 @@ const EditSalesQuotation = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Transaction Date (Validity Periods - Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                value={formData.transactionDateRoman || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Validity Periods (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <input
                                         type="hidden"
                                         name="transactionDateRoman"
@@ -2671,39 +2424,6 @@ const EditSalesQuotation = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Quotation Date (Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Quotation Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
                                     <input
                                         type="hidden"
                                         name="billDate"
@@ -3606,48 +3326,6 @@ const EditSalesQuotation = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <div className="position-relative">
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-control-sm"
-                                                    step="any"
-                                                    id="roundOffAmount"
-                                                    name="roundOffAmount"
-                                                    value={formData.roundOffAmount}
-                                                    onChange={(e) => setFormData({ ...formData, roundOffAmount: e.target.value })}
-                                                    onFocus={(e) => {
-                                                        e.target.select();
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            document.getElementById('description')?.focus();
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '22px',
-                                                        fontSize: '0.875rem',
-                                                        paddingTop: '0.5rem',
-                                                        width: '100%'
-                                                    }}
-                                                />
-                                                <label
-                                                    className="position-absolute"
-                                                    style={{
-                                                        top: '-0.4rem',
-                                                        left: '0.5rem',
-                                                        fontSize: '0.7rem',
-                                                        backgroundColor: 'white',
-                                                        padding: '0 0.25rem',
-                                                        color: '#6c757d',
-                                                        fontWeight: '500'
-                                                    }}
-                                                >
-                                                    Rs.
-                                                </label>
-                                            </div>
-                                        </td> */}
                                         <td style={{ padding: '1px', verticalAlign: 'middle' }}>
                                             <div className="position-relative" style={{ minWidth: '150px' }}>
                                                 <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
@@ -3995,7 +3673,7 @@ const EditSalesQuotation = () => {
                                         <div className="dropdown-header" style={{
                                             display: 'grid',
                                             // gridTemplateColumns: 'repeat(7, 1fr)',
-                                             gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
                                             alignItems: 'center',
                                             padding: '0 8px',
                                             height: '20px',
@@ -4048,7 +3726,7 @@ const EditSalesQuotation = () => {
                 </div>
             )}
 
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div
                     className="modal fade show"
                     id="accountModal"
@@ -4143,428 +3821,41 @@ const EditSalesQuotation = () => {
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* {showTransactionModal && (
-                <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{ display: 'block' }} role="dialog" aria-labelledby="transactionModalLabel" aria-modal="true">
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content">
-                            <div className="modal-header py-1 px-3" style={{ minHeight: '40px' }}>
-                                <h6 className="modal-title mb-0" id="transactionModalLabel" style={{ fontSize: '1rem' }}>
-                                    Last Sales Transactions
-                                </h6>
-                                <button
-                                    type="button"
-                                    className="close p-0"
-                                    onClick={handleTransactionModalClose}
-                                    aria-label="Close"
-                                    style={{
-                                        margin: '0',
-                                        fontSize: '1.2rem',
-                                        lineHeight: '1',
-                                        background: 'none',
-                                        border: 'none'
-                                    }}
-                                >
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
-                            </div>
-
-                            <div className="modal-body p-0">
-                                <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                    <table className="table table-sm table-hover mb-0 small">
-                                        <thead>
-                                            <tr className="sticky-top bg-light" style={{ top: 0 }}>
-                                                <th style={{
-                                                    width: '5%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>#</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Date</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Inv. No.</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Type</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>A/c Type</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Pay.Mode</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap',
-                                                    textAlign: 'right'
-                                                }}>Qty.</th>
-                                                <th style={{
-                                                    width: '10%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap'
-                                                }}>Unit</th>
-                                                <th style={{
-                                                    width: '15%',
-                                                    padding: '0.15rem 0.3rem',
-                                                    fontSize: '0.75rem',
-                                                    whiteSpace: 'nowrap',
-                                                    textAlign: 'right'
-                                                }}>Rate</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {transactions.length > 0 ? (
-                                                transactions.map((transaction, index) => (
-                                                    <tr
-                                                        key={index}
-                                                        style={{
-                                                            cursor: 'pointer',
-                                                            height: '28px',
-                                                            fontSize: '0.8rem'
-                                                        }}
-                                                        onClick={() => {
-                                                            if (transaction.billId && transaction.billId.id) {
-                                                                navigate(`/retailer/sales/${transaction.billId.id}/print`);
-                                                            }
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                if (transaction.billId && transaction.billId.id) {
-                                                                    navigate(`/retailer/sales/${transaction.billId.id}/print`);
-                                                                }
-                                                            } else if (e.key === 'Tab') {
-                                                                e.preventDefault();
-                                                                continueButtonRef.current?.focus();
-                                                            }
-                                                        }}
-                                                        tabIndex={0}
-                                                    >
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{index + 1}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', whiteSpace: 'nowrap' }}>
-                                                            {new Date(transaction.date).toLocaleDateString()}
-                                                        </td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', fontWeight: '500' }}>
-                                                            {transaction.billNumber || 'N/A'}
-                                                        </td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.type || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.purchaseSalesType || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.paymentMode || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', textAlign: 'right' }}>{transaction.quantity || 0}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem' }}>{transaction.unit?.name || 'N/A'}</td>
-                                                        <td style={{ padding: '0.15rem 0.3rem', textAlign: 'right', fontWeight: '500' }}>
-                                                            Rs.{transaction.price ? Math.round(transaction.price * 100) / 100 : 0}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr style={{ height: '28px' }}>
-                                                    <td colSpan="9" className="text-center text-muted align-middle" style={{ padding: '0.15rem 0.3rem' }}>
-                                                        No previous transactions found
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {transactions.length > 5 && (
-                                    <div className="text-center py-1" style={{
-                                        fontSize: '0.7rem',
-                                        color: '#6c757d',
-                                        backgroundColor: '#f8f9fa',
-                                        borderTop: '1px solid #dee2e6'
-                                    }}>
-                                        Showing {transactions.length} transactions • Scroll to see more
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="modal-footer py-1 px-3" style={{ minHeight: '45px' }}>
-                                <button
-                                    ref={continueButtonRef}
-                                    type="button"
-                                    className="btn btn-primary btn-sm py-1 px-3"
-                                    onClick={handleTransactionModalClose}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleTransactionModalClose();
-                                        } else if (e.key === 'Tab' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            const firstTransactionRow = document.querySelector('tbody tr');
-                                            if (firstTransactionRow) {
-                                                firstTransactionRow.focus();
-                                            }
-                                        }
-                                    }}
-                                    style={{
-                                        fontSize: '0.8rem',
-                                        lineHeight: '1.2',
-                                        minHeight: '28px'
-                                    }}
-                                >
-                                    Continue
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             )} */}
 
-
-            {/* {showTransactionModal && (
-                <div
-                    className="modal fade show"
-                    id="transactionModal"
-                    tabIndex="-1"
-                    style={{
-                        display: 'block',
-                        backgroundColor: 'rgba(0,0,0,0.5)'
+            {/* Account Modal - Using New Component */}
+            {showAccountModal && (
+                <AccountModalForPaymentReceipt
+                    show={showAccountModal}
+                    onClose={handleAccountModalClose}
+                    onSelectAccount={selectAccount}
+                    accounts={accounts}
+                    totalAccounts={totalAccounts}
+                    isSearching={isAccountSearching}
+                    hasMore={hasMoreAccountResults}
+                    searchQuery={accountSearchQuery}
+                    onSearch={(query) => {
+                        // Handle search
+                        setAccountSearchQuery(query);
+                        setAccountSearchPage(1);
+                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                            setAccountShouldShowLastSearchResults(false);
+                            setAccountLastSearchQuery('');
+                        }
+                        const timer = setTimeout(() => {
+                            fetchAccountsFromBackend(query, 1);
+                        }, 300);
+                        return () => clearTimeout(timer);
                     }}
-                    role="dialog"
-                    aria-labelledby="transactionModalLabel"
-                    aria-modal="true"
-                >
-                    <div className="modal-dialog modal-lg modal-dialog-centered">
-                        <div className="modal-content shadow-sm border-0 rounded-2">
-                            <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
-                                <div className="d-flex align-items-center">
-                                    <i className="bi bi-receipt text-white me-1" style={{ fontSize: '0.9rem' }}></i>
-                                    <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                                        {transactionType === 'purchase' ? 'Purchase History' : 'Sales History'}
-                                    </h6>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="btn-close btn-close-white"
-                                    style={{ fontSize: '0.5rem', padding: '0.5rem' }}
-                                    onClick={handleTransactionModalClose}
-                                    aria-label="Close"
-                                ></button>
-                            </div>
-
-                            <div className="modal-body p-0">
-                                <div
-                                    className="table-responsive"
-                                    style={{ maxHeight: '220px', overflowY: 'auto' }}
-                                    id="transactionTableContainer"
-                                >
-                                    <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.7rem' }}>
-                                        <thead className="sticky-top bg-light" style={{ top: 0, zIndex: 10 }}>
-                                            <tr>
-                                                <th className="py-1 px-1 text-center" style={{ width: '5%' }}>#</th>
-                                                <th className="py-1 px-1" style={{ width: '12%' }}>Date</th>
-                                                <th className="py-1 px-1" style={{ width: '12%' }}>Inv.No</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Type</th>
-                                                <th className="py-1 px-1" style={{ width: '10%' }}>A/c</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Pay</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Qty</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '7%' }}>Free</th>
-                                                <th className="py-1 px-1" style={{ width: '8%' }}>Unit</th>
-                                                <th className="py-1 px-1 text-end" style={{ width: '13%' }}>Rate</th>
-                                                <th className="py-1 px-1 text-center" style={{ width: '10%' }}></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {transactions.length > 0 ? (
-                                                transactions.map((transaction, index) => {
-                                                    // Format date based on company date format
-                                                    let formattedDate = '';
-                                                    if (company.dateFormat === 'nepali' || company.dateFormat === 'Nepali') {
-                                                        try {
-                                                            const dateObj = new Date(transaction.date);
-                                                            if (!isNaN(dateObj.getTime())) {
-                                                                const nepaliDate = new NepaliDate(dateObj);
-                                                                formattedDate = nepaliDate.format('YYYY-MM-DD');
-                                                            } else {
-                                                                formattedDate = transaction.date?.split('T')[0] || 'N/A';
-                                                            }
-                                                        } catch (error) {
-                                                            console.error('Error formatting Nepali date:', error);
-                                                            formattedDate = transaction.date?.split('T')[0] || 'N/A';
-                                                        }
-                                                    } else {
-                                                        formattedDate = transaction.date?.split('T')[0] || 'N/A';
-                                                    }
-
-                                                    return (
-                                                        <tr
-                                                            key={index}
-                                                            id={`transaction-row-${index}`}
-                                                            className="transaction-row"
-                                                            data-index={index}
-                                                            style={{
-                                                                cursor: 'pointer',
-                                                                height: '28px',
-                                                                backgroundColor: highlightedRowIndex === index ? '#0d6efd' : 'transparent',
-                                                                color: highlightedRowIndex === index ? 'white' : 'inherit',
-                                                                transition: 'background-color 0.2s ease'
-                                                            }}
-                                                            onMouseEnter={(e) => {
-                                                                if (highlightedRowIndex !== index) {
-                                                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
-                                                                    e.currentTarget.style.color = 'inherit';
-                                                                }
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                if (highlightedRowIndex !== index) {
-                                                                    e.currentTarget.style.backgroundColor = '';
-                                                                    e.currentTarget.style.color = '';
-                                                                }
-                                                            }}
-                                                            onClick={() => {
-                                                                if (transactionType === 'purchase') {
-                                                                    const billId = transaction.purchaseBillId || transaction.billId;
-                                                                    if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                } else {
-                                                                    const billId = transaction.salesBillId || transaction.billId;
-                                                                    if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                }
-                                                            }}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    e.preventDefault();
-                                                                    if (transactionType === 'purchase') {
-                                                                        const billId = transaction.purchaseBillId || transaction.billId;
-                                                                        if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                    } else {
-                                                                        const billId = transaction.salesBillId || transaction.billId;
-                                                                        if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                    }
-                                                                }
-                                                            }}
-                                                            tabIndex={-1}
-                                                        >
-                                                            <td className="py-1 px-1 text-center text-secondary">{index + 1}</td>
-                                                            <td className="py-1 px-1 text-nowrap">{formattedDate}</td>
-                                                            <td className="py-1 px-1 fw-semibold">{transaction.billNumber || 'N/A'}</td>
-                                                            <td className="py-1 px-1">
-                                                                <span className={`badge ${transaction.type === 'Sale' ? 'bg-success' : 'bg-info'} px-1 py-0`} style={{ fontSize: '0.6rem' }}>
-                                                                    {transaction.type?.substring(0, 4) || 'N/A'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="py-1 px-1 text-muted">{transaction.purchaseSalesType?.substring(0, 8) || 'N/A'}</td>
-                                                            <td className="py-1 px-1">
-                                                                <span className={`badge ${transaction.paymentMode === 'Cash' ? 'bg-warning' : 'bg-primary'} bg-opacity-25 text-dark px-1 py-0`} style={{ fontSize: '0.6rem' }}>
-                                                                    {transaction.paymentMode?.substring(0, 6) || 'N/A'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="py-1 px-1 text-end fw-medium">{transaction.quantity || 0}</td>
-                                                            <td className="py-1 px-1 text-end text-secondary">{transaction.bonus || 0}</td>
-                                                            <td className="py-1 px-1">{transaction.unitName || transaction.unit || 'N/A'}</td>
-                                                            <td className="py-1 px-1 text-end fw-semibold">
-                                                                {transactionType === 'purchase'
-                                                                    ? (transaction.puPrice ? Math.round(transaction.puPrice * 100) / 100 : 0)
-                                                                    : (transaction.price ? Math.round(transaction.price * 100) / 100 : 0)}
-                                                            </td>
-                                                            <td className="py-1 px-1 text-center">
-                                                                <button
-                                                                    className="btn btn-sm btn-outline-primary py-0 px-1"
-                                                                    style={{ fontSize: '0.6rem' }}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        if (transactionType === 'purchase') {
-                                                                            const billId = transaction.purchaseBillId || transaction.billId;
-                                                                            if (billId) navigate(`/retailer/purchase/${billId}/print`);
-                                                                        } else {
-                                                                            const billId = transaction.salesBillId || transaction.billId;
-                                                                            if (billId) navigate(`/retailer/sales/${billId}/print`);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <i className="bi bi-printer" style={{ fontSize: '0.6rem' }}></i>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="11" className="text-center py-3">
-                                                        <div className="d-flex flex-column align-items-center">
-                                                            <i className="bi bi-inbox text-muted" style={{ fontSize: '1.5rem' }}></i>
-                                                            <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>No transactions found</p>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {transactions.length > 7 && (
-                                    <div className="text-center py-1 bg-light border-top" style={{ fontSize: '0.6rem', color: '#6c757d' }}>
-                                        <i className="bi bi-arrow-down-short me-1"></i>Scroll for more ({transactions.length} total)<i className="bi bi-arrow-down-short ms-1"></i>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="modal-footer py-1 px-2 bg-light border-top">
-                                <div className="d-flex gap-1 w-100 justify-content-between align-items-center">
-                                    <div>
-                                        {transactionType === 'purchase' && (
-                                            <button
-                                                id="showSalesTransactions"
-                                                className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                onClick={fetchSalesTransactions}
-                                                style={{ fontSize: '0.65rem', height: '24px' }}
-                                            >
-                                                <i className="bi bi-receipt" style={{ fontSize: '0.7rem' }}></i>
-                                                Show Sales Transaction
-                                            </button>
-                                        )}
-
-                                        {transactionType === 'sales' && (
-                                            <button
-                                                id="showPurchaseTransactions"
-                                                className="btn btn-info btn-sm py-0 px-2 d-flex align-items-center gap-1"
-                                                onClick={fetchPurchaseTransactions}
-                                                style={{ fontSize: '0.65rem', height: '24px' }}
-                                            >
-                                                <i className="bi bi-cart" style={{ fontSize: '0.7rem' }}></i>
-                                                Show Purchase Transaction
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    <button
-                                        ref={continueButtonRef}
-                                        type="button"
-                                        className="btn btn-primary btn-sm py-0 px-3 d-flex align-items-center gap-1"
-                                        onClick={handleTransactionModalClose}
-                                        style={{ fontSize: '0.65rem', height: '24px' }}
-                                    >
-                                        <i className="bi bi-check-lg" style={{ fontSize: '0.7rem' }}></i>
-                                        Continue
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )} */}
+                    onLoadMore={loadMoreAccounts}
+                    page={accountSearchPage}
+                    onCreateAccount={() => {
+                        setShowAccountCreationModal(true);
+                        setShowAccountModal(false);
+                    }}
+                    selectedAccountId={formData.accountId}
+                />
+            )}
 
             {showTransactionModal && (
                 <div className="modal fade show" id="transactionModal" tabIndex="-1" style={{

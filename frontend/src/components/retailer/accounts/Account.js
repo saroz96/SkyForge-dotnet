@@ -1302,12 +1302,12 @@
 //         </style>
 //         ${printHeader}
 //         <div class="report-title">Accounts Report</div>
-        
+
 //         <div class="header-info">
 //             <strong>Fiscal Year:</strong> ${data.currentFiscalYear?.name || 'N/A'} | 
 //             <strong>Total Accounts:</strong> ${accountsToPrint.length}
 //         </div>
-        
+
 //         <div class="filter-info">
 //             ${printOption !== 'all' && selectedAccountGroup ?
 //                 `<strong>Filter:</strong> Account Group: ${data.accountGroups.find(g => g._id === selectedAccountGroup)?.name || 'N/A'} | ` : ''
@@ -1316,7 +1316,7 @@
 //                 (data.nepaliDate || new NepaliDate().format('YYYY-MM-DD')) :
 //                 new Date().toLocaleDateString()}
 //         </div>
-        
+
 //         <table>
 //             <thead>
 //                 <tr>
@@ -1384,7 +1384,7 @@
 //                 </tr>
 //             </tfoot>
 //         </table>
-        
+
 //         <div class="footer-note">
 //             ${data.company?.companyName ? `© ${new Date().getFullYear()} ${data.company.companyName}` : ''}
 //         </div>
@@ -2437,14 +2437,14 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { 
-    FiEdit2, 
-    FiTrash2, 
-    FiEye, 
-    FiCheck, 
-    FiPrinter, 
-    FiArrowLeft, 
-    FiRefreshCw, 
+import {
+    FiEdit2,
+    FiTrash2,
+    FiEye,
+    FiCheck,
+    FiPrinter,
+    FiArrowLeft,
+    FiRefreshCw,
     FiX,
     FiSearch,
     FiGrid,
@@ -2538,38 +2538,6 @@ const Accounts = () => {
         }
     });
 
-    // // Create axios instance with interceptors
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142',
-    //     withCredentials: true,
-    // });
-
-    // api.interceptors.request.use(
-    //     config => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     error => Promise.reject(error)
-    // );
-
-    // api.interceptors.response.use(
-    //     response => response,
-    //     error => {
-    //         if (error.response?.status === 401) {
-    //             localStorage.removeItem('token');
-    //             localStorage.removeItem('userInfo');
-    //             localStorage.removeItem('currentCompany');
-    //             localStorage.removeItem('currentCompanyId');
-    //             localStorage.removeItem('userCompanies');
-    //             window.location.href = '/auth/login';
-    //         }
-    //         return Promise.reject(error);
-    //     }
-    // );
-
     const showNotificationMessage = (message, type) => {
         setNotificationMessage(message);
         setNotificationType(type);
@@ -2582,6 +2550,15 @@ const Accounts = () => {
             fetchAccounts();
         }
     }, []);
+
+    // Sort account groups alphabetically by name
+    const sortedAccountGroups = useMemo(() => {
+        return [...data.accountGroups].sort((a, b) => {
+            const nameA = (a.name || '').toLowerCase();
+            const nameB = (b.name || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+    }, [data.accountGroups]);
 
     const fetchAccounts = async () => {
         try {
@@ -3396,7 +3373,7 @@ const Accounts = () => {
                                             }}
                                         >
                                             <option value="">Select Group</option>
-                                            {data.accountGroups.map(group => (
+                                            {sortedAccountGroups.map(group => (
                                                 <option key={group._id} value={group._id}>
                                                     {group.name}
                                                 </option>
@@ -3761,7 +3738,7 @@ const Accounts = () => {
                                     onChange={(e) => setSelectedAccountGroup(e.target.value)}
                                 >
                                     <option value="">All Groups</option>
-                                    {data.accountGroups.map(group => (
+                                    {sortedAccountGroups.map(group => (
                                         <option key={group._id} value={group._id}>
                                             {group.name}
                                         </option>

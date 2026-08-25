@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NepaliDate from 'nepali-datetime';
-import axios from 'axios';
 import Header from '../Header';
 import NotificationToast from '../../NotificationToast';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
@@ -14,6 +13,7 @@ import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import BatchSelectionModal from './BatchSelectionModal';
 import api, { refreshToken } from '../../services/api';
+import AccountModalForPaymentReceipt from '../payment/AccountModalForPaymentReceipt';
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -355,26 +355,6 @@ const AddSalesReturn = () => {
     const accountModalRef = useRef(null);
     const transactionModalRef = useRef(null);
 
-    // Create axios instance with auth interceptor
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
     // Fetch accounts from backend
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
         try {
@@ -416,89 +396,6 @@ const AddSalesReturn = () => {
             setIsAccountSearching(false);
         }
     };
-
-    // Fetch items from backend
-    // const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
-    //     try {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(true);
-    //         } else {
-    //             setIsSearching(true);
-    //         }
-
-    //         const response = await api.get('/api/retailer/items/search', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: searchTerm.trim() ? 15 : 25,
-    //                 vatStatus: formData.isVatExempt,
-    //                 sortBy: searchTerm.trim() ? 'relevance' : 'name'
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             const itemsWithPrices = response.data.items.map(item => {
-    //                 // Get all stock entries for batch selection
-    //                 let stockEntries = [];
-    //                 if (item.stockEntries && item.stockEntries.length > 0) {
-    //                     // Sort by date (oldest first for FIFO)
-    //                     stockEntries = [...item.stockEntries].sort((a, b) =>
-    //                         new Date(a.date) - new Date(b.date)
-    //                     ).map(entry => ({
-    //                         ...entry,
-    //                         availableQuantity: entry.quantity || 0,
-    //                         displayPrice: entry.price || 0,
-    //                         purchasePrice: entry.purchasePrice || entry.price || 0
-    //                     }));
-    //                 }
-
-    //                 return {
-    //                     ...item,
-    //                     id: item.id,
-    //                     _id: item.id,
-    //                     stockEntries: stockEntries,
-    //                     latestPrice: stockEntries.length > 0 ? stockEntries[0].price || 0 : 0,
-    //                     latestBatchNumber: stockEntries.length > 0 ? stockEntries[0].batchNumber || '' : '',
-    //                     latestExpiryDate: stockEntries.length > 0 ? stockEntries[0].expiryDate || '' : '',
-    //                     stock: item.currentStock || 0
-    //                 };
-    //             });
-
-    //             if (isHeaderModal) {
-    //                 if (page === 1) {
-    //                     setHeaderSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setHeaderSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreHeaderSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalHeaderSearchItems(response.data.pagination.totalItems);
-    //                 setHeaderSearchPage(page);
-    //             } else {
-    //                 if (page === 1) {
-    //                     setSearchResults(itemsWithPrices);
-    //                 } else {
-    //                     setSearchResults(prev => [...prev, ...itemsWithPrices]);
-    //                 }
-    //                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
-    //                 setTotalSearchItems(response.data.pagination.totalItems);
-    //                 setSearchPage(page);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching items:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading items',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         if (isHeaderModal) {
-    //             setIsHeaderSearching(false);
-    //         } else {
-    //             setIsSearching(false);
-    //         }
-    //     }
-    // };
 
     const fetchItemsFromBackend = async (searchTerm = '', page = 1, isHeaderModal = false) => {
         try {
@@ -806,62 +703,6 @@ const AddSalesReturn = () => {
         };
         fetchInitialData();
     }, []);
-
-    // Initial data loading
-    // useEffect(() => {
-    //     const fetchInitialData = async () => {
-    //         try {
-    //             setIsLoading(true);
-
-    //             // Fetch next bill number separately
-    //             const numberResponse = await api.get('/api/retailer/sales-return/current-number');
-    //             const currentBillNum = await getCurrentBillNumber();
-
-    //             // Fetch company settings and initial data
-    //             const response = await api.get('/api/retailer/sales-return');
-    //             const { data } = response.data;
-
-    //             // Set company settings
-    //             setCompany({
-    //                 ...data.company,
-    //                 dateFormat: data.company.dateFormat || 'nepali',
-    //                 vatEnabled: data.company.vatEnabled || true
-    //             });
-
-    //             // Set other data
-    //             setCategories(data.categories || []);
-    //             setUnits(data.units || []);
-    //             setCompanyGroups(data.companyGroups || []);
-
-    //             // Use the bill number from the separate endpoint
-    //             setNextBillNumber(currentBillNum);
-    //             const isNepaliFormat = data.company.dateFormat === 'nepali' ||
-    //                 data.company.dateFormat === 'Nepali';
-
-    //             setFormData(prev => ({
-    //                 ...prev,
-    //                 billNumber: currentBillNum,
-    //                 transactionDateNepali: isNepaliFormat ? currentNepaliDate : '',
-    //                 nepaliDate: isNepaliFormat ? currentNepaliDate : '',
-    //                 transactionDateRoman: new Date().toISOString().split('T')[0],
-    //                 billDate: new Date().toISOString().split('T')[0]
-    //             }));
-
-    //             fetchAccountsFromBackend('', 1);
-    //             setIsInitialDataLoaded(true);
-    //         } catch (error) {
-    //             console.error('Error fetching initial data:', error);
-    //             setNotification({
-    //                 show: true,
-    //                 message: 'Error loading sales return data',
-    //                 type: 'error'
-    //             });
-    //         } finally {
-    //             setIsLoading(false);
-    //         }
-    //     };
-    //     fetchInitialData();
-    // }, []);
 
     useEffect(() => {
         fetchRoundOffSetting();
@@ -1183,8 +1024,7 @@ const AddSalesReturn = () => {
         // Focus on address field after account selection
         setTimeout(() => {
             document.getElementById('address').focus();
-            document.getElementById('address').select();
-        }, 50);
+        }, 100);
     };
 
     const handleItemSearch = (e) => {
@@ -1878,93 +1718,6 @@ const AddSalesReturn = () => {
         }
     };
 
-
-    // const handleManualReset = async () => {
-    //     try {
-    //         setIsLoading(true);
-
-    //         // Get current bill number (does NOT increment)
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/sales-return');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum,
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             salesInvoiceNumber: '',
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         setCategories(data.categories || []);
-    //         setUnits(data.units || []);
-    //         setCompanyGroups(data.companyGroups || []);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-    //         setSalesInvoiceData(null);
-    //         clearCreditSalesReturnDraft();
-
-    //         if (accountSearchRef.current) {
-    //             accountSearchRef.current.value = '';
-    //         }
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-    //         setShowItemDropdown(false);
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderLastSearchQuery('');
-    //         setHeaderShouldShowLastSearchResults(false);
-    //         setSelectedItemForInsert(null);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting form:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
-
-    // Reset after save - increments bill number
-
     const handleManualReset = async () => {
         try {
             setIsLoading(true);
@@ -2085,85 +1838,6 @@ const AddSalesReturn = () => {
         }
     };
 
-    // const resetAfterSave = async () => {
-    //     try {
-    //         // Get next bill number (this increments the counter)
-    //         const nextBillNum = await getCurrentBillNumber();
-
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/sales-return');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-    //             billDate: currentRomanDate,
-    //             billNumber: nextBillNum,
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             salesInvoiceNumber: '',
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         setCategories(data.categories || []);
-    //         setUnits(data.units || []);
-    //         setCompanyGroups(data.companyGroups || []);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setNextBillNumber(nextBillNum);
-    //         setItems([]);
-    //         setSalesInvoiceData(null);
-    //         clearCreditSalesReturnDraft();
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-    //         setShowItemDropdown(false);
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-    //         setSelectedItemForInsert(null);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting after save:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     }
-    // };
-
-    // Reset after save - respects date preferences
     const resetAfterSave = async () => {
         try {
             // Get next bill number (this increments the counter)
@@ -3379,40 +3053,6 @@ const AddSalesReturn = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                value={formData.transactionDateRoman || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Transaction Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <input
                                         type="hidden"
                                         name="transactionDateRoman"
@@ -3557,40 +3197,6 @@ const AddSalesReturn = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Invoice Date (Return Date - Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-2">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Invoice Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <input
                                         type="hidden"
                                         name="billDate"
@@ -4695,48 +4301,6 @@ const AddSalesReturn = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <div className="position-relative">
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-control-sm"
-                                                    step="any"
-                                                    id="roundOffAmount"
-                                                    name="roundOffAmount"
-                                                    value={formData.roundOffAmount}
-                                                    onChange={(e) => setFormData({ ...formData, roundOffAmount: e.target.value })}
-                                                    onFocus={(e) => {
-                                                        e.target.select();
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            document.getElementById('saveBill')?.focus();
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '22px',
-                                                        fontSize: '0.875rem',
-                                                        paddingTop: '0.5rem',
-                                                        width: '100%'
-                                                    }}
-                                                />
-                                                <label
-                                                    className="position-absolute"
-                                                    style={{
-                                                        top: '-0.4rem',
-                                                        left: '0.5rem',
-                                                        fontSize: '0.7rem',
-                                                        backgroundColor: 'white',
-                                                        padding: '0 0.25rem',
-                                                        color: '#6c757d',
-                                                        fontWeight: '500'
-                                                    }}
-                                                >
-                                                    Rs.
-                                                </label>
-                                            </div>
-                                        </td> */}
                                         <td style={{ padding: '1px', verticalAlign: 'middle' }}>
                                             <div className="position-relative" style={{ minWidth: '150px' }}>
                                                 <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
@@ -5375,7 +4939,7 @@ const AddSalesReturn = () => {
                 </div>
             )}
 
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div
                     className="modal fade show"
                     id="accountModal"
@@ -5472,6 +5036,40 @@ const AddSalesReturn = () => {
                         </div>
                     </div>
                 </div>
+            )} */}
+
+            {/* Account Modal - Using New Component */}
+            {showAccountModal && (
+                <AccountModalForPaymentReceipt
+                    show={showAccountModal}
+                    onClose={handleAccountModalClose}
+                    onSelectAccount={selectAccount}
+                    accounts={accounts}
+                    totalAccounts={totalAccounts}
+                    isSearching={isAccountSearching}
+                    hasMore={hasMoreAccountResults}
+                    searchQuery={accountSearchQuery}
+                    onSearch={(query) => {
+                        // Handle search
+                        setAccountSearchQuery(query);
+                        setAccountSearchPage(1);
+                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                            setAccountShouldShowLastSearchResults(false);
+                            setAccountLastSearchQuery('');
+                        }
+                        const timer = setTimeout(() => {
+                            fetchAccountsFromBackend(query, 1);
+                        }, 300);
+                        return () => clearTimeout(timer);
+                    }}
+                    onLoadMore={loadMoreAccounts}
+                    page={accountSearchPage}
+                    onCreateAccount={() => {
+                        setShowAccountCreationModal(true);
+                        setShowAccountModal(false);
+                    }}
+                    selectedAccountId={formData.accountId}
+                />
             )}
 
             {showTransactionModal && (

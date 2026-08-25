@@ -2387,15 +2387,34 @@ const EditJournalVoucher = () => {
         }
     }, [formData.entries]);
 
+    // useEffect(() => {
+    //     if (showAccountModal) {
+    //         setAccountSearchQuery('');
+    //         setAccountSearchPage(1);
+    //         if (accountShouldShowLastSearchResults && accountLastSearchQuery.trim() !== '') {
+    //             fetchAccountsFromBackend(accountLastSearchQuery, 1);
+    //         } else {
+    //             fetchAccountsFromBackend('', 1);
+    //         }
+    //     }
+    // }, [showAccountModal]);
+
     useEffect(() => {
         if (showAccountModal) {
+            // Reset ALL search-related state
             setAccountSearchQuery('');
             setAccountSearchPage(1);
-            if (accountShouldShowLastSearchResults && accountLastSearchQuery.trim() !== '') {
-                fetchAccountsFromBackend(accountLastSearchQuery, 1);
-            } else {
-                fetchAccountsFromBackend('', 1);
-            }
+            setAccounts([]);
+            setHasMoreAccountResults(false);
+            setTotalAccounts(0);
+            setAccountLastSearchQuery('');
+            setAccountShouldShowLastSearchResults(false);
+
+            // Fetch fresh accounts from page 1 with no search
+            // Use a small delay to ensure state is reset first
+            setTimeout(() => {
+                fetchAccountsFromBackend('', 1, false);
+            }, 50);
         }
     }, [showAccountModal]);
 
