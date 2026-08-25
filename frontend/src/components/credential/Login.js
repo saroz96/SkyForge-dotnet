@@ -804,11 +804,6 @@ const LoginForm = () => {
                             </Link>
                         </p>
                     </form>
-
-                    {/* Optional: Display session info */}
-                    <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '0.75rem', color: '#a0aec0' }}>
-                        <p>Secure login with automatic session refresh</p>
-                    </div>
                 </div>
             </div>
 
