@@ -2316,9 +2316,8 @@ const AddStockAdjustment = () => {
                     <form onSubmit={handleSubmit} id="adjustmentForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
                         <div className="row g-2 mb-3">
-                            {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
+                            {/* {company.dateFormat === 'nepali' || company.dateFormat === 'Nepali' ? (
                                 <>
-                                    {/* Nepali Date (Primary editable field) */}
                                     <div className="col-12 col-md-6 col-lg-3">
                                         <div className="position-relative">
                                             <NepaliDatePicker
@@ -2471,6 +2470,178 @@ const AddStockAdjustment = () => {
                                         </label>
                                     </div>
                                 </div>
+                            )} */}
+
+                            {(company.dateFormat === 'nepali' || company.dateFormat === 'Nepali') ? (
+                                <>
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <NepaliDatePicker
+                                                value={formData.nepaliDate}
+                                                onChange={(bsDate) => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        nepaliDate: bsDate
+                                                    }));
+                                                    setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+                                                    // Auto-convert to AD when we have a complete valid date
+                                                    if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
+                                                        console.log('Converting BS to AD:', bsDate);
+                                                        const adDate = convertBsToAd(bsDate);
+                                                        console.log('Converted AD date:', adDate);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                billDate: adDate
+                                                            }));
+                                                        }
+                                                    }
+                                                }}
+                                                autoFocus={true}
+                                                required={true}
+                                                className={dateErrors.nepaliDate ? 'is-invalid' : ''}
+                                                onKeyDown={(e) => {
+                                                    // This calls handleKeyDown to move to next field
+                                                    handleKeyDown(e, 'nepaliDate');
+                                                }}
+                                                dateErrors={dateErrors}
+                                                setDateErrors={setDateErrors}
+                                            />
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Date (BS): <span className="text-danger">*</span>
+                                            </label>
+                                            {dateErrors.nepaliDate && (
+                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                                    {dateErrors.nepaliDate}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="date"
+                                                name="billDate"
+                                                id="billDate"
+                                                className="form-control form-control-sm"
+                                                value={formData.billDate || ''}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setFormData(prev => ({ ...prev, billDate: value }));
+
+                                                    // Convert AD to BS when user changes AD date
+                                                    if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                                                        const bsDate = convertAdToBs(value);
+                                                        if (bsDate && isValidNepaliDate(bsDate)) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                nepaliDate: bsDate
+                                                            }));
+                                                        }
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        handleKeyDown(e, 'billDate');
+                                                    }
+                                                }}
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Date (AD):
+                                            </label>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                // English date format section
+                                <>
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="position-relative">
+                                            <input
+                                                type="date"
+                                                name="billDate"
+                                                id="billDate"
+                                                className="form-control form-control-sm"
+                                                value={formData.billDate}
+                                                autoFocus
+                                                ref={transactionDateRef}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    const selectedDate = new Date(value);
+                                                    const today = new Date();
+                                                    today.setHours(0, 0, 0, 0);
+
+                                                    if (selectedDate > today) {
+                                                        const todayStr = today.toISOString().split('T')[0];
+                                                        setFormData({ ...formData, billDate: todayStr });
+
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Future date not allowed. Auto-corrected to today.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    } else {
+                                                        setFormData({ ...formData, billDate: value });
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => handleKeyDown(e, 'billDate')}
+                                                max={new Date().toISOString().split('T')[0]}
+                                                required
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
+                                            />
+                                            <label
+                                                className="position-absolute"
+                                                style={{
+                                                    top: '-0.5rem',
+                                                    left: '0.75rem',
+                                                    fontSize: '0.75rem',
+                                                    backgroundColor: 'white',
+                                                    padding: '0 0.25rem',
+                                                    color: '#6c757d',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                Date: <span className="text-danger">*</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </>
                             )}
 
                             <div className="col-12 col-md-6 col-lg-2">
