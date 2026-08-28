@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const AccountModalForSales = ({
     show,
@@ -14,11 +14,10 @@ const AccountModalForSales = ({
     page,
     onCreateAccount,
     selectedAccountId,
-    paymentMode = 'credit',
-    isManualAccountEntry = false,
-    onManualAccountChange,
-    onManualAccountSubmit,
-    manualAccountName = '',
+    paymentMode = 'credit', // 'cash' or 'credit'
+    isManualEntry = false,
+    onManualEntryChange,
+    cashInHandAccountId = null
 }) => {
     // Modal position and size states
     const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
@@ -32,7 +31,7 @@ const AccountModalForSales = ({
     const [isVisible, setIsVisible] = useState(false);
     const [currentFocus, setCurrentFocus] = useState(0);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [localManualAccountName, setLocalManualAccountName] = useState(manualAccountName || '');
+    const [manualAccountName, setManualAccountName] = useState('');
 
     const modalRef = useRef(null);
     const searchInputRef = useRef(null);
@@ -42,13 +41,6 @@ const AccountModalForSales = ({
     const lastScrollTop = useRef(0);
     const loadMoreTimerRef = useRef(null);
 
-    const isCashMode = paymentMode === 'cash';
-
-    // Sync manual account name from prop
-    useEffect(() => {
-        setLocalManualAccountName(manualAccountName || '');
-    }, [manualAccountName]);
-
     // Show modal with animation
     useEffect(() => {
         if (show) {
@@ -57,6 +49,7 @@ const AccountModalForSales = ({
                 setTimeout(() => {
                     if (searchInputRef.current) {
                         searchInputRef.current.focus();
+                        searchInputRef.current.select();
                     }
                 }, 100);
             }, 50);
@@ -224,71 +217,62 @@ const AccountModalForSales = ({
     // Handle keyboard navigation
     const handleKeyDown = useCallback((e) => {
         const currentAccounts = accounts;
-        
-        // In cash mode, allow Enter to submit manual account name
-        // ONLY if there are no matching accounts OR if user explicitly pressed Enter
-        // and there's a focused item, select it first
-        if (isCashMode && e.key === 'Enter') {
-            // If there are accounts and a row is focused, select that account
-            if (currentAccounts.length > 0 && currentFocus >= 0 && currentFocus < currentAccounts.length) {
-                e.preventDefault();
-                onSelectAccount(currentAccounts[currentFocus]);
-                return;
-            }
-            
-            // If no accounts found, submit manual name
-            if (currentAccounts.length === 0 && localManualAccountName.trim() !== '') {
-                e.preventDefault();
-                if (onManualAccountSubmit) {
-                    onManualAccountSubmit(localManualAccountName);
-                }
-                return;
-            }
-            
-            // If there are accounts but none focused and user is in cash mode,
-            // check if the typed name matches any account exactly
-            if (currentAccounts.length > 0 && localManualAccountName.trim() !== '') {
-                const exactMatch = currentAccounts.find(
-                    acc => acc.name.toLowerCase() === localManualAccountName.toLowerCase().trim()
-                );
-                if (exactMatch) {
-                    e.preventDefault();
-                    onSelectAccount(exactMatch);
-                    return;
-                }
-                // If no exact match, but there are accounts showing, let the user select
-                // Don't submit manual automatically when accounts exist
-            }
-        }
-
-        if (currentAccounts.length === 0) {
-            // In cash mode with no accounts, allow Enter to submit manual name
-            if (isCashMode && e.key === 'Enter' && localManualAccountName.trim() !== '') {
-                e.preventDefault();
-                if (onManualAccountSubmit) {
-                    onManualAccountSubmit(localManualAccountName);
-                }
-            }
-            return;
-        }
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            const nextFocus = Math.min(currentFocus + 1, currentAccounts.length - 1);
-            setCurrentFocus(nextFocus);
-            setTimeout(() => {
-                scrollToItem(nextFocus);
-            }, 50);
+            if (currentAccounts.length > 0) {
+                const nextFocus = Math.min(currentFocus + 1, currentAccounts.length - 1);
+                setCurrentFocus(nextFocus);
+                setTimeout(() => {
+                    scrollToItem(nextFocus);
+                }, 50);
+            }
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            const nextFocus = Math.max(currentFocus - 1, 0);
-            setCurrentFocus(nextFocus);
-            setTimeout(() => {
-                scrollToItem(nextFocus);
-            }, 50);
-        } else if (e.key === 'Enter' && currentAccounts[currentFocus]) {
+            if (currentAccounts.length > 0) {
+                const nextFocus = Math.max(currentFocus - 1, 0);
+                setCurrentFocus(nextFocus);
+                setTimeout(() => {
+                    scrollToItem(nextFocus);
+                }, 50);
+            }
+        } else if (e.key === 'Enter') {
             e.preventDefault();
-            onSelectAccount(currentAccounts[currentFocus]);
+            
+            // Check if we're in cash mode and there's a search query
+            if (paymentMode === 'cash' && searchQuery.trim()) {
+                // First, check if there are accounts and one is focused
+                if (currentAccounts.length > 0 && currentFocus >= 0 && currentFocus < currentAccounts.length) {
+                    // Select the focused account
+                    onSelectAccount(currentAccounts[currentFocus]);
+                    return;
+                }
+                
+                // If no account is focused OR no accounts exist, use manual entry
+                // Check if the search query matches any account name (case insensitive)
+                const exactMatch = currentAccounts.find(acc => 
+                    acc.name.toLowerCase() === searchQuery.trim().toLowerCase()
+                );
+                
+                if (exactMatch) {
+                    // If exact match exists, select it
+                    onSelectAccount(exactMatch);
+                    return;
+                }
+                
+                // No exact match, use as manual entry
+                onSelectAccount({
+                    id: cashInHandAccountId,
+                    name: searchQuery.trim(),
+                    isManual: true
+                });
+                return;
+            }
+            
+            // Credit mode or no search query - select focused account if exists
+            if (currentAccounts.length > 0 && currentFocus >= 0 && currentFocus < currentAccounts.length) {
+                onSelectAccount(currentAccounts[currentFocus]);
+            }
         } else if (e.key === 'Escape') {
             handleClose();
         } else if (e.key === 'F6') {
@@ -297,20 +281,7 @@ const AccountModalForSales = ({
                 onCreateAccount();
             }
         }
-    }, [accounts, currentFocus, onSelectAccount, scrollToItem, onCreateAccount, isCashMode, localManualAccountName, onManualAccountSubmit]);
-
-    // Handle manual account name change
-    const handleManualNameChange = (e) => {
-        const value = e.target.value;
-        setLocalManualAccountName(value);
-        if (onManualAccountChange) {
-            onManualAccountChange(value);
-        }
-        // Also trigger search to find matching accounts
-        if (onSearch) {
-            onSearch(value);
-        }
-    };
+    }, [accounts, currentFocus, onSelectAccount, scrollToItem, onCreateAccount, paymentMode, searchQuery, cashInHandAccountId]);
 
     // Scroll to focused item when currentFocus changes
     useEffect(() => {
@@ -321,7 +292,7 @@ const AccountModalForSales = ({
         }
     }, [currentFocus, accounts, scrollToItem]);
 
-    // Handle scroll for infinite loading - Loads earlier
+    // OPTIMIZED: Handle scroll for infinite loading - Loads earlier
     const handleScroll = useCallback((e) => {
         const container = e.target;
         const scrollTop = container.scrollTop;
@@ -579,7 +550,7 @@ const AccountModalForSales = ({
                     >
                         <div style={{ display: 'flex', alignItems: 'center' }}>
                             <p className="modal-title mb-0" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
-                                {isCashMode ? 'Select Cash Account' : 'Select an Account'}
+                                {paymentMode === 'cash' ? 'Select Cash Account' : 'Select Account'}
                             </p>
                             {zoomLevel !== 1 && (
                                 <span style={{
@@ -588,7 +559,8 @@ const AccountModalForSales = ({
                                     backgroundColor: '#f0f0f0',
                                     padding: '1px 8px',
                                     borderRadius: '3px',
-                                    fontFamily: 'monospace'
+                                    fontFamily: 'monospace',
+                                    marginLeft: '8px'
                                 }}>
                                     {Math.round(zoomLevel * 100)}%
                                 </span>
@@ -617,25 +589,22 @@ const AccountModalForSales = ({
                     {/* Search Controls */}
                     <div className="p-2 bg-white" style={{ flexShrink: 0 }}>
                         <div className="row g-2 align-items-center">
-                            <div className="col-9">
+                            <div className={paymentMode === 'cash' ? 'col-12' : 'col-9'}>
                                 <input
                                     ref={searchInputRef}
                                     type="text"
                                     id="searchAccount"
                                     className="form-control form-control-sm"
                                     placeholder={
-                                        isCashMode 
-                                            ? "Type to search or enter new account name..." 
+                                        paymentMode === 'cash'
+                                            ? "Type to search or enter new account name... (Press Enter to select/use)"
                                             : "Search Account... (Press F6 to create new account)"
                                     }
                                     autoComplete='off'
-                                    value={isCashMode ? localManualAccountName : searchQuery}
+                                    value={searchQuery}
                                     onChange={(e) => {
-                                        if (isCashMode) {
-                                            handleManualNameChange(e);
-                                        } else {
-                                            onSearch(e.target.value);
-                                        }
+                                        const value = e.target.value;
+                                        onSearch(value);
                                     }}
                                     onKeyDown={handleKeyDown}
                                     style={{
@@ -645,18 +614,20 @@ const AccountModalForSales = ({
                                     }}
                                 />
                             </div>
-                            <div className="col-3">
-                                <button
-                                    type="button"
-                                    className="btn btn-primary btn-sm w-100"
-                                    onClick={() => {
-                                        if (onCreateAccount) onCreateAccount();
-                                    }}
-                                    style={{ fontSize: '0.75rem', height: '32px' }}
-                                >
-                                    <i className="bi bi-plus-circle me-1"></i> New Account
-                                </button>
-                            </div>
+                            {paymentMode !== 'cash' && (
+                                <div className="col-3">
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary btn-sm w-100"
+                                        onClick={() => {
+                                            if (onCreateAccount) onCreateAccount();
+                                        }}
+                                        style={{ fontSize: '0.75rem', height: '32px' }}
+                                    >
+                                        <i className="bi bi-plus-circle me-1"></i> New Account
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -710,27 +681,32 @@ const AccountModalForSales = ({
                                             Loading accounts...
                                         </div>
                                     ) : accounts.length === 0 ? (
-                                        <div className="text-center py-3" style={{ fontSize: '0.75rem' }}>
-                                            {searchQuery ? (
+                                        <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+                                            {searchQuery && paymentMode === 'cash' ? (
                                                 <>
-                                                    <p className="text-muted mb-1">
-                                                        No accounts found for "<strong>{searchQuery}</strong>"
-                                                    </p>
-                                                    {isCashMode && (
-                                                        <p className="text-muted mb-0" style={{ fontSize: '0.65rem' }}>
-                                                            Press <kbd>Enter</kbd> to use as new account, or <kbd>F6</kbd> to create full account
-                                                        </p>
-                                                    )}
+                                                    No accounts found for "<strong>{searchQuery}</strong>"
+                                                    <div className="mt-2">
+                                                        <button
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={() => {
+                                                                onSelectAccount({
+                                                                    id: cashInHandAccountId,
+                                                                    name: searchQuery.trim(),
+                                                                    isManual: true
+                                                                });
+                                                            }}
+                                                            style={{ fontSize: '0.7rem' }}
+                                                        >
+                                                            <i className="bi bi-plus-circle me-1"></i>
+                                                            Use "{searchQuery}" as new account
+                                                        </button>
+                                                        <span className="ms-2 text-muted" style={{ fontSize: '0.65rem' }}>
+                                                            or press <kbd>Enter</kbd>
+                                                        </span>
+                                                    </div>
                                                 </>
                                             ) : (
-                                                <p className="text-muted">No accounts available</p>
-                                            )}
-                                            {isCashMode && !searchQuery && (
-                                                <div className="mt-2">
-                                                    <small className="text-muted">
-                                                        Type account name and press <kbd>Enter</kbd> to use as new account
-                                                    </small>
-                                                </div>
+                                                searchQuery ? 'No accounts match your search' : 'No accounts available'
                                             )}
                                         </div>
                                     ) : (
@@ -743,9 +719,6 @@ const AccountModalForSales = ({
                                                 const pan = getAccountPan(account);
                                                 const { balance, balanceType } = getAccountBalanceInfo(account);
                                                 const balanceColor = getBalanceColor(balanceType);
-                                                // Check if this account matches the typed name exactly
-                                                const isExactMatch = isCashMode && localManualAccountName.trim() !== '' &&
-                                                    account.name.toLowerCase() === localManualAccountName.toLowerCase().trim();
 
                                                 return (
                                                     <div
@@ -782,8 +755,7 @@ const AccountModalForSales = ({
                                                             backgroundColor: isSelected ? '#d4edda' : (isFocused ? '#cce5ff' : 'transparent'),
                                                             transition: 'background-color 0.15s ease',
                                                             borderLeft: isSelected ? '3px solid #28a745' : (isFocused ? '3px solid #0d6efd' : '3px solid transparent'),
-                                                            paddingLeft: isSelected || isFocused ? '5px' : '8px',
-                                                            border: isExactMatch && !isSelected ? '2px solid #ffc107' : (isSelected ? '2px solid #28a745' : isFocused ? '2px solid #0d6efd' : '1px solid transparent')
+                                                            paddingLeft: isSelected || isFocused ? '5px' : '8px'
                                                         }}
                                                         tabIndex={0}
                                                         onKeyDown={(e) => {
@@ -803,16 +775,6 @@ const AccountModalForSales = ({
                                                             title={displayName}
                                                         >
                                                             {compressText(displayName, 30)}
-                                                            {isExactMatch && !isSelected && (
-                                                                <span style={{ 
-                                                                    fontSize: '0.6rem', 
-                                                                    color: '#ffc107', 
-                                                                    marginLeft: '4px',
-                                                                    fontWeight: 'bold'
-                                                                }}>
-                                                                    (Exact Match)
-                                                                </span>
-                                                            )}
                                                         </div>
                                                         <div
                                                             style={{
@@ -851,19 +813,43 @@ const AccountModalForSales = ({
                                                 );
                                             })}
 
-                                            {/* Cash mode hint when there are accounts but user is typing */}
-                                            {isCashMode && localManualAccountName.trim() !== '' && accounts.length > 0 && (
-                                                <div style={{
-                                                    padding: '4px 8px',
-                                                    fontSize: '0.65rem',
-                                                    color: '#6c757d',
-                                                    borderTop: '1px solid #f0f0f0',
-                                                    textAlign: 'center',
-                                                    backgroundColor: '#f8f9fa'
-                                                }}>
-                                                    <span>
-                                                        Select an account above or press <kbd>Enter</kbd> with no selection to use "
-                                                        <strong>{localManualAccountName}</strong>" as new account
+                                            {/* Cash mode - "Use as new" option at bottom */}
+                                            {paymentMode === 'cash' && searchQuery.trim() && accounts.length > 0 && (
+                                                <div
+                                                    style={{
+                                                        padding: '8px 12px',
+                                                        borderTop: '1px dashed #dee2e6',
+                                                        backgroundColor: '#f8f9fa',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    onClick={() => {
+                                                        onSelectAccount({
+                                                            id: cashInHandAccountId,
+                                                            name: searchQuery.trim(),
+                                                            isManual: true
+                                                        });
+                                                    }}
+                                                    onMouseEnter={() => setCurrentFocus(-1)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            onSelectAccount({
+                                                                id: cashInHandAccountId,
+                                                                name: searchQuery.trim(),
+                                                                isManual: true
+                                                            });
+                                                        }
+                                                    }}
+                                                    tabIndex={0}
+                                                >
+                                                    <span style={{ fontSize: '0.75rem', color: '#0d6efd' }}>
+                                                        <i className="bi bi-plus-circle me-1"></i>
+                                                        Use "<strong>{searchQuery.trim()}</strong>" as new account
+                                                    </span>
+                                                    <span className="text-muted" style={{ fontSize: '0.6rem' }}>
+                                                        Press <kbd>Enter</kbd>
                                                     </span>
                                                 </div>
                                             )}
@@ -900,19 +886,9 @@ const AccountModalForSales = ({
                         borderTop: '1px solid #dee2e6',
                         backgroundColor: '#f8f9fa'
                     }}>
-                        <div className="d-flex justify-content-between w-100 align-items-center">
+                        <div className="d-flex justify-content-between w-100">
                             <div>
-                                {isCashMode && localManualAccountName.trim() !== '' && accounts.length === 0 ? (
-                                    <span style={{ fontSize: '0.75rem' }}>
-                                        <kbd>Enter</kbd> to use "{localManualAccountName}" as new account
-                                    </span>
-                                ) : isCashMode && accounts.length > 0 && localManualAccountName.trim() !== '' ? (
-                                    <span style={{ fontSize: '0.75rem' }}>
-                                        Showing {accounts.length} accounts | <kbd>Enter</kbd> to use typed name if no selection
-                                    </span>
-                                ) : (
-                                    <span>Showing {accounts.length} of {totalAccounts} accounts</span>
-                                )}
+                                Showing {accounts.length} of {totalAccounts} accounts
                             </div>
                             <div className="text-muted" style={{ fontSize: '0.65rem' }}>
                                 <kbd>↑↓</kbd> navigate · <kbd>Enter</kbd> select · <kbd>F6</kbd> new account · <kbd>Ctrl+Scroll</kbd> zoom

@@ -13,6 +13,8 @@ import VirtualizedItemList from '../../VirtualizedItemListForSales';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import api, { refreshToken } from '../../services/api';
+import AccountModalForSales from './AccountModalForSales';
+import StockAdjustmentModal from './StockAdjustmentModal';
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -320,6 +322,13 @@ const AddSales = () => {
     const [isManualAccountEntry, setIsManualAccountEntry] = useState(false);
     const [manualAccountName, setManualAccountName] = useState('');
     const [cashInHandAccountId, setCashInHandAccountId] = useState('');
+
+    // Add near your other state declarations (around line 100-120)
+    const [showStockAdjustmentModal, setShowStockAdjustmentModal] = useState(false);
+    const [selectedItemForStockAdjustment, setSelectedItemForStockAdjustment] = useState(null);
+
+    // Add near your other state declarations
+    const [isStockExceeded, setIsStockExceeded] = useState(false);
 
     const [cashAccountDetails, setCashAccountDetails] = useState({
         address: '',
@@ -1189,6 +1198,13 @@ const AddSales = () => {
             accountPhone: account.phone || ''
         });
         setShowAccountModal(false);
+
+        setTimeout(() => {
+            const addressField = document.getElementById('address');
+            if (addressField) {
+                addressField.focus();
+            }
+        }, 100);
     };
 
     const handleItemSearch = (e) => {
@@ -1407,6 +1423,235 @@ const AddSales = () => {
         }
     };
 
+    // const selectItemForInsert = async (item) => {
+    //     if (headerSearchQuery.trim() !== '') {
+    //         setHeaderLastSearchQuery(headerSearchQuery);
+    //         setHeaderShouldShowLastSearchResults(true);
+    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
+    //         setHeaderShouldShowLastSearchResults(true);
+    //     }
+    //     setHeaderSearchQuery('');
+
+    //     console.log('selectItemForInsert called with item:', item.id);
+    //     console.log('currentViewingItemId set to:', item.id);
+    //     console.log('transactionSettings.displayTransactions:', transactionSettings.displayTransactions);
+    //     console.log('formData.accountId:', formData.accountId);
+
+    //     setShowHeaderItemModal(false);
+    //     setSelectedItemForInsert(item);
+    //     setCurrentViewingItemId(item.id);
+    //     setTransactionType('sales');
+
+    //     // Use latestPrice which now includes last sales price for out-of-stock items
+    //     setSelectedItemRate(item.latestPrice || 0);
+
+    //     if (item.stockEntries && item.stockEntries.length > 0) {
+    //         // Sort by date for FIFO (oldest first)
+    //         const sortedStockEntries = [...(item.stockEntries || [])].sort((a, b) =>
+    //             new Date(a.date) - new Date(b.date)
+    //         );
+    //         const firstStockEntry = sortedStockEntries[0];
+    //         setSelectedItemBatchNumber(firstStockEntry.batchNumber || '');
+
+    //         let expiryDate = '';
+    //         if (item.firstExpiryDate) {
+    //             expiryDate = item.firstExpiryDate;
+    //         } else if (firstStockEntry.expiryDate) {
+    //             if (firstStockEntry.expiryDate instanceof Date) {
+    //                 expiryDate = firstStockEntry.expiryDate.toISOString().split('T')[0];
+    //             } else if (typeof firstStockEntry.expiryDate === 'string') {
+    //                 try {
+    //                     const parsedDate = new Date(firstStockEntry.expiryDate);
+    //                     if (!isNaN(parsedDate.getTime())) {
+    //                         expiryDate = parsedDate.toISOString().split('T')[0];
+    //                     }
+    //                 } catch (error) {
+    //                     console.error('Error parsing expiry date:', error);
+    //                 }
+    //             }
+    //         }
+    //         setSelectedItemExpiryDate(expiryDate);
+    //     } else {
+    //         // For out-of-stock items with no stock entries, clear batch and expiry
+    //         setSelectedItemBatchNumber('');
+    //         setSelectedItemExpiryDate('');
+    //     }
+
+    //     let hasTransactions = false;
+
+    //     if (transactionSettings.displayTransactions && formData.accountId) {
+    //         const cacheKey = `${item.id}-${formData.accountId}`;
+
+    //         if (transactionCache.has(cacheKey)) {
+    //             const cachedTransactions = transactionCache.get(cacheKey);
+    //             if (cachedTransactions.length > 0) {
+    //                 setTransactions(cachedTransactions);
+    //                 setShowTransactionModal(true);
+    //                 hasTransactions = true;
+    //             }
+    //         }
+
+    //         if (!hasTransactions) {
+    //             try {
+    //                 setIsLoadingTransactions(true);
+    //                 setIsHeaderInsertMode(true);
+
+    //                 const controller = new AbortController();
+    //                 const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    //                 const response = await api.get(`/api/retailer/transactions/${item.id}/${formData.accountId}/Sales`, {
+    //                     signal: controller.signal
+    //                 });
+
+    //                 clearTimeout(timeoutId);
+
+    //                 if (response.data.success && response.data.data.transactions.length > 0) {
+    //                     setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
+    //                     setTransactions(response.data.data.transactions);
+    //                     setShowTransactionModal(true);
+    //                     hasTransactions = true;
+    //                 }
+    //             } catch (error) {
+    //                 if (error.name !== 'AbortError') {
+    //                     console.error('Error fetching transactions:', error);
+    //                 }
+    //             } finally {
+    //                 setIsLoadingTransactions(false);
+    //             }
+    //         }
+    //     }
+
+    //     if (!hasTransactions) {
+    //         setTimeout(() => {
+    //             const quantityInput = document.getElementById('selectedItemQuantity');
+    //             if (quantityInput) {
+    //                 quantityInput.focus();
+    //                 quantityInput.select();
+    //             }
+    //         }, 100);
+    //     }
+    // };
+
+
+    // const selectItemForInsert = async (item) => {
+    //     if (headerSearchQuery.trim() !== '') {
+    //         setHeaderLastSearchQuery(headerSearchQuery);
+    //         setHeaderShouldShowLastSearchResults(true);
+    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
+    //         setHeaderShouldShowLastSearchResults(true);
+    //     }
+    //     setHeaderSearchQuery('');
+
+    //     console.log('selectItemForInsert called with item:', item.id);
+    //     console.log('currentViewingItemId set to:', item.id);
+    //     console.log('transactionSettings.displayTransactions:', transactionSettings.displayTransactions);
+    //     console.log('formData.accountId:', formData.accountId);
+
+    //     setShowHeaderItemModal(false);
+    //     setSelectedItemForInsert(item);
+    //     setCurrentViewingItemId(item.id);
+    //     setTransactionType('sales');
+
+    //     // Use latestPrice which now includes last sales price for out-of-stock items
+    //     setSelectedItemRate(item.latestPrice || 0);
+
+    //     // Check if item has stock
+    //     const totalStock = item.stockEntries?.reduce((sum, entry) => sum + (entry.quantity || 0), 0) || 0;
+
+    //     if (totalStock === 0) {
+    //         // No stock - show the Stock Adjustment Modal
+    //         setSelectedItemForStockAdjustment(item);
+    //         setShowStockAdjustmentModal(true);
+    //         return;
+    //     }
+
+    //     if (item.stockEntries && item.stockEntries.length > 0) {
+    //         // Sort by date for FIFO (oldest first)
+    //         const sortedStockEntries = [...(item.stockEntries || [])].sort((a, b) =>
+    //             new Date(a.date) - new Date(b.date)
+    //         );
+    //         const firstStockEntry = sortedStockEntries[0];
+    //         setSelectedItemBatchNumber(firstStockEntry.batchNumber || '');
+
+    //         let expiryDate = '';
+    //         if (item.firstExpiryDate) {
+    //             expiryDate = item.firstExpiryDate;
+    //         } else if (firstStockEntry.expiryDate) {
+    //             if (firstStockEntry.expiryDate instanceof Date) {
+    //                 expiryDate = firstStockEntry.expiryDate.toISOString().split('T')[0];
+    //             } else if (typeof firstStockEntry.expiryDate === 'string') {
+    //                 try {
+    //                     const parsedDate = new Date(firstStockEntry.expiryDate);
+    //                     if (!isNaN(parsedDate.getTime())) {
+    //                         expiryDate = parsedDate.toISOString().split('T')[0];
+    //                     }
+    //                 } catch (error) {
+    //                     console.error('Error parsing expiry date:', error);
+    //                 }
+    //             }
+    //         }
+    //         setSelectedItemExpiryDate(expiryDate);
+    //     } else {
+    //         // For out-of-stock items with no stock entries, clear batch and expiry
+    //         setSelectedItemBatchNumber('');
+    //         setSelectedItemExpiryDate('');
+    //     }
+
+    //     let hasTransactions = false;
+
+    //     if (transactionSettings.displayTransactions && formData.accountId) {
+    //         const cacheKey = `${item.id}-${formData.accountId}`;
+
+    //         if (transactionCache.has(cacheKey)) {
+    //             const cachedTransactions = transactionCache.get(cacheKey);
+    //             if (cachedTransactions.length > 0) {
+    //                 setTransactions(cachedTransactions);
+    //                 setShowTransactionModal(true);
+    //                 hasTransactions = true;
+    //             }
+    //         }
+
+    //         if (!hasTransactions) {
+    //             try {
+    //                 setIsLoadingTransactions(true);
+    //                 setIsHeaderInsertMode(true);
+
+    //                 const controller = new AbortController();
+    //                 const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    //                 const response = await api.get(`/api/retailer/transactions/${item.id}/${formData.accountId}/Sales`, {
+    //                     signal: controller.signal
+    //                 });
+
+    //                 clearTimeout(timeoutId);
+
+    //                 if (response.data.success && response.data.data.transactions.length > 0) {
+    //                     setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
+    //                     setTransactions(response.data.data.transactions);
+    //                     setShowTransactionModal(true);
+    //                     hasTransactions = true;
+    //                 }
+    //             } catch (error) {
+    //                 if (error.name !== 'AbortError') {
+    //                     console.error('Error fetching transactions:', error);
+    //                 }
+    //             } finally {
+    //                 setIsLoadingTransactions(false);
+    //             }
+    //         }
+    //     }
+
+    //     if (!hasTransactions) {
+    //         setTimeout(() => {
+    //             const quantityInput = document.getElementById('selectedItemQuantity');
+    //             if (quantityInput) {
+    //                 quantityInput.focus();
+    //                 quantityInput.select();
+    //             }
+    //         }, 100);
+    //     }
+    // };
+
     const selectItemForInsert = async (item) => {
         if (headerSearchQuery.trim() !== '') {
             setHeaderLastSearchQuery(headerSearchQuery);
@@ -1417,20 +1662,58 @@ const AddSales = () => {
         setHeaderSearchQuery('');
 
         console.log('selectItemForInsert called with item:', item.id);
-        console.log('currentViewingItemId set to:', item.id);
-        console.log('transactionSettings.displayTransactions:', transactionSettings.displayTransactions);
-        console.log('formData.accountId:', formData.accountId);
 
         setShowHeaderItemModal(false);
         setSelectedItemForInsert(item);
         setCurrentViewingItemId(item.id);
         setTransactionType('sales');
+        setIsStockExceeded(false);
+        setHeaderQuantityError('');
 
         // Use latestPrice which now includes last sales price for out-of-stock items
         setSelectedItemRate(item.latestPrice || 0);
 
+        // Calculate total stock and used stock
+        const totalStock = item.stockEntries?.reduce((sum, entry) => sum + (entry.quantity || 0), 0) || 0;
+
+        // Calculate used stock from current bill
+        const existingItems = items.filter(i => i.itemId === item.id);
+        const totalUsedStock = existingItems.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0), 0);
+
+        const availableStock = totalStock - totalUsedStock;
+
+        // Check if stock is fully used
+        if (totalStock > 0 && availableStock <= 0) {
+            setIsStockExceeded(true);
+            // Auto-open the stock adjustment modal
+            setSelectedItemForStockAdjustment(item);
+            setShowStockAdjustmentModal(true);
+            setNotification({
+                show: true,
+                message: `"${item.name}" stock is fully used. Please add stock.`,
+                type: 'warning',
+                duration: 3000
+            });
+            return;
+        }
+
+        // If no stock at all
+        if (totalStock === 0) {
+            setIsStockExceeded(true);
+            // Auto-open the stock adjustment modal
+            setSelectedItemForStockAdjustment(item);
+            setShowStockAdjustmentModal(true);
+            setNotification({
+                show: true,
+                message: `"${item.name}" has no stock. Please add stock.`,
+                type: 'warning',
+                duration: 3000
+            });
+            return;
+        }
+
+        // Set batch and expiry from first stock entry
         if (item.stockEntries && item.stockEntries.length > 0) {
-            // Sort by date for FIFO (oldest first)
             const sortedStockEntries = [...(item.stockEntries || [])].sort((a, b) =>
                 new Date(a.date) - new Date(b.date)
             );
@@ -1455,12 +1738,9 @@ const AddSales = () => {
                 }
             }
             setSelectedItemExpiryDate(expiryDate);
-        } else {
-            // For out-of-stock items with no stock entries, clear batch and expiry
-            setSelectedItemBatchNumber('');
-            setSelectedItemExpiryDate('');
         }
 
+        // Transaction logic
         let hasTransactions = false;
 
         if (transactionSettings.displayTransactions && formData.accountId) {
@@ -1513,6 +1793,77 @@ const AddSales = () => {
                     quantityInput.select();
                 }
             }, 100);
+        }
+    };
+
+    const handleStockAdded = (adjustmentData) => {
+        // Close the stock adjustment modal
+        setShowStockAdjustmentModal(false);
+        setSelectedItemForStockAdjustment(null);
+
+        // Refresh the item search to get updated stock information
+        if (selectedItemForStockAdjustment) {
+            // Refresh the search results to show updated stock
+            const searchTerm = headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery;
+            fetchItemsFromBackend(searchTerm, 1, true);
+
+            // Reopen the header item modal so user can select the item again
+            setShowHeaderItemModal(true);
+
+            // Set the item for insertion with updated stock
+            setSelectedItemForInsert(selectedItemForStockAdjustment);
+            setCurrentViewingItemId(selectedItemForStockAdjustment.id);
+
+            // Use the latest price
+            setSelectedItemRate(selectedItemForStockAdjustment.latestPrice || 0);
+
+            // Set batch and expiry from first stock entry (if available)
+            if (selectedItemForStockAdjustment.stockEntries && selectedItemForStockAdjustment.stockEntries.length > 0) {
+                const sortedStockEntries = [...(selectedItemForStockAdjustment.stockEntries || [])].sort((a, b) =>
+                    new Date(a.date) - new Date(b.date)
+                );
+                const firstStockEntry = sortedStockEntries[0];
+                setSelectedItemBatchNumber(firstStockEntry.batchNumber || '');
+
+                let expiryDate = '';
+                if (selectedItemForStockAdjustment.firstExpiryDate) {
+                    expiryDate = selectedItemForStockAdjustment.firstExpiryDate;
+                } else if (firstStockEntry.expiryDate) {
+                    if (firstStockEntry.expiryDate instanceof Date) {
+                        expiryDate = firstStockEntry.expiryDate.toISOString().split('T')[0];
+                    } else if (typeof firstStockEntry.expiryDate === 'string') {
+                        try {
+                            const parsedDate = new Date(firstStockEntry.expiryDate);
+                            if (!isNaN(parsedDate.getTime())) {
+                                expiryDate = parsedDate.toISOString().split('T')[0];
+                            }
+                        } catch (error) {
+                            console.error('Error parsing expiry date:', error);
+                        }
+                    }
+                }
+                setSelectedItemExpiryDate(expiryDate);
+            } else {
+                setSelectedItemBatchNumber('');
+                setSelectedItemExpiryDate('');
+            }
+
+            setNotification({
+                show: true,
+                message: `Stock added successfully for ${selectedItemForStockAdjustment.name}. You can now add it to the bill.`,
+                type: 'success',
+                duration: 3000
+            });
+
+            // Clear the stock adjustment item reference after setting up the header modal
+            setTimeout(() => {
+                // Focus on the search input in the header item modal
+                const searchInput = document.getElementById('headerItemSearch');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+            }, 200);
         }
     };
 
@@ -4752,7 +5103,7 @@ const AddSales = () => {
                     </form>
                 </div>
             </div>
-
+            {/* 
             {showAccountModal && (
                 <div
                     className="modal fade show"
@@ -5013,6 +5364,42 @@ const AddSales = () => {
                         </div>
                     </div>
                 </div>
+            )} */}
+
+            {showAccountModal && (
+                <AccountModalForSales
+                    show={showAccountModal}
+                    onClose={handleAccountModalClose}
+                    onSelectAccount={selectAccount}
+                    accounts={accounts}
+                    totalAccounts={totalAccounts}
+                    isSearching={isAccountSearching}
+                    hasMore={hasMoreAccountResults}
+                    searchQuery={accountSearchQuery}
+                    onSearch={(query) => {
+                        setAccountSearchQuery(query);
+                        setAccountSearchPage(1);
+                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                            setAccountShouldShowLastSearchResults(false);
+                            setAccountLastSearchQuery('');
+                        }
+                        const timer = setTimeout(() => {
+                            fetchAccountsFromBackend(query, 1);
+                        }, 300);
+                        return () => clearTimeout(timer);
+                    }}
+                    onLoadMore={loadMoreAccounts}
+                    page={accountSearchPage}
+                    onCreateAccount={() => {
+                        setShowAccountCreationModal(true);
+                        setShowAccountModal(false);
+                    }}
+                    selectedAccountId={formData.accountId}
+                    paymentMode={formData.paymentMode}
+                    isManualEntry={isManualAccountEntry}
+                    onManualEntryChange={setIsManualAccountEntry}
+                    cashInHandAccountId={cashInHandAccountId}
+                />
             )}
 
             {showTransactionModal && (
@@ -5480,6 +5867,33 @@ const AddSales = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showStockAdjustmentModal && (
+                <StockAdjustmentModal
+                    show={showStockAdjustmentModal}
+                    onClose={() => {
+                        setShowStockAdjustmentModal(false);
+                        // Reopen header item modal when stock adjustment is closed without adding stock
+                        if (selectedItemForStockAdjustment) {
+                            setShowHeaderItemModal(true);
+                            // Keep the selected item for insertion
+                            setSelectedItemForInsert(selectedItemForStockAdjustment);
+                            // Focus on search input after modal opens
+                            setTimeout(() => {
+                                const searchInput = document.getElementById('headerItemSearch');
+                                if (searchInput) {
+                                    searchInput.focus();
+                                }
+                            }, 200);
+                        }
+                        setSelectedItemForStockAdjustment(null);
+                    }}
+                    product={selectedItemForStockAdjustment}
+                    onStockAdded={handleStockAdded}
+                    companyDateFormat={company.dateFormat}
+                    formDate={formData.transactionDateNepali || formData.transactionDateRoman || formData.billDate}
+                />
             )}
 
             {/* Product modal */}

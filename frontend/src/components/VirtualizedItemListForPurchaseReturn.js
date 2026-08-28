@@ -1,26 +1,8 @@
 import React, { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { calculateExpiryStatus } from './retailer/dashboard/modals/ExpiryStatus';
 import axios from 'axios';
+import api, { refreshToken } from '../components/services/api';
 
-// Create axios instance with auth interceptor
-const api = axios.create({
-    baseURL: process.env.REACT_APP_API_BASE_URL,
-    withCredentials: true,
-});
-
-// Add authorization header to all requests
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
 
 const ItemRow = memo(({ item, index, style, onItemClick, searchRef }) => {
     const [displayPrice, setDisplayPrice] = useState(item.latestPrice || item.price || 0);
