@@ -1,320 +1,3 @@
-// // TopCustomersCard.jsx
-// import React, { useState, useEffect } from 'react';
-// import './TopCustomersCard.css';
-
-// const TopCustomersCard = ({
-//   topByPurchase = [],
-//   topByFrequency = [],
-//   topByAverageValue = [],
-//   topByOutstanding = [],
-//   isLoading = false,
-//   onRefresh = null
-// }) => {
-//   const [activeTab, setActiveTab] = useState('purchase');
-//   const [items, setItems] = useState([]);
-//   const [sortBy, setSortBy] = useState('rank');
-//   const [filterText, setFilterText] = useState('');
-
-//   useEffect(() => {
-//     let data = [];
-//     switch (activeTab) {
-//       case 'purchase':
-//         data = [...topByPurchase];
-//         break;
-//       case 'frequency':
-//         data = [...topByFrequency];
-//         break;
-//       case 'average':
-//         data = [...topByAverageValue];
-//         break;
-//       case 'outstanding':
-//         data = [...topByOutstanding];
-//         break;
-//       default:
-//         data = [...topByPurchase];
-//     }
-//     setItems(data);
-//   }, [activeTab, topByPurchase, topByFrequency, topByAverageValue, topByOutstanding]);
-
-//   const getRankBadge = (index) => {
-//     switch (index) {
-//       case 0: return { label: '👑', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' };
-//       case 1: return { label: '⭐', color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.15)' };
-//       case 2: return { label: '🌟', color: '#D97706', bg: 'rgba(217, 119, 6, 0.15)' };
-//       default: return { label: `#${index + 1}`, color: '#6B7280', bg: 'rgba(107, 114, 128, 0.08)' };
-//     }
-//   };
-
-//   const getTabIcon = (tab) => {
-//     switch (tab) {
-//       case 'purchase': return '💎';
-//       case 'frequency': return '🔄';
-//       case 'average': return '📈';
-//       case 'outstanding': return '⚡';
-//       default: return '💎';
-//     }
-//   };
-
-//   const getTabLabel = (tab) => {
-//     switch (tab) {
-//       case 'purchase': return 'Top Spenders';
-//       case 'frequency': return 'Most Frequent';
-//       case 'average': return 'High Value';
-//       case 'outstanding': return 'Outstanding';
-//       default: return 'Top Spenders';
-//     }
-//   };
-
-//   const getTabDescription = (tab) => {
-//     switch (tab) {
-//       case 'purchase': return 'Highest total purchases';
-//       case 'frequency': return 'Most frequent buyers';
-//       case 'average': return 'Highest average order value';
-//       case 'outstanding': return 'Highest outstanding balance';
-//       default: return 'Highest total purchases';
-//     }
-//   };
-
-//   // ✅ Updated: Display exact amount without abbreviation
-//   const formatCurrency = (amount) => {
-//     if (amount === undefined || amount === null || isNaN(amount)) return 'Rs.0.00';
-
-//     // Format with proper Indian numbering system (comma separation)
-//     const formatted = amount.toLocaleString('en-IN', {
-//       minimumFractionDigits: 2,
-//       maximumFractionDigits: 2
-//     });
-
-//     return 'Rs.' + formatted;
-//   };
-
-//   // ✅ Alternative: Format with exact amount without decimals if whole number
-//   const formatCurrencyExact = (amount) => {
-//     if (amount === undefined || amount === null || isNaN(amount)) return 'Rs.0';
-
-//     // Check if it's a whole number
-//     if (Number.isInteger(amount)) {
-//       return 'Rs.' + amount.toLocaleString('en-IN');
-//     }
-
-//     return 'Rs.' + amount.toLocaleString('en-IN', {
-//       minimumFractionDigits: 2,
-//       maximumFractionDigits: 2
-//     });
-//   };
-
-//   const formatNumber = (num) => {
-//     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-//     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-//     return num.toFixed(1);
-//   };
-
-//   const filteredItems = items.filter(item =>
-//     item.accountName?.toLowerCase().includes(filterText.toLowerCase()) ||
-//     item.accountPhone?.includes(filterText) ||
-//     false
-//   );
-
-//   const sortedItems = [...filteredItems];
-//   if (sortBy === 'rank') {
-//     // Keep original order
-//   } else if (sortBy === 'name') {
-//     sortedItems.sort((a, b) => (a.accountName || '').localeCompare(b.accountName || ''));
-//   } else if (sortBy === 'purchase') {
-//     sortedItems.sort((a, b) => (b.totalPurchaseAmount || 0) - (a.totalPurchaseAmount || 0));
-//   } else if (sortBy === 'frequency') {
-//     sortedItems.sort((a, b) => (b.transactionCount || 0) - (a.transactionCount || 0));
-//   }
-
-//   if (isLoading) {
-//     return (
-//       <div className="tcc-card">
-//         <div className="tcc-loading">
-//           <div className="tcc-spinner">
-//             <div className="tcc-spinner-ring"></div>
-//           </div>
-//           <p className="tcc-loading-text">Loading customers...</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   const hasData = items.length > 0;
-
-//   return (
-//     <div className="tcc-card">
-//       {/* Decorative gradient line */}
-//       <div className="tcc-glow-line"></div>
-//       <div className="tcc-glow-spot"></div>
-
-//       {/* Header */}
-//       <div className="tcc-header">
-//         <div className="tcc-header-left">
-//           <div className="tcc-icon">
-//             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-//               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-//               <circle cx="9" cy="7" r="4" />
-//               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-//               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-//             </svg>
-//           </div>
-//           <div>
-//             <h3 className="tcc-title">Top Customers</h3>
-//             <span className="tcc-subtitle">{getTabDescription(activeTab)}</span>
-//           </div>
-//         </div>
-//         <div className="tcc-header-right">
-//           <span className="tcc-badge">
-//             <span className="tcc-badge-dot"></span>
-//             {items.length} customers
-//           </span>
-//           {onRefresh && (
-//             <button className="tcc-refresh" onClick={onRefresh} disabled={isLoading}>
-//               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'tcc-spinning' : ''}>
-//                 <polyline points="23 4 23 10 17 10" />
-//                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-//               </svg>
-//             </button>
-//           )}
-//         </div>
-//       </div>
-
-//       {/* Tabs */}
-//       <div className="tcc-tabs">
-//         {['purchase', 'frequency', 'average', 'outstanding'].map((tab) => (
-//           <button
-//             key={tab}
-//             className={`tcc-tab ${activeTab === tab ? 'active' : ''}`}
-//             onClick={() => setActiveTab(tab)}
-//           >
-//             <span className="tcc-tab-icon">{getTabIcon(tab)}</span>
-//             <span className="tcc-tab-label">{getTabLabel(tab)}</span>
-//           </button>
-//         ))}
-//       </div>
-
-//       {/* Filters */}
-//       <div className="tcc-filters">
-//         <div className="tcc-search">
-//           <svg className="tcc-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-//             <circle cx="11" cy="11" r="8" />
-//             <line x1="21" y1="21" x2="16.65" y2="16.65" />
-//           </svg>
-//           <input
-//             type="text"
-//             placeholder="Search customers..."
-//             value={filterText}
-//             onChange={(e) => setFilterText(e.target.value)}
-//             className="tcc-search-input"
-//           />
-//           {filterText && (
-//             <button className="tcc-search-clear" onClick={() => setFilterText('')}>
-//               ✕
-//             </button>
-//           )}
-//         </div>
-//         <select
-//           value={sortBy}
-//           onChange={(e) => setSortBy(e.target.value)}
-//           className="tcc-sort"
-//         >
-//           <option value="rank">Rank</option>
-//           <option value="name">Name</option>
-//           <option value="purchase">Purchase</option>
-//           <option value="frequency">Frequency</option>
-//         </select>
-//       </div>
-
-//       {/* Items List */}
-//       <div className="tcc-list">
-//         {!hasData ? (
-//           <div className="tcc-empty">
-//             <div className="tcc-empty-icon">✨</div>
-//             <p className="tcc-empty-title">No customers yet</p>
-//             <p className="tcc-empty-subtitle">Start selling to see your top customers here</p>
-//           </div>
-//         ) : (
-//           filteredItems.length === 0 ? (
-//             <div className="tcc-empty">
-//               <div className="tcc-empty-icon">🔍</div>
-//               <p className="tcc-empty-title">No matches found</p>
-//               <p className="tcc-empty-subtitle">Try adjusting your search</p>
-//             </div>
-//           ) : (
-//             sortedItems.map((item, index) => {
-//               const rank = getRankBadge(index);
-//               const isTop3 = index < 3;
-//               return (
-//                 <div key={item.accountId || index} className={`tcc-item ${isTop3 ? 'top' : ''}`}>
-//                   <div className="tcc-item-rank" style={{ background: rank.bg }}>
-//                     <span className="tcc-item-rank-label" style={{ color: rank.color }}>
-//                       {rank.label}
-//                     </span>
-//                   </div>
-//                   <div className="tcc-item-info">
-//                     <div className="tcc-item-name">{item.accountName || 'Unknown Customer'}</div>
-//                     <div className="tcc-item-meta">
-//                       {item.accountPhone && (
-//                         <>
-//                           <span className="tcc-item-phone">📞 {item.accountPhone}</span>
-//                           <span className="tcc-item-dot">•</span>
-//                         </>
-//                       )}
-//                       <span className="tcc-item-count">
-//                         {item.transactionCount || 0} {item.transactionCount === 1 ? 'order' : 'orders'}
-//                       </span>
-//                     </div>
-//                   </div>
-//                   <div className="tcc-item-stats">
-//                     {activeTab === 'outstanding' && (
-//                       <div className="tcc-stat">
-//                         <span className="tcc-stat-label">Due</span>
-//                         <span className={`tcc-stat-value ${(item.outstandingBalance || 0) > 0 ? 'text-danger' : ''}`}>
-//                           {formatCurrency(item.outstandingBalance || 0)}
-//                         </span>
-//                       </div>
-//                     )}
-//                     {activeTab === 'average' && (
-//                       <div className="tcc-stat">
-//                         <span className="tcc-stat-label">Avg</span>
-//                         <span className="tcc-stat-value">{formatCurrency(item.averageTransactionValue || 0)}</span>
-//                       </div>
-//                     )}
-//                   </div>
-//                   {isTop3 && (
-//                     <div className={`tcc-item-badge ${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'}`}>
-//                       {index === 0 ? '🏆' : index === 1 ? '🥈' : '🥉'}
-//                     </div>
-//                   )}
-//                 </div>
-//               );
-//             })
-//           )
-//         )}
-//       </div>
-
-//       {/* Footer */}
-//       {hasData && filteredItems.length > 0 && (
-//         <div className="tcc-footer">
-//           <span className="tcc-footer-text">
-//             Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong> customers
-//           </span>
-//           <span className="tcc-footer-hint">
-//             {activeTab === 'purchase' && '💎 Total sales'}
-//             {activeTab === 'frequency' && '🔄 Order frequency'}
-//             {activeTab === 'average' && '📈 Average order value'}
-//             {activeTab === 'outstanding' && '⚡ Outstanding balance'}
-//           </span>
-//         </div>
-//       )}
-//     </div>
-//   );
-// };
-
-// export default TopCustomersCard;
-
-//--------------------------------------------end1
-
 // import React, { useState, useEffect, useCallback, useRef } from 'react';
 // import axios from 'axios';
 // import './TopCustomersCard.css';
@@ -677,10 +360,15 @@
 //                     </div>
 //                   </div>
 //                   <div className="tcc-item-stats">
-//                     <div className="tcc-stat">
-//                       <span className="tcc-stat-label">Total</span>
-//                       <span className="tcc-stat-value highlight">{formatCurrency(item.totalPurchaseAmount || 0)}</span>
-//                     </div>
+//                     {/* ✅ Only show Total for non-outstanding tabs */}
+//                     {activeTab !== 'outstanding' && (
+//                       <div className="tcc-stat">
+//                         <span className="tcc-stat-label">Total</span>
+//                         <span className="tcc-stat-value highlight">{formatCurrency(item.totalPurchaseAmount || 0)}</span>
+//                       </div>
+//                     )}
+                    
+//                     {/* ✅ Show Due only on Outstanding tab */}
 //                     {activeTab === 'outstanding' && (
 //                       <div className="tcc-stat">
 //                         <span className="tcc-stat-label">Due</span>
@@ -689,6 +377,8 @@
 //                         </span>
 //                       </div>
 //                     )}
+                    
+//                     {/* ✅ Show Avg only on Average tab */}
 //                     {activeTab === 'average' && (
 //                       <div className="tcc-stat">
 //                         <span className="tcc-stat-label">Avg</span>
@@ -727,7 +417,7 @@
 
 // export default TopCustomersCard;
 
-//--------------------------------------end2
+//-----------------------------------------end1
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
@@ -759,13 +449,11 @@ const TopCustomersCard = ({
 
   // ✅ Fetch top customers data independently
   const fetchTopCustomers = useCallback(async () => {
-    // ✅ Don't fetch if no companyId
     if (!companyId) {
       console.log('⏳ TopCustomersCard: No companyId, skipping fetch');
       return;
     }
 
-    // ✅ Prevent duplicate concurrent fetches
     if (isLoading) {
       console.log('⏳ TopCustomersCard: Already fetching, skipping');
       return;
@@ -826,19 +514,16 @@ const TopCustomersCard = ({
 
   // ✅ Auto-fetch when companyId becomes available
   useEffect(() => {
-    // ✅ Reset fetch flag when companyId changes
     if (companyId) {
       console.log('🔄 TopCustomersCard: companyId changed or available:', companyId);
-      // Only fetch if we haven't fetched or if companyId changed
       if (!hasFetchedRef.current) {
         console.log('🔄 TopCustomersCard: Triggering initial fetch');
         fetchTopCustomers();
       }
     } else {
-      // Reset when companyId is removed
       hasFetchedRef.current = false;
     }
-  }, [companyId, fetchTopCustomers]); // ✅ Add fetchTopCustomers as dependency
+  }, [companyId, fetchTopCustomers]);
 
   // ✅ Handle refresh
   const handleRefresh = useCallback(() => {
@@ -981,7 +666,7 @@ const TopCustomersCard = ({
       <div className="tcc-header">
         <div className="tcc-header-left">
           <div className="tcc-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -996,10 +681,10 @@ const TopCustomersCard = ({
         <div className="tcc-header-right">
           <span className="tcc-badge">
             <span className="tcc-badge-dot"></span>
-            {items.length} customers
+            {items.length}
           </span>
           <button className="tcc-refresh" onClick={handleRefresh} disabled={loading}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'tcc-spinning' : ''}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'tcc-spinning' : ''}>
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
@@ -1022,7 +707,7 @@ const TopCustomersCard = ({
 
       <div className="tcc-filters">
         <div className="tcc-search">
-          <svg className="tcc-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="tcc-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
@@ -1054,9 +739,9 @@ const TopCustomersCard = ({
       <div className="tcc-list">
         {!hasData ? (
           <div className="tcc-empty">
-            <div className="tcc-empty-icon">✨</div>
+            <div className="tcc-empty-icon">👥</div>
             <p className="tcc-empty-title">No customers yet</p>
-            <p className="tcc-empty-subtitle">Start selling to see your top customers here</p>
+            <p className="tcc-empty-subtitle">Start selling to see your top customers</p>
           </div>
         ) : (
           filteredItems.length === 0 ? (
@@ -1081,7 +766,7 @@ const TopCustomersCard = ({
                     <div className="tcc-item-meta">
                       {item.accountPhone && (
                         <>
-                          <span className="tcc-item-phone">📞 {item.accountPhone}</span>
+                          <span className="tcc-item-phone">{item.accountPhone}</span>
                           <span className="tcc-item-dot">•</span>
                         </>
                       )}
@@ -1132,13 +817,13 @@ const TopCustomersCard = ({
       {hasData && filteredItems.length > 0 && (
         <div className="tcc-footer">
           <span className="tcc-footer-text">
-            Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong> customers
+            Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong>
           </span>
           <span className="tcc-footer-hint">
-            {activeTab === 'purchase' && '💎 Total sales'}
-            {activeTab === 'frequency' && '🔄 Order frequency'}
-            {activeTab === 'average' && '📈 Average order value'}
-            {activeTab === 'outstanding' && '⚡ Outstanding balance'}
+            {activeTab === 'purchase' && 'Total sales'}
+            {activeTab === 'frequency' && 'Order frequency'}
+            {activeTab === 'average' && 'Average order value'}
+            {activeTab === 'outstanding' && 'Outstanding balance'}
           </span>
         </div>
       )}

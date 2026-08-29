@@ -1,18 +1,124 @@
-// import React, { useState, useEffect } from 'react';
+// import React, { useState, useEffect, useCallback, useRef } from 'react';
+// import axios from 'axios';
 // import './TopItemsCard.css';
 
 // const TopItemsCard = ({ 
-//   topItemsByTransaction = [], 
-//   topItemsByRevenue = [], 
-//   topItemsByFrequency = [],
-//   isLoading = false,
-//   onRefresh = null
+//   companyId,
+//   companyName,
+//   fiscalYearJson,
+//   isLoading: externalLoading = false,
+//   onRefresh: externalRefresh = null
 // }) => {
 //   const [activeTab, setActiveTab] = useState('transaction');
 //   const [items, setItems] = useState([]);
 //   const [sortBy, setSortBy] = useState('rank');
 //   const [filterText, setFilterText] = useState('');
+  
+//   // ✅ Internal state for data
+//   const [topItemsByTransaction, setTopItemsByTransaction] = useState([]);
+//   const [topItemsByRevenue, setTopItemsByRevenue] = useState([]);
+//   const [topItemsByFrequency, setTopItemsByFrequency] = useState([]);
+//   const [isLoading, setIsLoading] = useState(false);
+//   const [error, setError] = useState(null);
+  
+//   const abortControllerRef = useRef(null);
+//   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142';
+//   const hasFetchedRef = useRef(false);
 
+//   // ✅ Fetch top items data independently
+//   const fetchTopItems = useCallback(async () => {
+//     // ✅ Don't fetch if no companyId
+//     if (!companyId) {
+//       console.log('⏳ TopItemsCard: No companyId, skipping fetch');
+//       return;
+//     }
+
+//     // ✅ Prevent duplicate concurrent fetches
+//     if (isLoading) {
+//       console.log('⏳ TopItemsCard: Already fetching, skipping');
+//       return;
+//     }
+
+//     if (abortControllerRef.current) {
+//       abortControllerRef.current.abort();
+//     }
+
+//     abortControllerRef.current = new AbortController();
+//     setIsLoading(true);
+//     setError(null);
+
+//     try {
+//       const params = new URLSearchParams();
+//       params.append('companyId', companyId);
+//       if (companyName) params.append('companyName', companyName);
+//       if (fiscalYearJson) params.append('fiscalYearJson', fiscalYearJson);
+
+//       const url = `${API_BASE_URL}/api/retailer/retailerDashboard/indexv1?${params.toString()}`;
+
+//       console.log('📊 TopItemsCard: Fetching data for company:', companyId);
+
+//       const response = await axios.get(url, {
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'Authorization': `Bearer ${localStorage.getItem('token')}`
+//         },
+//         withCredentials: true,
+//         signal: abortControllerRef.current.signal
+//       });
+
+//       if (response.data.success) {
+//         const dashboardData = response.data.data;
+        
+//         setTopItemsByTransaction(dashboardData.topItemsByTransaction || []);
+//         setTopItemsByRevenue(dashboardData.topItemsByRevenue || []);
+//         setTopItemsByFrequency(dashboardData.topItemsByFrequency || []);
+//         hasFetchedRef.current = true;
+        
+//         console.log('✅ TopItemsCard: Data fetched successfully');
+//       } else {
+//         throw new Error(response.data.error || 'Failed to load top items');
+//       }
+//     } catch (error) {
+//       if (error.name === 'AbortError') {
+//         console.log('⛔ TopItemsCard: Fetch aborted');
+//         return;
+//       }
+//       console.error('❌ TopItemsCard: Error fetching data:', error);
+//       setError(error.response?.data?.error || error.message);
+//       hasFetchedRef.current = false;
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   }, [companyId, companyName, fiscalYearJson, API_BASE_URL, isLoading]);
+
+//   // ✅ Auto-fetch when companyId becomes available
+//   useEffect(() => {
+//     // ✅ Reset fetch flag when companyId changes
+//     if (companyId) {
+//       console.log('🔄 TopItemsCard: companyId changed or available:', companyId);
+//       // Only fetch if we haven't fetched or if companyId changed
+//       if (!hasFetchedRef.current) {
+//         console.log('🔄 TopItemsCard: Triggering initial fetch');
+//         fetchTopItems();
+//       }
+//     } else {
+//       // Reset when companyId is removed
+//       hasFetchedRef.current = false;
+//     }
+//   }, [companyId, fetchTopItems]); // ✅ Add fetchTopItems as dependency
+
+//   // ✅ Handle refresh - either internal or external
+//   const handleRefresh = useCallback(() => {
+//     console.log('🔄 TopItemsCard: Manual refresh triggered');
+//     if (externalRefresh) {
+//       externalRefresh();
+//     } else if (companyId) {
+//       hasFetchedRef.current = false;
+//       fetchTopItems();
+//     }
+//   }, [externalRefresh, fetchTopItems, companyId]);
+
+//   // ✅ Update items when tab changes or data updates
 //   useEffect(() => {
 //     let data = [];
 //     switch (activeTab) {
@@ -30,6 +136,15 @@
 //     }
 //     setItems(data);
 //   }, [activeTab, topItemsByTransaction, topItemsByRevenue, topItemsByFrequency]);
+
+//   // ✅ Cleanup on unmount
+//   useEffect(() => {
+//     return () => {
+//       if (abortControllerRef.current) {
+//         abortControllerRef.current.abort();
+//       }
+//     };
+//   }, []);
 
 //   const getRankBadge = (index) => {
 //     switch (index) {
@@ -68,10 +183,14 @@
 //   };
 
 //   const formatCurrency = (amount) => {
-//     if (amount >= 10000000) return 'Rs. ' + (amount / 10000000).toFixed(1) + 'Cr';
-//     if (amount >= 100000) return 'Rs. ' + (amount / 100000).toFixed(1) + 'L';
-//     if (amount >= 1000) return 'Rs. ' + (amount / 1000).toFixed(1) + 'K';
-//     return 'Rs. ' + amount.toLocaleString();
+//     if (amount === undefined || amount === null || isNaN(amount)) return 'Rs.0.00';
+    
+//     const formatted = amount.toLocaleString('en-IN', {
+//       minimumFractionDigits: 2,
+//       maximumFractionDigits: 2
+//     });
+    
+//     return 'Rs.' + formatted;
 //   };
 
 //   const formatNumber = (num) => {
@@ -95,7 +214,10 @@
 //     sortedItems.sort((a, b) => (b.totalQuantity || 0) - (a.totalQuantity || 0));
 //   }
 
-//   if (isLoading) {
+//   const loading = externalLoading || isLoading;
+
+//   // ✅ Show loading state if we have no data and are loading
+//   if (loading && !hasFetchedRef.current && items.length === 0) {
 //     return (
 //       <div className="tic-card">
 //         <div className="tic-loading">
@@ -108,15 +230,32 @@
 //     );
 //   }
 
+//   if (error && !hasFetchedRef.current) {
+//     return (
+//       <div className="tic-card">
+//         <div className="tic-error">
+//           <div className="tic-error-icon">⚠️</div>
+//           <p className="tic-error-title">Error loading items</p>
+//           <p className="tic-error-subtitle">{error}</p>
+//           <button className="tic-error-retry" onClick={handleRefresh}>
+//             Retry
+//           </button>
+//         </div>
+//       </div>
+//     );
+//   }
+
 //   const hasData = items.length > 0;
 
 //   return (
 //     <div className="tic-card">
-//       {/* Header */}
+//       <div className="tic-glow-line"></div>
+//       <div className="tic-glow-spot"></div>
+
 //       <div className="tic-header">
 //         <div className="tic-header-left">
 //           <div className="tic-icon">
-//             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 //               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
 //               <polyline points="17 6 23 6 23 12" />
 //             </svg>
@@ -131,18 +270,15 @@
 //             <span className="tic-badge-dot"></span>
 //             {items.length} items
 //           </span>
-//           {onRefresh && (
-//             <button className="tic-refresh" onClick={onRefresh} disabled={isLoading}>
-//               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'tic-spinning' : ''}>
-//                 <polyline points="23 4 23 10 17 10" />
-//                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-//               </svg>
-//             </button>
-//           )}
+//           <button className="tic-refresh" onClick={handleRefresh} disabled={loading}>
+//             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'tic-spinning' : ''}>
+//               <polyline points="23 4 23 10 17 10" />
+//               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+//             </svg>
+//           </button>
 //         </div>
 //       </div>
 
-//       {/* Tabs */}
 //       <div className="tic-tabs">
 //         {['transaction', 'revenue', 'frequency'].map((tab) => (
 //           <button
@@ -151,15 +287,14 @@
 //             onClick={() => setActiveTab(tab)}
 //           >
 //             <span className="tic-tab-icon">{getTabIcon(tab)}</span>
-//             <span>{getTabLabel(tab)}</span>
+//             <span className="tic-tab-label">{getTabLabel(tab)}</span>
 //           </button>
 //         ))}
 //       </div>
 
-//       {/* Filters */}
 //       <div className="tic-filters">
 //         <div className="tic-search">
-//           <svg className="tic-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//           <svg className="tic-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 //             <circle cx="11" cy="11" r="8" />
 //             <line x1="21" y1="21" x2="16.65" y2="16.65" />
 //           </svg>
@@ -170,20 +305,24 @@
 //             onChange={(e) => setFilterText(e.target.value)}
 //             className="tic-search-input"
 //           />
+//           {filterText && (
+//             <button className="tic-search-clear" onClick={() => setFilterText('')}>
+//               ✕
+//             </button>
+//           )}
 //         </div>
 //         <select 
 //           value={sortBy} 
 //           onChange={(e) => setSortBy(e.target.value)}
 //           className="tic-sort"
 //         >
-//           <option value="rank">Sort by Rank</option>
-//           <option value="name">Sort by Name</option>
-//           <option value="value">Sort by Value</option>
-//           <option value="quantity">Sort by Quantity</option>
+//           <option value="rank">Rank</option>
+//           <option value="name">Name</option>
+//           <option value="value">Value</option>
+//           <option value="quantity">Quantity</option>
 //         </select>
 //       </div>
 
-//       {/* Items List */}
 //       <div className="tic-list">
 //         {!hasData ? (
 //           <div className="tic-empty">
@@ -245,7 +384,6 @@
 //         )}
 //       </div>
 
-//       {/* Footer */}
 //       {hasData && filteredItems.length > 0 && (
 //         <div className="tic-footer">
 //           <span className="tic-footer-text">
@@ -264,7 +402,7 @@
 
 // export default TopItemsCard;
 
-//-----------------------------------------------end1
+//----------------------------------------------end1
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
@@ -416,10 +554,10 @@ const TopItemsCard = ({
 
   const getRankBadge = (index) => {
     switch (index) {
-      case 0: return { label: '🥇', color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' };
-      case 1: return { label: '🥈', color: '#C0C0C0', bg: 'rgba(192, 192, 192, 0.15)' };
+      case 0: return { label: '🥇', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' };
+      case 1: return { label: '🥈', color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.15)' };
       case 2: return { label: '🥉', color: '#CD7F32', bg: 'rgba(205, 127, 50, 0.15)' };
-      default: return { label: `#${index + 1}`, color: '#6b7280', bg: 'transparent' };
+      default: return { label: `#${index + 1}`, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.08)' };
     }
   };
 
@@ -523,7 +661,7 @@ const TopItemsCard = ({
       <div className="tic-header">
         <div className="tic-header-left">
           <div className="tic-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
               <polyline points="17 6 23 6 23 12" />
             </svg>
@@ -536,10 +674,10 @@ const TopItemsCard = ({
         <div className="tic-header-right">
           <span className="tic-badge">
             <span className="tic-badge-dot"></span>
-            {items.length} items
+            {items.length}
           </span>
           <button className="tic-refresh" onClick={handleRefresh} disabled={loading}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'tic-spinning' : ''}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'tic-spinning' : ''}>
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
@@ -562,7 +700,7 @@ const TopItemsCard = ({
 
       <div className="tic-filters">
         <div className="tic-search">
-          <svg className="tic-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="tic-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
@@ -596,7 +734,7 @@ const TopItemsCard = ({
           <div className="tic-empty">
             <div className="tic-empty-icon">📦</div>
             <p className="tic-empty-title">No items data</p>
-            <p className="tic-empty-subtitle">Start selling to see your top items here</p>
+            <p className="tic-empty-subtitle">Start selling to see your top items</p>
           </div>
         ) : (
           filteredItems.length === 0 ? (
@@ -655,12 +793,12 @@ const TopItemsCard = ({
       {hasData && filteredItems.length > 0 && (
         <div className="tic-footer">
           <span className="tic-footer-text">
-            Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong> items
+            Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong>
           </span>
           <span className="tic-footer-hint">
-            {activeTab === 'transaction' && '📊 Sorted by quantity sold'}
-            {activeTab === 'revenue' && '💰 Sorted by revenue'}
-            {activeTab === 'frequency' && '🔥 Sorted by frequency'}
+            {activeTab === 'transaction' && 'Quantity sold'}
+            {activeTab === 'revenue' && 'Revenue generated'}
+            {activeTab === 'frequency' && 'Purchase frequency'}
           </span>
         </div>
       )}
