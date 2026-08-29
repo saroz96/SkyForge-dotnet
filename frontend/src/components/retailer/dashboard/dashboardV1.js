@@ -1,623 +1,3 @@
-// import React, { useState, useEffect } from 'react';
-// import StatsCards from './StatsCards';
-// import SalesChart from './SalesChart';
-// import QuickActions from './QuickActions';
-// import 'bootstrap/dist/css/bootstrap.min.css';
-// import Header from '../Header';
-// import { useAuth } from '../../../context/AuthContext';
-// import { useSelector, useDispatch } from 'react-redux';
-// import { useLoading } from '../../../context/LoadingContext'; // Import the loading hook
-
-// import ProductModal from './modals/ProductModal';
-// import ContactModal from './modals/ContactModal';
-// import { Button, Alert, Spinner } from 'react-bootstrap';
-// import ChatbotWhatsApp from './ChatbotWhatsApp';
-// import PosCashSalesModal from '../sales/PosCashSalesModal';
-// import { useNavigate } from 'react-router-dom';
-// import axios from 'axios';
-// import { setCurrentCompany, setUserInfo, setUserCompanies } from '../../../auth/authSlice';
-
-// const DashboardV1 = () => {
-//     const [showProductModal, setShowProductModal] = useState(false);
-//     const [showContactsModal, setShowContactsModal] = useState(false);
-//     const [showPosModal, setShowPosModal] = useState(false);
-//     const [showButton, setShowButton] = useState(false);
-//     const [isInitializing, setIsInitializing] = useState(true);
-//     const [error, setError] = useState('');
-//     const navigate = useNavigate();
-//     const dispatch = useDispatch();
-
-//     const { currentUser: authContextUser, logout, loading: authLoading } = useAuth();
-
-//     // Use the YouTube-style loading hook
-//     const { showLoading, hideLoading, updateProgress, isLoading: globalLoading } = useLoading();
-
-//     // Get data directly from Redux store
-//     const { userInfo, currentCompany, userCompanies } = useSelector((state) => state.auth);
-
-//     // Use authContextUser as primary, fall back to userInfo from Redux
-//     const currentUser = authContextUser || userInfo;
-
-//     // Derive values from user data
-//     const isAdminOrSupervisor = currentUser?.isAdmin || currentUser?.role === 'Supervisor';
-
-//     // Create axios instance with auth header
-//     const api = axios.create({
-//         baseURL: process.env.REACT_APP_API_BASE_URL || '',
-//         withCredentials: true,
-//     });
-
-//     // Add Authorization header to all requests
-//     api.interceptors.request.use(config => {
-//         const token = localStorage.getItem('token');
-//         if (token) {
-//             config.headers.Authorization = `Bearer ${token}`;
-//         }
-//         return config;
-//     });
-
-//     // Load data from localStorage on refresh
-//     useEffect(() => {
-//         const loadPersistedData = () => {
-//             try {
-//                 // Load user info from localStorage
-//                 const savedUserInfo = localStorage.getItem('userInfo');
-//                 if (savedUserInfo) {
-//                     const parsedUserInfo = JSON.parse(savedUserInfo);
-//                     dispatch(setUserInfo(parsedUserInfo));
-//                 }
-
-//                 // Load current company from localStorage
-//                 const savedCurrentCompany = localStorage.getItem('currentCompany');
-//                 if (savedCurrentCompany) {
-//                     const parsedCurrentCompany = JSON.parse(savedCurrentCompany);
-//                     dispatch(setCurrentCompany({
-//                         company: parsedCurrentCompany.company,
-//                         fiscalYear: parsedCurrentCompany.fiscalYear
-//                     }));
-//                 }
-
-//                 // Load user companies from localStorage
-//                 const savedUserCompanies = localStorage.getItem('userCompanies');
-//                 if (savedUserCompanies) {
-//                     const parsedUserCompanies = JSON.parse(savedUserCompanies);
-//                     dispatch(setUserCompanies(parsedUserCompanies));
-//                 }
-//             } catch (error) {
-//                 console.error('Error loading persisted data:', error);
-//             }
-//         };
-
-//         loadPersistedData();
-//     }, [dispatch]);
-
-//     const initializeDashboard = async () => {
-//         try {
-//             setIsInitializing(true);
-//             // Show the YouTube-style progress bar
-//             showLoading(8000); // Expect initialization to take ~8 seconds
-//             updateProgress(10);
-
-//             setError('');
-
-//             console.log('=== Dashboard Initialization Debug ===');
-//             console.log('Token exists:', !!localStorage.getItem('token'));
-//             console.log('Auth loading:', authLoading);
-//             console.log('Current user from Redux:', userInfo);
-//             console.log('Current user from AuthContext:', authContextUser);
-//             console.log('Current company:', currentCompany);
-//             console.log('User companies:', userCompanies);
-
-//             updateProgress(20);
-
-//             // Check 1: Check if user has a token
-//             const token = localStorage.getItem('token');
-//             if (!token) {
-//                 console.log('❌ No token found, redirecting to login');
-//                 hideLoading();
-//                 navigate('/auth/login');
-//                 return;
-//             }
-
-//             updateProgress(30);
-
-//             // Check 2: Wait for AuthProvider to finish loading
-//             if (authLoading) {
-//                 console.log('⏳ AuthProvider still loading, waiting...');
-//                 return;
-//             }
-
-//             updateProgress(40);
-
-//             // Check 3: If we don't have user data, fetch it
-//             if (!currentUser) {
-//                 console.log('🔄 No user data, fetching from API...');
-//                 await fetchUserData();
-//                 return;
-//             }
-
-//             updateProgress(50);
-
-//             // Check 4: Check if company is selected
-//             if (!currentCompany) {
-//                 console.log('🏢 No company selected, checking for saved company...');
-
-//                 // FIRST: Check if we have a saved company ID
-//                 const savedCompanyId = localStorage.getItem('currentCompanyId');
-//                 const savedCompanyData = localStorage.getItem('currentCompany');
-
-//                 if (savedCompanyId && savedCompanyData) {
-//                     console.log('📦 Found saved company data in localStorage');
-//                     try {
-//                         const parsedCompanyData = JSON.parse(savedCompanyData);
-//                         console.log('🏢 Restoring saved company:', parsedCompanyData.company?.name);
-
-//                         updateProgress(60);
-
-//                         // Restore the company from localStorage
-//                         dispatch(setCurrentCompany({
-//                             company: parsedCompanyData.company,
-//                             fiscalYear: parsedCompanyData.fiscalYear
-//                         }));
-
-//                         // Dashboard is ready
-//                         console.log('✅ Company restored from localStorage');
-//                         updateProgress(100);
-//                         setTimeout(() => {
-//                             hideLoading();
-//                             setIsInitializing(false);
-//                         }, 300);
-//                         return;
-//                     } catch (error) {
-//                         console.error('Error parsing saved company data:', error);
-//                         // Continue to check available companies
-//                     }
-//                 }
-
-//                 updateProgress(60);
-
-//                 // If no saved company or parsing failed, check available companies
-//                 console.log('🔍 No saved company found, checking available companies...');
-
-//                 let availableCompanies = userCompanies;
-
-//                 // If no companies in Redux, check localStorage
-//                 if (!availableCompanies || availableCompanies.length === 0) {
-//                     const savedCompanies = localStorage.getItem('userCompanies');
-//                     if (savedCompanies) {
-//                         availableCompanies = JSON.parse(savedCompanies);
-//                         console.log('📦 Loaded companies from localStorage:', availableCompanies.length);
-//                     }
-//                 }
-
-//                 updateProgress(70);
-
-//                 // If still no companies, fetch from API
-//                 if (!availableCompanies || availableCompanies.length === 0) {
-//                     console.log('🔄 No companies found, fetching from API...');
-//                     await fetchUserCompanies();
-//                     return;
-//                 }
-
-//                 updateProgress(80);
-
-//                 if (availableCompanies && availableCompanies.length > 0) {
-//                     // Check if user has only ONE company
-//                     if (availableCompanies.length === 1) {
-//                         console.log('✅ User has only one company, auto-selecting it...');
-//                         const singleCompany = availableCompanies[0];
-
-//                         // Auto-select the single company
-//                         await switchToCompany(singleCompany);
-//                         return;
-//                     } else {
-//                         console.log('✅ User has multiple companies, redirecting to selection');
-//                         updateProgress(100);
-//                         setTimeout(() => {
-//                             hideLoading();
-//                             setIsInitializing(false);
-//                             navigate('/companies');
-//                         }, 300);
-//                         return;
-//                     }
-//                 } else {
-//                     console.log('❌ User has no companies');
-//                     updateProgress(100);
-//                     setTimeout(() => {
-//                         hideLoading();
-//                         setIsInitializing(false);
-//                         setError('No companies found. Please create a company first.');
-//                     }, 300);
-//                     return;
-//                 }
-//             }
-
-//             updateProgress(90);
-//             console.log('✅ All checks passed, dashboard ready');
-//             updateProgress(100);
-//             setTimeout(() => {
-//                 hideLoading();
-//                 setIsInitializing(false);
-//             }, 300);
-
-//         } catch (err) {
-//             console.error('❌ Dashboard initialization error:', err);
-//             hideLoading();
-//             setError('Failed to initialize dashboard: ' + err.message);
-//             setIsInitializing(false);
-//         }
-//     };
-
-//     const fetchUserData = async () => {
-//         try {
-//             updateProgress(45);
-//             const response = await api.get('/api/auth/me');
-//             if (response.data.user) {
-//                 const userData = response.data.user;
-
-//                 updateProgress(55);
-
-//                 // Save to Redux
-//                 dispatch(setUserInfo(userData));
-
-//                 // Save to localStorage
-//                 localStorage.setItem('userInfo', JSON.stringify(userData));
-
-//                 updateProgress(65);
-
-//                 // Now fetch companies
-//                 await fetchUserCompanies();
-//             } else {
-//                 throw new Error('No user data received');
-//             }
-//         } catch (err) {
-//             console.error('Error fetching user data:', err);
-//             hideLoading();
-//             if (err.response?.status === 401) {
-//                 // Token expired or invalid
-//                 localStorage.removeItem('token');
-//                 localStorage.removeItem('userInfo');
-//                 localStorage.removeItem('currentCompany');
-//                 localStorage.removeItem('userCompanies');
-//                 navigate('/auth/login');
-//             } else {
-//                 setError('Failed to load user data. Please try again.');
-//                 setIsInitializing(false);
-//             }
-//         }
-//     };
-
-//     const fetchUserCompanies = async () => {
-//         try {
-//             updateProgress(75);
-//             const response = await api.get('/api/Companies/user-companies');
-//             const companies = response.data || [];
-
-//             updateProgress(85);
-
-//             // Save to Redux
-//             dispatch(setUserCompanies(companies));
-
-//             // Save to localStorage
-//             localStorage.setItem('userCompanies', JSON.stringify(companies));
-
-//             // Check if we have a current company ID saved
-//             const savedCompanyId = localStorage.getItem('currentCompanyId');
-//             if (savedCompanyId && companies.length > 0) {
-//                 const company = companies.find(c =>
-//                     (c.id || c.Id || c._id).toString() === savedCompanyId
-//                 );
-
-//                 if (company) {
-//                     // Switch to the saved company
-//                     await switchToCompany(company);
-//                 } else {
-//                     // Company not found in list, show company selection
-//                     updateProgress(100);
-//                     setTimeout(() => {
-//                         hideLoading();
-//                         setIsInitializing(false);
-//                         navigate('/user-dashboard');
-//                     }, 300);
-//                 }
-//             } else if (companies.length > 0) {
-//                 // No saved company, show selection
-//                 updateProgress(100);
-//                 setTimeout(() => {
-//                     hideLoading();
-//                     setIsInitializing(false);
-//                     navigate('/user-dashboard');
-//                 }, 300);
-//             } else {
-//                 // No companies
-//                 updateProgress(100);
-//                 setTimeout(() => {
-//                     hideLoading();
-//                     setIsInitializing(false);
-//                     setError('No companies found. Please create a company first.');
-//                 }, 300);
-//             }
-//         } catch (err) {
-//             console.error('Error fetching companies:', err);
-//             hideLoading();
-//             setError('Failed to load companies. Please try again.');
-//             setIsInitializing(false);
-//         }
-//     };
-
-//     const switchToCompany = async (company) => {
-//         try {
-//             updateProgress(85);
-//             const companyId = company.id || company.Id || company._id;
-//             const response = await api.get(`/api/companies/switch/${companyId}`);
-
-//             updateProgress(92);
-
-//             if (response.data.success) {
-//                 const { sessionData } = response.data.data;
-
-//                 // Save to Redux
-//                 dispatch(setCurrentCompany({
-//                     company: sessionData.company,
-//                     fiscalYear: sessionData.fiscalYear
-//                 }));
-
-//                 // Save to localStorage
-//                 localStorage.setItem('currentCompany', JSON.stringify({
-//                     company: sessionData.company,
-//                     fiscalYear: sessionData.fiscalYear
-//                 }));
-//                 localStorage.setItem('currentCompanyId', companyId.toString());
-
-//                 updateProgress(100);
-
-//                 // Dashboard is now ready
-//                 setTimeout(() => {
-//                     hideLoading();
-//                     setIsInitializing(false);
-//                 }, 300);
-//             } else {
-//                 throw new Error(response.data.message || 'Failed to switch company');
-//             }
-//         } catch (err) {
-//             console.error('Error switching company:', err);
-//             hideLoading();
-//             setError('Failed to switch company. Please try again.');
-//             setIsInitializing(false);
-//         }
-//     };
-
-//     useEffect(() => {
-//         // Give a small delay to ensure all data is loaded
-//         const timer = setTimeout(() => {
-//             initializeDashboard();
-//         }, 300);
-
-//         return () => clearTimeout(timer);
-//     }, [currentUser, currentCompany, userCompanies, authLoading]);
-
-//     // Rest of your useEffect hooks remain the same...
-//     useEffect(() => {
-//         if (!isInitializing && currentUser && currentCompany) {
-//             const handleKeyDown = (e) => {
-//                 if (e.key === 'F9') {
-//                     e.preventDefault();
-//                     setShowProductModal(prev => !prev);
-//                 }
-//                 if (e.key === 'F10') {
-//                     e.preventDefault();
-//                     setShowPosModal(true);
-//                 }
-//             };
-
-//             window.addEventListener('keydown', handleKeyDown);
-//             return () => {
-//                 window.removeEventListener('keydown', handleKeyDown);
-//             };
-//         }
-//     }, [isInitializing, currentUser, currentCompany]);
-
-//     useEffect(() => {
-//         const handleKeyDown = (e) => {
-//             if (e.key === 'F4') {
-//                 e.preventDefault();
-//                 setShowContactsModal(true);
-//             }
-//         };
-
-//         document.addEventListener('keydown', handleKeyDown);
-//         return () => {
-//             document.removeEventListener('keydown', handleKeyDown);
-//         };
-//     }, []);
-
-//     // Show the spinner only during initial load (before YouTube bar appears)
-//     if (authLoading && isInitializing) {
-//         return (
-//             <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '100vh' }}>
-//                 <Spinner animation="border" role="status" className="mb-3">
-//                     <span className="visually-hidden">Loading...</span>
-//                 </Spinner>
-//             </div>
-//         );
-//     }
-
-//     // Don't show anything while YouTube progress bar is active
-//     if (isInitializing || globalLoading) {
-//         return null; // The YouTube progress bar will show instead
-//     }
-
-//     if (error) {
-//         return (
-//             <div className="container mt-5">
-//                 <Alert variant="danger">
-//                     <Alert.Heading>Error Loading Dashboard</Alert.Heading>
-//                     <p>{error}</p>
-//                     <div className="d-flex gap-2">
-//                         <Button variant="primary" onClick={() => window.location.reload()}>
-//                             Refresh
-//                         </Button>
-//                         <Button variant="outline-secondary" onClick={() => {
-//                             localStorage.clear();
-//                             sessionStorage.clear();
-//                             window.location.reload();
-//                         }}>
-//                             Clear & Retry
-//                         </Button>
-//                         <Button variant="outline-danger" onClick={async () => {
-//                             localStorage.clear();
-//                             sessionStorage.clear();
-//                             await logout();
-//                             navigate('/auth/login');
-//                         }}>
-//                             Logout
-//                         </Button>
-//                     </div>
-//                 </Alert>
-//             </div>
-//         );
-//     }
-
-//     if (!currentUser) {
-//         return (
-//             <div className="container mt-5">
-//                 <Alert variant="warning">
-//                     <Alert.Heading>Authentication Required</Alert.Heading>
-//                     <p>Please login to access the dashboard.</p>
-//                     <div className="d-flex gap-2">
-//                         <Button variant="primary" onClick={() => navigate('/auth/login')}>
-//                             Login
-//                         </Button>
-//                         <Button variant="outline-secondary" onClick={() => {
-//                             localStorage.clear();
-//                             sessionStorage.clear();
-//                             window.location.reload();
-//                         }}>
-//                             Clear Cache
-//                         </Button>
-//                     </div>
-//                 </Alert>
-//             </div>
-//         );
-//     }
-
-//     // Get company ID with multiple fallbacks
-//     const getCompanyId = () => {
-//         return currentCompany?.id || currentCompany?._id || '';
-//     };
-
-//     // Get fiscal year for API call
-//     const getFiscalYearForApi = () => {
-//         if (currentCompany?.fiscalYear) {
-//             return JSON.stringify({
-//                 id: currentCompany.fiscalYear.id || currentCompany.fiscalYear.Id || '',
-//                 name: currentCompany.fiscalYear.name || currentCompany.fiscalYear.Name || '',
-//                 startDate: currentCompany.fiscalYear.startDate || currentCompany.fiscalYear.StartDate || '',
-//                 endDate: currentCompany.fiscalYear.endDate || currentCompany.fiscalYear.EndDate || '',
-//                 isActive: currentCompany.fiscalYear.isActive || currentCompany.fiscalYear.IsActive || false
-//             });
-//         }
-//         return null;
-//     };
-
-//     const handleSaleComplete = (saleData) => {
-//         console.log('Sale completed:', saleData);
-//     };
-
-//     const handlePosSaleClick = () => {
-//         setShowPosModal(true);
-//     };
-
-//     return (
-//         <>
-//             <div className="app-content-header">
-//                 <Header />
-//             </div>
-
-//             {showButton && (
-//                 <div style={{ position: 'fixed', top: '100px', right: '20px', zIndex: 1000 }}>
-//                     <button
-//                         className="btn btn-primary me-2"
-//                         onClick={() => setShowProductModal(true)}
-//                     >
-//                         View Products (F9)
-//                     </button>
-//                     <button
-//                         className="btn btn-success"
-//                         onClick={() => setShowPosModal(true)}
-//                     >
-//                         Open POS (F10)
-//                     </button>
-//                 </div>
-//             )}
-
-//             <div>
-//                 {showButton && (
-//                     <Button variant="primary" onClick={() => setShowContactsModal(true)}>
-//                         Open Contacts (F4)
-//                     </Button>
-//                 )}
-
-//                 <ContactModal
-//                     show={showContactsModal}
-//                     onHide={() => setShowContactsModal(false)}
-//                     companyId={getCompanyId()}
-//                 />
-//             </div>
-
-//             <div className="app-content pt-2">
-//                 <div className="container-fluid">
-//                     <div className="row">
-//                         {isAdminOrSupervisor && (
-//                             <StatsCards
-//                                 companyId={getCompanyId()}
-//                                 companyName={currentCompany.name || currentCompany.Name}
-//                                 fiscalYearJson={getFiscalYearForApi()}
-//                             />
-//                         )}
-//                         <div className="row">
-//                             <div className="col-lg-7 connectedSortable">
-//                                 <SalesChart
-//                                     companyId={getCompanyId()}
-//                                     companyName={currentCompany.name || currentCompany.Name}
-//                                     fiscalYearJson={getFiscalYearForApi()}
-//                                 />
-//                             </div>
-
-//                             <div className="col-lg-5 connectedSortable">
-//                                 <QuickActions
-//                                     onPosSaleClick={handlePosSaleClick}
-//                                     companyId={getCompanyId()}
-//                                 />
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* POS Modal */}
-//             <PosCashSalesModal
-//                 show={showPosModal}
-//                 onClose={() => setShowPosModal(false)}
-//                 onSaleComplete={handleSaleComplete}
-//                 companyId={getCompanyId()}
-//             />
-
-//             {/* Product modal */}
-//             {showProductModal && (
-//                 <ProductModal
-//                     onClose={() => setShowProductModal(false)}
-//                     companyId={getCompanyId()}
-//                 />
-//             )}
-//         </>
-//     );
-// };
-
-// export default DashboardV1;
-
-//---------------------------------------------------------end1
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -646,6 +26,9 @@ import ProductModal from './modals/ProductModal';
 import ContactModal from './modals/ContactModal';
 import PosCashSalesModal from '../sales/PosCashSalesModal';
 import axios from 'axios';
+import IncomeExpensePieChart from './IncomeExpensePieChart';
+import TopItemsCard from './TopItemsCard';
+import TopCustomersCard from './TopCustomersCard';
 
 const DashboardV1 = () => {
     const navigate = useNavigate();
@@ -664,6 +47,22 @@ const DashboardV1 = () => {
     const [showPosModal, setShowPosModal] = useState(false);
     const [activeMenu, setActiveMenu] = useState('Dashboard');
 
+    // ✅ State for top items data - will be populated from dashboard response
+    const [topItemsData, setTopItemsData] = useState({
+        topItemsByTransaction: [],
+        topItemsByRevenue: [],
+        topItemsByFrequency: []
+    });
+    const [isLoadingTopItems, setIsLoadingTopItems] = useState(false);
+
+    const [topCustomersData, setTopCustomersData] = useState({
+        topByPurchase: [],
+        topByFrequency: [],
+        topByAverageValue: [],
+        topByOutstanding: []
+    });
+    const [isLoadingTopCustomers, setIsLoadingTopCustomers] = useState(false);
+
     const api = axios.create({
         baseURL: process.env.REACT_APP_API_BASE_URL || '',
         withCredentials: true,
@@ -676,6 +75,61 @@ const DashboardV1 = () => {
         }
         return config;
     });
+
+    // ✅ Function to update top items from dashboard data
+    const updateTopItemsFromDashboard = (dashboardData) => {
+        if (dashboardData) {
+            console.log('Updating top items from dashboard data:', {
+                byTransaction: dashboardData.topItemsByTransaction,
+                byRevenue: dashboardData.topItemsByRevenue,
+                byFrequency: dashboardData.topItemsByFrequency
+            });
+
+            setTopItemsData({
+                topItemsByTransaction: dashboardData.topItemsByTransaction || [],
+                topItemsByRevenue: dashboardData.topItemsByRevenue || [],
+                topItemsByFrequency: dashboardData.topItemsByFrequency || []
+            });
+        }
+    };
+
+    // ✅ Refresh Top Items - now just refetches the dashboard data
+    const refreshTopItems = () => {
+        // Refresh the stats cards which will refetch all dashboard data
+        // We'll use a ref to call the stats cards refresh
+        if (window.statsCardsRef && window.statsCardsRef.current) {
+            window.statsCardsRef.current.refreshData();
+        } else {
+            // Fallback: reload the page or trigger a re-fetch
+            window.location.reload();
+        }
+    };
+
+    const updateTopCustomersFromDashboard = (dashboardData) => {
+        if (dashboardData) {
+            console.log('Updating top customers from dashboard data:', {
+                topByPurchase: dashboardData.topCustomersByPurchase,
+                topByFrequency: dashboardData.topCustomersByFrequency,
+                topByAverageValue: dashboardData.topCustomersByAverageValue,
+                topByOutstanding: dashboardData.topCustomersByOutstanding
+            });
+
+            setTopCustomersData({
+                topByPurchase: dashboardData.topCustomersByPurchase || [],
+                topByFrequency: dashboardData.topCustomersByFrequency || [],
+                topByAverageValue: dashboardData.topCustomersByAverageValue || [],
+                topByOutstanding: dashboardData.topCustomersByOutstanding || []
+            });
+        }
+    };
+
+    const refreshTopCustomers = () => {
+        setIsLoadingTopCustomers(true);
+        // The StatsCards will call the callback when data loads
+        setTimeout(() => {
+            setIsLoadingTopCustomers(false);
+        }, 2000);
+    };
 
     // Modern dashboard styles with icon-only sidebar
     const styles = {
@@ -908,7 +362,21 @@ const DashboardV1 = () => {
         },
         contentGrid: {
             display: 'grid',
-            gridTemplateColumns: '2fr 1fr',
+            gridTemplateColumns: '1.4fr 1.2fr 0.8fr',
+            gap: '20px',
+            marginBottom: '24px',
+            alignItems: 'stretch',
+        },
+        contentGridMedium: {
+            gridTemplateColumns: '1fr 1fr',
+        },
+        contentGridSmall: {
+            gridTemplateColumns: '1fr',
+        },
+        // ✅ Add topItemsGrid style
+        topItemsGrid: {
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
             gap: '20px',
             marginBottom: '24px',
         },
@@ -932,7 +400,12 @@ const DashboardV1 = () => {
         },
         '@media (max-width: 1200px)': {
             contentGrid: {
-                gridTemplateColumns: '1fr',
+                gridTemplateColumns: '1fr 1fr',
+            },
+        },
+        '@media (max-width: 992px)': {
+            contentGrid: {
+                gridTemplateColumns: '1fr 1fr',
             },
         },
         '@media (max-width: 768px)': {
@@ -957,6 +430,11 @@ const DashboardV1 = () => {
             },
             contentGrid: {
                 gridTemplateColumns: '1fr',
+                gap: '16px',
+            },
+            topItemsGrid: {
+                gridTemplateColumns: '1fr',
+                gap: '16px',
             },
         },
         '@media (max-width: 576px)': {
@@ -965,6 +443,14 @@ const DashboardV1 = () => {
             },
             welcomeTitle: {
                 fontSize: '18px',
+            },
+            contentGrid: {
+                gridTemplateColumns: '1fr',
+                gap: '12px',
+            },
+            topItemsGrid: {
+                gridTemplateColumns: '1fr',
+                gap: '12px',
             },
         },
     };
@@ -1394,14 +880,14 @@ const DashboardV1 = () => {
 
     return (
         <div style={styles.container}>
-            {/* Header - Your existing Header component */}
+            {/* Header */}
             <div style={styles.headerWrapper}>
                 <Header />
             </div>
 
             {/* Main Layout with Sidebar and Content */}
             <div style={styles.mainLayout}>
-                {/* Sidebar - Icon only, expands on hover */}
+                {/* Sidebar */}
                 <div
                     style={styles.sidebar}
                     onMouseEnter={() => setIsHovered(true)}
@@ -1498,22 +984,122 @@ const DashboardV1 = () => {
                             companyId={getCompanyId()}
                             companyName={currentCompany?.name || currentCompany?.Name}
                             fiscalYearJson={getFiscalYearForApi()}
+                            onDataLoaded={(dashboardData) => {
+                                // ✅ Callback to update top items when dashboard data loads
+                                if (dashboardData) {
+                                    updateTopItemsFromDashboard(dashboardData);
+                                    updateTopCustomersFromDashboard(dashboardData);
+                                }
+                            }}
                         />
                     </div>
 
-                    {/* Chart and Quick Actions */}
+                    {/* Chart, Pie Chart and Quick Actions in same row */}
                     <div style={styles.contentGrid}>
-                        <div>
+                        {/* Left: Sales Chart - Larger */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <SalesChart
                                 companyId={getCompanyId()}
                                 companyName={currentCompany?.name || currentCompany?.Name}
                                 fiscalYearJson={getFiscalYearForApi()}
                             />
                         </div>
-                        <div>
+
+                        {/* Center: Income vs Expenses Pie Chart - Same size */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <IncomeExpensePieChart
+                                companyId={getCompanyId()}
+                                companyName={currentCompany?.name || currentCompany?.Name}
+                                fiscalYearJson={getFiscalYearForApi()}
+                            />
+                        </div>
+
+                        {/* Right: Quick Actions - Smaller */}
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            transform: 'scale(0.95)',
+                            transformOrigin: 'top left',
+                        }}>
                             <QuickActions
                                 onPosSaleClick={handlePosSaleClick}
                                 companyId={getCompanyId()}
+                            />
+                        </div>
+                    </div>
+
+                    {/* ✅ Top Items Card
+                    <div style={styles.topItemsGrid}>
+                        {console.log('📊 Passing to TopItemsCard:', {
+                            byTransaction: topItemsData.topItemsByTransaction,
+                            byRevenue: topItemsData.topItemsByRevenue,
+                            byFrequency: topItemsData.topItemsByFrequency,
+                            isLoading: isLoadingTopItems
+                        })}
+                        <TopItemsCard
+                            topItemsByTransaction={topItemsData.topItemsByTransaction || []}
+                            topItemsByRevenue={topItemsData.topItemsByRevenue || []}
+                            topItemsByFrequency={topItemsData.topItemsByFrequency || []}
+                            isLoading={isLoadingTopItems}
+                            onRefresh={refreshTopItems}
+                        />
+                    </div>
+
+                    <div style={styles.topItemsGrid}>
+                        {console.log('👥 Passing to TopCustomersCard:', {
+                            topByPurchase: topCustomersData.topByPurchase,
+                            topByFrequency: topCustomersData.topByFrequency,
+                            topByAverageValue: topCustomersData.topByAverageValue,
+                            topByOutstanding: topCustomersData.topByOutstanding,
+                            isLoading: isLoadingTopCustomers
+                        })}
+                        <TopCustomersCard
+                            topByPurchase={topCustomersData.topByPurchase || []}
+                            topByFrequency={topCustomersData.topByFrequency || []}
+                            topByAverageValue={topCustomersData.topByAverageValue || []}
+                            topByOutstanding={topCustomersData.topByOutstanding || []}
+                            isLoading={isLoadingTopCustomers}
+                            onRefresh={refreshTopCustomers}
+                        />
+                    </div> */}
+
+                    {/* ✅ Top Items & Top Customers Cards - Same Row */}
+                    <div style={styles.topItemsGrid}>
+                        {/* Log the data being passed */}
+                        {console.log('📊 Passing to TopItemsCard:', {
+                            byTransaction: topItemsData.topItemsByTransaction,
+                            byRevenue: topItemsData.topItemsByRevenue,
+                            byFrequency: topItemsData.topItemsByFrequency,
+                            isLoading: isLoadingTopItems
+                        })}
+                        {console.log('👥 Passing to TopCustomersCard:', {
+                            topByPurchase: topCustomersData.topByPurchase,
+                            topByFrequency: topCustomersData.topByFrequency,
+                            topByAverageValue: topCustomersData.topByAverageValue,
+                            topByOutstanding: topCustomersData.topByOutstanding,
+                            isLoading: isLoadingTopCustomers
+                        })}
+
+                        {/* Left: Top Items Card */}
+                        <div style={{ height: '100%' }}>
+                            <TopItemsCard
+                                topItemsByTransaction={topItemsData.topItemsByTransaction || []}
+                                topItemsByRevenue={topItemsData.topItemsByRevenue || []}
+                                topItemsByFrequency={topItemsData.topItemsByFrequency || []}
+                                isLoading={isLoadingTopItems}
+                                onRefresh={refreshTopItems}
+                            />
+                        </div>
+
+                        {/* Right: Top Customers Card */}
+                        <div style={{ height: '100%' }}>
+                            <TopCustomersCard
+                                topByPurchase={topCustomersData.topByPurchase || []}
+                                topByFrequency={topCustomersData.topByFrequency || []}
+                                topByAverageValue={topCustomersData.topByAverageValue || []}
+                                topByOutstanding={topCustomersData.topByOutstanding || []}
+                                isLoading={isLoadingTopCustomers}
+                                onRefresh={refreshTopCustomers}
                             />
                         </div>
                     </div>
@@ -1581,4 +1167,3 @@ const DashboardV1 = () => {
 };
 
 export default DashboardV1;
-

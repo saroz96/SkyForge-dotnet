@@ -288,6 +288,42 @@ export const PageNotRefreshProvider = ({ children }) => {
     };
     //==================END====================================================
 
+    //==================Pie Chart===================
+    const [pieChartDraftSave, setPieChartDraftSave] = useState(() => {
+        // Only run on client-side
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const saved = sessionStorage.getItem('pieChartDraftSave');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.error('Failed to parse companyDraftSave from sessionStorage', error);
+            return null;
+        }
+    });
+
+    // Update sessionStorage whenever draftSave changes
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            if (pieChartDraftSave) {
+                sessionStorage.setItem('pieChartDraftSave', JSON.stringify(pieChartDraftSave));
+            } else {
+                sessionStorage.removeItem('pieChartDraftSave');
+            }
+        } catch (error) {
+            console.error('Failed to update sessionStorage', error);
+        }
+    }, [pieChartDraftSave]);
+
+    // Function to clear the draft (e.g., after submission)
+    const clearPieChartDraftSave = () => {
+        setPieChartDraftSave(null);
+    };
+    //==================END====================================================
+
+
     //==================Product from F9===================
     const [productDraftSave, setProductDraftSave] = useState(() => {
         // Only run on client-side
@@ -471,6 +507,11 @@ export const PageNotRefreshProvider = ({ children }) => {
                 salesChartDraftSave,
                 setSalesChartDraftSave,
                 clearSalesChartDraft,
+
+                //for pie chart
+                pieChartDraftSave,
+                setPieChartDraftSave,
+                clearPieChartDraftSave,
 
                 //for product from F9 key
                 productDraftSave,

@@ -147,7 +147,7 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
     const generateBatchNumber = () => {
         const timestamp = new Date().getTime().toString().slice(-6);
         const random = Math.random().toString(36).substring(2, 5).toUpperCase();
-        setFormData(prev => ({ ...prev, batchNumber: `BATCH-${timestamp}-${random}` }));
+        setFormData(prev => ({ ...prev, batchNumber: `${timestamp}-${random}` }));
     };
 
     const calculatePriceFromMargin = () => {

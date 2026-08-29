@@ -275,31 +275,34 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
 
                     await _context.Transactions.AddAsync(partyTransaction);
 
-                    // Add Transaction Items for Party Transaction
-                    foreach (var calc in itemCalculations)
+                    if (dto.PaymentMode?.ToLower() != "cash")
                     {
-                        var transactionItem = new TransactionItem
+                        // Add Transaction Items for Party Transaction
+                        foreach (var calc in itemCalculations)
                         {
-                            Id = Guid.NewGuid(),
-                            TransactionId = partyTransaction.Id,
-                            ItemId = calc.ItemId,
-                            UnitId = calc.UnitId,
-                            WSUnit = (int?)calc.WsUnit,
-                            Quantity = calc.Quantity,
-                            Bonus = calc.Bonus,
-                            Price = calc.Price,
-                            PuPrice = calc.PuPrice,
-                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
-                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
-                            NetPuPrice = calc.NetPuPrice,
-                            TaxableAmount = calc.TaxableAmount,
-                            VatPercentage = calc.VatPercentage,
-                            VatAmount = calc.VatAmount,
-                            Debit = calc.ItemValueAfterDiscount + calc.VatAmount,
-                            Credit = 0,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _context.TransactionItems.AddAsync(transactionItem);
+                            var transactionItem = new TransactionItem
+                            {
+                                Id = Guid.NewGuid(),
+                                TransactionId = partyTransaction.Id,
+                                ItemId = calc.ItemId,
+                                UnitId = calc.UnitId,
+                                WSUnit = (int?)calc.WsUnit,
+                                Quantity = calc.Quantity,
+                                Bonus = calc.Bonus,
+                                Price = calc.Price,
+                                PuPrice = calc.PuPrice,
+                                DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                                DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                                NetPuPrice = calc.NetPuPrice,
+                                TaxableAmount = calc.TaxableAmount,
+                                VatPercentage = calc.VatPercentage,
+                                VatAmount = calc.VatAmount,
+                                Debit = calc.ItemValueAfterDiscount + calc.VatAmount,
+                                Credit = 0,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            await _context.TransactionItems.AddAsync(transactionItem);
+                        }
                     }
                 }
 
@@ -338,31 +341,31 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                     await _context.Transactions.AddAsync(purchaseTransaction);
 
                     // Add Transaction Items for Purchase Transaction
-                    foreach (var calc in itemCalculations)
-                    {
-                        var transactionItem = new TransactionItem
-                        {
-                            Id = Guid.NewGuid(),
-                            TransactionId = purchaseTransaction.Id,
-                            ItemId = calc.ItemId,
-                            UnitId = calc.UnitId,
-                            WSUnit = (int?)calc.WsUnit,
-                            Quantity = calc.Quantity,
-                            Bonus = calc.Bonus,
-                            Price = calc.Price,
-                            PuPrice = calc.PuPrice,
-                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
-                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
-                            NetPuPrice = calc.NetPuPrice,
-                            TaxableAmount = calc.TaxableAmount,
-                            VatPercentage = calc.VatPercentage,
-                            VatAmount = calc.VatAmount,
-                            Debit = 0,
-                            Credit = calc.ItemValueAfterDiscount,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _context.TransactionItems.AddAsync(transactionItem);
-                    }
+                    // foreach (var calc in itemCalculations)
+                    // {
+                    //     var transactionItem = new TransactionItem
+                    //     {
+                    //         Id = Guid.NewGuid(),
+                    //         TransactionId = purchaseTransaction.Id,
+                    //         ItemId = calc.ItemId,
+                    //         UnitId = calc.UnitId,
+                    //         WSUnit = (int?)calc.WsUnit,
+                    //         Quantity = calc.Quantity,
+                    //         Bonus = calc.Bonus,
+                    //         Price = calc.Price,
+                    //         PuPrice = calc.PuPrice,
+                    //         DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                    //         DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                    //         NetPuPrice = calc.NetPuPrice,
+                    //         TaxableAmount = calc.TaxableAmount,
+                    //         VatPercentage = calc.VatPercentage,
+                    //         VatAmount = calc.VatAmount,
+                    //         Debit = 0,
+                    //         Credit = calc.ItemValueAfterDiscount,
+                    //         CreatedAt = DateTime.UtcNow
+                    //     };
+                    //     await _context.TransactionItems.AddAsync(transactionItem);
+                    // }
                 }
 
                 // 3. VAT TRANSACTION (Header - Credit to VAT account - reduction in input VAT)
@@ -399,31 +402,31 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                     await _context.Transactions.AddAsync(vatTransaction);
 
                     // Add Transaction Items for VAT Transaction
-                    foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
-                    {
-                        var transactionItem = new TransactionItem
-                        {
-                            Id = Guid.NewGuid(),
-                            TransactionId = vatTransaction.Id,
-                            ItemId = calc.ItemId,
-                            UnitId = calc.UnitId,
-                            WSUnit = (int?)calc.WsUnit,
-                            Quantity = calc.Quantity,
-                            Bonus = calc.Bonus,
-                            Price = calc.Price,
-                            PuPrice = calc.PuPrice,
-                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
-                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
-                            NetPuPrice = calc.NetPuPrice,
-                            TaxableAmount = calc.TaxableAmount,
-                            VatPercentage = calc.VatPercentage,
-                            VatAmount = calc.VatAmount,
-                            Debit = 0,
-                            Credit = calc.VatAmount,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _context.TransactionItems.AddAsync(transactionItem);
-                    }
+                    // foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
+                    // {
+                    //     var transactionItem = new TransactionItem
+                    //     {
+                    //         Id = Guid.NewGuid(),
+                    //         TransactionId = vatTransaction.Id,
+                    //         ItemId = calc.ItemId,
+                    //         UnitId = calc.UnitId,
+                    //         WSUnit = (int?)calc.WsUnit,
+                    //         Quantity = calc.Quantity,
+                    //         Bonus = calc.Bonus,
+                    //         Price = calc.Price,
+                    //         PuPrice = calc.PuPrice,
+                    //         DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                    //         DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                    //         NetPuPrice = calc.NetPuPrice,
+                    //         TaxableAmount = calc.TaxableAmount,
+                    //         VatPercentage = calc.VatPercentage,
+                    //         VatAmount = calc.VatAmount,
+                    //         Debit = 0,
+                    //         Credit = calc.VatAmount,
+                    //         CreatedAt = DateTime.UtcNow
+                    //     };
+                    //     await _context.TransactionItems.AddAsync(transactionItem);
+                    // }
                 }
 
                 // 4. ROUND-OFF TRANSACTION (Header) if applicable
@@ -470,8 +473,8 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         IsType = TransactionIsType.PrRt,
                         Type = TransactionType.PrRt,
                         PurchaseSalesReturnType = "Purchase Return",
-                        TotalDebit = 0,
-                        TotalCredit = dto.TotalAmount.Value,
+                        TotalDebit = dto.TotalAmount ?? 0,
+                        TotalCredit = 0,
                         PaymentMode = PaymentMode.Cash,
                         Date = dto.Date,
                         TransactionDate = dto.TransactionDate,
@@ -484,6 +487,32 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         IsActive = true
                     };
                     await _context.Transactions.AddAsync(cashTransaction);
+
+                    foreach (var calc in itemCalculations)
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = cashTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = (int?)calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Bonus = calc.Bonus,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.ItemValueAfterDiscount + calc.VatAmount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
                 }
 
                 // SINGLE SAVE CHANGES CALL
@@ -2086,31 +2115,34 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                     };
                     await _context.Transactions.AddAsync(partyTransaction);
 
-                    // Add Transaction Items for Party Transaction
-                    foreach (var calc in itemCalculations)
+                    if (dto.PaymentMode?.ToLower() != "cash")
                     {
-                        var transactionItem = new TransactionItem
+                        // Add Transaction Items for Party Transaction
+                        foreach (var calc in itemCalculations)
                         {
-                            Id = Guid.NewGuid(),
-                            TransactionId = partyTransaction.Id,
-                            ItemId = calc.ItemId,
-                            UnitId = calc.UnitId,
-                            WSUnit = (int?)calc.WsUnit,
-                            Quantity = calc.Quantity,
-                            Bonus = calc.Bonus,
-                            Price = calc.Price,
-                            PuPrice = calc.PuPrice,
-                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
-                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
-                            NetPuPrice = calc.NetPuPrice,
-                            TaxableAmount = calc.TaxableAmount,
-                            VatPercentage = calc.VatPercentage,
-                            VatAmount = calc.VatAmount,
-                            Debit = calc.ItemValueAfterDiscount + calc.VatAmount,
-                            Credit = 0,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _context.TransactionItems.AddAsync(transactionItem);
+                            var transactionItem = new TransactionItem
+                            {
+                                Id = Guid.NewGuid(),
+                                TransactionId = partyTransaction.Id,
+                                ItemId = calc.ItemId,
+                                UnitId = calc.UnitId,
+                                WSUnit = (int?)calc.WsUnit,
+                                Quantity = calc.Quantity,
+                                Bonus = calc.Bonus,
+                                Price = calc.Price,
+                                PuPrice = calc.PuPrice,
+                                DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                                DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                                NetPuPrice = calc.NetPuPrice,
+                                TaxableAmount = calc.TaxableAmount,
+                                VatPercentage = calc.VatPercentage,
+                                VatAmount = calc.VatAmount,
+                                Debit = calc.ItemValueAfterDiscount + calc.VatAmount,
+                                Credit = 0,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            await _context.TransactionItems.AddAsync(transactionItem);
+                        }
                     }
                 }
 
@@ -2147,31 +2179,31 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                     await _context.Transactions.AddAsync(purchaseTransaction);
 
                     // Add Transaction Items for Purchase Transaction
-                    foreach (var calc in itemCalculations)
-                    {
-                        var transactionItem = new TransactionItem
-                        {
-                            Id = Guid.NewGuid(),
-                            TransactionId = purchaseTransaction.Id,
-                            ItemId = calc.ItemId,
-                            UnitId = calc.UnitId,
-                            WSUnit = (int?)calc.WsUnit,
-                            Quantity = calc.Quantity,
-                            Bonus = calc.Bonus,
-                            Price = calc.Price,
-                            PuPrice = calc.PuPrice,
-                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
-                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
-                            NetPuPrice = calc.NetPuPrice,
-                            TaxableAmount = calc.TaxableAmount,
-                            VatPercentage = calc.VatPercentage,
-                            VatAmount = calc.VatAmount,
-                            Debit = 0,
-                            Credit = calc.ItemValueAfterDiscount,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _context.TransactionItems.AddAsync(transactionItem);
-                    }
+                    // foreach (var calc in itemCalculations)
+                    // {
+                    //     var transactionItem = new TransactionItem
+                    //     {
+                    //         Id = Guid.NewGuid(),
+                    //         TransactionId = purchaseTransaction.Id,
+                    //         ItemId = calc.ItemId,
+                    //         UnitId = calc.UnitId,
+                    //         WSUnit = (int?)calc.WsUnit,
+                    //         Quantity = calc.Quantity,
+                    //         Bonus = calc.Bonus,
+                    //         Price = calc.Price,
+                    //         PuPrice = calc.PuPrice,
+                    //         DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                    //         DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                    //         NetPuPrice = calc.NetPuPrice,
+                    //         TaxableAmount = calc.TaxableAmount,
+                    //         VatPercentage = calc.VatPercentage,
+                    //         VatAmount = calc.VatAmount,
+                    //         Debit = 0,
+                    //         Credit = calc.ItemValueAfterDiscount,
+                    //         CreatedAt = DateTime.UtcNow
+                    //     };
+                    //     await _context.TransactionItems.AddAsync(transactionItem);
+                    // }
                 }
 
                 // 3. VAT TRANSACTION (Header - Credit to VAT account - reduction in input VAT)
@@ -2207,31 +2239,31 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                     await _context.Transactions.AddAsync(vatTransaction);
 
                     // Add Transaction Items for VAT Transaction
-                    foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
-                    {
-                        var transactionItem = new TransactionItem
-                        {
-                            Id = Guid.NewGuid(),
-                            TransactionId = vatTransaction.Id,
-                            ItemId = calc.ItemId,
-                            UnitId = calc.UnitId,
-                            WSUnit = (int?)calc.WsUnit,
-                            Quantity = calc.Quantity,
-                            Bonus = calc.Bonus,
-                            Price = calc.Price,
-                            PuPrice = calc.PuPrice,
-                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
-                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
-                            NetPuPrice = calc.NetPuPrice,
-                            TaxableAmount = calc.TaxableAmount,
-                            VatPercentage = calc.VatPercentage,
-                            VatAmount = calc.VatAmount,
-                            Debit = 0,
-                            Credit = calc.VatAmount,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _context.TransactionItems.AddAsync(transactionItem);
-                    }
+                    // foreach (var calc in itemCalculations.Where(c => c.VatAmount > 0))
+                    // {
+                    //     var transactionItem = new TransactionItem
+                    //     {
+                    //         Id = Guid.NewGuid(),
+                    //         TransactionId = vatTransaction.Id,
+                    //         ItemId = calc.ItemId,
+                    //         UnitId = calc.UnitId,
+                    //         WSUnit = (int?)calc.WsUnit,
+                    //         Quantity = calc.Quantity,
+                    //         Bonus = calc.Bonus,
+                    //         Price = calc.Price,
+                    //         PuPrice = calc.PuPrice,
+                    //         DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                    //         DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                    //         NetPuPrice = calc.NetPuPrice,
+                    //         TaxableAmount = calc.TaxableAmount,
+                    //         VatPercentage = calc.VatPercentage,
+                    //         VatAmount = calc.VatAmount,
+                    //         Debit = 0,
+                    //         Credit = calc.VatAmount,
+                    //         CreatedAt = DateTime.UtcNow
+                    //     };
+                    //     await _context.TransactionItems.AddAsync(transactionItem);
+                    // }
                 }
 
                 // 4. ROUND-OFF TRANSACTION (Header) if applicable
@@ -2250,7 +2282,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         PurchaseSalesReturnType = "Purchase Return",
                         TotalDebit = dto.RoundOffAmount > 0 ? dto.RoundOffAmount.Value : 0,
                         TotalCredit = dto.RoundOffAmount < 0 ? Math.Abs(dto.RoundOffAmount.Value) : 0,
-                        RoundOffAmount=dto.RoundOffAmount,
+                        RoundOffAmount = dto.RoundOffAmount,
                         PaymentMode = paymentMode,
                         Date = dto.Date,
                         TransactionDate = dto.TransactionDate,
@@ -2275,11 +2307,11 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         PurchaseReturnBillId = existingBill.Id,
                         BillNumber = existingBill.BillNumber,
                         PartyBillNumber = dto.PartyBillNumber,
-                        IsType=TransactionIsType.PrRt,
+                        IsType = TransactionIsType.PrRt,
                         Type = TransactionType.PrRt,
                         PurchaseSalesReturnType = "Purchase Return",
-                        TotalDebit = 0,
-                        TotalCredit = dto.TotalAmount.Value,
+                        TotalDebit = dto.TotalAmount.Value,
+                        TotalCredit = 0,
                         PaymentMode = paymentMode,
                         Date = dto.Date,
                         TransactionDate = dto.TransactionDate,
@@ -2291,6 +2323,32 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                         IsActive = true,
                     };
                     await _context.Transactions.AddAsync(cashTransaction);
+
+                    foreach (var calc in itemCalculations)
+                    {
+                        var transactionItem = new TransactionItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TransactionId = cashTransaction.Id,
+                            ItemId = calc.ItemId,
+                            UnitId = calc.UnitId,
+                            WSUnit = (int?)calc.WsUnit,
+                            Quantity = calc.Quantity,
+                            Bonus = calc.Bonus,
+                            Price = calc.Price,
+                            PuPrice = calc.PuPrice,
+                            DiscountPercentagePerItem = calc.DiscountPercentagePerItem,
+                            DiscountAmountPerItem = calc.DiscountAmountPerItem,
+                            NetPuPrice = calc.NetPuPrice,
+                            TaxableAmount = calc.TaxableAmount,
+                            VatPercentage = calc.VatPercentage,
+                            VatAmount = calc.VatAmount,
+                            Debit = calc.ItemValueAfterDiscount + calc.VatAmount,
+                            Credit = 0,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _context.TransactionItems.AddAsync(transactionItem);
+                    }
                 }
 
                 // Save all changes

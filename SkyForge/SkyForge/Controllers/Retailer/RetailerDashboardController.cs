@@ -109,5 +109,131 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        [HttpGet("retailerDashboard/topitems")]
+        public async Task<IActionResult> GetTopItems(
+            [FromQuery] Guid companyId,
+            [FromQuery] string? fiscalYearJson)
+        {
+            try
+            {
+                // Parse fiscal year
+                FiscalYearInfo? fiscalYear = null;
+                if (!string.IsNullOrEmpty(fiscalYearJson))
+                {
+                    try
+                    {
+                        fiscalYear = JsonSerializer.Deserialize<FiscalYearInfo>(fiscalYearJson);
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to deserialize fiscal year JSON");
+                    }
+                }
+
+                // Get date range from fiscal year or use default
+                DateTime startDate;
+                DateTime endDate;
+
+                if (fiscalYear != null)
+                {
+                    startDate = fiscalYear.StartDate;
+                    endDate = DateTime.Now <= fiscalYear.EndDate ? DateTime.Now : fiscalYear.EndDate;
+                }
+                else
+                {
+                    // Default to last 30 days if no fiscal year provided
+                    endDate = DateTime.Now;
+                    startDate = endDate.AddDays(-30);
+                }
+
+                _logger.LogInformation($"Getting top items for company {companyId} from {startDate} to {endDate}");
+
+                // Call the service methods
+                var topItemsByTransaction = await _dashboardService.GetTopItemsByTransactionAsync(companyId, startDate, endDate, 10);
+                var topItemsByRevenue = await _dashboardService.GetTopItemsByRevenueAsync(companyId, startDate, endDate, 10);
+                var topItemsByFrequency = await _dashboardService.GetTopItemsByFrequencyAsync(companyId, startDate, endDate, 10);
+
+                _logger.LogInformation($"Found {topItemsByTransaction.Count} items by transaction, {topItemsByRevenue.Count} by revenue, {topItemsByFrequency.Count} by frequency");
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        topItemsByTransaction = topItemsByTransaction ?? new List<TopItemDto>(),
+                        topItemsByRevenue = topItemsByRevenue ?? new List<TopItemDto>(),
+                        topItemsByFrequency = topItemsByFrequency ?? new List<TopItemDto>()
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting top items for company {CompanyId}", companyId);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Failed to get top items",
+                    details = ex.Message
+                });
+            }
+        }
+
+        [HttpGet("retailerDashboard/topcustomers")]
+        public async Task<IActionResult> GetTopCustomers(
+            [FromQuery] Guid companyId,
+            [FromQuery] string? fiscalYearJson)
+        {
+            try
+            {
+                FiscalYearInfo? fiscalYear = null;
+                if (!string.IsNullOrEmpty(fiscalYearJson))
+                {
+                    try
+                    {
+                        fiscalYear = JsonSerializer.Deserialize<FiscalYearInfo>(fiscalYearJson);
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to deserialize fiscal year JSON");
+                    }
+                }
+
+                DateTime startDate;
+                DateTime endDate;
+
+                if (fiscalYear != null)
+                {
+                    startDate = fiscalYear.StartDate;
+                    endDate = DateTime.Now <= fiscalYear.EndDate ? DateTime.Now : fiscalYear.EndDate;
+                }
+                else
+                {
+                    endDate = DateTime.Now;
+                    startDate = endDate.AddDays(-30);
+                }
+
+                var topByPurchase = await _dashboardService.GetTopCustomersByPurchaseAsync(companyId, startDate, endDate, 10);
+                var topByFrequency = await _dashboardService.GetTopCustomersByFrequencyAsync(companyId, startDate, endDate, 10);
+                var topByAverageValue = await _dashboardService.GetTopCustomersByAverageValueAsync(companyId, startDate, endDate, 10);
+                var topByOutstanding = await _dashboardService.GetTopCustomersByOutstandingAsync(companyId, 10);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        topByPurchase,
+                        topByFrequency,
+                        topByAverageValue,
+                        topByOutstanding
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting top customers for company {CompanyId}", companyId);
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
     }
 }

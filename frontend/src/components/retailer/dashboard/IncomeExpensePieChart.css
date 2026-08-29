@@ -1,0 +1,641 @@
+/* IncomeExpenseChart.css - Matching SalesChart design */
+
+/* ============================================
+   Variables
+   ============================================ */
+:root {
+    --pie-primary: #1e3a5f;
+    --pie-primary-light: #2563eb;
+    --pie-primary-soft: #eff6ff;
+    --pie-surface: #f1f5f9;
+    --pie-card: #ffffff;
+    --pie-border: #e2e8f0;
+    --pie-text: #0f172a;
+    --pie-muted: #64748b;
+    --pie-danger: #dc2626;
+    --pie-success: #059669;
+    --pie-radius: 12px;
+    --pie-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --pie-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   MAIN CONTAINER
+   ============================================ */
+.pie-chart-container {
+    background: var(--pie-card);
+    border-radius: var(--pie-radius);
+    border: 1px solid var(--pie-border);
+    box-shadow: var(--pie-shadow);
+    padding: 20px 20px 16px 20px;
+    height: 100%;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    transition: var(--pie-transition);
+    animation: pie-fadeIn 0.4s ease-out forwards;
+}
+
+.pie-chart-container:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    border-color: var(--pie-primary-light);
+}
+
+@keyframes pie-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   HEADER SECTION
+   ============================================ */
+.pie-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pie-chart-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pie-chart-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    background: var(--pie-primary-soft);
+    color: var(--pie-primary-light);
+    transition: var(--pie-transition);
+}
+
+.pie-chart-icon--income-expense {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: #2563eb;
+}
+
+.pie-chart-icon:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.pie-chart-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--pie-text);
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+}
+
+.pie-chart-subtitle {
+    font-size: 12px;
+    color: var(--pie-muted);
+    font-weight: 400;
+    display: block;
+    margin-top: 1px;
+}
+
+.pie-chart-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* ============================================
+   REFRESH BUTTON
+   ============================================ */
+.pie-btn-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--pie-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--pie-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: var(--pie-transition);
+}
+
+.pie-btn-refresh:hover:not(:disabled) {
+    background: var(--pie-primary-soft);
+    border-color: var(--pie-primary-light);
+    color: var(--pie-primary-light);
+}
+
+.pie-btn-refresh:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+.pie-btn-refresh:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.pie-btn-refresh i {
+    font-size: 13px;
+}
+
+/* ============================================
+   ERROR REFRESH BUTTON
+   ============================================ */
+.pie-btn-refresh--error {
+    border-color: #fca5a5;
+    color: var(--pie-danger);
+    background: #fef2f2;
+}
+
+.pie-btn-refresh--error:hover {
+    background: #fee2e2;
+    border-color: var(--pie-danger);
+}
+
+/* ============================================
+   CACHED BADGE
+   ============================================ */
+.pie-cached-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--pie-muted);
+    background: var(--pie-surface);
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--pie-border);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.pie-cached-badge i {
+    font-size: 11px;
+}
+
+/* ============================================
+   SUMMARY CARDS GRID
+   ============================================ */
+.pie-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.pie-summary-card {
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: center;
+    border: 1px solid #f3f4f6;
+    transition: var(--pie-transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.pie-summary-card:hover {
+    background: var(--pie-card);
+    border-color: var(--pie-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transform: translateY(-1px);
+}
+
+/* Left border accents */
+.pie-summary-income {
+    border-left: 4px solid #22c55e;
+}
+
+.pie-summary-expense {
+    border-left: 4px solid #ef4444;
+}
+
+.pie-summary-profit {
+    border-left: 4px solid #22c55e;
+}
+
+.pie-summary-loss {
+    border-left: 4px solid #ef4444;
+}
+
+/* Summary card inner content */
+.pie-summary-label {
+    font-size: 10px;
+    color: var(--pie-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.pie-summary-value {
+    font-size: 15px;
+    font-weight: 700;
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+}
+
+/* Text colors */
+.text-success {
+    color: #16a34a;
+}
+
+.text-danger {
+    color: #dc2626;
+}
+
+/* ============================================
+   CHART BODY
+   ============================================ */
+.pie-chart-body {
+    position: relative;
+    flex: 1;
+    min-height: 200px;
+}
+
+.pie-chart-wrapper {
+    width: 100%;
+    height: 100%;
+    min-height: 260px;
+}
+
+/* ============================================
+   LOADING STATE
+   ============================================ */
+.pie-chart-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    gap: 16px;
+    flex: 1;
+    padding: 2.5rem 1rem;
+}
+
+.pie-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3.5px solid var(--pie-border);
+    border-top-color: var(--pie-primary-light);
+    border-radius: 50%;
+    animation: pie-spin 0.8s linear infinite;
+}
+
+@keyframes pie-spin {
+    to { transform: rotate(360deg); }
+}
+
+.pie-spin {
+    animation: pie-spin 0.8s linear infinite;
+}
+
+.pie-loading-text {
+    font-size: 13px;
+    color: var(--pie-muted);
+    margin: 0;
+    font-weight: 400;
+}
+
+/* ============================================
+   ERROR STATE
+   ============================================ */
+.pie-chart-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    gap: 16px;
+    flex: 1;
+    padding: 2rem 1rem;
+}
+
+.pie-error-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    background: #fef2f2;
+    border-radius: 8px;
+    border: 1px solid #fecaca;
+}
+
+.pie-error-icon {
+    font-size: 1.25rem;
+    color: var(--pie-danger);
+}
+
+.pie-error-text {
+    font-size: 13px;
+    color: var(--pie-danger);
+    margin: 0;
+    max-width: 280px;
+    line-height: 1.5;
+}
+
+.pie-btn-refresh--error {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: var(--pie-transition);
+}
+
+.pie-btn-refresh--error:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.pie-btn-refresh--error:active {
+    transform: scale(0.96);
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+/* Tablets and medium screens */
+@media (max-width: 992px) {
+    .pie-chart-container {
+        padding: 16px 16px 12px 16px;
+        min-height: 340px;
+    }
+
+    .pie-summary-grid {
+        gap: 8px;
+    }
+
+    .pie-summary-card {
+        padding: 8px 10px;
+    }
+
+    .pie-summary-value {
+        font-size: 14px;
+    }
+
+    .pie-chart-wrapper {
+        min-height: 220px;
+    }
+
+    .pie-chart-loading,
+    .pie-chart-error {
+        min-height: 180px;
+        padding: 1.5rem 1rem;
+    }
+}
+
+/* Mobile phones */
+@media (max-width: 640px) {
+    .pie-chart-container {
+        padding: 14px 12px 12px 12px;
+        min-height: 320px;
+        border-radius: 10px;
+    }
+
+    .pie-chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .pie-chart-header-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .pie-chart-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 15px;
+    }
+
+    .pie-chart-title {
+        font-size: 14px;
+    }
+
+    .pie-chart-subtitle {
+        font-size: 11px;
+    }
+
+    .pie-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .pie-summary-card {
+        padding: 8px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left-width: 4px;
+    }
+
+    .pie-summary-label {
+        font-size: 10px;
+        margin-bottom: 0;
+    }
+
+    .pie-summary-value {
+        font-size: 14px;
+    }
+
+    .pie-chart-wrapper {
+        min-height: 220px;
+    }
+
+    .pie-btn-refresh {
+        padding: 4px 10px;
+        font-size: 11px;
+    }
+
+    .pie-btn-refresh span {
+        display: none;
+    }
+
+    .pie-btn-refresh i {
+        font-size: 14px;
+    }
+
+    .pie-cached-badge {
+        font-size: 9px;
+        padding: 2px 8px;
+    }
+
+    .pie-cached-badge span {
+        display: none;
+    }
+
+    .pie-chart-loading {
+        min-height: 160px;
+    }
+
+    .pie-chart-error {
+        min-height: 160px;
+    }
+
+    .pie-error-icon {
+        font-size: 28px;
+    }
+
+    .pie-error-content {
+        flex-direction: column;
+        text-align: center;
+        padding: 0.5rem 1rem;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 380px) {
+    .pie-chart-container {
+        padding: 10px 8px 10px 8px;
+        min-height: 280px;
+    }
+
+    .pie-summary-value {
+        font-size: 12px;
+    }
+
+    .pie-chart-wrapper {
+        min-height: 180px;
+    }
+
+    .pie-chart-loading,
+    .pie-chart-error {
+        min-height: 140px;
+        padding: 0.75rem 0.5rem;
+    }
+}
+
+/* ============================================
+   DARK MODE SUPPORT
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --pie-card: #1e293b;
+        --pie-surface: #0f172a;
+        --pie-border: #334155;
+        --pie-text: #f1f5f9;
+        --pie-muted: #94a3b8;
+    }
+
+    .pie-chart-container {
+        background: var(--pie-card);
+        border-color: var(--pie-border);
+    }
+
+    .pie-chart-container:hover {
+        border-color: #4b5563;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .pie-chart-title {
+        color: var(--pie-text);
+    }
+
+    .pie-chart-subtitle {
+        color: var(--pie-muted);
+    }
+
+    .pie-chart-icon--income-expense {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
+        color: #60a5fa;
+    }
+
+    .pie-chart-header {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .pie-summary-card {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .pie-summary-card:hover {
+        background: #374151;
+        border-color: #4b5563;
+    }
+
+    .pie-summary-label {
+        color: var(--pie-muted);
+    }
+
+    .text-success {
+        color: #4ade80;
+    }
+
+    .text-danger {
+        color: #f87171;
+    }
+
+    .pie-btn-refresh {
+        color: var(--pie-muted);
+        border-color: var(--pie-border);
+    }
+
+    .pie-btn-refresh:hover:not(:disabled) {
+        background: rgba(37, 99, 235, 0.15);
+        border-color: #60a5fa;
+        color: #60a5fa;
+    }
+
+    .pie-cached-badge {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--pie-muted);
+        border-color: var(--pie-border);
+    }
+
+    .pie-spinner {
+        border-color: #374151;
+        border-top-color: #60a5fa;
+    }
+
+    .pie-loading-text {
+        color: var(--pie-muted);
+    }
+
+    .pie-error-content {
+        background: rgba(220, 38, 38, 0.1);
+        border-color: rgba(220, 38, 38, 0.3);
+    }
+
+    .pie-error-text {
+        color: #fca5a5;
+    }
+
+    .pie-error-icon {
+        color: #fca5a5;
+    }
+}
