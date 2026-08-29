@@ -2750,8 +2750,10 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
             }
         }
 
+
         /// <summary>
         /// Get top customers with outstanding balance (credit customers with pending payments)
+        /// Uses the SAME calculation logic as the statement service
         /// </summary>
         // public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid companyId, int topCount = 10)
         // {
@@ -2759,62 +2761,142 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
         //     {
         //         var validAccountGroupNames = new[] { "Sundry Debtors", "Sundry Creditors" };
 
-        //         // Get all accounts with their transactions
-        //         var accountsWithTransactions = await _context.Accounts
+        //         // ✅ Get all Sundry Debtors and Sundry Creditors accounts
+        //         var accounts = await _context.Accounts
         //             .Include(a => a.AccountGroup)
+        //             .Include(a => a.InitialOpeningBalance)
         //             .Where(a => a.CompanyId == companyId &&
         //                         a.IsActive &&
         //                         a.AccountGroup != null &&
         //                         validAccountGroupNames.Contains(a.AccountGroup.Name))
-        //             .Select(a => new
-        //             {
-        //                 Account = a,
-        //                 Transactions = _context.Transactions
-        //                     .Where(t => t.AccountId == a.Id &&
-        //                                 t.Status == TransactionStatus.Active)
-        //                     .ToList()
-        //             })
         //             .ToListAsync();
 
-        //         var topAccounts = accountsWithTransactions
-        //             .Select(x => new TopAccountDto
+        //         var result = new List<TopAccountDto>();
+
+        //         foreach (var account in accounts)
+        //         {
+        //             // ✅ Get ALL transactions for this account (matching statement service)
+        //             var transactions = await _context.Transactions
+        //                 .Where(t => t.CompanyId == companyId &&
+        //                             t.Status == TransactionStatus.Active &&
+        //                             (t.AccountId == account.Id ||
+        //                              t.PaymentAccountId2 == account.Id ||
+        //                              t.ReceiptAccountId2 == account.Id ||
+        //                              t.DebitAccountId == account.Id ||
+        //                              t.CreditAccountId == account.Id))
+        //                 .OrderBy(t => t.Date)
+        //                 .ToListAsync();
+
+        //             // ✅ Calculate opening balance (matching statement service)
+        //             decimal openingBalance = 0;
+        //             if (account.InitialOpeningBalance != null)
         //             {
-        //                 AccountId = x.Account.Id,
-        //                 AccountName = x.Account.Name,
-        //                 AccountPhone = x.Account.Phone,
-        //                 AccountEmail = x.Account.Email,
-        //                 AccountPan = x.Account.Pan,
-        //                 AccountAddress = x.Account.Address,
-        //                 AccountGroupName = x.Account.AccountGroup?.Name ?? "Customer",
+        //                 openingBalance = account.InitialOpeningBalance.Type == "Dr"
+        //                     ? account.InitialOpeningBalance.Amount
+        //                     : -account.InitialOpeningBalance.Amount;
+        //             }
 
-        //                 // ✅ Total Sales (Debit)
-        //                 TotalSales = x.Transactions.Where(t => t.Type == TransactionType.Sale).Sum(t => t.TotalDebit),
+        //             // ✅ Calculate outstanding balance using StatementService logic
+        //             decimal outstandingBalance = openingBalance;
 
-        //                 // ✅ Total Returns (Credit)
-        //                 TotalReturns = x.Transactions.Where(t => t.Type == TransactionType.SlRt).Sum(t => t.TotalCredit),
+        //             foreach (var tx in transactions)
+        //             {
+        //                 decimal amount = 0;
 
-        //                 // ✅ NET = Sales - Returns
-        //                 TotalPurchaseAmount = x.Transactions.Where(t => t.Type == TransactionType.Sale).Sum(t => t.TotalDebit) -
-        //                                       x.Transactions.Where(t => t.Type == TransactionType.SlRt).Sum(t => t.TotalCredit),
+        //                 // ✅ EXACTLY like StatementService: Check all possible account references
+        //                 if (tx.AccountId == account.Id)
+        //                 {
+        //                     amount = tx.TotalDebit - tx.TotalCredit;
+        //                 }
+        //                 else if (tx.PaymentAccountId2 == account.Id)
+        //                 {
+        //                     // For payment accounts, Credit decreases balance (money goes out)
+        //                     amount = -tx.TotalCredit;
+        //                 }
+        //                 else if (tx.ReceiptAccountId2 == account.Id)
+        //                 {
+        //                     // For receipt accounts, Debit increases balance (money comes in)
+        //                     amount = tx.TotalDebit;
+        //                 }
+        //                 else if (tx.DebitAccountId == account.Id)
+        //                 {
+        //                     // For debit accounts, Debit increases balance
+        //                     amount = tx.TotalDebit;
+        //                 }
+        //                 else if (tx.CreditAccountId == account.Id)
+        //                 {
+        //                     // For credit accounts, Credit decreases balance
+        //                     amount = -tx.TotalCredit;
+        //                 }
 
-        //                 TransactionCount = x.Transactions.Where(t => t.Type == TransactionType.Sale).Count(),
+        //                 outstandingBalance += amount;
+        //             }
 
-        //                 // ✅ Outstanding = Sales - Returns - Payments - Receipts
-        //                 OutstandingBalance = x.Transactions.Where(t => t.Type == TransactionType.Sale).Sum(t => t.TotalDebit) -
-        //                                      x.Transactions.Where(t => t.Type == TransactionType.SlRt).Sum(t => t.TotalCredit) -
-        //                                      x.Transactions.Where(t => t.Type == TransactionType.Pymt).Sum(t => t.TotalCredit) -
-        //                                      x.Transactions.Where(t => t.Type == TransactionType.Rcpt).Sum(t => t.TotalCredit),
+        //             // ✅ Calculate totals (matching statement service)
+        //             decimal totalSales = transactions
+        //                 .Where(t => t.Type == TransactionType.Sale)
+        //                 .Sum(t => t.TotalDebit);
 
-        //                 LastTransactionDate = x.Transactions.Any() ? x.Transactions.Max(t => t.Date) : DateTime.MinValue,
+        //             decimal totalReturns = transactions
+        //                 .Where(t => t.Type == TransactionType.SlRt)
+        //                 .Sum(t => t.TotalCredit);
 
-        //                 AverageTransactionValue = x.Transactions.Where(t => t.Type == TransactionType.Sale).Any()
-        //                     ? x.Transactions.Where(t => t.Type == TransactionType.Sale).Average(t => t.TotalDebit)
-        //                     : 0
-        //             })
-        //             .Where(x => x.OutstandingBalance > 0 && x.TotalPurchaseAmount > 0)
-        //             .OrderByDescending(x => x.OutstandingBalance)
+        //             decimal totalPayments = transactions
+        //                 .Where(t => t.Type == TransactionType.Pymt && t.PaymentAccountId2 == account.Id)
+        //                 .Sum(t => t.TotalCredit);
+
+        //             decimal totalReceipts = transactions
+        //                 .Where(t => t.Type == TransactionType.Rcpt && t.ReceiptAccountId2 == account.Id)
+        //                 .Sum(t => t.TotalDebit);
+
+        //             // ✅ Only include accounts with outstanding balance
+        //             if (Math.Abs(outstandingBalance) > 0)
+        //             {
+        //                 result.Add(new TopAccountDto
+        //                 {
+        //                     AccountId = account.Id,
+        //                     AccountName = account.Name,
+        //                     AccountPhone = account.Phone,
+        //                     AccountEmail = account.Email,
+        //                     AccountPan = account.Pan,
+        //                     AccountAddress = account.Address,
+        //                     AccountGroupName = account.AccountGroup?.Name ?? "Customer",
+
+        //                     TotalSales = totalSales,
+        //                     TotalReturns = totalReturns,
+        //                     TotalPurchaseAmount = totalSales - totalReturns,
+
+        //                     TotalPayments = totalPayments,
+        //                     TotalReceipts = totalReceipts,
+
+        //                     TransactionCount = transactions
+        //                         .Where(t => t.Type == TransactionType.Sale || t.Type == TransactionType.Purc)
+        //                         .Count(),
+
+        //                     AverageTransactionValue = transactions
+        //                         .Where(t => t.Type == TransactionType.Sale)
+        //                         .Any()
+        //                         ? transactions
+        //                             .Where(t => t.Type == TransactionType.Sale)
+        //                             .Average(t => t.TotalDebit)
+        //                         : 0,
+
+        //                     LastTransactionDate = transactions.Any()
+        //                         ? transactions.Max(t => t.Date)
+        //                         : DateTime.MinValue,
+
+        //                     OutstandingBalance = outstandingBalance
+        //                 });
+        //             }
+        //         }
+
+        //         // ✅ Order by absolute outstanding balance (highest first)
+        //         var topAccounts = result
+        //             .OrderByDescending(x => Math.Abs(x.OutstandingBalance))
         //             .Take(topCount)
         //             .ToList();
+
+        //         _logger.LogInformation($"Found {topAccounts.Count} accounts with outstanding balance");
 
         //         return topAccounts;
         //     }
@@ -2824,9 +2906,168 @@ namespace SkyForge.Services.Retailer.RetailerDashboardServices
         //         return new List<TopAccountDto>();
         //     }
         // }
+
+        /// <summary>
+        /// Get top customers with outstanding balance (credit customers with pending payments)
+        /// Uses the SAME calculation logic as the statement service
+        /// </summary>
+        // public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid companyId, int topCount = 10)
+        // {
+        //     try
+        //     {
+        //         var validAccountGroupNames = new[] { "Sundry Debtors", "Sundry Creditors" };
+
+        //         // ✅ Get all Sundry Debtors and Sundry Creditors accounts
+        //         var accounts = await _context.Accounts
+        //             .Include(a => a.AccountGroup)
+        //             .Include(a => a.InitialOpeningBalance)
+        //             .Where(a => a.CompanyId == companyId &&
+        //                         a.IsActive &&
+        //                         a.AccountGroup != null &&
+        //                         validAccountGroupNames.Contains(a.AccountGroup.Name))
+        //             .ToListAsync();
+
+        //         var result = new List<TopAccountDto>();
+
+        //         foreach (var account in accounts)
+        //         {
+        //             // ✅ Get ALL transactions for this account (matching statement service)
+        //             var transactions = await _context.Transactions
+        //                 .Where(t => t.CompanyId == companyId &&
+        //                             t.Status == TransactionStatus.Active &&
+        //                             (t.AccountId == account.Id ||
+        //                              t.PaymentAccountId2 == account.Id ||
+        //                              t.ReceiptAccountId2 == account.Id ||
+        //                              t.DebitAccountId == account.Id ||
+        //                              t.CreditAccountId == account.Id))
+        //                 .OrderBy(t => t.Date)
+        //                 .ToListAsync();
+
+        //             // ✅ Calculate opening balance (matching statement service)
+        //             decimal openingBalance = 0;
+        //             if (account.InitialOpeningBalance != null)
+        //             {
+        //                 openingBalance = account.InitialOpeningBalance.Type == "Dr"
+        //                     ? account.InitialOpeningBalance.Amount
+        //                     : -account.InitialOpeningBalance.Amount;
+        //             }
+
+        //             // ✅ Calculate outstanding balance using StatementService logic
+        //             decimal outstandingBalance = openingBalance;
+
+        //             foreach (var tx in transactions)
+        //             {
+        //                 decimal amount = 0;
+
+        //                 // ✅ EXACTLY like StatementService: Check all possible account references
+        //                 if (tx.AccountId == account.Id)
+        //                 {
+        //                     amount = tx.TotalDebit - tx.TotalCredit;
+        //                 }
+        //                 else if (tx.PaymentAccountId2 == account.Id)
+        //                 {
+        //                     // For payment accounts, Credit decreases balance (money goes out)
+        //                     amount = -tx.TotalCredit;
+        //                 }
+        //                 else if (tx.ReceiptAccountId2 == account.Id)
+        //                 {
+        //                     // For receipt accounts, Debit increases balance (money comes in)
+        //                     amount = tx.TotalDebit;
+        //                 }
+        //                 else if (tx.DebitAccountId == account.Id)
+        //                 {
+        //                     // For debit accounts, Debit increases balance
+        //                     amount = tx.TotalDebit;
+        //                 }
+        //                 else if (tx.CreditAccountId == account.Id)
+        //                 {
+        //                     // For credit accounts, Credit decreases balance
+        //                     amount = -tx.TotalCredit;
+        //                 }
+
+        //                 outstandingBalance += amount;
+        //             }
+
+        //             // ✅ Calculate totals (matching statement service)
+        //             decimal totalSales = transactions
+        //                 .Where(t => t.Type == TransactionType.Sale)
+        //                 .Sum(t => t.TotalDebit);
+
+        //             decimal totalReturns = transactions
+        //                 .Where(t => t.Type == TransactionType.SlRt)
+        //                 .Sum(t => t.TotalCredit);
+
+        //             decimal totalPayments = transactions
+        //                 .Where(t => t.Type == TransactionType.Pymt && t.PaymentAccountId2 == account.Id)
+        //                 .Sum(t => t.TotalCredit);
+
+        //             decimal totalReceipts = transactions
+        //                 .Where(t => t.Type == TransactionType.Rcpt && t.ReceiptAccountId2 == account.Id)
+        //                 .Sum(t => t.TotalDebit);
+
+        //             // ✅ MODIFIED: Only include accounts with POSITIVE outstanding balance (receivables)
+        //             // This excludes accounts where customer has paid more than they owe (negative balance)
+        //             if (outstandingBalance > 0)  // 🔥 Changed from Math.Abs(outstandingBalance) > 0
+        //             {
+        //                 result.Add(new TopAccountDto
+        //                 {
+        //                     AccountId = account.Id,
+        //                     AccountName = account.Name,
+        //                     AccountPhone = account.Phone,
+        //                     AccountEmail = account.Email,
+        //                     AccountPan = account.Pan,
+        //                     AccountAddress = account.Address,
+        //                     AccountGroupName = account.AccountGroup?.Name ?? "Customer",
+
+        //                     TotalSales = totalSales,
+        //                     TotalReturns = totalReturns,
+        //                     TotalPurchaseAmount = totalSales - totalReturns,
+
+        //                     TotalPayments = totalPayments,
+        //                     TotalReceipts = totalReceipts,
+
+        //                     TransactionCount = transactions
+        //                         .Where(t => t.Type == TransactionType.Sale || t.Type == TransactionType.Purc)
+        //                         .Count(),
+
+        //                     AverageTransactionValue = transactions
+        //                         .Where(t => t.Type == TransactionType.Sale)
+        //                         .Any()
+        //                         ? transactions
+        //                             .Where(t => t.Type == TransactionType.Sale)
+        //                             .Average(t => t.TotalDebit)
+        //                         : 0,
+
+        //                     LastTransactionDate = transactions.Any()
+        //                         ? transactions.Max(t => t.Date)
+        //                         : DateTime.MinValue,
+
+        //                     OutstandingBalance = outstandingBalance
+        //                 });
+        //             }
+        //         }
+
+        //         // ✅ Order by highest outstanding balance first (receivables)
+        //         var topAccounts = result
+        //             .OrderByDescending(x => x.OutstandingBalance)  // 🔥 Changed from Math.Abs
+        //             .Take(topCount)
+        //             .ToList();
+
+        //         _logger.LogInformation($"Found {topAccounts.Count} accounts with outstanding receivables");
+
+        //         return topAccounts;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error getting top customers by outstanding for company {CompanyId}", companyId);
+        //         return new List<TopAccountDto>();
+        //     }
+        // }
+
 /// <summary>
 /// Get top customers with outstanding balance (credit customers with pending payments)
 /// Uses the SAME calculation logic as the statement service
+/// EXCLUDES cash transactions from Sales, Sales Returns, Purchase, and Purchase Returns
 /// </summary>
 public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid companyId, int topCount = 10)
 {
@@ -2849,7 +3090,7 @@ public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid co
         foreach (var account in accounts)
         {
             // ✅ Get ALL transactions for this account (matching statement service)
-            var transactions = await _context.Transactions
+            var allTransactions = await _context.Transactions
                 .Where(t => t.CompanyId == companyId &&
                             t.Status == TransactionStatus.Active &&
                             (t.AccountId == account.Id ||
@@ -2860,6 +3101,16 @@ public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid co
                 .OrderBy(t => t.Date)
                 .ToListAsync();
 
+            // ✅ EXCLUDE cash transactions from Sales, Sales Returns, Purchase, Purchase Returns
+            // This matches the StatementService logic where cash transactions are shown separately
+            var filteredTransactions = allTransactions
+                .Where(t => !(t.PaymentMode == PaymentMode.Cash && 
+                             (t.Type == TransactionType.Sale || 
+                              t.Type == TransactionType.SlRt ||
+                              t.Type == TransactionType.Purc ||
+                              t.Type == TransactionType.PrRt)))
+                .ToList();
+
             // ✅ Calculate opening balance (matching statement service)
             decimal openingBalance = 0;
             if (account.InitialOpeningBalance != null)
@@ -2869,10 +3120,10 @@ public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid co
                     : -account.InitialOpeningBalance.Amount;
             }
 
-            // ✅ Calculate outstanding balance using StatementService logic
+            // ✅ Calculate outstanding balance using filtered transactions
             decimal outstandingBalance = openingBalance;
 
-            foreach (var tx in transactions)
+            foreach (var tx in filteredTransactions)
             {
                 decimal amount = 0;
 
@@ -2905,25 +3156,30 @@ public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid co
                 outstandingBalance += amount;
             }
 
-            // ✅ Calculate totals (matching statement service)
-            decimal totalSales = transactions
-                .Where(t => t.Type == TransactionType.Sale)
+            // ✅ Calculate totals - EXCLUDE cash transactions from Sales, Returns, Purchases
+            decimal totalSales = allTransactions
+                .Where(t => t.Type == TransactionType.Sale && t.PaymentMode != PaymentMode.Cash)
                 .Sum(t => t.TotalDebit);
 
-            decimal totalReturns = transactions
-                .Where(t => t.Type == TransactionType.SlRt)
+            decimal totalReturns = allTransactions
+                .Where(t => t.Type == TransactionType.SlRt && t.PaymentMode != PaymentMode.Cash)
                 .Sum(t => t.TotalCredit);
 
-            decimal totalPayments = transactions
+            decimal totalPurchases = allTransactions
+                .Where(t => t.Type == TransactionType.Purc && t.PaymentMode != PaymentMode.Cash)
+                .Sum(t => t.TotalCredit);
+
+            // ✅ Payments and Receipts - INCLUDE ALL (including cash)
+            decimal totalPayments = allTransactions
                 .Where(t => t.Type == TransactionType.Pymt && t.PaymentAccountId2 == account.Id)
                 .Sum(t => t.TotalCredit);
 
-            decimal totalReceipts = transactions
+            decimal totalReceipts = allTransactions
                 .Where(t => t.Type == TransactionType.Rcpt && t.ReceiptAccountId2 == account.Id)
                 .Sum(t => t.TotalDebit);
 
-            // ✅ Only include accounts with outstanding balance
-            if (Math.Abs(outstandingBalance) > 0)
+            // ✅ Only include accounts with POSITIVE outstanding balance (receivables)
+            if (outstandingBalance > 0)
             {
                 result.Add(new TopAccountDto
                 {
@@ -2938,24 +3194,25 @@ public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid co
                     TotalSales = totalSales,
                     TotalReturns = totalReturns,
                     TotalPurchaseAmount = totalSales - totalReturns,
-                    
+
                     TotalPayments = totalPayments,
                     TotalReceipts = totalReceipts,
 
-                    TransactionCount = transactions
-                        .Where(t => t.Type == TransactionType.Sale || t.Type == TransactionType.Purc)
+                    TransactionCount = allTransactions
+                        .Where(t => (t.Type == TransactionType.Sale || t.Type == TransactionType.Purc) && 
+                                   t.PaymentMode != PaymentMode.Cash)
                         .Count(),
 
-                    AverageTransactionValue = transactions
-                        .Where(t => t.Type == TransactionType.Sale)
+                    AverageTransactionValue = allTransactions
+                        .Where(t => t.Type == TransactionType.Sale && t.PaymentMode != PaymentMode.Cash)
                         .Any()
-                        ? transactions
-                            .Where(t => t.Type == TransactionType.Sale)
+                        ? allTransactions
+                            .Where(t => t.Type == TransactionType.Sale && t.PaymentMode != PaymentMode.Cash)
                             .Average(t => t.TotalDebit)
                         : 0,
 
-                    LastTransactionDate = transactions.Any()
-                        ? transactions.Max(t => t.Date)
+                    LastTransactionDate = allTransactions.Any()
+                        ? allTransactions.Max(t => t.Date)
                         : DateTime.MinValue,
 
                     OutstandingBalance = outstandingBalance
@@ -2963,13 +3220,13 @@ public async Task<List<TopAccountDto>> GetTopCustomersByOutstandingAsync(Guid co
             }
         }
 
-        // ✅ Order by absolute outstanding balance (highest first)
+        // ✅ Order by highest outstanding balance first (receivables)
         var topAccounts = result
-            .OrderByDescending(x => Math.Abs(x.OutstandingBalance))
+            .OrderByDescending(x => x.OutstandingBalance)
             .Take(topCount)
             .ToList();
 
-        _logger.LogInformation($"Found {topAccounts.Count} accounts with outstanding balance");
+        _logger.LogInformation($"Found {topAccounts.Count} accounts with outstanding receivables (excluding cash sales/returns/purchases)");
 
         return topAccounts;
     }
