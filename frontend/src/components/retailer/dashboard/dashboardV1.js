@@ -687,8 +687,7 @@ const DashboardV1 = () => {
     // Sidebar menu items with icons
     const menuItems = [
         { icon: <FaHome size={20} />, label: 'Dashboard', active: true, badge: null },
-        { icon: <FaLayerGroup size={20} />, label: 'Bulk Update', active: false },
-        { icon: <FaThLarge size={20} />, label: 'Ecommerce', active: false, badge: 'New' },
+{ icon: <FaLayerGroup size={20} />, label: 'Bulk Update', path: '/retailer/items/bulk-delete', active: false, },        { icon: <FaThLarge size={20} />, label: 'Ecommerce', active: false, badge: 'New' },
         { icon: <FaUsers size={20} />, label: 'Customers', active: false, badge: null },
         { icon: <FaBox size={20} />, label: 'Products', active: false, badge: null },
         { icon: <FaShoppingCart size={20} />, label: 'Sales', active: false, badge: null },
