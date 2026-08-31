@@ -1,4 +1,5 @@
 ﻿using SkyForge.Dto.RetailerDto.StockEntryDto;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace SkyForge.Dto.RetailerDto.ItemDto
@@ -130,5 +131,30 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
         public int WarningItems { get; set; }
         public DateOnly? NearestExpiry { get; set; }
         public int DaysUntilNearestExpiry { get; set; }
+    }
+
+    public class BulkDeleteItemsRequestDto
+    {
+        [JsonRequired]
+        [MinLength(1, ErrorMessage = "At least one item ID is required")]
+        public List<Guid> ItemIds { get; set; } = new();
+    }
+    public class BulkDeleteItemsResponseDto
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public int TotalRequested { get; set; }
+        public int DeletedCount { get; set; }
+        public int FailedCount { get; set; }
+        public List<BulkDeleteItemResultDto> Results { get; set; } = new();
+    }
+
+    public class BulkDeleteItemResultDto
+    {
+        public Guid ItemId { get; set; }
+        public string? ItemName { get; set; }
+        public bool Success { get; set; }
+        public string? ErrorMessage { get; set; }
+        public string? Status { get; set; } // "deleted", "not_found", "has_transactions", "error"
     }
 }

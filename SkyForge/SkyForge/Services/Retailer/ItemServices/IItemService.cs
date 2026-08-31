@@ -19,6 +19,10 @@ namespace SkyForge.Services.Retailer.ItemServices
         Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid CompanyId, Guid FiscalYearId);
 
         Task<bool> DeleteItemAsync(Guid itemId, Guid companyId);
+        Task<BulkDeleteResult> BulkDeleteItemsAsync(List<Guid> itemIds, Guid companyId);
+        Task<bool> HasRelatedTransactionsAsync(Guid itemId, Guid companyId);
+        Task DeleteRelatedEntitiesBulkAsync(List<Guid> itemIds, Guid companyId);
+       
         Task<List<Item>> SearchItemsAsync(Guid companyId, string searchTerm);
         Task<ItemDetailsDTO> GetItemDetailsAsync(Guid itemId);
         Task<List<Item>> GetItemsWithLowStockAsync(Guid companyId, decimal threshold = 10);
@@ -28,6 +32,5 @@ namespace SkyForge.Services.Retailer.ItemServices
         Task<Guid> GetCurrentFiscalYearIdAsync(Guid companyId);
 
         Task<bool> UpdateBatchByNumberAsync(Guid itemId, string oldBatchNumber, UpdateBatchByNumberDTO updateDto, Guid companyId);
-
     }
 }

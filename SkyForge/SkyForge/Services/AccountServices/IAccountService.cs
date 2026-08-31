@@ -13,7 +13,7 @@ namespace SkyForge.Services.AccountServices
         Task<List<Account>> GetAccountsByCompanyGroupAsync(Guid companyId, Guid companyGroupsId);
         Task<Account> UpdateAccountAsync(Guid id, Account account);
         Task<bool> DeleteAccountAsync(Guid id);
-        Task<int> GenerateUniqueAccountNumberAsync();
+        Task<int> GenerateUniqueAccountNumberAsync(Guid companyId);
         Task<Account> GetAccountByUniqueNumberAsync(int uniqueNumber);
         Task<List<Account>> SearchAccountsAsync(Guid companyId, string searchTerm);
 

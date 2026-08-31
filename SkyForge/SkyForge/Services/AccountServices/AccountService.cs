@@ -24,7 +24,7 @@ namespace SkyForge.Services.AccountServices
             _random = new Random();
         }
 
-        public async Task<int> GenerateUniqueAccountNumberAsync()
+        public async Task<int> GenerateUniqueAccountNumberAsync(Guid companyId)
         {
             try
             {
@@ -38,7 +38,7 @@ namespace SkyForge.Services.AccountServices
 
                     // Check if number already exists
                     isUnique = !await _context.Accounts
-                        .AnyAsync(a => a.UniqueNumber == uniqueNumber);
+                        .AnyAsync(a => a.CompanyId == companyId && a.UniqueNumber == uniqueNumber);
 
                 } while (!isUnique);
 
@@ -601,7 +601,7 @@ namespace SkyForge.Services.AccountServices
                 // Generate unique number if not provided
                 if (!account.UniqueNumber.HasValue)
                 {
-                    account.UniqueNumber = await GenerateUniqueAccountNumberAsync();
+                    account.UniqueNumber = await GenerateUniqueAccountNumberAsync(account.CompanyId);
                 }
 
                 // Validate opening balance type

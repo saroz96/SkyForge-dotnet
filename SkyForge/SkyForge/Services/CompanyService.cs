@@ -713,10 +713,10 @@ namespace SkyForge.Services
                 }
 
                 // STEP 1: Delete all transaction documents (these reference items, accounts, fiscal years)
-                await DeleteTransactionDocumentsAsync(companyId);
+                await DeleteInventoryTransactionsAsync(companyId);
 
                 // STEP 2: Delete inventory transactions and stock data
-                await DeleteInventoryTransactionsAsync(companyId);
+                await DeleteTransactionDocumentsAsync(companyId);
 
                 // STEP 3: Delete items and item-related data (these reference fiscal years)
                 await DeleteItemsAndRelatedDataAsync(companyId);
@@ -733,16 +733,19 @@ namespace SkyForge.Services
                 // STEP 7: Delete settings (reference fiscal years)
                 await DeleteSettingsAsync(companyId);
 
-                // STEP 8: NOW delete fiscal years (no more dependencies)
+                // STEP 8: Delete Cash Counter Sessions and all related data
+                await DeleteCashCounterSessionsAsync(companyId);
+
+                // STEP 9: NOW delete fiscal years (no more dependencies)
                 await DeleteFiscalYearsAsync(companyId);
 
-                // STEP 9: Delete other master data
+                // STEP 10: Delete other master data
                 await DeleteMasterDataAsync(companyId);
 
-                // STEP 10: Delete stores and racks
+                // STEP 11: Delete stores and racks
                 await DeleteStoresAndRacksAsync(companyId);
 
-                // STEP 11: Remove company from users
+                // STEP 12: Remove company from users
                 foreach (var user in company.Users.ToList())
                 {
                     company.Users.Remove(user);
@@ -750,7 +753,7 @@ namespace SkyForge.Services
 
                 await _context.SaveChangesAsync();
 
-                // STEP 12: Finally, delete the company itself
+                // STEP 13: Finally, delete the company itself
                 _context.Companies.Remove(company);
                 await _context.SaveChangesAsync();
 
@@ -767,9 +770,173 @@ namespace SkyForge.Services
             }
         }
 
+        // private async Task DeleteTransactionDocumentsAsync(Guid companyId)
+        // {
+        //     _logger.LogInformation("Deleting transaction documents for company {CompanyId}", companyId);
+
+        //     // Delete Sales Bills and their items
+        //     var salesBills = await _context.SalesBills
+        //         .Where(sb => sb.CompanyId == companyId)
+        //         .Include(sb => sb.Items)
+        //         .ToListAsync();
+
+        //     if (salesBills.Any())
+        //     {
+        //         _context.SalesBills.RemoveRange(salesBills);
+        //         _logger.LogInformation("Deleted {Count} sales bills", salesBills.Count);
+        //     }
+
+        //     // Delete Sales Returns
+        //     var salesReturns = await _context.SalesReturns
+        //         .Where(sr => sr.CompanyId == companyId)
+        //         .Include(sr => sr.Items)
+        //         .ToListAsync();
+
+        //     if (salesReturns.Any())
+        //     {
+        //         _context.SalesReturns.RemoveRange(salesReturns);
+        //         _logger.LogInformation("Deleted {Count} sales returns", salesReturns.Count);
+        //     }
+
+        //     // Delete Purchase Bills
+        //     var purchaseBills = await _context.PurchaseBills
+        //         .Where(pb => pb.CompanyId == companyId)
+        //         .Include(pb => pb.Items)
+        //         .ToListAsync();
+
+        //     if (purchaseBills.Any())
+        //     {
+        //         _context.PurchaseBills.RemoveRange(purchaseBills);
+        //         _logger.LogInformation("Deleted {Count} purchase bills", purchaseBills.Count);
+        //     }
+
+        //     // Delete Purchase Returns
+        //     var purchaseReturns = await _context.PurchaseReturns
+        //         .Where(pr => pr.CompanyId == companyId)
+        //         .Include(pr => pr.Items)
+        //         .ToListAsync();
+
+        //     if (purchaseReturns.Any())
+        //     {
+        //         _context.PurchaseReturns.RemoveRange(purchaseReturns);
+        //         _logger.LogInformation("Deleted {Count} purchase returns", purchaseReturns.Count);
+        //     }
+
+        //     // Delete Payments
+        //     var payments = await _context.Payments
+        //         .Where(p => p.CompanyId == companyId)
+        //         .Include(p => p.PaymentEntries)
+        //         .ToListAsync();
+
+        //     if (payments.Any())
+        //     {
+        //         _context.Payments.RemoveRange(payments);
+        //         _logger.LogInformation("Deleted {Count} payments", payments.Count);
+        //     }
+
+        //     // Delete Receipts
+        //     var receipts = await _context.Receipts
+        //         .Where(r => r.CompanyId == companyId)
+        //         .Include(r => r.ReceiptEntries)
+        //         .ToListAsync();
+
+        //     if (receipts.Any())
+        //     {
+        //         _context.Receipts.RemoveRange(receipts);
+        //         _logger.LogInformation("Deleted {Count} receipts", receipts.Count);
+        //     }
+
+        //     // Delete Journal Vouchers
+        //     var journalVouchers = await _context.JournalVouchers
+        //         .Where(jv => jv.CompanyId == companyId)
+        //         .Include(jv => jv.JournalEntries)
+        //         .ToListAsync();
+
+        //     if (journalVouchers.Any())
+        //     {
+        //         _context.JournalVouchers.RemoveRange(journalVouchers);
+        //         _logger.LogInformation("Deleted {Count} journal vouchers", journalVouchers.Count);
+        //     }
+
+        //     // Delete Credit Notes
+        //     var creditNotes = await _context.CreditNotes
+        //         .Where(cn => cn.CompanyId == companyId)
+        //         .Include(cn => cn.CreditNoteEntries)
+        //         .ToListAsync();
+
+        //     if (creditNotes.Any())
+        //     {
+        //         _context.CreditNotes.RemoveRange(creditNotes);
+        //         _logger.LogInformation("Deleted {Count} credit notes", creditNotes.Count);
+        //     }
+
+        //     // Delete Debit Notes
+        //     var debitNotes = await _context.DebitNotes
+        //         .Where(dn => dn.CompanyId == companyId)
+        //         .Include(dn => dn.DebitNoteEntries)
+        //         .ToListAsync();
+
+        //     if (debitNotes.Any())
+        //     {
+        //         _context.DebitNotes.RemoveRange(debitNotes);
+        //         _logger.LogInformation("Deleted {Count} debit notes", debitNotes.Count);
+        //     }
+
+        //     // Delete Sales Quotations
+        //     var salesQuotations = await _context.SalesQuotations
+        //         .Where(sq => sq.CompanyId == companyId)
+        //         .Include(sq => sq.Items)
+        //         .ToListAsync();
+
+        //     if (salesQuotations.Any())
+        //     {
+        //         _context.SalesQuotations.RemoveRange(salesQuotations);
+        //         _logger.LogInformation("Deleted {Count} sales quotations", salesQuotations.Count);
+        //     }
+
+        //     // Delete Transactions
+        //     var transactions = await _context.Transactions
+        //         .Where(t => t.CompanyId == companyId)
+        //         .Include(t => t.TransactionItems)
+        //         .ToListAsync();
+
+        //     if (transactions.Any())
+        //     {
+        //         _context.Transactions.RemoveRange(transactions);
+        //         _logger.LogInformation("Deleted {Count} transactions", transactions.Count);
+        //     }
+
+        //     await _context.SaveChangesAsync();
+        //     _logger.LogInformation("Completed deleting transaction documents for company {CompanyId}", companyId);
+        // }
+
         private async Task DeleteTransactionDocumentsAsync(Guid companyId)
         {
             _logger.LogInformation("Deleting transaction documents for company {CompanyId}", companyId);
+
+            // STEP 0: Delete Stock Entries FIRST (they reference SalesReturns, PurchaseBills, etc.)
+            var stockEntries = await _context.StockEntries
+                .Where(se => se.Item.CompanyId == companyId)
+                .ToListAsync();
+
+            if (stockEntries.Any())
+            {
+                _context.StockEntries.RemoveRange(stockEntries);
+                _logger.LogInformation("Deleted {Count} stock entries", stockEntries.Count);
+                await _context.SaveChangesAsync();
+            }
+
+            // STEP 1: Delete Sales Returns (no more StockEntries referencing them)
+            var salesReturns = await _context.SalesReturns
+                .Where(sr => sr.CompanyId == companyId)
+                .Include(sr => sr.Items)
+                .ToListAsync();
+
+            if (salesReturns.Any())
+            {
+                _context.SalesReturns.RemoveRange(salesReturns);
+                _logger.LogInformation("Deleted {Count} sales returns", salesReturns.Count);
+            }
 
             // Delete Sales Bills and their items
             var salesBills = await _context.SalesBills
@@ -781,18 +948,6 @@ namespace SkyForge.Services
             {
                 _context.SalesBills.RemoveRange(salesBills);
                 _logger.LogInformation("Deleted {Count} sales bills", salesBills.Count);
-            }
-
-            // Delete Sales Returns
-            var salesReturns = await _context.SalesReturns
-                .Where(sr => sr.CompanyId == companyId)
-                .Include(sr => sr.Items)
-                .ToListAsync();
-
-            if (salesReturns.Any())
-            {
-                _context.SalesReturns.RemoveRange(salesReturns);
-                _logger.LogInformation("Deleted {Count} sales returns", salesReturns.Count);
             }
 
             // Delete Purchase Bills
@@ -1113,6 +1268,135 @@ namespace SkyForge.Services
             }
 
             _logger.LogInformation("Completed deleting settings for company {CompanyId}", companyId);
+        }
+
+        private async Task DeleteCashCounterSessionsAsync(Guid companyId)
+        {
+            _logger.LogInformation("Deleting cash counter sessions and all related data for company {CompanyId}", companyId);
+
+            // Get all sessions for this company with their related data
+            var sessions = await _context.CashCounterSessions
+                .Where(cs => cs.CompanyId == companyId)
+                .Include(cs => cs.Denominations)
+                .Include(cs => cs.Transactions)
+                .Include(cs => cs.SalesBills)
+                .Include(cs => cs.SalesReturns)
+                .Include(cs => cs.Payments)
+                .Include(cs => cs.Receipts)
+                .Include(cs => cs.JournalVouchers)
+                .Include(cs => cs.DebitNotes)
+                .Include(cs => cs.CreditNotes)
+                .Include(cs => cs.PurchaseBills)
+                .Include(cs => cs.PurchaseReturns)
+                .ToListAsync();
+
+            if (!sessions.Any())
+            {
+                _logger.LogInformation("No cash counter sessions found for company {CompanyId}", companyId);
+                return;
+            }
+
+            var sessionIds = sessions.Select(s => s.Id).ToList();
+
+            // Delete all related data in the correct order
+
+            // 1. Delete Denominations
+            var allDenominations = sessions.SelectMany(s => s.Denominations).ToList();
+            if (allDenominations.Any())
+            {
+                _context.CashCounterDenominations.RemoveRange(allDenominations);
+                _logger.LogInformation("Deleted {Count} cash counter denominations", allDenominations.Count);
+            }
+
+            // 2. Delete Transactions
+            var allTransactions = sessions.SelectMany(s => s.Transactions).ToList();
+            if (allTransactions.Any())
+            {
+                _context.CashCounterTransactions.RemoveRange(allTransactions);
+                _logger.LogInformation("Deleted {Count} cash counter transactions", allTransactions.Count);
+            }
+
+            // 3. Delete Sales Bills
+            var allSalesBills = sessions.SelectMany(s => s.SalesBills).ToList();
+            if (allSalesBills.Any())
+            {
+                _context.CashCounterSalesBills.RemoveRange(allSalesBills);
+                _logger.LogInformation("Deleted {Count} cash counter sales bills", allSalesBills.Count);
+            }
+
+            // 4. Delete Sales Returns
+            var allSalesReturns = sessions.SelectMany(s => s.SalesReturns).ToList();
+            if (allSalesReturns.Any())
+            {
+                _context.CashCounterSalesReturns.RemoveRange(allSalesReturns);
+                _logger.LogInformation("Deleted {Count} cash counter sales returns", allSalesReturns.Count);
+            }
+
+            // 5. Delete Payments
+            var allPayments = sessions.SelectMany(s => s.Payments).ToList();
+            if (allPayments.Any())
+            {
+                _context.CashCounterPayments.RemoveRange(allPayments);
+                _logger.LogInformation("Deleted {Count} cash counter payments", allPayments.Count);
+            }
+
+            // 6. Delete Receipts
+            var allReceipts = sessions.SelectMany(s => s.Receipts).ToList();
+            if (allReceipts.Any())
+            {
+                _context.CashCounterReceipts.RemoveRange(allReceipts);
+                _logger.LogInformation("Deleted {Count} cash counter receipts", allReceipts.Count);
+            }
+
+            // 7. Delete Journal Vouchers
+            var allJournalVouchers = sessions.SelectMany(s => s.JournalVouchers).ToList();
+            if (allJournalVouchers.Any())
+            {
+                _context.CashCounterJournalVouchers.RemoveRange(allJournalVouchers);
+                _logger.LogInformation("Deleted {Count} cash counter journal vouchers", allJournalVouchers.Count);
+            }
+
+            // 8. Delete Debit Notes
+            var allDebitNotes = sessions.SelectMany(s => s.DebitNotes).ToList();
+            if (allDebitNotes.Any())
+            {
+                _context.CashCounterDebitNotes.RemoveRange(allDebitNotes);
+                _logger.LogInformation("Deleted {Count} cash counter debit notes", allDebitNotes.Count);
+            }
+
+            // 9. Delete Credit Notes
+            var allCreditNotes = sessions.SelectMany(s => s.CreditNotes).ToList();
+            if (allCreditNotes.Any())
+            {
+                _context.CashCounterCreditNotes.RemoveRange(allCreditNotes);
+                _logger.LogInformation("Deleted {Count} cash counter credit notes", allCreditNotes.Count);
+            }
+
+            // 10. Delete Purchase Bills
+            var allPurchaseBills = sessions.SelectMany(s => s.PurchaseBills).ToList();
+            if (allPurchaseBills.Any())
+            {
+                _context.CashCounterPurchaseBills.RemoveRange(allPurchaseBills);
+                _logger.LogInformation("Deleted {Count} cash counter purchase bills", allPurchaseBills.Count);
+            }
+
+            // 11. Delete Purchase Returns
+            var allPurchaseReturns = sessions.SelectMany(s => s.PurchaseReturns).ToList();
+            if (allPurchaseReturns.Any())
+            {
+                _context.CashCounterPurchaseReturns.RemoveRange(allPurchaseReturns);
+                _logger.LogInformation("Deleted {Count} cash counter purchase returns", allPurchaseReturns.Count);
+            }
+
+            // Save all deletions before removing sessions
+            await _context.SaveChangesAsync();
+
+            // 12. Finally, delete the sessions themselves
+            _context.CashCounterSessions.RemoveRange(sessions);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Successfully deleted {Count} cash counter sessions and all related data for company {CompanyId}",
+                sessions.Count, companyId);
         }
 
         private async Task DeleteFiscalYearsAsync(Guid companyId)

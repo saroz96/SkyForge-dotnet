@@ -1892,7 +1892,7 @@ namespace SkyForge.Controllers.Retailer
                 // 16. Generate unique number if not set (in case the service didn't set it)
                 if (!newAccount.UniqueNumber.HasValue)
                 {
-                    var uniqueNumber = await _accountService.GenerateUniqueAccountNumberAsync();
+                    var uniqueNumber = await _accountService.GenerateUniqueAccountNumberAsync(companyIdGuid);
                     newAccount.UniqueNumber = uniqueNumber;
                     await _context.SaveChangesAsync();
                 }

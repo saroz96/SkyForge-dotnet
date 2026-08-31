@@ -589,11 +589,11 @@ const TopCustomersCard = ({
 
   const getTabDescription = (tab) => {
     switch (tab) {
-      case 'purchase': return 'Highest total purchases';
+      case 'purchase': return 'Highest total sales';
       case 'frequency': return 'Most frequent buyers';
       case 'average': return 'Highest average order value';
       case 'outstanding': return 'Highest outstanding balance';
-      default: return 'Highest total purchases';
+      default: return 'Highest total sales';
     }
   };
 
@@ -731,7 +731,7 @@ const TopCustomersCard = ({
         >
           <option value="rank">Rank</option>
           <option value="name">Name</option>
-          <option value="purchase">Purchase</option>
+          <option value="purchase">Sale</option>
           <option value="frequency">Frequency</option>
         </select>
       </div>

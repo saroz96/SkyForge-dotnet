@@ -403,7 +403,7 @@ const IncomeExpensePieChart = ({ companyId, companyName, fiscalYearJson }) => {
           </button>
           {dataStatus === 'cached' && (
             <span className="pie-cached-badge">
-              <i className="bi bi-clock-history"></i> Cached
+              <i className="bi bi-clock-history"></i>
             </span>
           )}
         </div>
