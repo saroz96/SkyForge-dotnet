@@ -41,7 +41,6 @@ namespace SkyForge.Dto.RetailerDto.ItemDto
 
         public CreateInitialOpeningStockDTO? InitialOpeningStock { get; set; }
 
-        //public InitialOpeningStockDTO? InitialOpeningStock { get; set; }
 
         [Range(0, double.MaxValue)]
         public decimal? MinStock { get; set; }

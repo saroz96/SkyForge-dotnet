@@ -2496,7 +2496,7 @@ const Accounts = () => {
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [printOption, setPrintOption] = useState('all');
     const [selectedAccountGroup, setSelectedAccountGroup] = useState('');
-
+    const openingBalanceTypeRef = useRef(null);
     // Pagination state
     const [paginatedAccounts, setPaginatedAccounts] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -2643,6 +2643,26 @@ const Accounts = () => {
         };
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    useEffect(() => {
+        const handleFocus = () => {
+            // Simulate click to open dropdown when focused via keyboard
+            if (openingBalanceTypeRef.current) {
+                // Small delay to ensure focus is applied first
+                setTimeout(() => {
+                    openingBalanceTypeRef.current.click();
+                }, 100);
+            }
+        };
+
+        const currentRef = openingBalanceTypeRef.current;
+        if (currentRef) {
+            currentRef.addEventListener('focus', handleFocus);
+            return () => {
+                currentRef.removeEventListener('focus', handleFocus);
+            };
+        }
     }, []);
 
     // Pagination function
@@ -3016,7 +3036,7 @@ const Accounts = () => {
             contactPerson: account.contactPerson || '',
             accountGroups: account.accountGroups?._id || '',
             openingBalance: {
-                amount: account.openingBalance?.amount || 0,
+                amount: 0,
                 type: account.openingBalance?.type || 'Dr'
             }
         });
@@ -3367,8 +3387,8 @@ const Accounts = () => {
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && !e.shiftKey) {
                                                     e.preventDefault();
-                                                    const creditLimitInput = document.querySelector('input[name="creditLimit"]');
-                                                    if (creditLimitInput) creditLimitInput.focus();
+                                                    const openingBalanceInput = document.querySelector('input[name="openingBalance.amount"]');
+                                                    if (openingBalanceInput) openingBalanceInput.focus();
                                                 }
                                             }}
                                         >
@@ -3393,13 +3413,19 @@ const Accounts = () => {
                                                 value={formData.openingBalance.amount}
                                                 onChange={handleFormChange}
                                                 step="any"
-                                                disabled={!data.isInitialFiscalYear}
+                                                readOnly={!data.isInitialFiscalYear}
                                                 placeholder="0.00"
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' && !e.shiftKey) {
                                                         e.preventDefault();
-                                                        const panInput = document.querySelector('input[name="pan"]');
-                                                        if (panInput) panInput.focus();
+                                                        const openingBalanceTypeInput = document.querySelector('select[name="openingBalance.type"]');
+                                                        if (openingBalanceTypeInput) {
+                                                            openingBalanceTypeInput.focus();
+                                                            // ✅ Open the dropdown after focusing
+                                                            setTimeout(() => {
+                                                                openingBalanceTypeInput.click();
+                                                            }, 50);
+                                                        }
                                                     }
                                                 }}
                                             />
@@ -3408,7 +3434,23 @@ const Accounts = () => {
                                                 className="acc-balance-type-select"
                                                 value={formData.openingBalance.type}
                                                 onChange={handleFormChange}
-                                                disabled={!data.isInitialFiscalYear}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        const creditLimitInput = document.querySelector('input[name="creditLimit"]');
+                                                        if (creditLimitInput) creditLimitInput.focus();
+                                                    }
+                                                }}
+                                                onFocus={(e) => {
+                                                    e.target.style.backgroundColor = '#e7f1ff';
+                                                    e.target.style.borderColor = '#86b7fe';
+                                                    e.target.style.boxShadow = '0 0 0 0.25rem rgba(13, 110, 253, 0.25)';
+                                                }}
+                                                onBlur={(e) => {
+                                                    e.target.style.backgroundColor = '';
+                                                    e.target.style.borderColor = '';
+                                                    e.target.style.boxShadow = '';
+                                                }}
                                             >
                                                 <option value="Dr">Dr.</option>
                                                 <option value="Cr">Cr.</option>

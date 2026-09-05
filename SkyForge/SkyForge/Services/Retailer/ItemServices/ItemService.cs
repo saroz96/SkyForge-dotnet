@@ -470,7 +470,331 @@ namespace SkyForge.Services.Retailer.ItemServices
                 throw;
             }
         }
-        //-----------------------------------------end
+
+        /// <summary>
+        /// Creates a new item with all related entities
+        /// </summary>
+        // public async Task<Item> CreateItemAsync(CreateItemDTO createItemDto, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         _logger.LogInformation("Creating new item for company {CompanyId}", companyId);
+
+        //         // 1. Validate fiscal year exists and belongs to company
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         if (fiscalYear == null)
+        //         {
+        //             throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
+        //         }
+
+        //         // 2. Check for duplicate item name
+        //         var existingItem = await _context.Items
+        //             .AnyAsync(i => i.Name.ToLower() == createItemDto.Name.ToLower().Trim()
+        //                 && i.CompanyId == companyId);
+
+        //         if (existingItem)
+        //         {
+        //             throw new InvalidOperationException($"Item '{createItemDto.Name.Trim()}' already exists!");
+        //         }
+
+        //         // 3. Validate and get unique number (from frontend or generate)
+        //         var uniqueNumber = await ValidateAndGetUniqueNumberAsync(companyId, createItemDto.UniqueNumber);
+
+        //         // 4. Generate barcode number
+        //         var barcodeNumber = await GenerateBarcodeNumberAsync(companyId);
+
+        //         // 5. Get default store and rack
+        //         var defaultStore = await GetDefaultStoreAsync(companyId);
+        //         var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
+
+        //         // 6. Calculate purchase and sales prices for consistency
+        //         decimal purchasePrice = createItemDto.PuPrice ?? 0;
+        //         decimal salesPrice = createItemDto.Price ?? 0;
+        //         decimal openingStock = createItemDto.OpeningStock;
+        //         decimal openingStockValue = openingStock * purchasePrice;
+
+        //         // 7. Create new item
+        //         var newItem = new Item
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             Name = createItemDto.Name?.Trim() ?? "",
+        //             Hscode = createItemDto.Hscode,
+        //             CategoryId = createItemDto.CategoryId,
+        //             ItemsCompanyId = createItemDto.ItemsCompanyId,
+        //             Price = salesPrice,
+        //             PuPrice = purchasePrice,
+        //             MainUnitPuPrice = createItemDto.MainUnitPuPrice,
+        //             MainUnitId = createItemDto.MainUnitId,
+        //             WsUnit = createItemDto.WsUnit,
+        //             UnitId = createItemDto.UnitId,
+        //             VatStatus = createItemDto.VatStatus,
+        //             OpeningStock = openingStock,
+        //             MinStock = createItemDto.MinStock,
+        //             MaxStock = createItemDto.MaxStock,
+        //             ReorderLevel = createItemDto.ReorderLevel,
+        //             UniqueNumber = uniqueNumber,
+        //             BarcodeNumber = barcodeNumber,
+        //             CompanyId = companyId,
+        //             Status = createItemDto.Status ?? "active",
+        //             CreatedAt = DateTime.UtcNow,
+        //             OriginalFiscalYearId = fiscalYearId,
+        //             Date = fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow,
+        //             NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         // 8. Add compositions if provided
+        //         if (createItemDto.CompositionIds != null && createItemDto.CompositionIds.Any())
+        //         {
+        //             newItem.ItemCompositions = createItemDto.CompositionIds.Select(compositionId => new ItemComposition
+        //             {
+        //                 ItemId = newItem.Id,
+        //                 CompositionId = compositionId
+        //             }).ToList();
+        //         }
+
+        //         // 9. Create initial opening stock record
+        //         var initialOpeningStock = new ItemInitialOpeningStock
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             ItemId = newItem.Id,
+        //             InitialFiscalYearId = createItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
+        //             CompanyId = companyId,
+        //             OpeningStock = openingStock,
+        //             OpeningStockValue = createItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockValue,
+        //             PurchasePrice = createItemDto.InitialOpeningStock?.PurchasePrice ?? purchasePrice,
+        //             SalesPrice = createItemDto.InitialOpeningStock?.SalesPrice ?? salesPrice,
+        //             Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //             NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         newItem.InitialOpeningStock = initialOpeningStock;
+
+        //         // 10. Create opening stocks by fiscal year
+        //         var openingStocks = new List<ItemOpeningStockByFiscalYear>();
+
+        //         // Check if current fiscal year is already provided in DTO
+        //         var existingCurrentFiscalYearStock = createItemDto.OpeningStocksByFiscalYear?
+        //             .FirstOrDefault(os => os.FiscalYearId == fiscalYearId);
+
+        //         if (existingCurrentFiscalYearStock != null)
+        //         {
+        //             // Use provided values for current fiscal year
+        //             var openingStockCurrent = new ItemOpeningStockByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = newItem.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CompanyId = companyId,
+        //                 OpeningStock = existingCurrentFiscalYearStock.OpeningStock,
+        //                 OpeningStockValue = existingCurrentFiscalYearStock.OpeningStockValue,
+        //                 PurchasePrice = existingCurrentFiscalYearStock.PurchasePrice,
+        //                 SalesPrice = existingCurrentFiscalYearStock.SalesPrice,
+        //                 Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                 NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+        //             openingStocks.Add(openingStockCurrent);
+        //         }
+        //         else
+        //         {
+        //             // Create default opening stock for current fiscal year
+        //             var openingStockCurrent = new ItemOpeningStockByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = newItem.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CompanyId = companyId,
+        //                 OpeningStock = openingStock,
+        //                 OpeningStockValue = openingStockValue,
+        //                 PurchasePrice = purchasePrice,
+        //                 SalesPrice = salesPrice,
+        //                 Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                 NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+        //             openingStocks.Add(openingStockCurrent);
+        //         }
+
+        //         // Add opening stocks for other fiscal years if provided
+        //         if (createItemDto.OpeningStocksByFiscalYear != null)
+        //         {
+        //             foreach (var openingStockDto in createItemDto.OpeningStocksByFiscalYear)
+        //             {
+        //                 // Skip current fiscal year as we already handled it
+        //                 if (openingStockDto.FiscalYearId == fiscalYearId)
+        //                     continue;
+
+        //                 // Validate fiscal year exists and belongs to company
+        //                 var fiscalYearForOpeningStock = await _context.FiscalYears
+        //                     .FirstOrDefaultAsync(f => f.Id == openingStockDto.FiscalYearId && f.CompanyId == companyId);
+
+        //                 if (fiscalYearForOpeningStock == null)
+        //                 {
+        //                     throw new InvalidOperationException($"Fiscal year {openingStockDto.FiscalYearId} not found for opening stock");
+        //                 }
+
+        //                 // Calculate opening stock value if not provided
+        //                 decimal calculatedOpeningStockValue = openingStockDto.OpeningStockValue;
+        //                 if (calculatedOpeningStockValue == 0)
+        //                 {
+        //                     calculatedOpeningStockValue = openingStockDto.OpeningStock * openingStockDto.PurchasePrice;
+        //                 }
+
+        //                 var openingStockRecord = new ItemOpeningStockByFiscalYear
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     ItemId = newItem.Id,
+        //                     FiscalYearId = openingStockDto.FiscalYearId,
+        //                     CompanyId = companyId,
+        //                     OpeningStock = openingStockDto.OpeningStock,
+        //                     OpeningStockValue = calculatedOpeningStockValue,
+        //                     PurchasePrice = openingStockDto.PurchasePrice,
+        //                     SalesPrice = openingStockDto.SalesPrice,
+        //                     Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                     NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     UpdatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 openingStocks.Add(openingStockRecord);
+        //             }
+        //         }
+
+        //         newItem.OpeningStocksByFiscalYear = openingStocks;
+
+        //         // 11. Create closing stocks by fiscal year if provided
+        //         if (createItemDto.ClosingStocksByFiscalYear != null && createItemDto.ClosingStocksByFiscalYear.Any())
+        //         {
+        //             var closingStocks = new List<ItemClosingStockByFiscalYear>();
+
+        //             foreach (var closingStockDto in createItemDto.ClosingStocksByFiscalYear)
+        //             {
+        //                 // Validate fiscal year exists and belongs to company
+        //                 var fiscalYearForClosingStock = await _context.FiscalYears
+        //                     .FirstOrDefaultAsync(f => f.Id == closingStockDto.FiscalYearId && f.CompanyId == companyId);
+
+        //                 if (fiscalYearForClosingStock == null)
+        //                 {
+        //                     throw new InvalidOperationException($"Fiscal year {closingStockDto.FiscalYearId} not found for closing stock");
+        //                 }
+
+        //                 // Calculate closing stock value if not provided
+        //                 decimal calculatedClosingStockValue = closingStockDto.ClosingStockValue;
+        //                 if (calculatedClosingStockValue == 0)
+        //                 {
+        //                     calculatedClosingStockValue = closingStockDto.ClosingStock * closingStockDto.PurchasePrice;
+        //                 }
+
+        //                 var closingStock = new ItemClosingStockByFiscalYear
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     ItemId = newItem.Id,
+        //                     FiscalYearId = closingStockDto.FiscalYearId,
+        //                     CompanyId = closingStockDto.CompanyId,
+        //                     ClosingStock = closingStockDto.ClosingStock,
+        //                     ClosingStockValue = calculatedClosingStockValue,
+        //                     PurchasePrice = closingStockDto.PurchasePrice,
+        //                     SalesPrice = closingStockDto.SalesPrice,
+        //                     Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                     NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     UpdatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 closingStocks.Add(closingStock);
+        //             }
+
+        //             newItem.ClosingStocksByFiscalYear = closingStocks;
+        //         }
+
+        //         // 12. Add stock entry if opening stock > 0
+        //         if (openingStock > 0)
+        //         {
+        //             var stockEntry = new StockEntry
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = newItem.Id,
+        //                 WsUnit = createItemDto.WsUnit,
+        //                 Quantity = openingStock,
+        //                 Price = salesPrice,
+        //                 NetPrice = salesPrice,
+        //                 PuPrice = purchasePrice,
+        //                 NetPuPrice = purchasePrice,
+        //                 MainUnitPuPrice = createItemDto.MainUnitPuPrice,
+        //                 Mrp = salesPrice,
+        //                 BatchNumber = "ADJ-ADD",
+        //                 Currency = createItemDto.Currency ?? "NPR",
+        //                 StoreId = createItemDto.StoreId ?? defaultStore?.Id,
+        //                 RackId = createItemDto.RackId ?? defaultRack?.Id,
+        //                 ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+        //                 ExpiryStatus = "safe",
+        //                 DaysUntilExpiry = 730,
+        //                 CompanyId = companyId,
+        //                 FiscalYearId = fiscalYearId,
+        //                 UniqueUuid = Guid.NewGuid().ToString(),
+        //                 Date = createItemDto.InitialOpeningStock?.Date ??
+        //                    (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+        //                 NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             newItem.StockEntries = new List<StockEntry> { stockEntry };
+        //         }
+
+        //         // 13. Save the item and all related entities
+        //         await _context.Items.AddAsync(newItem);
+        //         await _context.SaveChangesAsync();
+
+        //         // 14. Commit transaction
+        //         await transaction.CommitAsync();
+
+        //         _logger.LogInformation("Item created successfully: {ItemName} (ID: {ItemId}, Unique: {UniqueNumber})",
+        //             newItem.Name, newItem.Id, newItem.UniqueNumber);
+
+        //         return newItem;
+        //     }
+        //     catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505")
+        //     {
+        //         await transaction.RollbackAsync();
+        //         // Handle duplicate key violation
+        //         if (pgEx.ConstraintName == "IX_Item_Company_UniqueNumber" || pgEx.ConstraintName == "IX_Item_UniqueNumber")
+        //         {
+        //             _logger.LogWarning(ex, "Duplicate unique number detected. Generating new number and retrying.");
+
+        //             // Check if the duplicate was from the frontend number
+        //             if (createItemDto.UniqueNumber.HasValue)
+        //             {
+        //                 // Generate a new number and try again
+        //                 var newNumber = await GenerateNextAvailableUniqueNumberAsync(companyId);
+        //                 createItemDto.UniqueNumber = newNumber;
+
+        //                 // Retry with the new number (recursive call with retry flag to prevent infinite loop)
+        //                 return await CreateItemAsync(createItemDto, companyId, fiscalYearId);
+        //             }
+        //         }
+        //         throw;
+        //     }
+        //     catch (Exception)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+        // }
 
         /// <summary>
         /// Creates a new item with all related entities
@@ -492,7 +816,23 @@ namespace SkyForge.Services.Retailer.ItemServices
                     throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
                 }
 
-                // 2. Check for duplicate item name
+                // ✅ 2. Get the initial fiscal year for this company
+                var initialFiscalYear = await _context.FiscalYears
+                    .Where(f => f.CompanyId == companyId)
+                    .OrderBy(f => f.StartDate)
+                    .FirstOrDefaultAsync();
+
+                if (initialFiscalYear == null)
+                {
+                    throw new InvalidOperationException("Initial fiscal year not found");
+                }
+
+                // ✅ 3. Check if current fiscal year is the initial fiscal year
+                bool isInitialFiscalYear = fiscalYear.Id == initialFiscalYear.Id;
+
+                _logger.LogInformation($"Current Fiscal Year: {fiscalYear.Name}, Is Initial: {isInitialFiscalYear}");
+
+                // 4. Check for duplicate item name
                 var existingItem = await _context.Items
                     .AnyAsync(i => i.Name.ToLower() == createItemDto.Name.ToLower().Trim()
                         && i.CompanyId == companyId);
@@ -502,23 +842,41 @@ namespace SkyForge.Services.Retailer.ItemServices
                     throw new InvalidOperationException($"Item '{createItemDto.Name.Trim()}' already exists!");
                 }
 
-                // 3. Validate and get unique number (from frontend or generate)
+                // 5. Validate and get unique number (from frontend or generate)
                 var uniqueNumber = await ValidateAndGetUniqueNumberAsync(companyId, createItemDto.UniqueNumber);
 
-                // 4. Generate barcode number
+                // 6. Generate barcode number
                 var barcodeNumber = await GenerateBarcodeNumberAsync(companyId);
 
-                // 5. Get default store and rack
+                // 7. Get default store and rack
                 var defaultStore = await GetDefaultStoreAsync(companyId);
                 var defaultRack = defaultStore != null ? await GetDefaultRackAsync(defaultStore.Id) : null;
 
-                // 6. Calculate purchase and sales prices for consistency
+                // ✅ 8. Purchase and Sales prices are ALWAYS allowed (regardless of fiscal year)
                 decimal purchasePrice = createItemDto.PuPrice ?? 0;
                 decimal salesPrice = createItemDto.Price ?? 0;
-                decimal openingStock = createItemDto.OpeningStock;
-                decimal openingStockValue = openingStock * purchasePrice;
 
-                // 7. Create new item
+                // ✅ 9. Opening stock is ONLY allowed in INITIAL fiscal year
+                decimal openingStock = 0;
+                decimal openingStockValue = 0;
+
+                if (isInitialFiscalYear)
+                {
+                    openingStock = createItemDto.OpeningStock;
+                    openingStockValue = openingStock * purchasePrice;
+                    _logger.LogInformation($"Initial fiscal year: Setting opening stock to {openingStock}");
+                }
+                else
+                {
+                    _logger.LogInformation($"Non-initial fiscal year: Opening stock set to 0 (prices allowed)");
+                    // ⚠️ If user tries to send opening stock in non-initial year, ignore it
+                    if (createItemDto.OpeningStock > 0)
+                    {
+                        _logger.LogWarning($"User attempted to set opening stock in non-initial fiscal year. Ignoring.");
+                    }
+                }
+
+                // 10. Create new item
                 var newItem = new Item
                 {
                     Id = Guid.NewGuid(),
@@ -526,14 +884,14 @@ namespace SkyForge.Services.Retailer.ItemServices
                     Hscode = createItemDto.Hscode,
                     CategoryId = createItemDto.CategoryId,
                     ItemsCompanyId = createItemDto.ItemsCompanyId,
-                    Price = salesPrice,
-                    PuPrice = purchasePrice,
+                    Price = salesPrice, // ✅ ALWAYS allowed
+                    PuPrice = purchasePrice, // ✅ ALWAYS allowed
                     MainUnitPuPrice = createItemDto.MainUnitPuPrice,
                     MainUnitId = createItemDto.MainUnitId,
                     WsUnit = createItemDto.WsUnit,
                     UnitId = createItemDto.UnitId,
                     VatStatus = createItemDto.VatStatus,
-                    OpeningStock = openingStock,
+                    OpeningStock = openingStock, // ✅ Will be 0 in non-initial year
                     MinStock = createItemDto.MinStock,
                     MaxStock = createItemDto.MaxStock,
                     ReorderLevel = createItemDto.ReorderLevel,
@@ -548,7 +906,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                // 8. Add compositions if provided
+                // 11. Add compositions if provided
                 if (createItemDto.CompositionIds != null && createItemDto.CompositionIds.Any())
                 {
                     newItem.ItemCompositions = createItemDto.CompositionIds.Select(compositionId => new ItemComposition
@@ -558,57 +916,30 @@ namespace SkyForge.Services.Retailer.ItemServices
                     }).ToList();
                 }
 
-                // 9. Create initial opening stock record
-                var initialOpeningStock = new ItemInitialOpeningStock
+                // ✅ 12. ONLY create opening stock records if in INITIAL fiscal year AND opening stock > 0
+                if (isInitialFiscalYear && openingStock > 0)
                 {
-                    Id = Guid.NewGuid(),
-                    ItemId = newItem.Id,
-                    InitialFiscalYearId = createItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
-                    CompanyId = companyId,
-                    OpeningStock = openingStock,
-                    OpeningStockValue = createItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockValue,
-                    PurchasePrice = createItemDto.InitialOpeningStock?.PurchasePrice ?? purchasePrice,
-                    SalesPrice = createItemDto.InitialOpeningStock?.SalesPrice ?? salesPrice,
-                    Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
-                    NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-
-                newItem.InitialOpeningStock = initialOpeningStock;
-
-                // 10. Create opening stocks by fiscal year
-                var openingStocks = new List<ItemOpeningStockByFiscalYear>();
-
-                // Check if current fiscal year is already provided in DTO
-                var existingCurrentFiscalYearStock = createItemDto.OpeningStocksByFiscalYear?
-                    .FirstOrDefault(os => os.FiscalYearId == fiscalYearId);
-
-                if (existingCurrentFiscalYearStock != null)
-                {
-                    // Use provided values for current fiscal year
-                    var openingStockCurrent = new ItemOpeningStockByFiscalYear
+                    // Create initial opening stock record
+                    var initialOpeningStock = new ItemInitialOpeningStock
                     {
                         Id = Guid.NewGuid(),
                         ItemId = newItem.Id,
-                        FiscalYearId = fiscalYearId,
+                        InitialFiscalYearId = createItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
                         CompanyId = companyId,
-                        OpeningStock = existingCurrentFiscalYearStock.OpeningStock,
-                        OpeningStockValue = existingCurrentFiscalYearStock.OpeningStockValue,
-                        PurchasePrice = existingCurrentFiscalYearStock.PurchasePrice,
-                        SalesPrice = existingCurrentFiscalYearStock.SalesPrice,
+                        OpeningStock = openingStock,
+                        OpeningStockValue = createItemDto.InitialOpeningStock?.OpeningStockValue ?? openingStockValue,
+                        PurchasePrice = createItemDto.InitialOpeningStock?.PurchasePrice ?? purchasePrice,
+                        SalesPrice = createItemDto.InitialOpeningStock?.SalesPrice ?? salesPrice,
                         Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                               (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
                         NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
-                    openingStocks.Add(openingStockCurrent);
-                }
-                else
-                {
-                    // Create default opening stock for current fiscal year
+
+                    newItem.InitialOpeningStock = initialOpeningStock;
+
+                    // Create opening stock for current fiscal year
                     var openingStockCurrent = new ItemOpeningStockByFiscalYear
                     {
                         Id = Guid.NewGuid(),
@@ -620,111 +951,14 @@ namespace SkyForge.Services.Retailer.ItemServices
                         PurchasePrice = purchasePrice,
                         SalesPrice = salesPrice,
                         Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                               (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
                         NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
-                    openingStocks.Add(openingStockCurrent);
-                }
+                    newItem.OpeningStocksByFiscalYear = new List<ItemOpeningStockByFiscalYear> { openingStockCurrent };
 
-                // Add opening stocks for other fiscal years if provided
-                if (createItemDto.OpeningStocksByFiscalYear != null)
-                {
-                    foreach (var openingStockDto in createItemDto.OpeningStocksByFiscalYear)
-                    {
-                        // Skip current fiscal year as we already handled it
-                        if (openingStockDto.FiscalYearId == fiscalYearId)
-                            continue;
-
-                        // Validate fiscal year exists and belongs to company
-                        var fiscalYearForOpeningStock = await _context.FiscalYears
-                            .FirstOrDefaultAsync(f => f.Id == openingStockDto.FiscalYearId && f.CompanyId == companyId);
-
-                        if (fiscalYearForOpeningStock == null)
-                        {
-                            throw new InvalidOperationException($"Fiscal year {openingStockDto.FiscalYearId} not found for opening stock");
-                        }
-
-                        // Calculate opening stock value if not provided
-                        decimal calculatedOpeningStockValue = openingStockDto.OpeningStockValue;
-                        if (calculatedOpeningStockValue == 0)
-                        {
-                            calculatedOpeningStockValue = openingStockDto.OpeningStock * openingStockDto.PurchasePrice;
-                        }
-
-                        var openingStockRecord = new ItemOpeningStockByFiscalYear
-                        {
-                            Id = Guid.NewGuid(),
-                            ItemId = newItem.Id,
-                            FiscalYearId = openingStockDto.FiscalYearId,
-                            CompanyId = companyId,
-                            OpeningStock = openingStockDto.OpeningStock,
-                            OpeningStockValue = calculatedOpeningStockValue,
-                            PurchasePrice = openingStockDto.PurchasePrice,
-                            SalesPrice = openingStockDto.SalesPrice,
-                            Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
-                            NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow
-                        };
-
-                        openingStocks.Add(openingStockRecord);
-                    }
-                }
-
-                newItem.OpeningStocksByFiscalYear = openingStocks;
-
-                // 11. Create closing stocks by fiscal year if provided
-                if (createItemDto.ClosingStocksByFiscalYear != null && createItemDto.ClosingStocksByFiscalYear.Any())
-                {
-                    var closingStocks = new List<ItemClosingStockByFiscalYear>();
-
-                    foreach (var closingStockDto in createItemDto.ClosingStocksByFiscalYear)
-                    {
-                        // Validate fiscal year exists and belongs to company
-                        var fiscalYearForClosingStock = await _context.FiscalYears
-                            .FirstOrDefaultAsync(f => f.Id == closingStockDto.FiscalYearId && f.CompanyId == companyId);
-
-                        if (fiscalYearForClosingStock == null)
-                        {
-                            throw new InvalidOperationException($"Fiscal year {closingStockDto.FiscalYearId} not found for closing stock");
-                        }
-
-                        // Calculate closing stock value if not provided
-                        decimal calculatedClosingStockValue = closingStockDto.ClosingStockValue;
-                        if (calculatedClosingStockValue == 0)
-                        {
-                            calculatedClosingStockValue = closingStockDto.ClosingStock * closingStockDto.PurchasePrice;
-                        }
-
-                        var closingStock = new ItemClosingStockByFiscalYear
-                        {
-                            Id = Guid.NewGuid(),
-                            ItemId = newItem.Id,
-                            FiscalYearId = closingStockDto.FiscalYearId,
-                            CompanyId = closingStockDto.CompanyId,
-                            ClosingStock = closingStockDto.ClosingStock,
-                            ClosingStockValue = calculatedClosingStockValue,
-                            PurchasePrice = closingStockDto.PurchasePrice,
-                            SalesPrice = closingStockDto.SalesPrice,
-                            Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
-                            NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow
-                        };
-
-                        closingStocks.Add(closingStock);
-                    }
-
-                    newItem.ClosingStocksByFiscalYear = closingStocks;
-                }
-
-                // 12. Add stock entry if opening stock > 0
-                if (openingStock > 0)
-                {
+                    // 13. Add stock entry if opening stock > 0
                     var stockEntry = new StockEntry
                     {
                         Id = Guid.NewGuid(),
@@ -748,7 +982,7 @@ namespace SkyForge.Services.Retailer.ItemServices
                         FiscalYearId = fiscalYearId,
                         UniqueUuid = Guid.NewGuid().ToString(),
                         Date = createItemDto.InitialOpeningStock?.Date ??
-                           (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
+                               (fiscalYear.StartDate.HasValue ? fiscalYear.StartDate.Value.ToUniversalTime() : DateTime.UtcNow),
                         NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali) ? fiscalYear.StartDateNepali : DateTime.UtcNow.ToString("yyyy-MM-dd"),
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -756,35 +990,40 @@ namespace SkyForge.Services.Retailer.ItemServices
 
                     newItem.StockEntries = new List<StockEntry> { stockEntry };
                 }
+                else if (!isInitialFiscalYear)
+                {
+                    _logger.LogInformation($"Skipping opening stock creation - Not in initial fiscal year");
+                    // Ensure no opening stock records are created
+                    newItem.InitialOpeningStock = null;
+                    newItem.OpeningStocksByFiscalYear = new List<ItemOpeningStockByFiscalYear>();
+                    newItem.StockEntries = new List<StockEntry>();
+                    newItem.OpeningStock = 0;
+                    // ✅ But keep the prices!
+                    newItem.Price = salesPrice;
+                    newItem.PuPrice = purchasePrice;
+                }
 
-                // 13. Save the item and all related entities
+                // 14. Save the item and all related entities
                 await _context.Items.AddAsync(newItem);
                 await _context.SaveChangesAsync();
 
-                // 14. Commit transaction
+                // 15. Commit transaction
                 await transaction.CommitAsync();
 
-                _logger.LogInformation("Item created successfully: {ItemName} (ID: {ItemId}, Unique: {UniqueNumber})",
-                    newItem.Name, newItem.Id, newItem.UniqueNumber);
+                _logger.LogInformation($"Item created successfully: {newItem.Name} (ID: {newItem.Id}, Unique: {newItem.UniqueNumber}, Initial FY: {isInitialFiscalYear})");
 
                 return newItem;
             }
             catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505")
             {
                 await transaction.RollbackAsync();
-                // Handle duplicate key violation
                 if (pgEx.ConstraintName == "IX_Item_Company_UniqueNumber" || pgEx.ConstraintName == "IX_Item_UniqueNumber")
                 {
                     _logger.LogWarning(ex, "Duplicate unique number detected. Generating new number and retrying.");
-
-                    // Check if the duplicate was from the frontend number
                     if (createItemDto.UniqueNumber.HasValue)
                     {
-                        // Generate a new number and try again
                         var newNumber = await GenerateNextAvailableUniqueNumberAsync(companyId);
                         createItemDto.UniqueNumber = newNumber;
-
-                        // Retry with the new number (recursive call with retry flag to prevent infinite loop)
                         return await CreateItemAsync(createItemDto, companyId, fiscalYearId);
                     }
                 }
@@ -916,6 +1155,489 @@ namespace SkyForge.Services.Retailer.ItemServices
                 throw;
             }
         }
+
+
+        // public async Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid companyId, Guid fiscalYearId)
+        // {
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //     try
+        //     {
+        //         // 1. Validate fiscal year exists and belongs to company
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == fiscalYearId && f.CompanyId == companyId);
+
+        //         if (fiscalYear == null)
+        //         {
+        //             throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
+        //         }
+
+        //         // Load the item WITH tracking for updates
+        //         var existingItem = await _context.Items
+        //             .Include(i => i.ItemCompositions)
+        //             .Include(i => i.OpeningStocksByFiscalYear)
+        //             .Include(i => i.ClosingStocksByFiscalYear)
+        //             .Include(i => i.StockEntries)
+        //             .Include(i => i.Sales)
+        //             .Include(i => i.Purchases)
+        //             .Include(i => i.SalesReturns)
+        //             .Include(i => i.PurchaseReturns)
+        //             .FirstOrDefaultAsync(i => i.Id == itemId);
+
+        //         if (existingItem == null)
+        //         {
+        //             throw new KeyNotFoundException($"Item with ID {itemId} not found");
+        //         }
+
+        //         // Check for duplicate name (excluding current item)
+        //         if (!string.IsNullOrEmpty(updateItemDto.Name))
+        //         {
+        //             var duplicateItem = await _context.Items
+        //                 .AsNoTracking()
+        //                 .FirstOrDefaultAsync(i => i.Id != itemId
+        //                     && i.CompanyId == existingItem.CompanyId
+        //                     && i.Name.ToLower() == updateItemDto.Name.Trim().ToLower());
+
+        //             if (duplicateItem != null)
+        //             {
+        //                 throw new InvalidOperationException($"Item '{updateItemDto.Name?.Trim()}' already exists for this fiscal year");
+        //             }
+        //         }
+
+        //         // Store old values for logging
+        //         decimal? oldPrice = existingItem.Price;
+        //         decimal? oldPuPrice = existingItem.PuPrice;
+        //         decimal? oldMainUnitPuPrice = existingItem.MainUnitPuPrice;
+
+        //         // Update basic properties
+        //         if (!string.IsNullOrEmpty(updateItemDto.Name))
+        //         {
+        //             existingItem.Name = updateItemDto.Name.Trim();
+        //         }
+
+        //         existingItem.Hscode = updateItemDto.Hscode;
+
+        //         if (updateItemDto.CategoryId.HasValue)
+        //         {
+        //             var categoryExists = await _context.Categories
+        //                 .AsNoTracking()
+        //                 .AnyAsync(c => c.Id == updateItemDto.CategoryId.Value && c.CompanyId == existingItem.CompanyId);
+
+        //             if (!categoryExists)
+        //             {
+        //                 throw new InvalidOperationException("Invalid category");
+        //             }
+        //             existingItem.CategoryId = updateItemDto.CategoryId.Value;
+        //         }
+
+        //         if (updateItemDto.ItemsCompanyId.HasValue)
+        //         {
+        //             var itemsCompanyExists = await _context.ItemCompanies
+        //                 .AsNoTracking()
+        //                 .AnyAsync(ic => ic.Id == updateItemDto.ItemsCompanyId.Value && ic.CompanyId == existingItem.CompanyId);
+
+        //             if (!itemsCompanyExists)
+        //             {
+        //                 throw new InvalidOperationException("Invalid item company");
+        //             }
+        //             existingItem.ItemsCompanyId = updateItemDto.ItemsCompanyId.Value;
+        //         }
+
+        //         // Update prices - DIRECTLY from frontend
+        //         existingItem.Price = updateItemDto.Price ?? 0;
+        //         existingItem.PuPrice = updateItemDto.PuPrice ?? 0;
+        //         existingItem.MainUnitPuPrice = updateItemDto.MainUnitPuPrice ?? 0;
+
+        //         if (updateItemDto.MainUnitId.HasValue)
+        //         {
+        //             if (updateItemDto.MainUnitId.Value != Guid.Empty)
+        //             {
+        //                 var mainUnitExists = await _context.MainUnits
+        //                     .AsNoTracking()
+        //                     .AnyAsync(u => u.Id == updateItemDto.MainUnitId.Value && u.CompanyId == existingItem.CompanyId);
+
+        //                 if (!mainUnitExists)
+        //                 {
+        //                     throw new InvalidOperationException("Invalid main unit");
+        //                 }
+        //             }
+        //             existingItem.MainUnitId = updateItemDto.MainUnitId.Value;
+        //         }
+
+        //         existingItem.WsUnit = updateItemDto.WsUnit ?? existingItem.WsUnit;
+
+        //         if (updateItemDto.UnitId.HasValue)
+        //         {
+        //             var unitExists = await _context.Units
+        //                 .AsNoTracking()
+        //                 .AnyAsync(u => u.Id == updateItemDto.UnitId.Value && u.CompanyId == existingItem.CompanyId);
+
+        //             if (!unitExists)
+        //             {
+        //                 throw new InvalidOperationException("Invalid unit");
+        //             }
+        //             existingItem.UnitId = updateItemDto.UnitId.Value;
+        //         }
+
+        //         if (!string.IsNullOrEmpty(updateItemDto.VatStatus))
+        //         {
+        //             existingItem.VatStatus = updateItemDto.VatStatus;
+        //         }
+
+        //         existingItem.MinStock = updateItemDto.MinStock ?? existingItem.MinStock;
+        //         existingItem.MaxStock = updateItemDto.MaxStock ?? existingItem.MaxStock;
+        //         existingItem.ReorderLevel = updateItemDto.ReorderLevel ?? existingItem.ReorderLevel;
+
+        //         if (!string.IsNullOrEmpty(updateItemDto.Status))
+        //         {
+        //             existingItem.Status = updateItemDto.Status;
+        //         }
+
+        //         existingItem.UpdatedAt = DateTime.UtcNow;
+
+        //         // Update compositions if provided
+        //         if (updateItemDto.CompositionIds != null)
+        //         {
+        //             // Remove existing compositions
+        //             var existingCompositions = await _context.ItemCompositions
+        //                 .Where(ic => ic.ItemId == itemId)
+        //                 .ToListAsync();
+
+        //             if (existingCompositions.Any())
+        //             {
+        //                 _context.ItemCompositions.RemoveRange(existingCompositions);
+        //             }
+
+        //             // Add new compositions
+        //             if (updateItemDto.CompositionIds.Any())
+        //             {
+        //                 // Validate new compositions
+        //                 var validCompositionsCount = await _context.Compositions
+        //                     .AsNoTracking()
+        //                     .Where(c => updateItemDto.CompositionIds.Contains(c.Id) && c.CompanyId == existingItem.CompanyId)
+        //                     .CountAsync();
+
+        //                 if (validCompositionsCount != updateItemDto.CompositionIds.Count)
+        //                 {
+        //                     throw new InvalidOperationException("One or more invalid compositions");
+        //                 }
+
+        //                 var newCompositions = updateItemDto.CompositionIds.Select(compositionId => new ItemComposition
+        //                 {
+        //                     ItemId = existingItem.Id,
+        //                     CompositionId = compositionId
+        //                 }).ToList();
+
+        //                 await _context.ItemCompositions.AddRangeAsync(newCompositions);
+        //             }
+        //         }
+
+        //         // Helper method to get default date
+        //         DateTime GetDefaultDate(DateTime? providedDate)
+        //         {
+        //             return providedDate ?? fiscalYear.StartDate?.ToUniversalTime() ?? DateTime.UtcNow;
+        //         }
+
+        //         // Helper method to get default Nepali date
+        //         string GetDefaultNepaliDate(string? providedNepaliDate)
+        //         {
+        //             return providedNepaliDate ?? fiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
+        //         }
+
+        //         // ========== UPDATE OPENING STOCK ENTRIES ONLY ==========
+        //         // Identify opening stock entries by checking if they are the first entry for this item
+        //         // and were created before any transactions
+        //         _logger.LogInformation($"Updating opening stock prices for item {itemId}. New Price: {existingItem.Price}, New PuPrice: {existingItem.PuPrice}");
+
+        //         // Get the initial opening stock entry for this item (created when the item was first created)
+        //         // We can identify it by checking if it's the oldest stock entry with batch number "XXX" 
+        //         // or if it's associated with the InitialOpeningStock
+        //         var initialOpeningStockEntry = await _context.StockEntries
+        //             .Where(se => se.ItemId == itemId && se.BatchNumber == "ADJ-ADD")
+        //             .OrderBy(se => se.CreatedAt)
+        //             .FirstOrDefaultAsync();
+
+        //         if (initialOpeningStockEntry != null)
+        //         {
+        //             _logger.LogInformation($"Found initial opening stock entry with quantity: {initialOpeningStockEntry.Quantity}");
+
+        //             // ✅ UPDATE ONLY THE INITIAL OPENING STOCK ENTRY
+        //             initialOpeningStockEntry.Price = existingItem.Price ?? 0;
+        //             initialOpeningStockEntry.NetPrice = existingItem.Price ?? 0;
+        //             initialOpeningStockEntry.Mrp = existingItem.Price ?? 0;
+
+        //             initialOpeningStockEntry.PuPrice = existingItem.PuPrice ?? 0;
+        //             initialOpeningStockEntry.NetPuPrice = existingItem.PuPrice ?? 0;
+        //             initialOpeningStockEntry.MainUnitPuPrice = existingItem.MainUnitPuPrice;
+
+        //             initialOpeningStockEntry.UpdatedAt = DateTime.UtcNow;
+        //             _context.Entry(initialOpeningStockEntry).State = EntityState.Modified;
+
+        //             _logger.LogInformation($"Updated initial opening stock entry with new prices");
+        //         }
+        //         else
+        //         {
+        //             _logger.LogInformation("No initial opening stock entry found to update");
+        //         }
+
+        //         // ========== STOCK UPDATE LOGIC WITH VALIDATION ==========
+
+        //         // Get the OLD stock from ItemInitialOpeningStock
+        //         var existingInitialOpeningStock = await _context.Set<ItemInitialOpeningStock>()
+        //             .FirstOrDefaultAsync(ios => ios.ItemId == itemId);
+
+        //         decimal oldStock = 0;
+        //         if (existingInitialOpeningStock != null)
+        //         {
+        //             oldStock = existingInitialOpeningStock.OpeningStock;
+        //         }
+
+        //         // Get the NEW requested stock
+        //         decimal newStock = 0;
+        //         if (updateItemDto.OpeningStock.HasValue)
+        //         {
+        //             newStock = updateItemDto.OpeningStock.Value;
+        //         }
+
+        //         // ========== STOCK VALIDATION: PREVENT NEGATIVE STOCK ==========
+        //         // Calculate the total stock that has been used/sold through transactions
+        //         // We need to check if the new stock would go negative
+
+        //         // Get current total stock from all stock entries (positive stock)
+        //         var currentTotalStock = await _context.StockEntries
+        //             .Where(se => se.ItemId == itemId && se.Quantity > 0)
+        //             .SumAsync(se => se.Quantity);
+
+        //         // Get total stock consumed (negative stock from transactions)
+        //         var consumedStock = await _context.StockEntries
+        //             .Where(se => se.ItemId == itemId && se.Quantity < 0)
+        //             .SumAsync(se => Math.Abs(se.Quantity));
+
+        //         // Calculate effective stock
+        //         decimal effectiveStock = currentTotalStock - consumedStock;
+
+        //         _logger.LogInformation($"Item {itemId} - Old Stock: {oldStock}, New Stock: {newStock}, Effective Stock: {effectiveStock}");
+
+        //         // ✅ VALIDATION: If decreasing stock, ensure it doesn't go below effective stock
+        //         if (newStock < oldStock)
+        //         {
+        //             decimal decreaseAmount = oldStock - newStock;
+
+        //             if (decreaseAmount > effectiveStock)
+        //             {
+        //                 var itemName = existingItem.Name ?? "Item";
+        //                 throw new InvalidOperationException(
+        //                     $"Cannot reduce stock from {oldStock} to {newStock} for '{itemName}'. " +
+        //                     $"Only {effectiveStock} units available to reduce. " +
+        //                     $"Stock has been consumed by {consumedStock} units through transactions.");
+        //             }
+
+        //             _logger.LogInformation($"Stock reduction of {decreaseAmount} is valid. Available to reduce: {effectiveStock}");
+        //         }
+
+        //         // Calculate the difference (adjustment needed) - only if valid
+        //         decimal stockDifference = newStock - oldStock;
+
+        //         _logger.LogInformation($"Item {itemId} - Old Stock: {oldStock}, New Stock: {newStock}, Difference: {stockDifference}");
+
+        //         // 1. UPDATE ItemInitialOpeningStock with new prices FROM FRONTEND
+        //         if (existingInitialOpeningStock != null)
+        //         {
+        //             // Update existing
+        //             existingInitialOpeningStock.OpeningStock = newStock;
+        //             existingInitialOpeningStock.OpeningStockValue = newStock * (existingItem.PuPrice ?? 0);
+        //             existingInitialOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0; // ✅ FROM FRONTEND
+        //             existingInitialOpeningStock.SalesPrice = existingItem.Price ?? 0;      // ✅ FROM FRONTEND
+        //             existingInitialOpeningStock.Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date);
+        //             existingInitialOpeningStock.NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate);
+        //             existingInitialOpeningStock.UpdatedAt = DateTime.UtcNow;
+
+        //             _context.Entry(existingInitialOpeningStock).State = EntityState.Modified;
+        //         }
+        //         else if (newStock > 0)
+        //         {
+        //             // Create new if it doesn't exist and stock > 0
+        //             var newInitialOpeningStock = new ItemInitialOpeningStock
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = existingItem.Id,
+        //                 CompanyId = existingItem.CompanyId,
+        //                 InitialFiscalYearId = updateItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
+        //                 OpeningStock = newStock,
+        //                 OpeningStockValue = newStock * (existingItem.PuPrice ?? 0),
+        //                 PurchasePrice = existingItem.PuPrice ?? 0, // ✅ FROM FRONTEND
+        //                 SalesPrice = existingItem.Price ?? 0,      // ✅ FROM FRONTEND
+        //                 Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date),
+        //                 NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate),
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.Set<ItemInitialOpeningStock>().AddAsync(newInitialOpeningStock);
+        //             existingItem.InitialOpeningStock = newInitialOpeningStock;
+        //         }
+
+        //         // 2. UPDATE ItemOpeningStockByFiscalYear for current fiscal year with new prices FROM FRONTEND
+        //         var currentFiscalYearOpeningStock = existingItem.OpeningStocksByFiscalYear?
+        //             .FirstOrDefault(os => os.FiscalYearId == fiscalYearId);
+
+        //         if (currentFiscalYearOpeningStock != null)
+        //         {
+        //             // Update existing
+        //             currentFiscalYearOpeningStock.OpeningStock = newStock;
+        //             currentFiscalYearOpeningStock.OpeningStockValue = newStock * (existingItem.PuPrice ?? 0);
+        //             currentFiscalYearOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0; // ✅ FROM FRONTEND
+        //             currentFiscalYearOpeningStock.SalesPrice = existingItem.Price ?? 0;      // ✅ FROM FRONTEND
+        //             currentFiscalYearOpeningStock.Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date);
+        //             currentFiscalYearOpeningStock.NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate);
+        //             currentFiscalYearOpeningStock.UpdatedAt = DateTime.UtcNow;
+        //         }
+        //         else if (newStock > 0)
+        //         {
+        //             // Create new if it doesn't exist and stock > 0
+        //             var newOpeningStockRecord = new ItemOpeningStockByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 ItemId = existingItem.Id,
+        //                 FiscalYearId = fiscalYearId,
+        //                 CompanyId = existingItem.CompanyId,
+        //                 OpeningStock = newStock,
+        //                 OpeningStockValue = newStock * (existingItem.PuPrice ?? 0),
+        //                 PurchasePrice = existingItem.PuPrice ?? 0, // ✅ FROM FRONTEND
+        //                 SalesPrice = existingItem.Price ?? 0,      // ✅ FROM FRONTEND
+        //                 Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date),
+        //                 NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate),
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 UpdatedAt = DateTime.UtcNow
+        //             };
+
+        //             await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStockRecord);
+        //         }
+
+        //         // 3. HANDLE STOCK ENTRY ADJUSTMENT (only if stockDifference is valid)
+        //         if (Math.Abs(stockDifference) > 0.001m)
+        //         {
+        //             if (stockDifference > 0)
+        //             {
+        //                 // CASE 1: INCREASING STOCK
+        //                 // Create a positive adjustment entry with CURRENT prices
+        //                 _logger.LogInformation($"Increasing stock for item {itemId} by {stockDifference}");
+
+        //                 var newStockEntry = new StockEntry
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     ItemId = existingItem.Id,
+        //                     CompanyId = existingItem.CompanyId,
+        //                     WsUnit = existingItem.WsUnit,
+        //                     Quantity = stockDifference, // Positive addition
+        //                     Price = existingItem.Price ?? 0,
+        //                     NetPrice = existingItem.Price ?? 0,
+        //                     PuPrice = existingItem.PuPrice ?? 0,
+        //                     NetPuPrice = existingItem.PuPrice ?? 0,
+        //                     MainUnitPuPrice = existingItem.MainUnitPuPrice,
+        //                     Mrp = existingItem.Price ?? 0,
+        //                     BatchNumber = "ADJ-ADD",
+        //                     ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+        //                     ExpiryStatus = "safe",
+        //                     DaysUntilExpiry = 730,
+        //                     FiscalYearId = fiscalYearId,
+        //                     UniqueUuid = Guid.NewGuid().ToString(),
+        //                     Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date),
+        //                     NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate),
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     UpdatedAt = DateTime.UtcNow
+        //                 };
+
+        //                 await _context.StockEntries.AddAsync(newStockEntry);
+        //                 _logger.LogInformation($"Created positive adjustment entry of {stockDifference} for item {itemId} with current prices");
+        //             }
+        //             else
+        //             {
+        //                 // CASE 2: DECREASING STOCK
+        //                 // Reduce from positive stock entries using FIFO
+        //                 decimal remainingToReduce = Math.Abs(stockDifference);
+
+        //                 _logger.LogInformation($"Decreasing stock for item {itemId} by {remainingToReduce}");
+
+        //                 // Get all positive stock entries (oldest first - FIFO)
+        //                 var positiveStockEntries = await _context.StockEntries
+        //                     .Where(se => se.ItemId == itemId && se.Quantity > 0)
+        //                     .OrderBy(se => se.CreatedAt)
+        //                     .ToListAsync();
+
+        //                 // Track entries that need to be deleted (quantity becomes 0)
+        //                 var entriesToDelete = new List<StockEntry>();
+
+        //                 foreach (var entry in positiveStockEntries)
+        //                 {
+        //                     if (remainingToReduce <= 0)
+        //                         break;
+
+        //                     if (entry.Quantity <= remainingToReduce)
+        //                     {
+        //                         // Fully reduce this entry - mark for deletion
+        //                         remainingToReduce -= entry.Quantity;
+        //                         entry.Quantity = 0;
+        //                         entriesToDelete.Add(entry);
+        //                         _logger.LogInformation($"Fully reduced stock entry {entry.Id} by {entry.Quantity} - will be deleted");
+        //                     }
+        //                     else
+        //                     {
+        //                         // Partially reduce this entry
+        //                         entry.Quantity -= remainingToReduce;
+        //                         _context.Entry(entry).State = EntityState.Modified;
+        //                         _logger.LogInformation($"Partially reduced stock entry {entry.Id} by {remainingToReduce}. Remaining: {entry.Quantity}");
+        //                         remainingToReduce = 0;
+        //                     }
+        //                 }
+
+        //                 // Delete all entries that have quantity 0
+        //                 foreach (var entry in entriesToDelete)
+        //                 {
+        //                     _context.StockEntries.Remove(entry);
+        //                     _logger.LogInformation($"Deleted stock entry {entry.Id} with quantity 0");
+        //                 }
+
+        //                 _logger.LogInformation($"Successfully reduced stock by {Math.Abs(stockDifference)} using existing positive stock entries.");
+        //             }
+        //         }
+        //         else
+        //         {
+        //             _logger.LogInformation($"No stock adjustment needed for item {itemId} - stock unchanged");
+        //         }
+
+        //         // Update the Item's OpeningStock property as well
+        //         existingItem.OpeningStock = newStock;
+
+        //         try
+        //         {
+        //             await _context.SaveChangesAsync();
+        //             await transaction.CommitAsync();
+
+        //             _logger.LogInformation($"Item {itemId} updated successfully. Stock: {oldStock} -> {newStock}, Adjustment: {stockDifference}");
+        //             return existingItem;
+        //         }
+        //         catch (DbUpdateConcurrencyException ex)
+        //         {
+        //             await transaction.RollbackAsync();
+        //             _logger.LogError(ex, $"Concurrency error updating item {itemId}. Data may have been modified by another process.");
+        //             throw new InvalidOperationException("The item was modified by another process. Please refresh and try again.");
+        //         }
+        //         catch (DbUpdateException ex)
+        //         {
+        //             await transaction.RollbackAsync();
+        //             _logger.LogError(ex, $"Database error updating item {itemId}");
+        //             throw;
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         _logger.LogError(ex, $"Error updating item {itemId}");
+        //         throw;
+        //     }
+        // }
+
         public async Task<Item> UpdateItemAsync(Guid itemId, UpdateItemDTO updateItemDto, Guid companyId, Guid fiscalYearId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -930,6 +1652,22 @@ namespace SkyForge.Services.Retailer.ItemServices
                 {
                     throw new InvalidOperationException($"Fiscal year {fiscalYearId} not found for company {companyId}");
                 }
+
+                // 2. Get the initial fiscal year for this company
+                var initialFiscalYear = await _context.FiscalYears
+                    .Where(f => f.CompanyId == companyId)
+                    .OrderBy(f => f.StartDate)
+                    .FirstOrDefaultAsync();
+
+                if (initialFiscalYear == null)
+                {
+                    throw new InvalidOperationException("Initial fiscal year not found");
+                }
+
+                // 3. Check if current fiscal year is the initial fiscal year
+                bool isInitialFiscalYear = fiscalYear.Id == initialFiscalYear.Id;
+
+                _logger.LogInformation($"Current Fiscal Year: {fiscalYear.Name}, Is Initial: {isInitialFiscalYear}");
 
                 // Load the item WITH tracking for updates
                 var existingItem = await _context.Items
@@ -966,9 +1704,8 @@ namespace SkyForge.Services.Retailer.ItemServices
                 // Store old values for logging
                 decimal? oldPrice = existingItem.Price;
                 decimal? oldPuPrice = existingItem.PuPrice;
-                decimal? oldMainUnitPuPrice = existingItem.MainUnitPuPrice;
 
-                // Update basic properties
+                // Update basic properties (ALWAYS allowed regardless of fiscal year)
                 if (!string.IsNullOrEmpty(updateItemDto.Name))
                 {
                     existingItem.Name = updateItemDto.Name.Trim();
@@ -1002,10 +1739,19 @@ namespace SkyForge.Services.Retailer.ItemServices
                     existingItem.ItemsCompanyId = updateItemDto.ItemsCompanyId.Value;
                 }
 
-                // Update prices - DIRECTLY from frontend
-                existingItem.Price = updateItemDto.Price ?? 0;
-                existingItem.PuPrice = updateItemDto.PuPrice ?? 0;
-                existingItem.MainUnitPuPrice = updateItemDto.MainUnitPuPrice ?? 0;
+                // ✅ ONLY update prices if in INITIAL fiscal year
+                if (isInitialFiscalYear)
+                {
+                    _logger.LogInformation($"Updating prices for item {itemId} in initial fiscal year");
+                    existingItem.Price = updateItemDto.Price ?? 0;
+                    existingItem.PuPrice = updateItemDto.PuPrice ?? 0;
+                    existingItem.MainUnitPuPrice = updateItemDto.MainUnitPuPrice ?? 0;
+                }
+                else
+                {
+                    _logger.LogInformation($"Skipping price updates for item {itemId} - Not in initial fiscal year");
+                    // Keep existing prices
+                }
 
                 if (updateItemDto.MainUnitId.HasValue)
                 {
@@ -1054,7 +1800,7 @@ namespace SkyForge.Services.Retailer.ItemServices
 
                 existingItem.UpdatedAt = DateTime.UtcNow;
 
-                // Update compositions if provided
+                // Update compositions if provided (ALWAYS allowed)
                 if (updateItemDto.CompositionIds != null)
                 {
                     // Remove existing compositions
@@ -1103,283 +1849,296 @@ namespace SkyForge.Services.Retailer.ItemServices
                     return providedNepaliDate ?? fiscalYear.StartDateNepali ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
                 }
 
-                // ========== UPDATE OPENING STOCK ENTRIES ONLY ==========
-                // Identify opening stock entries by checking if they are the first entry for this item
-                // and were created before any transactions
-                _logger.LogInformation($"Updating opening stock prices for item {itemId}. New Price: {existingItem.Price}, New PuPrice: {existingItem.PuPrice}");
-
-                // Get the initial opening stock entry for this item (created when the item was first created)
-                // We can identify it by checking if it's the oldest stock entry with batch number "XXX" 
-                // or if it's associated with the InitialOpeningStock
-                var initialOpeningStockEntry = await _context.StockEntries
-                    .Where(se => se.ItemId == itemId && se.BatchNumber == "ADJ-ADD")
-                    .OrderBy(se => se.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-                if (initialOpeningStockEntry != null)
+                // ========== STOCK-RELATED UPDATES - ONLY IN INITIAL FISCAL YEAR ==========
+                if (isInitialFiscalYear)
                 {
-                    _logger.LogInformation($"Found initial opening stock entry with quantity: {initialOpeningStockEntry.Quantity}");
+                    _logger.LogInformation($"Processing stock updates for item {itemId} in initial fiscal year");
 
-                    // ✅ UPDATE ONLY THE INITIAL OPENING STOCK ENTRY
-                    initialOpeningStockEntry.Price = existingItem.Price ?? 0;
-                    initialOpeningStockEntry.NetPrice = existingItem.Price ?? 0;
-                    initialOpeningStockEntry.Mrp = existingItem.Price ?? 0;
+                    // ========== UPDATE OPENING STOCK ENTRIES ONLY ==========
+                    // Identify opening stock entries by checking if they are the first entry for this item
+                    _logger.LogInformation($"Updating opening stock prices for item {itemId}. New Price: {existingItem.Price}, New PuPrice: {existingItem.PuPrice}");
 
-                    initialOpeningStockEntry.PuPrice = existingItem.PuPrice ?? 0;
-                    initialOpeningStockEntry.NetPuPrice = existingItem.PuPrice ?? 0;
-                    initialOpeningStockEntry.MainUnitPuPrice = existingItem.MainUnitPuPrice;
+                    // Get the initial opening stock entry for this item
+                    var initialOpeningStockEntry = await _context.StockEntries
+                        .Where(se => se.ItemId == itemId && se.BatchNumber == "ADJ-ADD")
+                        .OrderBy(se => se.CreatedAt)
+                        .FirstOrDefaultAsync();
 
-                    initialOpeningStockEntry.UpdatedAt = DateTime.UtcNow;
-                    _context.Entry(initialOpeningStockEntry).State = EntityState.Modified;
-
-                    _logger.LogInformation($"Updated initial opening stock entry with new prices");
-                }
-                else
-                {
-                    _logger.LogInformation("No initial opening stock entry found to update");
-                }
-
-                // ========== STOCK UPDATE LOGIC WITH VALIDATION ==========
-
-                // Get the OLD stock from ItemInitialOpeningStock
-                var existingInitialOpeningStock = await _context.Set<ItemInitialOpeningStock>()
-                    .FirstOrDefaultAsync(ios => ios.ItemId == itemId);
-
-                decimal oldStock = 0;
-                if (existingInitialOpeningStock != null)
-                {
-                    oldStock = existingInitialOpeningStock.OpeningStock;
-                }
-
-                // Get the NEW requested stock
-                decimal newStock = 0;
-                if (updateItemDto.OpeningStock.HasValue)
-                {
-                    newStock = updateItemDto.OpeningStock.Value;
-                }
-
-                // ========== STOCK VALIDATION: PREVENT NEGATIVE STOCK ==========
-                // Calculate the total stock that has been used/sold through transactions
-                // We need to check if the new stock would go negative
-
-                // Get current total stock from all stock entries (positive stock)
-                var currentTotalStock = await _context.StockEntries
-                    .Where(se => se.ItemId == itemId && se.Quantity > 0)
-                    .SumAsync(se => se.Quantity);
-
-                // Get total stock consumed (negative stock from transactions)
-                var consumedStock = await _context.StockEntries
-                    .Where(se => se.ItemId == itemId && se.Quantity < 0)
-                    .SumAsync(se => Math.Abs(se.Quantity));
-
-                // Calculate effective stock
-                decimal effectiveStock = currentTotalStock - consumedStock;
-
-                _logger.LogInformation($"Item {itemId} - Old Stock: {oldStock}, New Stock: {newStock}, Effective Stock: {effectiveStock}");
-
-                // ✅ VALIDATION: If decreasing stock, ensure it doesn't go below effective stock
-                if (newStock < oldStock)
-                {
-                    decimal decreaseAmount = oldStock - newStock;
-
-                    if (decreaseAmount > effectiveStock)
+                    if (initialOpeningStockEntry != null)
                     {
-                        var itemName = existingItem.Name ?? "Item";
-                        throw new InvalidOperationException(
-                            $"Cannot reduce stock from {oldStock} to {newStock} for '{itemName}'. " +
-                            $"Only {effectiveStock} units available to reduce. " +
-                            $"Stock has been consumed by {consumedStock} units through transactions.");
+                        _logger.LogInformation($"Found initial opening stock entry with quantity: {initialOpeningStockEntry.Quantity}");
+
+                        // ✅ UPDATE ONLY THE INITIAL OPENING STOCK ENTRY
+                        initialOpeningStockEntry.Price = existingItem.Price ?? 0;
+                        initialOpeningStockEntry.NetPrice = existingItem.Price ?? 0;
+                        initialOpeningStockEntry.Mrp = existingItem.Price ?? 0;
+
+                        initialOpeningStockEntry.PuPrice = existingItem.PuPrice ?? 0;
+                        initialOpeningStockEntry.NetPuPrice = existingItem.PuPrice ?? 0;
+                        initialOpeningStockEntry.MainUnitPuPrice = existingItem.MainUnitPuPrice;
+
+                        initialOpeningStockEntry.UpdatedAt = DateTime.UtcNow;
+                        _context.Entry(initialOpeningStockEntry).State = EntityState.Modified;
+
+                        _logger.LogInformation($"Updated initial opening stock entry with new prices");
+                    }
+                    else
+                    {
+                        _logger.LogInformation("No initial opening stock entry found to update");
                     }
 
-                    _logger.LogInformation($"Stock reduction of {decreaseAmount} is valid. Available to reduce: {effectiveStock}");
-                }
+                    // ========== STOCK UPDATE LOGIC WITH VALIDATION ==========
 
-                // Calculate the difference (adjustment needed) - only if valid
-                decimal stockDifference = newStock - oldStock;
+                    // Get the OLD stock from ItemInitialOpeningStock
+                    var existingInitialOpeningStock = await _context.Set<ItemInitialOpeningStock>()
+                        .FirstOrDefaultAsync(ios => ios.ItemId == itemId);
 
-                _logger.LogInformation($"Item {itemId} - Old Stock: {oldStock}, New Stock: {newStock}, Difference: {stockDifference}");
-
-                // 1. UPDATE ItemInitialOpeningStock with new prices FROM FRONTEND
-                if (existingInitialOpeningStock != null)
-                {
-                    // Update existing
-                    existingInitialOpeningStock.OpeningStock = newStock;
-                    existingInitialOpeningStock.OpeningStockValue = newStock * (existingItem.PuPrice ?? 0);
-                    existingInitialOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0; // ✅ FROM FRONTEND
-                    existingInitialOpeningStock.SalesPrice = existingItem.Price ?? 0;      // ✅ FROM FRONTEND
-                    existingInitialOpeningStock.Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date);
-                    existingInitialOpeningStock.NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate);
-                    existingInitialOpeningStock.UpdatedAt = DateTime.UtcNow;
-
-                    _context.Entry(existingInitialOpeningStock).State = EntityState.Modified;
-                }
-                else if (newStock > 0)
-                {
-                    // Create new if it doesn't exist and stock > 0
-                    var newInitialOpeningStock = new ItemInitialOpeningStock
+                    decimal oldStock = 0;
+                    if (existingInitialOpeningStock != null)
                     {
-                        Id = Guid.NewGuid(),
-                        ItemId = existingItem.Id,
-                        CompanyId = existingItem.CompanyId,
-                        InitialFiscalYearId = updateItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
-                        OpeningStock = newStock,
-                        OpeningStockValue = newStock * (existingItem.PuPrice ?? 0),
-                        PurchasePrice = existingItem.PuPrice ?? 0, // ✅ FROM FRONTEND
-                        SalesPrice = existingItem.Price ?? 0,      // ✅ FROM FRONTEND
-                        Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date),
-                        NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate),
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
+                        oldStock = existingInitialOpeningStock.OpeningStock;
+                    }
 
-                    await _context.Set<ItemInitialOpeningStock>().AddAsync(newInitialOpeningStock);
-                    existingItem.InitialOpeningStock = newInitialOpeningStock;
-                }
-
-                // 2. UPDATE ItemOpeningStockByFiscalYear for current fiscal year with new prices FROM FRONTEND
-                var currentFiscalYearOpeningStock = existingItem.OpeningStocksByFiscalYear?
-                    .FirstOrDefault(os => os.FiscalYearId == fiscalYearId);
-
-                if (currentFiscalYearOpeningStock != null)
-                {
-                    // Update existing
-                    currentFiscalYearOpeningStock.OpeningStock = newStock;
-                    currentFiscalYearOpeningStock.OpeningStockValue = newStock * (existingItem.PuPrice ?? 0);
-                    currentFiscalYearOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0; // ✅ FROM FRONTEND
-                    currentFiscalYearOpeningStock.SalesPrice = existingItem.Price ?? 0;      // ✅ FROM FRONTEND
-                    currentFiscalYearOpeningStock.Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date);
-                    currentFiscalYearOpeningStock.NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate);
-                    currentFiscalYearOpeningStock.UpdatedAt = DateTime.UtcNow;
-                }
-                else if (newStock > 0)
-                {
-                    // Create new if it doesn't exist and stock > 0
-                    var newOpeningStockRecord = new ItemOpeningStockByFiscalYear
+                    // Get the NEW requested stock
+                    decimal newStock = 0;
+                    if (updateItemDto.OpeningStock.HasValue)
                     {
-                        Id = Guid.NewGuid(),
-                        ItemId = existingItem.Id,
-                        FiscalYearId = fiscalYearId,
-                        CompanyId = existingItem.CompanyId,
-                        OpeningStock = newStock,
-                        OpeningStockValue = newStock * (existingItem.PuPrice ?? 0),
-                        PurchasePrice = existingItem.PuPrice ?? 0, // ✅ FROM FRONTEND
-                        SalesPrice = existingItem.Price ?? 0,      // ✅ FROM FRONTEND
-                        Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date),
-                        NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate),
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
+                        newStock = updateItemDto.OpeningStock.Value;
+                    }
 
-                    await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStockRecord);
-                }
+                    // ========== STOCK VALIDATION: PREVENT NEGATIVE STOCK ==========
+                    // Get current total stock from all stock entries (positive stock)
+                    var currentTotalStock = await _context.StockEntries
+                        .Where(se => se.ItemId == itemId && se.Quantity > 0)
+                        .SumAsync(se => se.Quantity);
 
-                // 3. HANDLE STOCK ENTRY ADJUSTMENT (only if stockDifference is valid)
-                if (Math.Abs(stockDifference) > 0.001m)
-                {
-                    if (stockDifference > 0)
+                    // Get total stock consumed (negative stock from transactions)
+                    var consumedStock = await _context.StockEntries
+                        .Where(se => se.ItemId == itemId && se.Quantity < 0)
+                        .SumAsync(se => Math.Abs(se.Quantity));
+
+                    // Calculate effective stock
+                    decimal effectiveStock = currentTotalStock - consumedStock;
+
+                    _logger.LogInformation($"Item {itemId} - Old Stock: {oldStock}, New Stock: {newStock}, Effective Stock: {effectiveStock}");
+
+                    // ✅ VALIDATION: If decreasing stock, ensure it doesn't go below effective stock
+                    if (newStock < oldStock)
                     {
-                        // CASE 1: INCREASING STOCK
-                        // Create a positive adjustment entry with CURRENT prices
-                        _logger.LogInformation($"Increasing stock for item {itemId} by {stockDifference}");
+                        decimal decreaseAmount = oldStock - newStock;
 
-                        var newStockEntry = new StockEntry
+                        if (decreaseAmount > effectiveStock)
+                        {
+                            var itemName = existingItem.Name ?? "Item";
+                            throw new InvalidOperationException(
+                                $"Cannot reduce stock from {oldStock} to {newStock} for '{itemName}'. " +
+                                $"Only {effectiveStock} units available to reduce. " +
+                                $"Stock has been consumed by {consumedStock} units through transactions.");
+                        }
+
+                        _logger.LogInformation($"Stock reduction of {decreaseAmount} is valid. Available to reduce: {effectiveStock}");
+                    }
+
+                    // Calculate the difference (adjustment needed) - only if valid
+                    decimal stockDifference = newStock - oldStock;
+
+                    _logger.LogInformation($"Item {itemId} - Old Stock: {oldStock}, New Stock: {newStock}, Difference: {stockDifference}");
+
+                    // 1. UPDATE ItemInitialOpeningStock with new prices FROM FRONTEND
+                    if (existingInitialOpeningStock != null)
+                    {
+                        // Update existing
+                        existingInitialOpeningStock.OpeningStock = newStock;
+                        existingInitialOpeningStock.OpeningStockValue = newStock * (existingItem.PuPrice ?? 0);
+                        existingInitialOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0;
+                        existingInitialOpeningStock.SalesPrice = existingItem.Price ?? 0;
+                        existingInitialOpeningStock.Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date);
+                        existingInitialOpeningStock.NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate);
+                        existingInitialOpeningStock.UpdatedAt = DateTime.UtcNow;
+
+                        _context.Entry(existingInitialOpeningStock).State = EntityState.Modified;
+                    }
+                    else if (newStock > 0)
+                    {
+                        // Create new if it doesn't exist and stock > 0
+                        var newInitialOpeningStock = new ItemInitialOpeningStock
                         {
                             Id = Guid.NewGuid(),
                             ItemId = existingItem.Id,
                             CompanyId = existingItem.CompanyId,
-                            WsUnit = existingItem.WsUnit,
-                            Quantity = stockDifference, // Positive addition
-                            Price = existingItem.Price ?? 0,
-                            NetPrice = existingItem.Price ?? 0,
-                            PuPrice = existingItem.PuPrice ?? 0,
-                            NetPuPrice = existingItem.PuPrice ?? 0,
-                            MainUnitPuPrice = existingItem.MainUnitPuPrice,
-                            Mrp = existingItem.Price ?? 0,
-                            BatchNumber = "ADJ-ADD",
-                            ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
-                            ExpiryStatus = "safe",
-                            DaysUntilExpiry = 730,
-                            FiscalYearId = fiscalYearId,
-                            UniqueUuid = Guid.NewGuid().ToString(),
+                            InitialFiscalYearId = updateItemDto.InitialOpeningStock?.InitialFiscalYearId ?? fiscalYearId,
+                            OpeningStock = newStock,
+                            OpeningStockValue = newStock * (existingItem.PuPrice ?? 0),
+                            PurchasePrice = existingItem.PuPrice ?? 0,
+                            SalesPrice = existingItem.Price ?? 0,
                             Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date),
                             NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate),
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
                         };
 
-                        await _context.StockEntries.AddAsync(newStockEntry);
-                        _logger.LogInformation($"Created positive adjustment entry of {stockDifference} for item {itemId} with current prices");
+                        await _context.Set<ItemInitialOpeningStock>().AddAsync(newInitialOpeningStock);
+                        existingItem.InitialOpeningStock = newInitialOpeningStock;
+                    }
+
+                    // 2. UPDATE ItemOpeningStockByFiscalYear for current fiscal year with new prices FROM FRONTEND
+                    var currentFiscalYearOpeningStock = existingItem.OpeningStocksByFiscalYear?
+                        .FirstOrDefault(os => os.FiscalYearId == fiscalYearId);
+
+                    if (currentFiscalYearOpeningStock != null)
+                    {
+                        // Update existing
+                        currentFiscalYearOpeningStock.OpeningStock = newStock;
+                        currentFiscalYearOpeningStock.OpeningStockValue = newStock * (existingItem.PuPrice ?? 0);
+                        currentFiscalYearOpeningStock.PurchasePrice = existingItem.PuPrice ?? 0;
+                        currentFiscalYearOpeningStock.SalesPrice = existingItem.Price ?? 0;
+                        currentFiscalYearOpeningStock.Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date);
+                        currentFiscalYearOpeningStock.NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate);
+                        currentFiscalYearOpeningStock.UpdatedAt = DateTime.UtcNow;
+                    }
+                    else if (newStock > 0)
+                    {
+                        // Create new if it doesn't exist and stock > 0
+                        var newOpeningStockRecord = new ItemOpeningStockByFiscalYear
+                        {
+                            Id = Guid.NewGuid(),
+                            ItemId = existingItem.Id,
+                            FiscalYearId = fiscalYearId,
+                            CompanyId = existingItem.CompanyId,
+                            OpeningStock = newStock,
+                            OpeningStockValue = newStock * (existingItem.PuPrice ?? 0),
+                            PurchasePrice = existingItem.PuPrice ?? 0,
+                            SalesPrice = existingItem.Price ?? 0,
+                            Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date),
+                            NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate),
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        await _context.Set<ItemOpeningStockByFiscalYear>().AddAsync(newOpeningStockRecord);
+                    }
+
+                    // 3. HANDLE STOCK ENTRY ADJUSTMENT (only if stockDifference is valid)
+                    if (Math.Abs(stockDifference) > 0.001m)
+                    {
+                        if (stockDifference > 0)
+                        {
+                            // CASE 1: INCREASING STOCK
+                            _logger.LogInformation($"Increasing stock for item {itemId} by {stockDifference}");
+
+                            var newStockEntry = new StockEntry
+                            {
+                                Id = Guid.NewGuid(),
+                                ItemId = existingItem.Id,
+                                CompanyId = existingItem.CompanyId,
+                                WsUnit = existingItem.WsUnit,
+                                Quantity = stockDifference,
+                                Price = existingItem.Price ?? 0,
+                                NetPrice = existingItem.Price ?? 0,
+                                PuPrice = existingItem.PuPrice ?? 0,
+                                NetPuPrice = existingItem.PuPrice ?? 0,
+                                MainUnitPuPrice = existingItem.MainUnitPuPrice,
+                                Mrp = existingItem.Price ?? 0,
+                                BatchNumber = "ADJ-ADD",
+                                ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                                ExpiryStatus = "safe",
+                                DaysUntilExpiry = 730,
+                                FiscalYearId = fiscalYearId,
+                                UniqueUuid = Guid.NewGuid().ToString(),
+                                Date = GetDefaultDate(updateItemDto.InitialOpeningStock?.Date),
+                                NepaliDate = GetDefaultNepaliDate(updateItemDto.InitialOpeningStock?.NepaliDate),
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedAt = DateTime.UtcNow
+                            };
+
+                            await _context.StockEntries.AddAsync(newStockEntry);
+                            _logger.LogInformation($"Created positive adjustment entry of {stockDifference} for item {itemId} with current prices");
+                        }
+                        else
+                        {
+                            // CASE 2: DECREASING STOCK
+                            decimal remainingToReduce = Math.Abs(stockDifference);
+
+                            _logger.LogInformation($"Decreasing stock for item {itemId} by {remainingToReduce}");
+
+                            // Get all positive stock entries (oldest first - FIFO)
+                            var positiveStockEntries = await _context.StockEntries
+                                .Where(se => se.ItemId == itemId && se.Quantity > 0)
+                                .OrderBy(se => se.CreatedAt)
+                                .ToListAsync();
+
+                            var entriesToDelete = new List<StockEntry>();
+
+                            foreach (var entry in positiveStockEntries)
+                            {
+                                if (remainingToReduce <= 0)
+                                    break;
+
+                                if (entry.Quantity <= remainingToReduce)
+                                {
+                                    remainingToReduce -= entry.Quantity;
+                                    entry.Quantity = 0;
+                                    entriesToDelete.Add(entry);
+                                    _logger.LogInformation($"Fully reduced stock entry {entry.Id} by {entry.Quantity} - will be deleted");
+                                }
+                                else
+                                {
+                                    entry.Quantity -= remainingToReduce;
+                                    _context.Entry(entry).State = EntityState.Modified;
+                                    _logger.LogInformation($"Partially reduced stock entry {entry.Id} by {remainingToReduce}. Remaining: {entry.Quantity}");
+                                    remainingToReduce = 0;
+                                }
+                            }
+
+                            foreach (var entry in entriesToDelete)
+                            {
+                                _context.StockEntries.Remove(entry);
+                                _logger.LogInformation($"Deleted stock entry {entry.Id} with quantity 0");
+                            }
+
+                            _logger.LogInformation($"Successfully reduced stock by {Math.Abs(stockDifference)} using existing positive stock entries.");
+                        }
                     }
                     else
                     {
-                        // CASE 2: DECREASING STOCK
-                        // Reduce from positive stock entries using FIFO
-                        decimal remainingToReduce = Math.Abs(stockDifference);
-
-                        _logger.LogInformation($"Decreasing stock for item {itemId} by {remainingToReduce}");
-
-                        // Get all positive stock entries (oldest first - FIFO)
-                        var positiveStockEntries = await _context.StockEntries
-                            .Where(se => se.ItemId == itemId && se.Quantity > 0)
-                            .OrderBy(se => se.CreatedAt)
-                            .ToListAsync();
-
-                        // Track entries that need to be deleted (quantity becomes 0)
-                        var entriesToDelete = new List<StockEntry>();
-
-                        foreach (var entry in positiveStockEntries)
-                        {
-                            if (remainingToReduce <= 0)
-                                break;
-
-                            if (entry.Quantity <= remainingToReduce)
-                            {
-                                // Fully reduce this entry - mark for deletion
-                                remainingToReduce -= entry.Quantity;
-                                entry.Quantity = 0;
-                                entriesToDelete.Add(entry);
-                                _logger.LogInformation($"Fully reduced stock entry {entry.Id} by {entry.Quantity} - will be deleted");
-                            }
-                            else
-                            {
-                                // Partially reduce this entry
-                                entry.Quantity -= remainingToReduce;
-                                _context.Entry(entry).State = EntityState.Modified;
-                                _logger.LogInformation($"Partially reduced stock entry {entry.Id} by {remainingToReduce}. Remaining: {entry.Quantity}");
-                                remainingToReduce = 0;
-                            }
-                        }
-
-                        // Delete all entries that have quantity 0
-                        foreach (var entry in entriesToDelete)
-                        {
-                            _context.StockEntries.Remove(entry);
-                            _logger.LogInformation($"Deleted stock entry {entry.Id} with quantity 0");
-                        }
-
-                        _logger.LogInformation($"Successfully reduced stock by {Math.Abs(stockDifference)} using existing positive stock entries.");
+                        _logger.LogInformation($"No stock adjustment needed for item {itemId} - stock unchanged");
                     }
+
+                    // Update the Item's OpeningStock property
+                    existingItem.OpeningStock = newStock;
                 }
                 else
                 {
-                    _logger.LogInformation($"No stock adjustment needed for item {itemId} - stock unchanged");
-                }
+                    // ✅ NOT in initial fiscal year - SKIP ALL stock-related updates
+                    _logger.LogInformation($"Skipping all stock-related updates for item {itemId} - Not in initial fiscal year");
 
-                // Update the Item's OpeningStock property as well
-                existingItem.OpeningStock = newStock;
+                    // ⚠️ Optionally: If the user tries to send stock data in non-initial year, ignore it
+                    if (updateItemDto.OpeningStock.HasValue)
+                    {
+                        _logger.LogWarning($"User attempted to update opening stock in non-initial fiscal year. Ignoring.");
+                    }
+                    if (updateItemDto.Price.HasValue || updateItemDto.PuPrice.HasValue)
+                    {
+                        _logger.LogWarning($"User attempted to update prices in non-initial fiscal year. Ignoring.");
+                    }
+                    if (updateItemDto.InitialOpeningStock != null)
+                    {
+                        _logger.LogWarning($"User attempted to update initial opening stock in non-initial fiscal year. Ignoring.");
+                    }
+                }
 
                 try
                 {
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    _logger.LogInformation($"Item {itemId} updated successfully. Stock: {oldStock} -> {newStock}, Adjustment: {stockDifference}");
+                    _logger.LogInformation($"Item {itemId} updated successfully. Initial Fiscal Year: {isInitialFiscalYear}");
                     return existingItem;
                 }
                 catch (DbUpdateConcurrencyException ex)
                 {
                     await transaction.RollbackAsync();
-                    _logger.LogError(ex, $"Concurrency error updating item {itemId}. Data may have been modified by another process.");
+                    _logger.LogError(ex, $"Concurrency error updating item {itemId}");
                     throw new InvalidOperationException("The item was modified by another process. Please refresh and try again.");
                 }
                 catch (DbUpdateException ex)

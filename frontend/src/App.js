@@ -147,6 +147,7 @@ import OpenCashCounterPage from './components/retailer/OpenCashCounterPage';
 import PartyTurnover from './components/retailer/miscellaneous/PartyTurnover';
 import { useSessionManager } from './hooks/useSessionManager';
 import BulkDeleteItems from './components/retailer/Items/BulkDeleteItems';
+import UpdateBalancesPage from './components/fiscalYear/UpdateBalancesPage';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
@@ -1135,14 +1136,14 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-            {/* <Route
-              path="/backups"
+            <Route
+              path="/update-balances"
               element={
                 <ProtectedRoute>
-                  <BackupPages />
+                  <UpdateBalancesPage />
                 </ProtectedRoute>
               }
-            /> */}
+            />
             {/**======================================================*/}
 
             <Route path="/retailer/confirmation-of-vat" element={<VATConfirmationLetter />} />

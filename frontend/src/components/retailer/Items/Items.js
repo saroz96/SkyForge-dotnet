@@ -2215,7 +2215,6 @@
 //--------------------------------------------------------end1
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiEye, FiCheck, FiPrinter, FiArrowLeft, FiPlus, FiRefreshCw, FiX, FiHash, FiSearch, FiBox, FiGrid, FiTag, FiFileText, FiDownload, FiSave } from 'react-icons/fi';
 import { FixedSizeList as List } from 'react-window';
@@ -2266,7 +2265,7 @@ const Items = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [totalFilteredItems, setTotalFilteredItems] = useState(0);
     const tableContainerRef = useRef(null);
-
+    const [isInitialFiscalYear, setIsInitialFiscalYear] = useState(false);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showPrintModal, setShowPrintModal] = useState(false);
@@ -2340,38 +2339,6 @@ const Items = () => {
         openingStockBalance: '',
         uniqueNumber: ''
     });
-
-    // // Create axios instance with interceptors
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5142',
-    //     withCredentials: true,
-    // });
-
-    // api.interceptors.request.use(
-    //     config => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     error => Promise.reject(error)
-    // );
-
-    // api.interceptors.response.use(
-    //     response => response,
-    //     error => {
-    //         if (error.response?.status === 401) {
-    //             localStorage.removeItem('token');
-    //             localStorage.removeItem('userInfo');
-    //             localStorage.removeItem('currentCompany');
-    //             localStorage.removeItem('currentCompanyId');
-    //             localStorage.removeItem('userCompanies');
-    //             window.location.href = '/auth/login';
-    //         }
-    //         return Promise.reject(error);
-    //     }
-    // );
 
     const showNotificationMessage = (message, type) => {
         setNotificationMessage(message);
@@ -2878,7 +2845,8 @@ const Items = () => {
                     transactionsMap[item.id || item._id] = item.hasTransactions === 'true' || item.hasTransactions === true;
                 });
                 setItemsWithTransactions(transactionsMap);
-
+                const isInitial = response.data.isInitialFiscalYear || false;
+                setIsInitialFiscalYear(isInitial);
                 setData({
                     items: itemsArray,
                     categories: response.data.categories || [],
@@ -2896,7 +2864,8 @@ const Items = () => {
                     fiscalYear: response.data.fiscalYear || '',
                     user: response.data.user,
                     theme: response.data.theme || 'light',
-                    isAdminOrSupervisor: response.data.isAdminOrSupervisor || false
+                    isAdminOrSupervisor: response.data.isAdminOrSupervisor || false,
+                    isInitialFiscalYear: isInitial
                 });
                 setIsTableDataFresh(true);
                 setLastUpdated(new Date().toISOString());
@@ -2934,6 +2903,18 @@ const Items = () => {
         );
         setSelectedCompositions(selectedCompositionObjs);
 
+        // ✅ Get opening stock from OpeningStocksByFiscalYear for the current fiscal year
+        const currentFiscalYearId = data.currentFiscalYear?.id || data.currentFiscalYear?._id;
+        const openingStockData = item.openingStocksByFiscalYear?.find(
+            os => os.fiscalYearId === currentFiscalYearId || os.fiscalYear?.id === currentFiscalYearId
+        );
+
+        // ✅ If no opening stock found for current fiscal year, use item defaults
+        const openingStock = openingStockData?.openingStock ?? item.openingStock ?? 0;
+        const purchasePrice = openingStockData?.purchasePrice ?? item.puPrice ?? 0;
+        const salesPrice = openingStockData?.salesPrice ?? item.price ?? 0;
+        const openingStockValue = openingStockData?.openingStockValue ?? (purchasePrice * openingStock);
+
         setFormData({
             name: item.name || '',
             hscode: item.hscode || '',
@@ -2944,11 +2925,49 @@ const Items = () => {
             unitId: item.unitId || '',
             vatStatus: item.vatStatus || '',
             reorderLevel: item.reorderLevel || '',
-            price: item.price || '',
-            puPrice: item.puPrice || '',
-            openingStock: item.openingStock || '',
-            openingStockBalance: item.openingStockBalance || (item.puPrice * item.openingStock).toFixed(2),
+            price: salesPrice, // ✅ Use sales price from opening stock data
+            puPrice: purchasePrice, // ✅ Use purchase price from opening stock data
+            openingStock: openingStock, // ✅ Use opening stock from opening stock data
+            openingStockBalance: openingStockValue, // ✅ Use opening stock value from opening stock data
             uniqueNumber: item.uniqueNumber || ''
+        });
+        setGeneratedUniqueNumber(item.uniqueNumber);
+        setPendingNumberGeneration(false);
+    };
+
+    const handleSelectItem = (item) => {
+        setSearchTerm(item.name?.toLowerCase() || '');
+
+        const compositionIds = item.compositions ? item.compositions.map(c => c.id || c._id) : [];
+        const selectedCompositionObjs = data.composition.filter(comp =>
+            compositionIds.includes(comp.id || comp._id)
+        );
+        setSelectedCompositions(selectedCompositionObjs);
+
+        // ✅ Get opening stock from OpeningStocksByFiscalYear for the current fiscal year
+        const currentFiscalYearId = data.currentFiscalYear?.id || data.currentFiscalYear?._id;
+        const openingStockData = item.openingStocksByFiscalYear?.find(
+            os => os.fiscalYearId === currentFiscalYearId || os.fiscalYear?.id === currentFiscalYearId
+        );
+
+        // ✅ If no opening stock found for current fiscal year, use item defaults
+        const openingStock = openingStockData?.openingStock ?? item.openingStock ?? 0;
+        const purchasePrice = openingStockData?.purchasePrice ?? item.puPrice ?? 0;
+        const salesPrice = openingStockData?.salesPrice ?? item.price ?? 0;
+        const openingStockValue = openingStockData?.openingStockValue ?? (purchasePrice * openingStock);
+
+        setFormData({
+            name: item.name || '',
+            hscode: item.hscode || '',
+            categoryId: item.categoryId || '',
+            itemsCompanyId: item.itemsCompanyId || '',
+            mainUnitId: item.mainUnitId || '',
+            wsUnit: item.wsUnit || '',
+            unitId: item.unitId || '',
+            vatStatus: item.vatStatus || '',
+            reorderLevel: item.reorderLevel || '',
+            price: salesPrice, // ✅ Use sales price from opening stock data
+            puPrice: purchasePrice, // ✅ Use purchase price from opening stock data
         });
         setGeneratedUniqueNumber(item.uniqueNumber);
         setPendingNumberGeneration(false);
@@ -2975,33 +2994,33 @@ const Items = () => {
         }
     };
 
-    const handleSelectItem = (item) => {
-        setSearchTerm(item.name?.toLowerCase() || '');
+    // const handleSelectItem = (item) => {
+    //     setSearchTerm(item.name?.toLowerCase() || '');
 
-        const compositionIds = item.compositions ? item.compositions.map(c => c.id || c._id) : [];
-        const selectedCompositionObjs = data.composition.filter(comp =>
-            compositionIds.includes(comp.id || comp._id)
-        );
-        setSelectedCompositions(selectedCompositionObjs);
+    //     const compositionIds = item.compositions ? item.compositions.map(c => c.id || c._id) : [];
+    //     const selectedCompositionObjs = data.composition.filter(comp =>
+    //         compositionIds.includes(comp.id || comp._id)
+    //     );
+    //     setSelectedCompositions(selectedCompositionObjs);
 
-        setFormData({
-            name: item.name || '',
-            hscode: item.hscode || '',
-            categoryId: item.categoryId || '',
-            itemsCompanyId: item.itemsCompanyId || '',
-            mainUnitId: item.mainUnitId || '',
-            wsUnit: item.wsUnit || '',
-            unitId: item.unitId || '',
-            vatStatus: item.vatStatus || '',
-            reorderLevel: item.reorderLevel || '',
-            price: item.price || '',
-            puPrice: item.puPrice || '',
-            openingStock: item.openingStock || '',
-            openingStockBalance: item.openingStockBalance || (item.puPrice * item.openingStock).toFixed(2),
-        });
-        setGeneratedUniqueNumber(item.uniqueNumber);
-        setPendingNumberGeneration(false);
-    };
+    //     setFormData({
+    //         name: item.name || '',
+    //         hscode: item.hscode || '',
+    //         categoryId: item.categoryId || '',
+    //         itemsCompanyId: item.itemsCompanyId || '',
+    //         mainUnitId: item.mainUnitId || '',
+    //         wsUnit: item.wsUnit || '',
+    //         unitId: item.unitId || '',
+    //         vatStatus: item.vatStatus || '',
+    //         reorderLevel: item.reorderLevel || '',
+    //         price: item.price || '',
+    //         puPrice: item.puPrice || '',
+    //         openingStock: item.openingStock || '',
+    //         openingStockBalance: item.openingStockBalance || (item.puPrice * item.openingStock).toFixed(2),
+    //     });
+    //     setGeneratedUniqueNumber(item.uniqueNumber);
+    //     setPendingNumberGeneration(false);
+    // };
 
     const handleFormChange = (e) => {
         const { name, value } = e.target;
@@ -3622,7 +3641,8 @@ const Items = () => {
                                     </div>
 
                                     <div className="it-form-group it-form-group--third">
-                                        <label className="it-form-label">Opening Stock</label>
+                                        <label className="it-form-label">Opening Stock
+                                        </label>
                                         <input
                                             ref={openingStockInputRef}
                                             type="number"
@@ -3661,7 +3681,7 @@ const Items = () => {
                                             className="it-form-input it-form-input--readonly"
                                             value={formData.openingStockBalance}
                                             onChange={handleFormChange}
-                                            readOnly={currentItem ? itemsWithTransactions[currentItem._id] : false}
+                                            readOnly={currentItem ? itemsWithTransactions[currentItem._id] : false && !isInitialFiscalYear}
                                             placeholder="0.00"
                                             autoComplete="off"
                                             step="any"

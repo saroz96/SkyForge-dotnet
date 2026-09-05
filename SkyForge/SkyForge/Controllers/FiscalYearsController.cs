@@ -8,7 +8,6 @@ using SkyForge.Services;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using SkyForge.Services;
 using SkyForge.Models;
 
 namespace SkyForge.Controllers
@@ -1209,6 +1208,123 @@ namespace SkyForge.Controllers
                 {
                     _logger.LogError(ex, "Error sending SSE event");
                 }
+            }
+        }
+
+
+        // Add to FiscalYearsController.cs
+
+        [HttpGet("check-carry-forward")]
+        public async Task<IActionResult> CheckCarryForward([FromQuery] Guid sourceFiscalYearId, [FromQuery] Guid targetFiscalYearId)
+        {
+            try
+            {
+                var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+                if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyIdGuid))
+                {
+                    return BadRequest(new { success = false, error = "No company selected" });
+                }
+
+                var result = await _fiscalYearTransferService.CheckCarryForwardNeededAsync(
+                    sourceFiscalYearId, targetFiscalYearId, companyIdGuid);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking carry forward");
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost("carry-forward")]
+        public async Task<IActionResult> CarryForwardBalances([FromBody] CarryForwardRequestDto request)
+        {
+            try
+            {
+                var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+                if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyIdGuid))
+                {
+                    return BadRequest(new CarryForwardResponseDto
+                    {
+                        Success = false,
+                        Message = "No company selected",
+                        Errors = new List<string> { "Please select a company first" }
+                    });
+                }
+
+                var result = await _fiscalYearTransferService.CarryForwardBalancesAsync(request, companyIdGuid);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error carrying forward balances");
+                return StatusCode(500, new CarryForwardResponseDto
+                {
+                    Success = false,
+                    Message = "Internal server error",
+                    Errors = new List<string> { ex.Message }
+                });
+            }
+        }
+
+
+        // Add to FiscalYearsController.cs
+
+        [HttpGet("get-updateable-balances")]
+        public async Task<IActionResult> GetUpdateableBalances(
+            [FromQuery] Guid sourceFiscalYearId,
+            [FromQuery] Guid targetFiscalYearId,
+            [FromQuery] string carryType)
+        {
+            try
+            {
+                var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+                if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyIdGuid))
+                {
+                    return BadRequest(new { success = false, error = "No company selected" });
+                }
+
+                var result = await _fiscalYearTransferService.GetUpdateableBalancesAsync(
+                    sourceFiscalYearId, targetFiscalYearId, companyIdGuid, carryType);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting updateable balances");
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost("update-and-finalize")]
+        public async Task<IActionResult> UpdateAndFinalizeBalances([FromBody] UpdateBalancesRequestDto request)
+        {
+            try
+            {
+                var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+                if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyIdGuid))
+                {
+                    return BadRequest(new UpdateBalancesResponseDto
+                    {
+                        Success = false,
+                        Message = "No company selected",
+                        Errors = new List<string> { "Please select a company first" }
+                    });
+                }
+
+                var result = await _fiscalYearTransferService.UpdateAndFinalizeBalancesAsync(request, companyIdGuid);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating and finalizing balances");
+                return StatusCode(500, new UpdateBalancesResponseDto
+                {
+                    Success = false,
+                    Message = "Internal server error",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
 

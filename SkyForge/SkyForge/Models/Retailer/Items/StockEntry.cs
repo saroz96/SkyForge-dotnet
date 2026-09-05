@@ -166,8 +166,5 @@ namespace SkyForge.Models.Retailer.Items
 
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation property back to Item
-        // public Item? ParentItem { get; set; }
     }
 }

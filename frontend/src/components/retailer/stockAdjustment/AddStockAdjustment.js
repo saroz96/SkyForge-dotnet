@@ -1360,7 +1360,8 @@ const AddStockAdjustment = () => {
             setFormData({
                 adjustmentType: 'xcess',
                 nepaliDate: isNepaliFormat ? transactionDate : '',
-                billDate: !isNepaliFormat ? invoiceDate : '',
+                // billDate: !isNepaliFormat ? invoiceDate : '',
+                billDate: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : ''),
                 billNumber: currentBillNum,
                 isVatExempt: 'all',
                 note: '',
@@ -1389,13 +1390,46 @@ const AddStockAdjustment = () => {
             setTotalSearchItems(0);
             setShowItemDropdown(false);
 
+            // setTimeout(() => {
+            //     if (company.dateFormat === 'nepali' && nepaliDateRef.current) {
+            //         nepaliDateRef.current.focus();
+            //     } else if (transactionDateRef.current) {
+            //         transactionDateRef.current.focus();
+            //     }
+            // }, 100);
+
             setTimeout(() => {
-                if (company.dateFormat === 'nepali' && nepaliDateRef.current) {
-                    nepaliDateRef.current.focus();
-                } else if (transactionDateRef.current) {
-                    transactionDateRef.current.focus();
+                if (isNepaliFormat) {
+                    // Focus on Nepali date picker
+                    if (dateInputRef.current) {
+                        // For NepaliDatePicker, focus the internal input
+                        if (typeof dateInputRef.current.focus === 'function') {
+                            dateInputRef.current.focus();
+                        } else {
+                            // If it's a DOM element
+                            dateInputRef.current.focus();
+                            if (dateInputRef.current.select) {
+                            }
+                        }
+                    } else {
+                        // Fallback: find the Nepali date input
+                        const nepaliDateInput = document.querySelector('input[name="nepaliDate"]');
+                        if (nepaliDateInput) {
+                            nepaliDateInput.focus();
+                            if (nepaliDateInput.select) {
+                            }
+                        }
+                    }
+                } else {
+                    // Focus on English date input
+                    const adDateInput = document.querySelector('input[name="billDate"]');
+                    if (adDateInput) {
+                        adDateInput.focus();
+                        if (adDateInput.select) {
+                        }
+                    }
                 }
-            }, 100);
+            }, 200);
         } catch (err) {
             console.error('Error resetting form:', err);
             setNotification({
@@ -1460,7 +1494,8 @@ const AddStockAdjustment = () => {
             setFormData({
                 adjustmentType: 'xcess',
                 nepaliDate: isNepaliFormat ? transactionDate : '',
-                billDate: !isNepaliFormat ? invoiceDate : '',
+                // billDate: !isNepaliFormat ? invoiceDate : '',
+                billDate: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : ''),
                 billNumber: currentBillNum,
                 isVatExempt: 'all',
                 note: '',
@@ -1489,14 +1524,47 @@ const AddStockAdjustment = () => {
             setTotalSearchItems(0);
             setShowItemDropdown(false);
 
+            // setTimeout(() => {
+            //     if (dateInputRef.current) {
+            //         dateInputRef.current.focus();
+            //         // If it's a text input (Nepali date), also select the text
+            //         if (dateInputRef.current.type === 'text' || dateInputRef.current.type !== 'date') {
+            //         }
+            //     }
+            // }, 100);
+
             setTimeout(() => {
-                if (dateInputRef.current) {
-                    dateInputRef.current.focus();
-                    // If it's a text input (Nepali date), also select the text
-                    if (dateInputRef.current.type === 'text' || dateInputRef.current.type !== 'date') {
+                if (isNepaliFormat) {
+                    // Focus on Nepali date picker
+                    if (dateInputRef.current) {
+                        // For NepaliDatePicker, focus the internal input
+                        if (typeof dateInputRef.current.focus === 'function') {
+                            dateInputRef.current.focus();
+                        } else {
+                            // If it's a DOM element
+                            dateInputRef.current.focus();
+                            if (dateInputRef.current.select) {
+                            }
+                        }
+                    } else {
+                        // Fallback: find the Nepali date input
+                        const nepaliDateInput = document.querySelector('input[name="nepaliDate"]');
+                        if (nepaliDateInput) {
+                            nepaliDateInput.focus();
+                            if (nepaliDateInput.select) {
+                            }
+                        }
+                    }
+                } else {
+                    // Focus on English date input
+                    const adDateInput = document.querySelector('input[name="billDate"]');
+                    if (adDateInput) {
+                        adDateInput.focus();
+                        if (adDateInput.select) {
+                        }
                     }
                 }
-            }, 100);
+            }, 200);
         } catch (err) {
             console.error('Error resetting after save:', err);
             setNotification({

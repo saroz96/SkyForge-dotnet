@@ -13,8 +13,8 @@ using SkyForge.Models;
 namespace SkyForge.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260831030225_DropGlobalUniqueConstraintOnAccounts")]
-    partial class DropGlobalUniqueConstraintOnAccounts
+    [Migration("20260902154452_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

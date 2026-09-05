@@ -155,6 +155,7 @@ const AddPayment = () => {
     const [showProductModal, setShowProductModal] = useState(false);
     const transactionDateRef = useRef(null);
     // Add near your other state declarations (around line 60-80)
+    const datePickerContainerRef = useRef(null);
     const [useVoucherLastDateForPayment, setUseVoucherLastDateForPayment] = useState(false);
     const [lastPaymentDate, setLastPaymentDate] = useState(null);
     const [company, setCompany] = useState({
@@ -619,11 +620,17 @@ const AddPayment = () => {
             setShowBankDetails(false);
             setSelectedAccountId('');
 
-            setTimeout(() => {
-                if (transactionDateRef.current) {
-                    transactionDateRef.current.focus();
+            // setTimeout(() => {
+            //     if (transactionDateRef.current) {
+            //         transactionDateRef.current.focus();
+            //     }
+            // }, 50);
+            if (datePickerContainerRef.current) {
+                const input = datePickerContainerRef.current.querySelector('input');
+                if (input) {
+                    input.focus();
                 }
-            }, 50);
+            }
         } catch (err) {
             console.error('Error resetting after save:', err);
             setNotification({
@@ -1103,7 +1110,7 @@ const AddPayment = () => {
                             <div className="row g-2 mb-3">
                                 {(company.dateFormat === 'nepali' || company.dateFormat === 'Nepali') ? (
                                     <>
-                                        <div className="col-12 col-md-6 col-lg-2">
+                                        <div className="col-12 col-md-6 col-lg-2" ref={datePickerContainerRef}>
                                             <div className="position-relative">
                                                 <NepaliDatePicker
                                                     value={formData.nepaliDate}

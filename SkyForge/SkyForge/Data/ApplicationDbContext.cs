@@ -83,6 +83,7 @@ namespace SkyForge.Data
         public DbSet<CreditNoteEntry> CreditNoteEntries { get; set; }
         public DbSet<StockAdjustment> StockAdjustments { get; set; }
         public DbSet<StockAdjustmentItem> StockAdjustmentItems { get; set; }
+         public DbSet<ItemInitialOpeningStock> ItemInitialOpeningStocks { get; set; }
         public DbSet<ItemOpeningStockByFiscalYear> ItemOpeningStockByFiscalYear { get; set; }
         public DbSet<ItemClosingStockByFiscalYear> ItemClosingStockByFiscalYear { get; set; }
         public DbSet<Payment> Payments { get; set; }
