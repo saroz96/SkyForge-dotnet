@@ -340,7 +340,7 @@
    ============================================ */
 .dis-table-wrap {
     overflow: auto;
-    max-height: 400px;
+    max-height: 200px;
 }
 
 .dis-table-wrap::-webkit-scrollbar {
@@ -787,7 +787,7 @@
     }
 
     .dis-table-wrap {
-        max-height: 300px;
+        max-height: 200px;
     }
 
     .dis-pagination {

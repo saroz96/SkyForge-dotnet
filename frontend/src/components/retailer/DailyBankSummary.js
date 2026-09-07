@@ -1,4 +1,630 @@
 
+// // src/components/retailer/dashboard/modals/DailyBankSummary.js
+// import React, { useState, useEffect, useCallback } from 'react';
+// import axios from 'axios';
+// import NepaliDate from 'nepali-datetime';
+// import './DailyBankSummary.css';
+
+// // Date conversion utilities
+// const convertBsToAd = (bsDate) => {
+//     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+//     try {
+//         const nepaliDate = new NepaliDate(bsDate);
+//         if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') return null;
+//         const jsDate = nepaliDate.getDateObject();
+//         if (!jsDate || isNaN(jsDate.getTime())) return null;
+//         const year = jsDate.getFullYear();
+//         const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+//         const day = String(jsDate.getDate()).padStart(2, '0');
+//         return `${year}-${month}-${day}`;
+//     } catch (error) {
+//         console.error('Error converting BS to AD:', error);
+//         return null;
+//     }
+// };
+
+// const convertAdToBs = (adDate) => {
+//     if (!adDate) return null;
+//     try {
+//         let date;
+//         if (typeof adDate === 'string') {
+//             if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+//                 date = new Date(adDate + 'T00:00:00');
+//             } else {
+//                 date = new Date(adDate);
+//             }
+//         } else if (adDate instanceof Date) {
+//             date = adDate;
+//         } else {
+//             return null;
+//         }
+//         if (isNaN(date.getTime())) return null;
+//         const nepaliDate = new NepaliDate(date);
+//         if (!nepaliDate || typeof nepaliDate.getYear !== 'function') return null;
+//         const year = nepaliDate.getYear();
+//         const month = nepaliDate.getMonth();
+//         const day = nepaliDate.getDate();
+//         if (!year || month === undefined || !day) return null;
+//         return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+//     } catch (error) {
+//         console.error('Error converting AD to BS:', error);
+//         return null;
+//     }
+// };
+
+// const isValidNepaliDate = (dateStr) => {
+//     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+//     try {
+//         const [year, month, day] = dateStr.split('-').map(Number);
+//         if (month < 1 || month > 12) return false;
+//         if (day < 1 || day > 32) return false;
+//         const nepaliDate = new NepaliDate(dateStr);
+//         if (!nepaliDate || typeof nepaliDate.getYear !== 'function') return false;
+//         const bsYear = nepaliDate.getYear();
+//         const bsMonth = nepaliDate.getMonth() + 1;
+//         const bsDay = nepaliDate.getDate();
+//         return (bsYear === year && bsMonth === month && bsDay === day);
+//     } catch (error) {
+//         return false;
+//     }
+// };
+
+// const getCurrentNepaliDate = () => {
+//     try {
+//         const now = new NepaliDate();
+//         if (!now || typeof now.getYear !== 'function') return '2080-01-01';
+//         const year = now.getYear();
+//         const month = now.getMonth() + 1;
+//         const day = now.getDate();
+//         if (!year || !month || !day) return '2080-01-01';
+//         return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+//     } catch (error) {
+//         return '2080-01-01';
+//     }
+// };
+
+// const DailyBankSummary = ({ show, onClose, companyId, accountId }) => {
+//     const currentNepaliDate = getCurrentNepaliDate();
+//     const currentEnglishDate = new Date().toISOString().split('T')[0];
+
+//     const [dateRange, setDateRange] = useState({
+//         fromDate: currentNepaliDate,
+//         toDate: currentNepaliDate,
+//         fromDateAd: currentEnglishDate,
+//         toDateAd: currentEnglishDate
+//     });
+
+//     const [dateErrors, setDateErrors] = useState({
+//         fromDate: '',
+//         toDate: ''
+//     });
+
+//     const [loading, setLoading] = useState(false);
+//     const [bankData, setBankData] = useState({
+//         totalBankInflow: 0,
+//         totalBankOutflow: 0,
+//         netBank: 0,
+//         bankAccounts: [],
+//         transactions: []
+//     });
+//     const [notification, setNotification] = useState({
+//         show: false,
+//         message: '',
+//         type: 'success'
+//     });
+//     const [selectedBankAccount, setSelectedBankAccount] = useState(null);
+
+//     const [currentPage, setCurrentPage] = useState(1);
+//     const [rowsPerPage, setRowsPerPage] = useState(5);
+
+//     const api = axios.create({
+//         baseURL: process.env.REACT_APP_API_BASE_URL,
+//         withCredentials: true,
+//     });
+
+//     api.interceptors.request.use(
+//         (config) => {
+//             const token = localStorage.getItem('token');
+//             if (token) {
+//                 config.headers.Authorization = `Bearer ${token}`;
+//             }
+//             return config;
+//         },
+//         (error) => Promise.reject(error)
+//     );
+
+//     const formatCurrency = (num) => {
+//         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
+//         return number.toLocaleString('en-IN', {
+//             minimumFractionDigits: 2,
+//             maximumFractionDigits: 2
+//         });
+//     };
+
+//     const formatNumber = (num) => {
+//         return Number(num || 0).toLocaleString('en-IN');
+//     };
+
+//     const fetchBankData = useCallback(async () => {
+//         if (!companyId) {
+//             setNotification({
+//                 show: true,
+//                 message: 'Company not selected',
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         setLoading(true);
+//         try {
+//             const params = new URLSearchParams();
+//             params.append('companyId', companyId);
+
+//             const fromDate = dateRange.fromDateAd || convertBsToAd(dateRange.fromDate) || currentEnglishDate;
+//             const toDate = dateRange.toDateAd || convertBsToAd(dateRange.toDate) || currentEnglishDate;
+
+//             params.append('fromDate', fromDate);
+//             params.append('toDate', toDate);
+
+//             if (selectedBankAccount) {
+//                 params.append('accountId', selectedBankAccount);
+//             }
+
+//             const response = await api.get(`/api/retailer/bank-transactions?${params.toString()}`);
+
+//             if (response.data.success) {
+//                 const data = response.data.data;
+//                 setBankData({
+//                     totalBankInflow: data.totalBankInflow || 0,
+//                     totalBankOutflow: data.totalBankOutflow || 0,
+//                     netBank: data.netBank || 0,
+//                     bankAccounts: data.bankAccounts || [],
+//                     transactions: data.transactions || []
+//                 });
+//                 setCurrentPage(1);
+//             } else {
+//                 setNotification({
+//                     show: true,
+//                     message: response.data.error || 'Failed to fetch bank data',
+//                     type: 'error'
+//                 });
+//             }
+//         } catch (error) {
+//             console.error('Error fetching bank data:', error);
+//             setNotification({
+//                 show: true,
+//                 message: error.response?.data?.error || 'Failed to fetch bank data',
+//                 type: 'error'
+//             });
+//         } finally {
+//             setLoading(false);
+//         }
+//     }, [companyId, dateRange.fromDateAd, dateRange.toDateAd, selectedBankAccount]);
+
+//     useEffect(() => {
+//         if (show && companyId) {
+//             fetchBankData();
+//         }
+//     }, [show, companyId, selectedBankAccount, fetchBankData]);
+
+//     const handleGenerateReport = () => {
+//         if (!dateRange.fromDate || !dateRange.toDate) {
+//             setNotification({
+//                 show: true,
+//                 message: 'Please select both from and to dates',
+//                 type: 'error'
+//             });
+//             return;
+//         }
+//         fetchBankData();
+//     };
+
+//     const handleBankAccountFilter = (accountId) => {
+//         setSelectedBankAccount(accountId === selectedBankAccount ? null : accountId);
+//     };
+
+//     const totalTransactions = bankData.transactions.length;
+//     const totalPages = Math.ceil(totalTransactions / rowsPerPage);
+//     const indexOfLastTransaction = currentPage * rowsPerPage;
+//     const indexOfFirstTransaction = indexOfLastTransaction - rowsPerPage;
+//     const currentTransactions = bankData.transactions.slice(indexOfFirstTransaction, indexOfLastTransaction);
+
+//     const handlePageChange = (pageNumber) => {
+//         setCurrentPage(pageNumber);
+//     };
+
+//     const handleRowsPerPageChange = (e) => {
+//         setRowsPerPage(parseInt(e.target.value));
+//         setCurrentPage(1);
+//     };
+
+//     const goToPreviousPage = () => {
+//         if (currentPage > 1) {
+//             setCurrentPage(currentPage - 1);
+//         }
+//     };
+
+//     const goToNextPage = () => {
+//         if (currentPage < totalPages) {
+//             setCurrentPage(currentPage + 1);
+//         }
+//     };
+
+//     const getTransactionBadgeColor = (type) => {
+//         const typeMap = {
+//             'Sale': 'success',
+//             'Sale Return': 'warning',
+//             'Purchase': 'info',
+//             'Purchase Return': 'primary',
+//             'Payment': 'danger',
+//             'Receipt': 'success',
+//             'Journal': 'secondary',
+//             'Debit Note': 'primary',
+//             'Credit Note': 'danger',
+//             'Opening Balance': 'dark'
+//         };
+//         return typeMap[type] || 'secondary';
+//     };
+
+//     const getPageNumbers = () => {
+//         const total = totalPages;
+//         const current = currentPage;
+//         const delta = 2;
+//         const range = [];
+//         const rangeWithDots = [];
+//         let l;
+
+//         for (let i = 1; i <= total; i++) {
+//             if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+//                 range.push(i);
+//             }
+//         }
+
+//         range.forEach((i) => {
+//             if (l) {
+//                 if (i - l === 2) {
+//                     rangeWithDots.push(l + 1);
+//                 } else if (i - l !== 1) {
+//                     rangeWithDots.push('...');
+//                 }
+//             }
+//             rangeWithDots.push(i);
+//             l = i;
+//         });
+
+//         return rangeWithDots;
+//     };
+
+//     if (!show) return null;
+
+//     return (
+//         <>
+//             <div
+//                 className="dbs-modal-overlay"
+//                 onClick={(e) => {
+//                     if (e.target === e.currentTarget) onClose();
+//                 }}
+//             >
+//                 <div className="dbs-modal">
+//                     {/* Header */}
+//                     <div className="dbs-modal-header">
+//                         <div className="dbs-modal-header-left">
+//                             <div className="dbs-modal-header-icon">
+//                                 <i className="bi bi-bank"></i>
+//                             </div>
+//                             <div>
+//                                 <h5 className="dbs-modal-title">Bank Transaction Details</h5>
+//                                 <small className="dbs-modal-subtitle">
+//                                     {bankData.transactions.length} transactions found
+//                                 </small>
+//                             </div>
+//                         </div>
+//                         <button
+//                             type="button"
+//                             className="dbs-modal-close"
+//                             onClick={onClose}
+//                         >
+//                             <i className="bi bi-x-lg"></i>
+//                         </button>
+//                     </div>
+
+//                     <div className="dbs-modal-body">
+
+//                         <div className="dbs-filters-stats-row">
+//                             {/* Date Filters */}
+//                             <div className="dbs-filters-group">
+//                                 <div className="dbs-filter-item dbs-filter-item--date">
+//                                     <label className="dbs-filter-label">From (BS)</label>
+//                                     <input
+//                                         type="text"
+//                                         className={`dbs-filter-input ${dateErrors.fromDate ? 'dbs-filter-input--error' : ''}`}
+//                                         value={dateRange.fromDate}
+//                                         onChange={(e) => {
+//                                             const value = e.target.value;
+//                                             const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+//                                             const adDate = convertBsToAd(sanitizedValue);
+//                                             setDateRange(prev => ({
+//                                                 ...prev,
+//                                                 fromDate: sanitizedValue,
+//                                                 fromDateAd: adDate || prev.fromDateAd
+//                                             }));
+//                                             setDateErrors(prev => ({ ...prev, fromDate: '' }));
+//                                         }}
+//                                         placeholder="YYYY-MM-DD"
+//                                     />
+//                                 </div>
+
+//                                 <div className="dbs-filter-item dbs-filter-item--date">
+//                                     <label className="dbs-filter-label">To (BS)</label>
+//                                     <input
+//                                         type="text"
+//                                         className={`dbs-filter-input ${dateErrors.toDate ? 'dbs-filter-input--error' : ''}`}
+//                                         value={dateRange.toDate}
+//                                         onChange={(e) => {
+//                                             const value = e.target.value;
+//                                             const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+//                                             const adDate = convertBsToAd(sanitizedValue);
+//                                             setDateRange(prev => ({
+//                                                 ...prev,
+//                                                 toDate: sanitizedValue,
+//                                                 toDateAd: adDate || prev.toDateAd
+//                                             }));
+//                                             setDateErrors(prev => ({ ...prev, toDate: '' }));
+//                                         }}
+//                                         placeholder="YYYY-MM-DD"
+//                                     />
+//                                 </div>
+
+//                                 <button
+//                                     className="dbs-btn-primary dbs-btn-generate"
+//                                     onClick={handleGenerateReport}
+//                                     disabled={loading}
+//                                 >
+//                                     {loading ? (
+//                                         <span className="dbs-spinner-small"></span>
+//                                     ) : (
+//                                         <>
+//                                             <i className="bi bi-search me-1"></i> Generate
+//                                         </>
+//                                     )}
+//                                 </button>
+//                             </div>
+
+//                             {/* Stats Cards - Inline */}
+//                             <div className="dbs-stats-inline">
+//                                 <div className="dbs-stat-inline dbs-stat-inline--success">
+//                                     <div className="dbs-stat-inline-icon">
+//                                         <i className="bi bi-arrow-down-circle"></i>
+//                                     </div>
+//                                     <div className="dbs-stat-inline-content">
+//                                         <small className="dbs-stat-inline-label">Inflow</small>
+//                                         <span className="dbs-stat-inline-value">
+//                                             <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.totalBankInflow)}
+//                                         </span>
+//                                     </div>
+//                                 </div>
+
+//                                 <div className="dbs-stat-inline dbs-stat-inline--danger">
+//                                     <div className="dbs-stat-inline-icon">
+//                                         <i className="bi bi-arrow-up-circle"></i>
+//                                     </div>
+//                                     <div className="dbs-stat-inline-content">
+//                                         <small className="dbs-stat-inline-label">Outflow</small>
+//                                         <span className="dbs-stat-inline-value">
+//                                             <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.totalBankOutflow)}
+//                                         </span>
+//                                     </div>
+//                                 </div>
+
+//                                 <div className="dbs-stat-inline dbs-stat-inline--primary">
+//                                     <div className="dbs-stat-inline-icon">
+//                                         <i className="bi bi-calculator"></i>
+//                                     </div>
+//                                     <div className="dbs-stat-inline-content">
+//                                         <small className="dbs-stat-inline-label">Net</small>
+//                                         <span className={`dbs-stat-inline-value ${bankData.netBank >= 0 ? 'dbs-stat-inline-value--positive' : 'dbs-stat-inline-value--negative'}`}>
+//                                             <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.netBank)}
+//                                         </span>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </div>
+
+//                         {/* Bank Account Filters */}
+//                         {bankData.bankAccounts.length > 0 && (
+//                             <div className="dbs-accounts-card">
+//                                 <div className="dbs-accounts-card-body">
+//                                     <label className="dbs-accounts-label">
+//                                         <i className="bi bi-filter me-1"></i> Bank Accounts
+//                                     </label>
+//                                     <div className="dbs-accounts-list">
+//                                         {bankData.bankAccounts.map((account, index) => {
+//                                             const accountId = account.accountId || account.AccountId || account.id || account.Id;
+//                                             const accountName = account.accountName || account.AccountName || account.name || account.Name || 'N/A';
+//                                             const net = account.net !== undefined ? account.net : (account.Net !== undefined ? account.Net : 0);
+
+//                                             return (
+//                                                 <button
+//                                                     key={accountId || index}
+//                                                     className={`dbs-account-btn ${selectedBankAccount === accountId ? 'dbs-account-btn--active' : ''}`}
+//                                                     onClick={() => handleBankAccountFilter(accountId)}
+//                                                 >
+//                                                     <span className="dbs-account-name">{accountName}</span>
+//                                                     <span className={`dbs-account-balance ${net >= 0 ? 'dbs-account-balance--positive' : 'dbs-account-balance--negative'}`}>
+//                                                         {net >= 0 ? '+' : ''}{formatCurrency(Math.abs(net))}
+//                                                     </span>
+//                                                     {selectedBankAccount === accountId && (
+//                                                         <i className="bi bi-x-circle dbs-account-clear"></i>
+//                                                     )}
+//                                                 </button>
+//                                             );
+//                                         })}
+//                                         {selectedBankAccount && (
+//                                             <button
+//                                                 className="dbs-account-btn dbs-account-btn--clear"
+//                                                 onClick={() => setSelectedBankAccount(null)}
+//                                             >
+//                                                 <i className="bi bi-x-circle me-1"></i> Clear
+//                                             </button>
+//                                         )}
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         )}
+
+//                         {/* Transactions Table */}
+//                         <div className="dbs-table-card">
+//                             <div className="dbs-table-card-body">
+//                                 {loading ? (
+//                                     <div className="dbs-loading">
+//                                         <div className="dbs-spinner"></div>
+//                                         <p className="dbs-loading-text">Loading bank transactions...</p>
+//                                     </div>
+//                                 ) : (
+//                                     <>
+//                                         <div className="dbs-table-wrap">
+//                                             <table className="dbs-table">
+//                                                 <thead className="dbs-table-header">
+//                                                     <tr>
+//                                                         <th style={{ width: '10%' }}>Date</th>
+//                                                         <th style={{ width: '10%' }}>Inv. No</th>
+//                                                         <th style={{ width: '15%' }}>Party/Account</th>
+//                                                         <th style={{ width: '12%' }}>Bank Account</th>
+//                                                         <th style={{ width: '10%' }}>Type</th>
+//                                                         <th style={{ width: '25%' }}>Description</th>
+//                                                         <th style={{ width: '15%', textAlign: 'right' }}>Amount</th>
+//                                                     </tr>
+//                                                 </thead>
+//                                                 <tbody>
+//                                                     {currentTransactions.length > 0 ? (
+//                                                         currentTransactions.map((transaction, index) => {
+//                                                             const isInflow = transaction.inflow || transaction.amount > 0;
+//                                                             const amount = Math.abs(transaction.amount || 0);
+//                                                             const badgeColor = getTransactionBadgeColor(transaction.type);
+
+//                                                             return (
+//                                                                 <tr key={transaction.id || index} className="dbs-table-row">
+//                                                                     <td>
+//                                                                         {transaction.nepaliDate ||
+//                                                                             (transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A')}
+//                                                                     </td>
+//                                                                     <td>
+//                                                                         <span className="dbs-badge-inv">
+//                                                                             {transaction.billNumber || 'N/A'}
+//                                                                         </span>
+//                                                                     </td>
+//                                                                     <td>{transaction.accountName || 'N/A'}</td>
+//                                                                     <td>
+//                                                                         <span className="dbs-badge-bank">
+//                                                                             {transaction.bankAccount || 'N/A'}
+//                                                                         </span>
+//                                                                     </td>
+//                                                                     <td>
+//                                                                         <span className={`dbs-badge-transaction dbs-badge-transaction--${badgeColor}`}>
+//                                                                             {transaction.type || 'N/A'}
+//                                                                         </span>
+//                                                                     </td>
+//                                                                     <td className="dbs-description">
+//                                                                         {transaction.description || ''}
+//                                                                     </td>
+//                                                                     <td style={{ textAlign: 'right' }}>
+//                                                                         <span className={isInflow ? 'dbs-amount-inflow' : 'dbs-amount-outflow'}>
+//                                                                             {isInflow ? '+' : '-'}
+//                                                                             <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(amount)}
+//                                                                         </span>
+//                                                                     </td>
+//                                                                 </tr>
+//                                                             );
+//                                                         })
+//                                                     ) : (
+//                                                         <tr>
+//                                                             <td colSpan="7" className="dbs-empty-state">
+//                                                                 <i className="bi bi-inbox dbs-empty-icon"></i>
+//                                                                 <p className="dbs-empty-text">No bank transactions found</p>
+//                                                             </td>
+//                                                         </tr>
+//                                                     )}
+//                                                 </tbody>
+//                                             </table>
+//                                         </div>
+
+//                                         {/* Pagination */}
+//                                         {totalTransactions > 0 && (
+//                                             <div className="dbs-pagination">
+//                                                 <div className="dbs-pagination-left">
+//                                                     <label className="dbs-pagination-label">Rows:</label>
+//                                                     <select
+//                                                         className="dbs-pagination-select"
+//                                                         value={rowsPerPage}
+//                                                         onChange={handleRowsPerPageChange}
+//                                                     >
+//                                                         <option value={5}>5</option>
+//                                                         <option value={10}>10</option>
+//                                                         <option value={25}>25</option>
+//                                                         <option value={50}>50</option>
+//                                                     </select>
+//                                                     <span className="dbs-pagination-info">
+//                                                         {indexOfFirstTransaction + 1} - {Math.min(indexOfLastTransaction, totalTransactions)} of {totalTransactions}
+//                                                     </span>
+//                                                 </div>
+
+//                                                 <div className="dbs-pagination-right">
+//                                                     <button
+//                                                         className={`dbs-pagination-btn ${currentPage === 1 ? 'dbs-pagination-btn--disabled' : ''}`}
+//                                                         onClick={goToPreviousPage}
+//                                                         disabled={currentPage === 1}
+//                                                     >
+//                                                         <i className="bi bi-chevron-left"></i>
+//                                                     </button>
+
+//                                                     {getPageNumbers().map((page, index) => (
+//                                                         typeof page === 'number' ? (
+//                                                             <button
+//                                                                 key={index}
+//                                                                 className={`dbs-pagination-btn ${currentPage === page ? 'dbs-pagination-btn--active' : ''}`}
+//                                                                 onClick={() => handlePageChange(page)}
+//                                                             >
+//                                                                 {page}
+//                                                             </button>
+//                                                         ) : (
+//                                                             <span key={index} className="dbs-pagination-ellipsis">
+//                                                                 {page}
+//                                                             </span>
+//                                                         )
+//                                                     ))}
+
+//                                                     <button
+//                                                         className={`dbs-pagination-btn ${currentPage === totalPages ? 'dbs-pagination-btn--disabled' : ''}`}
+//                                                         onClick={goToNextPage}
+//                                                         disabled={currentPage === totalPages}
+//                                                     >
+//                                                         <i className="bi bi-chevron-right"></i>
+//                                                     </button>
+//                                                 </div>
+//                                             </div>
+//                                         )}
+//                                     </>
+//                                 )}
+//                             </div>
+//                         </div>
+//                     </div>
+
+//                     {/* Footer */}
+//                     <div className="dbs-modal-footer">
+//                         <button type="button" className="dbs-btn-secondary" onClick={onClose}>
+//                             <i className="bi bi-x-circle me-1"></i> Close
+//                         </button>
+//                     </div>
+//                 </div>
+//             </div>
+//         </>
+//     );
+// };
+
+// export default DailyBankSummary;
+
+//-----------------------------------------------end1
+
 // src/components/retailer/dashboard/modals/DailyBankSummary.js
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
@@ -207,6 +833,22 @@ const DailyBankSummary = ({ show, onClose, companyId, accountId }) => {
         }
     }, [show, companyId, selectedBankAccount, fetchBankData]);
 
+    // FIX: Add Escape key handler to close modal
+    useEffect(() => {
+        const handleEscapeKey = (e) => {
+            if (e.key === 'Escape' && show) {
+                e.preventDefault();
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleEscapeKey);
+
+        return () => {
+            window.removeEventListener('keydown', handleEscapeKey);
+        };
+    }, [show, onClose]);
+
     const handleGenerateReport = () => {
         if (!dateRange.fromDate || !dateRange.toDate) {
             setNotification({
@@ -329,213 +971,106 @@ const DailyBankSummary = ({ show, onClose, companyId, accountId }) => {
                     </div>
 
                     <div className="dbs-modal-body">
-                        {/* Date Filters
-                        <div className="dbs-filters-card">
-                            <div className="dbs-filters-card-body">
-                                <div className="dbs-filters-row">
-                                    <div className="dbs-filter-group dbs-filter-group--date">
-                                        <label className="dbs-filter-label">From (BS)</label>
-                                        <input
-                                            type="text"
-                                            className={`dbs-filter-input ${dateErrors.fromDate ? 'dbs-filter-input--error' : ''}`}
-                                            value={dateRange.fromDate}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
-                                                const adDate = convertBsToAd(sanitizedValue);
-                                                setDateRange(prev => ({
-                                                    ...prev,
-                                                    fromDate: sanitizedValue,
-                                                    fromDateAd: adDate || prev.fromDateAd
-                                                }));
-                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                                            }}
-                                            placeholder="YYYY-MM-DD"
-                                        />
-                                    </div>
 
-                                    <div className="dbs-filter-group dbs-filter-group--date">
-                                        <label className="dbs-filter-label">To (BS)</label>
-                                        <input
-                                            type="text"
-                                            className={`dbs-filter-input ${dateErrors.toDate ? 'dbs-filter-input--error' : ''}`}
-                                            value={dateRange.toDate}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
-                                                const adDate = convertBsToAd(sanitizedValue);
-                                                setDateRange(prev => ({
-                                                    ...prev,
-                                                    toDate: sanitizedValue,
-                                                    toDateAd: adDate || prev.toDateAd
-                                                }));
-                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
-                                            }}
-                                            placeholder="YYYY-MM-DD"
-                                        />
-                                    </div>
+                        <div className="dbs-filters-stats-row">
+                            {/* Date Filters */}
+                            <div className="dbs-filters-group">
+                                <div className="dbs-filter-item dbs-filter-item--date">
+                                    <label className="dbs-filter-label">From (BS)</label>
+                                    <input
+                                        type="text"
+                                        className={`dbs-filter-input ${dateErrors.fromDate ? 'dbs-filter-input--error' : ''}`}
+                                        value={dateRange.fromDate}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+                                            const adDate = convertBsToAd(sanitizedValue);
+                                            setDateRange(prev => ({
+                                                ...prev,
+                                                fromDate: sanitizedValue,
+                                                fromDateAd: adDate || prev.fromDateAd
+                                            }));
+                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
+                                        }}
+                                        placeholder="YYYY-MM-DD"
+                                    />
+                                </div>
 
-                                    <button
-                                        className="dbs-btn-primary dbs-btn-generate"
-                                        onClick={handleGenerateReport}
-                                        disabled={loading}
-                                    >
-                                        {loading ? (
-                                            <span className="dbs-spinner-small"></span>
-                                        ) : (
-                                            <>
-                                                <i className="bi bi-search me-1"></i> Generate
-                                            </>
-                                        )}
-                                    </button>
+                                <div className="dbs-filter-item dbs-filter-item--date">
+                                    <label className="dbs-filter-label">To (BS)</label>
+                                    <input
+                                        type="text"
+                                        className={`dbs-filter-input ${dateErrors.toDate ? 'dbs-filter-input--error' : ''}`}
+                                        value={dateRange.toDate}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
+                                            const adDate = convertBsToAd(sanitizedValue);
+                                            setDateRange(prev => ({
+                                                ...prev,
+                                                toDate: sanitizedValue,
+                                                toDateAd: adDate || prev.toDateAd
+                                            }));
+                                            setDateErrors(prev => ({ ...prev, toDate: '' }));
+                                        }}
+                                        placeholder="YYYY-MM-DD"
+                                    />
+                                </div>
+
+                                <button
+                                    className="dbs-btn-primary dbs-btn-generate"
+                                    onClick={handleGenerateReport}
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <span className="dbs-spinner-small"></span>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-search me-1"></i> Generate
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Stats Cards - Inline */}
+                            <div className="dbs-stats-inline">
+                                <div className="dbs-stat-inline dbs-stat-inline--success">
+                                    <div className="dbs-stat-inline-icon">
+                                        <i className="bi bi-arrow-down-circle"></i>
+                                    </div>
+                                    <div className="dbs-stat-inline-content">
+                                        <small className="dbs-stat-inline-label">Inflow</small>
+                                        <span className="dbs-stat-inline-value">
+                                            <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.totalBankInflow)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="dbs-stat-inline dbs-stat-inline--danger">
+                                    <div className="dbs-stat-inline-icon">
+                                        <i className="bi bi-arrow-up-circle"></i>
+                                    </div>
+                                    <div className="dbs-stat-inline-content">
+                                        <small className="dbs-stat-inline-label">Outflow</small>
+                                        <span className="dbs-stat-inline-value">
+                                            <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.totalBankOutflow)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="dbs-stat-inline dbs-stat-inline--primary">
+                                    <div className="dbs-stat-inline-icon">
+                                        <i className="bi bi-calculator"></i>
+                                    </div>
+                                    <div className="dbs-stat-inline-content">
+                                        <small className="dbs-stat-inline-label">Net</small>
+                                        <span className={`dbs-stat-inline-value ${bankData.netBank >= 0 ? 'dbs-stat-inline-value--positive' : 'dbs-stat-inline-value--negative'}`}>
+                                            <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.netBank)}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-
-                        <div className="dbs-stats-row">
-                            <div className="dbs-stat-card">
-                                <div className="dbs-stat-card-body">
-                                    <div>
-                                        <small className="dbs-stat-label">Bank Inflow</small>
-                                        <h5 className="dbs-stat-value dbs-stat-value--success">
-                                            <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.totalBankInflow)}
-                                        </h5>
-                                    </div>
-                                    <div className="dbs-stat-icon dbs-stat-icon--success">
-                                        <i className="bi bi-arrow-down-circle"></i>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="dbs-stat-card">
-                                <div className="dbs-stat-card-body">
-                                    <div>
-                                        <small className="dbs-stat-label">Bank Outflow</small>
-                                        <h5 className="dbs-stat-value dbs-stat-value--danger">
-                                            <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.totalBankOutflow)}
-                                        </h5>
-                                    </div>
-                                    <div className="dbs-stat-icon dbs-stat-icon--danger">
-                                        <i className="bi bi-arrow-up-circle"></i>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="dbs-stat-card">
-                                <div className="dbs-stat-card-body">
-                                    <div>
-                                        <small className="dbs-stat-label">Net Bank</small>
-                                        <h5 className={`dbs-stat-value ${bankData.netBank >= 0 ? 'dbs-stat-value--success' : 'dbs-stat-value--danger'}`}>
-                                            <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.netBank)}
-                                        </h5>
-                                    </div>
-                                    <div className="dbs-stat-icon dbs-stat-icon--primary">
-                                        <i className="bi bi-calculator"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div> */}
-
-                        {/* Date Filters & Stats Cards - Single Row */}
-<div className="dbs-filters-stats-row">
-    {/* Date Filters */}
-    <div className="dbs-filters-group">
-        <div className="dbs-filter-item dbs-filter-item--date">
-            <label className="dbs-filter-label">From (BS)</label>
-            <input
-                type="text"
-                className={`dbs-filter-input ${dateErrors.fromDate ? 'dbs-filter-input--error' : ''}`}
-                value={dateRange.fromDate}
-                onChange={(e) => {
-                    const value = e.target.value;
-                    const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
-                    const adDate = convertBsToAd(sanitizedValue);
-                    setDateRange(prev => ({
-                        ...prev,
-                        fromDate: sanitizedValue,
-                        fromDateAd: adDate || prev.fromDateAd
-                    }));
-                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
-                }}
-                placeholder="YYYY-MM-DD"
-            />
-        </div>
-
-        <div className="dbs-filter-item dbs-filter-item--date">
-            <label className="dbs-filter-label">To (BS)</label>
-            <input
-                type="text"
-                className={`dbs-filter-input ${dateErrors.toDate ? 'dbs-filter-input--error' : ''}`}
-                value={dateRange.toDate}
-                onChange={(e) => {
-                    const value = e.target.value;
-                    const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
-                    const adDate = convertBsToAd(sanitizedValue);
-                    setDateRange(prev => ({
-                        ...prev,
-                        toDate: sanitizedValue,
-                        toDateAd: adDate || prev.toDateAd
-                    }));
-                    setDateErrors(prev => ({ ...prev, toDate: '' }));
-                }}
-                placeholder="YYYY-MM-DD"
-            />
-        </div>
-
-        <button
-            className="dbs-btn-primary dbs-btn-generate"
-            onClick={handleGenerateReport}
-            disabled={loading}
-        >
-            {loading ? (
-                <span className="dbs-spinner-small"></span>
-            ) : (
-                <>
-                    <i className="bi bi-search me-1"></i> Generate
-                </>
-            )}
-        </button>
-    </div>
-
-    {/* Stats Cards - Inline */}
-    <div className="dbs-stats-inline">
-        <div className="dbs-stat-inline dbs-stat-inline--success">
-            <div className="dbs-stat-inline-icon">
-                <i className="bi bi-arrow-down-circle"></i>
-            </div>
-            <div className="dbs-stat-inline-content">
-                <small className="dbs-stat-inline-label">Inflow</small>
-                <span className="dbs-stat-inline-value">
-                    <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.totalBankInflow)}
-                </span>
-            </div>
-        </div>
-
-        <div className="dbs-stat-inline dbs-stat-inline--danger">
-            <div className="dbs-stat-inline-icon">
-                <i className="bi bi-arrow-up-circle"></i>
-            </div>
-            <div className="dbs-stat-inline-content">
-                <small className="dbs-stat-inline-label">Outflow</small>
-                <span className="dbs-stat-inline-value">
-                    <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.totalBankOutflow)}
-                </span>
-            </div>
-        </div>
-
-        <div className="dbs-stat-inline dbs-stat-inline--primary">
-            <div className="dbs-stat-inline-icon">
-                <i className="bi bi-calculator"></i>
-            </div>
-            <div className="dbs-stat-inline-content">
-                <small className="dbs-stat-inline-label">Net</small>
-                <span className={`dbs-stat-inline-value ${bankData.netBank >= 0 ? 'dbs-stat-inline-value--positive' : 'dbs-stat-inline-value--negative'}`}>
-                    <span className="dbs-rupee-symbol">Rs.</span> {formatCurrency(bankData.netBank)}
-                </span>
-            </div>
-        </div>
-    </div>
-</div>
 
                         {/* Bank Account Filters */}
                         {bankData.bankAccounts.length > 0 && (

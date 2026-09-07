@@ -1,123 +1,65 @@
-// import React, { useState, useEffect, useRef } from 'react';
+// // VATConfirmationLetter.jsx
+// import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // import { useNavigate } from 'react-router-dom';
 // import axios from 'axios';
-// import { Table, Button, Modal, Badge } from 'react-bootstrap';
-// import { FiSearch, FiFileText, FiDownload, FiPrinter, FiUser, FiTrendingUp, FiCalendar, FiDollarSign } from 'react-icons/fi';
+// import { FiUser, FiCalendar, FiFileText, FiPrinter } from 'react-icons/fi';
 // import Header from './retailer/Header';
 // import Loader from './Loader';
 // import NotificationToast from './NotificationToast';
 // import VirtualizedAccountList from './VirtualizedAccountList';
 // import NepaliDate from 'nepali-datetime';
-
+// import './VATConfirmationLetter.css';
+// import api, { refreshToken } from '../components/services/api';
 
 // // Helper functions for date conversion
 // const convertBsToAd = (bsDate) => {
 //     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
-
 //     try {
 //         const nepaliDate = new NepaliDate(bsDate);
-//         if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
-//             console.error('Invalid NepaliDate object or missing getDateObject method');
-//             return null;
-//         }
-
-//         const jsDate = nepaliDate.getDateObject();
-//         if (!jsDate || isNaN(jsDate.getTime())) {
-//             console.error('Invalid AD date generated from BS date:', bsDate);
-//             return null;
-//         }
-
-//         const year = jsDate.getFullYear();
-//         const month = String(jsDate.getMonth() + 1).padStart(2, '0');
-//         const day = String(jsDate.getDate()).padStart(2, '0');
-
-//         return `${year}-${month}-${day}`;
-//     } catch (error) {
-//         console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
-//         return null;
-//     }
+//         const jsDate = nepaliDate?.getDateObject?.();
+//         if (!jsDate || isNaN(jsDate.getTime())) return null;
+//         return `${jsDate.getFullYear()}-${String(jsDate.getMonth() + 1).padStart(2, '0')}-${String(jsDate.getDate()).padStart(2, '0')}`;
+//     } catch { return null; }
 // };
 
 // const convertAdToBs = (adDate) => {
 //     if (!adDate) return null;
-
 //     try {
-//         let date;
-//         if (typeof adDate === 'string') {
-//             if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
-//                 date = new Date(adDate + 'T00:00:00');
-//             } else {
-//                 date = new Date(adDate);
-//             }
-//         } else if (adDate instanceof Date) {
-//             date = adDate;
-//         } else {
-//             return null;
-//         }
-
-//         if (isNaN(date.getTime())) {
-//             console.error('Invalid AD date:', adDate);
-//             return null;
-//         }
-
+//         const date = typeof adDate === 'string'
+//             ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(adDate) ? adDate + 'T00:00:00' : adDate)
+//             : adDate instanceof Date ? adDate : null;
+//         if (!date || isNaN(date.getTime())) return null;
 //         const nepaliDate = new NepaliDate(date);
-//         if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
-//             console.error('Invalid NepaliDate object');
-//             return null;
-//         }
-
-//         const year = nepaliDate.getYear();
-//         const month = nepaliDate.getMonth();
-//         const day = nepaliDate.getDate();
-
-//         if (!year || month === undefined || !day) {
-//             console.error('Invalid BS components generated');
-//             return null;
-//         }
-
-//         return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-//     } catch (error) {
-//         console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
-//         return null;
-//     }
+//         return `${nepaliDate.getYear()}-${String(nepaliDate.getMonth() + 1).padStart(2, '0')}-${String(nepaliDate.getDate()).padStart(2, '0')}`;
+//     } catch { return null; }
 // };
 
 // // Helper function to get last day of Nepali month
 // const getLastDayOfNepaliMonth = (year, month) => {
 //     const nepaliMonthDays = [31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30, 30];
 //     const leapYears = [2072, 2076, 2080, 2084, 2088, 2092, 2096, 2100, 2104, 2108];
-//     if (month === 11 && leapYears.includes(year)) {
-//         return 31;
-//     }
+//     if (month === 11 && leapYears.includes(year)) return 31;
 //     return nepaliMonthDays[month - 1];
 // };
 
-// // Helper function to convert Nepali year/month to AD date range
 // const getAdDateRangeForNepaliMonth = (year, month) => {
 //     try {
 //         const firstDayNepali = new NepaliDate(year, month - 1, 1);
 //         const lastDayNum = getLastDayOfNepaliMonth(year, month);
 //         const lastDayNepali = new NepaliDate(year, month - 1, lastDayNum);
-
-//         const fromDateAd = convertBsToAd(firstDayNepali.format('YYYY-MM-DD'));
-//         const toDateAd = convertBsToAd(lastDayNepali.format('YYYY-MM-DD'));
-
-//         return { fromDateAd, toDateAd };
-//     } catch (error) {
-//         console.error('Error converting Nepali month to AD:', error);
-//         return { fromDateAd: null, toDateAd: null };
-//     }
+//         return {
+//             fromDateAd: convertBsToAd(firstDayNepali.format('YYYY-MM-DD')),
+//             toDateAd: convertBsToAd(lastDayNepali.format('YYYY-MM-DD'))
+//         };
+//     } catch { return { fromDateAd: null, toDateAd: null }; }
 // };
 
 // const VATConfirmationLetter = () => {
 //     const [notification, setNotification] = useState({
-//         show: false,
-//         message: '',
-//         type: 'success',
-//         duration: 3000
+//         show: false, message: '', type: 'success', duration: 3000
 //     });
 
-//     // Account search states for virtualized list
+//     // Account search states
 //     const [accounts, setAccounts] = useState([]);
 //     const [isAccountSearching, setIsAccountSearching] = useState(false);
 //     const [accountSearchResults, setAccountSearchResults] = useState([]);
@@ -136,15 +78,9 @@
 //     const [showPreview, setShowPreview] = useState(false);
 //     const [startMonth, setStartMonth] = useState('');
 //     const [endMonth, setEndMonth] = useState('');
-//     const [searchTerm, setSearchTerm] = useState('');
-//     const partyNameRef = useRef(null);
-
-//     // Fiscal year from JWT claims via API
 //     const [fiscalYear, setFiscalYear] = useState('');
 //     const [companyDateFormat, setCompanyDateFormat] = useState('nepali');
 //     const [isInitialized, setIsInitialized] = useState(false);
-
-//     // AD date ranges for backend
 //     const [fromDateAd, setFromDateAd] = useState('');
 //     const [toDateAd, setToDateAd] = useState('');
 
@@ -152,100 +88,33 @@
 //     const startMonthRef = useRef(null);
 //     const endMonthRef = useRef(null);
 //     const accountSearchRef = useRef(null);
-//     const selectedPartyDisplayRef = useRef(null);
+//     const generateBtnRef = useRef(null);
+//     const abortControllerRef = useRef(null);
 
-//     // Nepali months mapping
+//     // Nepali months
 //     const nepaliMonths = [
-//         { value: 1, name: "Baisakh" },
-//         { value: 2, name: "Jestha" },
-//         { value: 3, name: "Ashad" },
-//         { value: 4, name: "Shrawan" },
-//         { value: 5, name: "Bhadra" },
-//         { value: 6, name: "Ashoj" },
-//         { value: 7, name: "Kartik" },
-//         { value: 8, name: "Mangsir" },
-//         { value: 9, name: "Poush" },
-//         { value: 10, name: "Magh" },
-//         { value: 11, name: "Falgun" },
-//         { value: 12, name: "Chaitra" }
+//         { value: 1, name: "Baisakh" }, { value: 2, name: "Jestha" },
+//         { value: 3, name: "Ashad" }, { value: 4, name: "Shrawan" },
+//         { value: 5, name: "Bhadra" }, { value: 6, name: "Ashoj" },
+//         { value: 7, name: "Kartik" }, { value: 8, name: "Mangsir" },
+//         { value: 9, name: "Poush" }, { value: 10, name: "Magh" },
+//         { value: 11, name: "Falgun" }, { value: 12, name: "Chaitra" }
 //     ];
 
 //     const nepaliMonthsNames = {
-//         1: "बैशाख",
-//         2: "जेठ",
-//         3: "असार",
-//         4: "साउन",
-//         5: "भदौ",
-//         6: "असोज",
-//         7: "कात्तिक",
-//         8: "मंसिर",
-//         9: "पौष",
-//         10: "माघ",
-//         11: "फागुन",
-//         12: "चैत्र"
+//         1: "बैशाख", 2: "जेठ", 3: "असार", 4: "साउन",
+//         5: "भदौ", 6: "असोज", 7: "कात्तिक", 8: "मंसिर",
+//         9: "पौष", 10: "माघ", 11: "फागुन", 12: "चैत्र"
 //     };
 
-//     const nepaliTranslations = {
-//         title: "भ्याट तथा बाँकी सुनिश्चितता पत्र",
-//         from: "बाट",
-//         to: "लाई",
-//         fiscalYear: "आर्थिक वर्ष",
-//         generatedOn: "जारी मिति",
-//         referenceNo: "सन्दर्भ नम्बर",
-//         period: "अवधि",
-//         page: "पृष्ठ",
-//         dearSirMadam: "प्रिय महोदय/महोदया,",
-//         letterBody1: "प्रचलित लेखा मान्यता र नियामक आवश्यकताहरू अनुसार, हामी तपाईंको पुनरावलोकन र सुनिश्चितताको लागि आर्थिक वर्षको निम्नलिखित कारोबार सारांश र बाँकी सुनिश्चितता पेश गर्दछौं।",
-//         letterBody2: "कृपया तल विस्तृत कारोबार सारांश र मिति समाप्त हुँदाको बाँकी रकम हेर्नुहोस्:",
-//         salesTransactions: "बिक्री कारोबारहरू",
-//         purchaseTransactions: "खरिद कारोबारहरू",
-//         accountBalances: "खाता बाँकीहरू",
-//         taxableSales: "कर योग्य बिक्री",
-//         nonTaxableSales: "कर छुटको बिक्री",
-//         salesReturn: "बिक्री फिर्ता",
-//         netSales: "कुल बिक्री",
-//         taxablePurchases: "कर योग्य खरिद",
-//         nonTaxablePurchase: "कर छुटको खरिद",
-//         purchaseReturn: "खरिद फिर्ता",
-//         netPurchases: "कुल खरिद",
-//         openingBalance: "प्रारम्भिक बाँकी",
-//         closingBalance: "अन्तिम बाँकी",
-//         openingBalanceAsOn: "को प्रारम्भिक बाँकी",
-//         closingBalanceAsOn: "को अन्तिम बाँकी",
-//         bf: "B/F",
-//         cf: "C/F",
-//         remarks: "टिप्पणी",
-//         amount: "रकम",
-//         vatAmount: "भ्याट रकम",
-//         particulars: "विवरण",
-//         kindlyVerify: "कृपया माथिको कारोबार र खाता बाँकीहरू सुनिश्चित गर्नुहोस्। यदि विवरणहरू सही छन् भने, कृपया यो पत्रको प्रतिलिपि हस्ताक्षर गरी १५ दिन भित्र फिर्ता पठाउनुहोस्। कुनै पनि विसंगति उही अवधि भित्र हामीलाई लिखित रूपमा सूचित गर्नुहोस्।",
-//         ifNoCommunication: "यदि निर्धारित समय भित्र कुनै सञ्चार प्राप्त भएन भने, बाँकी रकमहरू सबै उद्देश्यका लागि पुष्टि र सही मानिनेछ।",
-//         authorizedSignatory: "अधिकृत हस्ताक्षरकर्ता",
-//         name: "नाम",
-//         designation: "पद",
-//         date: "मिति",
-//         confidentialityNotice: "गोपनीयता सूचना: यो कागजात प्राप्तकर्ताको लागि मात्र गोप्य जानकारी समावेश गर्दछ। कुनै पनि अनाधिकृत प्रयोग, खुलासा, वा वितरण कडा रूपमा निषेधित छ।",
-//         documentId: "कागजात आइडी",
-//         printedOn: "छापिएको मिति",
-//         exempt: "छुट",
-//         creditNote: "क्रेडिट नोट",
-//         debitNote: "डेबिट नोट"
-//     };
-
-//     // Parse fiscal year - handles both "2082/83" and "2082/2083" formats
 //     const parseFiscalYear = (fiscalYearStr) => {
 //         if (!fiscalYearStr) return { startYear: null, endYear: null };
-
 //         if (fiscalYearStr.includes('/')) {
 //             const parts = fiscalYearStr.split('/');
 //             const startYear = parseInt(parts[0]);
-//             let endYear;
-//             if (parts[1].length === 2) {
-//                 const startCentury = Math.floor(startYear / 100) * 100;
-//                 endYear = startCentury + parseInt(parts[1]);
-//             } else {
-//                 endYear = parseInt(parts[1]);
-//             }
+//             let endYear = parts[1].length === 2
+//                 ? Math.floor(startYear / 100) * 100 + parseInt(parts[1])
+//                 : parseInt(parts[1]);
 //             return { startYear, endYear };
 //         }
 //         return { startYear: parseInt(fiscalYearStr), endYear: parseInt(fiscalYearStr) + 1 };
@@ -253,23 +122,14 @@
 
 //     const getYearForMonth = (monthValue) => {
 //         if (!fiscalYear) return null;
-
 //         const { startYear, endYear } = parseFiscalYear(fiscalYear);
 //         if (!startYear || !endYear) return null;
-
 //         const monthNum = parseInt(monthValue);
-
-//         // For Nepali: Baisakh(1), Jestha(2), Ashad(3) use endYear
-//         // Shrawan(4) to Chaitra(12) use startYear
-//         if (monthNum <= 3) {
-//             return endYear;
-//         }
-//         return startYear;
+//         return monthNum <= 3 ? endYear : startYear;
 //     };
 
 //     const getMonthName = (monthValue) => {
-//         const monthNum = parseInt(monthValue);
-//         return nepaliMonths.find(m => m.value === monthNum)?.name || '';
+//         return nepaliMonths.find(m => m.value === parseInt(monthValue))?.name || '';
 //     };
 
 //     const getMonthYearDisplay = (monthValue) => {
@@ -284,8 +144,8 @@
 //         if (startMonth && fiscalYear) {
 //             const startYear = getYearForMonth(startMonth);
 //             if (startYear) {
-//                 const { fromDateAd: startAd } = getAdDateRangeForNepaliMonth(startYear, parseInt(startMonth));
-//                 setFromDateAd(startAd || '');
+//                 const { fromDateAd } = getAdDateRangeForNepaliMonth(startYear, parseInt(startMonth));
+//                 setFromDateAd(fromDateAd || '');
 //             }
 //         }
 //     }, [startMonth, fiscalYear]);
@@ -294,31 +154,14 @@
 //         if (endMonth && fiscalYear) {
 //             const endYear = getYearForMonth(endMonth);
 //             if (endYear) {
-//                 const { toDateAd: endAd } = getAdDateRangeForNepaliMonth(endYear, parseInt(endMonth));
-//                 setToDateAd(endAd || '');
+//                 const { toDateAd } = getAdDateRangeForNepaliMonth(endYear, parseInt(endMonth));
+//                 setToDateAd(toDateAd || '');
 //             }
 //         }
 //     }, [endMonth, fiscalYear]);
 
-//     // API instance
-//     const api = axios.create({
-//         baseURL: process.env.REACT_APP_API_BASE_URL,
-//         withCredentials: true,
-//     });
-
-//     api.interceptors.request.use(
-//         (config) => {
-//             const token = localStorage.getItem('token');
-//             if (token) {
-//                 config.headers.Authorization = `Bearer ${token}`;
-//             }
-//             return config;
-//         },
-//         (error) => Promise.reject(error)
-//     );
-
-//     // Fetch accounts from backend with search and pagination
-//     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
+//     // Fetch accounts
+//     const fetchAccountsFromBackend = useCallback(async (searchTerm = '', page = 1) => {
 //         try {
 //             setIsAccountSearching(true);
 //             const response = await api.get('/api/retailer/all/accounts/search', {
@@ -328,7 +171,6 @@
 //                     limit: searchTerm.trim() ? 15 : 25,
 //                 }
 //             });
-
 //             if (response.data.success) {
 //                 if (page === 1) {
 //                     setAccountSearchResults(response.data.accounts);
@@ -340,7 +182,6 @@
 //                 setHasMoreAccountResults(response.data.pagination.hasNextPage);
 //                 setTotalAccounts(response.data.pagination.totalAccounts);
 //                 setAccountSearchPage(page);
-
 //                 if (searchTerm.trim() !== '') {
 //                     setAccountLastSearchQuery(searchTerm);
 //                     setAccountShouldShowLastSearchResults(true);
@@ -352,7 +193,7 @@
 //         } finally {
 //             setIsAccountSearching(false);
 //         }
-//     };
+//     }, [api]);
 
 //     // Load accounts when modal opens
 //     useEffect(() => {
@@ -365,44 +206,29 @@
 //                 fetchAccountsFromBackend('', 1);
 //             }
 //         }
-//     }, [showAccountModal]);
+//     }, [showAccountModal, fetchAccountsFromBackend]);
 
-//     // Load more accounts for infinite scroll
-//     const loadMoreAccounts = () => {
+//     const loadMoreAccounts = useCallback(() => {
 //         if (!isAccountSearching && hasMoreAccountResults) {
 //             const searchTermVal = accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery;
 //             fetchAccountsFromBackend(searchTermVal, accountSearchPage + 1);
 //         }
-//     };
+//     }, [isAccountSearching, hasMoreAccountResults, accountShouldShowLastSearchResults, accountLastSearchQuery, accountSearchQuery, accountSearchPage, fetchAccountsFromBackend]);
 
-//     // Handle account search input
-//     const handleAccountSearch = (e) => {
+//     const handleAccountSearch = useCallback((e) => {
 //         const searchText = e.target.value;
 //         setAccountSearchQuery(searchText);
 //         setAccountSearchPage(1);
-
 //         if (searchText.trim() !== '' && accountShouldShowLastSearchResults) {
 //             setAccountShouldShowLastSearchResults(false);
 //             setAccountLastSearchQuery('');
 //         }
-
-//         const timer = setTimeout(() => {
-//             fetchAccountsFromBackend(searchText, 1);
-//         }, 300);
-
+//         const timer = setTimeout(() => fetchAccountsFromBackend(searchText, 1), 300);
 //         return () => clearTimeout(timer);
-//     };
+//     }, [accountShouldShowLastSearchResults, fetchAccountsFromBackend]);
 
-//     // Get focus target after modal closes
-//     const getFocusTargetOnModalClose = () => {
-//         if (startMonthRef.current) {
-//             return 'startMonth';
-//         }
-//         return 'startMonth';
-//     };
-
-//     // Fetch fiscal year and date format from JWT claims via backend
-//     const fetchInitialData = async () => {
+//     // Fetch initial data
+//     const fetchInitialData = useCallback(async () => {
 //         try {
 //             const response = await api.get('/api/retailer/party-summary-entry-data');
 //             if (response.data.success) {
@@ -410,90 +236,74 @@
 //                 setCompanyDateFormat(response.data.data.dateFormat);
 //                 setIsInitialized(true);
 //             }
-//         } catch (error) {
-//             console.error('Error fetching initial data:', error);
+//         } catch {
 //             setFiscalYear('2082/83');
 //             setCompanyDateFormat('nepali');
 //             setIsInitialized(true);
 //         }
-//     };
+//     }, [api]);
 
 //     useEffect(() => {
 //         fetchInitialData();
-//     }, []);
+//     }, [fetchInitialData]);
 
 //     useEffect(() => {
-//         const timer = setTimeout(() => {
-//             setShowAccountModal(true);
-//         }, 100);
-
+//         const timer = setTimeout(() => setShowAccountModal(true), 100);
 //         return () => clearTimeout(timer);
 //     }, []);
 
-//     const loadPartySummaryByMonthRange = async (accountId, startYear, startMonth, endYear, endMonth, fromDateAd, toDateAd) => {
+//     // Load party summary
+//     const loadPartySummaryByMonthRange = useCallback(async (accountId, startYear, startMonth, endYear, endMonth, fromDateAd, toDateAd) => {
+//         abortControllerRef.current?.abort();
+//         abortControllerRef.current = new AbortController();
 //         try {
 //             setLoading(true);
 //             setError('');
-
 //             const response = await api.get(`/api/retailer/party-summary-by-month-range/${accountId}`, {
-//                 params: {
-//                     startYear,
-//                     startMonth,
-//                     endYear,
-//                     endMonth,
-//                     fromDate: fromDateAd,
-//                     toDate: toDateAd
-//                 }
+//                 params: { startYear, startMonth, endYear, endMonth, fromDate: fromDateAd, toDate: toDateAd },
+//                 signal: abortControllerRef.current.signal
 //             });
-
 //             if (response.data.success) {
 //                 setSummary(response.data.data);
-//                 if (response.data.data?.fiscalYear) {
-//                     setFiscalYear(response.data.data.fiscalYear);
-//                 }
+//                 if (response.data.data?.fiscalYear) setFiscalYear(response.data.data.fiscalYear);
 //             } else {
 //                 setError(response.data.error || 'Failed to load party summary');
 //                 setNotification({ show: true, message: response.data.error || 'Failed to load party summary', type: 'error' });
 //             }
-//         } catch (error) {
-//             console.error('Error loading summary:', error);
-//             setError(error.response?.data?.error || 'Failed to load party summary');
-//             setNotification({ show: true, message: error.response?.data?.error || 'Failed to load party summary', type: 'error' });
+//         } catch (err) {
+//             if (err.name === 'AbortError' || err.name === 'CanceledError') return;
+//             console.error('Error loading summary:', err);
+//             const msg = err.response?.data?.error || 'Failed to load party summary';
+//             setError(msg);
+//             setNotification({ show: true, message: msg, type: 'error' });
 //         } finally {
 //             setLoading(false);
 //         }
-//     };
+//     }, [api]);
 
-//     const selectAccount = (account) => {
+//     const selectAccount = useCallback((account) => {
 //         setSelectedParty(account);
 //         setShowAccountModal(false);
 //         setAccountSearchQuery('');
-//         setTimeout(() => {
-//             if (startMonthRef.current) {
-//                 startMonthRef.current.focus();
-//             }
-//         }, 100);
-//     };
+//         setTimeout(() => startMonthRef.current?.focus(), 100);
+//     }, []);
 
-//     const handleGenerateReport = () => {
+//     const handleGenerateReport = useCallback(() => {
 //         if (!selectedParty) {
 //             setNotification({ show: true, message: 'Please select a party first', type: 'warning' });
 //             return;
 //         }
-
 //         if (!startMonth || !endMonth) {
-//             setNotification({ show: true, message: 'Please select start month and end month', type: 'warning' });
+//             setNotification({ show: true, message: 'Please select start and end month', type: 'warning' });
 //             return;
 //         }
-
 //         if (!fiscalYear) {
-//             setNotification({ show: true, message: 'Fiscal year not loaded. Please try again.', type: 'warning' });
+//             setNotification({ show: true, message: 'Fiscal year not loaded', type: 'warning' });
 //             return;
 //         }
 
 //         const startMonthNum = parseInt(startMonth);
 //         const endMonthNum = parseInt(endMonth);
-
 //         const startYear = getYearForMonth(startMonth);
 //         const endYear = getYearForMonth(endMonth);
 
@@ -502,9 +312,7 @@
 //             return;
 //         }
 
-//         // Validate range
 //         let isValid = false;
-
 //         if (startYear === endYear) {
 //             isValid = startMonthNum <= endMonthNum;
 //         } else if (startYear < endYear) {
@@ -512,37 +320,42 @@
 //         }
 
 //         if (!isValid) {
-//             setNotification({ show: true, message: 'Invalid date range. Please ensure start month is before end month.', type: 'warning' });
+//             setNotification({ show: true, message: 'Invalid date range', type: 'warning' });
 //             return;
 //         }
 
 //         if (!fromDateAd || !toDateAd) {
-//             setNotification({ show: true, message: 'Unable to calculate date range. Please refresh and try again.', type: 'warning' });
+//             setNotification({ show: true, message: 'Unable to calculate date range', type: 'warning' });
 //             return;
 //         }
 
 //         loadPartySummaryByMonthRange(selectedParty.id, startYear, startMonthNum, endYear, endMonthNum, fromDateAd, toDateAd);
-//     };
+//     }, [selectedParty, startMonth, endMonth, fiscalYear, fromDateAd, toDateAd, loadPartySummaryByMonthRange]);
 
-//     const formatCurrency = (amount) => {
-//         if (amount === undefined || amount === null) return '0.00';
+//     const formatCurrency = useCallback((amount) => {
+//         if (amount == null) return '0.00';
 //         return parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-//     };
+//     }, []);
 
-//     const formatDate = (date) => {
+//     const formatDate = useCallback((date) => {
 //         if (!date) return '';
 //         return new Date(date).toLocaleDateString('en-NP');
-//     };
+//     }, []);
 
-//     const handleKeyDown = (e, nextFieldId) => {
+//     const handleKeyDown = useCallback((e, nextId) => {
 //         if (e.key === 'Enter') {
 //             e.preventDefault();
-//             if (nextFieldId) {
-//                 const nextField = document.getElementById(nextFieldId);
-//                 if (nextField) nextField.focus();
+//             if (nextId) {
+//                 document.getElementById(nextId)?.focus();
+//             } else {
+//                 handleGenerateReport();
 //             }
 //         }
-//     };
+//     }, [handleGenerateReport]);
+
+//     const getFocusTargetOnModalClose = useCallback(() => {
+//         return startMonthRef.current ? 'startMonth' : 'startMonth';
+//     }, []);
 
 
 //     const handlePrint = () => {
@@ -1062,8 +875,6 @@
 //         printWindow.document.close();
 //     };
 
-//     const handleDownloadPDF = () => handlePrint();
-
 //     if (!isInitialized) return <Loader />;
 
 //     const selectedPartyDisplay = selectedParty
@@ -1071,447 +882,311 @@
 //         : '';
 
 //     return (
-//         <div className="container-fluid">
+//         <div className="vat-confirmation-page">
 //             <Header />
-//             <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
-//                 <div className="card-header bg-white py-0">
-//                     <h1 className="h4 mb-0 text-center text-primary">
-//                         <FiFileText className="me-2" />
-//                         VAT and Balance Confirmation
-//                     </h1>
-//                 </div>
 
-//                 <div className="card-body p-2 p-md-3">
-//                     {error && (
-//                         <div className="alert alert-danger text-center py-1 mb-2 small">
-//                             {error}
-//                             <button type="button" className="btn-close btn-sm ms-2" onClick={() => setError('')}></button>
-//                         </div>
-//                     )}
-
-//                     <div className="row g-2 mb-3">
-//                         {/* Party Name Selection - Click to open modal */}
-//                         <div className="col-12 col-md-3">
-//                             <div className="position-relative">
-//                                 <input
-//                                     type="text"
-//                                     id="account"
-//                                     className="form-control form-control-sm"
-//                                     value={selectedPartyDisplay}
-//                                     onClick={() => setShowAccountModal(true)}
-//                                     readOnly
-//                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem', cursor: 'pointer' }}
-//                                 />
-//                                 <label
-//                                     className="position-absolute"
-//                                     style={{
-//                                         top: '-0.5rem',
-//                                         left: '0.75rem',
-//                                         fontSize: '0.75rem',
-//                                         backgroundColor: 'white',
-//                                         padding: '0 0.25rem',
-//                                         color: '#6c757d',
-//                                         fontWeight: '500'
-//                                     }}
-//                                 >
-//                                     Party Name: <span className="text-danger">*</span>
-//                                 </label>
-//                             </div>
-//                         </div>
-
-//                         {/* Start Month */}
-//                         <div className="col-12 col-md-2">
-//                             <div className="position-relative">
-//                                 <select
-//                                     id="startMonth"
-//                                     ref={startMonthRef}
-//                                     className="form-select form-select-sm"
-//                                     value={startMonth}
-//                                     onChange={(e) => setStartMonth(e.target.value)}
-//                                     onKeyDown={(e) => handleKeyDown(e, 'endMonth')}
-//                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
-//                                 >
-//                                     <option value="">Select Start Month</option>
-//                                     {nepaliMonths.map(month => (
-//                                         <option key={month.value} value={month.value}>
-//                                             {month.name}
-//                                         </option>
-//                                     ))}
-//                                 </select>
-//                                 <label
-//                                     className="position-absolute"
-//                                     style={{
-//                                         top: '-0.5rem',
-//                                         left: '0.75rem',
-//                                         fontSize: '0.75rem',
-//                                         backgroundColor: 'white',
-//                                         padding: '0 0.25rem',
-//                                         color: '#6c757d',
-//                                         fontWeight: '500'
-//                                     }}
-//                                 >
-//                                     Start Month
-//                                 </label>
-//                             </div>
-//                         </div>
-
-//                         {/* End Month */}
-//                         <div className="col-12 col-md-2">
-//                             <div className="position-relative">
-//                                 <select
-//                                     id="endMonth"
-//                                     ref={endMonthRef}
-//                                     className="form-select form-select-sm"
-//                                     value={endMonth}
-//                                     onChange={(e) => setEndMonth(e.target.value)}
-//                                     onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
-//                                     style={{ height: '30px', fontSize: '0.875rem', paddingTop: '0.25rem' }}
-//                                 >
-//                                     <option value="">Select End Month</option>
-//                                     {nepaliMonths.map(month => (
-//                                         <option key={month.value} value={month.value}>
-//                                             {month.name}
-//                                         </option>
-//                                     ))}
-//                                 </select>
-//                                 <label
-//                                     className="position-absolute"
-//                                     style={{
-//                                         top: '-0.5rem',
-//                                         left: '0.75rem',
-//                                         fontSize: '0.75rem',
-//                                         backgroundColor: 'white',
-//                                         padding: '0 0.25rem',
-//                                         color: '#6c757d',
-//                                         fontWeight: '500'
-//                                     }}
-//                                 >
-//                                     End Month
-//                                 </label>
-//                             </div>
-//                         </div>
-
-//                         {/* Generate Button */}
-//                         <div className="col-12 col-md-1">
-//                             <button
-//                                 type="button"
-//                                 id="generateReport"
-//                                 className="btn btn-primary btn-sm w-100"
-//                                 onClick={handleGenerateReport}
-//                                 disabled={!selectedParty || !startMonth || !endMonth || !fiscalYear}
-//                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
-//                             >
-//                                 <i className="fas fa-chart-line me-1"></i>Generate
-//                             </button>
-//                         </div>
-
-//                         {/* Action Buttons */}
-//                         <div className="col-12 col-md-4">
-//                             <div className="d-flex gap-2 justify-content-end" style={{ height: '30px' }}>
-//                                 <button
-//                                     className="btn btn-secondary btn-sm"
-//                                     onClick={handlePrint}
-//                                     disabled={!summary}
-//                                     style={{ fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
-//                                 >
-//                                     <FiPrinter className="me-1" style={{ fontSize: '12px' }} />
-//                                     Print (English)
-//                                 </button>
-//                                 <button
-//                                     className="btn btn-secondary btn-sm"
-//                                     onClick={handlePrintNepali}
-//                                     disabled={!summary}
-//                                     style={{ fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}
-//                                 >
-//                                     <FiPrinter className="me-1" style={{ fontSize: '12px' }} />
-//                                     Print (नेपाली)
-//                                 </button>
-//                             </div>
+//             <div className="vc-shell">
+//                 {/* Compact top bar */}
+//                 <div className="vc-topbar">
+//                     <div className="vc-topbar__left">
+//                         <div className="vc-topbar__icon"><FiFileText /></div>
+//                         <div>
+//                             <h1>VAT Confirmation</h1>
 //                         </div>
 //                     </div>
+//                     <div className="vc-topbar__actions">
+//                         <button
+//                             type="button"
+//                             className="vc-btn-icon"
+//                             onClick={handlePrint}
+//                             disabled={!summary}
+//                         >
+//                             <FiPrinter /> Print (EN)
+//                         </button>
+//                         <button
+//                             type="button"
+//                             className="vc-btn-icon"
+//                             onClick={handlePrintNepali}
+//                             disabled={!summary}
+//                         >
+//                             <FiPrinter /> Print (नेपाली)
+//                         </button>
+//                     </div>
+//                 </div>
 
-//                     {/* Selected Period Display */}
+//                 {/* Single-row toolbar */}
+//                 <div className="vc-toolbar">
+//                     <div className="vc-field vc-field--party">
+//                         <label>Party <span className="req">*</span></label>
+//                         <input
+//                             type="text"
+//                             id="account"
+//                             className={selectedParty ? '' : 'is-empty'}
+//                             value={selectedPartyDisplay}
+//                             onClick={() => setShowAccountModal(true)}
+//                             readOnly
+//                             placeholder="Click to select"
+//                         />
+//                     </div>
+
+//                     <div className="vc-field vc-field--month">
+//                         <label>From <span className="req">*</span></label>
+//                         <select
+//                             id="startMonth"
+//                             ref={startMonthRef}
+//                             value={startMonth}
+//                             onChange={(e) => setStartMonth(e.target.value)}
+//                             onKeyDown={(e) => handleKeyDown(e, 'endMonth')}
+//                         >
+//                             <option value="">Select</option>
+//                             {nepaliMonths.map(month => (
+//                                 <option key={month.value} value={month.value}>
+//                                     {month.name}
+//                                 </option>
+//                             ))}
+//                         </select>
+//                     </div>
+
+//                     <div className="vc-field vc-field--month">
+//                         <label>To <span className="req">*</span></label>
+//                         <select
+//                             id="endMonth"
+//                             ref={endMonthRef}
+//                             value={endMonth}
+//                             onChange={(e) => setEndMonth(e.target.value)}
+//                             onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
+//                         >
+//                             <option value="">Select</option>
+//                             {nepaliMonths.map(month => (
+//                                 <option key={month.value} value={month.value}>
+//                                     {month.name}
+//                                 </option>
+//                             ))}
+//                         </select>
+//                     </div>
+
+//                     <button
+//                         type="button"
+//                         id="generateReport"
+//                         ref={generateBtnRef}
+//                         className="vc-btn-gen"
+//                         onClick={handleGenerateReport}
+//                         disabled={!selectedParty || !startMonth || !endMonth || !fiscalYear || loading}
+//                     >
+//                         {loading
+//                             ? <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12 }} />
+//                             : <><i className="bi bi-play-fill" /> Generate</>
+//                         }
+//                     </button>
+
+//                     <div className="vc-toolbar-divider" />
+
+//                     {/* Period display */}
 //                     {startMonth && endMonth && fiscalYear && (
-//                         <div className="bg-info bg-opacity-10 rounded p-2 mb-3">
-//                             <span className="text-info" style={{ fontSize: '0.75rem' }}>
-//                                 <FiCalendar className="me-1" />
-//                                 Fiscal Year: <strong>{fiscalYear}</strong> |
-//                                 Selected Period: <strong>{getMonthYearDisplay(startMonth)} to {getMonthYearDisplay(endMonth)}</strong>
-//                             </span>
+//                         <div className="vc-period">
+//                             <FiCalendar className="me-1" style={{ fontSize: '0.65rem' }} />
+//                             <span>{getMonthYearDisplay(startMonth)} — {getMonthYearDisplay(endMonth)}</span>
 //                         </div>
 //                     )}
+//                 </div>
 
-//                     {summary ? (
-//                         <div>
-//                             {/* Party Info */}
-//                             <div className="bg-light rounded p-2 mb-3">
-//                                 <h6 className="text-primary mb-1">
-//                                     <FiUser className="me-1" style={{ fontSize: '0.7rem' }} />
-//                                     {summary.party?.name}
-//                                 </h6>
-//                                 <div className="row text-muted" style={{ fontSize: '0.7rem' }}>
-//                                     <div className="col-2">PAN: {summary.party?.pan || ''}</div>
-//                                     <div className="col-6">Address: {summary.party?.address || ''}</div>
-//                                 </div>
-//                             </div>
+//                 {error && (
+//                     <div className="vc-alert">
+//                         <i className="bi bi-exclamation-circle" />{error}
+//                         <button type="button" className="btn-close btn-sm ms-auto" onClick={() => setError('')} />
+//                     </div>
+//                 )}
 
-//                             {/* Key Metrics */}
-//                             <div className="row g-2 mb-3">
-//                                 <div className="col-6">
-//                                     <div className="text-center p-2 border rounded bg-white">
-//                                         <h6 className="text-success mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatCurrency(summary.summary?.netSales)}</h6>
-//                                         <small className="text-muted" style={{ fontSize: '0.65rem' }}>Net Sales</small>
-//                                     </div>
-//                                 </div>
-//                                 <div className="col-6">
-//                                     <div className="text-center p-2 border rounded bg-white">
-//                                         <h6 className="text-info mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatCurrency(summary.summary?.netSalesVAT)}</h6>
-//                                         <small className="text-muted" style={{ fontSize: '0.65rem' }}>Net VAT</small>
-//                                     </div>
-//                                 </div>
-//                             </div>
-
-//                             {/* Balance Information */}
-//                             <div className="mb-3 p-2 border rounded">
-//                                 <h6 className="mb-1 text-primary" style={{ fontSize: '0.75rem' }}>Balance Summary</h6>
-//                                 <div className="row g-1">
-//                                     <div className="col-6">
-//                                         <div className="d-flex justify-content-between" style={{ fontSize: '0.7rem' }}>
-//                                             <span className="text-muted">Opening:</span>
-//                                             <strong className={summary.summary?.openingBalance > 0 ? 'text-success' : 'text-danger'}>
-//                                                 Rs. {formatCurrency(Math.abs(summary.summary?.openingBalance || 0))} {summary.summary?.openingBalance > 0 ? 'Cr' : (summary.summary?.openingBalance < 0 ? 'Dr' : '')}
-//                                             </strong>
-//                                         </div>
-//                                     </div>
-//                                     <div className="col-6">
-//                                         <div className="d-flex justify-content-between" style={{ fontSize: '0.7rem' }}>
-//                                             <span className="text-muted">Closing:</span>
-//                                             <strong className={summary.summary?.closingBalance > 0 ? 'text-success' : 'text-danger'}>
-//                                                 Rs. {formatCurrency(Math.abs(summary.summary?.closingBalance || 0))} {summary.summary?.closingBalance > 0 ? 'Cr' : (summary.summary?.closingBalance < 0 ? 'Dr' : '')}
-//                                             </strong>
-//                                         </div>
-//                                     </div>
-//                                 </div>
-//                             </div>
-
-//                             {/* Fiscal Year Info */}
-//                             <div className="mb-3 p-2 bg-light rounded">
-//                                 <div className="d-flex justify-content-between align-items-center" style={{ fontSize: '0.7rem' }}>
-//                                     <span><FiCalendar className="me-1" style={{ fontSize: '0.7rem' }} /> Fiscal Year:</span>
-//                                     <strong>{summary.fiscalYear || fiscalYear}</strong>
-//                                 </div>
-//                             </div>
-
-//                             {/* Generate Confirmation Letter Button */}
-//                             <button
-//                                 className="btn btn-primary btn-sm w-100"
-//                                 onClick={() => setShowPreview(true)}
-//                                 style={{ height: '30px', fontSize: '0.8rem', fontWeight: '500' }}
-//                             >
-//                                 <FiFileText className="me-1" style={{ fontSize: '12px' }} />
-//                                 Generate Confirmation Letter
-//                             </button>
+//                 {/* Main content area */}
+//                 <div className="vc-main">
+//                     {loading ? (
+//                         <div className="vc-state">
+//                             <div className="spinner-border spinner-border-sm text-primary" />
+//                             <p style={{ marginTop: '0.5rem' }}>Loading…</p>
+//                         </div>
+//                     ) : !summary ? (
+//                         <div className="vc-state">
+//                             <FiUser size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+//                             <h3>No party selected</h3>
+//                             <p>Select a party and date range, then click Generate.</p>
 //                         </div>
 //                     ) : (
-//                         <div className="text-center p-4">
-//                             <FiUser size={32} className="text-muted mb-2" />
-//                             <h6 className="text-muted mb-1">No Party Selected</h6>
-//                             <p className="text-muted mb-0 small">Select a party and date range to view summary.</p>
-//                         </div>
+//                         <>
+//                             <div className="vc-main__bar">
+//                                 <span><strong>{summary.party?.name}</strong> · PAN: {summary.party?.pan || '—'}</span>
+//                                 <span>{getMonthYearDisplay(startMonth)} — {getMonthYearDisplay(endMonth)}</span>
+//                             </div>
+
+//                             <div className="vc-summary-grid">
+//                                 <div className="vc-summary-card">
+//                                     <div className="vc-summary-card__label">Net Sales</div>
+//                                     <div className="vc-summary-card__value vc-value--green">
+//                                         Rs. {formatCurrency(summary.summary?.netSales)}
+//                                     </div>
+//                                 </div>
+//                                 <div className="vc-summary-card">
+//                                     <div className="vc-summary-card__label">Net VAT</div>
+//                                     <div className="vc-summary-card__value vc-value--blue">
+//                                         Rs. {formatCurrency(summary.summary?.netSalesVAT)}
+//                                     </div>
+//                                 </div>
+//                                 <div className="vc-summary-card">
+//                                     <div className="vc-summary-card__label">Opening Balance</div>
+//                                     <div className={`vc-summary-card__value ${summary.summary?.openingBalance > 0 ? 'vc-value--green' : 'vc-value--red'}`}>
+//                                         Rs. {formatCurrency(Math.abs(summary.summary?.openingBalance || 0))}
+//                                         {' '}{summary.summary?.openingBalance > 0 ? 'Cr' : (summary.summary?.openingBalance < 0 ? 'Dr' : '')}
+//                                     </div>
+//                                 </div>
+//                                 <div className="vc-summary-card">
+//                                     <div className="vc-summary-card__label">Closing Balance</div>
+//                                     <div className={`vc-summary-card__value ${summary.summary?.closingBalance > 0 ? 'vc-value--green' : 'vc-value--red'}`}>
+//                                         Rs. {formatCurrency(Math.abs(summary.summary?.closingBalance || 0))}
+//                                         {' '}{summary.summary?.closingBalance > 0 ? 'Cr' : (summary.summary?.closingBalance < 0 ? 'Dr' : '')}
+//                                     </div>
+//                                 </div>
+//                             </div>
+
+//                             <div className="vc-table-scroll">
+//                                 <table className="vc-table">
+//                                     <thead>
+//                                         <tr>
+//                                             <th>Particulars</th>
+//                                             <th className="num">Amount (Rs.)</th>
+//                                             <th className="num">VAT (Rs.)</th>
+//                                             <th>Remarks</th>
+//                                         </tr>
+//                                     </thead>
+//                                     <tbody>
+//                                         <tr className="vc-section-header"><td colSpan="4"><strong>Sales Transactions</strong></td></tr>
+//                                         <tr><td style={{ paddingLeft: '10px' }}>Taxable Sales</td><td className="num">{formatCurrency(summary.summary?.taxableSales)}</td><td className="num">{formatCurrency(summary.summary?.taxableSalesVAT)}</td><td>—</td></tr>
+//                                         <tr><td style={{ paddingLeft: '10px' }}>Non-Taxable Sales</td><td className="num">{formatCurrency(summary.summary?.nonTaxableSales)}</td><td className="num">—</td><td>Exempt</td></tr>
+//                                         <tr><td style={{ paddingLeft: '10px' }}>Sales Return</td><td className="num">({formatCurrency(summary.summary?.taxableSalesReturn+summary.summary?.nonTaxableSalesReturn)})</td><td className="num">({formatCurrency(summary.summary?.taxableSalesReturnVAT)})</td><td>Credit Note</td></tr>
+//                                         <tr className="vc-total-row"><td><strong>Net Sales</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netSales)}</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netSalesVAT)}</strong></td><td>—</td></tr>
+//                                         <tr className="vc-spacer"><td colSpan="4">&nbsp;</td></tr>
+//                                         <tr className="vc-section-header"><td colSpan="4"><strong>Purchase Transactions</strong></td></tr>
+//                                         <tr><td style={{ paddingLeft: '10px' }}>Taxable Purchases</td><td className="num">{formatCurrency(summary.summary?.taxablePurchase)}</td><td className="num">{formatCurrency(summary.summary?.taxablePurchaseVAT)}</td><td>—</td></tr>
+//                                         <tr><td style={{ paddingLeft: '10px' }}>Non-Taxable Purchase</td><td className="num">{formatCurrency(summary.summary?.nonTaxablePurchase)}</td><td className="num">—</td><td>Exempt</td></tr>
+//                                         <tr><td style={{ paddingLeft: '10px' }}>Purchase Return</td><td className="num">({formatCurrency(summary.summary?.taxablePurchaseReturn+summary.summary?.nonTaxablePurchaseReturn)})</td><td className="num">({formatCurrency(summary.summary?.taxablePurchaseReturnVAT)})</td><td>Debit Note</td></tr>
+//                                         <tr className="vc-total-row"><td><strong>Net Purchases</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netPurchase)}</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netPurchaseVAT)}</strong></td><td>—</td></tr>
+//                                         <tr className="vc-spacer"><td colSpan="4">&nbsp;</td></tr>
+//                                         <tr className="vc-section-header"><td colSpan="4"><strong>Account Balances</strong></td></tr>
+//                                         <tr className="vc-balance-row"><td>Opening Balance</td><td className="num"><strong>{formatCurrency(Math.abs(summary.summary?.openingBalance || 0))} {summary.summary?.openingBalance > 0 ? 'Cr' : (summary.summary?.openingBalance < 0 ? 'Dr' : '')}</strong></td><td className="num">—</td><td>B/F</td></tr>
+//                                         <tr className="vc-balance-row"><td>Closing Balance</td><td className="num"><strong>{formatCurrency(Math.abs(summary.summary?.closingBalance || 0))} {summary.summary?.closingBalance > 0 ? 'Cr' : (summary.summary?.closingBalance < 0 ? 'Dr' : '')}</strong></td><td className="num">—</td><td>C/F</td></tr>
+//                                     </tbody>
+//                                 </table>
+//                             </div>
+
+//                             <div className="vc-main__footer">
+//                                 <button
+//                                     className="vc-btn-primary"
+//                                     onClick={() => setShowPreview(true)}
+//                                 >
+//                                     <FiFileText className="me-1" style={{ fontSize: '12px' }} />
+//                                     Generate Confirmation Letter
+//                                 </button>
+//                             </div>
+//                         </>
 //                     )}
 //                 </div>
 //             </div>
 
-//             {/* Confirmation Letter Preview Modal */}
-//             <Modal show={showPreview} onHide={() => setShowPreview(false)} size="xl" fullscreen>
-//                 <Modal.Header closeButton className="bg-primary text-white py-1">
-//                     <Modal.Title className="d-flex align-items-center">
-//                         <FiFileText className="me-2" />
-//                         VAT and Balance Confirmation Letter
-//                         {selectedParty && <span className="ms-2">- {selectedParty.name}</span>}
-//                     </Modal.Title>
-//                 </Modal.Header>
-//                 <Modal.Body className="p-3" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-//                     {summary && (
-//                         <Table bordered responsive size="sm" className="mb-4" style={{ fontSize: '0.7rem' }}>
-//                             <thead className="table-light">
-//                                 <tr>
-//                                     <th>Head Details</th>
-//                                     <th className="text-end">Transaction Amount</th>
-//                                     <th className="text-end">VAT Amount</th>
-//                                     <th>Remarks</th>
-//                                 </tr>
-//                             </thead>
-//                             <tbody>
-//                                 <tr>
-//                                     <td><strong>Taxable Sales</strong></td>
-//                                     <td className="text-end">{formatCurrency(summary.summary?.taxableSales)}</td>
-//                                     <td className="text-end">{formatCurrency(summary.summary?.taxableSalesVAT)}</td>
-//                                     <td>-</td>
-//                                 </tr>
-//                                 <tr>
-//                                     <td><strong>Non-Taxable Sales</strong></td>
-//                                     <td className="text-end">{formatCurrency(summary.summary?.nonTaxableSales)}</td>
-//                                     <td className="text-end">-</td>
-//                                     <td>Exempt</td>
-//                                 </tr>
-//                                 <tr>
-//                                     <td><strong>Less: Sales Return</strong></td>
-//                                     <td className="text-end">({formatCurrency(summary.summary?.salesReturn)})</td>
-//                                     <td className="text-end">({formatCurrency(summary.summary?.salesReturnVAT)})</td>
-//                                     <td>Credit Note</td>
-//                                 </tr>
-//                                 <tr className="table-active">
-//                                     <td><strong>Net Sales</strong></td>
-//                                     <td className="text-end"><strong>{formatCurrency(summary.summary?.netSales)}</strong></td>
-//                                     <td className="text-end"><strong>{formatCurrency(summary.summary?.netSalesVAT)}</strong></td>
-//                                     <td>-</td>
-//                                 </tr>
-//                                 <tr><td colSpan="4">&nbsp;</td></tr>
-//                                 <tr>
-//                                     <td><strong>Taxable Purchases</strong></td>
-//                                     <td className="text-end">{formatCurrency(summary.summary?.taxablePurchase)}</td>
-//                                     <td className="text-end">{formatCurrency(summary.summary?.taxablePurchaseVAT)}</td>
-//                                     <td>-</td>
-//                                 </tr>
-//                                 <tr>
-//                                     <td><strong>Non-Taxable Purchase</strong></td>
-//                                     <td className="text-end">{formatCurrency(summary.summary?.nonTaxablePurchase)}</td>
-//                                     <td className="text-end">-</td>
-//                                     <td>Exempt</td>
-//                                 </tr>
-//                                 <tr>
-//                                     <td><strong>Less: Purchase Return</strong></td>
-//                                     <td className="text-end">({formatCurrency(summary.summary?.purchaseReturn)})</td>
-//                                     <td className="text-end">({formatCurrency(summary.summary?.purchaseReturnVAT)})</td>
-//                                     <td>Debit Note</td>
-//                                 </tr>
-//                                 <tr className="table-active">
-//                                     <td><strong>Net Purchases</strong></td>
-//                                     <td className="text-end"><strong>{formatCurrency(summary.summary?.netPurchase)}</strong></td>
-//                                     <td className="text-end"><strong>{formatCurrency(summary.summary?.netPurchaseVAT)}</strong></td>
-//                                     <td>-</td>
-//                                 </tr>
-//                                 <tr><td colSpan="4">&nbsp;</td></tr>
-//                                 <tr>
-//                                     <td><strong>Opening Balance</strong></td>
-//                                     <td className="text-end">{formatCurrency(Math.abs(summary.summary?.openingBalance || 0))} {summary.summary?.openingBalance > 0 ? 'Cr' : (summary.summary?.openingBalance < 0 ? 'Dr' : '')}</td>
-//                                     <td className="text-end">-</td>
-//                                     <td>B/F</td>
-//                                 </tr>
-//                                 <tr>
-//                                     <td><strong>Closing Balance</strong></td>
-//                                     <td className="text-end">{formatCurrency(Math.abs(summary.summary?.closingBalance || 0))} {summary.summary?.closingBalance > 0 ? 'Cr' : (summary.summary?.closingBalance < 0 ? 'Dr' : '')}</td>
-//                                     <td className="text-end">-</td>
-//                                     <td>C/F</td>
-//                                 </tr>
-//                             </tbody>
-//                         </Table>
-//                     )}
-//                 </Modal.Body>
-//                 <Modal.Footer className="bg-light py-1">
-//                     <Button variant="outline-secondary" size="sm" onClick={() => setShowPreview(false)}>Close</Button>
-//                     <Button variant="outline-primary" size="sm" onClick={handlePrint}><FiPrinter className="me-1" /> Print</Button>
-//                     <Button variant="primary" size="sm" onClick={handleDownloadPDF}><FiDownload className="me-1" /> Download PDF</Button>
-//                 </Modal.Footer>
-//             </Modal>
+//             {/* Preview Modal */}
+//             {showPreview && (
+//                 <div className="vc-modal-overlay" onClick={() => setShowPreview(false)}>
+//                     <div className="vc-modal" onClick={e => e.stopPropagation()}>
+//                         <div className="vc-modal-header">
+//                             <h5>VAT Confirmation Letter Preview</h5>
+//                             <button type="button" className="btn-close" onClick={() => setShowPreview(false)} />
+//                         </div>
+//                         <div className="vc-modal-body">
+//                             {summary && (
+//                                 <table className="vc-table vc-table--preview">
+//                                     <thead>
+//                                         <tr>
+//                                             <th>Particulars</th>
+//                                             <th className="num">Amount (Rs.)</th>
+//                                             <th className="num">VAT (Rs.)</th>
+//                                             <th>Remarks</th>
+//                                         </tr>
+//                                     </thead>
+//                                     <tbody>
+//                                         <tr><td><strong>Taxable Sales</strong></td><td className="num">{formatCurrency(summary.summary?.taxableSales)}</td><td className="num">{formatCurrency(summary.summary?.taxableSalesVAT)}</td><td>—</td></tr>
+//                                         <tr><td><strong>Non-Taxable Sales</strong></td><td className="num">{formatCurrency(summary.summary?.nonTaxableSales)}</td><td className="num">—</td><td>Exempt</td></tr>
+//                                         <tr><td><strong>Less: Sales Return</strong></td><td className="num">({formatCurrency(summary.summary?.salesReturn)})</td><td className="num">({formatCurrency(summary.summary?.salesReturnVAT)})</td><td>Credit Note</td></tr>
+//                                         <tr className="vc-total-row"><td><strong>Net Sales</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netSales)}</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netSalesVAT)}</strong></td><td>—</td></tr>
+//                                         <tr className="vc-spacer"><td colSpan="4">&nbsp;</td></tr>
+//                                         <tr><td><strong>Taxable Purchases</strong></td><td className="num">{formatCurrency(summary.summary?.taxablePurchase)}</td><td className="num">{formatCurrency(summary.summary?.taxablePurchaseVAT)}</td><td>—</td></tr>
+//                                         <tr><td><strong>Non-Taxable Purchase</strong></td><td className="num">{formatCurrency(summary.summary?.nonTaxablePurchase)}</td><td className="num">—</td><td>Exempt</td></tr>
+//                                         <tr><td><strong>Less: Purchase Return</strong></td><td className="num">({formatCurrency(summary.summary?.purchaseReturn)})</td><td className="num">({formatCurrency(summary.summary?.purchaseReturnVAT)})</td><td>Debit Note</td></tr>
+//                                         <tr className="vc-total-row"><td><strong>Net Purchases</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netPurchase)}</strong></td><td className="num"><strong>{formatCurrency(summary.summary?.netPurchaseVAT)}</strong></td><td>—</td></tr>
+//                                         <tr className="vc-spacer"><td colSpan="4">&nbsp;</td></tr>
+//                                         <tr><td><strong>Opening Balance</strong></td><td className="num">{formatCurrency(Math.abs(summary.summary?.openingBalance || 0))} {summary.summary?.openingBalance > 0 ? 'Cr' : (summary.summary?.openingBalance < 0 ? 'Dr' : '')}</td><td className="num">—</td><td>B/F</td></tr>
+//                                         <tr><td><strong>Closing Balance</strong></td><td className="num">{formatCurrency(Math.abs(summary.summary?.closingBalance || 0))} {summary.summary?.closingBalance > 0 ? 'Cr' : (summary.summary?.closingBalance < 0 ? 'Dr' : '')}</td><td className="num">—</td><td>C/F</td></tr>
+//                                     </tbody>
+//                                 </table>
+//                             )}
+//                         </div>
+//                         <div className="vc-modal-footer">
+//                             <button className="vc-btn-secondary" onClick={() => setShowPreview(false)}>Close</button>
+//                             <button className="vc-btn-primary" onClick={handlePrint}><FiPrinter className="me-1" /> Print (EN)</button>
+//                             <button className="vc-btn-primary" onClick={handlePrintNepali}><FiPrinter className="me-1" /> Print (नेपाली)</button>
+//                         </div>
+//                     </div>
+//                 </div>
+//             )}
 
-
-//             {/* Account Selection Modal with Virtualized List */}
+//             {/* Account Selection Modal */}
 //             {showAccountModal && (
-//                 <>
-//                     <div className="modal-backdrop fade show" style={{ zIndex: 1040 }}></div>
-//                     <div
-//                         className="modal fade show"
-//                         tabIndex="-1"
-//                         style={{ display: 'block', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}
-//                         onKeyDown={(e) => {
-//                             if (e.key === 'Escape') {
-//                                 e.preventDefault();
+//                 <div className="vc-modal-overlay" onClick={() => setShowAccountModal(false)}>
+//                     <div className="vc-modal vc-modal--xl" onClick={e => e.stopPropagation()}>
+//                         <div className="vc-modal-header">
+//                             <h5>Select Account</h5>
+//                             <small className="ms-auto text-muted" style={{ fontSize: '0.65rem' }}>
+//                                 {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts}` : 'Loading…'}
+//                             </small>
+//                             <button type="button" className="btn-close" onClick={() => {
 //                                 setShowAccountModal(false);
-//                                 const focusTargetId = getFocusTargetOnModalClose();
-//                                 setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
-//                             }
-//                         }}
-//                     >
-//                         <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '70%' }}>
-//                             <div className="modal-content" style={{ height: '400px' }}>
-//                                 <div className="modal-header py-1">
-//                                     <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
-//                                         Select Account
-//                                     </h5>
-//                                     <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
-//                                         {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
-//                                     </small>
-//                                     <button
-//                                         type="button"
-//                                         className="btn-close"
-//                                         onClick={() => {
-//                                             setShowAccountModal(false);
-//                                             const focusTargetId = getFocusTargetOnModalClose();
-//                                             setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
-//                                         }}
-//                                     />
-//                                 </div>
-//                                 <div className="p-2 bg-white sticky-top">
-//                                     <input
-//                                         type="text"
-//                                         id="searchAccount"
-//                                         className="form-control form-control-sm"
-//                                         placeholder="Search Account..."
-//                                         autoFocus
-//                                         autoComplete="off"
-//                                         value={accountSearchQuery}
-//                                         onChange={handleAccountSearch}
-//                                         onKeyDown={(e) => {
-//                                             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-//                                                 e.preventDefault();
-//                                                 const firstAccountItem = document.querySelector('.account-item');
-//                                                 if (firstAccountItem) firstAccountItem.focus();
-//                                             } else if (e.key === 'Enter') {
-//                                                 e.preventDefault();
-//                                                 const activeItem = document.querySelector('.account-item.active');
-//                                                 if (activeItem) {
-//                                                     const accountId = activeItem.getAttribute('data-account-id');
-//                                                     const account = accounts.find(a => a.id === accountId);
-//                                                     if (account) selectAccount(account);
-//                                                 } else {
-//                                                     setShowAccountModal(false);
-//                                                     const focusTargetId = getFocusTargetOnModalClose();
-//                                                     setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
-//                                                 }
-//                                             }
-//                                         }}
-//                                         ref={accountSearchRef}
-//                                         style={{ height: '24px', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-//                                     />
-//                                 </div>
-//                                 <div className="modal-body p-0">
-//                                     <div style={{ height: 'calc(500px - 120px)' }}>
-//                                         <VirtualizedAccountList
-//                                             accounts={accounts}
-//                                             onAccountClick={selectAccount}
-//                                             searchRef={accountSearchRef}
-//                                             hasMore={hasMoreAccountResults}
-//                                             isSearching={isAccountSearching}
-//                                             onLoadMore={loadMoreAccounts}
-//                                             totalAccounts={totalAccounts}
-//                                             page={accountSearchPage}
-//                                             searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-//                                         />
-//                                     </div>
-//                                 </div>
+//                                 setTimeout(() => {
+//                                     const targetId = getFocusTargetOnModalClose();
+//                                     document.getElementById(targetId)?.focus();
+//                                 }, 50);
+//                             }} />
+//                         </div>
+//                         <div className="vc-modal-body" style={{ padding: '0.5rem' }}>
+//                             <input
+//                                 type="text"
+//                                 id="searchAccount"
+//                                 className="vc-search-input"
+//                                 placeholder="Search account..."
+//                                 autoFocus
+//                                 autoComplete="off"
+//                                 value={accountSearchQuery}
+//                                 onChange={handleAccountSearch}
+//                                 ref={accountSearchRef}
+//                             />
+//                             <div style={{ height: '300px', marginTop: '0.5rem' }}>
+//                                 <VirtualizedAccountList
+//                                     accounts={accounts}
+//                                     onAccountClick={selectAccount}
+//                                     searchRef={accountSearchRef}
+//                                     hasMore={hasMoreAccountResults}
+//                                     isSearching={isAccountSearching}
+//                                     onLoadMore={loadMoreAccounts}
+//                                     totalAccounts={totalAccounts}
+//                                     page={accountSearchPage}
+//                                     searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
+//                                 />
 //                             </div>
 //                         </div>
 //                     </div>
-//                 </>
+//                 </div>
 //             )}
-
 
 //             <NotificationToast
 //                 show={notification.show}
 //                 message={notification.message}
 //                 type={notification.type}
+//                 duration={notification.duration}
 //                 onClose={() => setNotification({ ...notification, show: false })}
 //             />
 //         </div>
@@ -1531,6 +1206,7 @@ import Header from './retailer/Header';
 import Loader from './Loader';
 import NotificationToast from './NotificationToast';
 import VirtualizedAccountList from './VirtualizedAccountList';
+import AccountModalForPaymentReceipt from '../components/retailer/payment/AccountModalForPaymentReceipt';
 import NepaliDate from 'nepali-datetime';
 import './VATConfirmationLetter.css';
 import api, { refreshToken } from '../components/services/api';
@@ -1583,7 +1259,7 @@ const VATConfirmationLetter = () => {
         show: false, message: '', type: 'success', duration: 3000
     });
 
-    // Account search states
+    // Account search states - SAME as AddPayment
     const [accounts, setAccounts] = useState([]);
     const [isAccountSearching, setIsAccountSearching] = useState(false);
     const [accountSearchResults, setAccountSearchResults] = useState([]);
@@ -1594,6 +1270,8 @@ const VATConfirmationLetter = () => {
     const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
     const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
     const [showAccountModal, setShowAccountModal] = useState(false);
+    const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
+    const [selectedAccountId, setSelectedAccountId] = useState('');
 
     const [selectedParty, setSelectedParty] = useState(null);
     const [summary, setSummary] = useState(null);
@@ -1684,25 +1362,10 @@ const VATConfirmationLetter = () => {
         }
     }, [endMonth, fiscalYear]);
 
-    // API instance
-    // const api = useMemo(() => {
-    //     const instance = axios.create({
-    //         baseURL: process.env.REACT_APP_API_BASE_URL,
-    //         withCredentials: true,
-    //     });
-    //     instance.interceptors.request.use((config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) config.headers.Authorization = `Bearer ${token}`;
-    //         return config;
-    //     });
-    //     return instance;
-    // }, []);
-
-    // Fetch accounts
     const fetchAccountsFromBackend = useCallback(async (searchTerm = '', page = 1) => {
         try {
             setIsAccountSearching(true);
-            const response = await api.get('/api/retailer/all/accounts/search', {
+            const response = await api.get('/api/retailer/accounts/search', {
                 params: {
                     search: searchTerm,
                     page: page,
@@ -1733,6 +1396,7 @@ const VATConfirmationLetter = () => {
         }
     }, [api]);
 
+
     // Load accounts when modal opens
     useEffect(() => {
         if (showAccountModal) {
@@ -1746,14 +1410,14 @@ const VATConfirmationLetter = () => {
         }
     }, [showAccountModal, fetchAccountsFromBackend]);
 
-    const loadMoreAccounts = useCallback(() => {
+    const loadMoreAccounts = () => {
         if (!isAccountSearching && hasMoreAccountResults) {
-            const searchTermVal = accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery;
-            fetchAccountsFromBackend(searchTermVal, accountSearchPage + 1);
+            const nextPage = accountSearchPage + 1;
+            fetchAccountsFromBackend(accountSearchQuery, nextPage, true);
         }
-    }, [isAccountSearching, hasMoreAccountResults, accountShouldShowLastSearchResults, accountLastSearchQuery, accountSearchQuery, accountSearchPage, fetchAccountsFromBackend]);
+    };
 
-    const handleAccountSearch = useCallback((e) => {
+    const handleAccountSearch = (e) => {
         const searchText = e.target.value;
         setAccountSearchQuery(searchText);
         setAccountSearchPage(1);
@@ -1761,9 +1425,30 @@ const VATConfirmationLetter = () => {
             setAccountShouldShowLastSearchResults(false);
             setAccountLastSearchQuery('');
         }
-        const timer = setTimeout(() => fetchAccountsFromBackend(searchText, 1), 300);
+        const timer = setTimeout(() => {
+            fetchAccountsFromBackend(searchText, 1);
+        }, 300);
         return () => clearTimeout(timer);
-    }, [accountShouldShowLastSearchResults, fetchAccountsFromBackend]);
+    };
+
+    // Account modal handlers - SAME as AddPayment
+    const handleAccountModalClose = () => {
+        setShowAccountModal(false);
+    };
+
+    const handleAccountCreationModalClose = () => {
+        setShowAccountCreationModal(false);
+        setShowAccountModal(true);
+        fetchAccountsFromBackend('', 1);
+    };
+
+    const selectAccount = (account) => {
+        setSelectedParty(account);
+        setSelectedAccountId(account.id);
+        setShowAccountModal(false);
+        setAccountSearchQuery('');
+        setTimeout(() => startMonthRef.current?.focus(), 100);
+    };
 
     // Fetch initial data
     const fetchInitialData = useCallback(async () => {
@@ -1818,13 +1503,6 @@ const VATConfirmationLetter = () => {
             setLoading(false);
         }
     }, [api]);
-
-    const selectAccount = useCallback((account) => {
-        setSelectedParty(account);
-        setShowAccountModal(false);
-        setAccountSearchQuery('');
-        setTimeout(() => startMonthRef.current?.focus(), 100);
-    }, []);
 
     const handleGenerateReport = useCallback(() => {
         if (!selectedParty) {
@@ -1894,7 +1572,6 @@ const VATConfirmationLetter = () => {
     const getFocusTargetOnModalClose = useCallback(() => {
         return startMonthRef.current ? 'startMonth' : 'startMonth';
     }, []);
-
 
     const handlePrint = () => {
         if (!summary) {
@@ -2277,7 +1954,7 @@ const VATConfirmationLetter = () => {
                 </thead>
                 <tbody>
                     <tr class="section-header">
-                        <td colspan="4"><strong>बिक्री कारोबारहरू</strong></strong></td>
+                        <td colspan="4"><strong>बिक्री कारोबारहरू</strong></td>
                     </tr>
                     <tr>
                         <td style="padding-left: 10px;">कर योग्य बिक्री</td>
@@ -2673,47 +2350,69 @@ const VATConfirmationLetter = () => {
                 </div>
             )}
 
-            {/* Account Selection Modal */}
+            {/* Account Selection Modal - Using AccountModalForPaymentReceipt like AddPayment */}
             {showAccountModal && (
-                <div className="vc-modal-overlay" onClick={() => setShowAccountModal(false)}>
-                    <div className="vc-modal vc-modal--xl" onClick={e => e.stopPropagation()}>
-                        <div className="vc-modal-header">
-                            <h5>Select Account</h5>
-                            <small className="ms-auto text-muted" style={{ fontSize: '0.65rem' }}>
-                                {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts}` : 'Loading…'}
-                            </small>
-                            <button type="button" className="btn-close" onClick={() => {
-                                setShowAccountModal(false);
-                                setTimeout(() => {
-                                    const targetId = getFocusTargetOnModalClose();
-                                    document.getElementById(targetId)?.focus();
-                                }, 50);
-                            }} />
-                        </div>
-                        <div className="vc-modal-body" style={{ padding: '0.5rem' }}>
-                            <input
-                                type="text"
-                                id="searchAccount"
-                                className="vc-search-input"
-                                placeholder="Search account..."
-                                autoFocus
-                                autoComplete="off"
-                                value={accountSearchQuery}
-                                onChange={handleAccountSearch}
-                                ref={accountSearchRef}
-                            />
-                            <div style={{ height: '300px', marginTop: '0.5rem' }}>
-                                <VirtualizedAccountList
-                                    accounts={accounts}
-                                    onAccountClick={selectAccount}
-                                    searchRef={accountSearchRef}
-                                    hasMore={hasMoreAccountResults}
-                                    isSearching={isAccountSearching}
-                                    onLoadMore={loadMoreAccounts}
-                                    totalAccounts={totalAccounts}
-                                    page={accountSearchPage}
-                                    searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
+                <AccountModalForPaymentReceipt
+                    show={showAccountModal}
+                    onClose={handleAccountModalClose}
+                    onSelectAccount={selectAccount}
+                    accounts={accounts}
+                    totalAccounts={totalAccounts}
+                    isSearching={isAccountSearching}
+                    hasMore={hasMoreAccountResults}
+                    searchQuery={accountSearchQuery}
+                    onSearch={(query) => {
+                        setAccountSearchQuery(query);
+                        setAccountSearchPage(1);
+                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                            setAccountShouldShowLastSearchResults(false);
+                            setAccountLastSearchQuery('');
+                        }
+                        const timer = setTimeout(() => {
+                            fetchAccountsFromBackend(query, 1);
+                        }, 300);
+                        return () => clearTimeout(timer);
+                    }}
+                    onLoadMore={loadMoreAccounts}
+                    page={accountSearchPage}
+                    onCreateAccount={() => {
+                        setShowAccountCreationModal(true);
+                        setShowAccountModal(false);
+                    }}
+                    selectedAccountId={selectedAccountId}
+                />
+            )}
+
+            {/* Account Creation Modal */}
+            {showAccountCreationModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Account</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={handleAccountCreationModalClose}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/accounts"
+                                    title="Account Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
                                 />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={handleAccountCreationModalClose}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
                             </div>
                         </div>
                     </div>

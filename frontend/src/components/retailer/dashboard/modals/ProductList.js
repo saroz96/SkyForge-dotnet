@@ -3,30 +3,12 @@ import { FixedSizeList as List } from 'react-window';
 import axios from 'axios';
 import '../../../../stylesheet/retailer/dashboard/modals/ProductList.css';
 import { calculateExpiryStatus } from './ExpiryStatus';
+import api, { refreshToken } from '../../../services/api';
+
 
 const ProductList = React.forwardRef(({ products: initialProducts, currentFocus, onProductSelect, refreshTrigger }, ref) => {
     const [products, setProducts] = useState(initialProducts);
     const listRef = useRef(null);
-
-    // Create axios instance with auth
-    const api = axios.create({
-        baseURL: process.env.REACT_APP_API_BASE_URL,
-        withCredentials: true,
-    });
-
-    // Add authorization header to all requests
-    api.interceptors.request.use(
-        (config) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
 
     // Update products when initialProducts changes
     useEffect(() => {

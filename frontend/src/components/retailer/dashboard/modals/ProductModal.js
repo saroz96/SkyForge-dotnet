@@ -61,10 +61,56 @@ const ProductModal = ({ onClose }) => {
     );
 
     // Fetch products from backend with search functionality
+    // const fetchProductsFromBackend = useCallback(async (searchTerm = '', page = 1, append = false) => {
+    //     try {
+    //         setIsSearching(true);
+    //         const response = await api.get('/api/retailer/items/search/items-ledger', {
+    //             params: {
+    //                 search: searchTerm,
+    //                 page: page,
+    //                 limit: 15,
+    //                 vatStatus: vatStatusFilter
+    //             }
+    //         });
+
+    //         if (response.data.success) {
+    //             const productsWithStock = response.data.items.map(item => ({
+    //                 ...item,
+    //                 currentStock: item.currentStock || 0,
+    //                 latestPrice: item.stockEntries && item.stockEntries.length > 0
+    //                     ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.price || 0
+    //                     : 0,
+    //                 latestMarginPercentage: item.stockEntries && item.stockEntries.length > 0
+    //                     ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.marginPercentage || 0
+    //                     : 0
+    //             }));
+
+    //             if (append) {
+    //                 setSearchResults(prev => [...prev, ...productsWithStock]);
+    //             } else {
+    //                 setSearchResults(productsWithStock);
+    //             }
+
+    //             setHasMoreSearchResults(response.data.pagination?.hasNextPage || false);
+    //             setTotalSearchProducts(response.data.pagination?.totalItems || productsWithStock.length);
+    //             setSearchPage(page);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching products:', error);
+    //         if (error.response?.status === 401) {
+    //             localStorage.removeItem('token');
+    //             window.location.href = '/login';
+    //         }
+    //     } finally {
+    //         setIsSearching(false);
+    //     }
+    // }, [vatStatusFilter]);
+
+    // Fetch products from backend with search functionality
     const fetchProductsFromBackend = useCallback(async (searchTerm = '', page = 1, append = false) => {
         try {
             setIsSearching(true);
-            const response = await api.get('/api/retailer/items/search', {
+            const response = await api.get('/api/retailer/items/search/items-ledger', {
                 params: {
                     search: searchTerm,
                     page: page,
@@ -74,15 +120,41 @@ const ProductModal = ({ onClose }) => {
             });
 
             if (response.data.success) {
-                const productsWithStock = response.data.items.map(item => ({
-                    ...item,
-                    currentStock: item.currentStock || 0,
-                    latestPrice: item.stockEntries && item.stockEntries.length > 0
-                        ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.price || 0
-                        : 0,
-                    latestMarginPercentage: item.stockEntries && item.stockEntries.length > 0
-                        ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.marginPercentage || 0
-                        : 0
+                // Process each item and fetch last sales price if stock is zero
+                const productsWithStock = await Promise.all(response.data.items.map(async (item) => {
+                    const currentStock = item.currentStock || 0;
+                    let latestPrice = 0;
+
+                    // If there are stock entries, get the latest price from them
+                    if (item.stockEntries && item.stockEntries.length > 0) {
+                        latestPrice = item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.price || 0;
+                    }
+
+                    // If stock is zero or no price from stock entries, fetch last sales price
+                    if (currentStock <= 0 || latestPrice === 0) {
+                        try {
+                            const priceResponse = await api.get(`/api/retailer/items/${item.id}/last-sales-price`);
+                            if (priceResponse.data.success && priceResponse.data.price > 0) {
+                                latestPrice = priceResponse.data.price;
+                            } else {
+                                // Fallback to item's Price or PuPrice
+                                latestPrice = item.Price || item.PuPrice || 0;
+                            }
+                        } catch (error) {
+                            console.error('Error fetching last sales price:', error);
+                            // Fallback to item's Price or PuPrice
+                            latestPrice = item.Price || item.PuPrice || 0;
+                        }
+                    }
+
+                    return {
+                        ...item,
+                        currentStock: currentStock,
+                        latestPrice: latestPrice,
+                        latestMarginPercentage: item.stockEntries && item.stockEntries.length > 0
+                            ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.marginPercentage || 0
+                            : 0
+                    };
                 }));
 
                 if (append) {
@@ -291,7 +363,7 @@ const ProductModal = ({ onClose }) => {
         const timer = setTimeout(() => {
             setShow(true);
         }, 50);
-        
+
         return () => clearTimeout(timer);
     }, []);
 
@@ -574,8 +646,8 @@ const ProductModal = ({ onClose }) => {
                                 Product Details
                             </p>
                             {zoomLevel !== 1 && (
-                                <span style={{ 
-                                    fontSize: '0.65rem', 
+                                <span style={{
+                                    fontSize: '0.65rem',
                                     color: '#999',
                                     backgroundColor: '#f0f0f0',
                                     padding: '1px 8px',

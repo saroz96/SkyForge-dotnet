@@ -196,25 +196,6 @@ const ItemsLedger = () => {
     const [itemSearchQuery, setItemSearchQuery] = useState('');
     const debouncedSearchQuery = useDebounce(itemSearchQuery, 500);
 
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
     // Handle keyboard navigation between fields
     const handleKeyDown = (e, currentFieldId, nextFieldId) => {
         if (e.key === 'Enter') {
@@ -368,7 +349,7 @@ const ItemsLedger = () => {
     const fetchItemsFromBackend = async (searchTerm = '', page = 1) => {
         try {
             setIsSearching(true);
-            const response = await api.get('/api/retailer/items/search', {
+            const response = await api.get('/api/retailer/items/search/items-ledger', {
                 params: {
                     search: searchTerm,
                     page: page,
@@ -513,7 +494,8 @@ const ItemsLedger = () => {
         setSelectedItem({
             id: item.id,
             name: item.name,
-            unit: item.unit?.name || 'N/A'
+            unit: item.unit?.name || 'N/A',
+            uniqueNumber: item.uniqueNumber || ''
         });
         setShowItemModal(false);
         setItemSearchQuery('');
@@ -790,7 +772,8 @@ const ItemsLedger = () => {
                                 <FormControl
                                     type="text"
                                     placeholder="Select an item..."
-                                    value={selectedItem?.name || ''}
+                                    // value={selectedItem?.name || ''}
+                                    value={selectedItem ? `${selectedItem.uniqueNumber || ''} ${selectedItem.name || ''}`.trim() : ''}
                                     autoFocus
                                     onFocus={() => setShowItemModal(true)}
                                     readOnly

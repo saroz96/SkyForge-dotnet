@@ -413,11 +413,758 @@ namespace SkyForge.Controllers.Retailer
             return DateTime.UtcNow.ToString("yyyy-MM-dd");
         }
 
+        [HttpGet("cash-transactions")]
+        public async Task<IActionResult> GetCashTransactions(
+[FromQuery] string fromDate,
+[FromQuery] string toDate,
+[FromQuery] Guid? accountId = null)
+        {
+            try
+            {
+                _logger.LogInformation("=== GetCashTransactions Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "Company not found" });
+
+                // Get fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Parse dates
+                if (!DateTime.TryParse(fromDate, out DateTime fromDateParsed))
+                    return BadRequest(new { success = false, error = "Invalid from date format" });
+
+                if (!DateTime.TryParse(toDate, out DateTime toDateParsed))
+                    return BadRequest(new { success = false, error = "Invalid to date format" });
+
+                toDateParsed = toDateParsed.Date.AddDays(1).AddTicks(-1);
+
+                _logger.LogInformation($"Fetching cash transactions from {fromDateParsed} to {toDateParsed}");
+
+                // Get the Cash in Hand account ID for this company
+                var cashAccount = await _context.Accounts
+                    .FirstOrDefaultAsync(a => a.CompanyId == companyIdGuid &&
+                                             a.Name == "Cash in Hand" &&
+                                             a.IsActive == true);
+
+                if (cashAccount == null)
+                {
+                    _logger.LogWarning("Cash in Hand account not found for company: {CompanyId}", companyIdGuid);
+                    return BadRequest(new { success = false, error = "Cash in Hand account not found" });
+                }
+
+                // FIX: Build query for ALL Cash account transactions - check multiple fields
+                var cashTransactionsQuery = _context.Transactions
+                    .Where(t => t.CompanyId == companyIdGuid &&
+                               t.FiscalYearId == fiscalYearIdGuid &&
+                               t.Date >= fromDateParsed &&
+                               t.Date <= toDateParsed &&
+                               t.Status == TransactionStatus.Active &&
+                               t.IsActive == true)
+                    .Where(t =>
+                        // Cash account can be in any of these fields
+                        t.AccountId == cashAccount.Id ||
+                        t.PaymentAccountId2 == cashAccount.Id ||
+                        t.ReceiptAccountId2 == cashAccount.Id ||
+                        t.DebitAccountId == cashAccount.Id ||
+                        t.CreditAccountId == cashAccount.Id ||
+                        t.PaymentAccountId == cashAccount.Id ||
+                        t.ReceiptAccountId == cashAccount.Id
+                    );
+
+                // Filter by account if provided (for sales/returns, account is the party)
+                if (accountId.HasValue && accountId.Value != Guid.Empty)
+                {
+                    cashTransactionsQuery = cashTransactionsQuery.Where(t =>
+                        // Check if the transaction is related to the specified account
+                        t.AccountId == accountId.Value ||
+                        (t.SalesBillId != null && _context.SalesBills.Any(sb => sb.Id == t.SalesBillId && sb.AccountId == accountId.Value)) ||
+                        (t.SalesReturnBillId != null && _context.SalesReturns.Any(sr => sr.Id == t.SalesReturnBillId && sr.AccountId == accountId.Value)) ||
+                        (t.PurchaseBillId != null && _context.PurchaseBills.Any(pb => pb.Id == t.PurchaseBillId && pb.AccountId == accountId.Value)) ||
+                        (t.PurchaseReturnBillId != null && _context.PurchaseReturns.Any(pr => pr.Id == t.PurchaseReturnBillId && pr.AccountId == accountId.Value)) ||
+                        (t.PaymentAccountId2 != null && _context.PaymentEntries.Any(pe => pe.PaymentId == t.PaymentAccountId && pe.AccountId == accountId.Value)) ||
+                        (t.ReceiptAccountId2 != null && _context.ReceiptEntries.Any(re => re.ReceiptId == t.ReceiptAccountId && re.AccountId == accountId.Value))
+                    );
+                }
+
+                var cashTransactions = await cashTransactionsQuery
+                    .Include(t => t.Account)
+                    .Include(t => t.PaymentAccount)
+                    .Include(t => t.ReceiptAccount)
+                    .Include(t => t.DebitAccount)
+                    .Include(t => t.CreditAccount)
+                    .Include(t => t.Payment)  // Include Payment for PaymentAccountId
+                    .Include(t => t.Receipt)  // Include Receipt for ReceiptAccountId
+                    .OrderByDescending(t => t.Date)
+                    .ThenByDescending(t => t.BillNumber)
+                    .ToListAsync();
+
+                _logger.LogInformation($"Found {cashTransactions.Count} cash transactions");
+
+                // Calculate totals
+                decimal totalCashInflow = 0;
+                decimal totalCashOutflow = 0;
+                decimal netCash = 0;
+
+                var transactions = new List<object>();
+
+                foreach (var transaction in cashTransactions)
+                {
+                    string transactionType = "";
+                    string transactionDescription = "";
+                    decimal amount = 0;
+                    string accountName = "";
+                    bool isInflow = false;
+                    string billNumber = transaction.BillNumber ?? "";
+                    string partyName = "";
+
+                    // Get the source document information
+                    string sourceType = "";
+                    string sourceParty = "";
+
+                    // Determine transaction type and amount based on TransactionType
+                    switch (transaction.Type)
+                    {
+                        case TransactionType.Sale:
+                            transactionType = "Sale";
+                            transactionDescription = "Cash Sale";
+                            // For Cash account, Debit = Inflow (cash received)
+                            amount = transaction.TotalDebit;
+                            // FIX: Get the party name from SalesBill
+                            if (transaction.SalesBillId.HasValue)
+                            {
+                                var salesBill = await _context.SalesBills
+                                    .Include(sb => sb.Account)
+                                    .FirstOrDefaultAsync(sb => sb.Id == transaction.SalesBillId);
+                                if (salesBill != null)
+                                {
+                                    partyName = salesBill.Account?.Name ?? salesBill.CashAccount ?? "Cash Sale";
+                                    billNumber = salesBill.BillNumber ?? billNumber;
+                                    accountName = partyName;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(accountName))
+                                accountName = transaction.Account?.Name ?? "Cash Sale";
+                            isInflow = amount > 0;
+                            break;
+
+                        case TransactionType.SlRt:
+                            transactionType = "Sale Return";
+                            transactionDescription = "Cash Sale Return";
+                            amount = transaction.TotalCredit;
+                            if (transaction.SalesReturnBillId.HasValue)
+                            {
+                                var returnBill = await _context.SalesReturns
+                                    .Include(sr => sr.Account)
+                                    .FirstOrDefaultAsync(sr => sr.Id == transaction.SalesReturnBillId);
+                                if (returnBill != null)
+                                {
+                                    partyName = returnBill.Account?.Name ?? returnBill.CashAccount ?? "Cash Return";
+                                    billNumber = returnBill.BillNumber ?? billNumber;
+                                    accountName = partyName;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(accountName))
+                                accountName = transaction.Account?.Name ?? "Cash Return";
+                            isInflow = false;
+                            break;
+
+                        case TransactionType.Purc:
+                            transactionType = "Purchase";
+                            transactionDescription = "Cash Purchase";
+                            amount = transaction.TotalCredit;
+                            if (transaction.PurchaseBillId.HasValue)
+                            {
+                                var purchaseBill = await _context.PurchaseBills
+                                    .Include(pb => pb.Account)
+                                    .FirstOrDefaultAsync(pb => pb.Id == transaction.PurchaseBillId);
+                                if (purchaseBill != null)
+                                {
+                                    partyName = purchaseBill.Account?.Name ?? "Cash Purchase";
+                                    billNumber = purchaseBill.BillNumber ?? billNumber;
+                                    accountName = partyName;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(accountName))
+                                accountName = transaction.Account?.Name ?? "Cash Purchase";
+                            isInflow = false;
+                            break;
+
+                        case TransactionType.PrRt:
+                            transactionType = "Purchase Return";
+                            transactionDescription = "Cash Purchase Return";
+                            amount = transaction.TotalDebit;
+                            if (transaction.PurchaseReturnBillId.HasValue)
+                            {
+                                var returnBill = await _context.PurchaseReturns
+                                    .Include(pr => pr.Account)
+                                    .FirstOrDefaultAsync(pr => pr.Id == transaction.PurchaseReturnBillId);
+                                if (returnBill != null)
+                                {
+                                    partyName = returnBill.Account?.Name ?? "Purchase Return";
+                                    billNumber = returnBill.BillNumber ?? billNumber;
+                                    accountName = partyName;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(accountName))
+                                accountName = transaction.Account?.Name ?? "Purchase Return";
+                            isInflow = true;
+                            break;
+
+                        case TransactionType.Pymt:
+                            transactionType = "Payment";
+                            transactionDescription = "Cash Payment";
+                            // For Payment: Cash account is Credit (money going out)
+                            amount = transaction.TotalCredit;
+
+                            // FIX: Get party name from Payment entries
+                            if (transaction.PaymentAccountId.HasValue)
+                            {
+                                var payment = await _context.Payments
+                                    .Include(p => p.PaymentEntries)
+                                        .ThenInclude(pe => pe.Account)
+                                    .FirstOrDefaultAsync(p => p.Id == transaction.PaymentAccountId);
+                                if (payment != null && payment.PaymentEntries != null)
+                                {
+                                    // Get the Debit entry (party account)
+                                    var debitEntry = payment.PaymentEntries.FirstOrDefault(pe => pe.EntryType == "Debit");
+                                    if (debitEntry != null)
+                                    {
+                                        partyName = debitEntry.Account?.Name ?? "Payment Party";
+                                        accountName = partyName;
+                                    }
+                                    billNumber = payment.BillNumber ?? billNumber;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(accountName))
+                            {
+                                accountName = transaction.PaymentAccount?.Name ??
+                                             transaction.DebitAccount?.Name ??
+                                             "Cash Payment";
+                            }
+                            isInflow = false;
+                            break;
+
+                        case TransactionType.Rcpt:
+                            transactionType = "Receipt";
+                            transactionDescription = "Cash Receipt";
+                            // For Receipt: Cash account is Debit (money coming in)
+                            amount = transaction.TotalDebit;
+
+                            // FIX: Get party name from Receipt entries
+                            if (transaction.ReceiptAccountId.HasValue)
+                            {
+                                var receipt = await _context.Receipts
+                                    .Include(r => r.ReceiptEntries)
+                                        .ThenInclude(re => re.Account)
+                                    .FirstOrDefaultAsync(r => r.Id == transaction.ReceiptAccountId);
+                                if (receipt != null && receipt.ReceiptEntries != null)
+                                {
+                                    // Get the Credit entry (party account)
+                                    var creditEntry = receipt.ReceiptEntries.FirstOrDefault(re => re.EntryType == "Credit");
+                                    if (creditEntry != null)
+                                    {
+                                        partyName = creditEntry.Account?.Name ?? "Receipt Party";
+                                        accountName = partyName;
+                                    }
+                                    billNumber = receipt.BillNumber ?? billNumber;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(accountName))
+                            {
+                                accountName = transaction.ReceiptAccount?.Name ??
+                                             transaction.CreditAccount?.Name ??
+                                             "Cash Receipt";
+                            }
+                            isInflow = true;
+                            break;
+
+                        case TransactionType.Jrnl:
+                            transactionType = "Journal";
+                            transactionDescription = "Cash Journal";
+                            if (transaction.TotalDebit > 0 && transaction.TotalCredit > 0)
+                            {
+                                if (transaction.TotalDebit > transaction.TotalCredit)
+                                {
+                                    amount = transaction.TotalDebit - transaction.TotalCredit;
+                                    isInflow = true;
+                                }
+                                else
+                                {
+                                    amount = transaction.TotalCredit - transaction.TotalDebit;
+                                    isInflow = false;
+                                }
+                            }
+                            else if (transaction.TotalDebit > 0)
+                            {
+                                amount = transaction.TotalDebit;
+                                isInflow = true;
+                            }
+                            else
+                            {
+                                amount = transaction.TotalCredit;
+                                isInflow = false;
+                            }
+                            accountName = transaction.JournalAccountType ?? "Cash Journal";
+                            break;
+
+                        case TransactionType.DrNt:
+                            transactionType = "Debit Note";
+                            transactionDescription = "Cash Debit Note";
+                            amount = transaction.TotalDebit;
+                            accountName = transaction.DrCrNoteAccountType ?? "Debit Note";
+                            isInflow = true;
+                            break;
+
+                        case TransactionType.CrNt:
+                            transactionType = "Credit Note";
+                            transactionDescription = "Cash Credit Note";
+                            amount = transaction.TotalCredit;
+                            accountName = transaction.DrCrNoteAccountType ?? "Credit Note";
+                            isInflow = false;
+                            break;
+
+                        case TransactionType.OpeningBalance:
+                            transactionType = "Opening Balance";
+                            transactionDescription = "Cash Opening Balance";
+                            amount = transaction.TotalDebit > 0 ? transaction.TotalDebit : transaction.TotalCredit;
+                            accountName = transaction.Account?.Name ?? "Opening Balance";
+                            isInflow = transaction.TotalDebit > 0;
+                            break;
+
+                        default:
+                            transactionType = "Unknown";
+                            transactionDescription = "Unknown Cash Transaction";
+                            amount = transaction.TotalDebit > 0 ? transaction.TotalDebit : transaction.TotalCredit;
+                            accountName = transaction.Account?.Name ?? "Unknown";
+                            isInflow = transaction.TotalDebit > 0;
+                            break;
+                    }
+
+                    // Only add transaction if amount is not zero
+                    if (amount == 0) continue;
+
+                    // Update totals
+                    if (isInflow)
+                    {
+                        totalCashInflow += amount;
+                    }
+                    else
+                    {
+                        totalCashOutflow += amount;
+                    }
+
+                    // Use party name as account name if available, otherwise use existing accountName
+                    string displayAccountName = !string.IsNullOrEmpty(partyName) ? partyName : accountName;
+
+                    // Add to transaction list
+                    transactions.Add(new
+                    {
+                        transaction.Id,
+                        BillNumber = billNumber,
+                        transaction.Date,
+                        transaction.NepaliDate,
+                        transaction.TransactionDate,
+                        transaction.TransactionDateNepali,
+                        AccountName = displayAccountName,
+                        transaction.PaymentMode,
+                        Type = transactionType,
+                        Description = transactionDescription,
+                        Amount = isInflow ? amount : -amount,
+                        Inflow = isInflow,
+                        Outflow = !isInflow,
+                        transaction.PartyBillNumber,
+                        transaction.PaymentReceiptType,
+                        transaction.PurchaseSalesType,
+                        transaction.PurchaseSalesReturnType,
+                    });
+                }
+
+                // Calculate net cash
+                netCash = totalCashInflow - totalCashOutflow;
+
+                var response = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        totalCashInflow,
+                        totalCashOutflow,
+                        netCash,
+                        transactions
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting cash transactions");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+
+        //     [HttpGet("bank-transactions")]
+        //     public async Task<IActionResult> GetBankTransactions(
+        // [FromQuery] string fromDate,
+        // [FromQuery] string toDate,
+        // [FromQuery] Guid? accountId = null)
+        //     {
+        //         try
+        //         {
+        //             _logger.LogInformation("=== GetBankTransactions Started ===");
+
+        //             var companyId = User.FindFirst("currentCompany")?.Value;
+        //             var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //             if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //                 return BadRequest(new { success = false, error = "Company not found" });
+
+        //             // Get fiscal year
+        //             Guid fiscalYearIdGuid;
+        //             if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //             {
+        //                 var activeFiscalYear = await _context.FiscalYears
+        //                     .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //                 if (activeFiscalYear == null)
+        //                     return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //                 fiscalYearIdGuid = activeFiscalYear.Id;
+        //             }
+
+        //             // Parse dates
+        //             if (!DateTime.TryParse(fromDate, out DateTime fromDateParsed))
+        //                 return BadRequest(new { success = false, error = "Invalid from date format" });
+
+        //             if (!DateTime.TryParse(toDate, out DateTime toDateParsed))
+        //                 return BadRequest(new { success = false, error = "Invalid to date format" });
+
+        //             toDateParsed = toDateParsed.Date.AddDays(1).AddTicks(-1);
+
+        //             _logger.LogInformation($"Fetching bank transactions from {fromDateParsed} to {toDateParsed}");
+
+        //             // Get ALL bank accounts for this company
+        //             var bankAccounts = await _context.Accounts
+        //                 .Where(a => a.CompanyId == companyIdGuid &&
+        //                            a.IsActive == true &&
+        //                            (a.Name.Contains("Bank") ||
+        //                             a.Name.Contains("bank") ||
+        //                             a.AccountGroup != null &&
+        //                             (a.AccountGroup.Name == "Bank Accounts" || a.AccountGroup.Name == "Bank O/D Account" ||
+        //                              a.AccountGroup.Name == "Bank")))
+        //                 .Select(a => new { a.Id, a.Name })
+        //                 .ToListAsync();
+
+        //             var bankAccountIds = bankAccounts.Select(a => a.Id).ToList();
+
+        //             if (!bankAccountIds.Any())
+        //             {
+        //                 _logger.LogWarning("No bank accounts found for company: {CompanyId}", companyIdGuid);
+        //                 return Ok(new
+        //                 {
+        //                     success = true,
+        //                     data = new
+        //                     {
+        //                         totalBankInflow = 0,
+        //                         totalBankOutflow = 0,
+        //                         netBank = 0,
+        //                         bankAccounts = new List<object>(),
+        //                         transactions = new List<object>()
+        //                     }
+        //                 });
+        //             }
+
+        //             // Build query for ALL bank account transactions
+        //             var bankTransactionsQuery = _context.Transactions
+        //                 .Where(t => t.CompanyId == companyIdGuid &&
+        //                            t.FiscalYearId == fiscalYearIdGuid &&
+        //                            bankAccountIds.Contains(t.AccountId.Value) &&
+        //                            t.Date >= fromDateParsed &&
+        //                            t.Date <= toDateParsed &&
+        //                            t.IsActive == true);
+
+        //             // Filter by specific bank account if provided
+        //             if (accountId.HasValue && accountId.Value != Guid.Empty)
+        //             {
+        //                 bankTransactionsQuery = bankTransactionsQuery.Where(t => t.AccountId == accountId.Value);
+        //             }
+
+        //             var bankTransactions = await bankTransactionsQuery
+        //                 .Include(t => t.Account)
+        //                 .Include(t => t.PaymentAccount)
+        //                 .Include(t => t.ReceiptAccount)
+        //                 .Include(t => t.DebitAccount)
+        //                 .Include(t => t.CreditAccount)
+        //                 .OrderByDescending(t => t.Date)
+        //                 .ThenByDescending(t => t.BillNumber)
+        //                 .ToListAsync();
+
+        //             _logger.LogInformation($"Found {bankTransactions.Count} bank transactions");
+
+        //             // Calculate totals per bank account
+        //             var bankAccountTotals = new Dictionary<Guid, (string Name, decimal Inflow, decimal Outflow)>();
+        //             foreach (var account in bankAccounts)
+        //             {
+        //                 bankAccountTotals[account.Id] = (account.Name, 0, 0);
+        //             }
+
+        //             decimal totalBankInflow = 0;
+        //             decimal totalBankOutflow = 0;
+        //             decimal netBank = 0;
+
+        //             var transactions = new List<object>();
+
+        //             foreach (var transaction in bankTransactions)
+        //             {
+        //                 string transactionType = "";
+        //                 string transactionDescription = "";
+        //                 decimal amount = 0;
+        //                 string accountName = transaction.Account?.Name ?? "Bank Account";
+        //                 bool isInflow = false;
+        //                 string billNumber = transaction.BillNumber ?? "";
+
+        //                 // Determine transaction type and amount based on TransactionType
+        //                 switch (transaction.Type)
+        //                 {
+        //                     case TransactionType.Sale:
+        //                         transactionType = "Sale";
+        //                         transactionDescription = "Bank Sale";
+        //                         amount = transaction.TotalDebit;
+        //                         isInflow = amount > 0;
+        //                         if (transaction.SalesBillId.HasValue)
+        //                         {
+        //                             var salesBill = await _context.SalesBills
+        //                                 .Include(sb => sb.Account)
+        //                                 .FirstOrDefaultAsync(sb => sb.Id == transaction.SalesBillId);
+        //                             if (salesBill != null)
+        //                             {
+        //                                 accountName = salesBill.Account?.Name ?? "Bank Sale";
+        //                                 billNumber = salesBill.BillNumber ?? billNumber;
+        //                             }
+        //                         }
+        //                         break;
+
+        //                     case TransactionType.SlRt:
+        //                         transactionType = "Sale Return";
+        //                         transactionDescription = "Bank Sale Return";
+        //                         amount = transaction.TotalCredit;
+        //                         isInflow = false;
+        //                         if (transaction.SalesReturnBillId.HasValue)
+        //                         {
+        //                             var returnBill = await _context.SalesReturns
+        //                                 .Include(sr => sr.Account)
+        //                                 .FirstOrDefaultAsync(sr => sr.Id == transaction.SalesReturnBillId);
+        //                             if (returnBill != null)
+        //                             {
+        //                                 accountName = returnBill.Account?.Name ?? "Bank Return";
+        //                                 billNumber = returnBill.BillNumber ?? billNumber;
+        //                             }
+        //                         }
+        //                         break;
+
+        //                     case TransactionType.Purc:
+        //                         transactionType = "Purchase";
+        //                         transactionDescription = "Bank Purchase";
+        //                         amount = transaction.TotalCredit;
+        //                         isInflow = false;
+        //                         if (transaction.PurchaseBillId.HasValue)
+        //                         {
+        //                             var purchaseBill = await _context.PurchaseBills
+        //                                 .Include(pb => pb.Account)
+        //                                 .FirstOrDefaultAsync(pb => pb.Id == transaction.PurchaseBillId);
+        //                             if (purchaseBill != null)
+        //                             {
+        //                                 accountName = purchaseBill.Account?.Name ?? "Bank Purchase";
+        //                                 billNumber = purchaseBill.BillNumber ?? billNumber;
+        //                             }
+        //                         }
+        //                         break;
+
+        //                     case TransactionType.PrRt:
+        //                         transactionType = "Purchase Return";
+        //                         transactionDescription = "Bank Purchase Return";
+        //                         amount = transaction.TotalDebit;
+        //                         isInflow = true;
+        //                         if (transaction.PurchaseReturnBillId.HasValue)
+        //                         {
+        //                             var returnBill = await _context.PurchaseReturns
+        //                                 .Include(pr => pr.Account)
+        //                                 .FirstOrDefaultAsync(pr => pr.Id == transaction.PurchaseReturnBillId);
+        //                             if (returnBill != null)
+        //                             {
+        //                                 accountName = returnBill.Account?.Name ?? "Bank Purchase Return";
+        //                                 billNumber = returnBill.BillNumber ?? billNumber;
+        //                             }
+        //                         }
+        //                         break;
+
+        //                     case TransactionType.Pymt:
+        //                         transactionType = "Payment";
+        //                         transactionDescription = "Bank Payment";
+        //                         amount = transaction.TotalCredit;
+        //                         accountName = transaction.PaymentAccount?.Name ?? "Bank Payment";
+        //                         isInflow = false;
+        //                         break;
+
+        //                     case TransactionType.Rcpt:
+        //                         transactionType = "Receipt";
+        //                         transactionDescription = "Bank Receipt";
+        //                         amount = transaction.TotalDebit;
+        //                         accountName = transaction.ReceiptAccount?.Name ?? "Bank Receipt";
+        //                         isInflow = true;
+        //                         break;
+
+        //                     case TransactionType.Jrnl:
+        //                         transactionType = "Journal";
+        //                         transactionDescription = "Bank Journal";
+        //                         if (transaction.TotalDebit > 0 && transaction.TotalCredit > 0)
+        //                         {
+        //                             if (transaction.TotalDebit > transaction.TotalCredit)
+        //                             {
+        //                                 amount = transaction.TotalDebit - transaction.TotalCredit;
+        //                                 isInflow = true;
+        //                             }
+        //                             else
+        //                             {
+        //                                 amount = transaction.TotalCredit - transaction.TotalDebit;
+        //                                 isInflow = false;
+        //                             }
+        //                         }
+        //                         else if (transaction.TotalDebit > 0)
+        //                         {
+        //                             amount = transaction.TotalDebit;
+        //                             isInflow = true;
+        //                         }
+        //                         else
+        //                         {
+        //                             amount = transaction.TotalCredit;
+        //                             isInflow = false;
+        //                         }
+        //                         accountName = transaction.JournalAccountType ?? "Bank Journal";
+        //                         break;
+
+        //                     default:
+        //                         transactionType = "Unknown";
+        //                         transactionDescription = "Bank Transaction";
+        //                         amount = transaction.TotalDebit > 0 ? transaction.TotalDebit : transaction.TotalCredit;
+        //                         isInflow = transaction.TotalDebit > 0;
+        //                         break;
+        //                 }
+
+        //                 // Skip zero amount transactions
+        //                 if (amount == 0) continue;
+
+        //                 // Update bank account totals
+        //                 var accountIdKey = transaction.AccountId ?? Guid.Empty;
+        //                 if (bankAccountTotals.ContainsKey(accountIdKey))
+        //                 {
+        //                     var current = bankAccountTotals[accountIdKey];
+        //                     if (isInflow)
+        //                     {
+        //                         bankAccountTotals[accountIdKey] = (current.Name, current.Inflow + amount, current.Outflow);
+        //                     }
+        //                     else
+        //                     {
+        //                         bankAccountTotals[accountIdKey] = (current.Name, current.Inflow, current.Outflow + amount);
+        //                     }
+        //                 }
+
+        //                 // Update totals
+        //                 if (isInflow)
+        //                 {
+        //                     totalBankInflow += amount;
+        //                 }
+        //                 else
+        //                 {
+        //                     totalBankOutflow += amount;
+        //                 }
+
+        //                 // Add to transaction list
+        //                 transactions.Add(new
+        //                 {
+        //                     transaction.Id,
+        //                     BillNumber = billNumber,
+        //                     transaction.Date,
+        //                     transaction.NepaliDate,
+        //                     transaction.TransactionDate,
+        //                     transaction.TransactionDateNepali,
+        //                     AccountName = accountName,
+        //                     BankAccount = transaction.Account?.Name ?? "Bank Account",
+        //                     transaction.PaymentMode,
+        //                     Type = transactionType,
+        //                     Description = transactionDescription,
+        //                     Amount = isInflow ? amount : -amount,
+        //                     Inflow = isInflow,
+        //                     Outflow = !isInflow
+        //                 });
+        //             }
+
+        //             // Calculate net bank
+        //             netBank = totalBankInflow - totalBankOutflow;
+
+        //             // Build bank account summary
+        //             var bankAccountSummary = bankAccountTotals
+        //                 .Where(b => b.Value.Inflow > 0 || b.Value.Outflow > 0)
+        //                 .Select(b => new
+        //                 {
+        //                     AccountId = b.Key,
+        //                     AccountName = b.Value.Name,
+        //                     Inflow = b.Value.Inflow,
+        //                     Outflow = b.Value.Outflow,
+        //                     Net = b.Value.Inflow - b.Value.Outflow
+        //                 })
+        //                 .OrderByDescending(b => b.Net)
+        //                 .ToList();
+
+        //             var response = new
+        //             {
+        //                 success = true,
+        //                 data = new
+        //                 {
+        //                     totalBankInflow,
+        //                     totalBankOutflow,
+        //                     netBank,
+        //                     bankAccounts = bankAccountSummary,
+        //                     transactions
+        //                 }
+        //             };
+
+        //             return Ok(response);
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error getting bank transactions");
+        //             return StatusCode(500, new
+        //             {
+        //                 success = false,
+        //                 error = "Internal server error",
+        //                 details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //             });
+        //         }
+        //     }
+
+        //------------------------------------------end1
+
         [HttpGet("bank-transactions")]
         public async Task<IActionResult> GetBankTransactions(
-    [FromQuery] string fromDate,
-    [FromQuery] string toDate,
-    [FromQuery] Guid? accountId = null)
+            [FromQuery] string fromDate,
+            [FromQuery] string toDate,
+            [FromQuery] Guid? accountId = null)
         {
             try
             {
@@ -482,19 +1229,37 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                // Build query for ALL bank account transactions
+                // FIX: Build query for ALL bank account transactions - check multiple fields
                 var bankTransactionsQuery = _context.Transactions
                     .Where(t => t.CompanyId == companyIdGuid &&
                                t.FiscalYearId == fiscalYearIdGuid &&
-                               bankAccountIds.Contains(t.AccountId.Value) &&
                                t.Date >= fromDateParsed &&
                                t.Date <= toDateParsed &&
-                               t.IsActive == true);
+                               t.Status == TransactionStatus.Active &&
+                               t.IsActive == true)
+                    .Where(t =>
+                        // Bank account can be in any of these fields
+                        bankAccountIds.Contains(t.AccountId ?? Guid.Empty) ||
+                        bankAccountIds.Contains(t.PaymentAccountId2 ?? Guid.Empty) ||
+                        bankAccountIds.Contains(t.ReceiptAccountId2 ?? Guid.Empty) ||
+                        bankAccountIds.Contains(t.DebitAccountId ?? Guid.Empty) ||
+                        bankAccountIds.Contains(t.CreditAccountId ?? Guid.Empty) ||
+                        bankAccountIds.Contains(t.PaymentAccountId ?? Guid.Empty) ||
+                        bankAccountIds.Contains(t.ReceiptAccountId ?? Guid.Empty)
+                    );
 
                 // Filter by specific bank account if provided
                 if (accountId.HasValue && accountId.Value != Guid.Empty)
                 {
-                    bankTransactionsQuery = bankTransactionsQuery.Where(t => t.AccountId == accountId.Value);
+                    bankTransactionsQuery = bankTransactionsQuery.Where(t =>
+                        t.AccountId == accountId.Value ||
+                        t.PaymentAccountId2 == accountId.Value ||
+                        t.ReceiptAccountId2 == accountId.Value ||
+                        t.DebitAccountId == accountId.Value ||
+                        t.CreditAccountId == accountId.Value ||
+                        t.PaymentAccountId == accountId.Value ||
+                        t.ReceiptAccountId == accountId.Value
+                    );
                 }
 
                 var bankTransactions = await bankTransactionsQuery
@@ -503,6 +1268,8 @@ namespace SkyForge.Controllers.Retailer
                     .Include(t => t.ReceiptAccount)
                     .Include(t => t.DebitAccount)
                     .Include(t => t.CreditAccount)
+                    .Include(t => t.Payment)  // Include Payment for PaymentAccountId
+                    .Include(t => t.Receipt)  // Include Receipt for ReceiptAccountId
                     .OrderByDescending(t => t.Date)
                     .ThenByDescending(t => t.BillNumber)
                     .ToListAsync();
@@ -527,9 +1294,38 @@ namespace SkyForge.Controllers.Retailer
                     string transactionType = "";
                     string transactionDescription = "";
                     decimal amount = 0;
-                    string accountName = transaction.Account?.Name ?? "Bank Account";
+                    string accountName = "Bank Account";
+                    string bankAccountName = "";
                     bool isInflow = false;
                     string billNumber = transaction.BillNumber ?? "";
+                    string partyName = "";
+
+                    // Determine which bank account is involved
+                    if (transaction.AccountId.HasValue && bankAccountIds.Contains(transaction.AccountId.Value))
+                    {
+                        var bankAcc = bankAccounts.FirstOrDefault(b => b.Id == transaction.AccountId.Value);
+                        bankAccountName = bankAcc?.Name ?? "Bank Account";
+                    }
+                    else if (transaction.PaymentAccountId2.HasValue && bankAccountIds.Contains(transaction.PaymentAccountId2.Value))
+                    {
+                        var bankAcc = bankAccounts.FirstOrDefault(b => b.Id == transaction.PaymentAccountId2.Value);
+                        bankAccountName = bankAcc?.Name ?? "Bank Account";
+                    }
+                    else if (transaction.ReceiptAccountId2.HasValue && bankAccountIds.Contains(transaction.ReceiptAccountId2.Value))
+                    {
+                        var bankAcc = bankAccounts.FirstOrDefault(b => b.Id == transaction.ReceiptAccountId2.Value);
+                        bankAccountName = bankAcc?.Name ?? "Bank Account";
+                    }
+                    else if (transaction.DebitAccountId.HasValue && bankAccountIds.Contains(transaction.DebitAccountId.Value))
+                    {
+                        var bankAcc = bankAccounts.FirstOrDefault(b => b.Id == transaction.DebitAccountId.Value);
+                        bankAccountName = bankAcc?.Name ?? "Bank Account";
+                    }
+                    else if (transaction.CreditAccountId.HasValue && bankAccountIds.Contains(transaction.CreditAccountId.Value))
+                    {
+                        var bankAcc = bankAccounts.FirstOrDefault(b => b.Id == transaction.CreditAccountId.Value);
+                        bankAccountName = bankAcc?.Name ?? "Bank Account";
+                    }
 
                     // Determine transaction type and amount based on TransactionType
                     switch (transaction.Type)
@@ -546,10 +1342,13 @@ namespace SkyForge.Controllers.Retailer
                                     .FirstOrDefaultAsync(sb => sb.Id == transaction.SalesBillId);
                                 if (salesBill != null)
                                 {
-                                    accountName = salesBill.Account?.Name ?? "Bank Sale";
+                                    partyName = salesBill.Account?.Name ?? "Bank Sale";
                                     billNumber = salesBill.BillNumber ?? billNumber;
+                                    accountName = partyName;
                                 }
                             }
+                            if (string.IsNullOrEmpty(accountName))
+                                accountName = transaction.Account?.Name ?? "Bank Sale";
                             break;
 
                         case TransactionType.SlRt:
@@ -564,10 +1363,13 @@ namespace SkyForge.Controllers.Retailer
                                     .FirstOrDefaultAsync(sr => sr.Id == transaction.SalesReturnBillId);
                                 if (returnBill != null)
                                 {
-                                    accountName = returnBill.Account?.Name ?? "Bank Return";
+                                    partyName = returnBill.Account?.Name ?? "Bank Return";
                                     billNumber = returnBill.BillNumber ?? billNumber;
+                                    accountName = partyName;
                                 }
                             }
+                            if (string.IsNullOrEmpty(accountName))
+                                accountName = transaction.Account?.Name ?? "Bank Return";
                             break;
 
                         case TransactionType.Purc:
@@ -582,10 +1384,13 @@ namespace SkyForge.Controllers.Retailer
                                     .FirstOrDefaultAsync(pb => pb.Id == transaction.PurchaseBillId);
                                 if (purchaseBill != null)
                                 {
-                                    accountName = purchaseBill.Account?.Name ?? "Bank Purchase";
+                                    partyName = purchaseBill.Account?.Name ?? "Bank Purchase";
                                     billNumber = purchaseBill.BillNumber ?? billNumber;
+                                    accountName = partyName;
                                 }
                             }
+                            if (string.IsNullOrEmpty(accountName))
+                                accountName = transaction.Account?.Name ?? "Bank Purchase";
                             break;
 
                         case TransactionType.PrRt:
@@ -600,26 +1405,79 @@ namespace SkyForge.Controllers.Retailer
                                     .FirstOrDefaultAsync(pr => pr.Id == transaction.PurchaseReturnBillId);
                                 if (returnBill != null)
                                 {
-                                    accountName = returnBill.Account?.Name ?? "Bank Purchase Return";
+                                    partyName = returnBill.Account?.Name ?? "Bank Purchase Return";
                                     billNumber = returnBill.BillNumber ?? billNumber;
+                                    accountName = partyName;
                                 }
                             }
+                            if (string.IsNullOrEmpty(accountName))
+                                accountName = transaction.Account?.Name ?? "Bank Purchase Return";
                             break;
 
                         case TransactionType.Pymt:
                             transactionType = "Payment";
                             transactionDescription = "Bank Payment";
                             amount = transaction.TotalCredit;
-                            accountName = transaction.PaymentAccount?.Name ?? "Bank Payment";
                             isInflow = false;
+
+                            // FIX: Get party name from Payment entries
+                            if (transaction.PaymentAccountId.HasValue)
+                            {
+                                var payment = await _context.Payments
+                                    .Include(p => p.PaymentEntries)
+                                        .ThenInclude(pe => pe.Account)
+                                    .FirstOrDefaultAsync(p => p.Id == transaction.PaymentAccountId);
+                                if (payment != null && payment.PaymentEntries != null)
+                                {
+                                    // Get the Debit entry (party account)
+                                    var debitEntry = payment.PaymentEntries.FirstOrDefault(pe => pe.EntryType == "Debit");
+                                    if (debitEntry != null)
+                                    {
+                                        partyName = debitEntry.Account?.Name ?? "Payment Party";
+                                        accountName = partyName;
+                                    }
+                                    billNumber = payment.BillNumber ?? billNumber;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(accountName))
+                            {
+                                accountName = transaction.PaymentAccount?.Name ??
+                                             transaction.DebitAccount?.Name ??
+                                             "Bank Payment";
+                            }
                             break;
 
                         case TransactionType.Rcpt:
                             transactionType = "Receipt";
                             transactionDescription = "Bank Receipt";
                             amount = transaction.TotalDebit;
-                            accountName = transaction.ReceiptAccount?.Name ?? "Bank Receipt";
                             isInflow = true;
+
+                            // FIX: Get party name from Receipt entries
+                            if (transaction.ReceiptAccountId.HasValue)
+                            {
+                                var receipt = await _context.Receipts
+                                    .Include(r => r.ReceiptEntries)
+                                        .ThenInclude(re => re.Account)
+                                    .FirstOrDefaultAsync(r => r.Id == transaction.ReceiptAccountId);
+                                if (receipt != null && receipt.ReceiptEntries != null)
+                                {
+                                    // Get the Credit entry (party account)
+                                    var creditEntry = receipt.ReceiptEntries.FirstOrDefault(re => re.EntryType == "Credit");
+                                    if (creditEntry != null)
+                                    {
+                                        partyName = creditEntry.Account?.Name ?? "Receipt Party";
+                                        accountName = partyName;
+                                    }
+                                    billNumber = receipt.BillNumber ?? billNumber;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(accountName))
+                            {
+                                accountName = transaction.ReceiptAccount?.Name ??
+                                             transaction.CreditAccount?.Name ??
+                                             "Bank Receipt";
+                            }
                             break;
 
                         case TransactionType.Jrnl:
@@ -651,10 +1509,35 @@ namespace SkyForge.Controllers.Retailer
                             accountName = transaction.JournalAccountType ?? "Bank Journal";
                             break;
 
+                        case TransactionType.DrNt:
+                            transactionType = "Debit Note";
+                            transactionDescription = "Bank Debit Note";
+                            amount = transaction.TotalDebit;
+                            accountName = transaction.DrCrNoteAccountType ?? "Debit Note";
+                            isInflow = true;
+                            break;
+
+                        case TransactionType.CrNt:
+                            transactionType = "Credit Note";
+                            transactionDescription = "Bank Credit Note";
+                            amount = transaction.TotalCredit;
+                            accountName = transaction.DrCrNoteAccountType ?? "Credit Note";
+                            isInflow = false;
+                            break;
+
+                        case TransactionType.OpeningBalance:
+                            transactionType = "Opening Balance";
+                            transactionDescription = "Bank Opening Balance";
+                            amount = transaction.TotalDebit > 0 ? transaction.TotalDebit : transaction.TotalCredit;
+                            accountName = transaction.Account?.Name ?? "Opening Balance";
+                            isInflow = transaction.TotalDebit > 0;
+                            break;
+
                         default:
                             transactionType = "Unknown";
                             transactionDescription = "Bank Transaction";
                             amount = transaction.TotalDebit > 0 ? transaction.TotalDebit : transaction.TotalCredit;
+                            accountName = transaction.Account?.Name ?? "Unknown";
                             isInflow = transaction.TotalDebit > 0;
                             break;
                     }
@@ -687,6 +1570,9 @@ namespace SkyForge.Controllers.Retailer
                         totalBankOutflow += amount;
                     }
 
+                    // Use party name as account name if available
+                    string displayAccountName = !string.IsNullOrEmpty(partyName) ? partyName : accountName;
+
                     // Add to transaction list
                     transactions.Add(new
                     {
@@ -696,14 +1582,18 @@ namespace SkyForge.Controllers.Retailer
                         transaction.NepaliDate,
                         transaction.TransactionDate,
                         transaction.TransactionDateNepali,
-                        AccountName = accountName,
-                        BankAccount = transaction.Account?.Name ?? "Bank Account",
+                        AccountName = displayAccountName,
+                        BankAccount = bankAccountName,
                         transaction.PaymentMode,
                         Type = transactionType,
                         Description = transactionDescription,
                         Amount = isInflow ? amount : -amount,
                         Inflow = isInflow,
-                        Outflow = !isInflow
+                        Outflow = !isInflow,
+                        transaction.PartyBillNumber,
+                        transaction.PaymentReceiptType,
+                        transaction.PurchaseSalesType,
+                        transaction.PurchaseSalesReturnType
                     });
                 }
 
@@ -750,7 +1640,6 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-
 
         /// <summary>
         /// GET: api/retailer/party-turnover

@@ -422,47 +422,6 @@ const AddPurchase = () => {
     const accountModalRef = useRef(null);
     const transactionModalRef = useRef(null);
 
-    // const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
-    //     try {
-    //         setIsAccountSearching(true);
-
-    //         const response = await api.get('/api/retailer/accounts/search', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: searchTerm.trim() ? 15 : 25,
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             if (page === 1) {
-    //                 setAccountSearchResults(response.data.accounts);
-    //                 setAccounts(response.data.accounts);
-    //             } else {
-    //                 setAccountSearchResults(prev => [...prev, ...response.data.accounts]);
-    //                 setAccounts(prev => [...prev, ...response.data.accounts]);
-    //             }
-    //             setHasMoreAccountResults(response.data.pagination.hasNextPage);
-    //             setTotalAccounts(response.data.pagination.totalAccounts);
-    //             setAccountSearchPage(page);
-
-    //             if (searchTerm.trim() !== '') {
-    //                 setAccountLastSearchQuery(searchTerm);
-    //                 setAccountShouldShowLastSearchResults(true);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching accounts:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading accounts',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsAccountSearching(false);
-    //     }
-    // };
-
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
         try {
             setIsAccountSearching(true);
