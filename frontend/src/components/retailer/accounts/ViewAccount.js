@@ -12,17 +12,6 @@ const AccountDetails = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: false,
-    // });
-
-    // api.interceptors.request.use(config => {
-    //     const token = localStorage.getItem('token');
-    //     if (token) config.headers.Authorization = `Bearer ${token}`;
-    //     return config;
-    // });
-
     useEffect(() => {
         const fetchAccountDetails = async () => {
             try {
@@ -53,6 +42,11 @@ const AccountDetails = () => {
         return '0 Dr';
     };
 
+    const getClosingBalance = () => {
+        if (account.closingBalance) return `${account.closingBalance.amount || 0} ${account.closingBalanceType || 'Dr'}`;
+        return '0 Dr';
+    };
+
     return (
         <Container className="mt-3">
             <Card className="shadow-sm p-3">
@@ -72,7 +66,10 @@ const AccountDetails = () => {
                                     <strong>Group:</strong> <span className="ms-2">{getAccountGroupName()}</span>
                                 </ListGroup.Item>
                                 <ListGroup.Item className="py-1 px-2">
-                                    <strong>Op. Balance:</strong> <span className="ms-2">{getOpeningBalance()}</span>
+                                    <strong>Open. Balance:</strong> <span className="ms-2">{getOpeningBalance()}</span>
+                                </ListGroup.Item>
+                                <ListGroup.Item className="py-1 px-2">
+                                    <strong>Clos. Balance:</strong> <span className="ms-2">{getClosingBalance()}</span>
                                 </ListGroup.Item>
                                 <ListGroup.Item className="py-1 px-2">
                                     <strong>Credit Limit:</strong> <span className="ms-2">{account.creditLimit || 'N/A'}</span>
@@ -133,9 +130,9 @@ const AccountDetails = () => {
                 </Card.Body>
 
                 <Card.Footer className="p-2">
-                    <Button 
-                        size="sm" 
-                        variant="outline-primary" 
+                    <Button
+                        size="sm"
+                        variant="outline-primary"
                         onClick={() => navigate(-1)}
                         className="d-flex align-items-center"
                     >

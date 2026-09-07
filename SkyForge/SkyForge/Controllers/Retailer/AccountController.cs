@@ -2434,6 +2434,265 @@ namespace SkyForge.Controllers.Retailer
         }
 
         // GET: api/retailer/companies/{id}
+        // [HttpGet("companies/{id}")]
+        // public async Task<IActionResult> GetAccount(Guid id)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetAccount Started ===");
+
+        //         // 1. Extract user and company info from JWT claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+
+        //         // 2. Validate required claims exist
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
+        //         {
+        //             return Unauthorized(new
+        //             {
+        //                 success = false,
+        //                 error = "Invalid user token. Please login again."
+        //             });
+        //         }
+
+        //         // 3. Check if company is selected
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No company selected. Please select a company first."
+        //             });
+        //         }
+
+        //         // 4. Check if trade type is Retailer
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) || !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) || tradeType != TradeType.Retailer)
+        //         {
+        //             return StatusCode(403, new
+        //             {
+        //                 success = false,
+        //                 error = "Access restricted to retailer accounts"
+        //             });
+        //         }
+
+        //         // 5. Get the company with fiscal year
+        //         var company = await _context.Companies
+        //             .Include(c => c.FiscalYears)
+        //             .FirstOrDefaultAsync(c => c.Id == companyIdGuid);
+
+        //         if (company == null)
+        //         {
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Company not found"
+        //             });
+        //         }
+
+        //         // 6. Get current active fiscal year
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+        //         if (currentFiscalYear == null)
+        //         {
+        //             return BadRequest(new
+        //             {
+        //                 success = false,
+        //                 error = "No active fiscal year found"
+        //             });
+        //         }
+
+        //         // 7. Get account with all related data
+        //         var account = await _context.Accounts
+        //             .Include(a => a.AccountGroup)
+        //             .Include(a => a.Company)
+        //             .Include(a => a.OpeningBalanceByFiscalYear)
+        //             .Include(a => a.ClosingBalanceByFiscalYear)
+        //                 .ThenInclude(ob => ob.FiscalYear)
+        //             .Include(a => a.FiscalYears)
+        //             .FirstOrDefaultAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+
+        //         if (account == null)
+        //         {
+        //             return NotFound(new
+        //             {
+        //                 success = false,
+        //                 error = "Account not found"
+        //             });
+        //         }
+
+        //         // 8. Get company groups (account groups in your schema)
+        //         var companyGroups = await _context.AccountGroups
+        //             .Where(ag => ag.CompanyId == companyIdGuid)
+        //             .ToListAsync();
+
+        //         // 9. Find opening balance for current fiscal year
+        //         var currentOpeningBalance = account.OpeningBalanceByFiscalYear
+        //             .FirstOrDefault(ob => ob.FiscalYearId == currentFiscalYear.Id);
+
+        //         // 10. Determine the correct opening balance type and amount
+        //         string openingBalanceType = "Dr";
+        //         decimal openingBalanceAmount = 0;
+
+        //         var currentClosingBalance = account.ClosingBalanceByFiscalYear
+        //           .FirstOrDefault(ob => ob.FiscalYearId == currentFiscalYear.Id);
+
+
+        //         string closingBalanceType = "Dr";
+        //         decimal closingBalanceAmount = 0;
+
+        //         if (currentOpeningBalance != null)
+        //         {
+        //             // Use the opening balance from the current fiscal year
+        //             openingBalanceAmount = currentOpeningBalance.Amount;
+        //             openingBalanceType = currentOpeningBalance.Type ?? "Dr";
+
+        //             _logger.LogInformation($"Opening balance for account {account.Name} in fiscal year {currentFiscalYear.Name}: {openingBalanceAmount} ({openingBalanceType})");
+        //         }
+        //         else
+        //         {
+        //             // Fallback to account's default opening balance type
+        //             openingBalanceType = account.OpeningBalanceType ?? "Dr";
+        //             openingBalanceAmount = 0;
+
+        //             _logger.LogInformation($"No opening balance found for account {account.Name} in fiscal year {currentFiscalYear.Name}, using default type: {openingBalanceType}");
+        //         }
+
+        //         // 11. Prepare company information
+        //         var companyInfo = new
+        //         {
+        //             id = company.Id,
+        //             renewalDate = company.RenewalDate,
+        //             dateFormat = company.DateFormat
+        //         };
+
+        //         // 12. Prepare account groups response
+        //         var accountGroupsResponse = account.AccountGroup != null
+        //             ? new[]
+        //             {
+        //         new
+        //         {
+        //             id = account.AccountGroup.Id,
+        //             name = account.AccountGroup.Name
+        //         }
+        //             }
+        //             : Array.Empty<object>();
+
+        //         // 13. Prepare fiscal year information
+        //         var fiscalYearInfo = new
+        //         {
+        //             id = currentFiscalYear.Id,
+        //             name = currentFiscalYear.Name,
+        //             startDate = currentFiscalYear.StartDate,
+        //             endDate = currentFiscalYear.EndDate,
+        //             isActive = currentFiscalYear.IsActive,
+        //             dateFormat = currentFiscalYear.DateFormat
+        //         };
+
+        //         // 14. Prepare company groups list
+        //         var companyGroupsResponse = companyGroups.Select(g => new
+        //         {
+        //             id = g.Id,
+        //             name = g.Name
+        //         }).ToList();
+
+        //         // 15. Prepare the main response
+        //         var response = new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 company = companyInfo,
+        //                 account = new
+        //                 {
+        //                     _id = account.Id,
+        //                     id = account.Id,
+        //                     name = account.Name,
+        //                     address = account.Address,
+        //                     phone = account.Phone,
+        //                     ward = account.Ward,
+        //                     pan = account.Pan,
+        //                     email = account.Email,
+        //                     contactPerson = account.ContactPerson,
+        //                     creditLimit = account.CreditLimit,
+        //                     companyGroups = accountGroupsResponse,
+        //                     // ✅ FIX: Use the correct opening balance type and amount
+        //                     openingBalance = new
+        //                     {
+        //                         amount = openingBalanceAmount,
+        //                         type = openingBalanceType,
+        //                         date = currentOpeningBalance?.Date ?? DateTime.UtcNow
+        //                     },
+        //                     closingBalance = new
+        //                     {
+        //                         amount = closingBalanceAmount,
+        //                         type = closingBalanceType,
+        //                         date = currentClosingBalance?.Date ?? DateTime.UtcNow
+        //                     },
+        //                     openingBalanceType = openingBalanceType, // ✅ This is the key fix
+        //                     closingBalanceType = closingBalanceType, // ✅ This is the key fix
+        //                     defaultCashAccount = account.DefaultCashAccount,
+        //                     defaultVatAccount = account.DefaultVatAccount,
+        //                     isDefaultAccount = account.IsDefaultAccount,
+        //                     isActive = account.IsActive,
+        //                     createdAt = account.CreatedAt,
+        //                     updatedAt = account.UpdatedAt,
+        //                     uniqueNumber = account.UniqueNumber,
+        //                     originalFiscalYearId = account.OriginalFiscalYearId,
+        //                     accountGroupsId = account.AccountGroupsId
+        //                 },
+        //                 financialInfo = new
+        //                 {
+        //                     currentOpeningBalance = currentOpeningBalance != null
+        //                         ? new
+        //                         {
+        //                             id = currentOpeningBalance.Id,
+        //                             amount = currentOpeningBalance.Amount,
+        //                             type = currentOpeningBalance.Type,
+        //                             date = currentOpeningBalance.Date,
+        //                             fiscalYearId = currentOpeningBalance.FiscalYearId,
+        //                             fiscalYear = currentOpeningBalance.FiscalYear != null
+        //                                 ? new
+        //                                 {
+        //                                     id = currentOpeningBalance.FiscalYear.Id,
+        //                                     name = currentOpeningBalance.FiscalYear.Name
+        //                                 }
+        //                                 : null
+        //                         }
+        //                         : null,
+        //                     fiscalYear = fiscalYearInfo
+        //                 },
+        //                 companyGroups = companyGroupsResponse,
+        //                 currentCompanyName = company.Name,
+        //                 user = new
+        //                 {
+        //                     id = userIdGuid,
+        //                     role = User.FindFirst(ClaimTypes.Role)?.Value ?? "User",
+        //                     isAdmin = User.IsInRole("Admin"),
+        //                     preferences = new object()
+        //                 },
+        //                 isAdminOrSupervisor = User.IsInRole("Admin") || User.IsInRole("Supervisor")
+        //             }
+        //         };
+
+        //         _logger.LogInformation($"Successfully retrieved account '{account.Name}' with opening balance: {openingBalanceAmount} ({openingBalanceType})");
+
+        //         return Ok(response);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetAccount");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while fetching account",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // GET: api/retailer/companies/{id}
         [HttpGet("companies/{id}")]
         public async Task<IActionResult> GetAccount(Guid id)
         {
@@ -2509,6 +2768,8 @@ namespace SkyForge.Controllers.Retailer
                     .Include(a => a.Company)
                     .Include(a => a.OpeningBalanceByFiscalYear)
                         .ThenInclude(ob => ob.FiscalYear)
+                    .Include(a => a.ClosingBalanceByFiscalYear)  // ✅ FIX: Add this line
+                        .ThenInclude(cb => cb.FiscalYear)        // ✅ FIX: Add this line
                     .Include(a => a.FiscalYears)
                     .FirstOrDefaultAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
 
@@ -2530,28 +2791,45 @@ namespace SkyForge.Controllers.Retailer
                 var currentOpeningBalance = account.OpeningBalanceByFiscalYear
                     .FirstOrDefault(ob => ob.FiscalYearId == currentFiscalYear.Id);
 
-                // 10. Determine the correct opening balance type and amount
+                // 10. Find closing balance for current fiscal year ✅ FIX: Add this
+                var currentClosingBalance = account.ClosingBalanceByFiscalYear
+                    .FirstOrDefault(cb => cb.FiscalYearId == currentFiscalYear.Id);
+
+                // 11. Determine the correct opening balance type and amount
                 string openingBalanceType = "Dr";
                 decimal openingBalanceAmount = 0;
 
                 if (currentOpeningBalance != null)
                 {
-                    // Use the opening balance from the current fiscal year
                     openingBalanceAmount = currentOpeningBalance.Amount;
                     openingBalanceType = currentOpeningBalance.Type ?? "Dr";
-
                     _logger.LogInformation($"Opening balance for account {account.Name} in fiscal year {currentFiscalYear.Name}: {openingBalanceAmount} ({openingBalanceType})");
                 }
                 else
                 {
-                    // Fallback to account's default opening balance type
                     openingBalanceType = account.OpeningBalanceType ?? "Dr";
                     openingBalanceAmount = 0;
-
                     _logger.LogInformation($"No opening balance found for account {account.Name} in fiscal year {currentFiscalYear.Name}, using default type: {openingBalanceType}");
                 }
 
-                // 11. Prepare company information
+                // 12. Determine the correct closing balance type and amount ✅ FIX: Add this
+                string closingBalanceType = "Dr";
+                decimal closingBalanceAmount = 0;
+
+                if (currentClosingBalance != null)
+                {
+                    closingBalanceAmount = currentClosingBalance.Amount;
+                    closingBalanceType = currentClosingBalance.Type ?? "Dr";
+                    _logger.LogInformation($"Closing balance for account {account.Name} in fiscal year {currentFiscalYear.Name}: {closingBalanceAmount} ({closingBalanceType})");
+                }
+                else
+                {
+                    closingBalanceType = "Dr";
+                    closingBalanceAmount = 0;
+                    _logger.LogInformation($"No closing balance found for account {account.Name} in fiscal year {currentFiscalYear.Name}");
+                }
+
+                // 13. Prepare company information
                 var companyInfo = new
                 {
                     id = company.Id,
@@ -2559,7 +2837,7 @@ namespace SkyForge.Controllers.Retailer
                     dateFormat = company.DateFormat
                 };
 
-                // 12. Prepare account groups response
+                // 14. Prepare account groups response
                 var accountGroupsResponse = account.AccountGroup != null
                     ? new[]
                     {
@@ -2571,7 +2849,7 @@ namespace SkyForge.Controllers.Retailer
                     }
                     : Array.Empty<object>();
 
-                // 13. Prepare fiscal year information
+                // 15. Prepare fiscal year information
                 var fiscalYearInfo = new
                 {
                     id = currentFiscalYear.Id,
@@ -2582,14 +2860,14 @@ namespace SkyForge.Controllers.Retailer
                     dateFormat = currentFiscalYear.DateFormat
                 };
 
-                // 14. Prepare company groups list
+                // 16. Prepare company groups list
                 var companyGroupsResponse = companyGroups.Select(g => new
                 {
                     id = g.Id,
                     name = g.Name
                 }).ToList();
 
-                // 15. Prepare the main response
+                // 17. Prepare the main response
                 var response = new
                 {
                     success = true,
@@ -2609,14 +2887,22 @@ namespace SkyForge.Controllers.Retailer
                             contactPerson = account.ContactPerson,
                             creditLimit = account.CreditLimit,
                             companyGroups = accountGroupsResponse,
-                            // ✅ FIX: Use the correct opening balance type and amount
+                            // ✅ Opening Balance
                             openingBalance = new
                             {
                                 amount = openingBalanceAmount,
                                 type = openingBalanceType,
                                 date = currentOpeningBalance?.Date ?? DateTime.UtcNow
                             },
-                            openingBalanceType = openingBalanceType, // ✅ This is the key fix
+                            // ✅ Closing Balance - FIXED
+                            closingBalance = new
+                            {
+                                amount = closingBalanceAmount,
+                                type = closingBalanceType,
+                                date = currentClosingBalance?.Date ?? DateTime.UtcNow
+                            },
+                            openingBalanceType = openingBalanceType,
+                            closingBalanceType = closingBalanceType,  // ✅ FIX: Add this
                             defaultCashAccount = account.DefaultCashAccount,
                             defaultVatAccount = account.DefaultVatAccount,
                             isDefaultAccount = account.IsDefaultAccount,
@@ -2646,6 +2932,24 @@ namespace SkyForge.Controllers.Retailer
                                         : null
                                 }
                                 : null,
+                            // ✅ Add closing balance to financialInfo
+                            currentClosingBalance = currentClosingBalance != null
+                                ? new
+                                {
+                                    id = currentClosingBalance.Id,
+                                    amount = currentClosingBalance.Amount,
+                                    type = currentClosingBalance.Type,
+                                    date = currentClosingBalance.Date,
+                                    fiscalYearId = currentClosingBalance.FiscalYearId,
+                                    fiscalYear = currentClosingBalance.FiscalYear != null
+                                        ? new
+                                        {
+                                            id = currentClosingBalance.FiscalYear.Id,
+                                            name = currentClosingBalance.FiscalYear.Name
+                                        }
+                                        : null
+                                }
+                                : null,
                             fiscalYear = fiscalYearInfo
                         },
                         companyGroups = companyGroupsResponse,
@@ -2661,7 +2965,7 @@ namespace SkyForge.Controllers.Retailer
                     }
                 };
 
-                _logger.LogInformation($"Successfully retrieved account '{account.Name}' with opening balance: {openingBalanceAmount} ({openingBalanceType})");
+                _logger.LogInformation($"Successfully retrieved account '{account.Name}' with opening balance: {openingBalanceAmount} ({openingBalanceType}) and closing balance: {closingBalanceAmount} ({closingBalanceType})");
 
                 return Ok(response);
             }

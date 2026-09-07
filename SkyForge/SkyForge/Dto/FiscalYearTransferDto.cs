@@ -168,7 +168,7 @@ namespace SkyForge.Dto
         public decimal OpeningStock { get; set; }
         public decimal ClosingStockValue { get; set; }
         public decimal OpeningStockValue { get; set; }
-         public decimal AveragePurchaseRate { get; set; }
+        public decimal AveragePurchaseRate { get; set; }
         public decimal AverageSalesRate { get; set; }
         public bool IsNew { get; set; }
         public bool IsChanged { get; set; }
@@ -209,6 +209,8 @@ namespace SkyForge.Dto
     {
         public Guid ItemId { get; set; }
         public decimal OpeningStock { get; set; }
+        public decimal? PurchasePrice { get; set; }  // ✅ Add this
+        public decimal? SalesPrice { get; set; }     // ✅ Add this
         public decimal OpeningStockValue { get; set; }
         public bool IsSelected { get; set; } = true;
     }
