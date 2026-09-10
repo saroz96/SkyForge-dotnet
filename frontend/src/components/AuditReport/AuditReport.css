@@ -1,0 +1,507 @@
+/* components/AuditReport/AuditReport.css */
+.ar-page {
+    --ar-primary: #1e3a5f;
+    --ar-primary-light: #2563eb;
+    --ar-primary-soft: #eff6ff;
+    --ar-surface: #eef2f7;
+    --ar-card: #ffffff;
+    --ar-border: #e2e8f0;
+    --ar-border-strong: #cbd5e1;
+    --ar-text: #0f172a;
+    --ar-muted: #64748b;
+    --ar-danger: #dc2626;
+    --ar-success: #059669;
+    --ar-warning: #d97706;
+    --ar-radius: 6px;
+
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--ar-surface);
+}
+
+.ar-page > .container-fluid, .ar-page > div:first-child { flex-shrink: 0; }
+
+.ar-shell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0.4rem 0.6rem 0.5rem;
+    gap: 0.4rem;
+}
+
+/* Top Bar */
+.ar-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, var(--ar-primary) 0%, #1e40af 100%);
+    color: #fff;
+    border-radius: var(--ar-radius);
+    padding: 0.4rem 0.75rem;
+    flex-shrink: 0;
+}
+
+.ar-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.ar-topbar-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.ar-topbar h1 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.ar-subtitle {
+    font-size: 0.65rem;
+    opacity: 0.8;
+    display: block;
+}
+
+.ar-topbar-right {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+/* Tabs */
+.ar-tabs {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--ar-card);
+    border: 1px solid var(--ar-border);
+    border-radius: var(--ar-radius);
+    padding: 0.25rem;
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.ar-tabs::-webkit-scrollbar { height: 4px; }
+.ar-tabs::-webkit-scrollbar-thumb { background: var(--ar-border-strong); border-radius: 2px; }
+
+.ar-tab-btn {
+    padding: 0.35rem 0.85rem;
+    border: none;
+    background: transparent;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--ar-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+.ar-tab-btn:hover {
+    background: var(--ar-primary-soft);
+    color: var(--ar-text);
+}
+
+.ar-tab-btn.active {
+    background: var(--ar-primary-light);
+    color: #fff;
+}
+
+/* Controls */
+.ar-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    background: var(--ar-card);
+    border: 1px solid var(--ar-border);
+    border-radius: var(--ar-radius);
+    padding: 0.35rem 0.5rem;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+}
+
+.ar-controls::-webkit-scrollbar { height: 4px; }
+.ar-controls::-webkit-scrollbar-thumb { background: var(--ar-border-strong); border-radius: 2px; }
+
+.ar-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex-shrink: 0;
+}
+
+.ar-control-label {
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--ar-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+}
+
+.ar-date-inputs {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.ar-date-input {
+    padding: 0.35rem 0.45rem;
+    border: 1px solid var(--ar-border-strong);
+    border-radius: 5px;
+    font-size: 0.75rem;
+    background: #fff;
+    height: 30px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    width: 130px;
+}
+
+.ar-date-input:focus {
+    outline: none;
+    border-color: var(--ar-primary-light);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.ar-date-input.is-invalid {
+    border-color: var(--ar-danger);
+}
+
+.ar-date-input-ad {
+    width: 140px;
+}
+
+.ar-field-error {
+    font-size: 0.6rem;
+    color: var(--ar-danger);
+    margin-top: 0.1rem;
+}
+
+.ar-btn-gen {
+    height: 30px;
+    padding: 0 0.8rem;
+    background: var(--ar-primary-light);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 72px;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ar-btn-gen:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.ar-btn-gen:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ar-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 26px;
+    padding: 0 0.55rem;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.ar-btn-icon:hover:not(:disabled) {
+    background: rgba(255,255,255,0.2);
+}
+
+.ar-btn-icon:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Main Content */
+.ar-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--ar-card);
+    border: 1px solid var(--ar-border);
+    border-radius: var(--ar-radius);
+    overflow: hidden;
+}
+
+/* Report Container */
+.ar-report-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.ar-report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--ar-border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ar-report-title-section h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ar-text);
+}
+
+.ar-report-meta {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.2rem;
+    flex-wrap: wrap;
+}
+
+.ar-meta-item {
+    font-size: 0.65rem;
+    color: var(--ar-muted);
+    display: flex;
+    align-items: center;
+}
+
+.ar-status-balanced {
+    color: var(--ar-success);
+    font-weight: 600;
+}
+
+.ar-status-unbalanced {
+    color: var(--ar-danger);
+    font-weight: 600;
+}
+
+.ar-report-actions {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+/* Table */
+.ar-table-wrap {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+    position: relative;
+}
+
+.ar-header {
+    display: flex;
+    align-items: center;
+    height: 28px;
+    background: #f1f5f9;
+    border-bottom: 2px solid var(--ar-border-strong);
+    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.ar-header-cell {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    border-right: 1px solid var(--ar-border);
+    position: relative;
+    font-size: 0.65rem;
+    color: var(--ar-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+}
+
+.ar-cell {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    border-right: 1px solid var(--ar-border);
+    font-size: 0.7rem;
+    overflow: hidden;
+}
+
+.ar-cell--end {
+    justify-content: flex-end;
+}
+
+.ar-cell--center {
+    justify-content: center;
+}
+
+.ar-row:hover {
+    background: var(--ar-primary-soft) !important;
+}
+
+.ar-resize-handle {
+    position: absolute;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 10;
+}
+
+/* Badges */
+.ar-account-type-badge {
+    display: inline-block;
+}
+
+.ar-balance-badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+}
+
+.ar-balance-dr {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.ar-balance-cr {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+/* Summary Cards */
+.ar-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--ar-border);
+    flex-shrink: 0;
+    background: #f8fafc;
+}
+
+.ar-summary-card {
+    background: #fff;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid var(--ar-border);
+}
+
+.ar-summary-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    color: var(--ar-muted);
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.ar-summary-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 0.1rem;
+}
+
+.ar-text-dr {
+    color: #dc2626;
+}
+
+.ar-text-cr {
+    color: #16a34a;
+}
+
+.ar-text-success {
+    color: #22c55e;
+}
+
+.ar-text-danger {
+    color: #ef4444;
+}
+
+/* States */
+.ar-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--ar-muted);
+    padding: 1rem;
+    text-align: center;
+}
+
+.ar-state h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ar-text);
+    margin: 0 0 0.25rem;
+}
+
+.ar-state p {
+    font-size: 0.72rem;
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .ar-date-input { width: 110px; }
+    .ar-date-input-ad { width: 120px; }
+}
+
+@media (max-width: 992px) {
+    .ar-controls { flex-wrap: wrap; gap: 0.4rem; }
+    .ar-date-inputs { flex-wrap: wrap; }
+}
+
+@media (max-width: 768px) {
+    .ar-topbar { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+    .ar-topbar-right { width: 100%; }
+    .ar-topbar-right button { width: 100%; }
+    .ar-tabs { flex-wrap: nowrap; overflow-x: auto; }
+    .ar-tab-btn { padding: 0.3rem 0.6rem; font-size: 0.65rem; }
+    .ar-controls { flex-direction: column; align-items: stretch; }
+    .ar-btn-gen { width: 100%; justify-content: center; }
+    .ar-report-header { flex-direction: column; }
+    .ar-report-actions { width: 100%; justify-content: stretch; }
+    .ar-report-actions button { flex: 1; }
+    .ar-summary-cards { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+    .ar-summary-cards { grid-template-columns: 1fr; }
+    .ar-date-input { width: 100%; }
+    .ar-date-input-ad { width: 100%; }
+}

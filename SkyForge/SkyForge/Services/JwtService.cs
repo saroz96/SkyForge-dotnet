@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using SkyForge.Models.CompanyModel;
+using SkyForge.Models.FiscalYearModel;
 using SkyForge.Models.RoleModel;
 using SkyForge.Models.UserModel;
 using System.IdentityModel.Tokens.Jwt;
@@ -12,6 +14,10 @@ namespace SkyForge.Services
     {
         string GenerateToken(User user, Role? primaryRole = null);
         string GenerateTokenWithClaims(User user, Dictionary<string, string> additionalClaims, Role? primaryRole = null);
+        // string GenerateTokenWithCompany(User user, Role? primaryRole, Company company, Guid? fiscalYearId, string? fiscalYearName);
+
+        string GenerateTokenWithCompany(User user, Role? primaryRole, Company company, FiscalYear? fiscalYear = null);
+
         ClaimsPrincipal ValidateToken(string token); // Add this method
         bool TryValidateToken(string token, out ClaimsPrincipal principal);
     }
@@ -89,6 +95,29 @@ namespace SkyForge.Services
 
         }
 
+
+
+        public string GenerateTokenWithCompany(
+            User user,
+            Role? primaryRole,
+            Company company,
+            FiscalYear? fiscalYear = null)
+        {
+            var additionalClaims = new Dictionary<string, string>
+            {
+                ["currentCompany"] = company.Id.ToString(),
+                ["currentCompanyName"] = company.Name,
+                ["tradeType"] = company.TradeType.ToString(),
+                ["companyDateFormat"] = company.DateFormat?.ToString() ?? "English"
+            };
+
+            if (fiscalYear != null)
+            {
+                additionalClaims["fiscalYearId"] = fiscalYear.Id.ToString();
+            }
+
+            return GenerateTokenWithClaims(user, additionalClaims, primaryRole);
+        }
 
         /// <summary>
         /// Validates a JWT token and returns the ClaimsPrincipal

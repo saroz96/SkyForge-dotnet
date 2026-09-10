@@ -118,6 +118,7 @@ import DebitNoteNumberForm from './components/retailer/debitNote/VoucherNumber';
 import { StatementProvider } from './context/StatementContext';
 import VATConfirmationLetter from './components/VATConfirmationLetter';
 import OpeningTrialBalance from './components/retailer/TrialBalance/OpeningTrialBalance';
+import AuditReport from './components/AuditReport/AuditReport';
 import AddCreditNote from './components/retailer/creditNote/AddCreditNote';
 import CreditNoteRegister from './components/retailer/creditNote/List';
 import CreditNotePrint from './components/retailer/creditNote/Print';
@@ -1144,11 +1145,23 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+
+
             {/**======================================================*/}
 
             <Route path="/retailer/confirmation-of-vat" element={<VATConfirmationLetter />} />
 
-            {/**===================== Trial Balance ================ */}
+            {/**===================== Audit Report & Trial Balance ================ */}
+
+            <Route
+              path="/retailer/audit/reports"
+              element={
+                <ProtectedRoute>
+                  <AuditReport />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/retailer/opening-trial-balance/alphabetical"
               element={

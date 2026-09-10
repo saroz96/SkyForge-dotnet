@@ -47,6 +47,7 @@ using SkyForge.Models.RoleModel;
 using SkyForge.Services;
 using SkyForge.Services.BackupService;
 using SkyForge.Services.Audit;
+using SkyForge.Services.AuditReportServices;
 using SkyForge.Services.Retailer.CashCounterServices;
 using SkyForge.Services.AttendanceServices;
 
@@ -208,6 +209,7 @@ builder.Services.AddHostedService<BackupSchedulerService>();
 builder.Services.AddScoped<ICashCounterService, CashCounterService>();
 
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IAuditReportService, AuditReportService>();
 
 
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();

@@ -31,14 +31,184 @@ namespace SkyForge.Services
         /// These are nominal accounts that should be closed at year-end
         /// </summary>
         private static readonly HashSet<string> _nominalAccountGroups = new HashSet<string>
-{
-    "Purchase",
-    "Sale",
-    "Expenses (Indirect/Admn.)",
-    "Expenses (Direct/Mfg.)",
-    "Income (Direct/Opr.)",
-    "Income (Indirect)",
-};
+        {
+        "Purchase",
+        "Sale",
+        "Expenses (Indirect/Admn.)",
+        "Expenses (Direct/Mfg.)",
+        "Income (Direct/Opr.)",
+        "Income (Indirect)",
+        "Profit & Loss"
+        };
+
+        /// <summary>
+        /// Calculates the Profit & Loss for the fiscal year
+        /// </summary>
+        private async Task<decimal> CalculateProfitAndLossAsync(
+            Guid fiscalYearId,
+            Guid companyId,
+            List<AccountBalanceSummaryDto> closingBalances)
+        {
+            decimal totalIncome = 0;
+            decimal totalExpenses = 0;
+            decimal totalSales = 0;
+            decimal totalPurchases = 0;
+
+            // Get all nominal accounts from closing balances
+            var nominalAccounts = closingBalances
+                .Where(b => _nominalAccountGroups.Contains(b.AccountGroupName))
+                .ToList();
+
+            foreach (var account in nominalAccounts)
+            {
+                switch (account.AccountGroupName)
+                {
+                    case "Sale":
+                    case "Income (Direct/Opr.)":
+                    case "Income (Indirect)":
+                        // Income accounts have credit balance
+                        totalIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
+                        break;
+
+                    case "Purchase":
+                    case "Expenses (Direct/Mfg.)":
+                    case "Expenses (Indirect/Admn.)":
+                        // Expense accounts have debit balance
+                        totalExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
+                        break;
+                }
+            }
+
+            // Net Profit/Loss = Total Income - Total Expenses
+            decimal netProfitLoss = totalIncome - totalExpenses;
+
+            _logger.LogInformation($"Profit & Loss Calculation - Total Income: {totalIncome}, Total Expenses: {totalExpenses}, Net: {netProfitLoss}");
+
+            return netProfitLoss;
+        }
+
+        /// <summary>
+        /// Sets the Reserve and Surplus Account OPENING balance in target fiscal year
+        /// Target Opening = Source Closing Balance (which already includes P&L)
+        /// </summary>
+        private async Task TransferProfitAndLossToReserveAndSurplusAsync(
+            Guid companyId,
+            Guid sourceFiscalYearId,
+            Guid targetFiscalYearId,
+            decimal netProfitLoss,
+            DateTime targetFiscalYearStartDate,
+            string targetFiscalYearStartDateNepali)
+        {
+            var reserveAccount = await _context.Accounts
+                .Include(a => a.AccountGroup)
+                .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+                                         a.AccountGroup != null &&
+                                         (a.AccountGroup.Name == "Reserves & Surplus") &&
+                                         a.IsActive);
+
+            if (reserveAccount == null)
+            {
+                _logger.LogWarning("Reserve and Surplus Account not found.");
+                return;
+            }
+
+            // ✅ Get the CLOSING balance from the SOURCE fiscal year
+            var sourceClosing = await _context.ClosingBalanceByFiscalYear
+                .FirstOrDefaultAsync(cb => cb.AccountId == reserveAccount.Id &&
+                                           cb.CompanyId == companyId &&
+                                           cb.FiscalYearId == sourceFiscalYearId);
+
+            decimal targetAmount = 0;
+            string targetType = "Cr";
+
+            if (sourceClosing != null)
+            {
+                targetAmount = sourceClosing.Amount;
+                targetType = sourceClosing.Type;
+                _logger.LogInformation($"Using source CLOSING balance: {targetType} {targetAmount}");
+            }
+            else
+            {
+                // Fallback: Use opening + P&L (should rarely happen if closing exists)
+                var sourceOpening = await _context.OpeningBalanceByFiscalYear
+                    .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id &&
+                                               ob.CompanyId == companyId &&
+                                               ob.FiscalYearId == sourceFiscalYearId);
+
+                decimal openingDebit = 0, openingCredit = 0;
+                if (sourceOpening != null)
+                {
+                    if (sourceOpening.Type == "Dr") openingDebit = sourceOpening.Amount;
+                    else openingCredit = sourceOpening.Amount;
+                }
+
+                if (netProfitLoss > 0) openingCredit += netProfitLoss;
+                else if (netProfitLoss < 0) openingDebit += Math.Abs(netProfitLoss);
+
+                targetAmount = Math.Abs(openingDebit - openingCredit);
+                targetType = openingDebit >= openingCredit ? "Dr" : "Cr";
+                _logger.LogWarning($"Fallback computed target opening: {targetType} {targetAmount}");
+            }
+
+            // ✅ REPLACE the opening balance in target fiscal year
+            var existingTarget = await _context.OpeningBalanceByFiscalYear
+                .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id &&
+                                           ob.FiscalYearId == targetFiscalYearId);
+
+            if (existingTarget != null)
+            {
+                existingTarget.Amount = targetAmount;
+                existingTarget.Type = targetType;
+                existingTarget.Date = targetFiscalYearStartDate;
+                existingTarget.NepaliDate = targetFiscalYearStartDateNepali;
+                _logger.LogInformation($"REPLACED target opening: {targetType} {targetAmount}");
+            }
+            else
+            {
+                _context.OpeningBalanceByFiscalYear.Add(new OpeningBalanceByFiscalYear
+                {
+                    Id = Guid.NewGuid(),
+                    AccountId = reserveAccount.Id,
+                    FiscalYearId = targetFiscalYearId,
+                    CompanyId = companyId,
+                    Amount = targetAmount,
+                    Type = targetType,
+                    Date = targetFiscalYearStartDate,
+                    NepaliDate = targetFiscalYearStartDateNepali
+                });
+                _logger.LogInformation($"CREATED target opening: {targetType} {targetAmount}");
+            }
+
+            // ✅ Also update master opening balance
+            var master = await _context.OpeningBalances
+                .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id && ob.CompanyId == companyId);
+            if (master != null)
+            {
+                master.Amount = targetAmount;
+                master.Type = targetType;
+                master.Date = targetFiscalYearStartDate;
+                master.NepaliDate = targetFiscalYearStartDateNepali;
+                master.FiscalYearId = null;
+            }
+            else
+            {
+                _context.OpeningBalances.Add(new OpeningBalance
+                {
+                    Id = Guid.NewGuid(),
+                    AccountId = reserveAccount.Id,
+                    CompanyId = companyId,
+                    Amount = targetAmount,
+                    Type = targetType,
+                    Date = targetFiscalYearStartDate,
+                    NepaliDate = targetFiscalYearStartDateNepali,
+                    FiscalYearId = null
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"Reserve Account opening balance {targetType} {targetAmount} set for target fiscal year {targetFiscalYearId}");
+        }
 
         /// <summary>
         /// Ensures the Stock in Hand account group exists for the company
@@ -212,6 +382,165 @@ namespace SkyForge.Services
             };
         }
 
+        //     public async Task<FiscalYearTransferResponseDto> TransferFiscalYearBalancesAsync(
+        //         FiscalYearTransferRequestDto request,
+        //         Guid companyId)
+        //     {
+        //         var response = new FiscalYearTransferResponseDto();
+
+        //         using var transaction = await _context.Database.BeginTransactionAsync();
+
+        //         try
+        //         {
+        //             _logger.LogInformation("Starting fiscal year transfer from {SourceId} to {TargetId}",
+        //                 request.SourceFiscalYearId, request.TargetFiscalYearId);
+
+        //             var validation = await ValidateTransferAsync(request.SourceFiscalYearId, request.TargetFiscalYearId, companyId);
+        //             if (!validation.Success)
+        //             {
+        //                 return validation;
+        //             }
+
+        //             var sourceFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == request.SourceFiscalYearId && f.CompanyId == companyId);
+
+        //             var targetFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.Id == request.TargetFiscalYearId && f.CompanyId == companyId);
+
+        //             var summary = new FiscalYearTransferSummaryDto
+        //             {
+        //                 SourceFiscalYearId = sourceFiscalYear!.Id,
+        //                 SourceFiscalYearName = sourceFiscalYear.Name,
+        //                 TargetFiscalYearId = targetFiscalYear!.Id,
+        //                 TargetFiscalYearName = targetFiscalYear.Name,
+        //                 TransferDate = request.TransferDate,
+        //                 CompletedAt = DateTime.UtcNow
+        //             };
+
+        //             decimal totalStockValue = 0;
+
+        //             DateTime transferDateAd = request.TransferDate;
+        //             string transferDateNepali = request.TransferDateNepali?.ToString() ?? "";
+
+        //             // Get fiscal year start and end dates
+        //             DateTime sourceFiscalYearStartDate = sourceFiscalYear.StartDate ?? DateTime.UtcNow;
+        //             DateTime sourceFiscalYearEndDate = sourceFiscalYear.EndDate ?? DateTime.UtcNow;
+        //             DateTime targetFiscalYearStartDate = targetFiscalYear.StartDate ?? DateTime.UtcNow;
+
+        //             // Get Nepali dates from fiscal year
+        //             string sourceFiscalYearStartDateNepali = sourceFiscalYear.StartDateNepali ?? transferDateNepali;
+        //             string sourceFiscalYearEndDateNepali = sourceFiscalYear.EndDateNepali ?? transferDateNepali;
+        //             string targetFiscalYearStartDateNepali = targetFiscalYear.StartDateNepali ?? transferDateNepali;
+
+        //             if (request.TransferItems)
+        //             {
+        //                 var itemSummary = await CalculateAndSaveClosingStockForSourceFiscalYearAsync(
+        //                     request.SourceFiscalYearId,
+        //                     companyId,
+        //                     sourceFiscalYearEndDate,
+        //                     sourceFiscalYearEndDateNepali,
+        //                     sourceFiscalYearStartDate,
+        //                     sourceFiscalYearStartDateNepali);
+
+        //                 summary.ItemsSummary = itemSummary;
+        //                 totalStockValue = itemSummary.TotalClosingStockValue;
+
+        //                 await CreateOpeningStockForTargetFiscalYearAsync(
+        //                     request.SourceFiscalYearId,
+        //                     request.TargetFiscalYearId,
+        //                     companyId,
+        //                     targetFiscalYearStartDate,
+        //                     targetFiscalYearStartDateNepali);
+        //             }
+
+        //             // ✅ Get closing balances (Stock in Hand will be added separately)
+        //             var closingBalances = await GetAccountClosingBalancesFromTransactionsAsync(
+        //                 request.SourceFiscalYearId,
+        //                 companyId);
+
+        //             // ✅ Add Stock in Hand account balance with total stock value
+        //             await AddStockInHandAccountBalanceAsync(
+        //                 companyId,
+        //                 request.TargetFiscalYearId,
+        //                 totalStockValue,
+        //                 closingBalances);
+
+        //             await AddProfitAndLossToClosingBalancesAsync(
+        // request.SourceFiscalYearId,
+        // companyId,
+        // closingBalances);
+
+        //             // Calculate Profit & Loss
+        //             var netProfitLoss = await CalculateProfitAndLossAsync(
+        //                 request.SourceFiscalYearId,
+        //                 companyId,
+        //                 closingBalances);
+
+
+        //             await UpdateCapitalAccountInClosingBalancesAsync(
+        //             request.SourceFiscalYearId,
+        //             companyId,
+        //             netProfitLoss,
+        //             closingBalances,
+        //             sourceFiscalYearEndDate,
+        //             sourceFiscalYearEndDateNepali);
+
+        //             // Save closing balances for SOURCE fiscal year with END date
+        //             await SaveClosingBalancesForSourceFiscalYearAsync(
+        //                 request.SourceFiscalYearId,
+        //                 companyId,
+        //                 sourceFiscalYearEndDate,
+        //                 sourceFiscalYearEndDateNepali,
+        //                 closingBalances);
+
+        //             // Create Opening Balance Transaction for TARGET fiscal year with START date
+        //             var openingBalanceTransaction = await CreateOpeningBalanceTransactionAsync(
+        //                 targetFiscalYear!.Id,
+        //                 companyId,
+        //                 targetFiscalYearStartDate,
+        //                 targetFiscalYearStartDateNepali,
+        //                 closingBalances);
+
+        //             // Transfer Profit & Loss to Reserve and Surplus Account (only for target fiscal year opening balance)
+        //             await TransferProfitAndLossToReserveAndSurplusAsync(
+        //                 companyId,
+        //                  request.SourceFiscalYearId,
+        //                 request.TargetFiscalYearId,
+        //                 netProfitLoss,
+        //                 targetFiscalYearStartDate,
+        //                 targetFiscalYearStartDateNepali);
+
+        //             summary.OpeningBalanceTransactionId = openingBalanceTransaction.Id;
+        //             summary.OpeningBalanceVoucherNo = openingBalanceTransaction.BillNumber ?? "OP-BAL-001";
+
+        //             summary.AccountsSummary = new AccountTransferSummaryDto
+        //             {
+        //                 AccountsProcessed = closingBalances.Count(a => a.DebitAmount > 0 || a.CreditAmount > 0),
+        //                 TotalDebitBalance = closingBalances.Sum(a => a.DebitAmount),
+        //                 TotalCreditBalance = closingBalances.Sum(a => a.CreditAmount),
+        //                 AccountDetails = closingBalances.Where(a => a.DebitAmount > 0 || a.CreditAmount > 0).ToList()
+        //             };
+
+        //             await transaction.CommitAsync();
+
+        //             response.Success = true;
+        //             response.Message = "Fiscal year transfer completed successfully";
+        //             response.Data = summary;
+
+        //             _logger.LogInformation("Fiscal year transfer completed successfully. Total stock value: {TotalStockValue}", totalStockValue);
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             await transaction.RollbackAsync();
+        //             _logger.LogError(ex, "Error during fiscal year transfer");
+        //             response.Success = false;
+        //             response.Errors.Add($"Transfer error: {ex.Message}");
+        //             response.Message = "Transfer failed";
+        //         }
+
+        //         return response;
+        //     }
+
         public async Task<FiscalYearTransferResponseDto> TransferFiscalYearBalancesAsync(
             FiscalYearTransferRequestDto request,
             Guid companyId)
@@ -295,6 +624,69 @@ namespace SkyForge.Services
                     totalStockValue,
                     closingBalances);
 
+                // ✅ Calculate Profit & Loss BEFORE modifying balances
+                var netProfitLoss = await CalculateProfitAndLossAsync(
+                    request.SourceFiscalYearId,
+                    companyId,
+                    closingBalances);
+
+                _logger.LogInformation($"Net Profit/Loss calculated: {netProfitLoss}");
+
+                // ✅ Transfer Profit/Loss to Reserve & Surplus account
+                if (netProfitLoss != 0)
+                {
+                    // Find Reserve & Surplus account
+                    var reserveAccount = await _context.Accounts
+                        .Include(a => a.AccountGroup)
+                        .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+                                                 a.AccountGroup != null &&
+                                                 a.AccountGroup.Name == "Reserves & Surplus" &&
+                                                 a.IsActive);
+
+                    if (reserveAccount == null)
+                    {
+                        _logger.LogWarning("Reserve & Surplus account not found. Skipping P&L transfer.");
+                    }
+                    else
+                    {
+                        var existingReserve = closingBalances.FirstOrDefault(b => b.AccountId == reserveAccount.Id);
+
+                        if (existingReserve != null)
+                        {
+                            // Update Reserve & Surplus with P&L amount
+                            if (netProfitLoss > 0)
+                            {
+                                existingReserve.CreditAmount += netProfitLoss;
+                            }
+                            else
+                            {
+                                existingReserve.DebitAmount += Math.Abs(netProfitLoss);
+                            }
+                            existingReserve.BalanceType = existingReserve.CreditAmount >= existingReserve.DebitAmount ? "Cr" : "Dr";
+                            _logger.LogInformation($"Updated Reserve & Surplus with P&L: {netProfitLoss}");
+                        }
+                        else
+                        {
+                            closingBalances.Add(new AccountBalanceSummaryDto
+                            {
+                                AccountId = reserveAccount.Id,
+                                AccountName = reserveAccount.Name,
+                                AccountGroupName = "Reserves & Surplus",
+                                DebitAmount = netProfitLoss < 0 ? Math.Abs(netProfitLoss) : 0,
+                                CreditAmount = netProfitLoss > 0 ? netProfitLoss : 0,
+                                BalanceType = netProfitLoss > 0 ? "Cr" : "Dr"
+                            });
+                            _logger.LogInformation($"Added Reserve & Surplus with P&L: {netProfitLoss}");
+                        }
+                    }
+                }
+
+                // ✅ Add Profit & Loss to closing balances (this will set P&L to ZERO after transfer)
+                await AddProfitAndLossToClosingBalancesAsync(
+                    request.SourceFiscalYearId,
+                    companyId,
+                    closingBalances);
+
                 // Save closing balances for SOURCE fiscal year with END date
                 await SaveClosingBalancesForSourceFiscalYearAsync(
                     request.SourceFiscalYearId,
@@ -310,6 +702,15 @@ namespace SkyForge.Services
                     targetFiscalYearStartDate,
                     targetFiscalYearStartDateNepali,
                     closingBalances);
+
+                // Transfer Profit & Loss to Reserve and Surplus Account (only for target fiscal year opening balance)
+                await TransferProfitAndLossToReserveAndSurplusAsync(
+                    companyId,
+                    request.SourceFiscalYearId,
+                    request.TargetFiscalYearId,
+                    netProfitLoss,
+                    targetFiscalYearStartDate,
+                    targetFiscalYearStartDateNepali);
 
                 summary.OpeningBalanceTransactionId = openingBalanceTransaction.Id;
                 summary.OpeningBalanceVoucherNo = openingBalanceTransaction.BillNumber ?? "OP-BAL-001";
@@ -777,183 +1178,408 @@ namespace SkyForge.Services
             await _context.SaveChangesAsync();
             return result;
         }
-        // private async Task<List<AccountBalanceSummaryDto>> GetAccountClosingBalancesFromTransactionsAsync(
-        //     Guid fiscalYearId,
-        //     Guid companyId)
+
+        /// <summary>
+        /// Adds Profit & Loss to the closing balances before saving
+        /// </summary>
+        // private async Task AddProfitAndLossToClosingBalancesAsync(
+        //     Guid sourceFiscalYearId,
+        //     Guid companyId,
+        //     List<AccountBalanceSummaryDto> closingBalances)
         // {
-        //     try
+        //     // Calculate Profit & Loss from closing balances
+        //     var netProfitLoss = await CalculateProfitAndLossAsync(
+        //         sourceFiscalYearId,
+        //         companyId,
+        //         closingBalances);
+
+        //     if (netProfitLoss == 0)
         //     {
-        //         // Validate inputs
-        //         if (fiscalYearId == Guid.Empty || companyId == Guid.Empty)
-        //         {
-        //             _logger.LogError("Invalid fiscal year or company ID provided");
-        //             return new List<AccountBalanceSummaryDto>();
-        //         }
-
-        //         // Get all active accounts for the company with AccountGroup included
-        //         var accounts = await _context.Accounts
-        //             .Include(a => a.AccountGroup)
-        //             .Where(a => a.CompanyId == companyId && a.IsActive)
-        //             .ToListAsync();
-
-        //         if (accounts == null || !accounts.Any())
-        //         {
-        //             _logger.LogWarning($"No active accounts found for company {companyId}");
-        //             return new List<AccountBalanceSummaryDto>();
-        //         }
-
-        //         var result = new List<AccountBalanceSummaryDto>();
-
-        //         // ✅ Define account groups that should be excluded from filtering (include all transactions)
-        //         // These groups will NOT have cash transactions filtered out
-        //         var excludedFromFilteringGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        // {
-        //     "Cash in Hand",
-        //     "Duties & Taxes"
-        // };
-
-        //         foreach (var account in accounts)
-        //         {
-        //             try
-        //             {
-        //                 if (account == null) continue;
-
-        //                 // ✅ Get account group name safely
-        //                 var accountGroupName = account.AccountGroup?.Name ?? string.Empty;
-
-        //                 // ✅ SKIP accounts with AccountGroup "Stock in Hand" - we handle it separately with total stock value
-        //                 if (!string.IsNullOrEmpty(accountGroupName) &&
-        //                     accountGroupName.Equals("Stock in Hand", StringComparison.OrdinalIgnoreCase))
-        //                 {
-        //                     _logger.LogInformation($"Skipping account in Stock in Hand group: {account.Name} - will be added with calculated stock value");
-        //                     continue;
-        //                 }
-
-        //                 // ✅ Skip nominal accounts (Purchase, Sale, Expenses, Income)
-        //                 if (!string.IsNullOrEmpty(accountGroupName) &&
-        //                     _nominalAccountGroups.Contains(accountGroupName))
-        //                 {
-        //                     _logger.LogInformation($"Skipping nominal account: {account.Name} (Group: {accountGroupName})");
-        //                     continue;
-        //                 }
-
-        //                 if (string.IsNullOrEmpty(accountGroupName))
-        //                 {
-        //                     _logger.LogWarning($"Account {account.Name} (ID: {account.Id}) has no AccountGroup assigned. Processing anyway.");
-        //                 }
-
-        //                 // ✅ Check if this account should be excluded from cash transaction filtering
-        //                 // (e.g., Cash in Hand, Duties & Taxes)
-        //                 bool excludeFromCashFiltering = !string.IsNullOrEmpty(accountGroupName) &&
-        //                     excludedFromFilteringGroups.Contains(accountGroupName);
-
-        //                 // Get all transactions for this fiscal year where this account is involved
-        //                 var transactionsQuery = _context.Transactions
-        //                     .Where(t => t.CompanyId == companyId &&
-        //                                t.FiscalYearId == fiscalYearId &&
-        //                                t.Status == TransactionStatus.Active &&
-        //                                (t.AccountId == account.Id ||
-        //                                 t.PaymentAccountId == account.Id ||
-        //                                 t.ReceiptAccountId == account.Id ||
-        //                                 t.DebitAccountId == account.Id ||
-        //                                 t.CreditAccountId == account.Id));
-
-        //                 // ✅ For accounts NOT in excluded groups, exclude cash transactions for Sale, Sales Return, Purchase, Purchase Return
-        //                 if (!excludeFromCashFiltering)
-        //                 {
-        //                     transactionsQuery = transactionsQuery.Where(t =>
-        //                         !(t.PaymentMode == PaymentMode.Cash &&
-        //                           (t.Type == TransactionType.Sale ||
-        //                            t.Type == TransactionType.SlRt ||
-        //                            t.Type == TransactionType.Purc ||
-        //                            t.Type == TransactionType.PrRt)));
-        //                 }
-        //                 // ✅ For accounts in excluded groups (Cash in Hand, Duties & Taxes), include ALL transactions (no exclusion)
-
-        //                 var transactions = await transactionsQuery
-        //                     .Include(t => t.TransactionItems)
-        //                     .ToListAsync();
-
-        //                 decimal totalDebit = 0;
-        //                 decimal totalCredit = 0;
-
-        //                 foreach (var transaction in transactions)
-        //                 {
-        //                     if (transaction == null) continue;
-
-        //                     if (transaction.AccountId == account.Id)
-        //                     {
-        //                         totalDebit += transaction.TotalDebit;
-        //                         totalCredit += transaction.TotalCredit;
-        //                     }
-
-        //                     if (transaction.PaymentAccountId == account.Id)
-        //                     {
-        //                         totalDebit += transaction.TotalDebit;
-        //                     }
-
-        //                     if (transaction.ReceiptAccountId == account.Id)
-        //                     {
-        //                         totalCredit += transaction.TotalCredit;
-        //                     }
-
-        //                     if (transaction.DebitAccountId == account.Id)
-        //                     {
-        //                         totalDebit += transaction.TotalDebit;
-        //                     }
-
-        //                     if (transaction.CreditAccountId == account.Id)
-        //                     {
-        //                         totalCredit += transaction.TotalCredit;
-        //                     }
-        //                 }
-
-        //                 // Check for opening balance from previous fiscal years
-        //                 var openingBalanceRecord = await _context.OpeningBalanceByFiscalYear
-        //                     .FirstOrDefaultAsync(o => o.AccountId == account.Id && o.FiscalYearId == fiscalYearId);
-
-        //                 if (openingBalanceRecord != null)
-        //                 {
-        //                     if (openingBalanceRecord.Type == "Dr")
-        //                         totalDebit += openingBalanceRecord.Amount;
-        //                     else
-        //                         totalCredit += openingBalanceRecord.Amount;
-        //                 }
-
-        //                 decimal closingBalance = Math.Abs(totalDebit - totalCredit);
-        //                 string balanceType = totalDebit >= totalCredit ? "Dr" : "Cr";
-
-        //                 // Only add if there's a balance
-        //                 if (closingBalance > 0)
-        //                 {
-        //                     result.Add(new AccountBalanceSummaryDto
-        //                     {
-        //                         AccountId = account.Id,
-        //                         AccountName = account.Name ?? "Unknown",
-        //                         AccountGroupName = account.AccountGroup?.Name ?? "Unknown",
-        //                         DebitAmount = totalDebit >= totalCredit ? closingBalance : 0,
-        //                         CreditAmount = totalCredit > totalDebit ? closingBalance : 0,
-        //                         BalanceType = balanceType
-        //                     });
-        //                 }
-        //             }
-        //             catch (Exception ex)
-        //             {
-        //                 _logger.LogError(ex, $"Error processing account {account?.Id}");
-        //                 continue;
-        //             }
-        //         }
-
-        //         return result;
+        //         _logger.LogInformation("Net Profit/Loss is zero, skipping addition to closing balances");
+        //         return;
         //     }
-        //     catch (Exception ex)
+
+        //     // Find the Profit & Loss account
+        //     var profitLossAccount = await _context.Accounts
+        //         .Include(a => a.AccountGroup)
+        //         .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+        //                                  a.Name == "Profit & Loss" &&
+        //                                  a.IsActive);
+
+        //     if (profitLossAccount == null)
         //     {
-        //         _logger.LogError(ex, $"Error in GetAccountClosingBalancesFromTransactionsAsync for fiscal year {fiscalYearId}, company {companyId}");
-        //         return new List<AccountBalanceSummaryDto>();
+        //         _logger.LogWarning("Profit & Loss account not found. Creating one...");
+
+        //         // Try to find Profit & Loss account group
+        //         var profitLossGroup = await _context.AccountGroups
+        //             .FirstOrDefaultAsync(g => g.CompanyId == companyId && g.Name == "Profit & Loss");
+
+        //         if (profitLossGroup == null)
+        //         {
+        //             _logger.LogWarning("Profit & Loss account group not found. Skipping P&L addition.");
+        //             return;
+        //         }
+
+        //         // Get active fiscal year
+        //         var activeFiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+
+        //         if (activeFiscalYear == null)
+        //         {
+        //             _logger.LogWarning("No active fiscal year found. Skipping P&L addition.");
+        //             return;
+        //         }
+
+        //         // Create Profit & Loss account
+        //         profitLossAccount = new Account
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             Name = "Profit & Loss",
+        //             AccountGroupsId = profitLossGroup.Id,
+        //             CompanyId = companyId,
+        //             OriginalFiscalYearId = activeFiscalYear.Id,
+        //             OpeningBalanceType = "Dr",
+        //             IsActive = true,
+        //             IsDefaultAccount = true,
+        //             Date = activeFiscalYear.StartDate ?? DateTime.UtcNow,
+        //             NepaliDate = activeFiscalYear.StartDateNepali,
+        //             CreatedAt = DateTime.UtcNow,
+        //             UpdatedAt = DateTime.UtcNow
+        //         };
+
+        //         _context.Accounts.Add(profitLossAccount);
+        //         await _context.SaveChangesAsync();
+
+        //         _logger.LogInformation($"Created Profit & Loss account for company {companyId}");
+        //     }
+
+        //     // Check if Profit & Loss account already exists in closing balances
+        //     var existingPandL = closingBalances.FirstOrDefault(b => b.AccountId == profitLossAccount.Id);
+
+        //     if (existingPandL != null)
+        //     {
+        //         // Update existing P&L balance
+        //         if (netProfitLoss > 0)
+        //         {
+        //             existingPandL.CreditAmount = netProfitLoss;
+        //             existingPandL.DebitAmount = 0;
+        //             existingPandL.BalanceType = "Cr";
+        //         }
+        //         else
+        //         {
+        //             existingPandL.DebitAmount = Math.Abs(netProfitLoss);
+        //             existingPandL.CreditAmount = 0;
+        //             existingPandL.BalanceType = "Dr";
+        //         }
+        //         _logger.LogInformation($"Updated Profit & Loss in closing balances: {netProfitLoss}");
+        //     }
+        //     else
+        //     {
+        //         // Add new Profit & Loss to closing balances
+        //         closingBalances.Add(new AccountBalanceSummaryDto
+        //         {
+        //             AccountId = profitLossAccount.Id,
+        //             AccountName = profitLossAccount.Name,
+        //             AccountGroupName = profitLossAccount.AccountGroup?.Name ?? "Profit & Loss",
+        //             DebitAmount = netProfitLoss < 0 ? Math.Abs(netProfitLoss) : 0,
+        //             CreditAmount = netProfitLoss > 0 ? netProfitLoss : 0,
+        //             BalanceType = netProfitLoss > 0 ? "Cr" : "Dr"
+        //         });
+        //         _logger.LogInformation($"Added Profit & Loss to closing balances: {netProfitLoss}");
         //     }
         // }
 
-        //--------------------------------------end1
+        //----------------------------------------end1
+
+        private async Task AddProfitAndLossToClosingBalancesAsync(
+            Guid sourceFiscalYearId,
+            Guid companyId,
+            List<AccountBalanceSummaryDto> closingBalances)
+        {
+            // Calculate Profit & Loss from closing balances
+            var netProfitLoss = await CalculateProfitAndLossAsync(
+                sourceFiscalYearId,
+                companyId,
+                closingBalances);
+
+            _logger.LogInformation($"Profit & Loss calculated: {netProfitLoss}");
+
+            // Find the Profit & Loss account
+            var profitLossAccount = await _context.Accounts
+                .Include(a => a.AccountGroup)
+                .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+                                         a.Name == "Profit & Loss" &&
+                                         a.IsActive);
+
+            if (profitLossAccount == null)
+            {
+                _logger.LogInformation("Profit & Loss account not found. No need to reset.");
+                return;
+            }
+
+            // Check if Profit & Loss account already exists in closing balances
+            var existingPandL = closingBalances.FirstOrDefault(b => b.AccountId == profitLossAccount.Id);
+
+            if (existingPandL != null)
+            {
+                // ✅ SET P&L balance to ZERO (it has been transferred to Reserve & Surplus)
+                existingPandL.DebitAmount = 0;
+                existingPandL.CreditAmount = 0;
+                existingPandL.BalanceType = "Dr";
+                _logger.LogInformation($"Reset Profit & Loss balance to ZERO in closing balances (was: {netProfitLoss})");
+            }
+            else
+            {
+                // ✅ Add P&L with ZERO balance
+                closingBalances.Add(new AccountBalanceSummaryDto
+                {
+                    AccountId = profitLossAccount.Id,
+                    AccountName = profitLossAccount.Name,
+                    AccountGroupName = profitLossAccount.AccountGroup?.Name ?? "Profit & Loss",
+                    DebitAmount = 0,
+                    CreditAmount = 0,
+                    BalanceType = "Dr"
+                });
+                _logger.LogInformation("Added Profit & Loss account with ZERO balance");
+            }
+        }
+
+        /// <summary>
+        /// Updates Capital Account in closing balances with the Profit/Loss
+        /// This SAVES the closing balance in source fiscal year
+        // /// </summary>
+        // private async Task UpdateCapitalAccountInClosingBalancesAsync(
+        //     Guid sourceFiscalYearId,
+        //     Guid companyId,
+        //     decimal netProfitLoss,
+        //     List<AccountBalanceSummaryDto> closingBalances,
+        //     DateTime sourceFiscalYearEndDate,
+        //     string sourceFiscalYearEndDateNepali)
+        // {
+        //     if (netProfitLoss == 0)
+        //     {
+        //         _logger.LogInformation("Net Profit/Loss is zero, skipping Capital Account update");
+        //         return;
+        //     }
+
+        //     // Get the Capital Account
+        //     var capitalAccount = await _context.Accounts
+        //         .Include(a => a.AccountGroup)
+        //         .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+        //                                  a.AccountGroup != null &&
+        //                                  a.AccountGroup.Name == "Capital Account" &&
+        //                                  a.IsActive);
+
+        //     if (capitalAccount == null)
+        //     {
+        //         // Try to find Reserves & Surplus
+        //         capitalAccount = await _context.Accounts
+        //             .Include(a => a.AccountGroup)
+        //             .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+        //                                      a.AccountGroup != null &&
+        //                                      a.AccountGroup.Name == "Reserves & Surplus" &&
+        //                                      a.IsActive);
+        //     }
+
+        //     if (capitalAccount == null)
+        //     {
+        //         _logger.LogWarning("No Capital Account or Reserves & Surplus found to update closing balance");
+        //         return;
+        //     }
+
+        //     // Get the existing Capital Account balance from closing balances
+        //     var existingCapital = closingBalances.FirstOrDefault(b => b.AccountId == capitalAccount.Id);
+
+        //     decimal existingDebit = existingCapital?.DebitAmount ?? 0;
+        //     decimal existingCredit = existingCapital?.CreditAmount ?? 0;
+        //     string existingType = existingCapital?.BalanceType ?? "Cr";
+
+        //     // Calculate new balance after adding Profit/Loss
+        //     decimal newDebit = existingDebit;
+        //     decimal newCredit = existingCredit;
+        //     string newType = existingType;
+
+        //     if (netProfitLoss > 0) // Profit - add to Credit
+        //     {
+        //         newCredit += netProfitLoss;
+        //         newType = newCredit >= newDebit ? "Cr" : "Dr";
+        //     }
+        //     else // Loss - add to Debit
+        //     {
+        //         decimal lossAmount = Math.Abs(netProfitLoss);
+        //         newDebit += lossAmount;
+        //         newType = newDebit >= newCredit ? "Dr" : "Cr";
+        //     }
+
+        //     // Update or add Capital Account in closing balances
+        //     if (existingCapital != null)
+        //     {
+        //         existingCapital.DebitAmount = newDebit;
+        //         existingCapital.CreditAmount = newCredit;
+        //         existingCapital.BalanceType = newType;
+        //         _logger.LogInformation($"Updated Capital Account in closing balances: {newType} {Math.Abs(newDebit - newCredit)}");
+        //     }
+        //     else
+        //     {
+        //         closingBalances.Add(new AccountBalanceSummaryDto
+        //         {
+        //             AccountId = capitalAccount.Id,
+        //             AccountName = capitalAccount.Name,
+        //             AccountGroupName = capitalAccount.AccountGroup?.Name ?? "Capital Account",
+        //             DebitAmount = newDebit,
+        //             CreditAmount = newCredit,
+        //             BalanceType = newType
+        //         });
+        //         _logger.LogInformation($"Added Capital Account to closing balances: {newType} {Math.Abs(newDebit - newCredit)}");
+        //     }
+        // }
+
+        /// <summary>
+        /// Updates Capital Account in closing balances with the Profit/Loss
+        /// Formula: Closing Capital = Opening Capital + Net Profit/Loss
+        /// </summary>
+        private async Task UpdateCapitalAccountInClosingBalancesAsync(
+            Guid sourceFiscalYearId,
+            Guid companyId,
+            decimal netProfitLoss,
+            List<AccountBalanceSummaryDto> closingBalances,
+            DateTime sourceFiscalYearEndDate,
+            string sourceFiscalYearEndDateNepali)
+        {
+            // Get the Capital Account
+            var capitalAccount = await _context.Accounts
+                .Include(a => a.AccountGroup)
+                .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+                                         a.AccountGroup != null &&
+                                         a.AccountGroup.Name == "Capital Account" &&
+                                         a.IsActive);
+
+            if (capitalAccount == null)
+            {
+                // Try to find Reserves & Surplus
+                capitalAccount = await _context.Accounts
+                    .Include(a => a.AccountGroup)
+                    .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+                                             a.AccountGroup != null &&
+                                             a.AccountGroup.Name == "Reserves & Surplus" &&
+                                             a.IsActive);
+            }
+
+            if (capitalAccount == null)
+            {
+                _logger.LogWarning("No Capital Account or Reserves & Surplus found to update closing balance");
+                return;
+            }
+
+            // ✅ Get the Capital Account OPENING balance from source fiscal year
+            var sourceOpeningBalance = await _context.OpeningBalanceByFiscalYear
+                .FirstOrDefaultAsync(ob => ob.AccountId == capitalAccount.Id &&
+                                          ob.CompanyId == companyId &&
+                                          ob.FiscalYearId == sourceFiscalYearId);
+
+            decimal openingBalance = 0;
+            string openingBalanceType = "Cr";
+
+            if (sourceOpeningBalance != null)
+            {
+                openingBalance = sourceOpeningBalance.Amount;
+                openingBalanceType = sourceOpeningBalance.Type;
+                _logger.LogInformation($"Found Capital Account OPENING balance in source FY: {openingBalanceType} {openingBalance}");
+            }
+
+            // ✅ Calculate Closing Balance = Opening Balance + Net Profit/Loss
+            decimal closingDebit = 0;
+            decimal closingCredit = 0;
+            string closingType = "Cr";
+
+            if (netProfitLoss != 0)
+            {
+                if (netProfitLoss > 0) // Profit - add to Credit
+                {
+                    if (openingBalanceType == "Cr")
+                    {
+                        closingCredit = openingBalance + netProfitLoss;
+                        closingType = "Cr";
+                    }
+                    else // Opening balance is Debit
+                    {
+                        if (openingBalance >= netProfitLoss)
+                        {
+                            closingDebit = openingBalance - netProfitLoss;
+                            closingType = "Dr";
+                        }
+                        else
+                        {
+                            closingCredit = netProfitLoss - openingBalance;
+                            closingType = "Cr";
+                        }
+                    }
+                }
+                else // Loss - subtract from balance
+                {
+                    decimal lossAmount = Math.Abs(netProfitLoss);
+
+                    if (openingBalanceType == "Cr")
+                    {
+                        if (openingBalance >= lossAmount)
+                        {
+                            closingCredit = openingBalance - lossAmount;
+                            closingType = "Cr";
+                        }
+                        else
+                        {
+                            closingDebit = lossAmount - openingBalance;
+                            closingType = "Dr";
+                        }
+                    }
+                    else // Opening balance is Debit
+                    {
+                        closingDebit = openingBalance + lossAmount;
+                        closingType = "Dr";
+                    }
+                }
+            }
+            else
+            {
+                // If no P&L, closing = opening
+                if (openingBalanceType == "Cr")
+                {
+                    closingCredit = openingBalance;
+                    closingType = "Cr";
+                }
+                else
+                {
+                    closingDebit = openingBalance;
+                    closingType = "Dr";
+                }
+            }
+
+            _logger.LogInformation($"Calculated Capital Account closing balance: Opening {openingBalanceType} {openingBalance} + P&L {(netProfitLoss > 0 ? "+" : "")}{netProfitLoss} = {closingType} {(closingDebit > 0 ? closingDebit : closingCredit)}");
+
+            // ✅ Update or add Capital Account in closing balances
+            var existingCapital = closingBalances.FirstOrDefault(b => b.AccountId == capitalAccount.Id);
+
+            if (existingCapital != null)
+            {
+                existingCapital.DebitAmount = closingDebit;
+                existingCapital.CreditAmount = closingCredit;
+                existingCapital.BalanceType = closingType;
+                _logger.LogInformation($"Updated Capital Account in closing balances: {closingType} {(closingDebit > 0 ? closingDebit : closingCredit)}");
+            }
+            else
+            {
+                closingBalances.Add(new AccountBalanceSummaryDto
+                {
+                    AccountId = capitalAccount.Id,
+                    AccountName = capitalAccount.Name,
+                    AccountGroupName = capitalAccount.AccountGroup?.Name ?? "Capital Account",
+                    DebitAmount = closingDebit,
+                    CreditAmount = closingCredit,
+                    BalanceType = closingType
+                });
+                _logger.LogInformation($"Added Capital Account to closing balances: {closingType} {(closingDebit > 0 ? closingDebit : closingCredit)}");
+            }
+        }
 
         private async Task<List<AccountBalanceSummaryDto>> GetAccountClosingBalancesFromTransactionsAsync(
             Guid fiscalYearId,
@@ -1113,163 +1739,6 @@ namespace SkyForge.Services
             }
         }
 
-        // private async Task<Transaction> CreateOpeningBalanceTransactionAsync(
-        //     Guid fiscalYearId,
-        //     Guid companyId,
-        //     DateTime fiscalYearStartDate,
-        //     string fiscalYearStartDateNepali,
-        //     List<AccountBalanceSummaryDto> closingBalances)
-        // {
-        //     var billNumber = await GenerateOpeningBalanceBillNumberAsync(fiscalYearId, companyId);
-
-        //     decimal totalDebit = closingBalances.Sum(b => b.DebitAmount);
-        //     decimal totalCredit = closingBalances.Sum(b => b.CreditAmount);
-
-        //     if (totalDebit != totalCredit)
-        //     {
-        //         var difference = Math.Abs(totalDebit - totalCredit);
-        //         var suspenseAccount = await GetOrCreateSuspenseAccountAsync(companyId);
-
-        //         if (totalDebit > totalCredit)
-        //         {
-        //             closingBalances.Add(new AccountBalanceSummaryDto
-        //             {
-        //                 AccountId = suspenseAccount.Id,
-        //                 AccountName = "Suspense Account",
-        //                 DebitAmount = 0,
-        //                 CreditAmount = difference,
-        //                 BalanceType = "Cr"
-        //             });
-        //             totalCredit += difference;
-        //         }
-        //         else
-        //         {
-        //             closingBalances.Add(new AccountBalanceSummaryDto
-        //             {
-        //                 AccountId = suspenseAccount.Id,
-        //                 AccountName = "Suspense Account",
-        //                 DebitAmount = difference,
-        //                 CreditAmount = 0,
-        //                 BalanceType = "Dr"
-        //             });
-        //             totalDebit += difference;
-        //         }
-        //     }
-
-        //     var openingBalanceTransaction = new Transaction
-        //     {
-        //         Id = Guid.NewGuid(),
-        //         CompanyId = companyId,
-        //         FiscalYearId = fiscalYearId,
-        //         Type = TransactionType.OpeningBalance,
-        //         BillNumber = billNumber,
-        //         Date = fiscalYearStartDate,
-        //         NepaliDate = fiscalYearStartDateNepali,
-        //         TransactionDateNepali = fiscalYearStartDateNepali,
-        //         TotalDebit = totalDebit,
-        //         TotalCredit = totalCredit,
-        //         Status = TransactionStatus.Active,
-        //         IsActive = true,
-        //         PaymentMode = PaymentMode.Cash,
-        //         InstType = InstrumentType.NA,
-        //         CreatedAt = DateTime.UtcNow,
-        //         TransactionItems = new List<TransactionItem>()
-        //     };
-
-        //     foreach (var balance in closingBalances.Where(b => b.DebitAmount > 0 || b.CreditAmount > 0))
-        //     {
-        //         var transactionItem = new TransactionItem
-        //         {
-        //             Id = Guid.NewGuid(),
-        //             TransactionId = openingBalanceTransaction.Id,
-        //             Debit = balance.DebitAmount,
-        //             Credit = balance.CreditAmount,
-        //             CreatedAt = DateTime.UtcNow
-        //         };
-
-        //         openingBalanceTransaction.TransactionItems.Add(transactionItem);
-        //     }
-
-        //     _context.Transactions.Add(openingBalanceTransaction);
-        //     await _context.SaveChangesAsync();
-
-        //     // Save to OpeningBalanceByFiscalYear table with START date (multiple per account - one per fiscal year)
-        //     foreach (var balance in closingBalances.Where(b => b.DebitAmount > 0 || b.CreditAmount > 0))
-        //     {
-        //         // Check if already exists for this fiscal year
-        //         var existingByFiscalYear = await _context.OpeningBalanceByFiscalYear
-        //             .FirstOrDefaultAsync(ob => ob.AccountId == balance.AccountId
-        //                                     && ob.FiscalYearId == fiscalYearId);
-
-        //         if (existingByFiscalYear != null)
-        //         {
-        //             existingByFiscalYear.Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount;
-        //             existingByFiscalYear.Type = balance.DebitAmount > 0 ? "Dr" : "Cr";
-        //             existingByFiscalYear.Date = fiscalYearStartDate;
-        //             existingByFiscalYear.NepaliDate = fiscalYearStartDateNepali;
-        //         }
-        //         else
-        //         {
-        //             var openingBalanceRecord = new OpeningBalanceByFiscalYear
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 AccountId = balance.AccountId,
-        //                 FiscalYearId = fiscalYearId,
-        //                 CompanyId = companyId,
-        //                 Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount,
-        //                 Type = balance.DebitAmount > 0 ? "Dr" : "Cr",
-        //                 Date = fiscalYearStartDate,
-        //                 NepaliDate = fiscalYearStartDateNepali,
-        //             };
-
-        //             _context.OpeningBalanceByFiscalYear.Add(openingBalanceRecord);
-        //         }
-        //     }
-
-        //     // *** FIX: Save to OpeningBalance table (MASTER - only ONE per account, not per fiscal year) ***
-        //     foreach (var balance in closingBalances.Where(b => b.DebitAmount > 0 || b.CreditAmount > 0))
-        //     {
-        //         // Check if an OpeningBalance record already exists for this account (MASTER record)
-        //         var existingMasterOpeningBalance = await _context.OpeningBalances
-        //             .FirstOrDefaultAsync(ob => ob.AccountId == balance.AccountId
-        //                                     && ob.CompanyId == companyId);
-
-        //         if (existingMasterOpeningBalance != null)
-        //         {
-        //             // UPDATE the master opening balance (only ONE per account)
-        //             existingMasterOpeningBalance.Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount;
-        //             existingMasterOpeningBalance.Type = balance.DebitAmount > 0 ? "Dr" : "Cr";
-        //             existingMasterOpeningBalance.Date = fiscalYearStartDate;
-        //             existingMasterOpeningBalance.NepaliDate = fiscalYearStartDateNepali;
-        //             // Keep the FiscalYearId as null or update it - this is the MASTER record
-        //             existingMasterOpeningBalance.FiscalYearId = null; // Master record doesn't have fiscal year
-        //         }
-        //         else
-        //         {
-        //             // CREATE new master opening balance (only ONE per account)
-        //             var openingBalanceMaster = new OpeningBalance
-        //             {
-        //                 Id = Guid.NewGuid(),
-        //                 AccountId = balance.AccountId,
-        //                 CompanyId = companyId,
-        //                 Amount = balance.DebitAmount > 0 ? balance.DebitAmount : balance.CreditAmount,
-        //                 Type = balance.DebitAmount > 0 ? "Dr" : "Cr",
-        //                 Date = fiscalYearStartDate,
-        //                 NepaliDate = fiscalYearStartDateNepali,
-        //                 FiscalYearId = null // Master record - not tied to a specific fiscal year
-        //             };
-
-        //             _context.OpeningBalances.Add(openingBalanceMaster);
-        //         }
-        //     }
-
-        //     await _context.SaveChangesAsync();
-
-        //     return openingBalanceTransaction;
-        // }
-
-        //------------------------------------end1
-
         private async Task<Transaction> CreateOpeningBalanceTransactionAsync(
             Guid fiscalYearId,
             Guid companyId,
@@ -1292,38 +1761,6 @@ namespace SkyForge.Services
 
             decimal totalDebit = openingBalances.Sum(b => b.DebitAmount);
             decimal totalCredit = openingBalances.Sum(b => b.CreditAmount);
-
-            // Add suspense account if needed
-            if (totalDebit != totalCredit)
-            {
-                var difference = Math.Abs(totalDebit - totalCredit);
-                var suspenseAccount = await GetOrCreateSuspenseAccountAsync(companyId);
-
-                if (totalDebit > totalCredit)
-                {
-                    openingBalances.Add(new AccountBalanceSummaryDto
-                    {
-                        AccountId = suspenseAccount.Id,
-                        AccountName = "Suspense Account",
-                        DebitAmount = 0,
-                        CreditAmount = difference,
-                        BalanceType = "Cr"
-                    });
-                    totalCredit += difference;
-                }
-                else
-                {
-                    openingBalances.Add(new AccountBalanceSummaryDto
-                    {
-                        AccountId = suspenseAccount.Id,
-                        AccountName = "Suspense Account",
-                        DebitAmount = difference,
-                        CreditAmount = 0,
-                        BalanceType = "Dr"
-                    });
-                    totalDebit += difference;
-                }
-            }
 
             // Create transaction
             var openingBalanceTransaction = new Transaction
@@ -2241,559 +2678,6 @@ namespace SkyForge.Services
         }
 
         // public async Task<UpdateBalancesResponseDto> UpdateAndFinalizeBalancesAsync(
-        //      UpdateBalancesRequestDto request, Guid companyId)
-        // {
-        //     var response = new UpdateBalancesResponseDto();
-
-        //     using var transaction = await _context.Database.BeginTransactionAsync();
-
-        //     try
-        //     {
-        //         _logger.LogInformation("Updating and finalizing balances for fiscal year transfer");
-
-        //         // Get source and target fiscal years
-        //         var sourceFiscalYear = await _context.FiscalYears
-        //             .FirstOrDefaultAsync(f => f.Id == request.SourceFiscalYearId && f.CompanyId == companyId);
-        //         var targetFiscalYear = await _context.FiscalYears
-        //             .FirstOrDefaultAsync(f => f.Id == request.TargetFiscalYearId && f.CompanyId == companyId);
-
-        //         if (sourceFiscalYear == null || targetFiscalYear == null)
-        //         {
-        //             response.Success = false;
-        //             response.Message = "Fiscal year not found";
-        //             return response;
-        //         }
-
-        //         // ✅ Use existing method to get item closing stocks with prices
-        //         var itemStocks = await GetItemClosingStocksFromStockEntriesAsync(request.SourceFiscalYearId, companyId);
-        //         decimal totalStockValue = itemStocks.Sum(i => i.ClosingStockValue);
-
-        //         // ✅ Create a dictionary for quick lookup of stock prices
-        //         var stockPriceDict = itemStocks.ToDictionary(
-        //             s => s.ItemId,
-        //             s => new { s.PurchasePrice, s.SalesPrice }
-        //         );
-
-        //         // ✅ First, ensure Stock in Hand account exists and has correct balance
-        //         if (totalStockValue > 0)
-        //         {
-        //             var stockInHandAccount = await _context.Accounts
-        //                 .Include(a => a.AccountGroup)
-        //                 .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
-        //                                          a.AccountGroup != null &&
-        //                                          a.AccountGroup.Name == "Stock in Hand" &&
-        //                                          a.IsActive);
-
-        //             if (stockInHandAccount == null)
-        //             {
-        //                 // Create Stock in Hand account if it doesn't exist
-        //                 var stockInHandGroup = await _context.AccountGroups
-        //                     .FirstOrDefaultAsync(g => g.Name == "Stock in Hand" && g.CompanyId == companyId);
-
-        //                 if (stockInHandGroup != null)
-        //                 {
-        //                     stockInHandAccount = new Account
-        //                     {
-        //                         Id = Guid.NewGuid(),
-        //                         Name = "Stock in Hand",
-        //                         AccountGroupsId = stockInHandGroup.Id,
-        //                         CompanyId = companyId,
-        //                         OriginalFiscalYearId = sourceFiscalYear.Id,
-        //                         OpeningBalanceType = "Dr",
-        //                         IsActive = true,
-        //                         Date = targetFiscalYear.StartDate ?? DateTime.UtcNow,
-        //                         NepaliDate = targetFiscalYear.StartDateNepali,
-        //                         CreatedAt = DateTime.UtcNow,
-        //                         UpdatedAt = DateTime.UtcNow
-        //                     };
-        //                     _context.Accounts.Add(stockInHandAccount);
-        //                     await _context.SaveChangesAsync();
-        //                 }
-        //             }
-
-        //             if (stockInHandAccount != null)
-        //             {
-        //                 // ✅ Add or update Stock in Hand in the updated accounts list
-        //                 var stockInHandUpdated = request.UpdatedAccounts
-        //                     .FirstOrDefault(a => a.AccountId == stockInHandAccount.Id);
-
-        //                 if (stockInHandUpdated == null)
-        //                 {
-        //                     request.UpdatedAccounts.Add(new UpdatedAccountBalanceDto
-        //                     {
-        //                         AccountId = stockInHandAccount.Id,
-        //                         NewBalance = totalStockValue,
-        //                         BalanceType = "Dr",
-        //                         IsSelected = true
-        //                     });
-        //                 }
-        //                 else
-        //                 {
-        //                     stockInHandUpdated.NewBalance = totalStockValue;
-        //                     stockInHandUpdated.BalanceType = "Dr";
-        //                     stockInHandUpdated.IsSelected = true;
-        //                 }
-        //             }
-        //         }
-
-        //         // Update account balances
-        //         foreach (var updatedAccount in request.UpdatedAccounts)
-        //         {
-        //             if (!updatedAccount.IsSelected) continue;
-
-        //             var existingOpeningBalance = await _context.OpeningBalanceByFiscalYear
-        //                 .FirstOrDefaultAsync(ob => ob.AccountId == updatedAccount.AccountId
-        //                     && ob.FiscalYearId == request.TargetFiscalYearId);
-
-        //             if (existingOpeningBalance != null)
-        //             {
-        //                 existingOpeningBalance.Amount = updatedAccount.NewBalance;
-        //                 existingOpeningBalance.Type = updatedAccount.BalanceType;
-        //                 existingOpeningBalance.Date = request.TransferDate;
-        //                 existingOpeningBalance.NepaliDate = request.TransferDateNepali;
-        //             }
-        //             else
-        //             {
-        //                 var newOpeningBalance = new OpeningBalanceByFiscalYear
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     AccountId = updatedAccount.AccountId,
-        //                     FiscalYearId = request.TargetFiscalYearId,
-        //                     CompanyId = companyId,
-        //                     Amount = updatedAccount.NewBalance,
-        //                     Type = updatedAccount.BalanceType,
-        //                     Date = request.TransferDate,
-        //                     NepaliDate = request.TransferDateNepali
-        //                 };
-        //                 _context.OpeningBalanceByFiscalYear.Add(newOpeningBalance);
-        //             }
-
-        //             // Update master opening balance
-        //             var masterOpeningBalance = await _context.OpeningBalances
-        //                 .FirstOrDefaultAsync(ob => ob.AccountId == updatedAccount.AccountId
-        //                     && ob.CompanyId == companyId);
-
-        //             if (masterOpeningBalance != null)
-        //             {
-        //                 masterOpeningBalance.Amount = updatedAccount.NewBalance;
-        //                 masterOpeningBalance.Type = updatedAccount.BalanceType;
-        //                 masterOpeningBalance.Date = request.TransferDate;
-        //                 masterOpeningBalance.NepaliDate = request.TransferDateNepali;
-        //                 masterOpeningBalance.FiscalYearId = null;
-        //             }
-        //             else
-        //             {
-        //                 var newMaster = new OpeningBalance
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     AccountId = updatedAccount.AccountId,
-        //                     CompanyId = companyId,
-        //                     Amount = updatedAccount.NewBalance,
-        //                     Type = updatedAccount.BalanceType,
-        //                     Date = request.TransferDate,
-        //                     NepaliDate = request.TransferDateNepali,
-        //                     FiscalYearId = null
-        //                 };
-        //                 _context.OpeningBalances.Add(newMaster);
-        //             }
-        //         }
-
-        //         // ✅ Update item opening stocks with purchase and sales prices from existing data
-        //         foreach (var updatedItem in request.UpdatedItems)
-        //         {
-        //             if (!updatedItem.IsSelected) continue;
-
-        //             // ✅ Get the prices from the stock price dictionary
-        //             decimal purchasePrice = 0;
-        //             decimal salesPrice = 0;
-
-        //             if (stockPriceDict.TryGetValue(updatedItem.ItemId, out var prices))
-        //             {
-        //                 purchasePrice = prices.PurchasePrice;
-        //                 salesPrice = prices.SalesPrice;
-        //             }
-        //             else
-        //             {
-        //                 // Fallback: get from item
-        //                 var sourceItem = await _context.Items
-        //                     .FirstOrDefaultAsync(i => i.Id == updatedItem.ItemId && i.CompanyId == companyId);
-
-        //                 if (sourceItem != null)
-        //                 {
-        //                     purchasePrice = sourceItem.PuPrice ?? 0;
-        //                     salesPrice = sourceItem.Price ?? 0;
-        //                 }
-        //             }
-
-        //             var existingOpeningStock = await _context.ItemOpeningStockByFiscalYear
-        //                 .FirstOrDefaultAsync(os => os.ItemId == updatedItem.ItemId
-        //                     && os.FiscalYearId == request.TargetFiscalYearId);
-
-        //             if (existingOpeningStock != null)
-        //             {
-        //                 // ✅ Update existing opening stock with ALL fields
-        //                 existingOpeningStock.OpeningStock = updatedItem.OpeningStock;
-        //                 existingOpeningStock.OpeningStockValue = updatedItem.OpeningStockValue;
-        //                 existingOpeningStock.PurchasePrice = purchasePrice; // ✅ Save purchase price from existing data
-        //                 existingOpeningStock.SalesPrice = salesPrice;       // ✅ Save sales price from existing data
-        //                 existingOpeningStock.Date = request.TransferDate;
-        //                 existingOpeningStock.NepaliDate = request.TransferDateNepali;
-        //                 existingOpeningStock.UpdatedAt = DateTime.UtcNow;
-        //             }
-        //             else
-        //             {
-        //                 // ✅ Create new opening stock with ALL fields
-        //                 var newOpeningStock = new ItemOpeningStockByFiscalYear
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     ItemId = updatedItem.ItemId,
-        //                     FiscalYearId = request.TargetFiscalYearId,
-        //                     CompanyId = companyId,
-        //                     OpeningStock = updatedItem.OpeningStock,
-        //                     OpeningStockValue = updatedItem.OpeningStockValue,
-        //                     PurchasePrice = purchasePrice, // ✅ Save purchase price from existing data
-        //                     SalesPrice = salesPrice,       // ✅ Save sales price from existing data
-        //                     Date = request.TransferDate,
-        //                     NepaliDate = request.TransferDateNepali,
-        //                     CreatedAt = DateTime.UtcNow,
-        //                     UpdatedAt = DateTime.UtcNow
-        //                 };
-        //                 _context.ItemOpeningStockByFiscalYear.Add(newOpeningStock);
-        //             }
-        //         }
-
-        //         await _context.SaveChangesAsync();
-
-        //         // Create opening balance transaction if finalizing
-        //         if (request.FinalizeTransfer)
-        //         {
-        //             // Get all opening balances for the target fiscal year
-        //             var openingBalances = await _context.OpeningBalanceByFiscalYear
-        //                 .Where(ob => ob.FiscalYearId == request.TargetFiscalYearId && ob.CompanyId == companyId)
-        //                 .ToListAsync();
-
-        //             var accountBalances = openingBalances.Select(ob => new AccountBalanceSummaryDto
-        //             {
-        //                 AccountId = ob.AccountId,
-        //                 AccountName = _context.Accounts.Find(ob.AccountId)?.Name ?? "Unknown",
-        //                 DebitAmount = ob.Type == "Dr" ? ob.Amount : 0,
-        //                 CreditAmount = ob.Type == "Cr" ? ob.Amount : 0,
-        //                 BalanceType = ob.Type
-        //             }).ToList();
-
-        //             // Create opening balance transaction
-        //             await CreateOpeningBalanceTransactionAsync(
-        //                 request.TargetFiscalYearId,
-        //                 companyId,
-        //                 request.TransferDate,
-        //                 request.TransferDateNepali,
-        //                 accountBalances);
-        //         }
-
-        //         await transaction.CommitAsync();
-
-        //         response.Success = true;
-        //         response.Message = "Balances updated and finalized successfully";
-        //         response.Data = new UpdateBalancesDataDto
-        //         {
-        //             SourceFiscalYearId = request.SourceFiscalYearId,
-        //             TargetFiscalYearId = request.TargetFiscalYearId,
-        //             CarryType = request.CarryType
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         await transaction.RollbackAsync();
-        //         _logger.LogError(ex, "Error updating and finalizing balances");
-        //         response.Success = false;
-        //         response.Errors.Add(ex.Message);
-        //     }
-
-        //     return response;
-        // }
-
-        //-------------------------------------end1
-
-        // public async Task<UpdateBalancesResponseDto> UpdateAndFinalizeBalancesAsync(
-        //     UpdateBalancesRequestDto request, Guid companyId)
-        // {
-        //     var response = new UpdateBalancesResponseDto();
-
-        //     using var transaction = await _context.Database.BeginTransactionAsync();
-
-        //     try
-        //     {
-        //         _logger.LogInformation("Updating and finalizing balances for fiscal year transfer");
-
-        //         // Get source and target fiscal years
-        //         var sourceFiscalYear = await _context.FiscalYears
-        //             .FirstOrDefaultAsync(f => f.Id == request.SourceFiscalYearId && f.CompanyId == companyId);
-        //         var targetFiscalYear = await _context.FiscalYears
-        //             .FirstOrDefaultAsync(f => f.Id == request.TargetFiscalYearId && f.CompanyId == companyId);
-
-        //         if (sourceFiscalYear == null || targetFiscalYear == null)
-        //         {
-        //             response.Success = false;
-        //             response.Message = "Fiscal year not found";
-        //             return response;
-        //         }
-
-        //         // ✅ Get target fiscal year start dates (THIS IS THE FIX)
-        //         DateTime targetFiscalYearStartDate = targetFiscalYear.StartDate ?? request.TransferDate;
-        //         string targetFiscalYearStartDateNepali = targetFiscalYear.StartDateNepali ?? request.TransferDateNepali ?? string.Empty;
-
-        //         // ✅ Use existing method to get item closing stocks with prices
-        //         var itemStocks = await GetItemClosingStocksFromStockEntriesAsync(request.SourceFiscalYearId, companyId);
-        //         decimal totalStockValue = itemStocks.Sum(i => i.ClosingStockValue);
-
-        //         // ✅ Create a dictionary for quick lookup of stock prices
-        //         var stockPriceDict = itemStocks.ToDictionary(
-        //             s => s.ItemId,
-        //             s => new { s.PurchasePrice, s.SalesPrice }
-        //         );
-
-        //         // ✅ First, ensure Stock in Hand account exists and has correct balance
-        //         if (totalStockValue > 0)
-        //         {
-        //             var stockInHandAccount = await _context.Accounts
-        //                 .Include(a => a.AccountGroup)
-        //                 .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
-        //                                          a.AccountGroup != null &&
-        //                                          a.AccountGroup.Name == "Stock in Hand" &&
-        //                                          a.IsActive);
-
-        //             if (stockInHandAccount == null)
-        //             {
-        //                 // Create Stock in Hand account if it doesn't exist
-        //                 var stockInHandGroup = await _context.AccountGroups
-        //                     .FirstOrDefaultAsync(g => g.Name == "Stock in Hand" && g.CompanyId == companyId);
-
-        //                 if (stockInHandGroup != null)
-        //                 {
-        //                     stockInHandAccount = new Account
-        //                     {
-        //                         Id = Guid.NewGuid(),
-        //                         Name = "Stock in Hand",
-        //                         AccountGroupsId = stockInHandGroup.Id,
-        //                         CompanyId = companyId,
-        //                         OriginalFiscalYearId = sourceFiscalYear.Id,
-        //                         OpeningBalanceType = "Dr",
-        //                         IsActive = true,
-        //                         Date = targetFiscalYearStartDate, // ✅ Use target fiscal year start date
-        //                         NepaliDate = targetFiscalYearStartDateNepali, // ✅ Use target fiscal year start Nepali date
-        //                         CreatedAt = DateTime.UtcNow,
-        //                         UpdatedAt = DateTime.UtcNow
-        //                     };
-        //                     _context.Accounts.Add(stockInHandAccount);
-        //                     await _context.SaveChangesAsync();
-        //                 }
-        //             }
-
-        //             if (stockInHandAccount != null)
-        //             {
-        //                 // ✅ Add or update Stock in Hand in the updated accounts list
-        //                 var stockInHandUpdated = request.UpdatedAccounts
-        //                     .FirstOrDefault(a => a.AccountId == stockInHandAccount.Id);
-
-        //                 if (stockInHandUpdated == null)
-        //                 {
-        //                     request.UpdatedAccounts.Add(new UpdatedAccountBalanceDto
-        //                     {
-        //                         AccountId = stockInHandAccount.Id,
-        //                         NewBalance = totalStockValue,
-        //                         BalanceType = "Dr",
-        //                         IsSelected = true
-        //                     });
-        //                 }
-        //                 else
-        //                 {
-        //                     stockInHandUpdated.NewBalance = totalStockValue;
-        //                     stockInHandUpdated.BalanceType = "Dr";
-        //                     stockInHandUpdated.IsSelected = true;
-        //                 }
-        //             }
-        //         }
-
-        //         // Update account balances with target fiscal year start dates
-        //         foreach (var updatedAccount in request.UpdatedAccounts)
-        //         {
-        //             if (!updatedAccount.IsSelected) continue;
-
-        //             var existingOpeningBalance = await _context.OpeningBalanceByFiscalYear
-        //                 .FirstOrDefaultAsync(ob => ob.AccountId == updatedAccount.AccountId
-        //                     && ob.FiscalYearId == request.TargetFiscalYearId);
-
-        //             if (existingOpeningBalance != null)
-        //             {
-        //                 existingOpeningBalance.Amount = updatedAccount.NewBalance;
-        //                 existingOpeningBalance.Type = updatedAccount.BalanceType;
-        //                 existingOpeningBalance.Date = targetFiscalYearStartDate; // ✅ Use target fiscal year start date
-        //                 existingOpeningBalance.NepaliDate = targetFiscalYearStartDateNepali; // ✅ Use target fiscal year start Nepali date
-        //             }
-        //             else
-        //             {
-        //                 var newOpeningBalance = new OpeningBalanceByFiscalYear
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     AccountId = updatedAccount.AccountId,
-        //                     FiscalYearId = request.TargetFiscalYearId,
-        //                     CompanyId = companyId,
-        //                     Amount = updatedAccount.NewBalance,
-        //                     Type = updatedAccount.BalanceType,
-        //                     Date = targetFiscalYearStartDate, // ✅ Use target fiscal year start date
-        //                     NepaliDate = targetFiscalYearStartDateNepali // ✅ Use target fiscal year start Nepali date
-        //                 };
-        //                 _context.OpeningBalanceByFiscalYear.Add(newOpeningBalance);
-        //             }
-
-        //             // Update master opening balance
-        //             var masterOpeningBalance = await _context.OpeningBalances
-        //                 .FirstOrDefaultAsync(ob => ob.AccountId == updatedAccount.AccountId
-        //                     && ob.CompanyId == companyId);
-
-        //             if (masterOpeningBalance != null)
-        //             {
-        //                 masterOpeningBalance.Amount = updatedAccount.NewBalance;
-        //                 masterOpeningBalance.Type = updatedAccount.BalanceType;
-        //                 masterOpeningBalance.Date = targetFiscalYearStartDate; // ✅ Use target fiscal year start date
-        //                 masterOpeningBalance.NepaliDate = targetFiscalYearStartDateNepali; // ✅ Use target fiscal year start Nepali date
-        //                 masterOpeningBalance.FiscalYearId = null;
-        //             }
-        //             else
-        //             {
-        //                 var newMaster = new OpeningBalance
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     AccountId = updatedAccount.AccountId,
-        //                     CompanyId = companyId,
-        //                     Amount = updatedAccount.NewBalance,
-        //                     Type = updatedAccount.BalanceType,
-        //                     Date = targetFiscalYearStartDate, // ✅ Use target fiscal year start date
-        //                     NepaliDate = targetFiscalYearStartDateNepali, // ✅ Use target fiscal year start Nepali date
-        //                     FiscalYearId = null
-        //                 };
-        //                 _context.OpeningBalances.Add(newMaster);
-        //             }
-        //         }
-
-        //         // ✅ Update item opening stocks with target fiscal year start dates
-        //         foreach (var updatedItem in request.UpdatedItems)
-        //         {
-        //             if (!updatedItem.IsSelected) continue;
-
-        //             // ✅ Get the prices from the stock price dictionary
-        //             decimal purchasePrice = 0;
-        //             decimal salesPrice = 0;
-
-        //             if (stockPriceDict.TryGetValue(updatedItem.ItemId, out var prices))
-        //             {
-        //                 purchasePrice = prices.PurchasePrice;
-        //                 salesPrice = prices.SalesPrice;
-        //             }
-        //             else
-        //             {
-        //                 // Fallback: get from item
-        //                 var sourceItem = await _context.Items
-        //                     .FirstOrDefaultAsync(i => i.Id == updatedItem.ItemId && i.CompanyId == companyId);
-
-        //                 if (sourceItem != null)
-        //                 {
-        //                     purchasePrice = sourceItem.PuPrice ?? 0;
-        //                     salesPrice = sourceItem.Price ?? 0;
-        //                 }
-        //             }
-
-        //             var existingOpeningStock = await _context.ItemOpeningStockByFiscalYear
-        //                 .FirstOrDefaultAsync(os => os.ItemId == updatedItem.ItemId
-        //                     && os.FiscalYearId == request.TargetFiscalYearId);
-
-        //             if (existingOpeningStock != null)
-        //             {
-        //                 // ✅ Update existing opening stock with ALL fields
-        //                 existingOpeningStock.OpeningStock = updatedItem.OpeningStock;
-        //                 existingOpeningStock.OpeningStockValue = updatedItem.OpeningStockValue;
-        //                 existingOpeningStock.PurchasePrice = purchasePrice;
-        //                 existingOpeningStock.SalesPrice = salesPrice;
-        //                 existingOpeningStock.Date = targetFiscalYearStartDate; // ✅ Use target fiscal year start date
-        //                 existingOpeningStock.NepaliDate = targetFiscalYearStartDateNepali; // ✅ Use target fiscal year start Nepali date
-        //                 existingOpeningStock.UpdatedAt = DateTime.UtcNow;
-        //             }
-        //             else
-        //             {
-        //                 // ✅ Create new opening stock with ALL fields
-        //                 var newOpeningStock = new ItemOpeningStockByFiscalYear
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     ItemId = updatedItem.ItemId,
-        //                     FiscalYearId = request.TargetFiscalYearId,
-        //                     CompanyId = companyId,
-        //                     OpeningStock = updatedItem.OpeningStock,
-        //                     OpeningStockValue = updatedItem.OpeningStockValue,
-        //                     PurchasePrice = purchasePrice,
-        //                     SalesPrice = salesPrice,
-        //                     Date = targetFiscalYearStartDate, // ✅ Use target fiscal year start date
-        //                     NepaliDate = targetFiscalYearStartDateNepali, // ✅ Use target fiscal year start Nepali date
-        //                     CreatedAt = DateTime.UtcNow,
-        //                     UpdatedAt = DateTime.UtcNow
-        //                 };
-        //                 _context.ItemOpeningStockByFiscalYear.Add(newOpeningStock);
-        //             }
-        //         }
-
-        //         await _context.SaveChangesAsync();
-
-        //         // Create opening balance transaction if finalizing
-        //         if (request.FinalizeTransfer)
-        //         {
-        //             // Get all opening balances for the target fiscal year
-        //             var openingBalances = await _context.OpeningBalanceByFiscalYear
-        //                 .Where(ob => ob.FiscalYearId == request.TargetFiscalYearId && ob.CompanyId == companyId)
-        //                 .ToListAsync();
-
-        //             var accountBalances = openingBalances.Select(ob => new AccountBalanceSummaryDto
-        //             {
-        //                 AccountId = ob.AccountId,
-        //                 AccountName = _context.Accounts.Find(ob.AccountId)?.Name ?? "Unknown",
-        //                 DebitAmount = ob.Type == "Dr" ? ob.Amount : 0,
-        //                 CreditAmount = ob.Type == "Cr" ? ob.Amount : 0,
-        //                 BalanceType = ob.Type
-        //             }).ToList();
-
-        //             // Create opening balance transaction with target fiscal year start date
-        //             await CreateOpeningBalanceTransactionAsync(
-        //                 request.TargetFiscalYearId,
-        //                 companyId,
-        //                 targetFiscalYearStartDate, // ✅ Use target fiscal year start date
-        //                 targetFiscalYearStartDateNepali, // ✅ Use target fiscal year start Nepali date
-        //                 accountBalances);
-        //         }
-
-        //         await transaction.CommitAsync();
-
-        //         response.Success = true;
-        //         response.Message = "Balances updated and finalized successfully";
-        //         response.Data = new UpdateBalancesDataDto
-        //         {
-        //             SourceFiscalYearId = request.SourceFiscalYearId,
-        //             TargetFiscalYearId = request.TargetFiscalYearId,
-        //             CarryType = request.CarryType
-        //         };
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         await transaction.RollbackAsync();
-        //         _logger.LogError(ex, "Error updating and finalizing balances");
-        //         response.Success = false;
-        //         response.Errors.Add(ex.Message);
-        //     }
-
-        //     return response;
-        // }
-
-
-        //-------------------------------------end2
-
-        // public async Task<UpdateBalancesResponseDto> UpdateAndFinalizeBalancesAsync(
         //     UpdateBalancesRequestDto request, Guid companyId)
         // {
         //     var response = new UpdateBalancesResponseDto();
@@ -2897,7 +2781,9 @@ namespace SkyForge.Services
         //             }
         //         }
 
-        //         // ✅ Get closing balances from source fiscal year (these are the updated balances)
+        //         // ============================================================
+        //         // STEP 1: Get closing balances (INCLUDING nominal accounts)
+        //         // ============================================================
         //         var closingBalances = await GetAccountClosingBalancesFromTransactionsAsync(request.SourceFiscalYearId, companyId);
 
         //         // ✅ Add Stock in Hand account balance with total stock value to closing balances
@@ -2933,8 +2819,30 @@ namespace SkyForge.Services
         //                 }
         //             }
         //         }
+        //         // ✅ Add Profit & Loss to closing balances
+        //         await AddProfitAndLossToClosingBalancesAsync(
+        //             request.SourceFiscalYearId,
+        //             companyId,
+        //             closingBalances);
 
-        //         // ✅ UPDATE ClosingBalances for SOURCE fiscal year with END date
+        //         // ✅ Calculate Profit & Loss
+        //         var netProfitLoss = await CalculateProfitAndLossAsync(
+        //             request.SourceFiscalYearId,
+        //             companyId,
+        //             closingBalances);
+
+        //         // ✅ UPDATE Capital Account in closing balances with Profit/Loss
+        //         await UpdateCapitalAccountInClosingBalancesAsync(
+        //             request.SourceFiscalYearId,
+        //             companyId,
+        //             netProfitLoss,
+        //             closingBalances,
+        //             sourceFiscalYearEndDate,
+        //             sourceFiscalYearEndDateNepali);
+
+        //         // ============================================================
+        //         // STEP 2: Save closing balances (ALL accounts including nominal)
+        //         // ============================================================
         //         await SaveClosingBalancesForSourceFiscalYearAsync(
         //             request.SourceFiscalYearId,
         //             companyId,
@@ -2942,10 +2850,32 @@ namespace SkyForge.Services
         //             sourceFiscalYearEndDateNepali,
         //             closingBalances);
 
+        //         // ============================================================
+        //         // STEP 3: Update opening balances (filter out nominal accounts)
+        //         // Note: We're using the same closingBalances but CreateOpeningBalanceTransactionAsync
+        //         // will filter out nominal accounts internally
+        //         // ============================================================
+
         //         // Update account balances with target fiscal year start dates
         //         foreach (var updatedAccount in request.UpdatedAccounts)
         //         {
         //             if (!updatedAccount.IsSelected) continue;
+
+        //             // Skip nominal accounts from opening balance
+        //             var account = await _context.Accounts
+        //                 .Include(a => a.AccountGroup)
+        //                 .FirstOrDefaultAsync(a => a.Id == updatedAccount.AccountId && a.CompanyId == companyId);
+
+        //             if (account != null)
+        //             {
+        //                 var accountGroupName = account.AccountGroup?.Name ?? string.Empty;
+        //                 // Skip nominal accounts (they start with zero balance)
+        //                 if (_nominalAccountGroups.Contains(accountGroupName))
+        //                 {
+        //                     _logger.LogInformation($"Skipping nominal account for opening balance: {account.Name} (Group: {accountGroupName})");
+        //                     continue;
+        //                 }
+        //             }
 
         //             var existingOpeningBalance = await _context.OpeningBalanceByFiscalYear
         //                 .FirstOrDefaultAsync(ob => ob.AccountId == updatedAccount.AccountId
@@ -3077,7 +3007,9 @@ namespace SkyForge.Services
 
         //         await _context.SaveChangesAsync();
 
-        //         // Create opening balance transaction if finalizing
+        //         // ============================================================
+        //         // STEP 4: Create opening balance transaction (filters out nominal)
+        //         // ============================================================
         //         if (request.FinalizeTransfer)
         //         {
         //             // Get all opening balances for the target fiscal year
@@ -3095,6 +3027,7 @@ namespace SkyForge.Services
         //             }).ToList();
 
         //             // Create opening balance transaction with target fiscal year start date
+        //             // This method filters out nominal accounts internally
         //             await CreateOpeningBalanceTransactionAsync(
         //                 request.TargetFiscalYearId,
         //                 companyId,
@@ -3127,11 +3060,9 @@ namespace SkyForge.Services
         //     return response;
         // }
 
-
-        //------------------------------------------------end1
-
+        //-------------------------------------------------end1
         public async Task<UpdateBalancesResponseDto> UpdateAndFinalizeBalancesAsync(
-            UpdateBalancesRequestDto request, Guid companyId)
+    UpdateBalancesRequestDto request, Guid companyId)
         {
             var response = new UpdateBalancesResponseDto();
 
@@ -3273,6 +3204,69 @@ namespace SkyForge.Services
                     }
                 }
 
+                // ✅ Calculate Profit & Loss BEFORE modifying balances
+                var netProfitLoss = await CalculateProfitAndLossAsync(
+                    request.SourceFiscalYearId,
+                    companyId,
+                    closingBalances);
+
+                _logger.LogInformation($"Net Profit/Loss calculated: {netProfitLoss}");
+
+                // ✅ Transfer Profit/Loss to Reserve & Surplus account
+                if (netProfitLoss != 0)
+                {
+                    // Find Reserve & Surplus account
+                    var reserveAccount = await _context.Accounts
+                        .Include(a => a.AccountGroup)
+                        .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+                                                 a.AccountGroup != null &&
+                                                 a.AccountGroup.Name == "Reserves & Surplus" &&
+                                                 a.IsActive);
+
+                    if (reserveAccount == null)
+                    {
+                        _logger.LogWarning("Reserve & Surplus account not found. Skipping P&L transfer.");
+                    }
+                    else
+                    {
+                        var existingReserve = closingBalances.FirstOrDefault(b => b.AccountId == reserveAccount.Id);
+
+                        if (existingReserve != null)
+                        {
+                            // Update Reserve & Surplus with P&L amount
+                            if (netProfitLoss > 0)
+                            {
+                                existingReserve.CreditAmount += netProfitLoss;
+                            }
+                            else
+                            {
+                                existingReserve.DebitAmount += Math.Abs(netProfitLoss);
+                            }
+                            existingReserve.BalanceType = existingReserve.CreditAmount >= existingReserve.DebitAmount ? "Cr" : "Dr";
+                            _logger.LogInformation($"Updated Reserve & Surplus with P&L: {netProfitLoss}");
+                        }
+                        else
+                        {
+                            closingBalances.Add(new AccountBalanceSummaryDto
+                            {
+                                AccountId = reserveAccount.Id,
+                                AccountName = reserveAccount.Name,
+                                AccountGroupName = "Reserves & Surplus",
+                                DebitAmount = netProfitLoss < 0 ? Math.Abs(netProfitLoss) : 0,
+                                CreditAmount = netProfitLoss > 0 ? netProfitLoss : 0,
+                                BalanceType = netProfitLoss > 0 ? "Cr" : "Dr"
+                            });
+                            _logger.LogInformation($"Added Reserve & Surplus with P&L: {netProfitLoss}");
+                        }
+                    }
+                }
+
+                // ✅ Add Profit & Loss to closing balances (this will set P&L to ZERO after transfer)
+                await AddProfitAndLossToClosingBalancesAsync(
+                    request.SourceFiscalYearId,
+                    companyId,
+                    closingBalances);
+
                 // ============================================================
                 // STEP 2: Save closing balances (ALL accounts including nominal)
                 // ============================================================
@@ -3285,8 +3279,6 @@ namespace SkyForge.Services
 
                 // ============================================================
                 // STEP 3: Update opening balances (filter out nominal accounts)
-                // Note: We're using the same closingBalances but CreateOpeningBalanceTransactionAsync
-                // will filter out nominal accounts internally
                 // ============================================================
 
                 // Update account balances with target fiscal year start dates
@@ -3492,6 +3484,7 @@ namespace SkyForge.Services
 
             return response;
         }
+
         private async Task<decimal> CalculateOpeningStockForFiscalYearFromTransactions(
             Guid itemId,
             Guid fiscalYearId,

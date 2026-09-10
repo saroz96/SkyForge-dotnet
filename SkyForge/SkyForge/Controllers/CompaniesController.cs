@@ -49,6 +49,8 @@ namespace SkyForge.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
 
+        private readonly IJwtService _jwtService;
+
         public CompaniesController(
             ICompanyService companyService,
             IFiscalYearService fiscalYearService,
@@ -63,7 +65,8 @@ namespace SkyForge.Controllers
             ISettingsService settingsService,
             ApplicationDbContext context,
             ILogger<CompaniesController> logger,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IJwtService jwtService)
         {
             _companyService = companyService;
             _fiscalYearService = fiscalYearService;
@@ -79,6 +82,7 @@ namespace SkyForge.Controllers
             _context = context;
             _logger = logger;
             _configuration = configuration;
+            _jwtService = jwtService;
         }
 
         /// <summary>
@@ -255,7 +259,9 @@ namespace SkyForge.Controllers
                 var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
 
                 // Generate NEW JWT token with updated company claims
-                var newToken = GenerateJwtTokenWithCompany(user, primaryRole, company);
+                // var newToken = GenerateJwtTokenWithCompany(user, primaryRole, company);
+
+                var newToken = _jwtService.GenerateTokenWithCompany(user, primaryRole, company, fiscalYear);
 
                 // Determine the redirect path based on the company's trade type
                 string redirectPath = GetDashboardPath(company.TradeType);
@@ -307,50 +313,50 @@ namespace SkyForge.Controllers
             }
         }
 
-        private string GenerateJwtTokenWithCompany(User user, Role? primaryRole = null, Company? company = null)
-        {
-            var claims = new List<Claim>
-        {
-        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-        new Claim(ClaimTypes.Email, user.Email),
-        new Claim(ClaimTypes.Name, user.Name),
-        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        new Claim("userId", user.Id.ToString()),
-        new Claim("isAdmin", user.IsAdmin.ToString()),
-        new Claim("isEmailVerified", user.IsEmailVerified.ToString()),
-        };
+        // private string GenerateJwtTokenWithCompany(User user, Role? primaryRole = null, Company? company = null)
+        // {
+        //     var claims = new List<Claim>
+        // {
+        // new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        // new Claim(ClaimTypes.Email, user.Email),
+        // new Claim(ClaimTypes.Name, user.Name),
+        // new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        // new Claim("userId", user.Id.ToString()),
+        // new Claim("isAdmin", user.IsAdmin.ToString()),
+        // new Claim("isEmailVerified", user.IsEmailVerified.ToString()),
+        // };
 
-            // Add role claim if exists
-            if (primaryRole != null)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, primaryRole.Name));
-                claims.Add(new Claim("roleId", primaryRole.Id.ToString()));
-            }
+        //     // Add role claim if exists
+        //     if (primaryRole != null)
+        //     {
+        //         claims.Add(new Claim(ClaimTypes.Role, primaryRole.Name));
+        //         claims.Add(new Claim("roleId", primaryRole.Id.ToString()));
+        //     }
 
-            // Add company info to claims (CRITICAL - this adds TradeType and currentCompany)
-            if (company != null)
-            {
-                claims.Add(new Claim("tradeType", company.TradeType.ToString()));
-                claims.Add(new Claim("currentCompany", company.Id.ToString()));
-                claims.Add(new Claim("currentCompanyName", company.Name));
-            }
+        //     // Add company info to claims (CRITICAL - this adds TradeType and currentCompany)
+        //     if (company != null)
+        //     {
+        //         claims.Add(new Claim("tradeType", company.TradeType.ToString()));
+        //         claims.Add(new Claim("currentCompany", company.Id.ToString()));
+        //         claims.Add(new Claim("currentCompanyName", company.Name));
+        //     }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        //     var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+        //     var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var expires = DateTime.UtcNow.AddMinutes(
-                Convert.ToDouble(_configuration["Jwt:ExpireMinutes"] ?? "60"));
+        //     var expires = DateTime.UtcNow.AddMinutes(
+        //         Convert.ToDouble(_configuration["Jwt:ExpireMinutes"] ?? "60"));
 
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: expires,
-                signingCredentials: creds
-            );
+        //     var token = new JwtSecurityToken(
+        //         issuer: _configuration["Jwt:Issuer"],
+        //         audience: _configuration["Jwt:Audience"],
+        //         claims: claims,
+        //         expires: expires,
+        //         signingCredentials: creds
+        //     );
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
+        //     return new JwtSecurityTokenHandler().WriteToken(token);
+        // }
 
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<CompaniesResponseDTO>), StatusCodes.Status200OK)]

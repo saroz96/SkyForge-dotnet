@@ -4,6 +4,8 @@ namespace SkyForge.Dto.UserDto
     public class RefreshTokenRequest
     {
         public string RefreshToken { get; set; }
+        public Guid? CurrentCompany { get; set; }
+        public Guid? CurrentFiscalYear { get; set; }
     }
 
     public class RefreshTokenResponse

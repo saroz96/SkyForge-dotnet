@@ -225,46 +225,6 @@ const AddPayment = () => {
         }
     };
 
-    // Fetch accounts from backend
-    // const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
-    //     try {
-    //         setIsAccountSearching(true);
-
-    //         const response = await api.get('/api/retailer/all/accounts/search/except-cash/bank', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: searchTerm.trim() ? 15 : 25,
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             if (page === 1) {
-    //                 setAccounts(response.data.accounts);
-    //             } else {
-    //                 setAccounts(prev => [...prev, ...response.data.accounts]);
-    //             }
-    //             setHasMoreAccountResults(response.data.pagination.hasNextPage);
-    //             setTotalAccounts(response.data.pagination.totalAccounts);
-    //             setAccountSearchPage(page);
-
-    //             if (searchTerm.trim() !== '') {
-    //                 setAccountLastSearchQuery(searchTerm);
-    //                 setAccountShouldShowLastSearchResults(true);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching accounts:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading accounts',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsAccountSearching(false);
-    //     }
-    // };
-
     // In AddPayment component - replace the fetchAccountsFromBackend function
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1, append = false) => {
         try {

@@ -86,62 +86,141 @@ namespace SkyForge.Controllers
             });
         }
 
+        // [HttpPost("refresh-token")]
+        // public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== RefreshToken Started ===");
+
+        //         if (string.IsNullOrEmpty(request?.RefreshToken))
+        //         {
+        //             return BadRequest(new { success = false, error = "Refresh token is required" });
+        //         }
+
+        //         // Find user with the refresh token
+        //         var user = await _context.Users
+        //             .Include(u => u.UserRoles)
+        //                 .ThenInclude(ur => ur.Role)
+        //             .FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken);
+
+        //         if (user == null)
+        //         {
+        //             _logger.LogWarning("Invalid refresh token attempt");
+        //             return Unauthorized(new { success = false, error = "Invalid refresh token" });
+        //         }
+
+        //         // Check if refresh token is expired
+        //         if (user.RefreshTokenExpiry == null || user.RefreshTokenExpiry < DateTime.UtcNow)
+        //         {
+        //             _logger.LogWarning($"Refresh token expired for user {user.Email}");
+
+        //             // Clear expired refresh token
+        //             user.RefreshToken = null;
+        //             user.RefreshTokenExpiry = null;
+        //             await _context.SaveChangesAsync();
+
+        //             return Unauthorized(new { success = false, error = "Refresh token expired. Please login again." });
+        //         }
+
+        //         // Check if user is active
+        //         if (!user.IsActive)
+        //         {
+        //             return Unauthorized(new { success = false, error = "Account is deactivated" });
+        //         }
+
+        //         // Check if user has been inactive for more than 30 minutes
+        //         if (user.LastActivityAt.HasValue)
+        //         {
+        //             var inactiveMinutes = (DateTime.UtcNow - user.LastActivityAt.Value).TotalMinutes;
+        //             if (inactiveMinutes > 30)
+        //             {
+        //                 _logger.LogWarning($"User {user.Email} has been inactive for {inactiveMinutes:F1} minutes. Logging out.");
+
+        //                 // Clear refresh token to force re-login
+        //                 user.RefreshToken = null;
+        //                 user.RefreshTokenExpiry = null;
+        //                 await _context.SaveChangesAsync();
+
+        //                 return Unauthorized(new
+        //                 {
+        //                     success = false,
+        //                     error = "Session expired due to inactivity. Please login again.",
+        //                     code = "INACTIVITY_TIMEOUT"
+        //                 });
+        //             }
+        //         }
+
+        //         // Get user's primary role
+        //         var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
+
+        //         // Generate new JWT token
+        //         var newToken = GenerateJwtToken(user, primaryRole);
+
+        //         // Generate new refresh token
+        //         var newRefreshToken = GenerateRefreshToken();
+
+        //         // Update user's refresh token and last activity
+        //         user.RefreshToken = newRefreshToken;
+        //         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7); // Refresh token valid for 7 days
+        //         user.LastActivityAt = DateTime.UtcNow;
+        //         user.UpdatedAt = DateTime.UtcNow;
+
+        //         await _context.SaveChangesAsync();
+
+        //         _logger.LogInformation($"Token refreshed successfully for user {user.Email}");
+
+        //         return Ok(new RefreshTokenResponse
+        //         {
+        //             Success = true,
+        //             Token = newToken,
+        //             RefreshToken = newRefreshToken,
+        //             ExpiresIn = Convert.ToInt32(_configuration["Jwt:ExpireMinutes"] ?? "60") * 60,
+        //             Message = "Token refreshed successfully"
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error refreshing token");
+        //         return StatusCode(500, new { success = false, error = "An error occurred while refreshing token" });
+        //     }
+        // }
+        //-------------------------------------------end1
+
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
             try
             {
-                _logger.LogInformation("=== RefreshToken Started ===");
-
                 if (string.IsNullOrEmpty(request?.RefreshToken))
-                {
                     return BadRequest(new { success = false, error = "Refresh token is required" });
-                }
 
-                // Find user with the refresh token
                 var user = await _context.Users
-                    .Include(u => u.UserRoles)
-                        .ThenInclude(ur => ur.Role)
+                    .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                     .FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken);
 
                 if (user == null)
-                {
-                    _logger.LogWarning("Invalid refresh token attempt");
                     return Unauthorized(new { success = false, error = "Invalid refresh token" });
-                }
 
-                // Check if refresh token is expired
                 if (user.RefreshTokenExpiry == null || user.RefreshTokenExpiry < DateTime.UtcNow)
                 {
-                    _logger.LogWarning($"Refresh token expired for user {user.Email}");
-
-                    // Clear expired refresh token
                     user.RefreshToken = null;
                     user.RefreshTokenExpiry = null;
                     await _context.SaveChangesAsync();
-
                     return Unauthorized(new { success = false, error = "Refresh token expired. Please login again." });
                 }
 
-                // Check if user is active
                 if (!user.IsActive)
-                {
                     return Unauthorized(new { success = false, error = "Account is deactivated" });
-                }
 
-                // Check if user has been inactive for more than 30 minutes
                 if (user.LastActivityAt.HasValue)
                 {
                     var inactiveMinutes = (DateTime.UtcNow - user.LastActivityAt.Value).TotalMinutes;
                     if (inactiveMinutes > 30)
                     {
-                        _logger.LogWarning($"User {user.Email} has been inactive for {inactiveMinutes:F1} minutes. Logging out.");
-
-                        // Clear refresh token to force re-login
                         user.RefreshToken = null;
                         user.RefreshTokenExpiry = null;
                         await _context.SaveChangesAsync();
-
                         return Unauthorized(new
                         {
                             success = false,
@@ -151,24 +230,61 @@ namespace SkyForge.Controllers
                     }
                 }
 
-                // Get user's primary role
                 var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
 
-                // Generate new JWT token
-                var newToken = GenerateJwtToken(user, primaryRole);
+                // ✅ Determine which company to put into the new token:
+                // Use the one sent by frontend, but validate access.
+                Guid? companyIdToUse = null;
+                if (request.CurrentCompany.HasValue && request.CurrentCompany.Value != Guid.Empty)
+                {
+                    var hasAccess = await _userService.UserHasAccessToCompanyAsync(user.Id, request.CurrentCompany.Value);
+                    if (hasAccess) companyIdToUse = request.CurrentCompany.Value;
+                }
 
-                // Generate new refresh token
+                string newToken;
+
+                if (companyIdToUse.HasValue)
+                {
+                    var company = await _context.Companies
+                        .FirstOrDefaultAsync(c => c.Id == companyIdToUse.Value);
+
+                    if (company != null)
+                    {
+                        // Load fiscal year: prefer the one from the request, fall back to active
+                        SkyForge.Models.FiscalYearModel.FiscalYear? fiscalYear = null;
+
+                        if (request.CurrentFiscalYear.HasValue &&
+                            request.CurrentFiscalYear.Value != Guid.Empty)
+                        {
+                            fiscalYear = await _context.FiscalYears.FirstOrDefaultAsync(f =>
+                                f.Id == request.CurrentFiscalYear.Value &&
+                                f.CompanyId == company.Id);
+                        }
+
+                        if (fiscalYear == null)
+                        {
+                            fiscalYear = await _context.FiscalYears.FirstOrDefaultAsync(f =>
+                                f.CompanyId == company.Id && f.IsActive);
+                        }
+
+                        // ✅ Uses JwtService instead of a local helper
+                        newToken = _jwtService.GenerateTokenWithCompany(user, primaryRole, company, fiscalYear);
+                    }
+                    else
+                    {
+                        newToken = GenerateJwtToken(user, primaryRole);
+                    }
+                }
+                else
+                {
+                    newToken = GenerateJwtToken(user, primaryRole);
+                }
                 var newRefreshToken = GenerateRefreshToken();
-
-                // Update user's refresh token and last activity
                 user.RefreshToken = newRefreshToken;
-                user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7); // Refresh token valid for 7 days
+                user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
                 user.LastActivityAt = DateTime.UtcNow;
                 user.UpdatedAt = DateTime.UtcNow;
-
                 await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Token refreshed successfully for user {user.Email}");
 
                 return Ok(new RefreshTokenResponse
                 {
@@ -185,6 +301,8 @@ namespace SkyForge.Controllers
                 return StatusCode(500, new { success = false, error = "An error occurred while refreshing token" });
             }
         }
+
+
         // GET: api/user/admin/users/list
         [HttpGet("admin/users/list")]
         public async Task<IActionResult> GetUsersList()
