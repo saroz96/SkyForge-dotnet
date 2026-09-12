@@ -83,7 +83,7 @@ namespace SkyForge.Data
         public DbSet<CreditNoteEntry> CreditNoteEntries { get; set; }
         public DbSet<StockAdjustment> StockAdjustments { get; set; }
         public DbSet<StockAdjustmentItem> StockAdjustmentItems { get; set; }
-         public DbSet<ItemInitialOpeningStock> ItemInitialOpeningStocks { get; set; }
+        public DbSet<ItemInitialOpeningStock> ItemInitialOpeningStocks { get; set; }
         public DbSet<ItemOpeningStockByFiscalYear> ItemOpeningStockByFiscalYear { get; set; }
         public DbSet<ItemClosingStockByFiscalYear> ItemClosingStockByFiscalYear { get; set; }
         public DbSet<Payment> Payments { get; set; }
@@ -1259,11 +1259,76 @@ namespace SkyForge.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // modelBuilder.Entity<Category>(entity =>
+            // {
+            //     entity.HasIndex(e => new { e.Name, e.CompanyId })
+            //           .IsUnique();
+
+            //     entity.HasOne(e => e.Company)
+            //           .WithMany()
+            //           .HasForeignKey(e => e.CompanyId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.Property(e => e.CreatedAt)
+            //           .HasDefaultValueSql("timezone('utc', now())");
+            // });
+
+            // // ItemCompany configuration
+            // modelBuilder.Entity<ItemCompany>(entity =>
+            // {
+            //     entity.HasIndex(e => new { e.Name, e.CompanyId })
+            //           .IsUnique();
+
+            //     entity.HasOne(e => e.Company)
+            //           .WithMany()
+            //           .HasForeignKey(e => e.CompanyId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.Property(e => e.CreatedAt)
+            //           .HasDefaultValueSql("timezone('utc', now())");
+            // });
+
+            // // MainUnit configuration
+            // modelBuilder.Entity<MainUnit>(entity =>
+            // {
+            //     entity.HasIndex(e => new { e.Name, e.CompanyId })
+            //           .IsUnique();
+
+            //     entity.HasOne(e => e.Company)
+            //           .WithMany()
+            //           .HasForeignKey(e => e.CompanyId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.Property(e => e.CreatedAt)
+            //           .HasDefaultValueSql("timezone('utc', now())");
+            // });
+
+            // // Unit configuration
+            // modelBuilder.Entity<Unit>(entity =>
+            // {
+            //     entity.HasIndex(e => new { e.Name, e.CompanyId })
+            //           .IsUnique();
+
+            //     entity.HasOne(e => e.Company)
+            //           .WithMany()
+            //           .HasForeignKey(e => e.CompanyId)
+            //           .OnDelete(DeleteBehavior.Restrict);
+
+            //     entity.Property(e => e.CreatedAt)
+            //           .HasDefaultValueSql("timezone('utc', now())");
+            // });
+
+            // Category
             modelBuilder.Entity<Category>(entity =>
             {
                 entity.HasIndex(e => new { e.Name, e.CompanyId })
                       .IsUnique();
 
+                // ADD THIS: UniqueNumber is unique per company, not globally
+                entity.HasIndex(e => new { e.CompanyId, e.UniqueNumber })
+                      .IsUnique()
+                      .HasDatabaseName("IX_Category_Company_UniqueNumber");
+
                 entity.HasOne(e => e.Company)
                       .WithMany()
                       .HasForeignKey(e => e.CompanyId)
@@ -1273,11 +1338,15 @@ namespace SkyForge.Data
                       .HasDefaultValueSql("timezone('utc', now())");
             });
 
-            // ItemCompany configuration
+            // ItemCompany
             modelBuilder.Entity<ItemCompany>(entity =>
             {
-                entity.HasIndex(e => new { e.Name, e.CompanyId })
-                      .IsUnique();
+                entity.HasIndex(e => new { e.Name, e.CompanyId }).IsUnique();
+
+                // ADD THIS
+                entity.HasIndex(e => new { e.CompanyId, e.UniqueNumber })
+                      .IsUnique()
+                      .HasDatabaseName("IX_ItemCompany_Company_UniqueNumber");
 
                 entity.HasOne(e => e.Company)
                       .WithMany()
@@ -1288,11 +1357,15 @@ namespace SkyForge.Data
                       .HasDefaultValueSql("timezone('utc', now())");
             });
 
-            // MainUnit configuration
+            // MainUnit
             modelBuilder.Entity<MainUnit>(entity =>
             {
-                entity.HasIndex(e => new { e.Name, e.CompanyId })
-                      .IsUnique();
+                entity.HasIndex(e => new { e.Name, e.CompanyId }).IsUnique();
+
+                // ADD THIS
+                entity.HasIndex(e => new { e.CompanyId, e.UniqueNumber })
+                      .IsUnique()
+                      .HasDatabaseName("IX_MainUnit_Company_UniqueNumber");
 
                 entity.HasOne(e => e.Company)
                       .WithMany()
@@ -1303,11 +1376,34 @@ namespace SkyForge.Data
                       .HasDefaultValueSql("timezone('utc', now())");
             });
 
-            // Unit configuration
+            // Unit
             modelBuilder.Entity<Unit>(entity =>
             {
-                entity.HasIndex(e => new { e.Name, e.CompanyId })
-                      .IsUnique();
+                entity.HasIndex(e => new { e.Name, e.CompanyId }).IsUnique();
+
+                // ADD THIS
+                entity.HasIndex(e => new { e.CompanyId, e.UniqueNumber })
+                      .IsUnique()
+                      .HasDatabaseName("IX_Unit_Company_UniqueNumber");
+
+                entity.HasOne(e => e.Company)
+                      .WithMany()
+                      .HasForeignKey(e => e.CompanyId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(e => e.CreatedAt)
+                      .HasDefaultValueSql("timezone('utc', now())");
+            });
+
+            // Composition
+            modelBuilder.Entity<Composition>(entity =>
+            {
+                entity.HasIndex(e => new { e.Name, e.CompanyId }).IsUnique();
+
+                // ADD THIS
+                entity.HasIndex(e => new { e.CompanyId, e.UniqueNumber })
+                      .IsUnique()
+                      .HasDatabaseName("IX_Composition_Company_UniqueNumber");
 
                 entity.HasOne(e => e.Company)
                       .WithMany()

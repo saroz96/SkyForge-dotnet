@@ -141,104 +141,499 @@ namespace SkyForge.Services
             return stockEntries.Sum(se => se.Quantity * se.PuPrice);
         }
 
+        // private async Task<decimal> CalculateProfitAndLossAsync(
+        //     Guid sourceFiscalYearId,
+        //     Guid companyId,
+        //     List<AccountBalanceSummaryDto> closingBalances)
+        // {
+        //     decimal totalSales = 0;
+        //     decimal totalOtherIncome = 0;
+        //     decimal totalPurchases = 0;
+        //     decimal totalDirectExpenses = 0;
+        //     decimal totalIndirectExpenses = 0;
+
+        //     // ---- Aggregate each nominal group from closing balances ----
+        //     foreach (var account in closingBalances
+        //         .Where(b => _nominalAccountGroups.Contains(b.AccountGroupName)))
+        //     {
+        //         switch (account.AccountGroupName)
+        //         {
+        //             case "Sale":
+        //                 totalSales += account.CreditAmount > 0 ? account.CreditAmount : 0;
+        //                 break;
+
+        //             case "Income (Direct/Opr.)":
+        //             case "Income (Indirect)":
+        //                 totalOtherIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
+        //                 break;
+
+        //             case "Purchase":
+        //                 totalPurchases += account.DebitAmount > 0 ? account.DebitAmount : 0;
+        //                 break;
+
+        //             case "Expenses (Direct/Mfg.)":
+        //                 totalDirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
+        //                 break;
+
+        //             case "Expenses (Indirect/Admn.)":
+        //                 totalIndirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
+        //                 break;
+        //         }
+        //     }
+
+        //     // ============================================================
+        //     // ✅ OPENING STOCK — from OpeningBalanceByFiscalYear
+        //     //    for the "Stock in Hand" account (or any Stock account) in the SOURCE FY
+        //     // ============================================================
+        //     decimal openingStock = await GetOpeningStockValueAsync(
+        //         sourceFiscalYearId, companyId);
+
+        //     // ============================================================
+        //     // ✅ CLOSING STOCK — from ItemClosingStockByFiscalYear (or StockEntries)
+        //     //    for the SOURCE FY
+        //     // ============================================================
+        //     decimal closingStock = await GetClosingStockValueAsync(
+        //         sourceFiscalYearId, companyId);
+
+        //     // ============================================================
+        //     // ✅ COGS = Opening Stock + Purchases + Direct Expenses − Closing Stock
+        //     // ============================================================
+        //     decimal costOfGoodsSold = openingStock + totalPurchases + totalDirectExpenses - closingStock;
+
+        //     // ============================================================
+        //     // ✅ Net Profit = (Sales + Other Income) − COGS − Indirect Expenses
+        //     // ============================================================
+        //     decimal netProfitLoss = (totalSales + totalOtherIncome) - costOfGoodsSold - totalIndirectExpenses;
+
+        //     _logger.LogInformation(
+        //         "P&L Calculation:\n" +
+        //         "  Opening Stock:      {OpenStock}\n" +
+        //         "  Purchases:          {Purch}\n" +
+        //         "  Direct Expenses:    {DirectExp}\n" +
+        //         "  Closing Stock:      {CloseStock}\n" +
+        //         "  COGS:               {Cogs}\n" +
+        //         "  Sales:              {Sales}\n" +
+        //         "  Other Income:       {OtherInc}\n" +
+        //         "  Indirect Expenses:  {IndirectExp}\n" +
+        //         "  Net Profit/Loss:    {NetPL}",
+        //         openingStock, totalPurchases, totalDirectExpenses, closingStock,
+        //         costOfGoodsSold, totalSales, totalOtherIncome, totalIndirectExpenses, netProfitLoss);
+
+        //     return netProfitLoss;
+        // }
+
+
+
+        //-------------------------------------------end1
+
+        /// <summary>
+        /// Calculates the Profit & Loss for the fiscal year
+        /// P&L = Sales + Direct Income + Indirect Income - COGS - Indirect Expenses
+        /// Where COGS = Opening Stock + Purchases + Direct Expenses - Closing Stock
+        /// </summary>
+        // private async Task<decimal> CalculateProfitAndLossAsync(
+        //     Guid sourceFiscalYearId,
+        //     Guid companyId,
+        //     List<AccountBalanceSummaryDto> closingBalances)
+        // {
+        //     decimal totalSales = 0;
+        //     decimal totalDirectIncome = 0;
+        //     decimal totalIndirectIncome = 0;
+        //     decimal totalPurchases = 0;
+        //     decimal totalDirectExpenses = 0;
+        //     decimal totalIndirectExpenses = 0;
+
+        //     // ---- Aggregate each nominal group from closing balances ----
+        //     foreach (var account in closingBalances
+        //         .Where(b => _nominalAccountGroups.Contains(b.AccountGroupName)))
+        //     {
+        //         switch (account.AccountGroupName)
+        //         {
+        //             case "Sale":
+        //                 totalSales += account.CreditAmount > 0 ? account.CreditAmount : 0;
+        //                 break;
+
+        //             case "Income (Direct/Opr.)":
+        //                 totalDirectIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
+        //                 break;
+
+        //             case "Income (Indirect)":
+        //                 totalIndirectIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
+        //                 break;
+
+        //             case "Purchase":
+        //                 totalPurchases += account.DebitAmount > 0 ? account.DebitAmount : 0;
+        //                 break;
+
+        //             case "Expenses (Direct/Mfg.)":
+        //                 totalDirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
+        //                 break;
+
+        //             case "Expenses (Indirect/Admn.)":
+        //                 totalIndirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
+        //                 break;
+        //         }
+        //     }
+
+        //     // ============================================================
+        //     // ✅ OPENING STOCK — from OpeningBalanceByFiscalYear
+        //     //    for the "Stock in Hand" account in the SOURCE FY
+        //     // ============================================================
+        //     decimal openingStock = await GetOpeningStockValueAsync(
+        //         sourceFiscalYearId, companyId);
+
+        //     // ============================================================
+        //     // ✅ CLOSING STOCK — from ItemClosingStockByFiscalYear (or StockEntries)
+        //     //    for the SOURCE FY
+        //     // ============================================================
+        //     decimal closingStock = await GetClosingStockValueAsync(
+        //         sourceFiscalYearId, companyId);
+
+        //     // ============================================================
+        //     // ✅ COGS = Opening Stock + Purchases + Direct Expenses − Closing Stock
+        //     // ============================================================
+        //     decimal costOfGoodsSold = openingStock + totalPurchases + totalDirectExpenses - closingStock;
+
+        //     // ============================================================
+        //     // ✅ Net Profit = (Sales + Direct Income + Indirect Income) − COGS − Indirect Expenses
+        //     // ============================================================
+        //     decimal netProfitLoss = (totalSales + totalDirectIncome + totalIndirectIncome)
+        //                            - costOfGoodsSold
+        //                            - totalIndirectExpenses;
+
+        //     _logger.LogInformation(
+        //         "P&L Calculation:\n" +
+        //         "  Opening Stock:      {OpenStock}\n" +
+        //         "  Purchases:          {Purch}\n" +
+        //         "  Direct Expenses:    {DirectExp}\n" +
+        //         "  Closing Stock:      {CloseStock}\n" +
+        //         "  COGS:               {Cogs}\n" +
+        //         "  Sales:              {Sales}\n" +
+        //         "  Direct Income:      {DirectInc}\n" +
+        //         "  Indirect Income:    {IndirectInc}\n" +
+        //         "  Indirect Expenses:  {IndirectExp}\n" +
+        //         "  Net Profit/Loss:    {NetPL}",
+        //         openingStock, totalPurchases, totalDirectExpenses, closingStock,
+        //         costOfGoodsSold, totalSales, totalDirectIncome, totalIndirectIncome,
+        //         totalIndirectExpenses, netProfitLoss);
+
+        //     return netProfitLoss;
+        // }
+
+
+        /// <summary>
+        /// Calculates the Profit & Loss for the fiscal year.
+        /// Mirrors AuditReportService.GetProfitAndLossAccountAsync so the numbers match exactly.
+        ///
+        /// Formula:
+        ///   TotalRevenue = Sale + Income (Direct/Opr.) + Income (Indirect)
+        ///   COGS         = OpeningStock + Purchases + DirectExpenses - ClosingStock
+        ///   GrossProfit  = TotalRevenue - COGS
+        ///   NetProfit    = GrossProfit - IndirectExpenses
+        /// </summary>
         private async Task<decimal> CalculateProfitAndLossAsync(
             Guid sourceFiscalYearId,
             Guid companyId,
             List<AccountBalanceSummaryDto> closingBalances)
         {
-            decimal totalSales = 0;
-            decimal totalOtherIncome = 0;
-            decimal totalPurchases = 0;
-            decimal totalDirectExpenses = 0;
-            decimal totalIndirectExpenses = 0;
+            // ============================================================
+            // 1. Load accounts + groups (case-insensitive matching)
+            // ============================================================
+            var accounts = await _context.Accounts
+                .Where(a => a.CompanyId == companyId && a.IsActive)
+                .ToListAsync();
 
-            // ---- Aggregate each nominal group from closing balances ----
-            foreach (var account in closingBalances
-                .Where(b => _nominalAccountGroups.Contains(b.AccountGroupName)))
+            var accountGroups = await _context.AccountGroups
+                .Where(ag => ag.CompanyId == companyId)
+                .ToDictionaryAsync(g => g.Id, g => g);
+
+            bool Matches(string actual, string expected) =>
+                !string.IsNullOrEmpty(actual) && !string.IsNullOrEmpty(expected) &&
+                string.Equals(actual.Trim(), expected.Trim(), StringComparison.OrdinalIgnoreCase);
+
+            // ============================================================
+            // 2. COGS — use the SAME logic as AuditReportService
+            // ============================================================
+            var periodicCogs = await CalculatePeriodicCogsAsync(
+                companyId, sourceFiscalYearId, accounts, accountGroups);
+
+            decimal cogs = periodicCogs.TotalCogs;
+
+            // ============================================================
+            // 3. Read Sale / Income / Expenses from ClosingBalanceByFiscalYear
+            //    (same source as the P&L report)
+            // ============================================================
+            var dbClosing = await _context.ClosingBalanceByFiscalYear
+                .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == sourceFiscalYearId)
+                .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+
+            decimal saleTotal = 0;
+            decimal incomeDirectTotal = 0;
+            decimal incomeIndirectTotal = 0;
+            decimal expenseIndirectTotal = 0;
+            decimal expenseDirectTotal = 0;   // just for logging / diagnostics
+
+            foreach (var account in accounts)
             {
-                switch (account.AccountGroupName)
-                {
-                    case "Sale":
-                        totalSales += account.CreditAmount > 0 ? account.CreditAmount : 0;
-                        break;
+                var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
 
-                    case "Income (Direct/Opr.)":
-                    case "Income (Indirect)":
-                        totalOtherIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
-                        break;
+                if (!dbClosing.TryGetValue(account.Id, out var cb))
+                    continue;
 
-                    case "Purchase":
-                        totalPurchases += account.DebitAmount > 0 ? account.DebitAmount : 0;
-                        break;
+                decimal amount = cb.Amount;
 
-                    case "Expenses (Direct/Mfg.)":
-                        totalDirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
-                        break;
-
-                    case "Expenses (Indirect/Admn.)":
-                        totalIndirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
-                        break;
-                }
+                if (Matches(groupName, "Sale"))
+                    saleTotal += amount;
+                else if (Matches(groupName, "Income (Direct/Opr.)"))
+                    incomeDirectTotal += amount;
+                else if (Matches(groupName, "Income (Indirect)"))
+                    incomeIndirectTotal += amount;
+                else if (Matches(groupName, "Expenses (Indirect/Admn.)"))
+                    expenseIndirectTotal += amount;
+                else if (Matches(groupName, "Expenses (Direct/Mfg.)"))
+                    expenseDirectTotal += amount;
             }
 
             // ============================================================
-            // ✅ OPENING STOCK — from OpeningBalanceByFiscalYear
-            //    for the "Stock in Hand" account (or any Stock account) in the SOURCE FY
+            // 4. Compute P&L — formula matches AuditReportService exactly
             // ============================================================
-            decimal openingStock = await GetOpeningStockValueAsync(
-                sourceFiscalYearId, companyId);
-
-            // ============================================================
-            // ✅ CLOSING STOCK — from ItemClosingStockByFiscalYear (or StockEntries)
-            //    for the SOURCE FY
-            // ============================================================
-            decimal closingStock = await GetClosingStockValueAsync(
-                sourceFiscalYearId, companyId);
-
-            // ============================================================
-            // ✅ COGS = Opening Stock + Purchases + Direct Expenses − Closing Stock
-            // ============================================================
-            decimal costOfGoodsSold = openingStock + totalPurchases + totalDirectExpenses - closingStock;
-
-            // ============================================================
-            // ✅ Net Profit = (Sales + Other Income) − COGS − Indirect Expenses
-            // ============================================================
-            decimal netProfitLoss = (totalSales + totalOtherIncome) - costOfGoodsSold - totalIndirectExpenses;
+            decimal totalRevenue = saleTotal + incomeDirectTotal + incomeIndirectTotal;
+            decimal grossProfit = totalRevenue - cogs;
+            decimal netProfitLoss = grossProfit - expenseIndirectTotal;
 
             _logger.LogInformation(
-                "P&L Calculation:\n" +
-                "  Opening Stock:      {OpenStock}\n" +
-                "  Purchases:          {Purch}\n" +
-                "  Direct Expenses:    {DirectExp}\n" +
-                "  Closing Stock:      {CloseStock}\n" +
-                "  COGS:               {Cogs}\n" +
-                "  Sales:              {Sales}\n" +
-                "  Other Income:       {OtherInc}\n" +
-                "  Indirect Expenses:  {IndirectExp}\n" +
-                "  Net Profit/Loss:    {NetPL}",
-                openingStock, totalPurchases, totalDirectExpenses, closingStock,
-                costOfGoodsSold, totalSales, totalOtherIncome, totalIndirectExpenses, netProfitLoss);
+                "P&L (Transfer) DIAGNOSTIC:\n" +
+                "  Sale                    = {Sale}\n" +
+                "  Income (Direct/Opr.)    = {IncD}\n" +
+                "  Income (Indirect)       = {IncI}\n" +
+                "  TotalRevenue            = {Rev}\n" +
+                "  OpeningStock            = {OpenStk}\n" +
+                "  Purchases               = {Purch}\n" +
+                "  DirectExpenses          = {DirectExp}\n" +
+                "  ClosingStock            = {CloseStk}\n" +
+                "  COGS                    = {Cogs}\n" +
+                "  GrossProfit             = {GP}\n" +
+                "  IndirectExpenses        = {IndExp}\n" +
+                "  NetProfitLoss           = {NetPL}",
+                saleTotal, incomeDirectTotal, incomeIndirectTotal,
+                totalRevenue,
+                periodicCogs.OpeningStock, periodicCogs.Purchases,
+                periodicCogs.DirectExpenses, periodicCogs.ClosingStock,
+                cogs, grossProfit, expenseIndirectTotal, netProfitLoss);
 
             return netProfitLoss;
         }
 
         /// <summary>
+        /// Periodic COGS — same logic as AuditReportService.CalculatePeriodicCogsAsync.
+        /// Reads OpeningStock from OpeningBalanceByFiscalYear, and Purchases/DirectExpenses/ClosingStock
+        /// from ClosingBalanceByFiscalYear, using group names.
+        /// </summary>
+        private async Task<PeriodicCogsSummaryDto> CalculatePeriodicCogsAsync(
+            Guid companyId,
+            Guid fiscalYearId,
+            List<Account> accounts,
+            Dictionary<Guid, AccountGroup> accountGroups)
+        {
+            var result = new PeriodicCogsSummaryDto();
+
+            var openingBalances = await _context.OpeningBalanceByFiscalYear
+                .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
+                .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
+
+            var closingBalances = await _context.ClosingBalanceByFiscalYear
+                .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
+                .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+
+            foreach (var account in accounts)
+            {
+                var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+
+                if (string.IsNullOrEmpty(groupName)) continue;
+
+                // Opening Stock
+                if (string.Equals(groupName, "Stock in Hand", StringComparison.OrdinalIgnoreCase) &&
+                    openingBalances.TryGetValue(account.Id, out var ob))
+                {
+                    result.OpeningStock += ob.Amount;
+                }
+
+                // Closing Stock
+                if (string.Equals(groupName, "Stock in Hand", StringComparison.OrdinalIgnoreCase) &&
+                    closingBalances.TryGetValue(account.Id, out var cb))
+                {
+                    result.ClosingStock += cb.Amount;
+                }
+
+                // Purchases
+                if (string.Equals(groupName, "Purchase", StringComparison.OrdinalIgnoreCase) &&
+                    closingBalances.TryGetValue(account.Id, out var pcb))
+                {
+                    result.Purchases += pcb.Amount;
+                }
+
+                // Direct Expenses
+                if (string.Equals(groupName, "Expenses (Direct/Mfg.)", StringComparison.OrdinalIgnoreCase) &&
+                    closingBalances.TryGetValue(account.Id, out var dcb))
+                {
+                    result.DirectExpenses += dcb.Amount;
+                }
+            }
+
+            result.TotalCogs = result.OpeningStock + result.Purchases + result.DirectExpenses - result.ClosingStock;
+            return result;
+        }
+
+        public class PeriodicCogsSummaryDto
+        {
+            public decimal OpeningStock { get; set; }
+            public decimal ClosingStock { get; set; }
+            public decimal Purchases { get; set; }
+            public decimal DirectExpenses { get; set; }
+            public decimal TotalCogs { get; set; }
+        }
+
+
+        /// <summary>
         /// Sets the Reserve and Surplus Account OPENING balance in target fiscal year
         /// Target Opening = Source Closing Balance (which already includes P&L)
         /// </summary>
+        // private async Task TransferProfitAndLossToReserveAndSurplusAsync(
+        //     Guid companyId,
+        //     Guid sourceFiscalYearId,
+        //     Guid targetFiscalYearId,
+        //     decimal netProfitLoss,
+        //     DateTime targetFiscalYearStartDate,
+        //     string targetFiscalYearStartDateNepali)
+        // {
+        //     var reserveAccount = await _context.Accounts
+        //         .Include(a => a.AccountGroup)
+        //         .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
+        //                                  a.AccountGroup != null &&
+        //                                  (a.AccountGroup.Name == "Reserves & Surplus") &&
+        //                                  a.IsActive);
+
+        //     if (reserveAccount == null)
+        //     {
+        //         _logger.LogWarning("Reserve and Surplus Account not found.");
+        //         return;
+        //     }
+
+        //     // ✅ Get the CLOSING balance from the SOURCE fiscal year
+        //     var sourceClosing = await _context.ClosingBalanceByFiscalYear
+        //         .FirstOrDefaultAsync(cb => cb.AccountId == reserveAccount.Id &&
+        //                                    cb.CompanyId == companyId &&
+        //                                    cb.FiscalYearId == sourceFiscalYearId);
+
+        //     decimal targetAmount = 0;
+        //     string targetType = "Cr";
+
+        //     if (sourceClosing != null)
+        //     {
+        //         targetAmount = sourceClosing.Amount;
+        //         targetType = sourceClosing.Type;
+        //         _logger.LogInformation($"Using source CLOSING balance: {targetType} {targetAmount}");
+        //     }
+        //     else
+        //     {
+        //         // Fallback: Use opening + P&L (should rarely happen if closing exists)
+        //         var sourceOpening = await _context.OpeningBalanceByFiscalYear
+        //             .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id &&
+        //                                        ob.CompanyId == companyId &&
+        //                                        ob.FiscalYearId == sourceFiscalYearId);
+
+        //         decimal openingDebit = 0, openingCredit = 0;
+        //         if (sourceOpening != null)
+        //         {
+        //             if (sourceOpening.Type == "Dr") openingDebit = sourceOpening.Amount;
+        //             else openingCredit = sourceOpening.Amount;
+        //         }
+
+        //         if (netProfitLoss > 0) openingCredit += netProfitLoss;
+        //         else if (netProfitLoss < 0) openingDebit += Math.Abs(netProfitLoss);
+
+        //         targetAmount = Math.Abs(openingDebit - openingCredit);
+        //         targetType = openingDebit >= openingCredit ? "Dr" : "Cr";
+        //         _logger.LogWarning($"Fallback computed target opening: {targetType} {targetAmount}");
+        //     }
+
+        //     // ✅ REPLACE the opening balance in target fiscal year
+        //     var existingTarget = await _context.OpeningBalanceByFiscalYear
+        //         .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id &&
+        //                                    ob.FiscalYearId == targetFiscalYearId);
+
+        //     if (existingTarget != null)
+        //     {
+        //         existingTarget.Amount = targetAmount;
+        //         existingTarget.Type = targetType;
+        //         existingTarget.Date = targetFiscalYearStartDate;
+        //         existingTarget.NepaliDate = targetFiscalYearStartDateNepali;
+        //         _logger.LogInformation($"REPLACED target opening: {targetType} {targetAmount}");
+        //     }
+        //     else
+        //     {
+        //         _context.OpeningBalanceByFiscalYear.Add(new OpeningBalanceByFiscalYear
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             AccountId = reserveAccount.Id,
+        //             FiscalYearId = targetFiscalYearId,
+        //             CompanyId = companyId,
+        //             Amount = targetAmount,
+        //             Type = targetType,
+        //             Date = targetFiscalYearStartDate,
+        //             NepaliDate = targetFiscalYearStartDateNepali
+        //         });
+        //         _logger.LogInformation($"CREATED target opening: {targetType} {targetAmount}");
+        //     }
+
+        //     // ✅ Also update master opening balance
+        //     var master = await _context.OpeningBalances
+        //         .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id && ob.CompanyId == companyId);
+        //     if (master != null)
+        //     {
+        //         master.Amount = targetAmount;
+        //         master.Type = targetType;
+        //         master.Date = targetFiscalYearStartDate;
+        //         master.NepaliDate = targetFiscalYearStartDateNepali;
+        //         master.FiscalYearId = null;
+        //     }
+        //     else
+        //     {
+        //         _context.OpeningBalances.Add(new OpeningBalance
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             AccountId = reserveAccount.Id,
+        //             CompanyId = companyId,
+        //             Amount = targetAmount,
+        //             Type = targetType,
+        //             Date = targetFiscalYearStartDate,
+        //             NepaliDate = targetFiscalYearStartDateNepali,
+        //             FiscalYearId = null
+        //         });
+        //     }
+
+        //     await _context.SaveChangesAsync();
+
+        //     _logger.LogInformation($"Reserve Account opening balance {targetType} {targetAmount} set for target fiscal year {targetFiscalYearId}");
+        // }
+
+        //-------------------------------------------end2
+
         private async Task TransferProfitAndLossToReserveAndSurplusAsync(
             Guid companyId,
             Guid sourceFiscalYearId,
             Guid targetFiscalYearId,
             decimal netProfitLoss,
             DateTime targetFiscalYearStartDate,
-            string targetFiscalYearStartDateNepali)
+            string targetFiscalYearStartDateNepali,
+            DateTime sourceFiscalYearEndDate,           // ✅ NEW parameter
+            string sourceFiscalYearEndDateNepali)       // ✅ NEW parameter
         {
             var reserveAccount = await _context.Accounts
                 .Include(a => a.AccountGroup)
                 .FirstOrDefaultAsync(a => a.CompanyId == companyId &&
                                          a.AccountGroup != null &&
-                                         (a.AccountGroup.Name == "Reserves & Surplus") &&
+                                         a.AccountGroup.Name == "Reserves & Surplus" &&
                                          a.IsActive);
 
             if (reserveAccount == null)
@@ -247,56 +642,111 @@ namespace SkyForge.Services
                 return;
             }
 
-            // ✅ Get the CLOSING balance from the SOURCE fiscal year
+            // ============================================================
+            // STEP 1: ALWAYS read source OPENING (never closing!)
+            // ============================================================
+            var sourceOpening = await _context.OpeningBalanceByFiscalYear
+                .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id &&
+                                           ob.CompanyId == companyId &&
+                                           ob.FiscalYearId == sourceFiscalYearId);
+
+            decimal openingAmount = 0;
+            string openingType = "Cr";
+
+            if (sourceOpening != null)
+            {
+                openingAmount = sourceOpening.Amount;
+                openingType = sourceOpening.Type;
+                _logger.LogInformation($"Source FY Opening: {openingType} {openingAmount}");
+            }
+
+            // ============================================================
+            // STEP 2: ALWAYS compute closing = opening + P&L (fresh!)
+            // ============================================================
+            decimal closingDebit = 0;
+            decimal closingCredit = 0;
+
+            if (openingType == "Dr")
+                closingDebit = openingAmount;
+            else
+                closingCredit = openingAmount;
+
+            if (netProfitLoss > 0)
+                closingCredit += netProfitLoss;
+            else if (netProfitLoss < 0)
+                closingDebit += Math.Abs(netProfitLoss);
+
+            decimal computedClosingAmount;
+            string computedClosingType;
+
+            if (closingCredit >= closingDebit)
+            {
+                computedClosingAmount = closingCredit - closingDebit;
+                computedClosingType = "Cr";
+            }
+            else
+            {
+                computedClosingAmount = closingDebit - closingCredit;
+                computedClosingType = "Dr";
+            }
+
+            _logger.LogInformation(
+                $"Computed Source FY Closing: {computedClosingType} {computedClosingAmount} " +
+                $"(from Opening {openingType} {openingAmount} + P&L {netProfitLoss})");
+
+            // ============================================================
+            // STEP 3: REPLACE source ClosingBalanceByFiscalYear (no stale data!)
+            // ============================================================
             var sourceClosing = await _context.ClosingBalanceByFiscalYear
                 .FirstOrDefaultAsync(cb => cb.AccountId == reserveAccount.Id &&
                                            cb.CompanyId == companyId &&
                                            cb.FiscalYearId == sourceFiscalYearId);
 
-            decimal targetAmount = 0;
-            string targetType = "Cr";
-
             if (sourceClosing != null)
             {
-                targetAmount = sourceClosing.Amount;
-                targetType = sourceClosing.Type;
-                _logger.LogInformation($"Using source CLOSING balance: {targetType} {targetAmount}");
+                // ✅ OVERWRITE existing stale record
+                sourceClosing.Amount = computedClosingAmount;
+                sourceClosing.Type = computedClosingType;
+                sourceClosing.Date = sourceFiscalYearEndDate;
+                sourceClosing.NepaliDate = sourceFiscalYearEndDateNepali;
+
+                _logger.LogInformation(
+                    $"REPLACED stale source closing: {computedClosingType} {computedClosingAmount}");
             }
             else
             {
-                // Fallback: Use opening + P&L (should rarely happen if closing exists)
-                var sourceOpening = await _context.OpeningBalanceByFiscalYear
-                    .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id &&
-                                               ob.CompanyId == companyId &&
-                                               ob.FiscalYearId == sourceFiscalYearId);
-
-                decimal openingDebit = 0, openingCredit = 0;
-                if (sourceOpening != null)
+                _context.ClosingBalanceByFiscalYear.Add(new ClosingBalanceByFiscalYear
                 {
-                    if (sourceOpening.Type == "Dr") openingDebit = sourceOpening.Amount;
-                    else openingCredit = sourceOpening.Amount;
-                }
+                    Id = Guid.NewGuid(),
+                    AccountId = reserveAccount.Id,
+                    CompanyId = companyId,
+                    FiscalYearId = sourceFiscalYearId,
+                    Amount = computedClosingAmount,
+                    Type = computedClosingType,
+                    Date = sourceFiscalYearEndDate,
+                    NepaliDate = sourceFiscalYearEndDateNepali
+                });
 
-                if (netProfitLoss > 0) openingCredit += netProfitLoss;
-                else if (netProfitLoss < 0) openingDebit += Math.Abs(netProfitLoss);
-
-                targetAmount = Math.Abs(openingDebit - openingCredit);
-                targetType = openingDebit >= openingCredit ? "Dr" : "Cr";
-                _logger.LogWarning($"Fallback computed target opening: {targetType} {targetAmount}");
+                _logger.LogInformation(
+                    $"CREATED source closing: {computedClosingType} {computedClosingAmount}");
             }
 
-            // ✅ REPLACE the opening balance in target fiscal year
+            // ============================================================
+            // STEP 4: REPLACE target OpeningBalanceByFiscalYear
+            // ============================================================
             var existingTarget = await _context.OpeningBalanceByFiscalYear
                 .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id &&
                                            ob.FiscalYearId == targetFiscalYearId);
 
             if (existingTarget != null)
             {
-                existingTarget.Amount = targetAmount;
-                existingTarget.Type = targetType;
+                existingTarget.Amount = computedClosingAmount;
+                existingTarget.Type = computedClosingType;
                 existingTarget.Date = targetFiscalYearStartDate;
                 existingTarget.NepaliDate = targetFiscalYearStartDateNepali;
-                _logger.LogInformation($"REPLACED target opening: {targetType} {targetAmount}");
+
+                _logger.LogInformation(
+                    $"REPLACED target opening: {computedClosingType} {computedClosingAmount}");
             }
             else
             {
@@ -306,21 +756,26 @@ namespace SkyForge.Services
                     AccountId = reserveAccount.Id,
                     FiscalYearId = targetFiscalYearId,
                     CompanyId = companyId,
-                    Amount = targetAmount,
-                    Type = targetType,
+                    Amount = computedClosingAmount,
+                    Type = computedClosingType,
                     Date = targetFiscalYearStartDate,
                     NepaliDate = targetFiscalYearStartDateNepali
                 });
-                _logger.LogInformation($"CREATED target opening: {targetType} {targetAmount}");
+
+                _logger.LogInformation(
+                    $"CREATED target opening: {computedClosingType} {computedClosingAmount}");
             }
 
-            // ✅ Also update master opening balance
+            // ============================================================
+            // STEP 5: Update master opening balance
+            // ============================================================
             var master = await _context.OpeningBalances
                 .FirstOrDefaultAsync(ob => ob.AccountId == reserveAccount.Id && ob.CompanyId == companyId);
+
             if (master != null)
             {
-                master.Amount = targetAmount;
-                master.Type = targetType;
+                master.Amount = computedClosingAmount;
+                master.Type = computedClosingType;
                 master.Date = targetFiscalYearStartDate;
                 master.NepaliDate = targetFiscalYearStartDateNepali;
                 master.FiscalYearId = null;
@@ -332,8 +787,8 @@ namespace SkyForge.Services
                     Id = Guid.NewGuid(),
                     AccountId = reserveAccount.Id,
                     CompanyId = companyId,
-                    Amount = targetAmount,
-                    Type = targetType,
+                    Amount = computedClosingAmount,
+                    Type = computedClosingType,
                     Date = targetFiscalYearStartDate,
                     NepaliDate = targetFiscalYearStartDateNepali,
                     FiscalYearId = null
@@ -342,9 +797,10 @@ namespace SkyForge.Services
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation($"Reserve Account opening balance {targetType} {targetAmount} set for target fiscal year {targetFiscalYearId}");
+            _logger.LogInformation(
+                $"✅ Reserve & Surplus transfer complete: " +
+                $"Source FY Closing = Target FY Opening = {computedClosingType} {computedClosingAmount}");
         }
-
         /// <summary>
         /// Ensures the Stock in Hand account group exists for the company
         /// </summary>
@@ -516,166 +972,6 @@ namespace SkyForge.Services
                 }
             };
         }
-
-        //     public async Task<FiscalYearTransferResponseDto> TransferFiscalYearBalancesAsync(
-        //         FiscalYearTransferRequestDto request,
-        //         Guid companyId)
-        //     {
-        //         var response = new FiscalYearTransferResponseDto();
-
-        //         using var transaction = await _context.Database.BeginTransactionAsync();
-
-        //         try
-        //         {
-        //             _logger.LogInformation("Starting fiscal year transfer from {SourceId} to {TargetId}",
-        //                 request.SourceFiscalYearId, request.TargetFiscalYearId);
-
-        //             var validation = await ValidateTransferAsync(request.SourceFiscalYearId, request.TargetFiscalYearId, companyId);
-        //             if (!validation.Success)
-        //             {
-        //                 return validation;
-        //             }
-
-        //             var sourceFiscalYear = await _context.FiscalYears
-        //                 .FirstOrDefaultAsync(f => f.Id == request.SourceFiscalYearId && f.CompanyId == companyId);
-
-        //             var targetFiscalYear = await _context.FiscalYears
-        //                 .FirstOrDefaultAsync(f => f.Id == request.TargetFiscalYearId && f.CompanyId == companyId);
-
-        //             var summary = new FiscalYearTransferSummaryDto
-        //             {
-        //                 SourceFiscalYearId = sourceFiscalYear!.Id,
-        //                 SourceFiscalYearName = sourceFiscalYear.Name,
-        //                 TargetFiscalYearId = targetFiscalYear!.Id,
-        //                 TargetFiscalYearName = targetFiscalYear.Name,
-        //                 TransferDate = request.TransferDate,
-        //                 CompletedAt = DateTime.UtcNow
-        //             };
-
-        //             decimal totalStockValue = 0;
-
-        //             DateTime transferDateAd = request.TransferDate;
-        //             string transferDateNepali = request.TransferDateNepali?.ToString() ?? "";
-
-        //             // Get fiscal year start and end dates
-        //             DateTime sourceFiscalYearStartDate = sourceFiscalYear.StartDate ?? DateTime.UtcNow;
-        //             DateTime sourceFiscalYearEndDate = sourceFiscalYear.EndDate ?? DateTime.UtcNow;
-        //             DateTime targetFiscalYearStartDate = targetFiscalYear.StartDate ?? DateTime.UtcNow;
-
-        //             // Get Nepali dates from fiscal year
-        //             string sourceFiscalYearStartDateNepali = sourceFiscalYear.StartDateNepali ?? transferDateNepali;
-        //             string sourceFiscalYearEndDateNepali = sourceFiscalYear.EndDateNepali ?? transferDateNepali;
-        //             string targetFiscalYearStartDateNepali = targetFiscalYear.StartDateNepali ?? transferDateNepali;
-
-        //             if (request.TransferItems)
-        //             {
-        //                 var itemSummary = await CalculateAndSaveClosingStockForSourceFiscalYearAsync(
-        //                     request.SourceFiscalYearId,
-        //                     companyId,
-        //                     sourceFiscalYearEndDate,
-        //                     sourceFiscalYearEndDateNepali,
-        //                     sourceFiscalYearStartDate,
-        //                     sourceFiscalYearStartDateNepali);
-
-        //                 summary.ItemsSummary = itemSummary;
-        //                 totalStockValue = itemSummary.TotalClosingStockValue;
-
-        //                 await CreateOpeningStockForTargetFiscalYearAsync(
-        //                     request.SourceFiscalYearId,
-        //                     request.TargetFiscalYearId,
-        //                     companyId,
-        //                     targetFiscalYearStartDate,
-        //                     targetFiscalYearStartDateNepali);
-        //             }
-
-        //             // ✅ Get closing balances (Stock in Hand will be added separately)
-        //             var closingBalances = await GetAccountClosingBalancesFromTransactionsAsync(
-        //                 request.SourceFiscalYearId,
-        //                 companyId);
-
-        //             // ✅ Add Stock in Hand account balance with total stock value
-        //             await AddStockInHandAccountBalanceAsync(
-        //                 companyId,
-        //                 request.TargetFiscalYearId,
-        //                 totalStockValue,
-        //                 closingBalances);
-
-        //             await AddProfitAndLossToClosingBalancesAsync(
-        // request.SourceFiscalYearId,
-        // companyId,
-        // closingBalances);
-
-        //             // Calculate Profit & Loss
-        //             var netProfitLoss = await CalculateProfitAndLossAsync(
-        //                 request.SourceFiscalYearId,
-        //                 companyId,
-        //                 closingBalances);
-
-
-        //             await UpdateCapitalAccountInClosingBalancesAsync(
-        //             request.SourceFiscalYearId,
-        //             companyId,
-        //             netProfitLoss,
-        //             closingBalances,
-        //             sourceFiscalYearEndDate,
-        //             sourceFiscalYearEndDateNepali);
-
-        //             // Save closing balances for SOURCE fiscal year with END date
-        //             await SaveClosingBalancesForSourceFiscalYearAsync(
-        //                 request.SourceFiscalYearId,
-        //                 companyId,
-        //                 sourceFiscalYearEndDate,
-        //                 sourceFiscalYearEndDateNepali,
-        //                 closingBalances);
-
-        //             // Create Opening Balance Transaction for TARGET fiscal year with START date
-        //             var openingBalanceTransaction = await CreateOpeningBalanceTransactionAsync(
-        //                 targetFiscalYear!.Id,
-        //                 companyId,
-        //                 targetFiscalYearStartDate,
-        //                 targetFiscalYearStartDateNepali,
-        //                 closingBalances);
-
-        //             // Transfer Profit & Loss to Reserve and Surplus Account (only for target fiscal year opening balance)
-        //             await TransferProfitAndLossToReserveAndSurplusAsync(
-        //                 companyId,
-        //                  request.SourceFiscalYearId,
-        //                 request.TargetFiscalYearId,
-        //                 netProfitLoss,
-        //                 targetFiscalYearStartDate,
-        //                 targetFiscalYearStartDateNepali);
-
-        //             summary.OpeningBalanceTransactionId = openingBalanceTransaction.Id;
-        //             summary.OpeningBalanceVoucherNo = openingBalanceTransaction.BillNumber ?? "OP-BAL-001";
-
-        //             summary.AccountsSummary = new AccountTransferSummaryDto
-        //             {
-        //                 AccountsProcessed = closingBalances.Count(a => a.DebitAmount > 0 || a.CreditAmount > 0),
-        //                 TotalDebitBalance = closingBalances.Sum(a => a.DebitAmount),
-        //                 TotalCreditBalance = closingBalances.Sum(a => a.CreditAmount),
-        //                 AccountDetails = closingBalances.Where(a => a.DebitAmount > 0 || a.CreditAmount > 0).ToList()
-        //             };
-
-        //             await transaction.CommitAsync();
-
-        //             response.Success = true;
-        //             response.Message = "Fiscal year transfer completed successfully";
-        //             response.Data = summary;
-
-        //             _logger.LogInformation("Fiscal year transfer completed successfully. Total stock value: {TotalStockValue}", totalStockValue);
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             await transaction.RollbackAsync();
-        //             _logger.LogError(ex, "Error during fiscal year transfer");
-        //             response.Success = false;
-        //             response.Errors.Add($"Transfer error: {ex.Message}");
-        //             response.Message = "Transfer failed";
-        //         }
-
-        //         return response;
-        //     }
-
         public async Task<FiscalYearTransferResponseDto> TransferFiscalYearBalancesAsync(
             FiscalYearTransferRequestDto request,
             Guid companyId)
@@ -845,7 +1141,9 @@ namespace SkyForge.Services
                     request.TargetFiscalYearId,
                     netProfitLoss,
                     targetFiscalYearStartDate,
-                    targetFiscalYearStartDateNepali);
+                    targetFiscalYearStartDateNepali,
+                    sourceFiscalYearEndDate,
+                    sourceFiscalYearEndDateNepali);
 
                 summary.OpeningBalanceTransactionId = openingBalanceTransaction.Id;
                 summary.OpeningBalanceVoucherNo = openingBalanceTransaction.BillNumber ?? "OP-BAL-001";

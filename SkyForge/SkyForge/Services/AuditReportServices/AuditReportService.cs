@@ -199,7 +199,8 @@ namespace SkyForge.Services.AuditReportServices
             }
         }
 
-        // public async Task<AuditReportResponseDTO> GetClosingTrialBalanceAsync(
+
+        // public async Task<AuditReportResponseDTO> GetPostClosingTrialBalanceAsync(
         //     Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
         // {
         //     try
@@ -226,7 +227,7 @@ namespace SkyForge.Services.AuditReportServices
         //             .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
         //             .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
 
-        //         // ✅ Load transactions for this fiscal year (to compute per-account Debit/Credit)
+        //         // Load transactions
         //         var transactions = await _context.Transactions
         //             .Where(t => t.CompanyId == companyId
         //                      && t.FiscalYearId == fiscalYearId
@@ -239,8 +240,8 @@ namespace SkyForge.Services.AuditReportServices
         //         {
         //             Company = MapCompanyInfo(company),
         //             FiscalYear = MapFiscalYearInfo(fiscalYear),
-        //             ReportName = "Closing Trial Balance",
-        //             ReportType = "ClosingTrialBalance",
+        //             ReportName = "Post-Closing Trial Balance",
+        //             ReportType = "PostClosingTrialBalance",
         //             GeneratedDate = DateTime.UtcNow,
         //             GeneratedDateNepali = DateTime.UtcNow.ToString("yyyy-MM-dd"),
         //             AsOnDate = asOnDateAd,
@@ -257,172 +258,7 @@ namespace SkyForge.Services.AuditReportServices
         //             .OrderBy(ag => ag.Name)
         //             .ToDictionaryAsync(g => g.Id, g => g);
 
-        //         // ✅ Pre-compute per-account transaction Debit/Credit sums
-        //         var txnDrCrByAccount = new Dictionary<Guid, (decimal Debit, decimal Credit)>();
-        //         foreach (var tx in transactions)
-        //         {
-        //             // Header-level account
-        //             void AddFor(Guid? accId, decimal dr, decimal cr)
-        //             {
-        //                 if (!accId.HasValue) return;
-        //                 if (!txnDrCrByAccount.TryGetValue(accId.Value, out var cur))
-        //                     cur = (0m, 0m);
-        //                 cur.Debit += dr;
-        //                 cur.Credit += cr;
-        //                 txnDrCrByAccount[accId.Value] = cur;
-        //             }
-
-        //             AddFor(tx.AccountId, tx.TotalDebit, tx.TotalCredit);
-        //             AddFor(tx.PaymentAccountId2, tx.TotalDebit, 0);
-        //             AddFor(tx.ReceiptAccountId2, 0, tx.TotalCredit);
-        //             AddFor(tx.DebitAccountId, tx.TotalDebit, 0);
-        //             AddFor(tx.CreditAccountId, 0, tx.TotalCredit);
-        //         }
-
-        //         foreach (var account in accounts)
-        //         {
-        //             var accountGroupName = accountGroups.TryGetValue(account.AccountGroupsId, out var group)
-        //                 ? group.Name
-        //                 : "Uncategorized";
-
-        //             // if (IsStockAccount(account.Name, accountGroupName))
-        //             //     continue;
-
-        //             decimal closingBalance = 0;
-        //             string balanceType = "Cr";
-
-        //             if (closingBalances.TryGetValue(account.Id, out var cb))
-        //             {
-        //                 closingBalance = cb.Amount;
-        //                 balanceType = cb.Type;
-        //             }
-
-        //             // if (_nominalAccountGroups.Contains(accountGroupName) && accountGroupName != "Profit & Loss")
-        //             //     continue;
-
-        //             decimal openingBal = openingBalances.TryGetValue(account.Id, out var ob2) ? ob2.Amount : 0;
-        //             string openingType = openingBalances.TryGetValue(account.Id, out var ob3) ? ob3.Type : "Cr";
-
-        //             // ✅ Debit / Credit for detailed view from transaction items
-        //             decimal detailDebit = 0;
-        //             decimal detailCredit = 0;
-        //             if (txnDrCrByAccount.TryGetValue(account.Id, out var dc))
-        //             {
-        //                 detailDebit = dc.Debit;
-        //                 detailCredit = dc.Credit;
-        //             }
-
-        //             // Simple Dr/Cr from closing balance (summary view)
-        //             decimal debit = balanceType == "Dr" ? closingBalance : 0;
-        //             decimal credit = balanceType == "Cr" ? closingBalance : 0;
-
-        //             totalDebit += debit;
-        //             totalCredit += credit;
-
-        //             reportData.AccountDetails.Add(new AccountDetailDTO
-        //             {
-        //                 AccountId = account.Id,
-        //                 AccountName = account.Name,
-        //                 AccountGroupName = accountGroupName,
-        //                 OpeningBalance = openingBal,
-        //                 OpeningBalanceType = openingType,     // ✅ for detailed view
-        //                 Debit = debit,                          // summary view
-        //                 Credit = credit,                        // summary view
-        //                 DetailDebit = detailDebit,              // ✅ detailed view (from txns)
-        //                 DetailCredit = detailCredit,            // ✅ detailed view (from txns)
-        //                 ClosingBalance = closingBalance,
-        //                 BalanceType = balanceType,
-        //                 AccountType = GetAccountType(accountGroupName)
-        //             });
-        //         }
-
-        //         reportData.Summary = new ReportSummaryDTO
-        //         {
-        //             TotalDebit = totalDebit,
-        //             TotalCredit = totalCredit,
-        //             GrandTotal = totalDebit + totalCredit,
-        //             IsBalanced = Math.Abs(totalDebit - totalCredit) < 0.01m,
-        //             BalanceStatus = Math.Abs(totalDebit - totalCredit) < 0.01m ? "Balanced" : "Unbalanced"
-        //         };
-
-        //         response.Success = true;
-        //         response.Data = reportData;
-        //         response.Message = "Closing Trial Balance generated successfully";
-        //         return response;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error generating Closing Trial Balance");
-        //         return new AuditReportResponseDTO
-        //         {
-        //             Success = false,
-        //             Message = $"Error generating report: {ex.Message}",
-        //             Errors = new List<string> { ex.Message }
-        //         };
-        //     }
-        // }
-
-        // public async Task<AuditReportResponseDTO> GetClosingTrialBalanceAsync(
-        //     Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
-        // {
-        //     try
-        //     {
-        //         var response = new AuditReportResponseDTO();
-        //         var (company, fiscalYear) = await GetCompanyAndFiscalYearAsync(companyId, fiscalYearId);
-
-        //         if (company == null || fiscalYear == null)
-        //         {
-        //             response.Success = false;
-        //             response.Message = "Company or Fiscal Year not found";
-        //             return response;
-        //         }
-
-        //         var asOnDateAd = asOnDate ?? fiscalYear.EndDate ?? DateTime.UtcNow;
-        //         var asOnDateNepali = fiscalYear.EndDateNepali ?? asOnDateAd.ToString("yyyy-MM-dd");
-
-        //         var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
-        //         var openingBalances = await _context.OpeningBalanceByFiscalYear
-        //             .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
-        //             .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
-
-        //         var closingBalances = await _context.ClosingBalanceByFiscalYear
-        //             .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
-        //             .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
-
-        //         // Load transactions for this fiscal year (to compute per-account Debit/Credit)
-        //         var transactions = await _context.Transactions
-        //             .Where(t => t.CompanyId == companyId
-        //                      && t.FiscalYearId == fiscalYearId
-        //                      && t.Status == TransactionStatus.Active
-        //                      && t.Date <= asOnDateAd)
-        //             .Include(t => t.TransactionItems)
-        //             .ToListAsync();
-
-        //         var reportData = new AuditReportDataDTO
-        //         {
-        //             Company = MapCompanyInfo(company),
-        //             FiscalYear = MapFiscalYearInfo(fiscalYear),
-        //             ReportName = "Closing Trial Balance",
-        //             ReportType = "ClosingTrialBalance",
-        //             GeneratedDate = DateTime.UtcNow,
-        //             GeneratedDateNepali = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-        //             AsOnDate = asOnDateAd,
-        //             AsOnDateNepali = asOnDateNepali,
-        //             IsNepaliFormat = company.DateFormat.ToString().ToLower() == "nepali",
-        //             DateFormat = company.DateFormat.ToString().ToLower()
-        //         };
-
-        //         decimal totalDebit = 0;
-        //         decimal totalCredit = 0;
-
-        //         var accountGroups = await _context.AccountGroups
-        //             .Where(ag => ag.CompanyId == companyId)
-        //             .OrderBy(ag => ag.Name)
-        //             .ToDictionaryAsync(g => g.Id, g => g);
-
-        //         // ============================================================
-        //         // Pre-compute per-account transaction Debit/Credit sums
-        //         // ============================================================
+        //         // Pre-compute per-account transaction activity
         //         var txnDrCrByAccount = new Dictionary<Guid, (decimal Debit, decimal Credit)>();
 
         //         void AddFor(Guid? accId, decimal dr, decimal cr)
@@ -445,9 +281,606 @@ namespace SkyForge.Services.AuditReportServices
         //         }
 
         //         // ============================================================
-        //         // Accumulator for Purchase (gross) — will be netted later
+        //         // Accumulators for nominal accounts (to be closed)
         //         // ============================================================
-        //         decimal purchaseGrossDebit = 0;
+        //         decimal saleCredit = 0;
+        //         decimal otherIncomeCredit = 0;
+        //         decimal purchaseNetDebit = 0;
+        //         decimal directExpenseDebit = 0;
+        //         decimal indirectExpenseDebit = 0;
+
+        //         // ============================================================
+        //         // Walk through accounts — Post-Closing view
+        //         // ============================================================
+        //         foreach (var account in accounts)
+        //         {
+        //             var accountGroupName = accountGroups.TryGetValue(account.AccountGroupsId, out var group)
+        //                 ? group.Name
+        //                 : "Uncategorized";
+
+        //             // Exclusions
+        //             if (IsStockAccount(account.Name, accountGroupName))
+        //                 continue;
+        //             if (accountGroupName == "Profit & Loss")
+        //                 continue;
+
+        //             // Compute closing balance with fallback
+        //             decimal closingBalance = 0;
+        //             string balanceType = "Cr";
+
+        //             if (closingBalances.TryGetValue(account.Id, out var cb))
+        //             {
+        //                 closingBalance = cb.Amount;
+        //                 balanceType = cb.Type;
+        //             }
+        //             else
+        //             {
+        //                 decimal openingAmt = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0;
+        //                 string openingDrCr = openingBalances.TryGetValue(account.Id, out var ob2) ? ob2.Type : "Cr";
+
+        //                 decimal drTotal = 0, crTotal = 0;
+        //                 if (openingDrCr == "Dr") drTotal += openingAmt;
+        //                 else crTotal += openingAmt;
+
+        //                 if (txnDrCrByAccount.TryGetValue(account.Id, out var activity))
+        //                 {
+        //                     drTotal += activity.Debit;
+        //                     crTotal += activity.Credit;
+        //                 }
+
+        //                 decimal net = drTotal - crTotal;
+        //                 closingBalance = Math.Abs(net);
+        //                 balanceType = net >= 0 ? "Dr" : "Cr";
+        //             }
+
+        //             decimal debit = balanceType == "Dr" ? closingBalance : 0;
+        //             decimal credit = balanceType == "Cr" ? closingBalance : 0;
+
+        //             // ✅ NOMINAL ACCOUNTS — accumulate but don't display (they're closed)
+        //             if (accountGroupName == "Sale")
+        //             {
+        //                 saleCredit += credit - debit;
+        //                 continue;
+        //             }
+
+        //             if (accountGroupName == "Income (Direct/Opr.)"
+        //                 || accountGroupName == "Income (Indirect)")
+        //             {
+        //                 otherIncomeCredit += credit - debit;
+        //                 continue;
+        //             }
+
+        //             if (accountGroupName == "Purchase")
+        //             {
+        //                 purchaseNetDebit += debit - credit;
+        //                 continue;
+        //             }
+
+        //             if (accountGroupName == "Expenses (Direct/Mfg.)")
+        //             {
+        //                 directExpenseDebit += debit - credit;
+        //                 continue;
+        //             }
+
+        //             if (accountGroupName == "Expenses (Indirect/Admn.)")
+        //             {
+        //                 indirectExpenseDebit += debit - credit;
+        //                 continue;
+        //             }
+
+        //             // ✅ Reserves & Surplus — accumulate separately; will be adjusted below
+        //             if (accountGroupName == "Reserves & Surplus")
+        //             {
+        //                 // Include the existing Reserves balance in the report as-is
+        //                 // The P&L transfer will be ADDED on top of this
+        //                 decimal openingBal = openingBalances.TryGetValue(account.Id, out var obR) ? obR.Amount : 0;
+        //                 string openingType = openingBalances.TryGetValue(account.Id, out var obR2) ? obR2.Type : "Cr";
+
+        //                 reportData.AccountDetails.Add(new AccountDetailDTO
+        //                 {
+        //                     AccountId = account.Id,
+        //                     AccountName = account.Name,
+        //                     AccountGroupName = accountGroupName,
+        //                     OpeningBalance = openingBal,
+        //                     OpeningBalanceType = openingType,
+        //                     Debit = debit,
+        //                     Credit = credit,
+        //                     DetailDebit = debit,
+        //                     DetailCredit = credit,
+        //                     ClosingBalance = closingBalance,
+        //                     BalanceType = balanceType,
+        //                     AccountType = "Equity"
+        //                 });
+
+        //                 totalDebit += debit;
+        //                 totalCredit += credit;
+        //                 continue;
+        //             }
+
+        //             // ✅ Balance Sheet accounts — include as-is
+        //             decimal openingBalB = openingBalances.TryGetValue(account.Id, out var obB) ? obB.Amount : 0;
+        //             string openingTypeB = openingBalances.TryGetValue(account.Id, out var obB2) ? obB2.Type : "Cr";
+
+        //             decimal detailDebit = 0;
+        //             decimal detailCredit = 0;
+        //             if (txnDrCrByAccount.TryGetValue(account.Id, out var dc))
+        //             {
+        //                 detailDebit = dc.Debit;
+        //                 detailCredit = dc.Credit;
+        //             }
+
+        //             totalDebit += debit;
+        //             totalCredit += credit;
+
+        //             reportData.AccountDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = accountGroupName,
+        //                 OpeningBalance = openingBalB,
+        //                 OpeningBalanceType = openingTypeB,
+        //                 Debit = debit,
+        //                 Credit = credit,
+        //                 DetailDebit = detailDebit,
+        //                 DetailCredit = detailCredit,
+        //                 ClosingBalance = closingBalance,
+        //                 BalanceType = balanceType,
+        //                 AccountType = GetAccountType(accountGroupName)
+        //             });
+        //         }
+
+        //         // ============================================================
+        //         // Compute Closing Stock
+        //         // ============================================================
+        //         var stockEntries = await _context.StockEntries
+        //             .Where(se => se.CompanyId == companyId && se.Quantity > 0)
+        //             .ToListAsync();
+
+        //         decimal closingStockValue = stockEntries
+        //             .Sum(se => se.Quantity * se.PuPrice);
+
+        //         if (closingStockValue != 0)
+        //         {
+        //             var stockRow = new AccountDetailDTO
+        //             {
+        //                 AccountId = Guid.Empty,
+        //                 AccountName = "Closing Stock",
+        //                 AccountGroupName = "Stock in Hand",
+        //                 Debit = closingStockValue,
+        //                 Credit = 0,
+        //                 DetailDebit = closingStockValue,
+        //                 DetailCredit = 0,
+        //                 ClosingBalance = closingStockValue,
+        //                 BalanceType = "Dr",
+        //                 AccountType = "Asset"
+        //             };
+        //             reportData.AccountDetails.Add(stockRow);
+        //             totalDebit += closingStockValue;
+        //         }
+
+        //         // ============================================================
+        //         // Compute Net Profit/Loss
+        //         // ============================================================
+        //         decimal purchaseNet = purchaseNetDebit - closingStockValue;
+        //         decimal totalRevenue = saleCredit + otherIncomeCredit;
+        //         decimal totalExpense = purchaseNet + directExpenseDebit + indirectExpenseDebit;
+        //         decimal netProfit = totalRevenue - totalExpense;
+
+        //         // ============================================================
+        //         // Safety: difference row
+        //         // ============================================================
+        //         decimal difference = totalDebit - totalCredit;
+
+        //         if (Math.Abs(difference) > 0.01m)
+        //         {
+        //             _logger.LogWarning(
+        //                 "Post-Closing TB out of balance by {Difference}. NetProfit={NP}",
+        //                 difference, netProfit);
+
+        //             if (difference > 0)
+        //             {
+        //                 reportData.AccountDetails.Add(new AccountDetailDTO
+        //                 {
+        //                     AccountId = Guid.Empty,
+        //                     AccountName = "Difference in Opening Balance",
+        //                     AccountGroupName = "Difference in Opening Balance",
+        //                     Debit = 0,
+        //                     Credit = difference,
+        //                     DetailDebit = 0,                 // ✅
+        //                     DetailCredit = difference,       // ✅
+        //                     ClosingBalance = difference,
+        //                     BalanceType = "Cr",
+        //                     AccountType = "Other"
+        //                 });
+        //                 totalCredit += difference;
+        //             }
+        //             else
+        //             {
+        //                 decimal plug = Math.Abs(difference);
+        //                 reportData.AccountDetails.Add(new AccountDetailDTO
+        //                 {
+        //                     AccountId = Guid.Empty,
+        //                     AccountName = "Difference in Opening Balance",
+        //                     AccountGroupName = "Difference in Opening Balance",
+        //                     Debit = plug,
+        //                     Credit = 0,
+        //                     DetailDebit = plug,              // ✅
+        //                     DetailCredit = 0,                // ✅
+        //                     ClosingBalance = plug,
+        //                     BalanceType = "Dr",
+        //                     AccountType = "Other"
+        //                 });
+        //                 totalDebit += plug;
+        //             }
+        //         }
+
+        //         // ============================================================
+        //         // Order + Summary
+        //         // ============================================================
+        //         reportData.AccountDetails = reportData.AccountDetails
+        //             .OrderBy(r => GetAccountGroupSortOrder(r.AccountGroupName))
+        //             .ThenBy(r => r.AccountName)
+        //             .ToList();
+
+        //         _logger.LogInformation(
+        //             "Post-Closing TB DIAGNOSTIC: " +
+        //             "saleCredit={Sale}, otherIncomeCredit={OtherIncome}, " +
+        //             "purchaseNetDebit={PurchaseGross}, closingStockValue={Stock}, " +
+        //             "purchaseNet={PurchaseNet}, directExpense={Direct}, indirectExpense={Indirect}, " +
+        //             "totalRevenue={Rev}, totalExpense={Exp}, netProfit={NetProfit}, " +
+        //             "totalDebit={Dr}, totalCredit={Cr}",
+        //             saleCredit, otherIncomeCredit,
+        //             purchaseNetDebit, closingStockValue,
+        //             purchaseNet, directExpenseDebit, indirectExpenseDebit,
+        //             totalRevenue, totalExpense, netProfit,
+        //             totalDebit, totalCredit);
+
+        //         reportData.Summary = new ReportSummaryDTO
+        //         {
+        //             TotalDebit = totalDebit,
+        //             TotalCredit = totalCredit,
+        //             GrandTotal = totalDebit + totalCredit,
+        //             NetProfit = netProfit,
+        //             IsBalanced = Math.Abs(totalDebit - totalCredit) < 0.01m,
+        //             BalanceStatus = Math.Abs(totalDebit - totalCredit) < 0.01m
+        //                 ? "Balanced"
+        //                 : $"Unbalanced by {Math.Abs(totalDebit - totalCredit):N2}"
+        //         };
+
+        //         response.Success = true;
+        //         response.Data = reportData;
+        //         response.Message = "Post-Closing Trial Balance generated successfully";
+        //         return response;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error generating Post-Closing Trial Balance");
+        //         return new AuditReportResponseDTO
+        //         {
+        //             Success = false,
+        //             Message = $"Error generating report: {ex.Message}",
+        //             Errors = new List<string> { ex.Message }
+        //         };
+        //     }
+        // }
+
+        //----------------------------------------------end1
+
+        public async Task<AuditReportResponseDTO> GetPostClosingTrialBalanceAsync(
+          Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
+        {
+            try
+            {
+                var response = new AuditReportResponseDTO();
+                var (company, fiscalYear) = await GetCompanyAndFiscalYearAsync(companyId, fiscalYearId);
+
+                if (company == null || fiscalYear == null)
+                {
+                    response.Success = false;
+                    response.Message = "Company or Fiscal Year not found";
+                    return response;
+                }
+
+                var asOnDateAd = asOnDate ?? fiscalYear.EndDate ?? DateTime.UtcNow;
+                var asOnDateNepali = fiscalYear.EndDateNepali ?? asOnDateAd.ToString("yyyy-MM-dd");
+
+                var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
+
+                // ✅ Post-Closing TB source: ClosingBalanceByFiscalYear (for the SELECTED FY only)
+                var closingBalances = await _context.ClosingBalanceByFiscalYear
+                    .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
+                    .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+
+                // Opening balances (for the Opening column display)
+                var openingBalances = await _context.OpeningBalanceByFiscalYear
+                    .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
+                    .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
+
+                var reportData = new AuditReportDataDTO
+                {
+                    Company = MapCompanyInfo(company),
+                    FiscalYear = MapFiscalYearInfo(fiscalYear),
+                    ReportName = "Post-Closing Trial Balance",
+                    ReportType = "PostClosingTrialBalance",
+                    GeneratedDate = DateTime.UtcNow,
+                    GeneratedDateNepali = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    AsOnDate = asOnDateAd,
+                    AsOnDateNepali = asOnDateNepali,
+                    IsNepaliFormat = company.DateFormat.ToString().ToLower() == "nepali",
+                    DateFormat = company.DateFormat.ToString().ToLower()
+                };
+
+                decimal totalDebit = 0;
+                decimal totalCredit = 0;
+
+                var accountGroups = await _context.AccountGroups
+                    .Where(ag => ag.CompanyId == companyId)
+                    .OrderBy(ag => ag.Name)
+                    .ToDictionaryAsync(g => g.Id, g => g);
+
+                // ============================================================
+                // Walk through accounts
+                // ============================================================
+                foreach (var account in accounts)
+                {
+                    var accountGroupName = accountGroups.TryGetValue(account.AccountGroupsId, out var group)
+                        ? group.Name
+                        : "Uncategorized";
+
+                    // ✅ Skip nominal accounts (Sale, Purchase, Expenses, Income)
+                    if (accountGroupName == "Sale"
+                        || accountGroupName == "Purchase"
+                        || accountGroupName == "Expenses (Direct/Mfg.)"
+                        || accountGroupName == "Expenses (Indirect/Admn.)"
+                        || accountGroupName == "Income (Direct/Opr.)"
+                        || accountGroupName == "Income (Indirect)")
+                        continue;
+
+                    // ✅ Skip P&L control account
+                    if (accountGroupName == "Profit & Loss")
+                        continue;
+
+                    // ============================================================
+                    // ✅ Read from ClosingBalanceByFiscalYear
+                    // ============================================================
+                    if (!closingBalances.TryGetValue(account.Id, out var cb))
+                        continue;
+
+                    decimal closingBalance = cb.Amount;
+                    string closingType = cb.Type;
+
+                    if (closingBalance == 0)
+                        continue;
+
+                    // Opening balance (for the Opening column)
+                    decimal openingBal = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0;
+                    string openingType = openingBalances.TryGetValue(account.Id, out var ob2) ? ob2.Type : closingType;
+
+                    // ============================================================
+                    // Compute year's movement (Delta from opening to closing)
+                    // ✅ This gives the Detailed view's Debit/Credit columns
+                    // ============================================================
+                    decimal openingSigned = openingType == "Dr" ? openingBal : -openingBal;
+                    decimal closingSigned = closingType == "Dr" ? closingBalance : -closingBalance;
+                    decimal delta = closingSigned - openingSigned;
+
+                    decimal detailDebit = delta > 0 ? delta : 0;
+                    decimal detailCredit = delta < 0 ? Math.Abs(delta) : 0;
+
+                    // ============================================================
+                    // Summary columns = closing balance position
+                    // ============================================================
+                    decimal summaryDebit = closingType == "Dr" ? closingBalance : 0;
+                    decimal summaryCredit = closingType == "Cr" ? closingBalance : 0;
+
+                    totalDebit += summaryDebit;
+                    totalCredit += summaryCredit;
+
+                    reportData.AccountDetails.Add(new AccountDetailDTO
+                    {
+                        AccountId = account.Id,
+                        AccountName = account.Name,
+                        AccountGroupName = accountGroupName,
+                        OpeningBalance = openingBal,
+                        OpeningBalanceType = openingType,
+
+                        // ✅ Summary columns = closing balance position
+                        Debit = summaryDebit,
+                        Credit = summaryCredit,
+
+                        // ✅ Detailed columns = year's movement
+                        //    This makes the detailed view's Debit/Credit columns populated
+                        //    and matches the footer totals.
+                        DetailDebit = detailDebit,
+                        DetailCredit = detailCredit,
+
+                        ClosingBalance = closingBalance,
+                        BalanceType = closingType,
+                        AccountType = GetAccountType(accountGroupName)
+                    });
+                }
+
+                // ============================================================
+                // Safety: difference row
+                // ============================================================
+                decimal difference = totalDebit - totalCredit;
+
+                if (Math.Abs(difference) > 0.01m)
+                {
+                    _logger.LogWarning(
+                        "Post-Closing TB out of balance by {Difference}. " +
+                        "Check ClosingBalanceByFiscalYear for the selected fiscal year.",
+                        difference);
+
+                    if (difference > 0)
+                    {
+                        reportData.AccountDetails.Add(new AccountDetailDTO
+                        {
+                            AccountId = Guid.Empty,
+                            AccountName = "Difference in Opening Balance",
+                            AccountGroupName = "Difference in Opening Balance",
+                            Debit = 0,
+                            Credit = difference,
+                            DetailDebit = 0,
+                            DetailCredit = difference,   // ✅ show in detailed too
+                            ClosingBalance = difference,
+                            BalanceType = "Cr",
+                            AccountType = "Other"
+                        });
+                        totalCredit += difference;
+                    }
+                    else
+                    {
+                        decimal plug = Math.Abs(difference);
+                        reportData.AccountDetails.Add(new AccountDetailDTO
+                        {
+                            AccountId = Guid.Empty,
+                            AccountName = "Difference in Opening Balance",
+                            AccountGroupName = "Difference in Opening Balance",
+                            Debit = plug,
+                            Credit = 0,
+                            DetailDebit = plug,          // ✅ show in detailed too
+                            DetailCredit = 0,
+                            ClosingBalance = plug,
+                            BalanceType = "Dr",
+                            AccountType = "Other"
+                        });
+                        totalDebit += plug;
+                    }
+                }
+
+                reportData.AccountDetails = reportData.AccountDetails
+                    .OrderBy(r => GetAccountGroupSortOrder(r.AccountGroupName))
+                    .ThenBy(r => r.AccountName)
+                    .ToList();
+
+                // ============================================================
+                // ✅ Compute summary totals for Assets / Liabilities / Equity
+                // ============================================================
+                decimal totalAssets = reportData.AccountDetails
+                    .Where(a => a.AccountType == "Asset")
+                    .Sum(a => a.Debit - a.Credit);
+
+                decimal totalLiabilities = reportData.AccountDetails
+                    .Where(a => a.AccountType == "Liability")
+                    .Sum(a => a.Credit - a.Debit);
+
+                decimal totalEquity = reportData.AccountDetails
+                    .Where(a => a.AccountType == "Equity")
+                    .Sum(a => a.Credit - a.Debit);
+
+                reportData.Summary = new ReportSummaryDTO
+                {
+                    TotalDebit = totalDebit,
+                    TotalCredit = totalCredit,
+                    GrandTotal = totalDebit + totalCredit,
+                    NetProfit = 0,
+                    TotalAssets = totalAssets,
+                    TotalLiabilities = totalLiabilities,
+                    TotalEquity = totalEquity,
+                    IsBalanced = Math.Abs(totalDebit - totalCredit) < 0.01m,
+                    BalanceStatus = Math.Abs(totalDebit - totalCredit) < 0.01m
+                        ? "Balanced"
+                        : $"Unbalanced by {Math.Abs(totalDebit - totalCredit):N2}"
+                };
+
+                response.Success = true;
+                response.Data = reportData;
+                response.Message = "Post-Closing Trial Balance generated successfully";
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating Post-Closing Trial Balance");
+                return new AuditReportResponseDTO
+                {
+                    Success = false,
+                    Message = $"Error generating report: {ex.Message}",
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+        }
+
+
+        // public async Task<AuditReportResponseDTO> GetPreClosingTrialBalanceAsync(
+        //     Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
+        // {
+        //     try
+        //     {
+        //         var response = new AuditReportResponseDTO();
+        //         var (company, fiscalYear) = await GetCompanyAndFiscalYearAsync(companyId, fiscalYearId);
+
+        //         if (company == null || fiscalYear == null)
+        //         {
+        //             response.Success = false;
+        //             response.Message = "Company or Fiscal Year not found";
+        //             return response;
+        //         }
+
+        //         var asOnDateAd = asOnDate ?? fiscalYear.EndDate ?? DateTime.UtcNow;
+        //         var asOnDateNepali = fiscalYear.EndDateNepali ?? asOnDateAd.ToString("yyyy-MM-dd");
+
+        //         var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
+        //         var openingBalances = await _context.OpeningBalanceByFiscalYear
+        //             .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
+        //             .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
+
+        //         var closingBalances = await _context.ClosingBalanceByFiscalYear
+        //             .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
+        //             .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+
+        //         // Load transactions for this fiscal year
+        //         var transactions = await _context.Transactions
+        //             .Where(t => t.CompanyId == companyId
+        //                      && t.FiscalYearId == fiscalYearId
+        //                      && t.Status == TransactionStatus.Active
+        //                      && t.Date <= asOnDateAd)
+        //             .Include(t => t.TransactionItems)
+        //             .ToListAsync();
+
+        //         var reportData = new AuditReportDataDTO
+        //         {
+        //             Company = MapCompanyInfo(company),
+        //             FiscalYear = MapFiscalYearInfo(fiscalYear),
+        //             ReportName = "Pre-Closing Trial Balance",
+        //             ReportType = "PreClosingTrialBalance",
+        //             GeneratedDate = DateTime.UtcNow,
+        //             GeneratedDateNepali = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             AsOnDate = asOnDateAd,
+        //             AsOnDateNepali = asOnDateNepali,
+        //             IsNepaliFormat = company.DateFormat.ToString().ToLower() == "nepali",
+        //             DateFormat = company.DateFormat.ToString().ToLower()
+        //         };
+
+        //         decimal totalDebit = 0;
+        //         decimal totalCredit = 0;
+
+        //         var accountGroups = await _context.AccountGroups
+        //             .Where(ag => ag.CompanyId == companyId)
+        //             .OrderBy(ag => ag.Name)
+        //             .ToDictionaryAsync(g => g.Id, g => g);
+
+        //         // Pre-compute per-account transaction Debit/Credit sums
+        //         var txnDrCrByAccount = new Dictionary<Guid, (decimal Debit, decimal Credit)>();
+
+        //         void AddFor(Guid? accId, decimal dr, decimal cr)
+        //         {
+        //             if (!accId.HasValue) return;
+        //             if (!txnDrCrByAccount.TryGetValue(accId.Value, out var cur))
+        //                 cur = (0m, 0m);
+        //             cur.Debit += dr;
+        //             cur.Credit += cr;
+        //             txnDrCrByAccount[accId.Value] = cur;
+        //         }
+
+        //         foreach (var tx in transactions)
+        //         {
+        //             AddFor(tx.AccountId, tx.TotalDebit, tx.TotalCredit);
+        //             AddFor(tx.PaymentAccountId2, tx.TotalDebit, 0);
+        //             AddFor(tx.ReceiptAccountId2, 0, tx.TotalCredit);
+        //             AddFor(tx.DebitAccountId, tx.TotalDebit, 0);
+        //             AddFor(tx.CreditAccountId, 0, tx.TotalCredit);
+        //         }
 
         //         // ============================================================
         //         // Walk through accounts
@@ -458,10 +891,17 @@ namespace SkyForge.Services.AuditReportServices
         //                 ? group.Name
         //                 : "Uncategorized";
 
-        //             // ✅ Skip stock accounts — handled via closing stock computation below
+        //             // Exclusions
         //             if (IsStockAccount(account.Name, accountGroupName))
         //                 continue;
+        //             if (accountGroupName == "Reserves & Surplus")
+        //                 continue;
+        //             if (accountGroupName == "Profit & Loss")
+        //                 continue;
 
+        //             // ============================================================
+        //             // ✅ Compute closing balance — with fallback to Opening + Transactions
+        //             // ============================================================
         //             decimal closingBalance = 0;
         //             string balanceType = "Cr";
 
@@ -470,9 +910,29 @@ namespace SkyForge.Services.AuditReportServices
         //                 closingBalance = cb.Amount;
         //                 balanceType = cb.Type;
         //             }
+        //             else
+        //             {
+        //                 // ✅ Fallback: compute from Opening + Transactions
+        //                 decimal openingAmt = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0;
+        //                 string openingDrCr = openingBalances.TryGetValue(account.Id, out var ob2) ? ob2.Type : "Cr";
 
-        //             decimal openingBal = openingBalances.TryGetValue(account.Id, out var ob2) ? ob2.Amount : 0;
-        //             string openingType = openingBalances.TryGetValue(account.Id, out var ob3) ? ob3.Type : "Cr";
+        //                 decimal drTotal = 0, crTotal = 0;
+        //                 if (openingDrCr == "Dr") drTotal += openingAmt;
+        //                 else crTotal += openingAmt;
+
+        //                 if (txnDrCrByAccount.TryGetValue(account.Id, out var activity))
+        //                 {
+        //                     drTotal += activity.Debit;
+        //                     crTotal += activity.Credit;
+        //                 }
+
+        //                 decimal net = drTotal - crTotal;
+        //                 closingBalance = Math.Abs(net);
+        //                 balanceType = net >= 0 ? "Dr" : "Cr";
+        //             }
+
+        //             decimal openingBal = openingBalances.TryGetValue(account.Id, out var ob3) ? ob3.Amount : 0;
+        //             string openingType = openingBalances.TryGetValue(account.Id, out var ob4) ? ob4.Type : "Cr";
 
         //             decimal detailDebit = 0;
         //             decimal detailCredit = 0;
@@ -485,14 +945,6 @@ namespace SkyForge.Services.AuditReportServices
         //             decimal debit = balanceType == "Dr" ? closingBalance : 0;
         //             decimal credit = balanceType == "Cr" ? closingBalance : 0;
 
-        //             // ✅ Skip Purchase group accounts — they'll be aggregated and netted
-        //             if (accountGroupName == "Purchase")
-        //             {
-        //                 purchaseGrossDebit += debit - credit;
-        //                 continue;
-        //             }
-
-        //             // ✅ Everything else → include as-is
         //             totalDebit += debit;
         //             totalCredit += credit;
 
@@ -507,104 +959,40 @@ namespace SkyForge.Services.AuditReportServices
         //                 Credit = credit,
         //                 DetailDebit = detailDebit,
         //                 DetailCredit = detailCredit,
-        //                 ClosingBalance = closingBalance,
+        //                 ClosingBalance = closingBalance,   // ✅ now populated
         //                 BalanceType = balanceType,
         //                 AccountType = GetAccountType(accountGroupName)
         //             });
         //         }
 
-        //         // ============================================================
-        //         // ✅ Compute Closing Stock from remaining StockEntries
-        //         // ============================================================
-        //         var stockEntries = await _context.StockEntries
-        //             .Where(se => se.CompanyId == companyId && se.Quantity > 0)
-        //             .ToListAsync();
-
-        //         decimal closingStockValue = stockEntries
-        //             .Sum(se => se.Quantity * se.PuPrice);
-
-        //         // ============================================================
-        //         // ✅ Purchase (Net) = Purchase (Gross) − Closing Stock
-        //         //    → only the sold portion is displayed
-        //         // ============================================================
-        //         decimal purchaseNet = purchaseGrossDebit - closingStockValue;
-
-        //         if (purchaseNet != 0)
-        //         {
-        //             var purchaseRow = new AccountDetailDTO
-        //             {
-        //                 AccountId = Guid.Empty,
-        //                 AccountName = "Purchase (Net of Closing Stock)",
-        //                 AccountGroupName = "Purchase",
-        //                 Debit = purchaseNet > 0 ? purchaseNet : 0,
-        //                 Credit = purchaseNet < 0 ? Math.Abs(purchaseNet) : 0,
-        //                 ClosingBalance = Math.Abs(purchaseNet),
-        //                 BalanceType = purchaseNet > 0 ? "Dr" : "Cr",
-        //                 AccountType = "Expense"
-        //             };
-        //             reportData.AccountDetails.Add(purchaseRow);
-        //             totalDebit += purchaseRow.Debit;
-        //             totalCredit += purchaseRow.Credit;
-        //         }
-
-        //         // ============================================================
-        //         // ✅ Add Closing Stock as a separate Dr asset row
-        //         // ============================================================
-        //         if (closingStockValue != 0)
-        //         {
-        //             var stockRow = new AccountDetailDTO
-        //             {
-        //                 AccountId = Guid.Empty,
-        //                 AccountName = "Closing Stock",
-        //                 AccountGroupName = "Stock in Hand",
-        //                 Debit = closingStockValue,
-        //                 Credit = 0,
-        //                 ClosingBalance = closingStockValue,
-        //                 BalanceType = "Dr",
-        //                 AccountType = "Asset"
-        //             };
-        //             reportData.AccountDetails.Add(stockRow);
-        //             totalDebit += stockRow.Debit;
-        //         }
-
-        //         // ============================================================
-        //         // ✅ Safety: if still out of balance, add Difference row
-        //         //    The plug row goes on the SHORT side (opposite of the imbalance)
-        //         //    so the TB balances: Total Dr == Total Cr
-        //         // ============================================================
+        //         // Safety: difference row
         //         decimal difference = totalDebit - totalCredit;
 
         //         if (Math.Abs(difference) > 0.01m)
         //         {
         //             _logger.LogWarning(
-        //                 "Closing TB out of balance by {Difference}. " +
-        //                 "PurchaseGross={PG}, ClosingStock={CS}, PurchaseNet={PN}",
-        //                 difference, purchaseGrossDebit, closingStockValue, purchaseNet);
+        //                 "Pre-Closing TB out of balance by {Difference}.",
+        //                 difference);
 
         //             if (difference > 0)
         //             {
-        //                 // ✅ Dr side is heavier → plug goes on CR side
-        //                 decimal plug = difference;
-
         //                 var diffRow = new AccountDetailDTO
         //                 {
         //                     AccountId = Guid.Empty,
         //                     AccountName = "Difference in Opening Balance",
         //                     AccountGroupName = "Difference in Opening Balance",
         //                     Debit = 0,
-        //                     Credit = plug,
-        //                     ClosingBalance = plug,
+        //                     Credit = difference,
+        //                     ClosingBalance = difference,
         //                     BalanceType = "Cr",
         //                     AccountType = "Other"
         //                 };
         //                 reportData.AccountDetails.Add(diffRow);
-        //                 totalCredit += plug;
+        //                 totalCredit += difference;
         //             }
         //             else
         //             {
-        //                 // ✅ Cr side is heavier → plug goes on DR side
         //                 decimal plug = Math.Abs(difference);
-
         //                 var diffRow = new AccountDetailDTO
         //                 {
         //                     AccountId = Guid.Empty,
@@ -621,17 +1009,12 @@ namespace SkyForge.Services.AuditReportServices
         //             }
         //         }
 
-        //         // ============================================================
-        //         // ✅ Order rows (Balance Sheet groups first, then Purchase, then Other)
-        //         // ============================================================
+        //         // Order rows
         //         reportData.AccountDetails = reportData.AccountDetails
         //             .OrderBy(r => GetAccountGroupSortOrder(r.AccountGroupName))
         //             .ThenBy(r => r.AccountName)
         //             .ToList();
 
-        //         // ============================================================
-        //         // ✅ Summary
-        //         // ============================================================
         //         reportData.Summary = new ReportSummaryDTO
         //         {
         //             TotalDebit = totalDebit,
@@ -645,12 +1028,12 @@ namespace SkyForge.Services.AuditReportServices
 
         //         response.Success = true;
         //         response.Data = reportData;
-        //         response.Message = "Closing Trial Balance generated successfully";
+        //         response.Message = "Pre-Closing Trial Balance generated successfully";
         //         return response;
         //     }
         //     catch (Exception ex)
         //     {
-        //         _logger.LogError(ex, "Error generating Closing Trial Balance");
+        //         _logger.LogError(ex, "Error generating Pre-Closing Trial Balance");
         //         return new AuditReportResponseDTO
         //         {
         //             Success = false,
@@ -660,7 +1043,7 @@ namespace SkyForge.Services.AuditReportServices
         //     }
         // }
 
-        public async Task<AuditReportResponseDTO> GetClosingTrialBalanceAsync(
+        public async Task<AuditReportResponseDTO> GetPreClosingTrialBalanceAsync(
             Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
         {
             try
@@ -679,15 +1062,16 @@ namespace SkyForge.Services.AuditReportServices
                 var asOnDateNepali = fiscalYear.EndDateNepali ?? asOnDateAd.ToString("yyyy-MM-dd");
 
                 var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
+
+                // ✅ Opening balances carried forward from previous year
                 var openingBalances = await _context.OpeningBalanceByFiscalYear
                     .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
                     .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
 
-                var closingBalances = await _context.ClosingBalanceByFiscalYear
-                    .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
-                    .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+                // ✅ Pre-Closing TB does NOT read from ClosingBalanceByFiscalYear.
+                //    It computes the position from Opening + current-year transactions.
 
-                // Load transactions for this fiscal year (to compute per-account Debit/Credit)
+                // ✅ Load transactions for the selected fiscal year
                 var transactions = await _context.Transactions
                     .Where(t => t.CompanyId == companyId
                              && t.FiscalYearId == fiscalYearId
@@ -700,8 +1084,8 @@ namespace SkyForge.Services.AuditReportServices
                 {
                     Company = MapCompanyInfo(company),
                     FiscalYear = MapFiscalYearInfo(fiscalYear),
-                    ReportName = "Closing Trial Balance",
-                    ReportType = "ClosingTrialBalance",
+                    ReportName = "Pre-Closing Trial Balance",
+                    ReportType = "PreClosingTrialBalance",
                     GeneratedDate = DateTime.UtcNow,
                     GeneratedDateNepali = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     AsOnDate = asOnDateAd,
@@ -743,11 +1127,6 @@ namespace SkyForge.Services.AuditReportServices
                 }
 
                 // ============================================================
-                // Accumulator for Purchase (gross) — will be netted later
-                // ============================================================
-                decimal purchaseGrossDebit = 0;
-
-                // ============================================================
                 // Walk through accounts
                 // ============================================================
                 foreach (var account in accounts)
@@ -756,32 +1135,20 @@ namespace SkyForge.Services.AuditReportServices
                         ? group.Name
                         : "Uncategorized";
 
-                    // ✅ Skip stock accounts — handled via closing stock computation below
-                    if (IsStockAccount(account.Name, accountGroupName))
-                        continue;
-
-                    // ✅ Skip Reserves & Surplus — this is a PRE-CLOSING TB
-                    //    The year's profit is already implicit in Sale/Purchase.
-                    //    Adding Reserves here would double-count and unbalance the report.
-                    if (accountGroupName == "Reserves & Surplus")
-                        continue;
-
-                    // ✅ Skip Profit & Loss control account (post-closing only)
+                    // ✅ Only skip the P&L control account (always 0 in a TB)
+                    //    Stock and Reserves & Surplus ARE included — they're Balance Sheet items.
                     if (accountGroupName == "Profit & Loss")
                         continue;
 
-                    decimal closingBalance = 0;
-                    string balanceType = "Cr";
+                    // ============================================================
+                    // Opening balance
+                    // ============================================================
+                    decimal openingBal = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0;
+                    string openingType = openingBalances.TryGetValue(account.Id, out var ob2) ? ob2.Type : "Cr";
 
-                    if (closingBalances.TryGetValue(account.Id, out var cb))
-                    {
-                        closingBalance = cb.Amount;
-                        balanceType = cb.Type;
-                    }
-
-                    decimal openingBal = openingBalances.TryGetValue(account.Id, out var ob2) ? ob2.Amount : 0;
-                    string openingType = openingBalances.TryGetValue(account.Id, out var ob3) ? ob3.Type : "Cr";
-
+                    // ============================================================
+                    // Current-year transaction activity
+                    // ============================================================
                     decimal detailDebit = 0;
                     decimal detailCredit = 0;
                     if (txnDrCrByAccount.TryGetValue(account.Id, out var dc))
@@ -790,17 +1157,24 @@ namespace SkyForge.Services.AuditReportServices
                         detailCredit = dc.Credit;
                     }
 
+                    // ============================================================
+                    // ✅ Compute closing balance = Opening + Current-Year Net
+                    // ============================================================
+                    decimal openingSigned = openingType == "Dr" ? openingBal : -openingBal;
+                    decimal currentNet = detailDebit - detailCredit;
+                    decimal closingSigned = openingSigned + currentNet;
+
+                    decimal closingBalance = Math.Abs(closingSigned);
+                    string balanceType = closingSigned >= 0 ? "Dr" : "Cr";
+
+                    // Skip accounts with no balance and no activity
+                    if (closingBalance == 0 && detailDebit == 0 && detailCredit == 0)
+                        continue;
+
+                    // Summary columns = closing position
                     decimal debit = balanceType == "Dr" ? closingBalance : 0;
                     decimal credit = balanceType == "Cr" ? closingBalance : 0;
 
-                    // ✅ Skip Purchase group accounts — they'll be aggregated and netted
-                    if (accountGroupName == "Purchase")
-                    {
-                        purchaseGrossDebit += debit - credit;
-                        continue;
-                    }
-
-                    // ✅ Everything else → include as-is
                     totalDebit += debit;
                     totalCredit += credit;
 
@@ -811,10 +1185,15 @@ namespace SkyForge.Services.AuditReportServices
                         AccountGroupName = accountGroupName,
                         OpeningBalance = openingBal,
                         OpeningBalanceType = openingType,
+
+                        // Summary columns
                         Debit = debit,
                         Credit = credit,
+
+                        // Detailed columns = current-year movement
                         DetailDebit = detailDebit,
                         DetailCredit = detailCredit,
+
                         ClosingBalance = closingBalance,
                         BalanceType = balanceType,
                         AccountType = GetAccountType(accountGroupName)
@@ -822,115 +1201,56 @@ namespace SkyForge.Services.AuditReportServices
                 }
 
                 // ============================================================
-                // ✅ Compute Closing Stock from remaining StockEntries
-                // ============================================================
-                var stockEntries = await _context.StockEntries
-                    .Where(se => se.CompanyId == companyId && se.Quantity > 0)
-                    .ToListAsync();
-
-                decimal closingStockValue = stockEntries
-                    .Sum(se => se.Quantity * se.PuPrice);
-
-                // ============================================================
-                // ✅ Purchase (Net) = Purchase (Gross) − Closing Stock
-                //    → only the sold portion is displayed
-                // ============================================================
-                decimal purchaseNet = purchaseGrossDebit - closingStockValue;
-
-                if (purchaseNet != 0)
-                {
-                    var purchaseRow = new AccountDetailDTO
-                    {
-                        AccountId = Guid.Empty,
-                        AccountName = "Purchase (Net of Closing Stock)",
-                        AccountGroupName = "Purchase",
-                        Debit = purchaseNet > 0 ? purchaseNet : 0,
-                        Credit = purchaseNet < 0 ? Math.Abs(purchaseNet) : 0,
-                        ClosingBalance = Math.Abs(purchaseNet),
-                        BalanceType = purchaseNet > 0 ? "Dr" : "Cr",
-                        AccountType = "Expense"
-                    };
-                    reportData.AccountDetails.Add(purchaseRow);
-                    totalDebit += purchaseRow.Debit;
-                    totalCredit += purchaseRow.Credit;
-                }
-
-                // ============================================================
-                // ✅ Add Closing Stock as a separate Dr asset row
-                // ============================================================
-                if (closingStockValue != 0)
-                {
-                    var stockRow = new AccountDetailDTO
-                    {
-                        AccountId = Guid.Empty,
-                        AccountName = "Closing Stock",
-                        AccountGroupName = "Stock in Hand",
-                        Debit = closingStockValue,
-                        Credit = 0,
-                        ClosingBalance = closingStockValue,
-                        BalanceType = "Dr",
-                        AccountType = "Asset"
-                    };
-                    reportData.AccountDetails.Add(stockRow);
-                    totalDebit += stockRow.Debit;
-                }
-
-                // ============================================================
-                // ✅ Safety: if still out of balance, add Difference row
-                //    The plug row goes on the SHORT side (opposite of the imbalance)
-                //    so the TB balances: Total Dr == Total Cr
+                // Safety: difference row
                 // ============================================================
                 decimal difference = totalDebit - totalCredit;
 
                 if (Math.Abs(difference) > 0.01m)
                 {
                     _logger.LogWarning(
-                        "Closing TB out of balance by {Difference}. " +
-                        "PurchaseGross={PG}, ClosingStock={CS}, PurchaseNet={PN}",
-                        difference, purchaseGrossDebit, closingStockValue, purchaseNet);
+                        "Pre-Closing TB out of balance by {Difference}. " +
+                        "Check opening balances and transactions for the selected fiscal year.",
+                        difference);
 
                     if (difference > 0)
                     {
-                        // Dr side is heavier → plug on CR side
-                        decimal plug = difference;
-
-                        var diffRow = new AccountDetailDTO
+                        reportData.AccountDetails.Add(new AccountDetailDTO
                         {
                             AccountId = Guid.Empty,
                             AccountName = "Difference in Opening Balance",
                             AccountGroupName = "Difference in Opening Balance",
                             Debit = 0,
-                            Credit = plug,
-                            ClosingBalance = plug,
+                            Credit = difference,
+                            DetailDebit = 0,
+                            DetailCredit = 0,
+                            ClosingBalance = difference,
                             BalanceType = "Cr",
                             AccountType = "Other"
-                        };
-                        reportData.AccountDetails.Add(diffRow);
-                        totalCredit += plug;
+                        });
+                        totalCredit += difference;
                     }
                     else
                     {
-                        // Cr side is heavier → plug on DR side
                         decimal plug = Math.Abs(difference);
-
-                        var diffRow = new AccountDetailDTO
+                        reportData.AccountDetails.Add(new AccountDetailDTO
                         {
                             AccountId = Guid.Empty,
                             AccountName = "Difference in Opening Balance",
                             AccountGroupName = "Difference in Opening Balance",
                             Debit = plug,
                             Credit = 0,
+                            DetailDebit = 0,
+                            DetailCredit = 0,
                             ClosingBalance = plug,
                             BalanceType = "Dr",
                             AccountType = "Other"
-                        };
-                        reportData.AccountDetails.Add(diffRow);
+                        });
                         totalDebit += plug;
                     }
                 }
 
                 // ============================================================
-                // ✅ Order rows
+                // Order rows
                 // ============================================================
                 reportData.AccountDetails = reportData.AccountDetails
                     .OrderBy(r => GetAccountGroupSortOrder(r.AccountGroupName))
@@ -938,7 +1258,7 @@ namespace SkyForge.Services.AuditReportServices
                     .ToList();
 
                 // ============================================================
-                // ✅ Summary
+                // Summary
                 // ============================================================
                 reportData.Summary = new ReportSummaryDTO
                 {
@@ -953,12 +1273,12 @@ namespace SkyForge.Services.AuditReportServices
 
                 response.Success = true;
                 response.Data = reportData;
-                response.Message = "Closing Trial Balance generated successfully";
+                response.Message = "Pre-Closing Trial Balance generated successfully";
                 return response;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating Closing Trial Balance");
+                _logger.LogError(ex, "Error generating Pre-Closing Trial Balance");
                 return new AuditReportResponseDTO
                 {
                     Success = false,
@@ -969,7 +1289,7 @@ namespace SkyForge.Services.AuditReportServices
         }
 
         // ============================================================
-        // Sort order for account groups (optional — keeps report tidy)
+        // Sort order for account groups
         // ============================================================
         private static int GetAccountGroupSortOrder(string groupName)
         {
@@ -998,11 +1318,730 @@ namespace SkyForge.Services.AuditReportServices
                 "Income (Indirect)" => 33,
                 "Expenses (Direct/Mfg.)" => 34,
                 "Expenses (Indirect/Admn.)" => 35,
-                "Profit & Loss" => 40,
                 "Difference in Opening Balance" => 99,
                 _ => 50
             };
         }
+
+        // ============================================================
+        // Sort order for account groups (optional — keeps report tidy)
+        // ============================================================
+        // public async Task<AuditReportResponseDTO> GetProfitAndLossAccountAsync(
+        //     Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
+        // {
+        //     try
+        //     {
+        //         var response = new AuditReportResponseDTO();
+        //         var (company, fiscalYear) = await GetCompanyAndFiscalYearAsync(companyId, fiscalYearId);
+
+        //         if (company == null || fiscalYear == null)
+        //         {
+        //             response.Success = false;
+        //             response.Message = "Company or Fiscal Year not found";
+        //             return response;
+        //         }
+
+        //         var asOnDateAd = asOnDate ?? fiscalYear.EndDate ?? DateTime.UtcNow;
+        //         var asOnDateNepali = fiscalYear.EndDateNepali ?? asOnDateAd.ToString("yyyy-MM-dd");
+
+        //         var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
+        //         var closingBalances = await _context.ClosingBalanceByFiscalYear
+        //             .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
+        //             .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+
+        //         var openingBalances = await _context.OpeningBalanceByFiscalYear
+        //             .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
+        //             .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
+
+        //         var cogsSummary = await CalculateCogsAsync(companyId, fiscalYearId);
+
+        //         var reportData = new AuditReportDataDTO
+        //         {
+        //             Company = MapCompanyInfo(company),
+        //             FiscalYear = MapFiscalYearInfo(fiscalYear),
+        //             ReportName = "Profit & Loss Account",
+        //             ReportType = "ProfitAndLoss",
+        //             GeneratedDate = DateTime.UtcNow,
+        //             GeneratedDateNepali = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             AsOnDate = asOnDateAd,
+        //             AsOnDateNepali = asOnDateNepali,
+        //             IsNepaliFormat = company.DateFormat.ToString().ToLower() == "nepali",
+        //             DateFormat = company.DateFormat.ToString().ToLower()
+        //         };
+
+        //         var accountGroups = await _context.AccountGroups
+        //             .Where(ag => ag.CompanyId == companyId)
+        //             .ToDictionaryAsync(g => g.Id, g => g);
+
+        //         var periodicCogs = await CalculatePeriodicCogsAsync(companyId, fiscalYearId, accounts, accountGroups);
+
+        //         // ============================================================
+        //         // Helpers
+        //         // ============================================================
+        //         AccountDetailDTO Header(string name) => new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = name,
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = 0,
+        //             Credit = 0,
+        //             ClosingBalance = 0,
+        //             BalanceType = "",
+        //             AccountType = "SECTION_HEADER"
+        //         };
+
+        //         AccountDetailDTO SubtotalCr(string label, decimal amount) => new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = label,
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = 0,
+        //             Credit = amount,
+        //             ClosingBalance = amount,
+        //             BalanceType = "Cr",
+        //             AccountType = "SUBTOTAL"
+        //         };
+
+        //         AccountDetailDTO SubtotalDr(string label, decimal amount) => new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = label,
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = amount,
+        //             Credit = 0,
+        //             ClosingBalance = amount,
+        //             BalanceType = "Dr",
+        //             AccountType = "SUBTOTAL"
+        //         };
+
+        //         // ============================================================
+        //         // 1. SALE
+        //         // ============================================================
+        //         var saleDetails = new List<AccountDetailDTO>();
+        //         decimal saleTotal = 0;
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //             if (groupName != "Sale") continue;
+
+        //             decimal bal = closingBalances.TryGetValue(account.Id, out var cb) ? cb.Amount : 0;
+        //             if (bal == 0) continue;
+
+        //             saleDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = groupName,
+        //                 OpeningBalance = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0,
+        //                 Debit = 0,
+        //                 Credit = bal,
+        //                 ClosingBalance = bal,
+        //                 BalanceType = "Cr",
+        //                 AccountType = "Income"
+        //             });
+        //             saleTotal += bal;
+        //         }
+
+        //         // ============================================================
+        //         // 2. INCOME (Direct/Opr.)
+        //         // ============================================================
+        //         var incomeDirectDetails = new List<AccountDetailDTO>();
+        //         decimal incomeDirectTotal = 0;
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //             if (groupName != "Income (Direct/Opr.)") continue;
+
+        //             decimal bal = closingBalances.TryGetValue(account.Id, out var cb) ? cb.Amount : 0;
+        //             if (bal == 0) continue;
+
+        //             incomeDirectDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = groupName,
+        //                 OpeningBalance = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0,
+        //                 Debit = 0,
+        //                 Credit = bal,
+        //                 ClosingBalance = bal,
+        //                 BalanceType = "Cr",
+        //                 AccountType = "Income"
+        //             });
+        //             incomeDirectTotal += bal;
+        //         }
+
+        //         // ============================================================
+        //         // 3. INCOME (Indirect)
+        //         // ============================================================
+        //         var incomeIndirectDetails = new List<AccountDetailDTO>();
+        //         decimal incomeIndirectTotal = 0;
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //             if (groupName != "Income (Indirect)") continue;
+
+        //             decimal bal = closingBalances.TryGetValue(account.Id, out var cb) ? cb.Amount : 0;
+        //             if (bal == 0) continue;
+
+        //             incomeIndirectDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = groupName,
+        //                 OpeningBalance = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0,
+        //                 Debit = 0,
+        //                 Credit = bal,
+        //                 ClosingBalance = bal,
+        //                 BalanceType = "Cr",
+        //                 AccountType = "Income"
+        //             });
+        //             incomeIndirectTotal += bal;
+        //         }
+
+        //         decimal totalRevenue = saleTotal + incomeDirectTotal + incomeIndirectTotal;
+
+        //         // ============================================================
+        //         // 4. EXPENSES (Indirect/Admn.)
+        //         // ============================================================
+        //         var expenseIndirectDetails = new List<AccountDetailDTO>();
+        //         decimal totalExpenseIndirect = 0;
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //             if (groupName != "Expenses (Indirect/Admn.)") continue;
+
+        //             decimal bal = closingBalances.TryGetValue(account.Id, out var cb) ? cb.Amount : 0;
+        //             if (bal == 0) continue;
+
+        //             expenseIndirectDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = groupName,
+        //                 OpeningBalance = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0,
+        //                 Debit = bal,
+        //                 Credit = 0,
+        //                 ClosingBalance = bal,
+        //                 BalanceType = "Dr",
+        //                 AccountType = "Expense"
+        //             });
+        //             totalExpenseIndirect += bal;
+        //         }
+
+        //         // ============================================================
+        //         // 5. COGS
+        //         // ============================================================
+        //         decimal cogs = periodicCogs.TotalCogs;
+
+        //         var cogsRow = new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = "Cost of Goods Sold",
+        //             AccountGroupName = "COGS",
+        //             OpeningBalance = periodicCogs.OpeningStock,
+        //             Debit = cogs,
+        //             Credit = 0,
+        //             ClosingBalance = cogs,
+        //             BalanceType = "Dr",
+        //             AccountType = "COGS"
+        //         };
+
+        //         // ============================================================
+        //         // 6. BUILD THE P&L — all sections always present
+        //         // ============================================================
+
+        //         // --- Sale ---
+        //         reportData.AccountDetails.Add(Header("Sale"));
+        //         reportData.AccountDetails.AddRange(saleDetails);
+        //         reportData.AccountDetails.Add(SubtotalCr("Total Sale", saleTotal));
+
+        //         // --- Income (Direct/Opr.) ---
+        //         reportData.AccountDetails.Add(Header("Income (Direct/Opr.)"));
+        //         reportData.AccountDetails.AddRange(incomeDirectDetails);
+        //         reportData.AccountDetails.Add(SubtotalCr("Total Income (Direct/Opr.)", incomeDirectTotal));
+
+        //         // --- Income (Indirect) ---
+        //         reportData.AccountDetails.Add(Header("Income (Indirect)"));
+        //         reportData.AccountDetails.AddRange(incomeIndirectDetails);
+        //         reportData.AccountDetails.Add(SubtotalCr("Total Income (Indirect)", incomeIndirectTotal));
+
+        //         // --- Total Revenue ---
+        //         reportData.AccountDetails.Add(new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = "Total Revenue",
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = 0,
+        //             Credit = totalRevenue,
+        //             ClosingBalance = totalRevenue,
+        //             BalanceType = "Cr",
+        //             AccountType = "SECTION_TOTAL"
+        //         });
+
+        //         // --- COGS ---
+        //         reportData.AccountDetails.Add(Header("Cost of Goods Sold"));
+        //         reportData.AccountDetails.Add(cogsRow);
+
+        //         // --- Gross Profit ---
+        //         decimal grossProfit = totalRevenue - cogs;
+        //         reportData.AccountDetails.Add(new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = "Gross Profit",
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = 0,
+        //             Credit = grossProfit >= 0 ? grossProfit : 0,
+        //             ClosingBalance = Math.Abs(grossProfit),
+        //             BalanceType = grossProfit >= 0 ? "Cr" : "Dr",
+        //             AccountType = "GROSS_PROFIT"
+        //         });
+
+        //         // --- Expenses (Indirect/Admn.) ---
+        //         reportData.AccountDetails.Add(Header("Expenses (Indirect/Admn.)"));
+        //         reportData.AccountDetails.AddRange(expenseIndirectDetails);
+        //         reportData.AccountDetails.Add(SubtotalDr("Total Expenses (Indirect/Admn.)", totalExpenseIndirect));
+
+        //         // --- Net Profit / Loss ---
+        //         decimal netProfitLoss = grossProfit - totalExpenseIndirect;
+        //         reportData.AccountDetails.Add(new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = "Net Profit / Loss",
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = netProfitLoss < 0 ? Math.Abs(netProfitLoss) : 0,
+        //             Credit = netProfitLoss >= 0 ? netProfitLoss : 0,
+        //             ClosingBalance = Math.Abs(netProfitLoss),
+        //             BalanceType = netProfitLoss >= 0 ? "Cr" : "Dr",
+        //             AccountType = "NET_PROFIT"
+        //         });
+
+        //         // ============================================================
+        //         // 7. SUMMARY
+        //         // ============================================================
+        //         reportData.CogsDetails = cogsSummary.Items;
+
+        //         reportData.Summary = new ReportSummaryDTO
+        //         {
+        //             TotalDebit = cogs + totalExpenseIndirect,
+        //             TotalCredit = totalRevenue,
+        //             NetProfit = netProfitLoss,
+        //             TotalCogs = cogs,
+        //             TotalPeriodicCogs = periodicCogs.TotalCogs,
+        //             CogsDifference = cogsSummary.TotalCogs - periodicCogs.TotalCogs,
+        //             GrandTotal = totalRevenue + cogs + totalExpenseIndirect,
+        //             IsBalanced = true,
+        //             BalanceStatus = "Balanced"
+        //         };
+
+        //         response.Success = true;
+        //         response.Data = reportData;
+        //         response.Message = "Profit & Loss Account generated successfully";
+        //         return response;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error generating Profit & Loss Account");
+        //         return new AuditReportResponseDTO
+        //         {
+        //             Success = false,
+        //             Message = $"Error generating report: {ex.Message}",
+        //             Errors = new List<string> { ex.Message }
+        //         };
+        //     }
+        // }
+
+        //-----------------------------------------------end1
+
+        // public async Task<AuditReportResponseDTO> GetProfitAndLossAccountAsync(
+        //     Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
+        // {
+        //     try
+        //     {
+        //         var response = new AuditReportResponseDTO();
+        //         var (company, fiscalYear) = await GetCompanyAndFiscalYearAsync(companyId, fiscalYearId);
+
+        //         if (company == null || fiscalYear == null)
+        //         {
+        //             response.Success = false;
+        //             response.Message = "Company or Fiscal Year not found";
+        //             return response;
+        //         }
+
+        //         var asOnDateAd = asOnDate ?? fiscalYear.EndDate ?? DateTime.UtcNow;
+        //         var asOnDateNepali = fiscalYear.EndDateNepali ?? asOnDateAd.ToString("yyyy-MM-dd");
+
+        //         var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
+
+        //         var openingBalances = await _context.OpeningBalanceByFiscalYear
+        //             .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
+        //             .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
+
+        //         // ✅ Load current-year transactions for live P&L
+        //         var transactions = await _context.Transactions
+        //             .Where(t => t.CompanyId == companyId
+        //                      && t.FiscalYearId == fiscalYearId
+        //                      && t.Status == TransactionStatus.Active
+        //                      && t.Date <= asOnDateAd)
+        //             .ToListAsync();
+
+        //         var txnDrCrByAccount = new Dictionary<Guid, (decimal Debit, decimal Credit)>();
+
+        //         void AddFor(Guid? accId, decimal dr, decimal cr)
+        //         {
+        //             if (!accId.HasValue) return;
+        //             if (!txnDrCrByAccount.TryGetValue(accId.Value, out var cur))
+        //                 cur = (0m, 0m);
+        //             cur.Debit += dr;
+        //             cur.Credit += cr;
+        //             txnDrCrByAccount[accId.Value] = cur;
+        //         }
+
+        //         foreach (var tx in transactions)
+        //         {
+        //             AddFor(tx.AccountId, tx.TotalDebit, tx.TotalCredit);
+        //             AddFor(tx.PaymentAccountId2, tx.TotalDebit, 0);
+        //             AddFor(tx.ReceiptAccountId2, 0, tx.TotalCredit);
+        //             AddFor(tx.DebitAccountId, tx.TotalDebit, 0);
+        //             AddFor(tx.CreditAccountId, 0, tx.TotalCredit);
+        //         }
+
+        //         var cogsSummary = await CalculateCogsAsync(companyId, fiscalYearId);
+
+        //         var reportData = new AuditReportDataDTO
+        //         {
+        //             Company = MapCompanyInfo(company),
+        //             FiscalYear = MapFiscalYearInfo(fiscalYear),
+        //             ReportName = "Profit & Loss Account",
+        //             ReportType = "ProfitAndLoss",
+        //             GeneratedDate = DateTime.UtcNow,
+        //             GeneratedDateNepali = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //             AsOnDate = asOnDateAd,
+        //             AsOnDateNepali = asOnDateNepali,
+        //             IsNepaliFormat = company.DateFormat.ToString().ToLower() == "nepali",
+        //             DateFormat = company.DateFormat.ToString().ToLower()
+        //         };
+
+        //         var accountGroups = await _context.AccountGroups
+        //             .Where(ag => ag.CompanyId == companyId)
+        //             .ToDictionaryAsync(g => g.Id, g => g);
+
+        //         var periodicCogs = await CalculatePeriodicCogsAsync(companyId, fiscalYearId, accounts, accountGroups);
+
+        //         // ============================================================
+        //         // ✅ Helper: compute live balance from Opening + Transactions
+        //         // ============================================================
+        //         decimal GetAccountBalance(Guid accountId, out decimal drTotal, out decimal crTotal, out string type)
+        //         {
+        //             drTotal = 0;
+        //             crTotal = 0;
+
+        //             // Opening
+        //             decimal openingAmt = openingBalances.TryGetValue(accountId, out var ob) ? ob.Amount : 0;
+        //             string openingType = openingBalances.TryGetValue(accountId, out var ob2) ? ob2.Type : "Cr";
+
+        //             if (openingType == "Dr") drTotal += openingAmt;
+        //             else crTotal += openingAmt;
+
+        //             // Current year transactions
+        //             if (txnDrCrByAccount.TryGetValue(accountId, out var txn))
+        //             {
+        //                 drTotal += txn.Debit;
+        //                 crTotal += txn.Credit;
+        //             }
+
+        //             decimal net = drTotal - crTotal;
+        //             type = net >= 0 ? "Dr" : "Cr";
+        //             return Math.Abs(net);
+        //         }
+
+        //         // ============================================================
+        //         // Helpers
+        //         // ============================================================
+        //         AccountDetailDTO Header(string name) => new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = name,
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = 0,
+        //             Credit = 0,
+        //             ClosingBalance = 0,
+        //             BalanceType = "",
+        //             AccountType = "SECTION_HEADER"
+        //         };
+
+        //         AccountDetailDTO SubtotalCr(string label, decimal amount) => new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = label,
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = 0,
+        //             Credit = amount,
+        //             ClosingBalance = amount,
+        //             BalanceType = "Cr",
+        //             AccountType = "SUBTOTAL"
+        //         };
+
+        //         AccountDetailDTO SubtotalDr(string label, decimal amount) => new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = label,
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = amount,
+        //             Credit = 0,
+        //             ClosingBalance = amount,
+        //             BalanceType = "Dr",
+        //             AccountType = "SUBTOTAL"
+        //         };
+
+        //         // ============================================================
+        //         // 1. SALE — compute from transactions
+        //         // ============================================================
+        //         var saleDetails = new List<AccountDetailDTO>();
+        //         decimal saleTotal = 0;
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //             if (groupName != "Sale") continue;
+
+        //             decimal bal = GetAccountBalance(account.Id, out _, out _, out _);
+        //             if (bal == 0) continue;
+
+        //             saleDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = groupName,
+        //                 OpeningBalance = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0,
+        //                 Debit = 0,
+        //                 Credit = bal,
+        //                 ClosingBalance = bal,
+        //                 BalanceType = "Cr",
+        //                 AccountType = "Income"
+        //             });
+        //             saleTotal += bal;
+        //         }
+
+        //         // ============================================================
+        //         // 2. INCOME (Direct/Opr.)
+        //         // ============================================================
+        //         var incomeDirectDetails = new List<AccountDetailDTO>();
+        //         decimal incomeDirectTotal = 0;
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //             if (groupName != "Income (Direct/Opr.)") continue;
+
+        //             decimal bal = GetAccountBalance(account.Id, out _, out _, out _);
+        //             if (bal == 0) continue;
+
+        //             incomeDirectDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = groupName,
+        //                 OpeningBalance = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0,
+        //                 Debit = 0,
+        //                 Credit = bal,
+        //                 ClosingBalance = bal,
+        //                 BalanceType = "Cr",
+        //                 AccountType = "Income"
+        //             });
+        //             incomeDirectTotal += bal;
+        //         }
+
+        //         // ============================================================
+        //         // 3. INCOME (Indirect)
+        //         // ============================================================
+        //         var incomeIndirectDetails = new List<AccountDetailDTO>();
+        //         decimal incomeIndirectTotal = 0;
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //             if (groupName != "Income (Indirect)") continue;
+
+        //             decimal bal = GetAccountBalance(account.Id, out _, out _, out _);
+        //             if (bal == 0) continue;
+
+        //             incomeIndirectDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = groupName,
+        //                 OpeningBalance = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0,
+        //                 Debit = 0,
+        //                 Credit = bal,
+        //                 ClosingBalance = bal,
+        //                 BalanceType = "Cr",
+        //                 AccountType = "Income"
+        //             });
+        //             incomeIndirectTotal += bal;
+        //         }
+
+        //         decimal totalRevenue = saleTotal + incomeDirectTotal + incomeIndirectTotal;
+
+        //         // ============================================================
+        //         // 4. EXPENSES (Indirect/Admn.)
+        //         // ============================================================
+        //         var expenseIndirectDetails = new List<AccountDetailDTO>();
+        //         decimal totalExpenseIndirect = 0;
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //             if (groupName != "Expenses (Indirect/Admn.)") continue;
+
+        //             decimal bal = GetAccountBalance(account.Id, out _, out _, out _);
+        //             if (bal == 0) continue;
+
+        //             expenseIndirectDetails.Add(new AccountDetailDTO
+        //             {
+        //                 AccountId = account.Id,
+        //                 AccountName = account.Name,
+        //                 AccountGroupName = groupName,
+        //                 OpeningBalance = openingBalances.TryGetValue(account.Id, out var ob) ? ob.Amount : 0,
+        //                 Debit = bal,
+        //                 Credit = 0,
+        //                 ClosingBalance = bal,
+        //                 BalanceType = "Dr",
+        //                 AccountType = "Expense"
+        //             });
+        //             totalExpenseIndirect += bal;
+        //         }
+
+        //         // ============================================================
+        //         // 5. COGS
+        //         // ============================================================
+        //         decimal cogs = periodicCogs.TotalCogs;
+
+        //         var cogsRow = new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = "Cost of Goods Sold",
+        //             AccountGroupName = "COGS",
+        //             OpeningBalance = periodicCogs.OpeningStock,
+        //             Debit = cogs,
+        //             Credit = 0,
+        //             ClosingBalance = cogs,
+        //             BalanceType = "Dr",
+        //             AccountType = "COGS"
+        //         };
+
+        //         // ============================================================
+        //         // 6. BUILD THE P&L
+        //         // ============================================================
+
+        //         reportData.AccountDetails.Add(Header("Sale"));
+        //         reportData.AccountDetails.AddRange(saleDetails);
+        //         reportData.AccountDetails.Add(SubtotalCr("Total Sale", saleTotal));
+
+        //         reportData.AccountDetails.Add(Header("Income (Direct/Opr.)"));
+        //         reportData.AccountDetails.AddRange(incomeDirectDetails);
+        //         reportData.AccountDetails.Add(SubtotalCr("Total Income (Direct/Opr.)", incomeDirectTotal));
+
+        //         reportData.AccountDetails.Add(Header("Income (Indirect)"));
+        //         reportData.AccountDetails.AddRange(incomeIndirectDetails);
+        //         reportData.AccountDetails.Add(SubtotalCr("Total Income (Indirect)", incomeIndirectTotal));
+
+        //         reportData.AccountDetails.Add(new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = "Total Revenue",
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = 0,
+        //             Credit = totalRevenue,
+        //             ClosingBalance = totalRevenue,
+        //             BalanceType = "Cr",
+        //             AccountType = "SECTION_TOTAL"
+        //         });
+
+        //         reportData.AccountDetails.Add(Header("Cost of Goods Sold"));
+        //         reportData.AccountDetails.Add(cogsRow);
+
+        //         decimal grossProfit = totalRevenue - cogs;
+        //         reportData.AccountDetails.Add(new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = "Gross Profit",
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = 0,
+        //             Credit = grossProfit >= 0 ? grossProfit : 0,
+        //             ClosingBalance = Math.Abs(grossProfit),
+        //             BalanceType = grossProfit >= 0 ? "Cr" : "Dr",
+        //             AccountType = "GROSS_PROFIT"
+        //         });
+
+        //         reportData.AccountDetails.Add(Header("Expenses (Indirect/Admn.)"));
+        //         reportData.AccountDetails.AddRange(expenseIndirectDetails);
+        //         reportData.AccountDetails.Add(SubtotalDr("Total Expenses (Indirect/Admn.)", totalExpenseIndirect));
+
+        //         decimal netProfitLoss = grossProfit - totalExpenseIndirect;
+        //         reportData.AccountDetails.Add(new AccountDetailDTO
+        //         {
+        //             AccountId = Guid.Empty,
+        //             AccountName = "Net Profit / Loss",
+        //             AccountGroupName = "",
+        //             OpeningBalance = 0,
+        //             Debit = netProfitLoss < 0 ? Math.Abs(netProfitLoss) : 0,
+        //             Credit = netProfitLoss >= 0 ? netProfitLoss : 0,
+        //             ClosingBalance = Math.Abs(netProfitLoss),
+        //             BalanceType = netProfitLoss >= 0 ? "Cr" : "Dr",
+        //             AccountType = "NET_PROFIT"
+        //         });
+
+        //         // ============================================================
+        //         // 7. SUMMARY
+        //         // ============================================================
+        //         reportData.CogsDetails = cogsSummary.Items;
+
+        //         reportData.Summary = new ReportSummaryDTO
+        //         {
+        //             TotalDebit = cogs + totalExpenseIndirect,
+        //             TotalCredit = totalRevenue,
+        //             NetProfit = netProfitLoss,
+        //             TotalCogs = cogs,
+        //             TotalPeriodicCogs = periodicCogs.TotalCogs,
+        //             CogsDifference = cogsSummary.TotalCogs - periodicCogs.TotalCogs,
+        //             GrandTotal = totalRevenue + cogs + totalExpenseIndirect,
+        //             IsBalanced = true,
+        //             BalanceStatus = "Balanced"
+        //         };
+
+        //         response.Success = true;
+        //         response.Data = reportData;
+        //         response.Message = "Profit & Loss Account generated successfully";
+        //         return response;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error generating Profit & Loss Account");
+        //         return new AuditReportResponseDTO
+        //         {
+        //             Success = false,
+        //             Message = $"Error generating report: {ex.Message}",
+        //             Errors = new List<string> { ex.Message }
+        //         };
+        //     }
+        // }
+
+        //-----------------------------------------------end2
 
         public async Task<AuditReportResponseDTO> GetProfitAndLossAccountAsync(
             Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
@@ -1023,15 +2062,44 @@ namespace SkyForge.Services.AuditReportServices
                 var asOnDateNepali = fiscalYear.EndDateNepali ?? asOnDateAd.ToString("yyyy-MM-dd");
 
                 var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
-                var closingBalances = await _context.ClosingBalanceByFiscalYear
-                    .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
-                    .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
 
                 var openingBalances = await _context.OpeningBalanceByFiscalYear
                     .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
                     .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
 
-                var cogsSummary = await CalculateCogsAsync(companyId, fiscalYearId);
+                // ✅ Load current-year transactions for live P&L
+                var transactions = await _context.Transactions
+                    .Where(t => t.CompanyId == companyId
+                             && t.FiscalYearId == fiscalYearId
+                             && t.Status == TransactionStatus.Active
+                             && t.Date <= asOnDateAd)
+                    .ToListAsync();
+
+                _logger.LogInformation("P&L: Loaded {Count} transactions for company {CompanyId}, FY {FY}",
+                    transactions.Count, companyId, fiscalYearId);
+
+                var txnDrCrByAccount = new Dictionary<Guid, (decimal Debit, decimal Credit)>();
+
+                void AddFor(Guid? accId, decimal dr, decimal cr)
+                {
+                    if (!accId.HasValue) return;
+                    if (!txnDrCrByAccount.TryGetValue(accId.Value, out var cur))
+                        cur = (0m, 0m);
+                    cur.Debit += dr;
+                    cur.Credit += cr;
+                    txnDrCrByAccount[accId.Value] = cur;
+                }
+
+                foreach (var tx in transactions)
+                {
+                    AddFor(tx.AccountId, tx.TotalDebit, tx.TotalCredit);
+                    AddFor(tx.PaymentAccountId2, tx.TotalDebit, 0);
+                    AddFor(tx.ReceiptAccountId2, 0, tx.TotalCredit);
+                    AddFor(tx.DebitAccountId, tx.TotalDebit, 0);
+                    AddFor(tx.CreditAccountId, 0, tx.TotalCredit);
+                }
+
+                // var cogsSummary = await CalculateCogsAsync(companyId, fiscalYearId);
 
                 var reportData = new AuditReportDataDTO
                 {
@@ -1052,6 +2120,61 @@ namespace SkyForge.Services.AuditReportServices
                     .ToDictionaryAsync(g => g.Id, g => g);
 
                 var periodicCogs = await CalculatePeriodicCogsAsync(companyId, fiscalYearId, accounts, accountGroups);
+
+                // ============================================================
+                // ✅ Group name comparison — case-insensitive, trimmed
+                // ============================================================
+                bool MatchesGroup(string actualName, string expectedName)
+                {
+                    if (string.IsNullOrEmpty(actualName) || string.IsNullOrEmpty(expectedName))
+                        return false;
+                    return string.Equals(actualName.Trim(), expectedName.Trim(),
+                        StringComparison.OrdinalIgnoreCase);
+                }
+
+                // ============================================================
+                // ✅ Compute live balance from Opening + Transactions
+                // ============================================================
+                decimal GetAccountBalance(Guid accountId)
+                {
+                    decimal drTotal = 0, crTotal = 0;
+
+                    // Opening
+                    if (openingBalances.TryGetValue(accountId, out var ob))
+                    {
+                        if (ob.Type == "Dr") drTotal += ob.Amount;
+                        else crTotal += ob.Amount;
+                    }
+
+                    // Current year transactions
+                    if (txnDrCrByAccount.TryGetValue(accountId, out var txn))
+                    {
+                        drTotal += txn.Debit;
+                        crTotal += txn.Credit;
+                    }
+
+                    return Math.Abs(drTotal - crTotal);
+                }
+
+                // Also expose the raw Dr/Cr totals for diagnostics
+                (decimal Dr, decimal Cr) GetAccountActivity(Guid accountId)
+                {
+                    decimal drTotal = 0, crTotal = 0;
+
+                    if (openingBalances.TryGetValue(accountId, out var ob))
+                    {
+                        if (ob.Type == "Dr") drTotal += ob.Amount;
+                        else crTotal += ob.Amount;
+                    }
+
+                    if (txnDrCrByAccount.TryGetValue(accountId, out var txn))
+                    {
+                        drTotal += txn.Debit;
+                        crTotal += txn.Credit;
+                    }
+
+                    return (drTotal, crTotal);
+                }
 
                 // ============================================================
                 // Helpers
@@ -1096,7 +2219,7 @@ namespace SkyForge.Services.AuditReportServices
                 };
 
                 // ============================================================
-                // 1. SALE
+                // 1. SALE — live from transactions
                 // ============================================================
                 var saleDetails = new List<AccountDetailDTO>();
                 decimal saleTotal = 0;
@@ -1104,9 +2227,9 @@ namespace SkyForge.Services.AuditReportServices
                 foreach (var account in accounts)
                 {
                     var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
-                    if (groupName != "Sale") continue;
+                    if (!MatchesGroup(groupName, "Sale")) continue;
 
-                    decimal bal = closingBalances.TryGetValue(account.Id, out var cb) ? cb.Amount : 0;
+                    decimal bal = GetAccountBalance(account.Id);
                     if (bal == 0) continue;
 
                     saleDetails.Add(new AccountDetailDTO
@@ -1133,9 +2256,9 @@ namespace SkyForge.Services.AuditReportServices
                 foreach (var account in accounts)
                 {
                     var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
-                    if (groupName != "Income (Direct/Opr.)") continue;
+                    if (!MatchesGroup(groupName, "Income (Direct/Opr.)")) continue;
 
-                    decimal bal = closingBalances.TryGetValue(account.Id, out var cb) ? cb.Amount : 0;
+                    decimal bal = GetAccountBalance(account.Id);
                     if (bal == 0) continue;
 
                     incomeDirectDetails.Add(new AccountDetailDTO
@@ -1162,9 +2285,9 @@ namespace SkyForge.Services.AuditReportServices
                 foreach (var account in accounts)
                 {
                     var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
-                    if (groupName != "Income (Indirect)") continue;
+                    if (!MatchesGroup(groupName, "Income (Indirect)")) continue;
 
-                    decimal bal = closingBalances.TryGetValue(account.Id, out var cb) ? cb.Amount : 0;
+                    decimal bal = GetAccountBalance(account.Id);
                     if (bal == 0) continue;
 
                     incomeIndirectDetails.Add(new AccountDetailDTO
@@ -1193,9 +2316,9 @@ namespace SkyForge.Services.AuditReportServices
                 foreach (var account in accounts)
                 {
                     var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
-                    if (groupName != "Expenses (Indirect/Admn.)") continue;
+                    if (!MatchesGroup(groupName, "Expenses (Indirect/Admn.)")) continue;
 
-                    decimal bal = closingBalances.TryGetValue(account.Id, out var cb) ? cb.Amount : 0;
+                    decimal bal = GetAccountBalance(account.Id);
                     if (bal == 0) continue;
 
                     expenseIndirectDetails.Add(new AccountDetailDTO
@@ -1232,25 +2355,20 @@ namespace SkyForge.Services.AuditReportServices
                 };
 
                 // ============================================================
-                // 6. BUILD THE P&L — all sections always present
+                // 6. BUILD THE P&L
                 // ============================================================
-
-                // --- Sale ---
                 reportData.AccountDetails.Add(Header("Sale"));
                 reportData.AccountDetails.AddRange(saleDetails);
                 reportData.AccountDetails.Add(SubtotalCr("Total Sale", saleTotal));
 
-                // --- Income (Direct/Opr.) ---
                 reportData.AccountDetails.Add(Header("Income (Direct/Opr.)"));
                 reportData.AccountDetails.AddRange(incomeDirectDetails);
                 reportData.AccountDetails.Add(SubtotalCr("Total Income (Direct/Opr.)", incomeDirectTotal));
 
-                // --- Income (Indirect) ---
                 reportData.AccountDetails.Add(Header("Income (Indirect)"));
                 reportData.AccountDetails.AddRange(incomeIndirectDetails);
                 reportData.AccountDetails.Add(SubtotalCr("Total Income (Indirect)", incomeIndirectTotal));
 
-                // --- Total Revenue ---
                 reportData.AccountDetails.Add(new AccountDetailDTO
                 {
                     AccountId = Guid.Empty,
@@ -1264,11 +2382,9 @@ namespace SkyForge.Services.AuditReportServices
                     AccountType = "SECTION_TOTAL"
                 });
 
-                // --- COGS ---
                 reportData.AccountDetails.Add(Header("Cost of Goods Sold"));
                 reportData.AccountDetails.Add(cogsRow);
 
-                // --- Gross Profit ---
                 decimal grossProfit = totalRevenue - cogs;
                 reportData.AccountDetails.Add(new AccountDetailDTO
                 {
@@ -1283,12 +2399,10 @@ namespace SkyForge.Services.AuditReportServices
                     AccountType = "GROSS_PROFIT"
                 });
 
-                // --- Expenses (Indirect/Admn.) ---
                 reportData.AccountDetails.Add(Header("Expenses (Indirect/Admn.)"));
                 reportData.AccountDetails.AddRange(expenseIndirectDetails);
                 reportData.AccountDetails.Add(SubtotalDr("Total Expenses (Indirect/Admn.)", totalExpenseIndirect));
 
-                // --- Net Profit / Loss ---
                 decimal netProfitLoss = grossProfit - totalExpenseIndirect;
                 reportData.AccountDetails.Add(new AccountDetailDTO
                 {
@@ -1304,9 +2418,20 @@ namespace SkyForge.Services.AuditReportServices
                 });
 
                 // ============================================================
-                // 7. SUMMARY
+                // 7. DIAGNOSTIC LOG
                 // ============================================================
-                reportData.CogsDetails = cogsSummary.Items;
+                _logger.LogInformation(
+                    "P&L DIAGNOSTIC: Sale={Sale}, IncomeDirect={IncD}, IncomeIndirect={IncI}, " +
+                    "TotalRevenue={Rev}, COGS={Cogs}, GrossProfit={GP}, " +
+                    "ExpenseIndirect={ExpI}, NetProfit={NetPL}",
+                    saleTotal, incomeDirectTotal, incomeIndirectTotal,
+                    totalRevenue, cogs, grossProfit,
+                    totalExpenseIndirect, netProfitLoss);
+
+                // ============================================================
+                // 8. SUMMARY
+                // ============================================================
+                // reportData.CogsDetails = cogsSummary.Items;
 
                 reportData.Summary = new ReportSummaryDTO
                 {
@@ -1315,7 +2440,7 @@ namespace SkyForge.Services.AuditReportServices
                     NetProfit = netProfitLoss,
                     TotalCogs = cogs,
                     TotalPeriodicCogs = periodicCogs.TotalCogs,
-                    CogsDifference = cogsSummary.TotalCogs - periodicCogs.TotalCogs,
+                    // CogsDifference = cogsSummary.TotalCogs - periodicCogs.TotalCogs,
                     GrandTotal = totalRevenue + cogs + totalExpenseIndirect,
                     IsBalanced = true,
                     BalanceStatus = "Balanced"
@@ -1531,6 +2656,7 @@ namespace SkyForge.Services.AuditReportServices
                 };
             }
         }
+        
         public async Task<AuditReportResponseDTO> GetComprehensiveAuditReportAsync(
             Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
         {
@@ -1538,7 +2664,7 @@ namespace SkyForge.Services.AuditReportServices
             {
                 // Generate all reports
                 var openingTrialBalance = await GetOpeningTrialBalanceAsync(companyId, fiscalYearId, asOnDate);
-                var closingTrialBalance = await GetClosingTrialBalanceAsync(companyId, fiscalYearId, asOnDate);
+                var closingTrialBalance = await GetPostClosingTrialBalanceAsync(companyId, fiscalYearId, asOnDate);
                 var profitAndLoss = await GetProfitAndLossAccountAsync(companyId, fiscalYearId, asOnDate);
                 var balanceSheet = await GetBalanceSheetAsync(companyId, fiscalYearId, asOnDate);
 
@@ -1654,87 +2780,87 @@ namespace SkyForge.Services.AuditReportServices
         }
 
 
-        private async Task<CogsSummaryDTO> CalculateCogsAsync(Guid companyId, Guid fiscalYearId)
-        {
-            var summary = new CogsSummaryDTO();
+        // private async Task<CogsSummaryDTO> CalculateCogsAsync(Guid companyId, Guid fiscalYearId)
+        // {
+        //     var summary = new CogsSummaryDTO();
 
-            // 1. Get all Sales and Sales Return transaction items for this fiscal year
-            var transactionItems = await _context.TransactionItems
-                .Include(ti => ti.Transaction)
-                .Include(ti => ti.Item)
-                .Where(ti =>
-                    ti.Transaction.CompanyId == companyId &&
-                    ti.Transaction.FiscalYearId == fiscalYearId &&
-                    ti.Transaction.Status == TransactionStatus.Active &&
-                    (ti.Transaction.Type == TransactionType.Sale ||
-                     ti.Transaction.Type == TransactionType.SlRt) &&
-                    ti.ItemId != null)
-                .ToListAsync();
+        //     // 1. Get all Sales and Sales Return transaction items for this fiscal year
+        //     var transactionItems = await _context.TransactionItems
+        //         .Include(ti => ti.Transaction)
+        //         .Include(ti => ti.Item)
+        //         .Where(ti =>
+        //             ti.Transaction.CompanyId == companyId &&
+        //             ti.Transaction.FiscalYearId == fiscalYearId &&
+        //             ti.Transaction.Status == TransactionStatus.Active &&
+        //             (ti.Transaction.Type == TransactionType.Sale ||
+        //              ti.Transaction.Type == TransactionType.SlRt) &&
+        //             ti.ItemId != null)
+        //         .ToListAsync();
 
-            if (!transactionItems.Any())
-            {
-                return summary;
-            }
+        //     if (!transactionItems.Any())
+        //     {
+        //         return summary;
+        //     }
 
-            // 2. Group by Item and compute sales qty, return qty, and weighted avg pu price
-            var itemGroups = transactionItems
-                .GroupBy(ti => new { ti.ItemId, ItemName = ti.Item?.Name ?? "Unknown" })
-                .Select(g =>
-                {
-                    decimal salesQty = 0;
-                    decimal salesReturnQty = 0;
-                    decimal salesCostTotal = 0;      // sum of qty * puPrice for sales
-                    decimal salesReturnCostTotal = 0; // sum of qty * puPrice for returns
+        //     // 2. Group by Item and compute sales qty, return qty, and weighted avg pu price
+        //     var itemGroups = transactionItems
+        //         .GroupBy(ti => new { ti.ItemId, ItemName = ti.Item?.Name ?? "Unknown" })
+        //         .Select(g =>
+        //         {
+        //             decimal salesQty = 0;
+        //             decimal salesReturnQty = 0;
+        //             decimal salesCostTotal = 0;      // sum of qty * puPrice for sales
+        //             decimal salesReturnCostTotal = 0; // sum of qty * puPrice for returns
 
-                    foreach (var ti in g)
-                    {
-                        decimal qty = Math.Abs(ti.Quantity ?? 0);
-                        decimal pu = ti.PuPrice ?? 0;
+        //             foreach (var ti in g)
+        //             {
+        //                 decimal qty = Math.Abs(ti.Quantity ?? 0);
+        //                 decimal pu = ti.PuPrice ?? 0;
 
-                        if (ti.Transaction.Type == TransactionType.Sale)
-                        {
-                            salesQty += qty;
-                            salesCostTotal += qty * pu;
-                        }
-                        else if (ti.Transaction.Type == TransactionType.SlRt)
-                        {
-                            salesReturnQty += qty;
-                            salesReturnCostTotal += qty * pu;
-                        }
-                    }
+        //                 if (ti.Transaction.Type == TransactionType.Sale)
+        //                 {
+        //                     salesQty += qty;
+        //                     salesCostTotal += qty * pu;
+        //                 }
+        //                 else if (ti.Transaction.Type == TransactionType.SlRt)
+        //                 {
+        //                     salesReturnQty += qty;
+        //                     salesReturnCostTotal += qty * pu;
+        //                 }
+        //             }
 
-                    decimal netQty = salesQty - salesReturnQty;
+        //             decimal netQty = salesQty - salesReturnQty;
 
-                    // Weighted average of PuPrice across all rows (sales + returns)
-                    decimal totalQty = salesQty + salesReturnQty;
-                    decimal totalCost = salesCostTotal + salesReturnCostTotal;
-                    decimal avgPu = totalQty > 0 ? totalCost / totalQty : 0;
+        //             // Weighted average of PuPrice across all rows (sales + returns)
+        //             decimal totalQty = salesQty + salesReturnQty;
+        //             decimal totalCost = salesCostTotal + salesReturnCostTotal;
+        //             decimal avgPu = totalQty > 0 ? totalCost / totalQty : 0;
 
-                    decimal cogs = salesCostTotal - salesReturnCostTotal;
+        //             decimal cogs = salesCostTotal - salesReturnCostTotal;
 
-                    return new CogsDetailDTO
-                    {
-                        ItemId = g.Key.ItemId ?? Guid.Empty,
-                        ItemName = g.Key.ItemName,
-                        SalesQuantity = salesQty,
-                        SalesReturnQuantity = salesReturnQty,
-                        NetQuantity = netQty,
-                        AveragePuPrice = Math.Round(avgPu, 2),
-                        SalesCost = Math.Round(salesCostTotal, 2),
-                        SalesReturnCost = Math.Round(salesReturnCostTotal, 2),
-                        Cogs = Math.Round(cogs, 2)
-                    };
-                })
-                .OrderBy(x => x.ItemName)
-                .ToList();
+        //             return new CogsDetailDTO
+        //             {
+        //                 ItemId = g.Key.ItemId ?? Guid.Empty,
+        //                 ItemName = g.Key.ItemName,
+        //                 SalesQuantity = salesQty,
+        //                 SalesReturnQuantity = salesReturnQty,
+        //                 NetQuantity = netQty,
+        //                 AveragePuPrice = Math.Round(avgPu, 2),
+        //                 SalesCost = Math.Round(salesCostTotal, 2),
+        //                 SalesReturnCost = Math.Round(salesReturnCostTotal, 2),
+        //                 Cogs = Math.Round(cogs, 2)
+        //             };
+        //         })
+        //         .OrderBy(x => x.ItemName)
+        //         .ToList();
 
-            summary.Items = itemGroups;
-            summary.TotalSalesCost = Math.Round(itemGroups.Sum(x => x.SalesCost), 2);
-            summary.TotalSalesReturnCost = Math.Round(itemGroups.Sum(x => x.SalesReturnCost), 2);
-            summary.TotalCogs = Math.Round(summary.TotalSalesCost - summary.TotalSalesReturnCost, 2);
+        //     summary.Items = itemGroups;
+        //     summary.TotalSalesCost = Math.Round(itemGroups.Sum(x => x.SalesCost), 2);
+        //     summary.TotalSalesReturnCost = Math.Round(itemGroups.Sum(x => x.SalesReturnCost), 2);
+        //     summary.TotalCogs = Math.Round(summary.TotalSalesCost - summary.TotalSalesReturnCost, 2);
 
-            return summary;
-        }
+        //     return summary;
+        // }
 
 
         private async Task<PeriodicCogsSummaryDTO> CalculatePeriodicCogsAsync(
@@ -1783,5 +2909,8 @@ namespace SkyForge.Services.AuditReportServices
             result.TotalCogs = result.OpeningStock + result.Purchases + result.DirectExpenses - result.ClosingStock;
             return result;
         }
+    
+    
+    
     }
 }

@@ -51,12 +51,42 @@ namespace SkyForge.Controllers
             }
         }
 
+        // /// <summary>
+        // /// GET: api/audit/closing-trial-balance
+        // /// Generates Closing Trial Balance report
+        // /// </summary>
+        // [HttpGet("closing-trial-balance")]
+        // public async Task<IActionResult> GetClosingTrialBalance([FromQuery] DateTime? asOnDate = null)
+        // {
+        //     try
+        //     {
+        //         var (companyId, fiscalYearId) = await GetCompanyAndFiscalYearAsync();
+        //         if (companyId == Guid.Empty || fiscalYearId == Guid.Empty)
+        //             return Unauthorized(new { success = false, error = "Invalid company or fiscal year" });
+
+        //         var result = await _auditReportService.GetClosingTrialBalanceAsync(companyId, fiscalYearId, asOnDate);
+
+        //         if (!result.Success)
+        //             return BadRequest(result);
+
+        //         return Ok(new { success = true, data = result.Data });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error generating Closing Trial Balance");
+        //         return StatusCode(500, new { success = false, error = "Internal server error" });
+        //     }
+        // }
+
+
         /// <summary>
-        /// GET: api/audit/closing-trial-balance
-        /// Generates Closing Trial Balance report
+        /// GET: api/audit/post-closing-trial-balance
+        /// Generates Post-Closing Trial Balance report
+        /// (Sale, Purchase, Expenses, Income closed to zero;
+        ///  only Balance Sheet accounts + Reserves & Surplus remain)
         /// </summary>
-        [HttpGet("closing-trial-balance")]
-        public async Task<IActionResult> GetClosingTrialBalance([FromQuery] DateTime? asOnDate = null)
+        [HttpGet("post-closing-trial-balance")]
+        public async Task<IActionResult> GetPostClosingTrialBalance([FromQuery] DateTime? asOnDate = null)
         {
             try
             {
@@ -64,7 +94,34 @@ namespace SkyForge.Controllers
                 if (companyId == Guid.Empty || fiscalYearId == Guid.Empty)
                     return Unauthorized(new { success = false, error = "Invalid company or fiscal year" });
 
-                var result = await _auditReportService.GetClosingTrialBalanceAsync(companyId, fiscalYearId, asOnDate);
+                var result = await _auditReportService.GetPostClosingTrialBalanceAsync(companyId, fiscalYearId, asOnDate);
+
+                if (!result.Success)
+                    return BadRequest(result);
+
+                return Ok(new { success = true, data = result.Data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating Post-Closing Trial Balance");
+                return StatusCode(500, new { success = false, error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// GET: api/audit/pre-closing-trial-balance
+        /// Generates Pre-Closing Trial Balance report
+        /// </summary>
+        [HttpGet("pre-closing-trial-balance")]
+        public async Task<IActionResult> GetPreClosingTrialBalance([FromQuery] DateTime? asOnDate = null)
+        {
+            try
+            {
+                var (companyId, fiscalYearId) = await GetCompanyAndFiscalYearAsync();
+                if (companyId == Guid.Empty || fiscalYearId == Guid.Empty)
+                    return Unauthorized(new { success = false, error = "Invalid company or fiscal year" });
+
+                var result = await _auditReportService.GetPreClosingTrialBalanceAsync(companyId, fiscalYearId, asOnDate);
 
                 if (!result.Success)
                     return BadRequest(result);
