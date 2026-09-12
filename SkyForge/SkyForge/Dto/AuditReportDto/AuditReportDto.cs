@@ -36,6 +36,8 @@ namespace SkyForge.Dto.AuditReportDto
         public List<AccountGroupSummaryDTO> AccountGroups { get; set; } = new();
         public List<AccountDetailDTO> AccountDetails { get; set; } = new();
         public ReportSummaryDTO Summary { get; set; } = new();
+        public List<CogsDetailDTO>? CogsDetails { get; set; }
+        public PeriodicCogsSummaryDTO? PeriodicCogsDetails { get; set; }
         public bool IsNepaliFormat { get; set; }
         public string DateFormat { get; set; } = "english";
     }
@@ -80,9 +82,16 @@ namespace SkyForge.Dto.AuditReportDto
         public Guid AccountId { get; set; }
         public string AccountName { get; set; } = string.Empty;
         public string AccountGroupName { get; set; } = string.Empty;
+        public string SectionName { get; set; } 
         public decimal OpeningBalance { get; set; }
+        public string OpeningBalanceType { get; set; } = string.Empty;
+
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
+
+        public decimal DetailDebit { get; set; }
+        public decimal DetailCredit { get; set; }
+
         public decimal ClosingBalance { get; set; }
         public string BalanceType { get; set; } = string.Empty;
         public string AccountType { get; set; } = string.Empty; // "Asset", "Liability", "Income", "Expense", "Equity"
@@ -97,7 +106,43 @@ namespace SkyForge.Dto.AuditReportDto
         public decimal TotalLiabilities { get; set; }
         public decimal TotalEquity { get; set; }
         public decimal GrandTotal { get; set; }
+        public decimal? TotalSalesCost { get; set; }        // ← ADD if missing
+        public decimal? TotalSalesReturnCost { get; set; }  // ← ADD if missing
+        public decimal? TotalCogs { get; set; }
+        public decimal? TotalPeriodicCogs { get; set; }
+        public decimal? CogsDifference { get; set; }
         public bool IsBalanced { get; set; }
         public string BalanceStatus { get; set; } = string.Empty;
+    }
+
+
+    public class CogsDetailDTO
+    {
+        public Guid ItemId { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public decimal SalesQuantity { get; set; }
+        public decimal SalesReturnQuantity { get; set; }
+        public decimal NetQuantity { get; set; }
+        public decimal AveragePuPrice { get; set; }
+        public decimal SalesCost { get; set; }        // SalesQty × AvgPuPrice
+        public decimal SalesReturnCost { get; set; }  // SalesReturnQty × AvgPuPrice
+        public decimal Cogs { get; set; }             // SalesCost − SalesReturnCost
+    }
+
+    public class CogsSummaryDTO
+    {
+        public decimal TotalSalesCost { get; set; }
+        public decimal TotalSalesReturnCost { get; set; }
+        public decimal TotalCogs { get; set; }
+        public List<CogsDetailDTO> Items { get; set; } = new();
+    }
+
+    public class PeriodicCogsSummaryDTO
+    {
+        public decimal OpeningStock { get; set; }
+        public decimal Purchases { get; set; }
+        public decimal DirectExpenses { get; set; }
+        public decimal ClosingStock { get; set; }
+        public decimal TotalCogs { get; set; }   // Opening + Purchases + Direct Exp − Closing
     }
 }

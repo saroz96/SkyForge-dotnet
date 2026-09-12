@@ -133,6 +133,34 @@ namespace SkyForge.Controllers
         }
 
         /// <summary>
+        /// GET: api/audit/cogs-periodic
+        /// Generates Cost of Goods Sold (Periodic) report
+        /// Formula: Opening Stock + Purchases + Direct Expenses − Closing Stock
+        /// </summary>
+        [HttpGet("cogs-periodic")]
+        public async Task<IActionResult> GetCogsPeriodic([FromQuery] DateTime? asOnDate = null)
+        {
+            try
+            {
+                var (companyId, fiscalYearId) = await GetCompanyAndFiscalYearAsync();
+                if (companyId == Guid.Empty || fiscalYearId == Guid.Empty)
+                    return Unauthorized(new { success = false, error = "Invalid company or fiscal year" });
+
+                var result = await _auditReportService.GetCogsPeriodicAsync(companyId, fiscalYearId, asOnDate);
+
+                if (!result.Success)
+                    return BadRequest(result);
+
+                return Ok(new { success = true, data = result.Data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating Periodic COGS");
+                return StatusCode(500, new { success = false, error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
         /// GET: api/audit/comprehensive
         /// Generates comprehensive audit report with all sections
         /// </summary>

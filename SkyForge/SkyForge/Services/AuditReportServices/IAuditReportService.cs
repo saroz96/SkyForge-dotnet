@@ -10,5 +10,6 @@ namespace SkyForge.Services.AuditReportServices
         Task<AuditReportResponseDTO> GetProfitAndLossAccountAsync(Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null);
         Task<AuditReportResponseDTO> GetBalanceSheetAsync(Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null);
         Task<AuditReportResponseDTO> GetComprehensiveAuditReportAsync(Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null);
+        Task<AuditReportResponseDTO> GetCogsPeriodicAsync(Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null);
     }
 }

@@ -1093,7 +1093,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
 
                 // Get default accounts
                 var salesAccountId = await GetDefaultAccountIdAsync("Sales", companyId);
-                var vatAccountId = await GetDefaultAccountIdAsync("VAT", companyId);
+                var vatAccount = await _context.Accounts
+               .FirstOrDefaultAsync(a => a.Name == "VAT" && a.CompanyId == companyId);
                 var roundOffAccountId = await GetDefaultAccountIdAsync("Rounded Off", companyId);
                 var cashAccountId = await GetDefaultAccountIdAsync("Cash in Hand", companyId);
 
@@ -1184,7 +1185,7 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     decimal itemVatPercentage = dto.VatPercentage ?? 0;
                     decimal itemVatAmount = 0m;
 
-                    if (!isVatExemptBool && itemVatPercentage > 0 && item.VatStatus?.ToLower() == "vatable")
+                    if (!isVatExemptBool && itemVatPercentage > 0 && item.VatStatus?.ToLower() == "13")
                     {
                         itemTaxableAmount = itemValueAfterDiscount;
                         itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
@@ -1416,13 +1417,13 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 }
 
                 // 3. VAT TRANSACTION (Header - Credit to VAT account - output VAT)
-                if (totalVatCredit > 0 && vatAccountId.HasValue && !isVatExemptBool)
+                if (totalVatCredit > 0 && vatAccount != null && !isVatExemptBool)
                 {
                     var vatTransaction = new Transaction
                     {
                         Id = Guid.NewGuid(),
                         CompanyId = companyId,
-                        AccountId = vatAccountId.Value,
+                        AccountId = vatAccount.Id,
                         SalesBillId = salesBill.Id,
                         BillNumber = salesBill.BillNumber,
                         IsType = TransactionIsType.VAT,
