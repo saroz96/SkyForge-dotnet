@@ -3457,7 +3457,7 @@ const Accounts = () => {
                                             </select>
                                         </div>
                                         {!data.isInitialFiscalYear && (
-                                            <small className="acc-form-hint">Opening balance can only be set in initial fiscal year</small>
+                                            <small className="acc-form-hint">Op. bal. can only be set in initial F.Y</small>
                                         )}
                                     </div>
 

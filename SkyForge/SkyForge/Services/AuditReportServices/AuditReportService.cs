@@ -2119,7 +2119,14 @@ namespace SkyForge.Services.AuditReportServices
                     .Where(ag => ag.CompanyId == companyId)
                     .ToDictionaryAsync(g => g.Id, g => g);
 
-                var periodicCogs = await CalculatePeriodicCogsAsync(companyId, fiscalYearId, accounts, accountGroups);
+                // var periodicCogs = await CalculatePeriodicCogsAsync(companyId, fiscalYearId, accounts, accountGroups);
+                var periodicCogs = await CalculatePeriodicCogsAsync(
+                    companyId,
+                    fiscalYearId,
+                    accounts,
+                    accountGroups,
+                    openingBalances,        // ✅ pass it
+                    txnDrCrByAccount);      // ✅ pass it
 
                 // ============================================================
                 // ✅ Group name comparison — case-insensitive, trimmed
@@ -2599,8 +2606,66 @@ namespace SkyForge.Services.AuditReportServices
             }
         }
 
+        //     public async Task<AuditReportResponseDTO> GetCogsPeriodicAsync(
+        // Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
+        //     {
+        //         try
+        //         {
+        //             var response = new AuditReportResponseDTO();
+        //             var (company, fiscalYear) = await GetCompanyAndFiscalYearAsync(companyId, fiscalYearId);
+
+        //             if (company == null || fiscalYear == null)
+        //             {
+        //                 response.Success = false;
+        //                 response.Message = "Company or Fiscal Year not found";
+        //                 return response;
+        //             }
+
+        //             var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
+        //             var accountGroups = await _context.AccountGroups
+        //                 .Where(ag => ag.CompanyId == companyId)
+        //                 .ToDictionaryAsync(g => g.Id, g => g);
+
+        //             var periodicCogs = await CalculatePeriodicCogsAsync(companyId, fiscalYearId, accounts, accountGroups);
+
+        //             var asOnDateAd = asOnDate ?? fiscalYear.EndDate ?? DateTime.UtcNow;
+
+        //             response.Success = true;
+        //             response.Data = new AuditReportDataDTO
+        //             {
+        //                 Company = MapCompanyInfo(company),
+        //                 FiscalYear = MapFiscalYearInfo(fiscalYear),
+        //                 ReportName = "Cost of Goods Sold (Periodic)",
+        //                 ReportType = "CogsPeriodic",
+        //                 GeneratedDate = DateTime.UtcNow,
+        //                 GeneratedDateNepali = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 AsOnDate = asOnDateAd,
+        //                 AsOnDateNepali = fiscalYear.EndDateNepali ?? asOnDateAd.ToString("yyyy-MM-dd"),
+        //                 IsNepaliFormat = company.DateFormat.ToString().ToLower() == "nepali",
+        //                 DateFormat = company.DateFormat.ToString().ToLower(),
+        //                 PeriodicCogsDetails = periodicCogs,
+        //                 Summary = new ReportSummaryDTO
+        //                 {
+        //                     TotalPeriodicCogs = periodicCogs.TotalCogs
+        //                 }
+        //             };
+        //             response.Message = "Periodic COGS generated successfully";
+        //             return response;
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error generating Periodic COGS");
+        //             return new AuditReportResponseDTO
+        //             {
+        //                 Success = false,
+        //                 Message = $"Error generating report: {ex.Message}",
+        //                 Errors = new List<string> { ex.Message }
+        //             };
+        //         }
+        //     }
+
         public async Task<AuditReportResponseDTO> GetCogsPeriodicAsync(
-    Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
+            Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
         {
             try
             {
@@ -2614,14 +2679,56 @@ namespace SkyForge.Services.AuditReportServices
                     return response;
                 }
 
+                var asOnDateAd = asOnDate ?? fiscalYear.EndDate ?? DateTime.UtcNow;
+
                 var accounts = await GetAccountsWithBalancesAsync(companyId, fiscalYearId);
+
                 var accountGroups = await _context.AccountGroups
                     .Where(ag => ag.CompanyId == companyId)
                     .ToDictionaryAsync(g => g.Id, g => g);
 
-                var periodicCogs = await CalculatePeriodicCogsAsync(companyId, fiscalYearId, accounts, accountGroups);
+                // ✅ Build opening balances dictionary (same as P&L)
+                var openingBalances = await _context.OpeningBalanceByFiscalYear
+                    .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
+                    .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
 
-                var asOnDateAd = asOnDate ?? fiscalYear.EndDate ?? DateTime.UtcNow;
+                // ✅ Build transaction Dr/Cr dictionary (same as P&L)
+                var transactions = await _context.Transactions
+                    .Where(t => t.CompanyId == companyId
+                             && t.FiscalYearId == fiscalYearId
+                             && t.Status == TransactionStatus.Active
+                             && t.Date <= asOnDateAd)
+                    .ToListAsync();
+
+                var txnDrCrByAccount = new Dictionary<Guid, (decimal Debit, decimal Credit)>();
+
+                void AddFor(Guid? accId, decimal dr, decimal cr)
+                {
+                    if (!accId.HasValue) return;
+                    if (!txnDrCrByAccount.TryGetValue(accId.Value, out var cur))
+                        cur = (0m, 0m);
+                    cur.Debit += dr;
+                    cur.Credit += cr;
+                    txnDrCrByAccount[accId.Value] = cur;
+                }
+
+                foreach (var tx in transactions)
+                {
+                    AddFor(tx.AccountId, tx.TotalDebit, tx.TotalCredit);
+                    AddFor(tx.PaymentAccountId2, tx.TotalDebit, 0);
+                    AddFor(tx.ReceiptAccountId2, 0, tx.TotalCredit);
+                    AddFor(tx.DebitAccountId, tx.TotalDebit, 0);
+                    AddFor(tx.CreditAccountId, 0, tx.TotalCredit);
+                }
+
+                // ✅ Now call with all 6 arguments
+                var periodicCogs = await CalculatePeriodicCogsAsync(
+                    companyId,
+                    fiscalYearId,
+                    accounts,
+                    accountGroups,
+                    openingBalances,
+                    txnDrCrByAccount);
 
                 response.Success = true;
                 response.Data = new AuditReportDataDTO
@@ -2656,7 +2763,7 @@ namespace SkyForge.Services.AuditReportServices
                 };
             }
         }
-        
+
         public async Task<AuditReportResponseDTO> GetComprehensiveAuditReportAsync(
             Guid companyId, Guid fiscalYearId, DateTime? asOnDate = null)
         {
@@ -2863,54 +2970,181 @@ namespace SkyForge.Services.AuditReportServices
         // }
 
 
+        //     private async Task<PeriodicCogsSummaryDTO> CalculatePeriodicCogsAsync(
+        // Guid companyId, Guid fiscalYearId, List<Account> accounts, Dictionary<Guid, AccountGroup> accountGroups)
+        //     {
+        //         var result = new PeriodicCogsSummaryDTO();
+
+        //         // Opening Stock: sum of Stock in Hand accounts from OpeningBalanceByFiscalYear
+        //         var openingBalances = await _context.OpeningBalanceByFiscalYear
+        //             .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
+        //             .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
+
+        //         var closingBalances = await _context.ClosingBalanceByFiscalYear
+        //             .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
+        //             .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+
+        //         foreach (var account in accounts)
+        //         {
+        //             var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+
+        //             // Opening Stock
+        //             if (groupName == "Stock in Hand" && openingBalances.TryGetValue(account.Id, out var ob))
+        //             {
+        //                 result.OpeningStock += ob.Amount;
+        //             }
+
+        //             // Closing Stock
+        //             if (groupName == "Stock in Hand" && closingBalances.TryGetValue(account.Id, out var cb))
+        //             {
+        //                 result.ClosingStock += cb.Amount;
+        //             }
+
+        //             // Purchases (Purchase group) — read from closing balances
+        //             if (groupName == "Purchase" && closingBalances.TryGetValue(account.Id, out var pcb))
+        //             {
+        //                 result.Purchases += pcb.Amount;
+        //             }
+
+        //             // Direct Expenses
+        //             if (groupName == "Expenses (Direct/Mfg.)" && closingBalances.TryGetValue(account.Id, out var dcb))
+        //             {
+        //                 result.DirectExpenses += dcb.Amount;
+        //             }
+        //         }
+
+        //         result.TotalCogs = result.OpeningStock + result.Purchases + result.DirectExpenses - result.ClosingStock;
+        //         return result;
+        //     }
+
+
         private async Task<PeriodicCogsSummaryDTO> CalculatePeriodicCogsAsync(
-    Guid companyId, Guid fiscalYearId, List<Account> accounts, Dictionary<Guid, AccountGroup> accountGroups)
+            Guid companyId,
+            Guid fiscalYearId,
+            List<Account> accounts,
+            Dictionary<Guid, AccountGroup> accountGroups,
+            Dictionary<Guid, OpeningBalanceByFiscalYear> openingBalances,          // ✅ concrete type
+            Dictionary<Guid, (decimal Debit, decimal Credit)> txnDrCrByAccount)
         {
             var result = new PeriodicCogsSummaryDTO();
 
-            // Opening Stock: sum of Stock in Hand accounts from OpeningBalanceByFiscalYear
-            var openingBalances = await _context.OpeningBalanceByFiscalYear
-                .Where(ob => ob.CompanyId == companyId && ob.FiscalYearId == fiscalYearId)
-                .ToDictionaryAsync(ob => ob.AccountId, ob => ob);
+            // Case-insensitive group compare
+            bool Matches(string actual, string expected) =>
+                !string.IsNullOrEmpty(actual) && !string.IsNullOrEmpty(expected) &&
+                string.Equals(actual.Trim(), expected.Trim(), StringComparison.OrdinalIgnoreCase);
 
-            var closingBalances = await _context.ClosingBalanceByFiscalYear
-                .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
-                .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+            // Helper: live balance = Opening + Current-year transactions
+            (decimal Dr, decimal Cr) GetActivity(Guid accountId)
+            {
+                decimal dr = 0, cr = 0;
 
+                if (openingBalances.TryGetValue(accountId, out var ob))
+                {
+                    if (ob.Type == "Dr") dr += ob.Amount;
+                    else cr += ob.Amount;
+                }
+
+                if (txnDrCrByAccount.TryGetValue(accountId, out var txn))
+                {
+                    dr += txn.Debit;
+                    cr += txn.Credit;
+                }
+
+                return (dr, cr);
+            }
+
+            // ============================================================
+            // 1. Opening Stock, Purchases, Direct Expenses
+            // ============================================================
             foreach (var account in accounts)
             {
                 var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+                var (dr, cr) = GetActivity(account.Id);
 
-                // Opening Stock
-                if (groupName == "Stock in Hand" && openingBalances.TryGetValue(account.Id, out var ob))
+                // Opening Stock: from OpeningBalanceByFiscalYear only
+                if (Matches(groupName, "Stock in Hand") && openingBalances.TryGetValue(account.Id, out var ob2))
                 {
-                    result.OpeningStock += ob.Amount;
+                    result.OpeningStock += ob2.Type == "Dr" ? ob2.Amount : -ob2.Amount;
                 }
 
-                // Closing Stock
-                if (groupName == "Stock in Hand" && closingBalances.TryGetValue(account.Id, out var cb))
+                // Purchases: NET DEBIT (Dr - Cr) from live activity
+                if (Matches(groupName, "Purchase"))
                 {
-                    result.ClosingStock += cb.Amount;
+                    result.Purchases += (dr - cr);
                 }
 
-                // Purchases (Purchase group) — read from closing balances
-                if (groupName == "Purchase" && closingBalances.TryGetValue(account.Id, out var pcb))
+                // Direct Expenses: NET DEBIT
+                if (Matches(groupName, "Expenses (Direct/Mfg.)"))
                 {
-                    result.Purchases += pcb.Amount;
-                }
-
-                // Direct Expenses
-                if (groupName == "Expenses (Direct/Mfg.)" && closingBalances.TryGetValue(account.Id, out var dcb))
-                {
-                    result.DirectExpenses += dcb.Amount;
+                    result.DirectExpenses += (dr - cr);
                 }
             }
 
-            result.TotalCogs = result.OpeningStock + result.Purchases + result.DirectExpenses - result.ClosingStock;
+            // ============================================================
+            // 2. Closing Stock — conditional source
+            // ============================================================
+            // Rule:
+            //   • If the company has ANY fiscal year defined → read closing stock
+            //     from ClosingBalanceByFiscalYear for the Stock in Hand group.
+            //   • If NO fiscal year exists yet → fall back to live StockEntries.
+            // ============================================================
+            var hasAnyFiscalYear = await _context.FiscalYears
+                .AnyAsync(f => f.CompanyId == companyId);
+
+            if (hasAnyFiscalYear)
+            {
+                // ✅ Read closing stock from ClosingBalanceByFiscalYear
+                var closingBalances = await _context.ClosingBalanceByFiscalYear
+                    .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == fiscalYearId)
+                    .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
+
+                foreach (var account in accounts)
+                {
+                    var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+
+                    if (Matches(groupName, "Stock in Hand") &&
+                        closingBalances.TryGetValue(account.Id, out var cb))
+                    {
+                        // Normal side is Dr for stock
+                        result.ClosingStock += cb.Type == "Dr" ? cb.Amount : -cb.Amount;
+                    }
+                }
+
+                _logger.LogInformation(
+                    "Periodic COGS: Closing stock sourced from ClosingBalanceByFiscalYear for FY {FY}. Value={Value}",
+                    fiscalYearId, result.ClosingStock);
+            }
+            else
+            {
+                // ✅ Fall back to live StockEntries
+                var stockEntries = await _context.StockEntries
+                    .Where(se => se.CompanyId == companyId && se.Quantity > 0)
+                    .ToListAsync();
+
+                result.ClosingStock = stockEntries.Sum(se => se.Quantity * se.PuPrice);
+
+                _logger.LogInformation(
+                    "Periodic COGS: No fiscal years exist for company {CompanyId}. " +
+                    "Closing stock sourced from StockEntries. Value={Value}",
+                    companyId, result.ClosingStock);
+            }
+
+            // ============================================================
+            // 3. Total COGS
+            // ============================================================
+            result.TotalCogs = result.OpeningStock
+                             + result.Purchases
+                             + result.DirectExpenses
+                             - result.ClosingStock;
+
+            _logger.LogInformation(
+                "PERIODIC COGS DIAGNOSTIC: OpeningStock={Open}, Purchases={Purch}, DirectExp={DE}, " +
+                "ClosingStock={Close}, TotalCogs={Total}, Source={Source}",
+                result.OpeningStock, result.Purchases, result.DirectExpenses,
+                result.ClosingStock, result.TotalCogs,
+                hasAnyFiscalYear ? "ClosingBalanceByFiscalYear" : "StockEntries");
+
             return result;
         }
-    
-    
-    
     }
 }

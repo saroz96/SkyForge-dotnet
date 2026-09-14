@@ -82,7 +82,7 @@ namespace SkyForge.Dto.AuditReportDto
         public Guid AccountId { get; set; }
         public string AccountName { get; set; } = string.Empty;
         public string AccountGroupName { get; set; } = string.Empty;
-        public string SectionName { get; set; } 
+        public string SectionName { get; set; }
         public decimal OpeningBalance { get; set; }
         public string OpeningBalanceType { get; set; } = string.Empty;
 
@@ -111,6 +111,8 @@ namespace SkyForge.Dto.AuditReportDto
         public decimal? TotalCogs { get; set; }
         public decimal? TotalPeriodicCogs { get; set; }
         public decimal? CogsDifference { get; set; }
+        public decimal? NetProfitBeforeTax { get; set; }
+        public decimal? ProvisionForTax { get; set; }
         public bool IsBalanced { get; set; }
         public string BalanceStatus { get; set; } = string.Empty;
     }

@@ -485,115 +485,6 @@ namespace SkyForge.Services.AccountServices
                 throw;
             }
         }
-
-        // public async Task<Account> CreateAccountAsync(Account account)
-        // {
-        //     try
-        //     {
-        //         // Generate unique number if not provided
-        //         if (!account.UniqueNumber.HasValue)
-        //         {
-        //             account.UniqueNumber = await GenerateUniqueAccountNumberAsync();
-        //         }
-
-        //         // Validate opening balance type
-        //         if (account.OpeningBalanceType != "Dr" && account.OpeningBalanceType != "Cr")
-        //         {
-        //             throw new ArgumentException("OpeningBalanceType must be either 'Dr' or 'Cr'");
-        //         }
-
-        //         // *** ADD THIS: Validate and set FiscalYearId ***
-        //         if (account.FiscalYearId == Guid.Empty)
-        //         {
-        //             // If no fiscal year provided, get the active one
-        //             var activeFiscalYear = await _context.FiscalYears
-        //                 .FirstOrDefaultAsync(f => f.CompanyId == account.CompanyId && f.IsActive);
-
-        //             if (activeFiscalYear == null)
-        //             {
-        //                 throw new InvalidOperationException($"No active fiscal year found for company {account.CompanyId}");
-        //             }
-
-        //             account.FiscalYearId = activeFiscalYear.Id;
-        //             account.OriginalFiscalYearId = activeFiscalYear.Id;
-
-        //             // Set Date and NepaliDate from active fiscal year
-        //             account.Date = activeFiscalYear.StartDate.HasValue
-        //                 ? activeFiscalYear.StartDate.Value.ToUniversalTime()
-        //                 : DateTime.UtcNow;
-        //             account.NepaliDate = !string.IsNullOrEmpty(activeFiscalYear.StartDateNepali)
-        //                 ? activeFiscalYear.StartDateNepali
-        //                 : DateTime.UtcNow.ToString("yyyy-MM-dd");
-        //         }
-        //         else
-        //         {
-        //             // Verify the provided fiscal year exists and belongs to the company
-        //             var fiscalYear = await _context.FiscalYears
-        //                 .FirstOrDefaultAsync(f => f.Id == account.FiscalYearId && f.CompanyId == account.CompanyId);
-
-        //             if (fiscalYear == null)
-        //             {
-        //                 throw new KeyNotFoundException($"Fiscal year {account.FiscalYearId} not found for company {account.CompanyId}");
-        //             }
-
-        //             // Set OriginalFiscalYearId if not set
-        //             if (account.OriginalFiscalYearId == Guid.Empty)
-        //             {
-        //                 account.OriginalFiscalYearId = account.FiscalYearId;
-        //             }
-
-        //             // Set Date and NepaliDate from fiscal year if not already set
-        //             if (account.Date == default(DateTime))
-        //             {
-        //                 account.Date = fiscalYear.StartDate.HasValue
-        //                     ? fiscalYear.StartDate.Value.ToUniversalTime()
-        //                     : DateTime.UtcNow;
-        //             }
-
-        //             if (string.IsNullOrEmpty(account.NepaliDate))
-        //             {
-        //                 account.NepaliDate = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
-        //                     ? fiscalYear.StartDateNepali
-        //                     : DateTime.UtcNow.ToString("yyyy-MM-dd");
-        //             }
-        //         }
-
-        //         // Set opening balance date based on fiscal year format
-        //         var assignedFiscalYear = await _context.FiscalYears.FindAsync(account.FiscalYearId);
-        //         if (assignedFiscalYear != null)
-        //         {
-        //             bool isNepaliDateFormat = assignedFiscalYear.DateFormat == DateFormatEnum.Nepali;
-
-        //             if (isNepaliDateFormat)
-        //             {
-        //                 account.OpeningBalanceDate = DateTime.MinValue;
-        //                 account.OpeningBalanceDateNepali = assignedFiscalYear.StartDateNepali;
-        //             }
-        //             else
-        //             {
-        //                 account.OpeningBalanceDate = assignedFiscalYear.StartDate ?? DateTime.UtcNow;
-        //                 account.OpeningBalanceDateNepali = null;
-        //             }
-        //         }
-
-        //         account.CreatedAt = DateTime.UtcNow;
-        //         account.IsActive = true;
-
-        //         _context.Accounts.Add(account);
-        //         await _context.SaveChangesAsync();
-
-        //         _logger.LogInformation("Account '{AccountName}' created with ID {AccountId}, FiscalYear {FiscalYearId}, Date {Date}, NepaliDate {NepaliDate}",
-        //             account.Name, account.Id, account.FiscalYearId, account.Date, account.NepaliDate);
-
-        //         return account;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Error creating account '{AccountName}'", account.Name);
-        //         throw;
-        //     }
-        // }
-
         public async Task<Account> CreateAccountAsync(Account account)
         {
             try
@@ -666,14 +557,6 @@ namespace SkyForge.Services.AccountServices
                 };
 
                 _context.OpeningBalanceByFiscalYear.Add(openingBalance);
-
-                // // If there's an initial opening balance, also add it to InitialOpeningBalance table
-                // if (account.InitialOpeningBalance != null)
-                // {
-                //     account.InitialOpeningBalance.AccountId = account.Id;
-                //     account.InitialOpeningBalance.FiscalYearId = activeFiscalYear.Id;
-                //     _context.InitialOpeningBalances.Add(account.InitialOpeningBalance);
-                // }
 
                 await _context.SaveChangesAsync();
 

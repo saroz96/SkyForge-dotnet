@@ -3344,5 +3344,1031 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+
+
+        // PUT: api/retailer/companies/{id}/opening-balance
+        // [HttpPut("companies/{id}/opening-balance")]
+        // public async Task<IActionResult> UpdateOpeningBalance(Guid id, [FromBody] UpdateOpeningBalanceDTO request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== UpdateOpeningBalance Started ===");
+
+        //         // 1. Claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
+        //             return Unauthorized(new { success = false, error = "Invalid user token." });
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out var companyIdGuid))
+        //             return BadRequest(new { success = false, error = "No company selected." });
+
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) ||
+        //             !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) ||
+        //             tradeType != TradeType.Retailer)
+        //             return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
+
+        //         // 2. Resolve current fiscal year
+        //         Guid currentFiscalYearId;
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out var claimFy))
+        //         {
+        //             currentFiscalYearId = claimFy;
+        //         }
+        //         else
+        //         {
+        //             var activeFy = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //             if (activeFy == null)
+        //                 return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //             currentFiscalYearId = activeFy.Id;
+        //         }
+
+        //         // 3. Verify account belongs to company
+        //         var accountExists = await _context.Accounts
+        //             .AnyAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+        //         if (!accountExists)
+        //             return NotFound(new { success = false, error = "Account not found" });
+
+        //         // 4. Find the OpeningBalanceByFiscalYear row for THIS fiscal year
+        //         var row = await _context.OpeningBalanceByFiscalYear
+        //             .FirstOrDefaultAsync(ob => ob.AccountId == id
+        //                                     && ob.CompanyId == companyIdGuid
+        //                                     && ob.FiscalYearId == currentFiscalYearId);
+
+        //         if (row == null)
+        //         {
+        //             // Create one if missing (preserves "only amount/type update" spirit when row already exists)
+        //             row = new OpeningBalanceByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 AccountId = id,
+        //                 CompanyId = companyIdGuid,
+        //                 FiscalYearId = currentFiscalYearId,
+        //                 Date = DateTime.UtcNow,
+        //                 NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 Amount = request.Amount,
+        //                 Type = request.Type
+        //             };
+        //             _context.OpeningBalanceByFiscalYear.Add(row);
+        //         }
+        //         else
+        //         {
+        //             // ✅ ONLY update Amount and Type — everything else stays the same
+        //             row.Amount = request.Amount;
+        //             row.Type = request.Type;
+        //         }
+
+        //         await _context.SaveChangesAsync();
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = "Opening balance updated successfully",
+        //             data = new
+        //             {
+        //                 id = row.Id,
+        //                 accountId = row.AccountId,
+        //                 fiscalYearId = row.FiscalYearId,
+        //                 amount = row.Amount,
+        //                 type = row.Type
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in UpdateOpeningBalance");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while updating opening balance",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // PUT: api/retailer/companies/{id}/opening-balance
+        // [HttpPut("companies/{id}/opening-balance")]
+        // public async Task<IActionResult> UpdateOpeningBalance(Guid id, [FromBody] UpdateOpeningBalanceDTO request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== UpdateOpeningBalance Started ===");
+
+        //         // 1. Claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
+        //             return Unauthorized(new { success = false, error = "Invalid user token." });
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out var companyIdGuid))
+        //             return BadRequest(new { success = false, error = "No company selected." });
+
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) ||
+        //             !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) ||
+        //             tradeType != TradeType.Retailer)
+        //             return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
+
+        //         // 2. Resolve current fiscal year
+        //         Guid currentFiscalYearId;
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out var claimFy))
+        //         {
+        //             currentFiscalYearId = claimFy;
+        //         }
+        //         else
+        //         {
+        //             var activeFy = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //             if (activeFy == null)
+        //                 return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //             currentFiscalYearId = activeFy.Id;
+        //         }
+
+        //         // ✅ 3. Load the fiscal year — we need its StartDate / StartDateNepali
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == currentFiscalYearId && f.CompanyId == companyIdGuid);
+
+        //         if (fiscalYear == null)
+        //             return BadRequest(new { success = false, error = "Fiscal year not found" });
+
+        //         // ✅ Resolve fiscal year start dates (fallback to now if null)
+        //         DateTime fiscalYearStartDate = fiscalYear.StartDate ?? DateTime.UtcNow;
+        //         string fiscalYearStartDateNepali = !string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+        //             ? fiscalYear.StartDateNepali!
+        //             : fiscalYearStartDate.ToString("yyyy-MM-dd");
+
+        //         // 4. Verify account belongs to company
+        //         var accountExists = await _context.Accounts
+        //             .AnyAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+        //         if (!accountExists)
+        //             return NotFound(new { success = false, error = "Account not found" });
+
+        //         // 5. Find the OpeningBalanceByFiscalYear row for THIS fiscal year
+        //         var row = await _context.OpeningBalanceByFiscalYear
+        //             .FirstOrDefaultAsync(ob => ob.AccountId == id
+        //                                     && ob.CompanyId == companyIdGuid
+        //                                     && ob.FiscalYearId == currentFiscalYearId);
+
+        //         if (row == null)
+        //         {
+        //             // ✅ Create new row using fiscal year START date / Nepali start date
+        //             row = new OpeningBalanceByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 AccountId = id,
+        //                 CompanyId = companyIdGuid,
+        //                 FiscalYearId = currentFiscalYearId,
+        //                 Date = fiscalYearStartDate,
+        //                 NepaliDate = fiscalYearStartDateNepali,
+        //                 Amount = request.Amount,
+        //                 Type = request.Type
+        //             };
+        //             _context.OpeningBalanceByFiscalYear.Add(row);
+        //         }
+        //         else
+        //         {
+        //             // ✅ Existing row: only Amount and Type change. Date/NepaliDate preserved.
+        //             row.Amount = request.Amount;
+        //             row.Type = request.Type;
+        //         }
+
+        //         await _context.SaveChangesAsync();
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = "Opening balance updated successfully",
+        //             data = new
+        //             {
+        //                 id = row.Id,
+        //                 accountId = row.AccountId,
+        //                 fiscalYearId = row.FiscalYearId,
+        //                 amount = row.Amount,
+        //                 type = row.Type,
+        //                 date = row.Date,
+        //                 nepaliDate = row.NepaliDate
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in UpdateOpeningBalance");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while updating opening balance",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // PUT: api/retailer/companies/{id}/opening-balance
+        // [HttpPut("companies/{id}/opening-balance")]
+        // public async Task<IActionResult> UpdateOpeningBalance(Guid id, [FromBody] UpdateOpeningBalanceDTO request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== UpdateOpeningBalance Started ===");
+
+        //         // 1. Claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
+        //             return Unauthorized(new { success = false, error = "Invalid user token." });
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out var companyIdGuid))
+        //             return BadRequest(new { success = false, error = "No company selected." });
+
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) ||
+        //             !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) ||
+        //             tradeType != TradeType.Retailer)
+        //             return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
+
+        //         // 2. Resolve current fiscal year
+        //         Guid currentFiscalYearId;
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out var claimFy))
+        //         {
+        //             currentFiscalYearId = claimFy;
+        //         }
+        //         else
+        //         {
+        //             var activeFy = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //             if (activeFy == null)
+        //                 return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //             currentFiscalYearId = activeFy.Id;
+        //         }
+
+        //         // 3. Load the CURRENT fiscal year (for start date of OpeningBalanceByFiscalYear)
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == currentFiscalYearId && f.CompanyId == companyIdGuid);
+
+        //         if (currentFiscalYear == null)
+        //             return BadRequest(new { success = false, error = "Current fiscal year not found" });
+
+        //         DateTime fiscalYearStartDate = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+        //         string fiscalYearStartDateNepali = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+        //             ? currentFiscalYear.StartDateNepali!
+        //             : fiscalYearStartDate.ToString("yyyy-MM-dd");
+
+        //         // 4. Verify account belongs to company
+        //         var accountExists = await _context.Accounts
+        //             .AnyAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+        //         if (!accountExists)
+        //             return NotFound(new { success = false, error = "Account not found" });
+
+        //         // ============================================================
+        //         // A. OpeningBalanceByFiscalYear (current fiscal year)
+        //         // ============================================================
+        //         var openingRow = await _context.OpeningBalanceByFiscalYear
+        //             .FirstOrDefaultAsync(ob => ob.AccountId == id
+        //                                     && ob.CompanyId == companyIdGuid
+        //                                     && ob.FiscalYearId == currentFiscalYearId);
+
+        //         if (openingRow == null)
+        //         {
+        //             openingRow = new OpeningBalanceByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 AccountId = id,
+        //                 CompanyId = companyIdGuid,
+        //                 FiscalYearId = currentFiscalYearId,
+        //                 Date = fiscalYearStartDate,
+        //                 NepaliDate = fiscalYearStartDateNepali,
+        //                 Amount = request.Amount,
+        //                 Type = request.Type
+        //             };
+        //             _context.OpeningBalanceByFiscalYear.Add(openingRow);
+        //             _logger.LogInformation("Created OpeningBalanceByFiscalYear for AccountId={AccountId}, FY={FY}",
+        //                 id, currentFiscalYearId);
+        //         }
+        //         else
+        //         {
+        //             // ✅ Only update Amount + Type — everything else preserved
+        //             openingRow.Amount = request.Amount;
+        //             openingRow.Type = request.Type;
+        //             _logger.LogInformation("Updated OpeningBalanceByFiscalYear for AccountId={AccountId}, FY={FY}",
+        //                 id, currentFiscalYearId);
+        //         }
+
+        //         // ============================================================
+        //         // B. InitialOpeningBalance — COMPANY-wise check only
+        //         //    If a row exists for (AccountId, CompanyId) → DO NOT touch it
+        //         //    If no row exists → CREATE one using the INITIAL fiscal year's start dates
+        //         // ============================================================
+        //         var initialOpeningExists = await _context.InitialOpeningBalances
+        //             .AnyAsync(iob => iob.AccountId == id
+        //                           && iob.CompanyId == companyIdGuid);
+
+        //         if (!initialOpeningExists)
+        //         {
+        //             // Resolve the INITIAL (earliest) fiscal year for this company
+        //             var initialFiscalYear = await _context.FiscalYears
+        //                 .Where(f => f.CompanyId == companyIdGuid)
+        //                 .OrderBy(f => f.StartDate)
+        //                 .ThenBy(f => f.CreatedAt)
+        //                 .FirstOrDefaultAsync();
+
+        //             if (initialFiscalYear != null)
+        //             {
+        //                 DateTime initialStartDate = initialFiscalYear.StartDate ?? fiscalYearStartDate;
+        //                 string initialStartDateNepali = !string.IsNullOrEmpty(initialFiscalYear.StartDateNepali)
+        //                     ? initialFiscalYear.StartDateNepali!
+        //                     : initialStartDate.ToString("yyyy-MM-dd");
+
+        //                 var newInitial = new InitialOpeningBalance
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     AccountId = id,
+        //                     CompanyId = companyIdGuid,
+        //                     InitialFiscalYearId = initialFiscalYear.Id,
+        //                     Amount = request.Amount,
+        //                     Type = request.Type,
+        //                     Date = initialStartDate,
+        //                     NepaliDate = initialStartDateNepali
+        //                 };
+
+        //                 _context.InitialOpeningBalances.Add(newInitial);
+
+        //                 _logger.LogInformation(
+        //                     "Created InitialOpeningBalance for AccountId={AccountId}, CompanyId={CompanyId}, InitialFY={FY}",
+        //                     id, companyIdGuid, initialFiscalYear.Id);
+        //             }
+        //             else
+        //             {
+        //                 _logger.LogWarning(
+        //                     "No fiscal year found for company {CompanyId}; skipped InitialOpeningBalance creation",
+        //                     companyIdGuid);
+        //             }
+        //         }
+        //         else
+        //         {
+        //             // ✅ Already exists for this (account, company) — DO NOTHING
+        //             _logger.LogInformation(
+        //                 "InitialOpeningBalance already exists for AccountId={AccountId}, CompanyId={CompanyId}; skipping creation",
+        //                 id, companyIdGuid);
+        //         }
+
+        //         // ============================================================
+        //         // Save
+        //         // ============================================================
+        //         await _context.SaveChangesAsync();
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = "Opening balance updated successfully",
+        //             data = new
+        //             {
+        //                 id = openingRow.Id,
+        //                 accountId = openingRow.AccountId,
+        //                 fiscalYearId = openingRow.FiscalYearId,
+        //                 amount = openingRow.Amount,
+        //                 type = openingRow.Type,
+        //                 date = openingRow.Date,
+        //                 nepaliDate = openingRow.NepaliDate,
+        //                 initialOpeningBalanceCreated = !initialOpeningExists
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in UpdateOpeningBalance");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while updating opening balance",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // PUT: api/retailer/companies/{id}/opening-balance
+        // [HttpPut("companies/{id}/opening-balance")]
+        // public async Task<IActionResult> UpdateOpeningBalance(Guid id, [FromBody] UpdateOpeningBalanceDTO request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== UpdateOpeningBalance Started ===");
+
+        //         // 1. Claims
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
+        //             return Unauthorized(new { success = false, error = "Invalid user token." });
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out var companyIdGuid))
+        //             return BadRequest(new { success = false, error = "No company selected." });
+
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) ||
+        //             !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) ||
+        //             tradeType != TradeType.Retailer)
+        //             return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
+
+        //         // 2. Resolve current fiscal year
+        //         Guid currentFiscalYearId;
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out var claimFy))
+        //         {
+        //             currentFiscalYearId = claimFy;
+        //         }
+        //         else
+        //         {
+        //             var activeFy = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //             if (activeFy == null)
+        //                 return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //             currentFiscalYearId = activeFy.Id;
+        //         }
+
+        //         // 3. Load current fiscal year
+        //         var currentFiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.Id == currentFiscalYearId && f.CompanyId == companyIdGuid);
+
+        //         if (currentFiscalYear == null)
+        //             return BadRequest(new { success = false, error = "Current fiscal year not found" });
+
+        //         DateTime fiscalYearStartDate = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+        //         string fiscalYearStartDateNepali = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+        //             ? currentFiscalYear.StartDateNepali!
+        //             : fiscalYearStartDate.ToString("yyyy-MM-dd");
+
+        //         // 4. Verify account belongs to company
+        //         var accountExists = await _context.Accounts
+        //             .AnyAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+        //         if (!accountExists)
+        //             return NotFound(new { success = false, error = "Account not found" });
+
+        //         // ============================================================
+        //         // A. OpeningBalanceByFiscalYear (current fiscal year)
+        //         // ============================================================
+        //         var openingRow = await _context.OpeningBalanceByFiscalYear
+        //             .FirstOrDefaultAsync(ob => ob.AccountId == id
+        //                                     && ob.CompanyId == companyIdGuid
+        //                                     && ob.FiscalYearId == currentFiscalYearId);
+
+        //         if (openingRow == null)
+        //         {
+        //             openingRow = new OpeningBalanceByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 AccountId = id,
+        //                 CompanyId = companyIdGuid,
+        //                 FiscalYearId = currentFiscalYearId,
+        //                 Date = fiscalYearStartDate,
+        //                 NepaliDate = fiscalYearStartDateNepali,
+        //                 Amount = request.Amount,
+        //                 Type = request.Type
+        //             };
+        //             _context.OpeningBalanceByFiscalYear.Add(openingRow);
+        //             _logger.LogInformation("Created OpeningBalanceByFiscalYear for AccountId={AccountId}, FY={FY}",
+        //                 id, currentFiscalYearId);
+        //         }
+        //         else
+        //         {
+        //             openingRow.Amount = request.Amount;
+        //             openingRow.Type = request.Type;
+        //             _logger.LogInformation("Updated OpeningBalanceByFiscalYear for AccountId={AccountId}, FY={FY}",
+        //                 id, currentFiscalYearId);
+        //         }
+
+        //         // ============================================================
+        //         // B. Resolve the INITIAL fiscal year for this company
+        //         //    (earliest by StartDate, tie-broken by CreatedAt)
+        //         // ============================================================
+        //         var initialFiscalYear = await _context.FiscalYears
+        //             .Where(f => f.CompanyId == companyIdGuid)
+        //             .OrderBy(f => f.StartDate)
+        //             .ThenBy(f => f.CreatedAt)
+        //             .FirstOrDefaultAsync();
+
+        //         bool isCurrentFiscalYearTheInitialOne =
+        //             initialFiscalYear != null && initialFiscalYear.Id == currentFiscalYearId;
+
+        //         // ============================================================
+        //         // C. InitialOpeningBalance — company-wise row
+        //         // ============================================================
+        //         var initialRow = await _context.InitialOpeningBalances
+        //             .FirstOrDefaultAsync(iob => iob.AccountId == id
+        //                                      && iob.CompanyId == companyIdGuid);
+
+        //         string initialAction;
+
+        //         if (initialRow == null)
+        //         {
+        //             // ✅ No row → CREATE using initial FY start date
+        //             if (initialFiscalYear != null)
+        //             {
+        //                 DateTime initialStartDate = initialFiscalYear.StartDate ?? fiscalYearStartDate;
+        //                 string initialStartDateNepali = !string.IsNullOrEmpty(initialFiscalYear.StartDateNepali)
+        //                     ? initialFiscalYear.StartDateNepali!
+        //                     : initialStartDate.ToString("yyyy-MM-dd");
+
+        //                 var newInitial = new InitialOpeningBalance
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     AccountId = id,
+        //                     CompanyId = companyIdGuid,
+        //                     InitialFiscalYearId = initialFiscalYear.Id,
+        //                     Amount = request.Amount,
+        //                     Type = request.Type,
+        //                     Date = initialStartDate,
+        //                     NepaliDate = initialStartDateNepali
+        //                 };
+
+        //                 _context.InitialOpeningBalances.Add(newInitial);
+        //                 initialAction = "Created";
+        //                 _logger.LogInformation(
+        //                     "Created InitialOpeningBalance for AccountId={AccountId}, CompanyId={CompanyId}, InitialFY={FY}",
+        //                     id, companyIdGuid, initialFiscalYear.Id);
+        //             }
+        //             else
+        //             {
+        //                 initialAction = "Skipped_NoInitialFY";
+        //                 _logger.LogWarning(
+        //                     "No fiscal year found for company {CompanyId}; skipped InitialOpeningBalance creation",
+        //                     companyIdGuid);
+        //             }
+        //         }
+        //         else if (isCurrentFiscalYearTheInitialOne)
+        //         {
+        //             // ✅ Row exists AND we're editing in the initial fiscal year → UPDATE amount + type only
+        //             initialRow.Amount = request.Amount;
+        //             initialRow.Type = request.Type;
+        //             initialAction = "Updated";
+
+        //             _logger.LogInformation(
+        //                 "Updated InitialOpeningBalance for AccountId={AccountId}, CompanyId={CompanyId} " +
+        //                 "(current FY is the initial FY)",
+        //                 id, companyIdGuid);
+        //         }
+        //         else
+        //         {
+        //             // ✅ Row exists but we're editing in a LATER fiscal year → leave untouched
+        //             initialAction = "Preserved";
+        //             _logger.LogInformation(
+        //                 "Preserved InitialOpeningBalance for AccountId={AccountId}, CompanyId={CompanyId} " +
+        //                 "(current FY is not the initial FY)",
+        //                 id, companyIdGuid);
+        //         }
+
+        //         // ============================================================
+        //         // Save
+        //         // ============================================================
+        //         await _context.SaveChangesAsync();
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = "Opening balance updated successfully",
+        //             data = new
+        //             {
+        //                 id = openingRow.Id,
+        //                 accountId = openingRow.AccountId,
+        //                 fiscalYearId = openingRow.FiscalYearId,
+        //                 amount = openingRow.Amount,
+        //                 type = openingRow.Type,
+        //                 date = openingRow.Date,
+        //                 nepaliDate = openingRow.NepaliDate,
+        //                 isInitialFiscalYear = isCurrentFiscalYearTheInitialOne,
+        //                 initialOpeningBalanceAction = initialAction  // "Created" | "Updated" | "Preserved" | "Skipped_NoInitialFY"
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in UpdateOpeningBalance");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while updating opening balance",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        [HttpPut("companies/{id}/opening-balance")]
+        public async Task<IActionResult> UpdateOpeningBalance(Guid id, [FromBody] UpdateOpeningBalanceDTO request)
+        {
+            try
+            {
+                _logger.LogInformation("=== UpdateOpeningBalance Started ===");
+
+                // 1. Claims
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
+                    return Unauthorized(new { success = false, error = "Invalid user token." });
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out var companyIdGuid))
+                    return BadRequest(new { success = false, error = "No company selected." });
+
+                if (string.IsNullOrEmpty(tradeTypeClaim) ||
+                    !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) ||
+                    tradeType != TradeType.Retailer)
+                    return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
+
+                // 2. Resolve current fiscal year
+                Guid currentFiscalYearId;
+                if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out var claimFy))
+                {
+                    currentFiscalYearId = claimFy;
+                }
+                else
+                {
+                    var activeFy = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFy == null)
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+                    currentFiscalYearId = activeFy.Id;
+                }
+
+                // 3. Load current fiscal year
+                var currentFiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == currentFiscalYearId && f.CompanyId == companyIdGuid);
+
+                if (currentFiscalYear == null)
+                    return BadRequest(new { success = false, error = "Current fiscal year not found" });
+
+                DateTime fiscalYearStartDate = currentFiscalYear.StartDate ?? DateTime.UtcNow;
+                string fiscalYearStartDateNepali = !string.IsNullOrEmpty(currentFiscalYear.StartDateNepali)
+                    ? currentFiscalYear.StartDateNepali!
+                    : fiscalYearStartDate.ToString("yyyy-MM-dd");
+
+                // 4. Verify account belongs to company
+                var accountExists = await _context.Accounts
+                    .AnyAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+                if (!accountExists)
+                    return NotFound(new { success = false, error = "Account not found" });
+
+                // ============================================================
+                // A. OpeningBalanceByFiscalYear (current fiscal year)
+                //    Always created/updated for the current FY.
+                // ============================================================
+                var openingRow = await _context.OpeningBalanceByFiscalYear
+                    .FirstOrDefaultAsync(ob => ob.AccountId == id
+                                            && ob.CompanyId == companyIdGuid
+                                            && ob.FiscalYearId == currentFiscalYearId);
+
+                if (openingRow == null)
+                {
+                    openingRow = new OpeningBalanceByFiscalYear
+                    {
+                        Id = Guid.NewGuid(),
+                        AccountId = id,
+                        CompanyId = companyIdGuid,
+                        FiscalYearId = currentFiscalYearId,
+                        Date = fiscalYearStartDate,
+                        NepaliDate = fiscalYearStartDateNepali,
+                        Amount = request.Amount,
+                        Type = request.Type
+                    };
+                    _context.OpeningBalanceByFiscalYear.Add(openingRow);
+                    _logger.LogInformation("Created OpeningBalanceByFiscalYear for AccountId={AccountId}, FY={FY}",
+                        id, currentFiscalYearId);
+                }
+                else
+                {
+                    openingRow.Amount = request.Amount;
+                    openingRow.Type = request.Type;
+                    _logger.LogInformation("Updated OpeningBalanceByFiscalYear for AccountId={AccountId}, FY={FY}",
+                        id, currentFiscalYearId);
+                }
+
+                // ============================================================
+                // B. Resolve the INITIAL fiscal year for this company
+                // ============================================================
+                var initialFiscalYear = await _context.FiscalYears
+                    .Where(f => f.CompanyId == companyIdGuid)
+                    .OrderBy(f => f.StartDate)
+                    .ThenBy(f => f.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                bool isCurrentFiscalYearTheInitialOne =
+                    initialFiscalYear != null && initialFiscalYear.Id == currentFiscalYearId;
+
+                // ============================================================
+                // C. InitialOpeningBalance
+                //    ✅ Only touched when the current FY IS the initial FY.
+                //    From any other fiscal year → completely skipped.
+                // ============================================================
+                string initialAction;
+
+                if (!isCurrentFiscalYearTheInitialOne)
+                {
+                    // ❌ Not the initial FY → don't touch InitialOpeningBalance at all
+                    initialAction = "Skipped_NotInitialFY";
+                    _logger.LogInformation(
+                        "Skipped InitialOpeningBalance for AccountId={AccountId} — current FY {CurFY} is not the initial FY",
+                        id, currentFiscalYearId);
+                }
+                else
+                {
+                    var initialRow = await _context.InitialOpeningBalances
+                        .FirstOrDefaultAsync(iob => iob.AccountId == id
+                                                 && iob.CompanyId == companyIdGuid);
+
+                    if (initialRow == null)
+                    {
+                        // ✅ Inside initial FY and no row yet → CREATE
+                        var newInitial = new InitialOpeningBalance
+                        {
+                            Id = Guid.NewGuid(),
+                            AccountId = id,
+                            CompanyId = companyIdGuid,
+                            InitialFiscalYearId = currentFiscalYearId,   // current == initial
+                            Amount = request.Amount,
+                            Type = request.Type,
+                            Date = fiscalYearStartDate,
+                            NepaliDate = fiscalYearStartDateNepali
+                        };
+                        _context.InitialOpeningBalances.Add(newInitial);
+                        initialAction = "Created";
+
+                        _logger.LogInformation(
+                            "Created InitialOpeningBalance for AccountId={AccountId}, CompanyId={CompanyId}, InitialFY={FY}",
+                            id, companyIdGuid, currentFiscalYearId);
+                    }
+                    else
+                    {
+                        // ✅ Inside initial FY and row exists → UPDATE amount + type only
+                        initialRow.Amount = request.Amount;
+                        initialRow.Type = request.Type;
+                        initialAction = "Updated";
+
+                        _logger.LogInformation(
+                            "Updated InitialOpeningBalance for AccountId={AccountId}, CompanyId={CompanyId}",
+                            id, companyIdGuid);
+                    }
+                }
+
+                // ============================================================
+                // Save
+                // ============================================================
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Opening balance updated successfully",
+                    data = new
+                    {
+                        id = openingRow.Id,
+                        accountId = openingRow.AccountId,
+                        fiscalYearId = openingRow.FiscalYearId,
+                        amount = openingRow.Amount,
+                        type = openingRow.Type,
+                        date = openingRow.Date,
+                        nepaliDate = openingRow.NepaliDate,
+                        isInitialFiscalYear = isCurrentFiscalYearTheInitialOne,
+                        initialOpeningBalanceAction = initialAction
+                        // "Created" | "Updated" | "Skipped_NotInitialFY"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in UpdateOpeningBalance");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while updating opening balance",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // PUT: api/retailer/companies/{id}/closing-balance
+        // [HttpPut("companies/{id}/closing-balance")]
+        // public async Task<IActionResult> UpdateClosingBalance(Guid id, [FromBody] UpdateCLosingBalanceDTO request)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== UpdateClosingBalance Started ===");
+
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
+        //             return Unauthorized(new { success = false, error = "Invalid user token." });
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out var companyIdGuid))
+        //             return BadRequest(new { success = false, error = "No company selected." });
+
+        //         if (string.IsNullOrEmpty(tradeTypeClaim) ||
+        //             !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) ||
+        //             tradeType != TradeType.Retailer)
+        //             return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
+
+        //         // Resolve fiscal year
+        //         Guid currentFiscalYearId;
+        //         if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out var claimFy))
+        //         {
+        //             currentFiscalYearId = claimFy;
+        //         }
+        //         else
+        //         {
+        //             var activeFy = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //             if (activeFy == null)
+        //                 return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //             currentFiscalYearId = activeFy.Id;
+        //         }
+
+        //         var accountExists = await _context.Accounts
+        //             .AnyAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+        //         if (!accountExists)
+        //             return NotFound(new { success = false, error = "Account not found" });
+
+        //         var row = await _context.ClosingBalanceByFiscalYear
+        //             .FirstOrDefaultAsync(cb => cb.AccountId == id
+        //                                     && cb.CompanyId == companyIdGuid
+        //                                     && cb.FiscalYearId == currentFiscalYearId);
+
+        //         if (row == null)
+        //         {
+        //             row = new ClosingBalanceByFiscalYear
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 AccountId = id,
+        //                 CompanyId = companyIdGuid,
+        //                 FiscalYearId = currentFiscalYearId,
+        //                 Date = DateTime.UtcNow,
+        //                 NepaliDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+        //                 Amount = request.Amount,
+        //                 Type = request.Type
+        //             };
+        //             _context.ClosingBalanceByFiscalYear.Add(row);
+        //         }
+        //         else
+        //         {
+        //             // ✅ ONLY update Amount and Type
+        //             row.Amount = request.Amount;
+        //             row.Type = request.Type;
+        //         }
+
+        //         await _context.SaveChangesAsync();
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = "Closing balance updated successfully",
+        //             data = new
+        //             {
+        //                 id = row.Id,
+        //                 accountId = row.AccountId,
+        //                 fiscalYearId = row.FiscalYearId,
+        //                 amount = row.Amount,
+        //                 type = row.Type
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in UpdateClosingBalance");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error while updating closing balance",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+        // PUT: api/retailer/companies/{id}/closing-balance
+        [HttpPut("companies/{id}/closing-balance")]
+        public async Task<IActionResult> UpdateClosingBalance(Guid id, [FromBody] UpdateCLosingBalanceDTO request)
+        {
+            try
+            {
+                _logger.LogInformation("=== UpdateClosingBalance Started ===");
+
+                var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var tradeTypeClaim = User.FindFirst("tradeType")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
+                    return Unauthorized(new { success = false, error = "Invalid user token." });
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out var companyIdGuid))
+                    return BadRequest(new { success = false, error = "No company selected." });
+
+                if (string.IsNullOrEmpty(tradeTypeClaim) ||
+                    !Enum.TryParse<TradeType>(tradeTypeClaim, out var tradeType) ||
+                    tradeType != TradeType.Retailer)
+                    return StatusCode(403, new { success = false, error = "Access denied for this trade type" });
+
+                // Resolve fiscal year
+                Guid currentFiscalYearId;
+                if (!string.IsNullOrEmpty(fiscalYearIdClaim) && Guid.TryParse(fiscalYearIdClaim, out var claimFy))
+                {
+                    currentFiscalYearId = claimFy;
+                }
+                else
+                {
+                    var activeFy = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFy == null)
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+                    currentFiscalYearId = activeFy.Id;
+                }
+
+                // ✅ Load fiscal year — we need its EndDate / EndDateNepali
+                var fiscalYear = await _context.FiscalYears
+                    .FirstOrDefaultAsync(f => f.Id == currentFiscalYearId && f.CompanyId == companyIdGuid);
+
+                if (fiscalYear == null)
+                    return BadRequest(new { success = false, error = "Fiscal year not found" });
+
+                // ✅ Resolve fiscal year END dates (fallback: start date, then now)
+                DateTime fiscalYearEndDate = fiscalYear.EndDate
+                    ?? fiscalYear.StartDate
+                    ?? DateTime.UtcNow;
+
+                string fiscalYearEndDateNepali = !string.IsNullOrEmpty(fiscalYear.EndDateNepali)
+                    ? fiscalYear.EndDateNepali!
+                    : (!string.IsNullOrEmpty(fiscalYear.StartDateNepali)
+                        ? fiscalYear.StartDateNepali!
+                        : fiscalYearEndDate.ToString("yyyy-MM-dd"));
+
+                var accountExists = await _context.Accounts
+                    .AnyAsync(a => a.Id == id && a.CompanyId == companyIdGuid);
+                if (!accountExists)
+                    return NotFound(new { success = false, error = "Account not found" });
+
+                var row = await _context.ClosingBalanceByFiscalYear
+                    .FirstOrDefaultAsync(cb => cb.AccountId == id
+                                            && cb.CompanyId == companyIdGuid
+                                            && cb.FiscalYearId == currentFiscalYearId);
+
+                if (row == null)
+                {
+                    // ✅ Create new row using fiscal year END date / Nepali end date
+                    row = new ClosingBalanceByFiscalYear
+                    {
+                        Id = Guid.NewGuid(),
+                        AccountId = id,
+                        CompanyId = companyIdGuid,
+                        FiscalYearId = currentFiscalYearId,
+                        Date = fiscalYearEndDate,
+                        NepaliDate = fiscalYearEndDateNepali,
+                        Amount = request.Amount,
+                        Type = request.Type
+                    };
+                    _context.ClosingBalanceByFiscalYear.Add(row);
+                }
+                else
+                {
+                    // ✅ Existing row: only Amount and Type change. Date/NepaliDate preserved.
+                    row.Amount = request.Amount;
+                    row.Type = request.Type;
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Closing balance updated successfully",
+                    data = new
+                    {
+                        id = row.Id,
+                        accountId = row.AccountId,
+                        fiscalYearId = row.FiscalYearId,
+                        amount = row.Amount,
+                        type = row.Type,
+                        date = row.Date,
+                        nepaliDate = row.NepaliDate
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in UpdateClosingBalance");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while updating closing balance",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
     }
 }
