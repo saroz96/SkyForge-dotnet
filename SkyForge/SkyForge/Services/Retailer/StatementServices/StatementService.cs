@@ -1198,7 +1198,97 @@ namespace SkyForge.Services.Retailer.StatementServices
             }
 
             // Group transactions by bill ID to avoid duplicates
+            // var transactionsByBill = new Dictionary<string, Transaction>();
+
+            // foreach (var tx in transactions)
+            // {
+            //     string billId = tx.PaymentAccountId?.ToString() ??
+            //                    tx.ReceiptAccountId?.ToString() ??
+            //                    tx.JournalBillId?.ToString() ??
+            //                    tx.DebitNoteId?.ToString() ??
+            //                    tx.PurchaseBillId?.ToString() ??
+            //                    tx.PurchaseReturnBillId?.ToString() ??
+            //                    tx.SalesBillId?.ToString() ??
+            //                    tx.SalesReturnBillId?.ToString() ??
+            //                    tx.CreditNoteId?.ToString() ??
+            //                    tx.Id.ToString();
+
+            //     if (!transactionsByBill.ContainsKey(billId))
+            //     {
+            //         // Store the full transaction with all its properties
+            //         transactionsByBill[billId] = tx;
+            //     }
+            //     else
+            //     {
+            //         var existing = transactionsByBill[billId];
+            //         existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
+            //         existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
+            //         // IMPORTANT: Keep the cash settlement status from the original transaction
+            //         // Don't override it with null or empty
+            //         if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
+            //         {
+            //             existing.CashSettlementStatus = tx.CashSettlementStatus;
+            //             existing.CashSettlementDate = tx.CashSettlementDate;
+            //             existing.CashSettlementUserId = tx.CashSettlementUserId;
+            //             existing.CashSettlementUser = tx.CashSettlementUser;
+            //             existing.CashSettlementRemarks = tx.CashSettlementRemarks;
+            //         }
+            //     }
+            // }
+
+
+            // Group transactions by bill ID to avoid duplicates
+            // var transactionsByBill = new Dictionary<string, Transaction>();
+
+            // foreach (var tx in transactions)
+            // {
+            //     string billId = tx.PaymentAccountId?.ToString() ??
+            //                    tx.ReceiptAccountId?.ToString() ??
+            //                    tx.JournalBillId?.ToString() ??
+            //                    tx.DebitNoteId?.ToString() ??
+            //                    tx.PurchaseBillId?.ToString() ??
+            //                    tx.PurchaseReturnBillId?.ToString() ??
+            //                    tx.SalesBillId?.ToString() ??
+            //                    tx.SalesReturnBillId?.ToString() ??
+            //                    tx.CreditNoteId?.ToString() ??
+            //                    tx.Id.ToString();
+
+            //     // ✅ For journals, do NOT merge multiple lines into one.
+            //     // Each transaction line is its own accounting entry and must
+            //     // contribute independently to the balance.
+            //     if (tx.Type == TransactionType.Jrnl)
+            //     {
+            //         // Use the transaction's own Id as the key so each line stays
+            //         // separate in the statement.
+            //         transactionsByBill[tx.Id.ToString()] = tx;
+            //         continue;
+            //     }
+
+            //     // Non-journal types keep the existing dedupe behaviour
+            //     if (!transactionsByBill.ContainsKey(billId))
+            //     {
+            //         transactionsByBill[billId] = tx;
+            //     }
+            //     else
+            //     {
+            //         var existing = transactionsByBill[billId];
+            //         existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
+            //         existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
+            //         if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
+            //         {
+            //             existing.CashSettlementStatus = tx.CashSettlementStatus;
+            //             existing.CashSettlementDate = tx.CashSettlementDate;
+            //             existing.CashSettlementUserId = tx.CashSettlementUserId;
+            //             existing.CashSettlementUser = tx.CashSettlementUser;
+            //             existing.CashSettlementRemarks = tx.CashSettlementRemarks;
+            //         }
+            //     }
+            // }
+
             var transactionsByBill = new Dictionary<string, Transaction>();
+
+            // billId → unique counterparty account names for that journal voucher
+            var journalAccountNamesByBill = new Dictionary<string, List<string>>();
 
             foreach (var tx in transactions)
             {
@@ -1213,9 +1303,98 @@ namespace SkyForge.Services.Retailer.StatementServices
                                tx.CreditNoteId?.ToString() ??
                                tx.Id.ToString();
 
+                // ─────────────────────────────────────────────────────────
+                // JOURNALS: keep ONE row per voucher, net the amounts,
+                // accumulate the distinct counterparty account names.
+                // ─────────────────────────────────────────────────────────
+                if (tx.Type == TransactionType.Jrnl)
+                {
+                    // 1. Collect counterparty names (skip the statement's party account)
+                    if (!journalAccountNamesByBill.TryGetValue(billId, out var names))
+                    {
+                        names = new List<string>();
+                        journalAccountNamesByBill[billId] = names;
+                    }
+
+                    void TryAddName(string? name, Guid? id)
+                    {
+                        if (string.IsNullOrEmpty(name)) return;
+                        if (id.HasValue && id.Value == accountId) return;    // skip party
+                        if (!names.Contains(name)) names.Add(name);
+                    }
+
+                    TryAddName(tx.DebitAccount?.Name, tx.DebitAccount?.Id);
+                    TryAddName(tx.CreditAccount?.Name, tx.CreditAccount?.Id);
+                    TryAddName(tx.PaymentAccount?.Name, tx.PaymentAccount?.Id);
+                    TryAddName(tx.ReceiptAccount?.Name, tx.ReceiptAccount?.Id);
+
+                    // 2. Merge / net the amounts into a single row keyed by billId
+                    if (!transactionsByBill.TryGetValue(billId, out var existing))
+                    {
+                        // first leg — clone so we don't mutate the tracked entity
+                        transactionsByBill[billId] = new Transaction
+                        {
+                            Id = tx.Id,
+                            CompanyId = tx.CompanyId,
+                            Date = tx.Date,
+                            NepaliDate = tx.NepaliDate,
+                            Type = tx.Type,
+                            BillNumber = tx.BillNumber,
+                            PartyBillNumber = tx.PartyBillNumber,
+                            PaymentMode = tx.PaymentMode,
+                            TotalDebit = tx.TotalDebit,
+                            TotalCredit = tx.TotalCredit,
+                            PaymentAccountId = tx.PaymentAccountId,
+                            ReceiptAccountId = tx.ReceiptAccountId,
+                            JournalBillId = tx.JournalBillId,
+                            DebitNoteId = tx.DebitNoteId,
+                            SalesBillId = tx.SalesBillId,
+                            SalesReturnBillId = tx.SalesReturnBillId,
+                            PurchaseBillId = tx.PurchaseBillId,
+                            PurchaseReturnBillId = tx.PurchaseReturnBillId,
+                            AccountId = tx.AccountId,
+                            DebitAccountId = tx.DebitAccountId,
+                            CreditAccountId = tx.CreditAccountId,
+                            Account = tx.Account,
+                            PaymentAccount = tx.PaymentAccount,
+                            ReceiptAccount = tx.ReceiptAccount,
+                            JournalAccountType = tx.JournalAccountType,
+                            DebitAccount = tx.DebitAccount,
+                            CreditAccount = tx.CreditAccount,
+                            CashSettlementStatus = tx.CashSettlementStatus,
+                            CashSettlementDate = tx.CashSettlementDate,
+                            CashSettlementUserId = tx.CashSettlementUserId,
+                            CashSettlementUser = tx.CashSettlementUser,
+                            CashSettlementRemarks = tx.CashSettlementRemarks
+                        };
+                    }
+                    else
+                    {
+                        // net this leg: +Dr / −Cr, then re-encode on a single side
+                        decimal rowNet = tx.TotalDebit - tx.TotalCredit;
+                        decimal combinedNet = (existing.TotalDebit - existing.TotalCredit) + rowNet;
+
+                        existing.TotalDebit = combinedNet > 0 ? combinedNet : 0;
+                        existing.TotalCredit = combinedNet < 0 ? -combinedNet : 0;
+
+                        if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
+                        {
+                            existing.CashSettlementStatus = tx.CashSettlementStatus;
+                            existing.CashSettlementDate = tx.CashSettlementDate;
+                            existing.CashSettlementUserId = tx.CashSettlementUserId;
+                            existing.CashSettlementUser = tx.CashSettlementUser;
+                            existing.CashSettlementRemarks = tx.CashSettlementRemarks;
+                        }
+                    }
+
+                    continue;
+                }
+
+                // ─────────────────────────────────────────────────────────
+                // NON-JOURNAL — original dedupe behaviour
+                // ─────────────────────────────────────────────────────────
                 if (!transactionsByBill.ContainsKey(billId))
                 {
-                    // Store the full transaction with all its properties
                     transactionsByBill[billId] = tx;
                 }
                 else
@@ -1223,8 +1402,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                     var existing = transactionsByBill[billId];
                     existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
                     existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
-                    // IMPORTANT: Keep the cash settlement status from the original transaction
-                    // Don't override it with null or empty
+
                     if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
                     {
                         existing.CashSettlementStatus = tx.CashSettlementStatus;
@@ -1235,7 +1413,6 @@ namespace SkyForge.Services.Retailer.StatementServices
                     }
                 }
             }
-
             // Process grouped transactions
             foreach (var tx in transactionsByBill.Values)
             {

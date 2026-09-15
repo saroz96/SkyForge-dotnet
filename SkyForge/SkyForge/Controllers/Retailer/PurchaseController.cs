@@ -2335,8 +2335,7 @@ namespace SkyForge.Controllers.Retailer
                     .Include(se => se.Store)
                     .Include(se => se.Rack)
                     .Where(se => se.CompanyId == companyIdGuid &&
-                                 se.Quantity > 0 &&
-                                 se.FiscalYearId == fiscalYearIdGuid);
+                                 se.Quantity > 0);
 
                 // Apply search filter
                 if (!string.IsNullOrEmpty(searchTerm))
