@@ -54,7 +54,7 @@
 }
 
 /* ============================================
-   Modal Header - Matches SalesBillsList topbar
+   Modal Header
    ============================================ */
 .dis-modal-header {
     display: flex;
@@ -198,7 +198,7 @@
 }
 
 /* ============================================
-   Search Card - Matches SalesBillsList toolbar
+   Search Card
    ============================================ */
 .dis-search-card {
     background: var(--dis-card);
@@ -255,7 +255,7 @@
 }
 
 /* ============================================
-   Buttons - Matches SalesBillsList
+   Buttons
    ============================================ */
 .dis-btn-primary {
     display: inline-flex;
@@ -322,7 +322,7 @@
 }
 
 /* ============================================
-   Table Card - Matches SalesBillsList main
+   Table Card
    ============================================ */
 .dis-table-card {
     background: var(--dis-card);
@@ -336,7 +336,7 @@
 }
 
 /* ============================================
-   Table
+   MAIN TABLE (Items) — compact
    ============================================ */
 .dis-table-wrap {
     overflow: auto;
@@ -364,7 +364,8 @@
 .dis-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.75rem;
+    font-size: 0.68rem;          /* reduced from 0.72rem */
+    table-layout: fixed;
 }
 
 .dis-table-header {
@@ -376,10 +377,10 @@
 }
 
 .dis-table-header th {
-    padding: 0.5rem 0.5rem;
+    padding: 0.35rem 0.4rem;     /* tighter */
     font-weight: 600;
     color: var(--dis-muted);
-    font-size: 0.62rem;
+    font-size: 0.58rem;          /* smaller header */
     text-transform: uppercase;
     letter-spacing: 0.04em;
     text-align: left;
@@ -397,61 +398,83 @@
 }
 
 .dis-table-row td {
-    padding: 0.4rem 0.5rem;
+    padding: 0.25rem 0.4rem;     /* tighter row padding */
     vertical-align: middle;
+    line-height: 1.15;
 }
 
 .dis-row-index {
     color: var(--dis-muted);
     font-weight: 500;
-    font-size: 0.7rem;
+    font-size: 0.62rem;
+}
+
+/* Item name: wraps if needed but does not stretch the table */
+.dis-item-name {
+    max-width: 150px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.15;
 }
 
 .dis-item-name strong {
     color: var(--dis-text);
-    font-size: 0.8rem;
+    font-size: 0.68rem;          /* reduced */
+    font-weight: 600;
 }
 
 .dis-muted {
     color: var(--dis-muted);
+    font-size: 0.62rem;          /* reduced */
+    max-width: 100px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.15;
 }
 
 .dis-qty-value {
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.68rem;          /* reduced */
     color: var(--dis-text);
 }
 
 .dis-value-text {
     font-weight: 500;
+    font-size: 0.66rem;          /* reduced */
     color: var(--dis-text);
 }
 
 /* ============================================
-   Badges
+   Badges (main table)
    ============================================ */
 .dis-badge-code {
     background: #e9ecef;
     color: var(--dis-text);
     font-weight: 500;
-    font-size: 0.65rem;
-    padding: 0.15rem 0.5rem;
+    font-size: 0.56rem;
+    padding: 0.1rem 0.35rem;
     border-radius: 4px;
     white-space: nowrap;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dis-badge-batches {
     background: #e3f2fd;
     color: #1976d2;
-    font-size: 0.65rem;
-    padding: 0.15rem 0.6rem;
+    font-size: 0.56rem;
+    padding: 0.1rem 0.5rem;
     border-radius: 12px;
     font-weight: 500;
 }
 
 .dis-badge-stock {
-    font-size: 0.6rem;
-    padding: 0.15rem 0.6rem;
+    font-size: 0.54rem;
+    padding: 0.1rem 0.5rem;
     border-radius: 12px;
     font-weight: 500;
     white-space: nowrap;
@@ -475,6 +498,85 @@
 .dis-badge-stock--info {
     background: #dbeafe;
     color: #1e40af;
+}
+
+/* ============================================
+   Expand Button
+   ============================================ */
+.dis-btn-expand {
+    background: transparent;
+    border: 1px solid var(--dis-border);
+    border-radius: 6px;
+    padding: 0.1rem 0.35rem;
+    color: var(--dis-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.62rem;
+}
+
+.dis-btn-expand:hover {
+    background: var(--dis-surface);
+    border-color: var(--dis-border-strong);
+}
+
+.dis-btn-expand--active {
+    background: var(--dis-primary-soft);
+    border-color: var(--dis-primary-light);
+    color: var(--dis-primary-light);
+}
+
+/* ============================================
+   Expanded Row (wrapper only)
+   ============================================ */
+.dis-expanded-row {
+    padding: 0 !important;
+    background: #f8fafc;
+}
+
+.dis-expanded-content {
+    padding: 0.5rem 0.75rem;
+}
+
+.dis-expanded-table-wrap {
+    overflow-x: auto;
+}
+
+/* ============================================
+   EXPANDED TABLE (Batches) — unchanged size
+   ============================================ */
+.dis-expanded-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.65rem;          /* original size kept */
+}
+
+.dis-expanded-table thead th {
+    padding: 0.3rem 0.5rem;
+    font-weight: 600;
+    color: var(--dis-muted);
+    border-bottom: 2px solid var(--dis-border);
+    text-align: left;
+    background: #f1f5f9;
+    white-space: nowrap;
+}
+
+.dis-expanded-table tbody td {
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--dis-border);
+    max-width: 140px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.25;
+}
+
+.dis-expanded-table tbody tr:hover {
+    background: var(--dis-primary-soft);
+}
+
+.dis-batch-number {
+    font-weight: 500;
+    font-size: 0.65rem;
 }
 
 .dis-badge-expiry {
@@ -508,77 +610,6 @@
 .dis-badge-expiry--secondary {
     background: #f3f4f6;
     color: #6b7280;
-}
-
-/* ============================================
-   Expand Button
-   ============================================ */
-.dis-btn-expand {
-    background: transparent;
-    border: 1px solid var(--dis-border);
-    border-radius: 6px;
-    padding: 0.15rem 0.4rem;
-    color: var(--dis-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-    font-size: 0.7rem;
-}
-
-.dis-btn-expand:hover {
-    background: var(--dis-surface);
-    border-color: var(--dis-border-strong);
-}
-
-.dis-btn-expand--active {
-    background: var(--dis-primary-soft);
-    border-color: var(--dis-primary-light);
-    color: var(--dis-primary-light);
-}
-
-/* ============================================
-   Expanded Row
-   ============================================ */
-.dis-expanded-row {
-    padding: 0 !important;
-    background: #f8fafc;
-}
-
-.dis-expanded-content {
-    padding: 0.6rem 1rem;
-}
-
-.dis-expanded-table-wrap {
-    overflow-x: auto;
-}
-
-.dis-expanded-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.65rem;
-}
-
-.dis-expanded-table thead th {
-    padding: 0.3rem 0.5rem;
-    font-weight: 600;
-    color: var(--dis-muted);
-    border-bottom: 2px solid var(--dis-border);
-    text-align: left;
-    background: #f1f5f9;
-    white-space: nowrap;
-}
-
-.dis-expanded-table tbody td {
-    padding: 0.3rem 0.5rem;
-    border-bottom: 1px solid var(--dis-border);
-}
-
-.dis-expanded-table tbody tr:hover {
-    background: var(--dis-primary-soft);
-}
-
-.dis-batch-number {
-    font-weight: 500;
-    font-size: 0.65rem;
 }
 
 /* ============================================
@@ -635,7 +666,7 @@
 }
 
 /* ============================================
-   Pagination - Matches SalesBillsList
+   Pagination
    ============================================ */
 .dis-pagination {
     display: flex;
@@ -833,30 +864,45 @@
         padding: 0.5rem;
     }
 
+    /* Main table tighter on mobile */
     .dis-table {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
     }
 
     .dis-table-header th,
     .dis-table-row td {
-        padding: 0.25rem 0.3rem;
+        padding: 0.2rem 0.28rem;
+    }
+
+    .dis-item-name {
+        max-width: 100px;
+    }
+
+    .dis-item-name strong {
+        font-size: 0.6rem;
+    }
+
+    .dis-muted {
+        max-width: 80px;
+        font-size: 0.56rem;
     }
 
     .dis-table-wrap {
         max-height: 250px;
     }
 
+    /* Expanded (batches) table keeps its original size */
     .dis-expanded-content {
         padding: 0.3rem 0.5rem;
     }
 
     .dis-expanded-table {
-        font-size: 0.6rem;
+        font-size: 0.65rem;
     }
 
     .dis-expanded-table thead th,
     .dis-expanded-table tbody td {
-        padding: 0.2rem 0.3rem;
+        padding: 0.3rem 0.5rem;
     }
 
     .dis-modal-footer {
