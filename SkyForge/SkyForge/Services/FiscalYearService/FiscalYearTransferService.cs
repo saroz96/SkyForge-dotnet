@@ -42,52 +42,6 @@ namespace SkyForge.Services
         };
 
         /// <summary>
-        /// Calculates the Profit & Loss for the fiscal year
-        /// </summary>
-        // private async Task<decimal> CalculateProfitAndLossAsync(
-        //     Guid fiscalYearId,
-        //     Guid companyId,
-        //     List<AccountBalanceSummaryDto> closingBalances)
-        // {
-        //     decimal totalIncome = 0;
-        //     decimal totalExpenses = 0;
-        //     decimal totalSales = 0;
-        //     decimal totalPurchases = 0;
-
-        //     // Get all nominal accounts from closing balances
-        //     var nominalAccounts = closingBalances
-        //         .Where(b => _nominalAccountGroups.Contains(b.AccountGroupName))
-        //         .ToList();
-
-        //     foreach (var account in nominalAccounts)
-        //     {
-        //         switch (account.AccountGroupName)
-        //         {
-        //             case "Sale":
-        //             case "Income (Direct/Opr.)":
-        //             case "Income (Indirect)":
-        //                 // Income accounts have credit balance
-        //                 totalIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
-        //                 break;
-
-        //             case "Purchase":
-        //             case "Expenses (Direct/Mfg.)":
-        //             case "Expenses (Indirect/Admn.)":
-        //                 // Expense accounts have debit balance
-        //                 totalExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
-        //                 break;
-        //         }
-        //     }
-
-        //     // Net Profit/Loss = Total Income - Total Expenses
-        //     decimal netProfitLoss = totalIncome - totalExpenses;
-
-        //     _logger.LogInformation($"Profit & Loss Calculation - Total Income: {totalIncome}, Total Expenses: {totalExpenses}, Net: {netProfitLoss}");
-
-        //     return netProfitLoss;
-        // }
-
-        /// <summary>
         /// Gets the Opening Stock value for the source fiscal year.
         /// Reads from OpeningBalanceByFiscalYear for the "Stock in Hand" account group.
         /// </summary>
@@ -141,196 +95,8 @@ namespace SkyForge.Services
             return stockEntries.Sum(se => se.Quantity * se.PuPrice);
         }
 
-        // private async Task<decimal> CalculateProfitAndLossAsync(
-        //     Guid sourceFiscalYearId,
-        //     Guid companyId,
-        //     List<AccountBalanceSummaryDto> closingBalances)
-        // {
-        //     decimal totalSales = 0;
-        //     decimal totalOtherIncome = 0;
-        //     decimal totalPurchases = 0;
-        //     decimal totalDirectExpenses = 0;
-        //     decimal totalIndirectExpenses = 0;
-
-        //     // ---- Aggregate each nominal group from closing balances ----
-        //     foreach (var account in closingBalances
-        //         .Where(b => _nominalAccountGroups.Contains(b.AccountGroupName)))
-        //     {
-        //         switch (account.AccountGroupName)
-        //         {
-        //             case "Sale":
-        //                 totalSales += account.CreditAmount > 0 ? account.CreditAmount : 0;
-        //                 break;
-
-        //             case "Income (Direct/Opr.)":
-        //             case "Income (Indirect)":
-        //                 totalOtherIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
-        //                 break;
-
-        //             case "Purchase":
-        //                 totalPurchases += account.DebitAmount > 0 ? account.DebitAmount : 0;
-        //                 break;
-
-        //             case "Expenses (Direct/Mfg.)":
-        //                 totalDirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
-        //                 break;
-
-        //             case "Expenses (Indirect/Admn.)":
-        //                 totalIndirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
-        //                 break;
-        //         }
-        //     }
-
-        //     // ============================================================
-        //     // ✅ OPENING STOCK — from OpeningBalanceByFiscalYear
-        //     //    for the "Stock in Hand" account (or any Stock account) in the SOURCE FY
-        //     // ============================================================
-        //     decimal openingStock = await GetOpeningStockValueAsync(
-        //         sourceFiscalYearId, companyId);
-
-        //     // ============================================================
-        //     // ✅ CLOSING STOCK — from ItemClosingStockByFiscalYear (or StockEntries)
-        //     //    for the SOURCE FY
-        //     // ============================================================
-        //     decimal closingStock = await GetClosingStockValueAsync(
-        //         sourceFiscalYearId, companyId);
-
-        //     // ============================================================
-        //     // ✅ COGS = Opening Stock + Purchases + Direct Expenses − Closing Stock
-        //     // ============================================================
-        //     decimal costOfGoodsSold = openingStock + totalPurchases + totalDirectExpenses - closingStock;
-
-        //     // ============================================================
-        //     // ✅ Net Profit = (Sales + Other Income) − COGS − Indirect Expenses
-        //     // ============================================================
-        //     decimal netProfitLoss = (totalSales + totalOtherIncome) - costOfGoodsSold - totalIndirectExpenses;
-
-        //     _logger.LogInformation(
-        //         "P&L Calculation:\n" +
-        //         "  Opening Stock:      {OpenStock}\n" +
-        //         "  Purchases:          {Purch}\n" +
-        //         "  Direct Expenses:    {DirectExp}\n" +
-        //         "  Closing Stock:      {CloseStock}\n" +
-        //         "  COGS:               {Cogs}\n" +
-        //         "  Sales:              {Sales}\n" +
-        //         "  Other Income:       {OtherInc}\n" +
-        //         "  Indirect Expenses:  {IndirectExp}\n" +
-        //         "  Net Profit/Loss:    {NetPL}",
-        //         openingStock, totalPurchases, totalDirectExpenses, closingStock,
-        //         costOfGoodsSold, totalSales, totalOtherIncome, totalIndirectExpenses, netProfitLoss);
-
-        //     return netProfitLoss;
-        // }
 
 
-
-        //-------------------------------------------end1
-
-        /// <summary>
-        /// Calculates the Profit & Loss for the fiscal year
-        /// P&L = Sales + Direct Income + Indirect Income - COGS - Indirect Expenses
-        /// Where COGS = Opening Stock + Purchases + Direct Expenses - Closing Stock
-        /// </summary>
-        // private async Task<decimal> CalculateProfitAndLossAsync(
-        //     Guid sourceFiscalYearId,
-        //     Guid companyId,
-        //     List<AccountBalanceSummaryDto> closingBalances)
-        // {
-        //     decimal totalSales = 0;
-        //     decimal totalDirectIncome = 0;
-        //     decimal totalIndirectIncome = 0;
-        //     decimal totalPurchases = 0;
-        //     decimal totalDirectExpenses = 0;
-        //     decimal totalIndirectExpenses = 0;
-
-        //     // ---- Aggregate each nominal group from closing balances ----
-        //     foreach (var account in closingBalances
-        //         .Where(b => _nominalAccountGroups.Contains(b.AccountGroupName)))
-        //     {
-        //         switch (account.AccountGroupName)
-        //         {
-        //             case "Sale":
-        //                 totalSales += account.CreditAmount > 0 ? account.CreditAmount : 0;
-        //                 break;
-
-        //             case "Income (Direct/Opr.)":
-        //                 totalDirectIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
-        //                 break;
-
-        //             case "Income (Indirect)":
-        //                 totalIndirectIncome += account.CreditAmount > 0 ? account.CreditAmount : 0;
-        //                 break;
-
-        //             case "Purchase":
-        //                 totalPurchases += account.DebitAmount > 0 ? account.DebitAmount : 0;
-        //                 break;
-
-        //             case "Expenses (Direct/Mfg.)":
-        //                 totalDirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
-        //                 break;
-
-        //             case "Expenses (Indirect/Admn.)":
-        //                 totalIndirectExpenses += account.DebitAmount > 0 ? account.DebitAmount : 0;
-        //                 break;
-        //         }
-        //     }
-
-        //     // ============================================================
-        //     // ✅ OPENING STOCK — from OpeningBalanceByFiscalYear
-        //     //    for the "Stock in Hand" account in the SOURCE FY
-        //     // ============================================================
-        //     decimal openingStock = await GetOpeningStockValueAsync(
-        //         sourceFiscalYearId, companyId);
-
-        //     // ============================================================
-        //     // ✅ CLOSING STOCK — from ItemClosingStockByFiscalYear (or StockEntries)
-        //     //    for the SOURCE FY
-        //     // ============================================================
-        //     decimal closingStock = await GetClosingStockValueAsync(
-        //         sourceFiscalYearId, companyId);
-
-        //     // ============================================================
-        //     // ✅ COGS = Opening Stock + Purchases + Direct Expenses − Closing Stock
-        //     // ============================================================
-        //     decimal costOfGoodsSold = openingStock + totalPurchases + totalDirectExpenses - closingStock;
-
-        //     // ============================================================
-        //     // ✅ Net Profit = (Sales + Direct Income + Indirect Income) − COGS − Indirect Expenses
-        //     // ============================================================
-        //     decimal netProfitLoss = (totalSales + totalDirectIncome + totalIndirectIncome)
-        //                            - costOfGoodsSold
-        //                            - totalIndirectExpenses;
-
-        //     _logger.LogInformation(
-        //         "P&L Calculation:\n" +
-        //         "  Opening Stock:      {OpenStock}\n" +
-        //         "  Purchases:          {Purch}\n" +
-        //         "  Direct Expenses:    {DirectExp}\n" +
-        //         "  Closing Stock:      {CloseStock}\n" +
-        //         "  COGS:               {Cogs}\n" +
-        //         "  Sales:              {Sales}\n" +
-        //         "  Direct Income:      {DirectInc}\n" +
-        //         "  Indirect Income:    {IndirectInc}\n" +
-        //         "  Indirect Expenses:  {IndirectExp}\n" +
-        //         "  Net Profit/Loss:    {NetPL}",
-        //         openingStock, totalPurchases, totalDirectExpenses, closingStock,
-        //         costOfGoodsSold, totalSales, totalDirectIncome, totalIndirectIncome,
-        //         totalIndirectExpenses, netProfitLoss);
-
-        //     return netProfitLoss;
-        // }
-
-
-        /// <summary>
-        /// Calculates the Profit & Loss for the fiscal year.
-        /// Mirrors AuditReportService.GetProfitAndLossAccountAsync so the numbers match exactly.
-        ///
-        /// Formula:
-        ///   TotalRevenue = Sale + Income (Direct/Opr.) + Income (Indirect)
-        ///   COGS         = OpeningStock + Purchases + DirectExpenses - ClosingStock
-        ///   GrossProfit  = TotalRevenue - COGS
-        ///   NetProfit    = GrossProfit - IndirectExpenses
-        /// </summary>
         // private async Task<decimal> CalculateProfitAndLossAsync(
         //     Guid sourceFiscalYearId,
         //     Guid companyId,
@@ -352,7 +118,7 @@ namespace SkyForge.Services
         //         string.Equals(actual.Trim(), expected.Trim(), StringComparison.OrdinalIgnoreCase);
 
         //     // ============================================================
-        //     // 2. COGS — use the SAME logic as AuditReportService
+        //     // 2. COGS (same as before)
         //     // ============================================================
         //     var periodicCogs = await CalculatePeriodicCogsAsync(
         //         companyId, sourceFiscalYearId, accounts, accountGroups);
@@ -360,42 +126,51 @@ namespace SkyForge.Services
         //     decimal cogs = periodicCogs.TotalCogs;
 
         //     // ============================================================
-        //     // 3. Read Sale / Income / Expenses from ClosingBalanceByFiscalYear
-        //     //    (same source as the P&L report)
+        //     // 3. ✅ Read Sale / Income / Expenses from the IN-MEMORY closingBalances
+        //     //    (built from live transactions by GetAccountClosingBalancesFromTransactionsAsync)
+        //     //    Not from the ClosingBalanceByFiscalYear DB table — it isn't populated yet.
         //     // ============================================================
-        //     var dbClosing = await _context.ClosingBalanceByFiscalYear
-        //         .Where(cb => cb.CompanyId == companyId && cb.FiscalYearId == sourceFiscalYearId)
-        //         .ToDictionaryAsync(cb => cb.AccountId, cb => cb);
-
         //     decimal saleTotal = 0;
         //     decimal incomeDirectTotal = 0;
         //     decimal incomeIndirectTotal = 0;
         //     decimal expenseIndirectTotal = 0;
-        //     decimal expenseDirectTotal = 0;   // just for logging / diagnostics
+        //     decimal expenseDirectTotal = 0;
+        //     decimal purchaseTotal = 0;
 
-        //     foreach (var account in accounts)
+        //     foreach (var balance in closingBalances)
         //     {
-        //         var groupName = accountGroups.TryGetValue(account.AccountGroupsId, out var g) ? g.Name : "";
+        //         // net amount + sign
+        //         decimal net = balance.CreditAmount - balance.DebitAmount;   // positive = credit
 
-        //         if (!dbClosing.TryGetValue(account.Id, out var cb))
-        //             continue;
-
-        //         decimal amount = cb.Amount;
-
-        //         if (Matches(groupName, "Sale"))
-        //             saleTotal += amount;
-        //         else if (Matches(groupName, "Income (Direct/Opr.)"))
-        //             incomeDirectTotal += amount;
-        //         else if (Matches(groupName, "Income (Indirect)"))
-        //             incomeIndirectTotal += amount;
-        //         else if (Matches(groupName, "Expenses (Indirect/Admn.)"))
-        //             expenseIndirectTotal += amount;
-        //         else if (Matches(groupName, "Expenses (Direct/Mfg.)"))
-        //             expenseDirectTotal += amount;
+        //         if (Matches(balance.AccountGroupName, "Sale"))
+        //         {
+        //             // Sales are credits; add credit-side net
+        //             saleTotal += balance.CreditAmount;
+        //         }
+        //         else if (Matches(balance.AccountGroupName, "Income (Direct/Opr.)"))
+        //         {
+        //             incomeDirectTotal += balance.CreditAmount;
+        //         }
+        //         else if (Matches(balance.AccountGroupName, "Income (Indirect)"))
+        //         {
+        //             incomeIndirectTotal += balance.CreditAmount;
+        //         }
+        //         else if (Matches(balance.AccountGroupName, "Expenses (Indirect/Admn.)"))
+        //         {
+        //             expenseIndirectTotal += balance.DebitAmount;
+        //         }
+        //         else if (Matches(balance.AccountGroupName, "Expenses (Direct/Mfg.)"))
+        //         {
+        //             expenseDirectTotal += balance.DebitAmount;
+        //         }
+        //         else if (Matches(balance.AccountGroupName, "Purchase"))
+        //         {
+        //             purchaseTotal += balance.DebitAmount;
+        //         }
         //     }
 
         //     // ============================================================
-        //     // 4. Compute P&L — formula matches AuditReportService exactly
+        //     // 4. Compute P&L
         //     // ============================================================
         //     decimal totalRevenue = saleTotal + incomeDirectTotal + incomeIndirectTotal;
         //     decimal grossProfit = totalRevenue - cogs;
@@ -415,6 +190,7 @@ namespace SkyForge.Services
         //         "  GrossProfit             = {GP}\n" +
         //         "  IndirectExpenses        = {IndExp}\n" +
         //         "  NetProfitLoss           = {NetPL}",
+
         //         saleTotal, incomeDirectTotal, incomeIndirectTotal,
         //         totalRevenue,
         //         periodicCogs.OpeningStock, periodicCogs.Purchases,
@@ -424,39 +200,17 @@ namespace SkyForge.Services
         //     return netProfitLoss;
         // }
 
-
         private async Task<decimal> CalculateProfitAndLossAsync(
             Guid sourceFiscalYearId,
             Guid companyId,
             List<AccountBalanceSummaryDto> closingBalances)
         {
-            // ============================================================
-            // 1. Load accounts + groups (case-insensitive matching)
-            // ============================================================
-            var accounts = await _context.Accounts
-                .Where(a => a.CompanyId == companyId && a.IsActive)
-                .ToListAsync();
-
-            var accountGroups = await _context.AccountGroups
-                .Where(ag => ag.CompanyId == companyId)
-                .ToDictionaryAsync(g => g.Id, g => g);
-
             bool Matches(string actual, string expected) =>
                 !string.IsNullOrEmpty(actual) && !string.IsNullOrEmpty(expected) &&
                 string.Equals(actual.Trim(), expected.Trim(), StringComparison.OrdinalIgnoreCase);
 
             // ============================================================
-            // 2. COGS (same as before)
-            // ============================================================
-            var periodicCogs = await CalculatePeriodicCogsAsync(
-                companyId, sourceFiscalYearId, accounts, accountGroups);
-
-            decimal cogs = periodicCogs.TotalCogs;
-
-            // ============================================================
-            // 3. ✅ Read Sale / Income / Expenses from the IN-MEMORY closingBalances
-            //    (built from live transactions by GetAccountClosingBalancesFromTransactionsAsync)
-            //    Not from the ClosingBalanceByFiscalYear DB table — it isn't populated yet.
+            // 1. Pull all values from the IN-MEMORY closingBalances
             // ============================================================
             decimal saleTotal = 0;
             decimal incomeDirectTotal = 0;
@@ -464,41 +218,39 @@ namespace SkyForge.Services
             decimal expenseIndirectTotal = 0;
             decimal expenseDirectTotal = 0;
             decimal purchaseTotal = 0;
+            decimal closingStock = 0;
 
             foreach (var balance in closingBalances)
             {
-                // net amount + sign
-                decimal net = balance.CreditAmount - balance.DebitAmount;   // positive = credit
-
                 if (Matches(balance.AccountGroupName, "Sale"))
-                {
-                    // Sales are credits; add credit-side net
                     saleTotal += balance.CreditAmount;
-                }
                 else if (Matches(balance.AccountGroupName, "Income (Direct/Opr.)"))
-                {
                     incomeDirectTotal += balance.CreditAmount;
-                }
                 else if (Matches(balance.AccountGroupName, "Income (Indirect)"))
-                {
                     incomeIndirectTotal += balance.CreditAmount;
-                }
                 else if (Matches(balance.AccountGroupName, "Expenses (Indirect/Admn.)"))
-                {
                     expenseIndirectTotal += balance.DebitAmount;
-                }
                 else if (Matches(balance.AccountGroupName, "Expenses (Direct/Mfg.)"))
-                {
                     expenseDirectTotal += balance.DebitAmount;
-                }
                 else if (Matches(balance.AccountGroupName, "Purchase"))
-                {
                     purchaseTotal += balance.DebitAmount;
-                }
+                else if (Matches(balance.AccountGroupName, "Stock in Hand"))
+                    closingStock += balance.DebitAmount;  // closing stock is a debit
             }
 
             // ============================================================
-            // 4. Compute P&L
+            // 2. Opening stock from OpeningBalanceByFiscalYear (source FY)
+            //    NOTE: opening balances are usually saved BEFORE this runs
+            // ============================================================
+            decimal openingStock = await GetOpeningStockValueAsync(sourceFiscalYearId, companyId);
+
+            // ============================================================
+            // 3. COGS = Opening Stock + Purchases + Direct Expenses − Closing Stock
+            // ============================================================
+            decimal cogs = openingStock + purchaseTotal + expenseDirectTotal - closingStock;
+
+            // ============================================================
+            // 4. Net Profit = (Sales + Direct Income + Indirect Income) − COGS − Indirect Expenses
             // ============================================================
             decimal totalRevenue = saleTotal + incomeDirectTotal + incomeIndirectTotal;
             decimal grossProfit = totalRevenue - cogs;
@@ -518,12 +270,9 @@ namespace SkyForge.Services
                 "  GrossProfit             = {GP}\n" +
                 "  IndirectExpenses        = {IndExp}\n" +
                 "  NetProfitLoss           = {NetPL}",
-
                 saleTotal, incomeDirectTotal, incomeIndirectTotal,
-                totalRevenue,
-                periodicCogs.OpeningStock, periodicCogs.Purchases,
-                periodicCogs.DirectExpenses, periodicCogs.ClosingStock,
-                cogs, grossProfit, expenseIndirectTotal, netProfitLoss);
+                totalRevenue, openingStock, purchaseTotal, expenseDirectTotal,
+                closingStock, cogs, grossProfit, expenseIndirectTotal, netProfitLoss);
 
             return netProfitLoss;
         }
