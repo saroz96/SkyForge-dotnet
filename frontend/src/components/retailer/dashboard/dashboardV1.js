@@ -388,36 +388,76 @@ const DashboardV1 = () => {
     };
 
     // Load data from localStorage
-    useEffect(() => {
-        const loadPersistedData = () => {
-            try {
-                const savedUserInfo = localStorage.getItem('userInfo');
-                if (savedUserInfo) {
-                    const parsedUserInfo = JSON.parse(savedUserInfo);
-                    dispatch(setUserInfo(parsedUserInfo));
-                }
+    // useEffect(() => {
+    //     const loadPersistedData = () => {
+    //         try {
+    //             const savedUserInfo = localStorage.getItem('userInfo');
+    //             if (savedUserInfo) {
+    //                 const parsedUserInfo = JSON.parse(savedUserInfo);
+    //                 dispatch(setUserInfo(parsedUserInfo));
+    //             }
 
-                const savedCurrentCompany = localStorage.getItem('currentCompany');
-                if (savedCurrentCompany) {
+    //             const savedCurrentCompany = localStorage.getItem('currentCompany');
+    //             if (savedCurrentCompany) {
+    //                 const parsedCurrentCompany = JSON.parse(savedCurrentCompany);
+    //                 dispatch(setCurrentCompany({
+    //                     company: parsedCurrentCompany.company,
+    //                     fiscalYear: parsedCurrentCompany.fiscalYear
+    //                 }));
+    //             }
+
+    //             const savedUserCompanies = localStorage.getItem('userCompanies');
+    //             if (savedUserCompanies) {
+    //                 const parsedUserCompanies = JSON.parse(savedUserCompanies);
+    //                 dispatch(setUserCompanies(parsedUserCompanies));
+    //             }
+    //         } catch (error) {
+    //             console.error('Error loading persisted data:', error);
+    //         }
+    //     };
+
+    //     loadPersistedData();
+    // }, [dispatch]);
+
+    // Load data from localStorage (NOT user — AuthContext owns user data)
+useEffect(() => {
+    const loadPersistedData = () => {
+        try {
+            // ❌ DO NOT load userInfo from localStorage.
+            // AuthContext fetches fresh user data from /api/User/current on app load.
+            // Loading it here would overwrite the fresh data with stale cache.
+
+            const savedCurrentCompany = localStorage.getItem('currentCompany');
+            if (savedCurrentCompany) {
+                try {
                     const parsedCurrentCompany = JSON.parse(savedCurrentCompany);
-                    dispatch(setCurrentCompany({
-                        company: parsedCurrentCompany.company,
-                        fiscalYear: parsedCurrentCompany.fiscalYear
-                    }));
+                    if (parsedCurrentCompany?.company?.id) {
+                        dispatch(setCurrentCompany({
+                            company: parsedCurrentCompany.company,
+                            fiscalYear: parsedCurrentCompany.fiscalYear
+                        }));
+                    }
+                } catch (e) {
+                    console.error('Error parsing currentCompany:', e);
                 }
+            }
 
-                const savedUserCompanies = localStorage.getItem('userCompanies');
-                if (savedUserCompanies) {
+            const savedUserCompanies = localStorage.getItem('userCompanies');
+            if (savedUserCompanies) {
+                try {
                     const parsedUserCompanies = JSON.parse(savedUserCompanies);
                     dispatch(setUserCompanies(parsedUserCompanies));
+                } catch (e) {
+                    console.error('Error parsing userCompanies:', e);
                 }
-            } catch (error) {
-                console.error('Error loading persisted data:', error);
             }
-        };
+        } catch (error) {
+            console.error('Error loading persisted data:', error);
+        }
+    };
 
-        loadPersistedData();
-    }, [dispatch]);
+    loadPersistedData();
+}, [dispatch]);
 
     const initializeDashboard = async () => {
         try {

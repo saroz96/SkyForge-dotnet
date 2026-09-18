@@ -257,7 +257,9 @@ namespace SkyForge.Services.Retailer.StatementServices
                     Pan = a.Pan,
                     InitialOpeningBalance = new InitialOpeningBalanceDTO
                     {
-                        Type = a.OpeningBalanceType == "Dr" ? "Dr" : "Cr",
+                        Type = a.InitialOpeningBalance != null
+                ? (a.InitialOpeningBalance.Type == "Dr" ? "Dr" : "Cr")
+                : (a.OpeningBalanceType == "Dr" ? "Dr" : "Cr"),   // fallback only if no InitialOpeningBalance
                         Amount = a.InitialOpeningBalance != null ? a.InitialOpeningBalance.Amount : 0
                     }
                 })
@@ -280,7 +282,9 @@ namespace SkyForge.Services.Retailer.StatementServices
                     Pan = a.Pan,
                     InitialOpeningBalance = new InitialOpeningBalanceDTO
                     {
-                        Type = a.OpeningBalanceType == "Dr" ? "Dr" : "Cr",
+                        Type = a.InitialOpeningBalance != null
+                ? (a.InitialOpeningBalance.Type == "Dr" ? "Dr" : "Cr")
+                : (a.OpeningBalanceType == "Dr" ? "Dr" : "Cr"),
                         Amount = a.InitialOpeningBalance != null ? a.InitialOpeningBalance.Amount : 0
                     },
                     CompanyGroups = a.AccountGroup != null ? new List<CompanyGroupDTO>

@@ -334,7 +334,21 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     // Check if VAT applies
                     bool isItemVatExempt = dto.IsVatExempt;
 
-                    if (!isItemVatExempt && itemVatPercentage > 0)
+                    // if (!isItemVatExempt && itemVatPercentage > 0)
+                    // {
+                    //     itemTaxableAmount = itemValueAfterDiscount;
+                    //     itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
+                    // }
+                    // else if (dto.VatAmount.HasValue && dto.VatAmount.Value > 0)
+                    // {
+                    //     itemVatAmount = dto.VatAmount.Value;
+                    //     if (itemVatPercentage > 0)
+                    //     {
+                    //         itemTaxableAmount = (itemVatAmount * 100) / itemVatPercentage;
+                    //     }
+                    // }
+
+                    if (!isItemVatExempt && itemVatPercentage > 0 && dto.VatAmount.HasValue && dto.VatAmount.Value > 0)
                     {
                         itemTaxableAmount = itemValueAfterDiscount;
                         itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
@@ -2915,10 +2929,24 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                     decimal itemVatPercentage = dto.VatPercentage;
                     decimal itemVatAmount = 0m;
 
-                    if (!isVatExempt && itemVatPercentage > 0)
+                    // if (!isVatExempt && itemVatPercentage > 0)
+                    // {
+                    //     itemTaxableAmount = itemValueAfterDiscount;
+                    //     itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
+                    // }
+
+                    if (!isVatExempt && itemVatPercentage > 0 && dto.VatAmount.HasValue && dto.VatAmount.Value > 0)
                     {
                         itemTaxableAmount = itemValueAfterDiscount;
                         itemVatAmount = (itemTaxableAmount * itemVatPercentage) / 100m;
+                    }
+                    else if (dto.VatAmount.HasValue && dto.VatAmount.Value > 0)
+                    {
+                        itemVatAmount = dto.VatAmount.Value;
+                        if (itemVatPercentage > 0)
+                        {
+                            itemTaxableAmount = (itemVatAmount * 100) / itemVatPercentage;
+                        }
                     }
 
                     // Update totals
@@ -3244,7 +3272,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                         IsType = TransactionIsType.VAT,
                         Type = TransactionType.Purc,
                         PurchaseSalesType = "Purchase",
-                        TotalDebit = dto.VatAmount,
+                        TotalDebit = dto.VatAmount ?? 0,
                         TotalCredit = 0,
                         TaxableAmount = dto.TaxableAmount,
                         NonTaxableAmount = dto.NonVatPurchase,
@@ -3390,6 +3418,8 @@ namespace SkyForge.Services.Retailer.PurchaseServices
                 throw;
             }
         }
+
+
         private async Task CheckIfStockIsUsedAsync(PurchaseBill existingBill, Guid companyId)
         {
             foreach (var existingItem in existingBill.Items)

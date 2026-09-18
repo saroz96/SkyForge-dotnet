@@ -861,9 +861,7 @@ namespace SkyForge.Controllers.Retailer
                 var bankAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyIdGuid &&
                                a.IsActive == true &&
-                               (a.Name.Contains("Bank") ||
-                                a.Name.Contains("bank") ||
-                                a.AccountGroup != null &&
+                               (a.AccountGroup != null &&
                                 (a.AccountGroup.Name == "Bank Accounts" || a.AccountGroup.Name == "Bank O/D Account" ||
                                  a.AccountGroup.Name == "Bank")))
                     .Select(a => new { a.Id, a.Name })

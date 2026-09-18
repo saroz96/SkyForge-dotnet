@@ -49,7 +49,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public decimal VatPercentage { get; set; }
 
         [Range(0, double.MaxValue)]
-        public decimal VatAmount { get; set; }
+        public decimal? VatAmount { get; set; }
 
         [Range(0, double.MaxValue)]
         public decimal TotalAmount { get; set; }

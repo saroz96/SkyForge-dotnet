@@ -117,11 +117,9 @@ namespace SkyForge.Dto
     public class SplitFiscalYearRequestDto
     {
         public Guid SourceCompanyId { get; set; }
-
         public Guid FiscalYearId { get; set; }
-
+        public Guid TargetFiscalYearId { get; set; }
         public string NewCompanyName { get; set; } = string.Empty;
-
         public bool DeleteAfterSplit { get; set; } = false;
     }
 

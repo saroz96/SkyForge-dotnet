@@ -218,6 +218,17 @@ const Header = () => {
       </div>
     );
   }
+
+  console.log('=== HEADER DEBUG ===');
+console.log('headerDraftSave:', headerDraftSave);
+console.log('headerDraftSave?.user:', headerDraftSave?.user);
+console.log('user (local state):', user);
+console.log('userInfo (Redux):', userInfo);
+console.log('currentUser (AuthContext):', currentUser);
+console.log('finalUser:', finalUser);
+console.log('displayUser:', displayUser);
+console.log('displayUser.name:', JSON.stringify(displayUser?.name));
+
   if (error && !headerDraftSave) {
     return (
       <div className="header-container">
