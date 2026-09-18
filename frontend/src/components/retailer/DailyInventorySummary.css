@@ -92,12 +92,6 @@
     margin: 0;
 }
 
-.dis-modal-subtitle {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.7);
-    display: block;
-}
-
 .dis-modal-close {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -340,7 +334,7 @@
    ============================================ */
 .dis-table-wrap {
     overflow: auto;
-    max-height: 200px;
+    max-height: 280px;
 }
 
 .dis-table-wrap::-webkit-scrollbar {
@@ -364,7 +358,7 @@
 .dis-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.68rem;          /* reduced from 0.72rem */
+    font-size: 0.76rem;          /* ↑ slightly increased from 0.68rem */
     table-layout: fixed;
 }
 
@@ -377,10 +371,10 @@
 }
 
 .dis-table-header th {
-    padding: 0.35rem 0.4rem;     /* tighter */
+    padding: 0.35rem 0.4rem;
     font-weight: 600;
     color: var(--dis-muted);
-    font-size: 0.58rem;          /* smaller header */
+    font-size: 0.66rem;          /* ↑ slightly increased from 0.58rem */
     text-transform: uppercase;
     letter-spacing: 0.04em;
     text-align: left;
@@ -398,15 +392,15 @@
 }
 
 .dis-table-row td {
-    padding: 0.25rem 0.4rem;     /* tighter row padding */
+    padding: 0.3rem 0.4rem;      /* tiny bump for readability */
     vertical-align: middle;
-    line-height: 1.15;
+    line-height: 1.2;
 }
 
 .dis-row-index {
     color: var(--dis-muted);
     font-weight: 500;
-    font-size: 0.62rem;
+    font-size: 0.7rem;           /* ↑ from 0.62rem */
 }
 
 /* Item name: wraps if needed but does not stretch the table */
@@ -415,34 +409,34 @@
     word-break: break-word;
     overflow-wrap: anywhere;
     white-space: normal;
-    line-height: 1.15;
+    line-height: 1.2;
 }
 
 .dis-item-name strong {
     color: var(--dis-text);
-    font-size: 0.68rem;          /* reduced */
+    font-size: 0.78rem;          /* ↑ from 0.68rem */
     font-weight: 600;
 }
 
 .dis-muted {
     color: var(--dis-muted);
-    font-size: 0.62rem;          /* reduced */
+    font-size: 0.72rem;          /* ↑ from 0.62rem */
     max-width: 100px;
     word-break: break-word;
     overflow-wrap: anywhere;
     white-space: normal;
-    line-height: 1.15;
+    line-height: 1.2;
 }
 
 .dis-qty-value {
     font-weight: 600;
-    font-size: 0.68rem;          /* reduced */
+    font-size: 0.78rem;          /* ↑ from 0.68rem */
     color: var(--dis-text);
 }
 
 .dis-value-text {
     font-weight: 500;
-    font-size: 0.66rem;          /* reduced */
+    font-size: 0.76rem;          /* ↑ from 0.66rem */
     color: var(--dis-text);
 }
 
@@ -453,8 +447,8 @@
     background: #e9ecef;
     color: var(--dis-text);
     font-weight: 500;
-    font-size: 0.56rem;
-    padding: 0.1rem 0.35rem;
+    font-size: 0.66rem;          /* ↑ from 0.56rem */
+    padding: 0.1rem 0.4rem;
     border-radius: 4px;
     white-space: nowrap;
     display: inline-block;
@@ -466,14 +460,14 @@
 .dis-badge-batches {
     background: #e3f2fd;
     color: #1976d2;
-    font-size: 0.56rem;
+    font-size: 0.66rem;          /* ↑ from 0.56rem */
     padding: 0.1rem 0.5rem;
     border-radius: 12px;
     font-weight: 500;
 }
 
 .dis-badge-stock {
-    font-size: 0.54rem;
+    font-size: 0.64rem;          /* ↑ from 0.54rem */
     padding: 0.1rem 0.5rem;
     border-radius: 12px;
     font-weight: 500;
@@ -507,11 +501,11 @@
     background: transparent;
     border: 1px solid var(--dis-border);
     border-radius: 6px;
-    padding: 0.1rem 0.35rem;
+    padding: 0.1rem 0.4rem;
     color: var(--dis-muted);
     cursor: pointer;
     transition: all 0.15s;
-    font-size: 0.62rem;
+    font-size: 0.7rem;           /* ↑ from 0.62rem */
 }
 
 .dis-btn-expand:hover {
@@ -547,7 +541,7 @@
 .dis-expanded-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.65rem;          /* original size kept */
+    font-size: 0.65rem;          /* unchanged */
 }
 
 .dis-expanded-table thead th {
@@ -864,14 +858,14 @@
         padding: 0.5rem;
     }
 
-    /* Main table tighter on mobile */
+    /* Main table — slightly bigger than before on mobile too */
     .dis-table {
-        font-size: 0.6rem;
+        font-size: 0.7rem;       /* ↑ from 0.6rem */
     }
 
     .dis-table-header th,
     .dis-table-row td {
-        padding: 0.2rem 0.28rem;
+        padding: 0.25rem 0.3rem;
     }
 
     .dis-item-name {
@@ -879,12 +873,12 @@
     }
 
     .dis-item-name strong {
-        font-size: 0.6rem;
+        font-size: 0.7rem;       /* ↑ from 0.6rem */
     }
 
     .dis-muted {
         max-width: 80px;
-        font-size: 0.56rem;
+        font-size: 0.66rem;      /* ↑ from 0.56rem */
     }
 
     .dis-table-wrap {
