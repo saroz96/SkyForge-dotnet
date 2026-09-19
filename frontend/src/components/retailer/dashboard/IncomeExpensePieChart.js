@@ -93,7 +93,7 @@ const IncomeExpensePieChart = ({ companyId, companyName, fiscalYearJson }) => {
             },
             value: {
               show: true,
-              fontSize: '15px',
+              fontSize: '11px',
               fontFamily: 'Inter, system-ui, sans-serif',
               fontWeight: 600,
               color: '#1f2937',

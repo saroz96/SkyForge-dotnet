@@ -273,7 +273,7 @@
 }
 
 .pie-summary-value {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     font-weight: 700;
     margin-top: 2px;
     font-variant-numeric: tabular-nums;
@@ -453,7 +453,7 @@
     }
 
     .pie-summary-value {
-        font-size: 0.75rem;
+        font-size: 0.68rem;
     }
 
     .pie-chart-wrapper {
@@ -529,7 +529,7 @@
     }
 
     .pie-summary-value {
-        font-size: 0.75rem;
+        font-size: 0.68rem;
     }
 
     .pie-chart-wrapper {
@@ -585,7 +585,7 @@
     }
 
     .pie-summary-value {
-        font-size: 0.7rem;
+        font-size: 0.6rem;
     }
 
     .pie-chart-wrapper {
