@@ -1435,6 +1435,749 @@ namespace SkyForge.Controllers.Retailer
         }
 
 
+        // ============================================================================
+        // DAY BOOK — aggregated Sales / Purchase / Payment / Receipt transactions
+        // ============================================================================
+
+        [HttpGet("day-book/entry-data")]
+        public async Task<IActionResult> GetDayBookEntryData()
+        {
+            try
+            {
+                _logger.LogInformation("=== GetDayBookEntryData Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "Company not found" });
+
+                var company = await _context.Companies
+                    .Where(c => c.Id == companyIdGuid)
+                    .Select(c => new
+                    {
+                        c.Name,
+                        c.Address,
+                        c.Pan,
+                        DateFormat = c.DateFormat.ToString(),
+                        c.VatEnabled
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (company == null)
+                    return BadRequest(new { success = false, error = "Company not found" });
+
+                var fiscalYear = await _context.FiscalYears
+                    .Where(f => f.CompanyId == companyIdGuid && f.IsActive)
+                    .Select(f => new
+                    {
+                        f.Id,
+                        f.StartDate,
+                        StartDateNepali = f.StartDateNepali,
+                        f.EndDate
+                    })
+                    .FirstOrDefaultAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        company,
+                        currentFiscalYear = fiscalYear,
+                        isAdminOrSupervisor = true
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetDayBookEntryData");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
+        // [HttpGet("day-book")]
+        // public async Task<IActionResult> GetDayBook(
+        //     [FromQuery] string fromDate,
+        //     [FromQuery] string toDate,
+        //     [FromQuery] string? type = "all")
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== GetDayBook Started ===");
+
+        //         var companyId = User.FindFirst("currentCompany")?.Value;
+        //         var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //         if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //             return BadRequest(new { success = false, error = "Company not found" });
+
+        //         // Resolve fiscal year
+        //         Guid fiscalYearIdGuid;
+        //         if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //         {
+        //             var activeFiscalYear = await _context.FiscalYears
+        //                 .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //             if (activeFiscalYear == null)
+        //                 return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //             fiscalYearIdGuid = activeFiscalYear.Id;
+        //         }
+
+        //         // Parse date range (inclusive end-of-day for To)
+        //         if (!DateTime.TryParse(fromDate, out DateTime fromParsed))
+        //             return BadRequest(new { success = false, error = "Invalid from date format" });
+        //         if (!DateTime.TryParse(toDate, out DateTime toParsed))
+        //             return BadRequest(new { success = false, error = "Invalid to date format" });
+
+        //         toParsed = toParsed.Date.AddDays(1).AddTicks(-1);
+
+        //         // Resolve which types to include
+        //         bool includeAll = string.IsNullOrEmpty(type) || type.Equals("all", StringComparison.OrdinalIgnoreCase);
+        //         bool includeSales = includeAll || type.Equals("Sales", StringComparison.OrdinalIgnoreCase);
+        //         bool includePurchase = includeAll || type.Equals("Purchase", StringComparison.OrdinalIgnoreCase);
+        //         bool includePayment = includeAll || type.Equals("Payment", StringComparison.OrdinalIgnoreCase);
+        //         bool includeReceipt = includeAll || type.Equals("Receipt", StringComparison.OrdinalIgnoreCase);
+
+        //         // ---------------------------------------------------------------
+        //         // 1. Base query — all active transactions in range for this company
+        //         // ---------------------------------------------------------------
+        //         var baseQuery = _context.Transactions
+        //             .Where(t => t.CompanyId == companyIdGuid
+        //                      && t.FiscalYearId == fiscalYearIdGuid
+        //                      && t.Date >= fromParsed
+        //                      && t.Date <= toParsed
+        //                      && t.Status == TransactionStatus.Active
+        //                      && t.IsActive);
+
+        //         // ---------------------------------------------------------------
+        //         // 2. Build a whitelist of types we care about
+        //         // ---------------------------------------------------------------
+        //         var wantedTypes = new List<TransactionType>();
+
+        //         if (includeSales)
+        //         {
+        //             wantedTypes.Add(TransactionType.Sale);
+        //             wantedTypes.Add(TransactionType.SlRt);
+        //         }
+        //         if (includePurchase)
+        //         {
+        //             wantedTypes.Add(TransactionType.Purc);
+        //             wantedTypes.Add(TransactionType.PrRt);
+        //         }
+        //         if (includePayment)
+        //         {
+        //             wantedTypes.Add(TransactionType.Pymt);
+        //         }
+        //         if (includeReceipt)
+        //         {
+        //             wantedTypes.Add(TransactionType.Rcpt);
+        //         }
+
+        //         if (wantedTypes.Count == 0)
+        //         {
+        //             return Ok(new
+        //             {
+        //                 success = true,
+        //                 data = new { transactions = new List<object>() }
+        //             });
+        //         }
+
+        //         var query = baseQuery.Where(t => wantedTypes.Contains(t.Type));
+
+        //         // ---------------------------------------------------------------
+        //         // 3. Materialize with includes we need for party names / bill no.
+        //         // ---------------------------------------------------------------
+        //         var rawTransactions = await query
+        //             .Include(t => t.Account).ThenInclude(a => a.AccountGroup)
+        //             .Include(t => t.PurchaseBill).ThenInclude(pb => pb.Account)
+        //             .Include(t => t.PurchaseReturn).ThenInclude(pr => pr.Account)
+        //             .Include(t => t.SalesBill).ThenInclude(sb => sb.Account)
+        //             .Include(t => t.SalesReturn).ThenInclude(sr => sr.Account)
+        //             .Include(t => t.Payment).ThenInclude(p => p.PaymentEntries).ThenInclude(pe => pe.Account)
+        //             .Include(t => t.Receipt).ThenInclude(r => r.ReceiptEntries).ThenInclude(re => re.Account)
+        //             .Include(t => t.DebitAccount)
+        //             .Include(t => t.CreditAccount)
+        //             .OrderBy(t => t.Date).ThenBy(t => t.BillNumber)
+        //             .ToListAsync();
+
+        //         _logger.LogInformation("DayBook — found {Count} raw transactions in range", rawTransactions.Count);
+
+        //         // ---------------------------------------------------------------
+        //         // 4. Group by voucher so multiple rows (party + VAT + round-off)
+        //         //    collapse into one entry per voucher.
+        //         // ---------------------------------------------------------------
+        //         var grouped = rawTransactions
+        //             .GroupBy(t => new
+        //             {
+        //                 t.Type,
+        //                 VoucherId = t.Type switch
+        //                 {
+        //                     TransactionType.Purc => t.PurchaseBillId,
+        //                     TransactionType.PrRt => t.PurchaseReturnBillId,
+        //                     TransactionType.Sale => t.SalesBillId,
+        //                     TransactionType.SlRt => t.SalesReturnBillId,
+        //                     TransactionType.Pymt => t.PaymentAccountId,
+        //                     TransactionType.Rcpt => t.ReceiptAccountId,
+        //                     _ => null
+        //                 }
+        //             })
+        //             .Select(g =>
+        //             {
+        //                 // Prefer the "party" row from the group:
+        //                 //   Purchase / Purchase Return → Sundry Creditors
+        //                 //   Sales / Sales Return       → Sundry Debtors
+        //                 //   Payment / Receipt          → any row with AccountId set
+        //                 var primary =
+        //                     g.FirstOrDefault(x => x.Type == TransactionType.Purc &&
+        //                                           x.Account != null &&
+        //                                           x.Account.AccountGroup != null &&
+        //                                           x.Account.AccountGroup.Name == "Sundry Creditors")
+        //                     ?? g.FirstOrDefault(x => x.Type == TransactionType.PrRt &&
+        //                                              x.Account != null &&
+        //                                              x.Account.AccountGroup != null &&
+        //                                              x.Account.AccountGroup.Name == "Sundry Creditors")
+        //                     ?? g.FirstOrDefault(x => x.Type == TransactionType.Sale &&
+        //                                              x.Account != null &&
+        //                                              x.Account.AccountGroup != null &&
+        //                                              x.Account.AccountGroup.Name == "Sundry Debtors")
+        //                     ?? g.FirstOrDefault(x => x.Type == TransactionType.SlRt &&
+        //                                              x.Account != null &&
+        //                                              x.Account.AccountGroup != null &&
+        //                                              x.Account.AccountGroup.Name == "Sundry Debtors")
+        //                     ?? g.FirstOrDefault(x => x.AccountId != null)
+        //                     ?? g.First();
+
+        //                 string? billNumber = primary.BillNumber;
+        //                 string? partyName = primary.Account?.Name;
+
+        //                 switch (primary.Type)
+        //                 {
+        //                     case TransactionType.Sale:
+        //                         billNumber = primary.SalesBill?.BillNumber ?? billNumber;
+        //                         partyName = primary.SalesBill?.Account?.Name ?? partyName;
+        //                         break;
+        //                     case TransactionType.SlRt:
+        //                         billNumber = primary.SalesReturn?.BillNumber ?? billNumber;
+        //                         partyName = primary.SalesReturn?.Account?.Name ?? partyName;
+        //                         break;
+        //                     case TransactionType.Purc:
+        //                         billNumber = primary.PurchaseBill?.BillNumber ?? billNumber;
+        //                         partyName = primary.PurchaseBill?.Account?.Name ?? partyName;
+        //                         break;
+        //                     case TransactionType.PrRt:
+        //                         billNumber = primary.PurchaseReturn?.BillNumber ?? billNumber;
+        //                         partyName = primary.PurchaseReturn?.Account?.Name ?? partyName;
+        //                         break;
+        //                     case TransactionType.Pymt:
+        //                         var pDebitEntry = primary.Payment?.PaymentEntries?.FirstOrDefault(pe => pe.EntryType == "Debit");
+        //                         partyName = pDebitEntry?.Account?.Name
+        //                                     ?? primary.PaymentAccount?.Name
+        //                                     ?? primary.DebitAccount?.Name
+        //                                     ?? partyName;
+        //                         billNumber = primary.Payment?.BillNumber ?? billNumber;
+        //                         break;
+        //                     case TransactionType.Rcpt:
+        //                         var rCreditEntry = primary.Receipt?.ReceiptEntries?.FirstOrDefault(re => re.EntryType == "Credit");
+        //                         partyName = rCreditEntry?.Account?.Name
+        //                                     ?? primary.ReceiptAccount?.Name
+        //                                     ?? primary.CreditAccount?.Name
+        //                                     ?? partyName;
+        //                         billNumber = primary.Receipt?.BillNumber ?? billNumber;
+        //                         break;
+        //                 }
+
+        //                 // ---------------------------------------------------------
+        //                 // Compute the voucher's total amount ONCE.
+        //                 // Nullable decimals on the parent bill → use ?? 0m.
+        //                 // ---------------------------------------------------------
+        //                 decimal amount = 0m;
+        //                 switch (primary.Type)
+        //                 {
+        //                     case TransactionType.Sale:
+        //                         amount = primary.SalesBill?.TotalAmount
+        //                                  ?? (primary.TotalDebit > primary.TotalCredit ? primary.TotalDebit : primary.TotalCredit);
+        //                         break;
+
+        //                     case TransactionType.SlRt:
+        //                         amount = primary.SalesReturn?.TotalAmount
+        //                                  ?? (primary.TotalDebit > primary.TotalCredit ? primary.TotalDebit : primary.TotalCredit);
+        //                         break;
+
+        //                     case TransactionType.Purc:
+        //                         amount = primary.PurchaseBill != null
+        //                             ? ((primary.PurchaseBill.TaxableAmount ?? 0m) + (primary.PurchaseBill.NonVatPurchase ?? 0m))
+        //                             : (primary.TotalDebit > primary.TotalCredit ? primary.TotalDebit : primary.TotalCredit);
+        //                         break;
+
+        //                     case TransactionType.PrRt:
+        //                         amount = primary.PurchaseReturn != null
+        //                             ? ((primary.PurchaseReturn.TaxableAmount ?? 0m) + (primary.PurchaseReturn.NonVatPurchaseReturn ?? 0m))
+        //                             : (primary.TotalDebit > primary.TotalCredit ? primary.TotalDebit : primary.TotalCredit);
+        //                         break;
+
+        //                     case TransactionType.Pymt:
+        //                         amount = primary.TotalDebit > 0 ? primary.TotalDebit : primary.TotalCredit;
+        //                         break;
+
+        //                     case TransactionType.Rcpt:
+        //                         amount = primary.TotalCredit > 0 ? primary.TotalCredit : primary.TotalDebit;
+        //                         break;
+        //                 }
+
+        //                 return new
+        //                 {
+        //                     VoucherDate = g.Min(x => x.Date),
+        //                     NepaliDate = g.Where(x => !string.IsNullOrEmpty(x.NepaliDate))
+        //                                    .OrderBy(x => x.Date)
+        //                                    .Select(x => x.NepaliDate)
+        //                                    .FirstOrDefault(),
+        //                     Type = primary.Type,
+        //                     BillNumber = billNumber ?? "",
+        //                     AccountName = partyName ?? "N/A",
+        //                     PaymentMode = primary.PaymentMode.ToString(),
+        //                     Amount = amount,
+        //                     Id = primary.Id
+        //                 };
+        //             })
+        //             .Where(x => x.Amount != 0)
+        //             .OrderBy(x => x.VoucherDate)
+        //             .ThenBy(x => x.BillNumber)
+        //             .ToList();
+
+        //         // ---------------------------------------------------------------
+        //         // 5. Build DTOs with running balance
+        //         // ---------------------------------------------------------------
+        //         var result = new List<DayBookEntryDto>();
+        //         decimal runningBalance = 0m;
+
+        //         foreach (var g in grouped)
+        //         {
+        //             string typeLabel = g.Type switch
+        //             {
+        //                 TransactionType.Sale => "Sales",
+        //                 TransactionType.SlRt => "Sales Return",
+        //                 TransactionType.Purc => "Purchase",
+        //                 TransactionType.PrRt => "Purchase Return",
+        //                 TransactionType.Pymt => "Payment",
+        //                 TransactionType.Rcpt => "Receipt",
+        //                 _ => "Unknown"
+        //             };
+
+        //             decimal debit = 0m;
+        //             decimal credit = 0m;
+
+        //             switch (g.Type)
+        //             {
+        //                 case TransactionType.Sale: credit = g.Amount; break;
+        //                 case TransactionType.SlRt: debit = g.Amount; break;
+        //                 case TransactionType.Purc: debit = g.Amount; break;
+        //                 case TransactionType.PrRt: credit = g.Amount; break;
+        //                 case TransactionType.Pymt: debit = g.Amount; break;
+        //                 case TransactionType.Rcpt: credit = g.Amount; break;
+        //             }
+
+        //             runningBalance += debit - credit;
+
+        //             result.Add(new DayBookEntryDto
+        //             {
+        //                 Id = g.Id,
+        //                 Date = g.VoucherDate,
+        //                 NepaliDate = g.NepaliDate,
+        //                 BillNumber = g.BillNumber,
+        //                 AccountName = g.AccountName,
+        //                 PaymentMode = g.PaymentMode,
+        //                 Description = typeLabel switch
+        //                 {
+        //                     "Sales" => "Sales invoice",
+        //                     "Sales Return" => "Sales return",
+        //                     "Purchase" => "Purchase bill",
+        //                     "Purchase Return" => "Purchase return",
+        //                     "Payment" => "Payment",
+        //                     "Receipt" => "Receipt",
+        //                     _ => ""
+        //                 },
+        //                 Debit = debit,
+        //                 Credit = credit,
+        //                 Balance = runningBalance,
+        //                 UserName = null,
+        //                 Type = typeLabel
+        //             });
+        //         }
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             data = new
+        //             {
+        //                 transactions = result
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error in GetDayBook");
+        //         return StatusCode(500, new
+        //         {
+        //             success = false,
+        //             error = "Internal server error",
+        //             details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //         });
+        //     }
+        // }
+
+
+        [HttpGet("day-book")]
+        public async Task<IActionResult> GetDayBook(
+            [FromQuery] string fromDate,
+            [FromQuery] string toDate,
+            [FromQuery] string? type = "all")
+        {
+            try
+            {
+                _logger.LogInformation("=== GetDayBook Started ===");
+
+                var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+                if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+                    return BadRequest(new { success = false, error = "Company not found" });
+
+                // Resolve fiscal year
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+                    if (activeFiscalYear == null)
+                        return BadRequest(new { success = false, error = "No active fiscal year found" });
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+                }
+
+                // Parse date range (inclusive end-of-day for To)
+                if (!DateTime.TryParse(fromDate, out DateTime fromParsed))
+                    return BadRequest(new { success = false, error = "Invalid from date format" });
+                if (!DateTime.TryParse(toDate, out DateTime toParsed))
+                    return BadRequest(new { success = false, error = "Invalid to date format" });
+
+                toParsed = toParsed.Date.AddDays(1).AddTicks(-1);
+
+                // Resolve which types to include
+                bool includeAll = string.IsNullOrEmpty(type) || type.Equals("all", StringComparison.OrdinalIgnoreCase);
+                bool includeSales = includeAll || type.Equals("Sales", StringComparison.OrdinalIgnoreCase);
+                bool includePurchase = includeAll || type.Equals("Purchase", StringComparison.OrdinalIgnoreCase);
+                bool includePayment = includeAll || type.Equals("Payment", StringComparison.OrdinalIgnoreCase);
+                bool includeReceipt = includeAll || type.Equals("Receipt", StringComparison.OrdinalIgnoreCase);
+
+                // ---------------------------------------------------------------
+                // 1. Base query — all active transactions in range for this company
+                // ---------------------------------------------------------------
+                var baseQuery = _context.Transactions
+                    .Where(t => t.CompanyId == companyIdGuid
+                             && t.FiscalYearId == fiscalYearIdGuid
+                             && t.Date >= fromParsed
+                             && t.Date <= toParsed
+                             && t.Status == TransactionStatus.Active
+                             && t.IsActive);
+
+                // ---------------------------------------------------------------
+                // 2. Build a whitelist of types we care about
+                // ---------------------------------------------------------------
+                var wantedTypes = new List<TransactionType>();
+
+                if (includeSales)
+                {
+                    wantedTypes.Add(TransactionType.Sale);
+                    wantedTypes.Add(TransactionType.SlRt);
+                }
+                if (includePurchase)
+                {
+                    wantedTypes.Add(TransactionType.Purc);
+                    wantedTypes.Add(TransactionType.PrRt);
+                }
+                if (includePayment)
+                {
+                    wantedTypes.Add(TransactionType.Pymt);
+                }
+                if (includeReceipt)
+                {
+                    wantedTypes.Add(TransactionType.Rcpt);
+                }
+
+                if (wantedTypes.Count == 0)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new { transactions = new List<object>() }
+                    });
+                }
+
+                var query = baseQuery.Where(t => wantedTypes.Contains(t.Type));
+
+                // ---------------------------------------------------------------
+                // 3. Materialize with includes we need for party names / bill no.
+                // ---------------------------------------------------------------
+                var rawTransactions = await query
+                    .Include(t => t.Account).ThenInclude(a => a.AccountGroup)
+                    .Include(t => t.PurchaseBill).ThenInclude(pb => pb.Account)
+                    .Include(t => t.PurchaseReturn).ThenInclude(pr => pr.Account)
+                    .Include(t => t.SalesBill).ThenInclude(sb => sb.Account)
+                    .Include(t => t.SalesReturn).ThenInclude(sr => sr.Account)
+                    .Include(t => t.Payment).ThenInclude(p => p.PaymentEntries).ThenInclude(pe => pe.Account)
+                    .Include(t => t.Receipt).ThenInclude(r => r.ReceiptEntries).ThenInclude(re => re.Account)
+                    .Include(t => t.DebitAccount)
+                    .Include(t => t.CreditAccount)
+                    .OrderBy(t => t.Date).ThenBy(t => t.BillNumber)
+                    .ToListAsync();
+
+                _logger.LogInformation("DayBook — found {Count} raw transactions in range", rawTransactions.Count);
+
+                // ---------------------------------------------------------------
+                // 4. Group by voucher so multiple rows (party + VAT + round-off)
+                //    collapse into one entry per voucher.
+                // ---------------------------------------------------------------
+                var grouped = rawTransactions
+                    .GroupBy(t => new
+                    {
+                        t.Type,
+                        VoucherId = t.Type switch
+                        {
+                            TransactionType.Purc => t.PurchaseBillId,
+                            TransactionType.PrRt => t.PurchaseReturnBillId,
+                            TransactionType.Sale => t.SalesBillId,
+                            TransactionType.SlRt => t.SalesReturnBillId,
+                            TransactionType.Pymt => t.PaymentAccountId,
+                            TransactionType.Rcpt => t.ReceiptAccountId,
+                            _ => null
+                        }
+                    })
+                    .Select(g =>
+                    {
+                        // Prefer the "party" row from the group:
+                        //   Purchase / Purchase Return → Sundry Creditors
+                        //   Sales / Sales Return       → Sundry Debtors
+                        //   Payment / Receipt          → any row with AccountId set
+                        var primary =
+                            g.FirstOrDefault(x => x.Type == TransactionType.Purc &&
+                                                  x.Account != null &&
+                                                  x.Account.AccountGroup != null &&
+                                                  x.Account.AccountGroup.Name == "Sundry Creditors")
+                            ?? g.FirstOrDefault(x => x.Type == TransactionType.PrRt &&
+                                                     x.Account != null &&
+                                                     x.Account.AccountGroup != null &&
+                                                     x.Account.AccountGroup.Name == "Sundry Creditors")
+                            ?? g.FirstOrDefault(x => x.Type == TransactionType.Sale &&
+                                                     x.Account != null &&
+                                                     x.Account.AccountGroup != null &&
+                                                     x.Account.AccountGroup.Name == "Sundry Debtors")
+                            ?? g.FirstOrDefault(x => x.Type == TransactionType.SlRt &&
+                                                     x.Account != null &&
+                                                     x.Account.AccountGroup != null &&
+                                                     x.Account.AccountGroup.Name == "Sundry Debtors")
+                            ?? g.FirstOrDefault(x => x.AccountId != null)
+                            ?? g.First();
+
+                        string? billNumber = primary.BillNumber;
+                        string? partyName = primary.Account?.Name;
+
+                        switch (primary.Type)
+                        {
+                            case TransactionType.Sale:
+                                billNumber = primary.SalesBill?.BillNumber ?? billNumber;
+                                partyName = primary.SalesBill?.Account?.Name ?? partyName;
+                                break;
+                            case TransactionType.SlRt:
+                                billNumber = primary.SalesReturn?.BillNumber ?? billNumber;
+                                partyName = primary.SalesReturn?.Account?.Name ?? partyName;
+                                break;
+                            case TransactionType.Purc:
+                                billNumber = primary.PurchaseBill?.BillNumber ?? billNumber;
+                                partyName = primary.PurchaseBill?.Account?.Name ?? partyName;
+                                break;
+                            case TransactionType.PrRt:
+                                billNumber = primary.PurchaseReturn?.BillNumber ?? billNumber;
+                                partyName = primary.PurchaseReturn?.Account?.Name ?? partyName;
+                                break;
+                            case TransactionType.Pymt:
+                                var pDebitEntry = primary.Payment?.PaymentEntries?.FirstOrDefault(pe => pe.EntryType == "Debit");
+                                partyName = pDebitEntry?.Account?.Name
+                                            ?? primary.PaymentAccount?.Name
+                                            ?? primary.DebitAccount?.Name
+                                            ?? partyName;
+                                billNumber = primary.Payment?.BillNumber ?? billNumber;
+                                break;
+                            case TransactionType.Rcpt:
+                                var rCreditEntry = primary.Receipt?.ReceiptEntries?.FirstOrDefault(re => re.EntryType == "Credit");
+                                partyName = rCreditEntry?.Account?.Name
+                                            ?? primary.ReceiptAccount?.Name
+                                            ?? primary.CreditAccount?.Name
+                                            ?? partyName;
+                                billNumber = primary.Receipt?.BillNumber ?? billNumber;
+                                break;
+                        }
+
+                        // ---------------------------------------------------------
+                        // Compute the voucher's total amount ONCE.
+                        // For Sale / Purchase we use the SALES/PURCHASE ACCOUNT side
+                        // (Taxable + Non-Taxable / Non-VAT) rather than the party total,
+                        // so amounts match the ledgers and exclude VAT.
+                        // ---------------------------------------------------------
+                        decimal amount = 0m;
+                        switch (primary.Type)
+                        {
+                            case TransactionType.Sale:
+                                amount = primary.SalesBill != null
+                                    ? ((primary.SalesBill.TaxableAmount) + (primary.SalesBill.NonVatSales))
+                                    : (primary.TotalDebit > primary.TotalCredit ? primary.TotalDebit : primary.TotalCredit);
+                                break;
+
+                            case TransactionType.SlRt:
+                                amount = primary.SalesReturn != null
+                                    ? ((primary.SalesReturn.TaxableAmount ?? 0m) + (primary.SalesReturn.NonVatSalesReturn ?? 0m))
+                                    : (primary.TotalDebit > primary.TotalCredit ? primary.TotalDebit : primary.TotalCredit);
+                                break;
+
+                            case TransactionType.Purc:
+                                amount = primary.PurchaseBill != null
+                                    ? ((primary.PurchaseBill.TaxableAmount ?? 0m) + (primary.PurchaseBill.NonVatPurchase ?? 0m))
+                                    : (primary.TotalDebit > primary.TotalCredit ? primary.TotalDebit : primary.TotalCredit);
+                                break;
+
+                            case TransactionType.PrRt:
+                                amount = primary.PurchaseReturn != null
+                                    ? ((primary.PurchaseReturn.TaxableAmount ?? 0m) + (primary.PurchaseReturn.NonVatPurchaseReturn ?? 0m))
+                                    : (primary.TotalDebit > primary.TotalCredit ? primary.TotalDebit : primary.TotalCredit);
+                                break;
+
+                            case TransactionType.Pymt:
+                                amount = primary.TotalDebit > 0 ? primary.TotalDebit : primary.TotalCredit;
+                                break;
+
+                            case TransactionType.Rcpt:
+                                amount = primary.TotalCredit > 0 ? primary.TotalCredit : primary.TotalDebit;
+                                break;
+                        }
+
+                        return new
+                        {
+                            VoucherDate = g.Min(x => x.Date),
+                            NepaliDate = g.Where(x => !string.IsNullOrEmpty(x.NepaliDate))
+                                           .OrderBy(x => x.Date)
+                                           .Select(x => x.NepaliDate)
+                                           .FirstOrDefault(),
+                            Type = primary.Type,
+                            BillNumber = billNumber ?? "",
+                            AccountName = partyName ?? "N/A",
+                            PaymentMode = primary.PaymentMode.ToString(),
+                            Amount = amount,
+                            Id = primary.Id
+                        };
+                    })
+                    .Where(x => x.Amount != 0)
+                    .OrderBy(x => x.VoucherDate)
+                    .ThenBy(x => x.BillNumber)
+                    .ToList();
+
+                // ---------------------------------------------------------------
+                // 5. Build DTOs with running balance
+                // ---------------------------------------------------------------
+                var result = new List<DayBookEntryDto>();
+                decimal runningBalance = 0m;
+
+                foreach (var g in grouped)
+                {
+                    string typeLabel = g.Type switch
+                    {
+                        TransactionType.Sale => "Sales",
+                        TransactionType.SlRt => "Sales Return",
+                        TransactionType.Purc => "Purchase",
+                        TransactionType.PrRt => "Purchase Return",
+                        TransactionType.Pymt => "Payment",
+                        TransactionType.Rcpt => "Receipt",
+                        _ => "Unknown"
+                    };
+
+                    decimal debit = 0m;
+                    decimal credit = 0m;
+
+                    switch (g.Type)
+                    {
+                        case TransactionType.Sale: credit = g.Amount; break;
+                        case TransactionType.SlRt: debit = g.Amount; break;
+                        case TransactionType.Purc: debit = g.Amount; break;
+                        case TransactionType.PrRt: credit = g.Amount; break;
+                        case TransactionType.Pymt: debit = g.Amount; break;
+                        case TransactionType.Rcpt: credit = g.Amount; break;
+                    }
+
+                    runningBalance += debit - credit;
+
+                    result.Add(new DayBookEntryDto
+                    {
+                        Id = g.Id,
+                        Date = g.VoucherDate,
+                        NepaliDate = g.NepaliDate,
+                        BillNumber = g.BillNumber,
+                        AccountName = g.AccountName,
+                        PaymentMode = g.PaymentMode,
+                        Description = typeLabel switch
+                        {
+                            "Sales" => "Sales invoice",
+                            "Sales Return" => "Sales return",
+                            "Purchase" => "Purchase bill",
+                            "Purchase Return" => "Purchase return",
+                            "Payment" => "Payment",
+                            "Receipt" => "Receipt",
+                            _ => ""
+                        },
+                        Debit = debit,
+                        Credit = credit,
+                        Balance = runningBalance,
+                        UserName = null,
+                        Type = typeLabel
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        transactions = result
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetDayBook");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error",
+                    details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+                });
+            }
+        }
+
     }
+
+    internal static class TransactionAmountExtensions
+    {
+        /// <summary>
+        /// For most transaction types the meaningful amount is whichever of
+        /// TotalDebit/TotalCredit is non-zero. For Sale/Purchase it's usually
+        /// the side opposite the party account, so we take the max side.
+        /// </summary>
+        public static decimal TotalAmountSafe(this SkyForge.Models.Retailer.TransactionModel.Transaction t)
+        {
+            if (t == null) return 0m;
+            // If both are populated (rare), prefer the larger
+            return t.TotalDebit >= t.TotalCredit ? t.TotalDebit : t.TotalCredit;
+        }
+    }
+
 }
 

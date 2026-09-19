@@ -11,6 +11,7 @@ import useDebounce from '../../../hooks/useDebounce';
 import ProductModal from '../dashboard/modals/ProductModal';
 import api, { refreshToken } from '../../services/api';
 import NepaliDatePicker from '../../NepaliDatePicker';
+import convertToRupeesAndPaisaNepali from '../../common/convertToRupeesAndPaisaNepali'
 
 const convertBsToAd = (bsDate) => {
     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
@@ -1697,7 +1698,7 @@ const AddStockAdjustment = () => {
                 </table>
 
                 <div class="print-amount-in-words">
-                    <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.adjustment.totalAmount || 0)} Only.
+                    <strong>In Words:</strong> ${convertToRupeesAndPaisaNepali(printData.adjustment.totalAmount || 0)} Only.
                 </div>
                 <br /><br />
                 <div class="print-signature-area">
@@ -2223,7 +2224,7 @@ const AddStockAdjustment = () => {
         );
     }, [showItemDropdown, searchResults, searchQuery, lastSearchQuery, shouldShowLastSearchResults, formData.adjustmentType]);
 
-    const formatter = new Intl.NumberFormat('en-NP', {
+    const formatter = new Intl.NumberFormat('en-IN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
@@ -3465,7 +3466,7 @@ const AddStockAdjustment = () => {
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Sub Total:</label>
                                         </td>
                                         <td style={{ width: '20%', padding: '1px' }}>
-                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.subTotal.toFixed(2)}</p>
+                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.subTotal)}</p>
                                         </td>
                                         <td colSpan="4"></td>
                                     </tr>
@@ -3477,7 +3478,7 @@ const AddStockAdjustment = () => {
                                                     <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
                                                 </td>
                                                 <td style={{ padding: '1px' }}>
-                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.taxableAmount.toFixed(2)}</p>
+                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.taxableAmount)}</p>
                                                 </td>
                                                 <td style={{ padding: '1px' }}>
                                                     <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT %:</label>
@@ -3513,7 +3514,7 @@ const AddStockAdjustment = () => {
                                                     <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT Amount:</label>
                                                 </td>
                                                 <td style={{ padding: '1px' }}>
-                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.vatAmount.toFixed(2)}</p>
+                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.vatAmount)}</p>
                                                 </td>
                                             </tr>
                                         </>
@@ -3526,7 +3527,7 @@ const AddStockAdjustment = () => {
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Total Amount:</label>
                                         </td>
                                         <td style={{ padding: '1px' }}>
-                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.totalAmount.toFixed(2)}</p>
+                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.totalAmount)}</p>
                                         </td>
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>In Words:</label>
@@ -3547,9 +3548,9 @@ const AddStockAdjustment = () => {
                                                     whiteSpace: 'normal'
                                                 }}
                                                 id="amountInWords"
-                                                title={convertToRupeesAndPaisa(totals.totalAmount) + " Only."}
+                                                title={convertToRupeesAndPaisaNepali(totals.totalAmount) + " Only."}
                                             >
-                                                {convertToRupeesAndPaisa(totals.totalAmount)} Only.
+                                                {convertToRupeesAndPaisaNepali(totals.totalAmount)} Only.
                                             </div>
                                         </td>
                                     </tr>
@@ -4451,74 +4452,5 @@ const AddStockAdjustment = () => {
         </div>
     );
 };
-
-function convertToRupeesAndPaisa(amount) {
-    const rupees = Math.floor(amount);
-    const paisa = Math.round((amount - rupees) * 100);
-
-    let words = '';
-
-    if (rupees > 0) {
-        words += numberToWords(rupees) + ' Rupees';
-    }
-
-    if (paisa > 0) {
-        words += (rupees > 0 ? ' and ' : '') + numberToWords(paisa) + ' Paisa';
-    }
-
-    return words || 'Zero Rupees';
-}
-
-function numberToWords(num) {
-    const ones = [
-        '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-        'Seventeen', 'Eighteen', 'Nineteen'
-    ];
-
-    const tens = [
-        '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
-    ];
-
-    const scales = ['', 'Thousand', 'Million', 'Billion'];
-
-    function convertHundreds(num) {
-        let words = '';
-
-        if (num > 99) {
-            words += ones[Math.floor(num / 100)] + ' Hundred ';
-            num %= 100;
-        }
-
-        if (num > 19) {
-            words += tens[Math.floor(num / 10)] + ' ';
-            num %= 10;
-        }
-
-        if (num > 0) {
-            words += ones[num] + ' ';
-        }
-
-        return words.trim();
-    }
-
-    if (num === 0) return 'Zero';
-    if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
-
-    let words = '';
-
-    for (let i = 0; i < scales.length; i++) {
-        let unit = Math.pow(1000, scales.length - i - 1);
-        let currentNum = Math.floor(num / unit);
-
-        if (currentNum > 0) {
-            words += convertHundreds(currentNum) + ' ' + scales[scales.length - i - 1] + ' ';
-        }
-
-        num %= unit;
-    }
-
-    return words.trim();
-}
 
 export default AddStockAdjustment;

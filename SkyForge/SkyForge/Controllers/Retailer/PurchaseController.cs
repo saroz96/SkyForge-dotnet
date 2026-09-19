@@ -2297,11 +2297,174 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        //     [HttpGet("inventory-stock")]
+        //     public async Task<IActionResult> GetInventoryStock(
+        // [FromQuery] string? searchTerm = null,
+        // [FromQuery] int page = 1,
+        // [FromQuery] int pageSize = 10)
+        //     {
+        //         try
+        //         {
+        //             _logger.LogInformation("=== GetInventoryStock Started ===");
+
+        //             var companyId = User.FindFirst("currentCompany")?.Value;
+        //             var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+
+        //             if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
+        //                 return BadRequest(new { success = false, error = "Company not found" });
+
+        //             // Get fiscal year
+        //             Guid fiscalYearIdGuid;
+        //             if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+        //             {
+        //                 var activeFiscalYear = await _context.FiscalYears
+        //                     .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+        //                 if (activeFiscalYear == null)
+        //                     return BadRequest(new { success = false, error = "No active fiscal year found" });
+        //                 fiscalYearIdGuid = activeFiscalYear.Id;
+        //             }
+
+        //             // Build query for stock entries with item and purchase bill info
+        //             var stockQuery = _context.StockEntries
+        //                 .Include(se => se.Item)
+        //                     .ThenInclude(i => i.Unit)
+        //                 .Include(se => se.Item)
+        //                     .ThenInclude(i => i.Category)
+        //                 .Include(se => se.PurchaseBill)
+        //                     .ThenInclude(pb => pb.Account)
+        //                 .Include(se => se.Store)
+        //                 .Include(se => se.Rack)
+        //                 .Where(se => se.CompanyId == companyIdGuid &&
+        //                              se.Quantity > 0);
+
+        //             // Apply search filter
+        //             if (!string.IsNullOrEmpty(searchTerm))
+        //             {
+        //                 searchTerm = searchTerm.ToLower();
+        //                 stockQuery = stockQuery.Where(se =>
+        //                     se.Item.Name.ToLower().Contains(searchTerm) ||
+        //                     (se.Item.UniqueNumber != null && se.Item.UniqueNumber.ToString().ToLower().Contains(searchTerm)) ||
+        //                     se.BatchNumber.ToLower().Contains(searchTerm) ||
+        //                     (se.PurchaseBill != null && se.PurchaseBill.BillNumber.ToLower().Contains(searchTerm)) ||
+        //                     (se.PurchaseBill != null && se.PurchaseBill.Account != null &&
+        //                      se.PurchaseBill.Account.Name.ToLower().Contains(searchTerm))
+        //                 );
+        //             }
+
+        //             // Get total count for pagination
+        //             var totalItems = await stockQuery.CountAsync();
+
+        //             // Get paginated results
+        //             var stockEntries = await stockQuery
+        //                 .OrderByDescending(se => se.Date)
+        //                 .Skip((page - 1) * pageSize)
+        //                 .Take(pageSize)
+        //                 .ToListAsync();
+
+        //             // Group by item to calculate total stock per item
+        //             var itemStockSummary = stockEntries
+        //                 .GroupBy(se => se.ItemId)
+        //                 .Select(g => new
+        //                 {
+        //                     ItemId = g.Key,
+        //                     Item = g.First().Item,
+        //                     TotalStock = g.Sum(se => se.Quantity),
+        //                     TotalValue = g.Sum(se => se.Quantity * se.PuPrice),
+        //                     Batches = g.Select(se => new
+        //                     {
+        //                         se.Id,
+        //                         se.BatchNumber,
+        //                         se.ExpiryDate,
+        //                         se.Quantity,
+        //                         se.PuPrice,
+        //                         se.Price,
+        //                         se.Mrp,
+        //                         se.Store,
+        //                         se.Rack,
+        //                         se.ExpiryStatus,
+        //                         se.DaysUntilExpiry,
+        //                         SupplierName = se.PurchaseBill != null && se.PurchaseBill.Account != null
+        //                             ? se.PurchaseBill.Account.Name
+        //                             : "N/A",
+        //                         PurchaseBillNumber = se.PurchaseBill != null
+        //                             ? se.PurchaseBill.BillNumber
+        //                             : "N/A",
+        //                         PartyBillNumber = se.PurchaseBill != null
+        //                             ? se.PurchaseBill.PartyBillNumber
+        //                             : "N/A",
+        //                         PurchaseDate = se.PurchaseBill != null
+        //                             ? se.PurchaseBill.Date
+        //                             : (DateTime?)null
+        //                     })
+        //                 })
+        //                 .ToList();
+
+        //             // Calculate summary totals
+        //             var totalStockQuantity = await stockQuery.SumAsync(se => se.Quantity);
+        //             var totalStockValue = await stockQuery.SumAsync(se => se.Quantity * se.PuPrice);
+
+        //             var response = new
+        //             {
+        //                 success = true,
+        //                 data = new
+        //                 {
+        //                     totalStockQuantity,
+        //                     totalStockValue,
+        //                     totalItems,
+        //                     currentPage = page,
+        //                     pageSize,
+        //                     totalPages = (int)Math.Ceiling((double)totalItems / pageSize),
+        //                     items = itemStockSummary.Select(item => new
+        //                     {
+        //                         itemId = item.ItemId,
+        //                         itemName = item.Item.Name,
+        //                         uniqueNumber = item.Item.UniqueNumber,
+        //                         hscode = item.Item.Hscode,
+        //                         unitName = item.Item.Unit != null ? item.Item.Unit.Name : "N/A",
+        //                         categoryName = item.Item.Category != null ? item.Item.Category.Name : "N/A",
+        //                         totalStock = item.TotalStock,
+        //                         totalValue = item.TotalValue,
+        //                         batches = item.Batches.Select(b => new
+        //                         {
+        //                             b.Id,
+        //                             b.BatchNumber,
+        //                             ExpiryDate = b.ExpiryDate.ToString("yyyy-MM-dd"),
+        //                             b.Quantity,
+        //                             b.PuPrice,
+        //                             b.Price,
+        //                             b.Mrp,
+        //                             StoreName = b.Store != null ? b.Store.Name : "N/A",
+        //                             RackName = b.Rack != null ? b.Rack.Name : "N/A",
+        //                             b.ExpiryStatus,
+        //                             b.DaysUntilExpiry,
+        //                             SupplierName = b.SupplierName,
+        //                             PurchaseBillNumber = b.PurchaseBillNumber,
+        //                             PartyBillNumber = b.PartyBillNumber,
+        //                             PurchaseDate = b.PurchaseDate
+        //                         })
+        //                     })
+        //                 }
+        //             };
+
+        //             return Ok(response);
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error getting inventory stock");
+        //             return StatusCode(500, new
+        //             {
+        //                 success = false,
+        //                 error = "Internal server error",
+        //                 details = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ? ex.Message : null
+        //             });
+        //         }
+        //     }
+
         [HttpGet("inventory-stock")]
         public async Task<IActionResult> GetInventoryStock(
-    [FromQuery] string? searchTerm = null,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10)
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             try
             {
@@ -2313,7 +2476,6 @@ namespace SkyForge.Controllers.Retailer
                 if (string.IsNullOrEmpty(companyId) || !Guid.TryParse(companyId, out Guid companyIdGuid))
                     return BadRequest(new { success = false, error = "Company not found" });
 
-                // Get fiscal year
                 Guid fiscalYearIdGuid;
                 if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
                 {
@@ -2324,82 +2486,95 @@ namespace SkyForge.Controllers.Retailer
                     fiscalYearIdGuid = activeFiscalYear.Id;
                 }
 
-                // Build query for stock entries with item and purchase bill info
                 var stockQuery = _context.StockEntries
-                    .Include(se => se.Item)
-                        .ThenInclude(i => i.Unit)
-                    .Include(se => se.Item)
-                        .ThenInclude(i => i.Category)
-                    .Include(se => se.PurchaseBill)
-                        .ThenInclude(pb => pb.Account)
+                    .Include(se => se.Item).ThenInclude(i => i.Unit)
+                    .Include(se => se.Item).ThenInclude(i => i.Category)
+                    .Include(se => se.PurchaseBill).ThenInclude(pb => pb.Account)
                     .Include(se => se.Store)
                     .Include(se => se.Rack)
-                    .Where(se => se.CompanyId == companyIdGuid &&
-                                 se.Quantity > 0);
+                    .Where(se => se.CompanyId == companyIdGuid && se.Quantity > 0);
 
-                // Apply search filter
                 if (!string.IsNullOrEmpty(searchTerm))
                 {
-                    searchTerm = searchTerm.ToLower();
+                    var term = searchTerm.ToLower();
                     stockQuery = stockQuery.Where(se =>
-                        se.Item.Name.ToLower().Contains(searchTerm) ||
-                        (se.Item.UniqueNumber != null && se.Item.UniqueNumber.ToString().ToLower().Contains(searchTerm)) ||
-                        se.BatchNumber.ToLower().Contains(searchTerm) ||
-                        (se.PurchaseBill != null && se.PurchaseBill.BillNumber.ToLower().Contains(searchTerm)) ||
+                        se.Item.Name.ToLower().Contains(term) ||
+                        (se.Item.UniqueNumber != null && se.Item.UniqueNumber.ToString().ToLower().Contains(term)) ||
+                        se.BatchNumber.ToLower().Contains(term) ||
+                        (se.PurchaseBill != null && se.PurchaseBill.BillNumber.ToLower().Contains(term)) ||
                         (se.PurchaseBill != null && se.PurchaseBill.Account != null &&
-                         se.PurchaseBill.Account.Name.ToLower().Contains(searchTerm))
+                         se.PurchaseBill.Account.Name.ToLower().Contains(term))
                     );
                 }
 
-                // Get total count for pagination
-                var totalItems = await stockQuery.CountAsync();
-
-                // Get paginated results
-                var stockEntries = await stockQuery
-                    .OrderByDescending(se => se.Date)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
-
-                // Group by item to calculate total stock per item
-                var itemStockSummary = stockEntries
+                // ---- Group by ItemId (include ItemName for sorting) ----
+                var groupedQuery = stockQuery
                     .GroupBy(se => se.ItemId)
                     .Select(g => new
                     {
                         ItemId = g.Key,
-                        Item = g.First().Item,
+                        ItemName = g.First().Item.Name,     // needed for ordering
                         TotalStock = g.Sum(se => se.Quantity),
-                        TotalValue = g.Sum(se => se.Quantity * se.PuPrice),
-                        Batches = g.Select(se => new
+                        TotalValue = g.Sum(se => se.Quantity * se.PuPrice)
+                    });
+
+                var totalItems = await groupedQuery.CountAsync();
+
+                // Sort alphabetically by item name, then paginate
+                var pagedGroups = await groupedQuery
+                    .OrderBy(g => g.ItemName)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var pagedItemIds = pagedGroups.Select(g => g.ItemId).ToList();
+
+                var stockEntries = await stockQuery
+                    .Where(se => pagedItemIds.Contains(se.ItemId))
+                    .ToListAsync();
+
+                // Preserve alphabetical order for the final list
+                var itemStockSummary = pagedGroups
+                    .Select(g =>
+                    {
+                        var entries = stockEntries.Where(se => se.ItemId == g.ItemId).ToList();
+                        var first = entries.FirstOrDefault();
+                        return new
                         {
-                            se.Id,
-                            se.BatchNumber,
-                            se.ExpiryDate,
-                            se.Quantity,
-                            se.PuPrice,
-                            se.Price,
-                            se.Mrp,
-                            se.Store,
-                            se.Rack,
-                            se.ExpiryStatus,
-                            se.DaysUntilExpiry,
-                            SupplierName = se.PurchaseBill != null && se.PurchaseBill.Account != null
-                                ? se.PurchaseBill.Account.Name
-                                : "N/A",
-                            PurchaseBillNumber = se.PurchaseBill != null
-                                ? se.PurchaseBill.BillNumber
-                                : "N/A",
-                            PartyBillNumber = se.PurchaseBill != null
-                                ? se.PurchaseBill.PartyBillNumber
-                                : "N/A",
-                            PurchaseDate = se.PurchaseBill != null
-                                ? se.PurchaseBill.Date
-                                : (DateTime?)null
-                        })
+                            ItemId = g.ItemId,
+                            Item = first?.Item,
+                            TotalStock = g.TotalStock,
+                            TotalValue = g.TotalValue,
+                            Batches = entries.Select(se => new
+                            {
+                                se.Id,
+                                se.BatchNumber,
+                                se.ExpiryDate,
+                                se.Quantity,
+                                se.PuPrice,
+                                se.Price,
+                                se.Mrp,
+                                se.Store,
+                                se.Rack,
+                                se.ExpiryStatus,
+                                se.DaysUntilExpiry,
+                                SupplierName = se.PurchaseBill != null && se.PurchaseBill.Account != null
+                                    ? se.PurchaseBill.Account.Name
+                                    : "N/A",
+                                PurchaseBillNumber = se.PurchaseBill != null
+                                    ? se.PurchaseBill.BillNumber
+                                    : "N/A",
+                                PartyBillNumber = se.PurchaseBill != null
+                                    ? se.PurchaseBill.PartyBillNumber
+                                    : "N/A",
+                                PurchaseDate = se.PurchaseBill != null
+                                    ? se.PurchaseBill.Date
+                                    : (DateTime?)null
+                            }).ToList()
+                        };
                     })
                     .ToList();
 
-                // Calculate summary totals
                 var totalStockQuantity = await stockQuery.SumAsync(se => se.Quantity);
                 var totalStockValue = await stockQuery.SumAsync(se => se.Quantity * se.PuPrice);
 
@@ -2414,35 +2589,37 @@ namespace SkyForge.Controllers.Retailer
                         currentPage = page,
                         pageSize,
                         totalPages = (int)Math.Ceiling((double)totalItems / pageSize),
-                        items = itemStockSummary.Select(item => new
-                        {
-                            itemId = item.ItemId,
-                            itemName = item.Item.Name,
-                            uniqueNumber = item.Item.UniqueNumber,
-                            hscode = item.Item.Hscode,
-                            unitName = item.Item.Unit != null ? item.Item.Unit.Name : "N/A",
-                            categoryName = item.Item.Category != null ? item.Item.Category.Name : "N/A",
-                            totalStock = item.TotalStock,
-                            totalValue = item.TotalValue,
-                            batches = item.Batches.Select(b => new
+                        items = itemStockSummary
+                            .Where(x => x.Item != null)
+                            .Select(item => new
                             {
-                                b.Id,
-                                b.BatchNumber,
-                                ExpiryDate = b.ExpiryDate.ToString("yyyy-MM-dd"),
-                                b.Quantity,
-                                b.PuPrice,
-                                b.Price,
-                                b.Mrp,
-                                StoreName = b.Store != null ? b.Store.Name : "N/A",
-                                RackName = b.Rack != null ? b.Rack.Name : "N/A",
-                                b.ExpiryStatus,
-                                b.DaysUntilExpiry,
-                                SupplierName = b.SupplierName,
-                                PurchaseBillNumber = b.PurchaseBillNumber,
-                                PartyBillNumber = b.PartyBillNumber,
-                                PurchaseDate = b.PurchaseDate
+                                itemId = item.ItemId,
+                                itemName = item.Item.Name,
+                                uniqueNumber = item.Item.UniqueNumber,
+                                hscode = item.Item.Hscode,
+                                unitName = item.Item.Unit != null ? item.Item.Unit.Name : "N/A",
+                                categoryName = item.Item.Category != null ? item.Item.Category.Name : "N/A",
+                                totalStock = item.TotalStock,
+                                totalValue = item.TotalValue,
+                                batches = item.Batches.Select(b => new
+                                {
+                                    b.Id,
+                                    b.BatchNumber,
+                                    ExpiryDate = b.ExpiryDate.ToString("yyyy-MM-dd"),
+                                    b.Quantity,
+                                    b.PuPrice,
+                                    b.Price,
+                                    b.Mrp,
+                                    StoreName = b.Store != null ? b.Store.Name : "N/A",
+                                    RackName = b.Rack != null ? b.Rack.Name : "N/A",
+                                    b.ExpiryStatus,
+                                    b.DaysUntilExpiry,
+                                    SupplierName = b.SupplierName,
+                                    PurchaseBillNumber = b.PurchaseBillNumber,
+                                    PartyBillNumber = b.PartyBillNumber,
+                                    PurchaseDate = b.PurchaseDate
+                                })
                             })
-                        })
                     }
                 };
 

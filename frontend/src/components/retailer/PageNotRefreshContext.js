@@ -4,6 +4,231 @@ const PageNotRefreshContext = createContext();
 
 export const PageNotRefreshProvider = ({ children }) => {
     // Initialize state with data from sessionStorage if it exists
+
+    //==================Accounts Search Draft===================
+    const [accountsSearchDraftSave, setAccountsSearchDraftSave] = useState(() => {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const saved = sessionStorage.getItem('accountsSearchDraftSave');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.error('Failed to parse accountsSearchDraftSave from sessionStorage', error);
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            if (accountsSearchDraftSave) {
+                sessionStorage.setItem('accountsSearchDraftSave', JSON.stringify(accountsSearchDraftSave));
+            } else {
+                sessionStorage.removeItem('accountsSearchDraftSave');
+            }
+        } catch (error) {
+            console.error('Failed to update sessionStorage', error);
+        }
+    }, [accountsSearchDraftSave]);
+
+    const clearAccountsSearchDraft = () => {
+        setAccountsSearchDraftSave(null);
+    };
+    //==================END====================================
+
+    //==================Account Groups Search Draft===================
+    const [accountGroupsSearchDraftSave, setAccountGroupsSearchDraftSave] = useState(() => {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const saved = sessionStorage.getItem('accountGroupsSearchDraftSave');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.error('Failed to parse accountGroupsSearchDraftSave from sessionStorage', error);
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            if (accountGroupsSearchDraftSave) {
+                sessionStorage.setItem('accountGroupsSearchDraftSave', JSON.stringify(accountGroupsSearchDraftSave));
+            } else {
+                sessionStorage.removeItem('accountGroupsSearchDraftSave');
+            }
+        } catch (error) {
+            console.error('Failed to update sessionStorage', error);
+        }
+    }, [accountGroupsSearchDraftSave]);
+
+    const clearAccountGroupsSearchDraft = () => {
+        setAccountGroupsSearchDraftSave(null);
+    };
+    //==================END=========================================
+
+    //==================Items Search Draft===================
+    const [itemsSearchDraftSave, setItemsSearchDraftSave] = useState(() => {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const saved = sessionStorage.getItem('itemsSearchDraftSave');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.error('Failed to parse itemsSearchDraftSave from sessionStorage', error);
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            if (itemsSearchDraftSave) {
+                sessionStorage.setItem('itemsSearchDraftSave', JSON.stringify(itemsSearchDraftSave));
+            } else {
+                sessionStorage.removeItem('itemsSearchDraftSave');
+            }
+        } catch (error) {
+            console.error('Failed to update sessionStorage', error);
+        }
+    }, [itemsSearchDraftSave]);
+
+    const clearItemsSearchDraft = () => {
+        setItemsSearchDraftSave(null);
+    };
+    //==================END=================================
+
+    //==================Categories Search Draft===================
+    const [categoriesSearchDraftSave, setCategoriesSearchDraftSave] = useState(() => {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const saved = sessionStorage.getItem('categoriesSearchDraftSave');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.error('Failed to parse categoriesSearchDraftSave from sessionStorage', error);
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            if (categoriesSearchDraftSave) {
+                sessionStorage.setItem('categoriesSearchDraftSave', JSON.stringify(categoriesSearchDraftSave));
+            } else {
+                sessionStorage.removeItem('categoriesSearchDraftSave');
+            }
+        } catch (error) {
+            console.error('Failed to update sessionStorage', error);
+        }
+    }, [categoriesSearchDraftSave]);
+
+    const clearCategoriesSearchDraft = () => {
+        setCategoriesSearchDraftSave(null);
+    };
+    //==================END=====================================
+
+    //==================Units Search Draft===================
+    const [unitsSearchDraftSave, setUnitsSearchDraftSave] = useState(() => {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const saved = sessionStorage.getItem('unitsSearchDraftSave');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.error('Failed to parse unitsSearchDraftSave from sessionStorage', error);
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            if (unitsSearchDraftSave) {
+                sessionStorage.setItem('unitsSearchDraftSave', JSON.stringify(unitsSearchDraftSave));
+            } else {
+                sessionStorage.removeItem('unitsSearchDraftSave');
+            }
+        } catch (error) {
+            console.error('Failed to update sessionStorage', error);
+        }
+    }, [unitsSearchDraftSave]);
+
+    const clearUnitsSearchDraft = () => {
+        setUnitsSearchDraftSave(null);
+    };
+    //==================END=================================
+
+    //==================Main Units Search Draft===================
+    const [mainUnitsSearchDraftSave, setMainUnitsSearchDraftSave] = useState(() => {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const saved = sessionStorage.getItem('mainUnitsSearchDraftSave');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.error('Failed to parse mainUnitsSearchDraftSave from sessionStorage', error);
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            if (mainUnitsSearchDraftSave) {
+                sessionStorage.setItem('mainUnitsSearchDraftSave', JSON.stringify(mainUnitsSearchDraftSave));
+            } else {
+                sessionStorage.removeItem('mainUnitsSearchDraftSave');
+            }
+        } catch (error) {
+            console.error('Failed to update sessionStorage', error);
+        }
+    }, [mainUnitsSearchDraftSave]);
+
+    const clearMainUnitsSearchDraft = () => {
+        setMainUnitsSearchDraftSave(null);
+    };
+    //==================END=====================================
+
+    //==================Compositions Search Draft===================
+    const [compositionsSearchDraftSave, setCompositionsSearchDraftSave] = useState(() => {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const saved = sessionStorage.getItem('compositionsSearchDraftSave');
+            return saved ? JSON.parse(saved) : null;
+        } catch (error) {
+            console.error('Failed to parse compositionsSearchDraftSave from sessionStorage', error);
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            if (compositionsSearchDraftSave) {
+                sessionStorage.setItem('compositionsSearchDraftSave', JSON.stringify(compositionsSearchDraftSave));
+            } else {
+                sessionStorage.removeItem('compositionsSearchDraftSave');
+            }
+        } catch (error) {
+            console.error('Failed to update sessionStorage', error);
+        }
+    }, [compositionsSearchDraftSave]);
+
+    const clearCompositionsSearchDraft = () => {
+        setCompositionsSearchDraftSave(null);
+    };
+    //==================END========================================
+
     //for purchase
     const [draftSave, setDraftSave] = useState(() => {
         // Only run on client-side
@@ -468,6 +693,42 @@ export const PageNotRefreshProvider = ({ children }) => {
     return (
         <PageNotRefreshContext.Provider
             value={{
+
+                //for accounts
+                accountsSearchDraftSave,
+                setAccountsSearchDraftSave,
+                clearAccountsSearchDraft,
+
+                //for accounts group
+                accountGroupsSearchDraftSave,
+                setAccountGroupsSearchDraftSave,
+                clearAccountGroupsSearchDraft,
+
+                //for items
+                itemsSearchDraftSave,
+                setItemsSearchDraftSave,
+                clearItemsSearchDraft,
+
+                //for category
+                categoriesSearchDraftSave,
+                setCategoriesSearchDraftSave,
+                clearCategoriesSearchDraft,
+
+                //for items unit
+                unitsSearchDraftSave,
+                setUnitsSearchDraftSave,
+                clearUnitsSearchDraft,
+
+                //for main units search draft
+                mainUnitsSearchDraftSave,
+                setMainUnitsSearchDraftSave,
+                clearMainUnitsSearchDraft,
+
+                //for compositions search draft
+                compositionsSearchDraftSave,
+                setCompositionsSearchDraftSave,
+                clearCompositionsSearchDraft,
+
                 //for purchase
                 draftSave,
                 setDraftSave,

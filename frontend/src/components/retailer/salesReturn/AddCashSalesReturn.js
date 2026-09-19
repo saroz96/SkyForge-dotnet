@@ -14,6 +14,8 @@ import VirtualizedItemListForSales from '../../VirtualizedItemListForSales';
 import AccountCreationModal from '../sales/AccountCreationModal';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 import api, { refreshToken } from '../../services/api';
+import convertToRupeesAndPaisaNepali from '../../common/convertToRupeesAndPaisaNepali'
+
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -1916,7 +1918,7 @@ const AddCashSalesReturn = () => {
                         </table>
     
                         <div class="print-amount-in-words">
-                            <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.bill.totalAmount || 0)} Only.
+                            <strong>In Words:</strong> ${convertToRupeesAndPaisaNepali(printData.bill.totalAmount || 0)} Only.
                         </div>
                         <br /><br />
                         <div class="print-signature-area">
@@ -2157,7 +2159,7 @@ const AddCashSalesReturn = () => {
         }
     }, [roundOffSalesReturn, manualRoundOffOverride, totals.autoRoundOffAmount]);
 
-    const formatter = new Intl.NumberFormat('en-NP', {
+    const formatter = new Intl.NumberFormat('en-IN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
@@ -3846,7 +3848,7 @@ const AddCashSalesReturn = () => {
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Sub Total:</label>
                                         </td>
                                         <td style={{ width: '20%', padding: '1px' }}>
-                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.subTotal.toFixed(2)}</p>
+                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.subTotal)}</p>
                                         </td>
                                         <td style={{ width: '15%', padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Discount %:</label>
@@ -3916,7 +3918,7 @@ const AddCashSalesReturn = () => {
                                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
                                             </td>
                                             <td style={{ padding: '1px' }}>
-                                                <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.taxableAmount.toFixed(2)}</p>
+                                                <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.taxableAmount)}</p>
                                             </td>
                                             <td style={{ padding: '1px' }}>
                                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT %:</label>
@@ -3952,7 +3954,7 @@ const AddCashSalesReturn = () => {
                                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>VAT Amount:</label>
                                             </td>
                                             <td style={{ padding: '1px' }}>
-                                                <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.vatAmount.toFixed(2)}</p>
+                                                <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.vatAmount)}</p>
                                             </td>
                                         </tr>
                                     )}
@@ -3961,48 +3963,6 @@ const AddCashSalesReturn = () => {
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <div className="position-relative">
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-control-sm"
-                                                    step="any"
-                                                    id="roundOffAmount"
-                                                    name="roundOffAmount"
-                                                    value={formData.roundOffAmount}
-                                                    onChange={(e) => setFormData({ ...formData, roundOffAmount: parseFloat(e.target.value) || 0 })}
-                                                    onFocus={(e) => {
-                                                        e.target.select();
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            document.getElementById('saveBill')?.focus();
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '22px',
-                                                        fontSize: '0.875rem',
-                                                        paddingTop: '0.5rem',
-                                                        width: '100%'
-                                                    }}
-                                                />
-                                                <label
-                                                    className="position-absolute"
-                                                    style={{
-                                                        top: '-0.4rem',
-                                                        left: '0.5rem',
-                                                        fontSize: '0.7rem',
-                                                        backgroundColor: 'white',
-                                                        padding: '0 0.25rem',
-                                                        color: '#6c757d',
-                                                        fontWeight: '500'
-                                                    }}
-                                                >
-                                                    Rs.
-                                                </label>
-                                            </div>
-                                        </td> */}
                                         <td style={{ padding: '1px', verticalAlign: 'middle' }}>
                                             <div className="position-relative" style={{ minWidth: '150px' }}>
                                                 <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
@@ -4087,9 +4047,9 @@ const AddCashSalesReturn = () => {
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Total Amount:</label>
                                         </td>
                                         <td style={{ padding: '1px' }}>
-                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {totals.totalAmount.toFixed(2)}</p>
+                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.totalAmount)}</p>
                                         </td>
-                                        <td style={{ padding: '1px' }}>
+                                        {/* <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>In Words:</label>
                                         </td>
                                         <td style={{ padding: '1px' }}>
@@ -4108,9 +4068,44 @@ const AddCashSalesReturn = () => {
                                                     whiteSpace: 'normal'
                                                 }}
                                                 id="amountInWords"
-                                                title={convertToRupeesAndPaisa(totals.totalAmount) + " Only."}
+                                                title={convertToRupeesAndPaisaNepali(totals.totalAmount) + " Only."}
                                             >
-                                                {convertToRupeesAndPaisa(totals.totalAmount)} Only.
+                                                {convertToRupeesAndPaisaNepali(totals.totalAmount)} Only.
+                                            </div>
+                                        </td> */}
+
+                                        <td colSpan="2" style={{ padding: '1px' }}>
+                                            <div
+                                                className="d-flex align-items-start gap-1"
+                                                id="amountInWords"
+                                                title={convertToRupeesAndPaisaNepali(totals.totalAmount) + " Only."}
+                                            >
+                                                <label
+                                                    className="form-label mb-0 fw-semibold text-nowrap"
+                                                    style={{ fontSize: '0.8rem' }}
+                                                >
+                                                    In Words:
+                                                </label>
+                                                <div
+                                                    className="form-control-plaintext mb-0 flex-grow-1"
+                                                    style={{
+                                                        fontSize: '0.7rem',
+                                                        lineHeight: '1.1',
+                                                        maxHeight: '44px',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        display: '-webkit-box',
+                                                        WebkitLineClamp: 2,
+                                                        WebkitBoxOrientation: 'vertical',
+                                                        wordBreak: 'break-word',
+                                                        whiteSpace: 'normal',
+                                                        padding: 0,
+                                                        border: 'none',
+                                                        backgroundColor: 'transparent'
+                                                    }}
+                                                >
+                                                    {convertToRupeesAndPaisaNepali(totals.totalAmount)} Only.
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
@@ -5357,74 +5352,5 @@ const AddCashSalesReturn = () => {
         </div>
     );
 };
-
-function convertToRupeesAndPaisa(amount) {
-    const rupees = Math.floor(amount);
-    const paisa = Math.round((amount - rupees) * 100);
-
-    let words = '';
-
-    if (rupees > 0) {
-        words += numberToWords(rupees) + ' Rupees';
-    }
-
-    if (paisa > 0) {
-        words += (rupees > 0 ? ' and ' : '') + numberToWords(paisa) + ' Paisa';
-    }
-
-    return words || 'Zero Rupees';
-}
-
-function numberToWords(num) {
-    const ones = [
-        '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-        'Seventeen', 'Eighteen', 'Nineteen'
-    ];
-
-    const tens = [
-        '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
-    ];
-
-    const scales = ['', 'Thousand', 'Million', 'Billion'];
-
-    function convertHundreds(num) {
-        let words = '';
-
-        if (num > 99) {
-            words += ones[Math.floor(num / 100)] + ' Hundred ';
-            num %= 100;
-        }
-
-        if (num > 19) {
-            words += tens[Math.floor(num / 10)] + ' ';
-            num %= 10;
-        }
-
-        if (num > 0) {
-            words += ones[num] + ' ';
-        }
-
-        return words.trim();
-    }
-
-    if (num === 0) return 'Zero';
-    if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
-
-    let words = '';
-
-    for (let i = 0; i < scales.length; i++) {
-        let unit = Math.pow(1000, scales.length - i - 1);
-        let currentNum = Math.floor(num / unit);
-
-        if (currentNum > 0) {
-            words += convertHundreds(currentNum) + ' ' + scales[scales.length - i - 1] + ' ';
-        }
-
-        num %= unit;
-    }
-
-    return words.trim();
-}
 
 export default AddCashSalesReturn;

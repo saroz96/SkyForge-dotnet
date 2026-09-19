@@ -35,7 +35,7 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
         [Required]
         public Guid UnitId { get; set; }
 
-        [Range(0.001, double.MaxValue)]
+        [Range(0, double.MaxValue)]
         public decimal? WsUnit { get; set; }
 
         public string? BatchNumber { get; set; }
@@ -47,7 +47,7 @@ namespace SkyForge.Dto.RetailerDto.StockAdjustmentDto
         public decimal? Mrp { get; set; }
 
         [Required]
-        [Range(0.001, double.MaxValue)]
+        [Range(0, double.MaxValue)]
         public decimal Price { get; set; }
 
         [Required]

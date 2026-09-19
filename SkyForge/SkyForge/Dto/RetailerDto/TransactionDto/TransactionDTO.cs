@@ -376,4 +376,20 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public DateTime? FirstTransactionDate { get; set; }
         public DateTime? LastTransactionDate { get; set; }
     }
+
+    public class DayBookEntryDto
+    {
+        public Guid Id { get; set; }
+        public DateTime Date { get; set; }
+        public string? NepaliDate { get; set; }
+        public string? BillNumber { get; set; }
+        public string? AccountName { get; set; }
+        public string? PaymentMode { get; set; }
+        public string? Description { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+        public decimal Balance { get; set; }
+        public string? UserName { get; set; }
+        public string Type { get; set; } = string.Empty;
+    }
 }
