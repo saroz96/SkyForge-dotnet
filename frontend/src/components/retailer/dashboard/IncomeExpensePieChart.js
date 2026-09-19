@@ -77,7 +77,6 @@ const IncomeExpensePieChart = ({ companyId, companyName, fiscalYearJson }) => {
     //     vertical: 4
     //   }
     // },
-    
     plotOptions: {
       pie: {
         donut: {

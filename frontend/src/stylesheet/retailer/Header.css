@@ -1,3 +1,4 @@
+/* 
 .header-container {
   position: relative;
   width: 100%;
@@ -405,6 +406,8 @@
   li:hover {
   background-color: #555;
 }
+
+*/
 
 /* Header.css - Compact Professional ERP Header */
 /* 
@@ -1324,3 +1327,555 @@
     display: none !important;
   }
 } */
+
+/* ============================================
+   Header.css – Matching Dashboard design system
+   ============================================ */
+
+/* ============================================
+   Design Tokens (identical to SalesBillsList)
+   ============================================ */
+:root {
+  --hd-primary: #1e3a5f;
+  --hd-primary-light: #2563eb;
+  --hd-primary-soft: #eff6ff;
+  --hd-surface: #f8fafc;
+  --hd-card: #ffffff;
+  --hd-border: #e9eef3;
+  --hd-border-strong: #cbd5e1;
+  --hd-text: #0b1e33;
+  --hd-muted: #5e6f8b;
+  --hd-danger: #dc2626;
+  --hd-success: #059669;
+  --hd-warning: #d97706;
+  --hd-radius: 10px;
+  --hd-radius-sm: 8px;
+  --hd-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(0, 0, 0, 0.02);
+  --hd-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.05);
+  --hd-transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  --hd-gradient: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+}
+
+.header-container {
+  position: relative;
+  width: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ============================================
+   Gradient header
+   ============================================ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--hd-gradient);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(30, 58, 95, 0.15);
+  min-height: auto;
+  height: auto;
+  transition: var(--hd-transition);
+}
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1001;
+  width: 100%;
+  background-color: #ffffff;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--hd-border);
+}
+
+/* ============================================
+   Header Row Layout
+   ============================================ */
+.header .header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  padding: 0 1rem;
+}
+
+.header .header-row .header-right {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;      /* ✅ centers the main menu */
+  position: relative;           /* for absolute positioning of theme toggle */
+}
+
+
+/* ============================================
+   Main Menu — flat text links, no buttons
+   ============================================ */
+.header .header-row .header-right .main-menu {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+}
+
+.header .header-row .header-right .main-menu li.menu-item {
+  display: block;
+  position: relative;
+}
+
+.header .header-row .header-right .main-menu li.menu-item:not(:last-child) {
+  margin: 0 1rem 0 0;
+}
+
+/* ✅ Plain text links — no background, no border-radius, no pill */
+.header .header-row .header-right .main-menu li.menu-item > a {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.45rem 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: var(--hd-transition);
+  background: none;
+  border: none;
+  border-radius: 0;
+  position: relative;
+}
+
+/* Hover: just brighten the text, no background */
+.header .header-row .header-right .main-menu li.menu-item > a:hover {
+  color: #ffffff;
+  background: none;
+}
+
+/* Active: bright white text, no background, no underline */
+.header .header-row .header-right .main-menu li.menu-item a.active {
+  color: #ffffff;
+  background: none;
+}
+
+/* ============================================
+   Dropdown / Submenu
+   ============================================ */
+.header .header-row .header-right .main-menu li.dropdown {
+  position: relative;
+}
+
+.header .header-row .header-right .main-menu .sub-menu-wrapper {
+  position: absolute;
+  text-align: left;
+  margin: 0;
+  z-index: 111;
+  min-width: 210px;
+  line-height: 1.4;
+  display: none;
+  top: 100%;
+  left: 0;
+  padding-top: 4px;
+}
+
+.header .header-row .header-right .main-menu > li.menu-item:hover .sub-menu-wrapper {
+  display: block;
+  animation: hd-slideInDown 0.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@keyframes hd-slideInDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.header .header-row .header-right .main-menu .dropdown ul.sub-menu {
+  background-color: #ffffff;
+  border-top: 2px solid var(--hd-primary-light);
+  padding: 4px 0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--hd-border);
+  border-radius: 0 0 8px 8px;
+  min-width: 210px;
+  text-transform: none;
+  list-style: none;
+  margin: 0;
+}
+
+.header .header-row .header-right .main-menu li.menu-item:hover .sub-menu-wrapper li.menu-item {
+  padding: 0;
+  margin-right: 0;
+}
+
+.header .header-row .header-right .main-menu li.menu-item:hover .sub-menu-wrapper li.menu-item > a {
+  padding: 0.55rem 0.9rem;
+  display: block;
+  text-transform: none;
+  color: var(--hd-text);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: var(--hd-transition);
+  background: transparent;
+  border-radius: 0;
+}
+
+.header .header-row .header-right .main-menu .sub-menu-wrapper ul li:not(:last-child) {
+  border-bottom: 1px solid var(--hd-border);
+}
+
+.header .header-row .header-right .main-menu .sub-menu-wrapper ul li:hover {
+  background-color: var(--hd-primary-soft);
+}
+
+.header .header-row .header-right .main-menu .sub-menu-wrapper ul li:hover > a {
+  color: var(--hd-primary-light);
+  background: transparent;
+}
+
+/* Nested dropdown inside submenu */
+.header .header-row .header-right .main-menu .dropdown .sub-menu .dropdown {
+  position: relative;
+}
+
+.header .header-row .header-right .main-menu .dropdown .sub-menu .dropdown > a::after {
+  content: "▸";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--hd-muted);
+  font-size: 0.85rem;
+}
+
+.header .header-row .header-right .main-menu .dropdown .sub-menu .dropdown .sub-menu {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  background-color: #ffffff;
+  border-top: 2px solid var(--hd-primary-light);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--hd-border);
+  border-radius: 0 8px 8px 8px;
+  min-width: 210px;
+  display: none;
+}
+
+.header .header-row .header-right .main-menu .dropdown .sub-menu .dropdown:hover .sub-menu {
+  display: block;
+  animation: hd-slideInRight 0.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@keyframes hd-slideInRight {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ============================================
+   Theme Toggle — subtle, not button-like
+   ============================================ */
+.menu-item.theme-toggle-container {
+  display: flex;
+  align-items: center;
+  margin-left: 0.85rem;
+  padding: 0;
+}
+
+.theme-toggle {
+  margin-left: 0.4rem;
+}
+
+.theme-toggle button {
+  background: transparent;
+  border: none;
+  padding: 0.35rem;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--hd-transition);
+  font-size: 0.95rem;
+  height: 28px;
+  width: 28px;
+}
+
+.theme-toggle button:hover {
+  color: #ffffff;
+  background: none;
+}
+
+/* ============================================
+   Mobile Toggle
+   ============================================ */
+.header .mobile-toggler {
+  color: #1e3a5f;
+  background: #ffffff;
+  cursor: pointer;
+  padding: 0.4rem 0.65rem;
+  text-align: center;
+  font-size: 0.75rem;
+  vertical-align: middle;
+  margin: 0.4rem 0;
+  line-height: 1.2;
+  border: none;
+  border-radius: 6px;
+  display: none;
+  transition: var(--hd-transition);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  font-weight: 600;
+}
+
+.header .mobile-toggler:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  background: #f8fafc;
+}
+
+/* ============================================
+   Mobile Menu
+   ============================================ */
+.mobile-menu {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: #ffffff;
+  z-index: 1002;
+  overflow-y: auto;
+  padding: 1rem;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mobile-menu.open {
+  transform: translateX(0);
+  display: block;
+}
+
+.mobile-menu .main-menu {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.mobile-menu .main-menu > li.menu-item {
+  width: 100%;
+  margin: 0 0 0.4rem 0 !important;
+}
+
+.mobile-menu .main-menu > li.menu-item > a {
+  padding: 0.65rem 0.75rem;
+  display: block;
+  width: 100%;
+  font-size: 0.78rem;
+  color: var(--hd-text);
+  background: transparent;
+  border-radius: 6px;
+}
+
+.mobile-menu .main-menu > li.menu-item > a:hover {
+  background: var(--hd-primary-soft);
+  color: var(--hd-primary-light);
+}
+
+.mobile-menu .main-menu > li.menu-item a.active {
+  color: var(--hd-primary-light);
+  background: var(--hd-primary-soft);
+}
+
+.mobile-menu .sub-menu-wrapper {
+  position: static !important;
+  display: none;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding-left: 0.75rem;
+}
+
+.mobile-menu .main-menu > li.menu-item:hover .sub-menu-wrapper,
+.mobile-menu .main-menu > li.menu-item.active .sub-menu-wrapper {
+  display: block;
+}
+
+.mobile-menu .sub-menu {
+  box-shadow: none !important;
+  border-top: none !important;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--hd-border);
+}
+
+.mobile-menu .dropdown .sub-menu .dropdown .sub-menu {
+  position: static !important;
+  margin-left: 0.75rem;
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+.slideInUp {
+  animation-name: slideInUp;
+  animation-duration: 0.25s;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes slideInUp {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.slideInDown {
+  animation-name: slideInDown;
+  animation-duration: 0.25s;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes slideInDown {
+  0% { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+@media (max-width: 992px) {
+  .header .header-row .header-right .desktop-menu {
+    display: none;
+  }
+  .header .mobile-toggler {
+    display: block;
+  }
+}
+
+@media (min-width: 993px) {
+  .mobile-menu {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   Theme Icons
+   ============================================ */
+[data-theme="light"] .dark-icon,
+[data-theme="dark"] .light-icon {
+  display: none;
+}
+
+/* ============================================
+   Dark Mode
+   ============================================ */
+[data-theme="dark"] {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] {
+  --hd-primary: #1e3a5f;
+  --hd-primary-light: #60a5fa;
+  --hd-primary-soft: rgba(37, 99, 235, 0.15);
+  --hd-surface: #0f172a;
+  --hd-card: #1e293b;
+  --hd-border: #334155;
+  --hd-border-strong: #475569;
+  --hd-text: #f1f5f9;
+  --hd-muted: #94a3b8;
+  --hd-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
+  --hd-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .header {
+  background: var(--hd-gradient);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .footer {
+  background-color: #1e293b;
+  border-top-color: #334155;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu li.menu-item > a {
+  color: rgba(255, 255, 255, 0.8);
+  background: none;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu li.menu-item > a:hover {
+  color: #ffffff;
+  background: none;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu li.menu-item a.active {
+  color: #ffffff;
+  background: none;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu .dropdown ul.sub-menu {
+  background-color: #1e293b;
+  border-top-color: #60a5fa;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px #334155;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu li.menu-item:hover .sub-menu-wrapper li.menu-item > a {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu .sub-menu-wrapper ul li:hover {
+  background-color: #263348;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu .sub-menu-wrapper ul li:hover > a {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu .sub-menu-wrapper ul li:not(:last-child) {
+  border-bottom-color: #334155;
+}
+
+[data-theme="dark"] .header .header-row .header-right .main-menu .dropdown .sub-menu .dropdown .sub-menu {
+  background-color: #1e293b;
+  border-top-color: #60a5fa;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px #334155;
+}
+
+[data-theme="dark"] .mobile-menu {
+  background-color: #1e293b;
+}
+
+[data-theme="dark"] .mobile-menu .main-menu > li.menu-item > a {
+  color: #cbd5e1;
+  background: transparent;
+}
+
+[data-theme="dark"] .mobile-menu .main-menu > li.menu-item > a:hover {
+  background: rgba(37, 99, 235, 0.15);
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .mobile-menu .main-menu > li.menu-item a.active {
+  color: #60a5fa;
+  background: rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="dark"] .mobile-menu .sub-menu {
+  border-left-color: #334155;
+}
+
+[data-theme="dark"] .theme-toggle button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme="dark"] .theme-toggle button:hover {
+  color: #ffffff;
+  background: none;
+}
+
+[data-theme="dark"] .header .mobile-toggler {
+  background: #ffffff;
+  color: #1e3a5f;
+}
+
+[data-theme="dark"] .header .mobile-toggler:hover {
+  background: #f8fafc;
+}
