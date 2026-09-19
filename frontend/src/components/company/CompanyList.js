@@ -76,7 +76,7 @@ const CompanyList = ({ companies, onCompanyClick, isAdminOrSupervisor }) => {
 
     setLoadingCompanyId(companyId);
     setError(null);
-    showLoading(5000);
+    showLoading(15000);
 
     try {
       const token = localStorage.getItem('token');
