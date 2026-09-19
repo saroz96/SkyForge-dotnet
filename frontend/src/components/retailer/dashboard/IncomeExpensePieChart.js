@@ -59,24 +59,25 @@ const IncomeExpensePieChart = ({ companyId, companyName, fiscalYearJson }) => {
         enabled: false
       }
     },
-    legend: {
-      position: 'bottom',
-      fontSize: '11px',
-      fontFamily: 'Inter, system-ui, sans-serif',
-      fontWeight: 400,
-      labels: {
-        colors: '#6b7280'
-      },
-      markers: {
-        width: 10,
-        height: 10,
-        radius: 2
-      },
-      itemMargin: {
-        horizontal: 8,
-        vertical: 4
-      }
-    },
+    // legend: {
+    //   position: 'bottom',
+    //   fontSize: '11px',
+    //   fontFamily: 'Inter, system-ui, sans-serif',
+    //   fontWeight: 400,
+    //   labels: {
+    //     colors: '#6b7280'
+    //   },
+    //   markers: {
+    //     width: 10,
+    //     height: 10,
+    //     radius: 2
+    //   },
+    //   itemMargin: {
+    //     horizontal: 8,
+    //     vertical: 4
+    //   }
+    // },
+    
     plotOptions: {
       pie: {
         donut: {
