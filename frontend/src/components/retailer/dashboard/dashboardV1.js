@@ -295,7 +295,7 @@ const DashboardV1 = () => {
         },
         contentGrid: {
             display: 'grid',
-            gridTemplateColumns: '1.4fr 1.2fr 0.8fr',
+            gridTemplateColumns: 'repeat(4, 1fr)',
             gap: '20px',
             marginBottom: '24px',
             alignItems: 'stretch',
@@ -970,7 +970,7 @@ useEffect(() => {
 
                     {/* Chart, Pie Chart and Quick Actions in same row */}
                     <div style={styles.contentGrid}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2' }}>
                             <SalesChart
                                 companyId={companyId}
                                 companyName={companyName}
@@ -978,7 +978,7 @@ useEffect(() => {
                             />
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 1' }}>
                             <IncomeExpensePieChart
                                 companyId={companyId}
                                 companyName={companyName}
@@ -986,12 +986,7 @@ useEffect(() => {
                             />
                         </div>
 
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            transform: 'scale(0.95)',
-                            transformOrigin: 'top left',
-                        }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 1' }}>
                             <QuickActions
                                 onPosSaleClick={handlePosSaleClick}
                                 companyId={companyId}

@@ -94,10 +94,10 @@
 }
 
 /* ============================================
-   Body
+   Body – ✅ RIGHT SIDE SLIGHTLY INCREASED
    ============================================ */
 .qa-body {
-  padding: 0.65rem 0.85rem;
+  padding: 0.65rem 1rem 0.65rem 0.85rem;
 }
 
 /* ============================================
@@ -264,8 +264,9 @@
   .qa-subtitle {
     font-size: 0.58rem;
   }
+  /* ✅ right side increased on tablet too */
   .qa-body {
-    padding: 0.55rem 0.75rem;
+    padding: 0.55rem 0.9rem 0.55rem 0.75rem;
   }
   .qa-grid {
     gap: 0.45rem;
@@ -303,8 +304,9 @@
   .qa-subtitle {
     font-size: 0.55rem;
   }
+  /* ✅ slight right padding increase on mobile */
   .qa-body {
-    padding: 0.5rem 0.6rem;
+    padding: 0.5rem 0.75rem 0.5rem 0.6rem;
   }
   .qa-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -344,8 +346,9 @@
   .qa-subtitle {
     font-size: 0.52rem;
   }
+  /* ✅ small right padding increase */
   .qa-body {
-    padding: 0.4rem 0.5rem;
+    padding: 0.4rem 0.6rem 0.4rem 0.5rem;
   }
   .qa-grid {
     grid-template-columns: repeat(2, 1fr);
