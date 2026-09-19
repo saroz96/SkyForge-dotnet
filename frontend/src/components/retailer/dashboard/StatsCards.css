@@ -1,69 +1,87 @@
-/* StatsCards.css - Matching DailyInventorySummary design */
+/* StatsCards.css – Matching SalesBillsList design */
 
 /* ============================================
-   Variables
+   Design Tokens (identical to SalesBillsList)
    ============================================ */
-:root {
+.sc-grid {
     --sc-primary: #1e3a5f;
     --sc-primary-light: #2563eb;
     --sc-primary-soft: #eff6ff;
-    --sc-surface: #f1f5f9;
+    --sc-surface: #f8fafc;
     --sc-card: #ffffff;
-    --sc-border: #e2e8f0;
-    --sc-text: #0f172a;
-    --sc-muted: #64748b;
-    --sc-radius: 12px;
-    --sc-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --sc-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
+    --sc-border: #e9eef3;
+    --sc-border-strong: #cbd5e1;
+    --sc-text: #0b1e33;
+    --sc-muted: #5e6f8b;
+    --sc-danger: #dc2626;
+    --sc-danger-soft: #fef2f2;
+    --sc-success: #059669;
+    --sc-warning: #d97706;
+    --sc-radius: 10px;
+    --sc-radius-sm: 8px;
+    --sc-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(0, 0, 0, 0.02);
+    --sc-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.05);
+    --sc-transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
 
-/* ============================================
-   Grid Layout
-   ============================================ */
-.sc-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 0.65rem;
+    margin-bottom: 0.55rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* ============================================
-   Card Styles - Full Color Background
+   Card Styles – Gradient backgrounds
    ============================================ */
 .sc-card {
     border-radius: var(--sc-radius);
-    padding: 1.25rem 1.5rem;
-    border: none;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--sc-border);
     cursor: pointer;
     transition: var(--sc-transition);
-    min-height: 120px;
+    min-height: 100px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     position: relative;
     overflow: hidden;
     color: #ffffff;
+    animation: sc-fadeIn 0.3s ease-out forwards;
 }
 
-/* Card Variants - Full color backgrounds */
+/* Card Variants – Gradient backgrounds (matching QuickActions icon colors) */
 .sc-card--cash {
-    background: linear-gradient(135deg, #059669 0%, #34d399 100%);
-    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+    background: linear-gradient(135deg, #1e3a5f 0%, #059669 100%);
+    border-color: transparent;
+    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.2);
 }
 
 .sc-card--sales {
-    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    border-color: transparent;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
 }
 
 .sc-card--bank {
-    background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
-    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+    background: linear-gradient(135deg, #1e3a5f 0%, #7c3aed 100%);
+    border-color: transparent;
+    box-shadow: 0 1px 3px rgba(124, 58, 237, 0.2);
 }
 
 .sc-card--inventory {
-    background: linear-gradient(135deg, #d97706 0%, #fbbf24 100%);
-    box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3);
+    background: linear-gradient(135deg, #1e3a5f 0%, #d97706 100%);
+    border-color: transparent;
+    box-shadow: 0 1px 3px rgba(217, 119, 6, 0.2);
+}
+
+/* ✅ Negative value variant – adds a subtle red tint + red border */
+.sc-card--negative {
+    background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%);
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3);
+}
+
+.sc-card--negative::after {
+    background: rgba(255, 255, 255, 0.1) !important;
 }
 
 /* Decorative circle overlay */
@@ -75,35 +93,43 @@
     width: 200px;
     height: 200px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
     pointer-events: none;
+    transition: transform 0.4s ease;
 }
 
-.sc-card--cash::after {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.sc-card--sales::after {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.sc-card--bank::after {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.sc-card--inventory::after {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-/* Hover effect */
 .sc-card:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .sc-card:hover::after {
     transform: scale(1.2);
-    transition: transform 0.4s ease;
+}
+
+/* ============================================
+   Negative Value Indicator (top-right corner)
+   ============================================ */
+.sc-card-negative-indicator {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    z-index: 2;
+    animation: sc-pulse-warn 2s ease-in-out infinite;
+}
+
+@keyframes sc-pulse-warn {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.92); }
 }
 
 /* ============================================
@@ -113,13 +139,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
     position: relative;
     z-index: 1;
 }
 
 .sc-card-label {
-    font-size: 0.75rem;
+    font-size: 0.62rem;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.85);
     text-transform: uppercase;
@@ -127,34 +153,35 @@
 }
 
 /* ============================================
-   Card Icon - Light version for colored backgrounds
+   Card Icon – Translucent white (matches topbar icons)
    ============================================ */
 .sc-card-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1rem;
     transition: var(--sc-transition);
     flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
     color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .sc-card:hover .sc-card-icon {
-    transform: scale(1.1);
-    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.08);
+    background: rgba(255, 255, 255, 0.25);
 }
 
 /* ============================================
-   Card Body - White text for contrast
+   Card Body – White text for contrast
    ============================================ */
 .sc-card-body {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.15rem;
     position: relative;
     z-index: 1;
 }
@@ -164,18 +191,22 @@
     color: #ffffff;
     line-height: 1.2;
     letter-spacing: -0.01em;
+    margin: 0;
     transition: var(--sc-transition);
+    font-variant-numeric: tabular-nums;
 }
 
 .sc-card-subtext {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.85); /* ✅ Bumped from 0.75 for readability */
     display: flex;
     align-items: center;
+    margin: 0;
+    font-weight: 400;
 }
 
 .sc-card-subtext i {
-    font-size: 0.65rem;
+    font-size: 0.55rem;
 }
 
 /* ============================================
@@ -190,9 +221,9 @@
 }
 
 .sc-spinner {
-    width: 2rem;
-    height: 2rem;
-    border: 3px solid var(--sc-border);
+    width: 32px;
+    height: 32px;
+    border: 3.5px solid var(--sc-border);
     border-top-color: var(--sc-primary-light);
     border-radius: 50%;
     animation: sc-spin 0.8s linear infinite;
@@ -205,7 +236,7 @@
 .sc-loading-text {
     color: var(--sc-muted);
     margin-top: 0.5rem;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
 }
 
 /* ============================================
@@ -228,7 +259,7 @@
 
 .sc-error-text {
     color: #991b1b;
-    font-size: 0.85rem;
+    font-size: 0.72rem;
 }
 
 /* ============================================
@@ -239,18 +270,18 @@
 @media (max-width: 1200px) {
     .sc-grid {
         grid-template-columns: repeat(4, 1fr);
-        gap: 0.75rem;
+        gap: 0.55rem;
     }
 
     .sc-card {
-        padding: 1rem 1.25rem;
-        min-height: 100px;
+        padding: 0.75rem 0.85rem;
+        min-height: 92px;
     }
 
     .sc-card-icon {
-        width: 38px;
-        height: 38px;
-        font-size: 1rem;
+        width: 30px;
+        height: 30px;
+        font-size: 0.9rem;
     }
 }
 
@@ -258,12 +289,16 @@
 @media (max-width: 992px) {
     .sc-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
+        gap: 0.55rem;
     }
 
     .sc-card {
-        padding: 1rem 1.25rem;
-        min-height: 100px;
+        padding: 0.75rem 0.85rem;
+        min-height: 92px;
+    }
+
+    .sc-card-value {
+        font-size: 1.25rem !important;
     }
 }
 
@@ -271,43 +306,46 @@
 @media (max-width: 576px) {
     .sc-grid {
         grid-template-columns: 1fr;
-        gap: 0.5rem;
+        gap: 0.45rem;
+        margin-bottom: 0.6rem;
     }
 
     .sc-card {
-        padding: 0.875rem 1rem;
-        min-height: 85px;
+        padding: 0.7rem 0.85rem;
+        min-height: 78px;
+        border-radius: 8px;
     }
 
     .sc-card-label {
-        font-size: 0.65rem;
+        font-size: 0.58rem;
     }
 
     .sc-card-icon {
-        width: 34px;
-        height: 34px;
-        font-size: 0.875rem;
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+        border-radius: 6px;
     }
 
     .sc-card-value {
-        font-size: 1.2rem !important;
+        font-size: 1.1rem !important;
     }
 
     .sc-card-subtext {
-        font-size: 0.6rem;
+        font-size: 0.55rem;
     }
 }
 
 /* Extra small devices */
 @media (max-width: 400px) {
     .sc-grid {
-        gap: 0.4rem;
+        gap: 0.35rem;
     }
 
     .sc-card {
-        padding: 0.75rem 0.875rem;
-        min-height: 75px;
-        border-radius: 8px;
+        padding: 0.6rem 0.7rem;
+        min-height: 70px;
+        border-radius: 6px;
     }
 
     .sc-card-header {
@@ -315,22 +353,22 @@
     }
 
     .sc-card-label {
-        font-size: 0.6rem;
+        font-size: 0.55rem;
     }
 
     .sc-card-icon {
-        width: 30px;
-        height: 30px;
-        font-size: 0.75rem;
-        border-radius: 8px;
+        width: 24px;
+        height: 24px;
+        font-size: 0.72rem;
+        border-radius: 6px;
     }
 
     .sc-card-value {
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
     }
 
     .sc-card-subtext {
-        font-size: 0.55rem;
+        font-size: 0.52rem;
     }
 }
 
@@ -340,7 +378,7 @@
 @keyframes sc-fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(6px);
     }
     to {
         opacity: 1;
@@ -348,18 +386,71 @@
     }
 }
 
-.sc-card {
-    animation: sc-fadeIn 0.4s ease-out forwards;
-}
+.sc-card:nth-child(1) { animation-delay: 0.01s; }
+.sc-card:nth-child(2) { animation-delay: 0.02s; }
+.sc-card:nth-child(3) { animation-delay: 0.03s; }
+.sc-card:nth-child(4) { animation-delay: 0.04s; }
 
-.sc-card:nth-child(2) {
-    animation-delay: 0.05s;
-}
+/* ============================================
+   Dark Mode Support (matching SalesBillsList)
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+    .sc-grid {
+        --sc-surface: #0f172a;
+        --sc-card: #1e293b;
+        --sc-border: #334155;
+        --sc-border-strong: #475569;
+        --sc-text: #f1f5f9;
+        --sc-muted: #94a3b8;
+        --sc-primary-soft: rgba(37, 99, 235, 0.15);
+        --sc-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
+        --sc-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
 
-.sc-card:nth-child(3) {
-    animation-delay: 0.1s;
-}
+    /* Gradient cards stay the same in dark mode for strong identity */
+    .sc-card--cash {
+        background: linear-gradient(135deg, #1e3a5f 0%, #059669 100%);
+    }
 
-.sc-card:nth-child(4) {
-    animation-delay: 0.15s;
+    .sc-card--sales {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    }
+
+    .sc-card--bank {
+        background: linear-gradient(135deg, #1e3a5f 0%, #7c3aed 100%);
+    }
+
+    .sc-card--inventory {
+        background: linear-gradient(135deg, #1e3a5f 0%, #d97706 100%);
+    }
+
+    .sc-card--negative {
+        background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%);
+    }
+
+    .sc-card:hover {
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .sc-spinner {
+        border-color: #374151;
+        border-top-color: #60a5fa;
+    }
+
+    .sc-loading-text {
+        color: var(--sc-muted);
+    }
+
+    .sc-error {
+        background: rgba(220, 38, 38, 0.1);
+        border-color: rgba(220, 38, 38, 0.3);
+    }
+
+    .sc-error-text {
+        color: #fca5a5;
+    }
+
+    .sc-error-icon {
+        color: #fca5a5;
+    }
 }

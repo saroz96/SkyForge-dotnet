@@ -1,22 +1,26 @@
-/* IncomeExpenseChart.css - Matching SalesChart design */
+/* IncomeExpenseChart.css – Matching SalesBillsList design */
 
 /* ============================================
-   Variables
+   Design Tokens (identical to SalesBillsList)
    ============================================ */
-:root {
+.pie-chart-container {
     --pie-primary: #1e3a5f;
     --pie-primary-light: #2563eb;
     --pie-primary-soft: #eff6ff;
-    --pie-surface: #f1f5f9;
+    --pie-surface: #f8fafc;
     --pie-card: #ffffff;
-    --pie-border: #e2e8f0;
-    --pie-text: #0f172a;
-    --pie-muted: #64748b;
+    --pie-border: #e9eef3;
+    --pie-border-strong: #cbd5e1;
+    --pie-text: #0b1e33;
+    --pie-muted: #5e6f8b;
     --pie-danger: #dc2626;
     --pie-success: #059669;
-    --pie-radius: 12px;
-    --pie-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --pie-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --pie-warning: #d97706;
+    --pie-radius: 10px;
+    --pie-radius-sm: 8px;
+    --pie-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(0, 0, 0, 0.02);
+    --pie-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.05);
+    --pie-transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* ============================================
@@ -27,24 +31,26 @@
     border-radius: var(--pie-radius);
     border: 1px solid var(--pie-border);
     box-shadow: var(--pie-shadow);
-    padding: 20px 20px 16px 20px;
+    padding: 0;
     height: 100%;
     min-height: 380px;
     display: flex;
     flex-direction: column;
     transition: var(--pie-transition);
-    animation: pie-fadeIn 0.4s ease-out forwards;
+    animation: pie-fadeIn 0.3s ease-out forwards;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .pie-chart-container:hover {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-    border-color: var(--pie-primary-light);
+    border-color: #cdd9e6;
+    box-shadow: var(--pie-shadow-hover);
 }
 
 @keyframes pie-fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(6px);
     }
     to {
         opacity: 1;
@@ -53,84 +59,90 @@
 }
 
 /* ============================================
-   HEADER SECTION
+   HEADER SECTION (gradient matching SalesBillsList topbar)
    ============================================ */
 .pie-chart-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    padding: 0.5rem 0.85rem;
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    color: #fff;
     flex-wrap: wrap;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .pie-chart-header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0.55rem;
 }
 
 .pie-chart-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 0.9rem;
     flex-shrink: 0;
-    background: var(--pie-primary-soft);
-    color: var(--pie-primary-light);
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.12);
     transition: var(--pie-transition);
 }
 
 .pie-chart-icon--income-expense {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    color: #2563eb;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
 }
 
 .pie-chart-icon:hover {
     transform: scale(1.05);
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+    background: rgba(255, 255, 255, 0.25);
 }
 
 .pie-chart-title {
     margin: 0;
-    font-size: 15px;
+    font-size: 0.82rem;
     font-weight: 600;
-    color: var(--pie-text);
+    color: #fff;
     letter-spacing: -0.01em;
-    line-height: 1.3;
+    line-height: 1.2;
 }
 
 .pie-chart-subtitle {
-    font-size: 12px;
-    color: var(--pie-muted);
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.75);
     font-weight: 400;
     display: block;
     margin-top: 1px;
+    letter-spacing: 0.01em;
 }
 
 .pie-chart-header-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0.4rem;
     flex-shrink: 0;
 }
 
 /* ============================================
-   REFRESH BUTTON
+   REFRESH BUTTON (matches sb-btn-icon)
    ============================================ */
 .pie-btn-refresh {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border: 1px solid var(--pie-border);
+    gap: 0.3rem;
+    height: 28px;
+    padding: 0 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
     border-radius: 6px;
-    background: transparent;
-    color: var(--pie-muted);
-    font-size: 12px;
+    font-size: 0.7rem;
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
@@ -139,23 +151,23 @@
 }
 
 .pie-btn-refresh:hover:not(:disabled) {
-    background: var(--pie-primary-soft);
-    border-color: var(--pie-primary-light);
-    color: var(--pie-primary-light);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-1px);
 }
 
 .pie-btn-refresh:active:not(:disabled) {
-    transform: scale(0.96);
+    transform: translateY(0);
 }
 
 .pie-btn-refresh:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
     transform: none;
 }
 
 .pie-btn-refresh i {
-    font-size: 13px;
+    font-size: 0.8rem;
 }
 
 /* ============================================
@@ -179,18 +191,29 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
-    color: var(--pie-muted);
-    background: var(--pie-surface);
-    padding: 3px 10px;
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.15);
+    padding: 3px 8px;
     border-radius: 20px;
-    border: 1px solid var(--pie-border);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     font-weight: 500;
     white-space: nowrap;
 }
 
 .pie-cached-badge i {
-    font-size: 11px;
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   CONTENT WRAPPER (padding for body content)
+   ============================================ */
+.pie-chart-body,
+.pie-summary-grid,
+.pie-chart-loading,
+.pie-chart-error {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
 }
 
 /* ============================================
@@ -199,16 +222,17 @@
 .pie-summary-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 0.5rem;
+    margin-top: 0.65rem;
+    margin-bottom: 0.65rem;
 }
 
 .pie-summary-card {
-    background: #f9fafb;
-    border-radius: 10px;
-    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: var(--pie-radius-sm);
+    padding: 0.55rem 0.75rem;
     text-align: center;
-    border: 1px solid #f3f4f6;
+    border: 1px solid var(--pie-border);
     transition: var(--pie-transition);
     position: relative;
     overflow: hidden;
@@ -216,44 +240,45 @@
 
 .pie-summary-card:hover {
     background: var(--pie-card);
-    border-color: var(--pie-border);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border-color: #cdd9e6;
+    box-shadow: var(--pie-shadow-hover);
     transform: translateY(-1px);
 }
 
 /* Left border accents */
 .pie-summary-income {
-    border-left: 4px solid #22c55e;
+    border-left: 3px solid #22c55e;
 }
 
 .pie-summary-expense {
-    border-left: 4px solid #ef4444;
+    border-left: 3px solid #ef4444;
 }
 
 .pie-summary-profit {
-    border-left: 4px solid #22c55e;
+    border-left: 3px solid #22c55e;
 }
 
 .pie-summary-loss {
-    border-left: 4px solid #ef4444;
+    border-left: 3px solid #ef4444;
 }
 
 /* Summary card inner content */
 .pie-summary-label {
-    font-size: 10px;
+    font-size: 0.58rem;
     color: var(--pie-muted);
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.04em;
     font-weight: 600;
     margin-bottom: 2px;
 }
 
 .pie-summary-value {
-    font-size: 15px;
+    font-size: 0.8rem;
     font-weight: 700;
     margin-top: 2px;
     font-variant-numeric: tabular-nums;
     line-height: 1.3;
+    color: var(--pie-text);
 }
 
 /* Text colors */
@@ -272,6 +297,7 @@
     position: relative;
     flex: 1;
     min-height: 200px;
+    padding-bottom: 0.65rem;
 }
 
 .pie-chart-wrapper {
@@ -312,7 +338,7 @@
 }
 
 .pie-loading-text {
-    font-size: 13px;
+    font-size: 0.72rem;
     color: var(--pie-muted);
     margin: 0;
     font-weight: 400;
@@ -338,7 +364,7 @@
     gap: 0.75rem;
     padding: 0.75rem 1.25rem;
     background: #fef2f2;
-    border-radius: 8px;
+    border-radius: var(--pie-radius-sm);
     border: 1px solid #fecaca;
 }
 
@@ -348,11 +374,12 @@
 }
 
 .pie-error-text {
-    font-size: 13px;
+    font-size: 0.72rem;
     color: var(--pie-danger);
     margin: 0;
     max-width: 280px;
     line-height: 1.5;
+    font-weight: 500;
 }
 
 .pie-btn-refresh--error {
@@ -360,11 +387,11 @@
     align-items: center;
     gap: 6px;
     padding: 8px 20px;
-    border-radius: 8px;
+    border-radius: var(--pie-radius-sm);
     border: none;
     background: #ef4444;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 0.72rem;
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
@@ -388,20 +415,45 @@
 /* Tablets and medium screens */
 @media (max-width: 992px) {
     .pie-chart-container {
-        padding: 16px 16px 12px 16px;
         min-height: 340px;
     }
 
+    .pie-chart-header {
+        padding: 0.45rem 0.75rem;
+    }
+
+    .pie-chart-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
+    }
+
+    .pie-chart-title {
+        font-size: 0.78rem;
+    }
+
+    .pie-chart-subtitle {
+        font-size: 0.58rem;
+    }
+
+    .pie-chart-body,
+    .pie-summary-grid,
+    .pie-chart-loading,
+    .pie-chart-error {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
     .pie-summary-grid {
-        gap: 8px;
+        gap: 0.45rem;
     }
 
     .pie-summary-card {
-        padding: 8px 10px;
+        padding: 0.5rem 0.6rem;
     }
 
     .pie-summary-value {
-        font-size: 14px;
+        font-size: 0.75rem;
     }
 
     .pie-chart-wrapper {
@@ -418,58 +470,66 @@
 /* Mobile phones */
 @media (max-width: 640px) {
     .pie-chart-container {
-        padding: 14px 12px 12px 12px;
         min-height: 320px;
-        border-radius: 10px;
+        border-radius: 8px;
     }
 
     .pie-chart-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        margin-bottom: 12px;
+        padding: 0.4rem 0.65rem;
+        flex-direction: row;
+        align-items: center;
     }
 
     .pie-chart-header-right {
-        width: 100%;
-        justify-content: flex-start;
+        width: auto;
+        justify-content: flex-end;
     }
 
     .pie-chart-icon {
-        width: 34px;
-        height: 34px;
-        font-size: 15px;
+        width: 26px;
+        height: 26px;
+        font-size: 0.8rem;
+        border-radius: 6px;
     }
 
     .pie-chart-title {
-        font-size: 14px;
+        font-size: 0.75rem;
     }
 
     .pie-chart-subtitle {
-        font-size: 11px;
+        font-size: 0.55rem;
+    }
+
+    .pie-chart-body,
+    .pie-summary-grid,
+    .pie-chart-loading,
+    .pie-chart-error {
+        padding-left: 0.65rem;
+        padding-right: 0.65rem;
     }
 
     .pie-summary-grid {
         grid-template-columns: 1fr;
-        gap: 6px;
-        margin-bottom: 12px;
+        gap: 0.4rem;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
     }
 
     .pie-summary-card {
-        padding: 8px 12px;
+        padding: 0.5rem 0.75rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-left-width: 4px;
+        border-left-width: 3px;
     }
 
     .pie-summary-label {
-        font-size: 10px;
+        font-size: 0.58rem;
         margin-bottom: 0;
     }
 
     .pie-summary-value {
-        font-size: 14px;
+        font-size: 0.75rem;
     }
 
     .pie-chart-wrapper {
@@ -477,8 +537,9 @@
     }
 
     .pie-btn-refresh {
-        padding: 4px 10px;
-        font-size: 11px;
+        height: 26px;
+        padding: 0 0.5rem;
+        font-size: 0.65rem;
     }
 
     .pie-btn-refresh span {
@@ -486,12 +547,12 @@
     }
 
     .pie-btn-refresh i {
-        font-size: 14px;
+        font-size: 0.8rem;
     }
 
     .pie-cached-badge {
-        font-size: 9px;
-        padding: 2px 8px;
+        font-size: 0.55rem;
+        padding: 2px 6px;
     }
 
     .pie-cached-badge span {
@@ -507,7 +568,7 @@
     }
 
     .pie-error-icon {
-        font-size: 28px;
+        font-size: 24px;
     }
 
     .pie-error-content {
@@ -520,12 +581,11 @@
 /* Very small screens */
 @media (max-width: 380px) {
     .pie-chart-container {
-        padding: 10px 8px 10px 8px;
         min-height: 280px;
     }
 
     .pie-summary-value {
-        font-size: 12px;
+        font-size: 0.7rem;
     }
 
     .pie-chart-wrapper {
@@ -537,59 +597,74 @@
         min-height: 140px;
         padding: 0.75rem 0.5rem;
     }
+
+    .pie-chart-header {
+        padding: 0.35rem 0.55rem;
+    }
+
+    .pie-chart-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+    }
+
+    .pie-chart-title {
+        font-size: 0.72rem;
+    }
 }
 
 /* ============================================
-   DARK MODE SUPPORT
+   DARK MODE SUPPORT (matching SalesBillsList)
    ============================================ */
 @media (prefers-color-scheme: dark) {
-    :root {
-        --pie-card: #1e293b;
+    .pie-chart-container {
         --pie-surface: #0f172a;
+        --pie-card: #1e293b;
         --pie-border: #334155;
+        --pie-border-strong: #475569;
         --pie-text: #f1f5f9;
         --pie-muted: #94a3b8;
-    }
+        --pie-primary-soft: rgba(37, 99, 235, 0.15);
+        --pie-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
+        --pie-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.3);
 
-    .pie-chart-container {
         background: var(--pie-card);
         border-color: var(--pie-border);
     }
 
     .pie-chart-container:hover {
-        border-color: #4b5563;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-
-    .pie-chart-title {
-        color: var(--pie-text);
-    }
-
-    .pie-chart-subtitle {
-        color: var(--pie-muted);
-    }
-
-    .pie-chart-icon--income-expense {
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
-        color: #60a5fa;
+        border-color: var(--pie-primary-light);
     }
 
     .pie-chart-header {
-        background: rgba(255, 255, 255, 0.03);
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    }
+
+    .pie-chart-icon {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .pie-chart-icon--income-expense {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
     }
 
     .pie-summary-card {
-        background: #1f2937;
-        border-color: #374151;
+        background: #1a2537;
+        border-color: var(--pie-border);
     }
 
     .pie-summary-card:hover {
-        background: #374151;
-        border-color: #4b5563;
+        background: #263348;
+        border-color: var(--pie-primary-light);
     }
 
     .pie-summary-label {
         color: var(--pie-muted);
+    }
+
+    .pie-summary-value {
+        color: var(--pie-text);
     }
 
     .text-success {
@@ -601,20 +676,19 @@
     }
 
     .pie-btn-refresh {
-        color: var(--pie-muted);
-        border-color: var(--pie-border);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.25);
     }
 
     .pie-btn-refresh:hover:not(:disabled) {
-        background: rgba(37, 99, 235, 0.15);
-        border-color: #60a5fa;
-        color: #60a5fa;
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
     }
 
     .pie-cached-badge {
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--pie-muted);
-        border-color: var(--pie-border);
+        background: rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.9);
+        border-color: rgba(255, 255, 255, 0.2);
     }
 
     .pie-spinner {
