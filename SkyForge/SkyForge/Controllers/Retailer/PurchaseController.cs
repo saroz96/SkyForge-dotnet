@@ -498,6 +498,7 @@ namespace SkyForge.Controllers.Retailer
 
                 var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var companyId = User.FindFirst("currentCompany")?.Value;
+                var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
 
                 if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
                 {
@@ -517,6 +518,34 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
+                Guid fiscalYearIdGuid;
+                if (string.IsNullOrEmpty(fiscalYearIdClaim) || !Guid.TryParse(fiscalYearIdClaim, out fiscalYearIdGuid))
+                {
+                    var activeFiscalYear = await _context.FiscalYears
+                        .FirstOrDefaultAsync(f => f.CompanyId == companyIdGuid && f.IsActive);
+
+                    if (activeFiscalYear == null)
+                    {
+                        // Try to get any fiscal year as fallback
+                        activeFiscalYear = await _context.FiscalYears
+                            .Where(f => f.CompanyId == companyIdGuid)
+                            .OrderByDescending(f => f.StartDate)
+                            .FirstOrDefaultAsync();
+
+                        if (activeFiscalYear == null)
+                        {
+                            return BadRequest(new
+                            {
+                                success = false,
+                                error = "No fiscal year found for this company. Please select a fiscal year first."
+                            });
+                        }
+                    }
+                    fiscalYearIdGuid = activeFiscalYear.Id;
+
+                    _logger.LogInformation($"Using fiscal year: {fiscalYearIdGuid}");
+                }
+
                 if (string.IsNullOrWhiteSpace(partyBillNumber))
                 {
                     return Ok(new
@@ -528,7 +557,7 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                var exists = await _purchaseService.CheckDuplicateInvoiceAsync(partyBillNumber, companyIdGuid);
+                var exists = await _purchaseService.CheckDuplicateInvoiceAsync(partyBillNumber, companyIdGuid, fiscalYearIdGuid);
 
                 if (exists)
                 {
@@ -536,7 +565,8 @@ namespace SkyForge.Controllers.Retailer
                     var existingBill = await _context.PurchaseBills
                         .Include(pb => pb.Account)
                         .FirstOrDefaultAsync(pb => pb.CompanyId == companyIdGuid &&
-                                                  pb.PartyBillNumber == partyBillNumber.Trim());
+                                                    pb.FiscalYearId == fiscalYearIdGuid &&
+                                                    pb.PartyBillNumber == partyBillNumber.Trim());
 
                     // Get company to determine date format
                     var company = await _context.Companies

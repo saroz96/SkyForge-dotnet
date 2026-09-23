@@ -1,3 +1,2306 @@
+// import React, { useState, useEffect, useRef, useMemo } from 'react';
+// import { useParams, useNavigate } from 'react-router-dom';
+// import axios from 'axios';
+// import NepaliDate from 'nepali-datetime';
+// import NotificationToast from '../../NotificationToast';
+// import Header from '../Header';
+// import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
+// import ProductModal from '../dashboard/modals/ProductModal';
+// import VirtualizedAccountList from '../../VirtualizedAccountList';
+// import useDebounce from '../../../hooks/useDebounce';
+// import NepaliDatePicker from '../../NepaliDatePicker';
+// import {
+//     isValidNepaliDate,
+//     getCurrentNepaliDate,
+//     getNepaliMonthDaysComprehensive
+// } from '../../NepaliDateUtils';
+// import api, { refreshToken } from '../../services/api';
+// import AccountModalForJournal from './AccountModalForJournal';
+
+// const convertBsToAd = (bsDate) => {
+//     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+//     try {
+//         const nepaliDate = new NepaliDate(bsDate);
+//         const jsDate = nepaliDate.getDateObject();
+//         if (!jsDate || isNaN(jsDate.getTime())) return null;
+//         const year = jsDate.getFullYear();
+//         const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+//         const day = String(jsDate.getDate()).padStart(2, '0');
+//         return `${year}-${month}-${day}`;
+//     } catch (error) {
+//         console.error('Error converting BS to AD:', error);
+//         return null;
+//     }
+// };
+
+// const convertAdToBs = (adDate) => {
+//     if (!adDate) return null;
+//     try {
+//         let date;
+//         if (typeof adDate === 'string') {
+//             if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+//                 date = new Date(adDate + 'T00:00:00');
+//             } else {
+//                 date = new Date(adDate);
+//             }
+//         } else if (adDate instanceof Date) {
+//             date = adDate;
+//         } else { return null; }
+//         if (isNaN(date.getTime())) return null;
+//         const nepaliDate = new NepaliDate(date);
+//         return `${nepaliDate.getYear()}-${String(nepaliDate.getMonth() + 1).padStart(2, '0')}-${String(nepaliDate.getDate()).padStart(2, '0')}`;
+//     } catch (error) {
+//         console.error('Error converting AD to BS:', error);
+//         return null;
+//     }
+// };
+
+
+// // Helper function to format AD date to YYYY-MM-DD
+// const formatAdDate = (date) => {
+//     if (!date) return null;
+
+//     try {
+//         const d = new Date(date);
+//         if (isNaN(d.getTime())) return null;
+
+//         const year = d.getFullYear();
+//         const month = String(d.getMonth() + 1).padStart(2, '0');
+//         const day = String(d.getDate()).padStart(2, '0');
+
+//         return `${year}-${month}-${day}`;
+//     } catch (error) {
+//         console.error('Error formatting AD date:', error);
+//         return null;
+//     }
+// };
+
+// // Get Nepali month days for validation
+// const getNepaliMonthDays = (year, month) => {
+//     const monthDays = {
+//         1: 31,  // Baisakh
+//         2: 31,  // Jestha
+//         3: 32,  // Ashad
+//         4: 32,  // Shrawan
+//         5: 31,  // Bhadra
+//         6: 31,  // Ashwin
+//         7: 30,  // Kartik
+//         8: 30,  // Mangsir
+//         9: 30,  // Poush
+//         10: 30, // Magh
+//         11: 30, // Falgun
+//         12: 30  // Chaitra
+//     };
+
+//     if (month === 3) {
+//         const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
+//         return ashad31Years.includes(year) ? 31 : 32;
+//     }
+
+//     if (month === 11) {
+//         const isLeapYear = (year + 1) % 4 === 0;
+//         return isLeapYear ? 30 : 29;
+//     }
+
+//     return monthDays[month] || 30;
+// };
+
+// // Enhanced validation with month day limits
+// const isValidNepaliDateEnhanced = (dateStr) => {
+//     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+//     const [year, month, day] = dateStr.split('-').map(Number);
+
+//     if (year < 1970 || year > 2100) return false;
+//     if (month < 1 || month > 12) return false;
+
+//     const maxDays = getNepaliMonthDays(year, month);
+//     if (day < 1 || day > maxDays) return false;
+
+//     try {
+//         const nepaliDate = new NepaliDate(dateStr);
+//         const bsYear = nepaliDate.getYear();
+//         const bsMonth = nepaliDate.getMonth() + 1;
+//         const bsDay = nepaliDate.getDate();
+
+//         return (bsYear === year && bsMonth === month && bsDay === day);
+//     } catch {
+//         return false;
+//     }
+// };
+
+// const EditJournalVoucher = () => {
+//     const { id } = useParams();
+//     const navigate = useNavigate();
+//     const accountSearchRef = useRef(null);
+//     const itemsTableRef = useRef(null);
+//     const [showProductModal, setShowProductModal] = useState(false);
+//     const [printAfterSave, setPrintAfterSave] = useState(
+//         localStorage.getItem('printAfterSaveJournalEdit') === 'true' || false
+//     );
+//     const [isSaving, setIsSaving] = useState(false);
+//     const [notification, setNotification] = useState({
+//         show: false,
+//         message: '',
+//         type: 'success'
+//     });
+//     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+
+//     // Header selection states
+//     const [headerDebitAccount, setHeaderDebitAccount] = useState(null);
+//     const [headerDebitAmount, setHeaderDebitAmount] = useState('');
+//     const [headerCreditAccount, setHeaderCreditAccount] = useState(null);
+//     const [headerCreditAmount, setHeaderCreditAmount] = useState('');
+//     const [currentSelectionType, setCurrentSelectionType] = useState('debit');
+//     const [editingEntryIndex, setEditingEntryIndex] = useState(null);
+//     const [isEditMode, setIsEditMode] = useState(false);
+
+//     const [formData, setFormData] = useState({
+//         date: new Date().toISOString().split('T')[0],
+//         nepaliDate: currentNepaliDate,
+//         description: '',
+//         status: 'Active',
+//         entries: []
+//     });
+
+//     const [accounts, setAccounts] = useState([]);
+//     const [billNumber, setBillNumber] = useState('');
+//     const [companyDateFormat, setCompanyDateFormat] = useState('nepali');
+//     const [isLoading, setIsLoading] = useState(true);
+//     const [error, setError] = useState(null);
+//     const [showAccountModal, setShowAccountModal] = useState(false);
+//     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+//     const transactionDateRef = useRef(null);
+//     const [dateErrors, setDateErrors] = useState({
+//         nepaliDate: ''
+//     });
+
+//     // Account search states
+//     const [isAccountSearching, setIsAccountSearching] = useState(false);
+//     const [accountSearchPage, setAccountSearchPage] = useState(1);
+//     const [hasMoreAccountResults, setHasMoreAccountResults] = useState(false);
+//     const [totalAccounts, setTotalAccounts] = useState(0);
+//     const [accountSearchQuery, setAccountSearchQuery] = useState('');
+//     const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
+//     const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
+
+//     const fetchAccountsFromBackend = async (searchTerm = '', page = 1, append = false) => {
+//         try {
+//             setIsAccountSearching(true);
+//             const response = await api.get('/api/retailer/all/accounts/search', {
+//                 params: {
+//                     search: searchTerm,
+//                     page: page,
+//                     limit: searchTerm.trim() ? 15 : 25,
+//                 }
+//             });
+
+//             if (response.data.success) {
+//                 if (append) {
+//                     // APPEND to existing accounts instead of replacing
+//                     setAccounts(prev => [...prev, ...response.data.accounts]);
+//                 } else {
+//                     setAccounts(response.data.accounts);
+//                 }
+//                 setHasMoreAccountResults(response.data.pagination.hasNextPage);
+//                 setTotalAccounts(response.data.pagination.totalAccounts);
+//                 setAccountSearchPage(page);
+
+//                 if (searchTerm.trim() !== '') {
+//                     setAccountLastSearchQuery(searchTerm);
+//                     setAccountShouldShowLastSearchResults(true);
+//                 }
+//             }
+//         } catch (error) {
+//             console.error('Error fetching accounts:', error);
+//             setNotification({
+//                 show: true,
+//                 message: 'Error loading accounts',
+//                 type: 'error'
+//             });
+//         } finally {
+//             setIsAccountSearching(false);
+//         }
+//     };
+
+//     const totals = useMemo(() => {
+//         const totalDebit = formData.entries
+//             .filter(entry => entry.entryType === 'Debit')
+//             .reduce((sum, entry) => sum + (parseFloat(entry.amount) || 0), 0);
+//         const totalCredit = formData.entries
+//             .filter(entry => entry.entryType === 'Credit')
+//             .reduce((sum, entry) => sum + (parseFloat(entry.amount) || 0), 0);
+//         return { totalDebit, totalCredit };
+//     }, [formData.entries]);
+
+//     useEffect(() => {
+//         const handleF9Key = (e) => {
+//             if (e.key === 'F9') {
+//                 e.preventDefault();
+//                 setShowProductModal(prev => !prev);
+//             }
+//         };
+//         window.addEventListener('keydown', handleF9Key);
+//         return () => {
+//             window.removeEventListener('keydown', handleF9Key);
+//         };
+//     }, []);
+
+//     // Fetch journal data
+//     useEffect(() => {
+//         const fetchJournalData = async () => {
+//             try {
+//                 setIsLoading(true);
+
+//                 const response = await api.get(`/api/retailer/journal/edit/${id}`);
+//                 const { data } = response.data;
+
+//                 // Set company date format first
+//                 const isNepaliFormat = data.companyDateFormat === 'nepali';
+//                 setCompanyDateFormat(data.companyDateFormat || 'nepali');
+
+//                 setAccounts(data.accounts || []);
+
+//                 const journalVoucher = data.journalVoucher;
+//                 const entries = data.entries || [];
+
+//                 // Format date properly
+//                 const formatDate = (dateValue) => {
+//                     if (!dateValue) return '';
+//                     if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+//                         return dateValue;
+//                     }
+//                     try {
+//                         const date = new Date(dateValue);
+//                         if (isNaN(date.getTime())) return '';
+//                         const year = date.getFullYear();
+//                         const month = String(date.getMonth() + 1).padStart(2, '0');
+//                         const day = String(date.getDate()).padStart(2, '0');
+//                         return `${year}-${month}-${day}`;
+//                     } catch (e) {
+//                         console.error('Date formatting error:', e);
+//                         return '';
+//                     }
+//                 };
+
+//                 // Get the nepali date from journal
+//                 const nepaliDateStr = formatDate(journalVoucher.nepaliDate) || currentNepaliDate;
+//                 const adDateStr = formatDate(journalVoucher.date) || new Date().toISOString().split('T')[0];
+
+//                 // Ensure we have both dates
+//                 let finalNepaliDate = nepaliDateStr;
+//                 let finalAdDate = adDateStr;
+
+//                 // If nepali format, ensure AD is converted from BS
+//                 if (isNepaliFormat) {
+//                     // If we have BS date but no AD, convert
+//                     if (nepaliDateStr && !adDateStr) {
+//                         const convertedAd = convertBsToAd(nepaliDateStr);
+//                         if (convertedAd) {
+//                             finalAdDate = convertedAd;
+//                         }
+//                     }
+//                     // If we have AD date but no BS, convert
+//                     if (adDateStr && !nepaliDateStr) {
+//                         const convertedBs = convertAdToBs(adDateStr);
+//                         if (convertedBs) {
+//                             finalNepaliDate = convertedBs;
+//                         }
+//                     }
+//                 }
+
+//                 setBillNumber(journalVoucher.billNumber || '');
+//                 setFormData({
+//                     date: finalAdDate,
+//                     nepaliDate: finalNepaliDate,
+//                     description: journalVoucher.description || '',
+//                     status: journalVoucher.status || 'Active',
+//                     entries: entries.map(entry => ({
+//                         id: entry.id,
+//                         accountId: entry.accountId,
+//                         accountName: entry.accountName,
+//                         entryType: entry.entryType,
+//                         amount: entry.amount?.toString() || '',
+//                         lineNumber: entry.lineNumber,
+//                         description: entry.description || '',
+//                         referenceNumber: entry.referenceNumber || ''
+//                     }))
+//                 });
+
+//                 setIsInitialDataLoaded(true);
+//             } catch (error) {
+//                 console.error('Error fetching journal data:', error);
+//                 setError(error.response?.data?.error || 'Failed to load journal data');
+//             } finally {
+//                 setIsLoading(false);
+//             }
+//         };
+
+//         if (id) {
+//             fetchJournalData();
+//         }
+//     }, [id]);
+
+//     // Set focus on date input after initial load
+//     useEffect(() => {
+//         if (isInitialDataLoaded && transactionDateRef.current) {
+//             const timer = setTimeout(() => {
+//                 transactionDateRef.current.focus();
+//             }, 50);
+//             return () => clearTimeout(timer);
+//         }
+//     }, [isInitialDataLoaded, companyDateFormat]);
+
+//     // Auto-scroll to bottom when new entries are added
+//     useEffect(() => {
+//         if (itemsTableRef.current && formData.entries.length > 0) {
+//             setTimeout(() => {
+//                 itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
+//             }, 10);
+//         }
+//     }, [formData.entries]);
+
+//     useEffect(() => {
+//         if (showAccountModal) {
+//             // Reset ALL search-related state
+//             setAccountSearchQuery('');
+//             setAccountSearchPage(1);
+//             setAccounts([]);
+//             setHasMoreAccountResults(false);
+//             setTotalAccounts(0);
+//             setAccountLastSearchQuery('');
+//             setAccountShouldShowLastSearchResults(false);
+
+//             // Fetch fresh accounts from page 1 with no search
+//             // Use a small delay to ensure state is reset first
+//             setTimeout(() => {
+//                 fetchAccountsFromBackend('', 1, false);
+//             }, 50);
+//         }
+//     }, [showAccountModal]);
+
+//     const startEditEntry = (index) => {
+//         // Get the paired entry - find the corresponding debit and credit entries
+//         const debitEntriesList = formData.entries.filter(entry => entry.entryType === 'Debit');
+//         const creditEntriesList = formData.entries.filter(entry => entry.entryType === 'Credit');
+
+//         const debitEntry = debitEntriesList[index];
+//         const creditEntry = creditEntriesList[index];
+
+//         // Load debit data if exists
+//         if (debitEntry && debitEntry.accountId && debitEntry.amount) {
+//             const debitAccount = accounts.find(acc => acc.id === debitEntry.accountId);
+//             if (debitAccount) {
+//                 setHeaderDebitAccount(debitAccount);
+//                 setHeaderDebitAmount(debitEntry.amount);
+//             }
+//         }
+
+//         // Load credit data if exists
+//         if (creditEntry && creditEntry.accountId && creditEntry.amount) {
+//             const creditAccount = accounts.find(acc => acc.id === creditEntry.accountId);
+//             if (creditAccount) {
+//                 setHeaderCreditAccount(creditAccount);
+//                 setHeaderCreditAmount(creditEntry.amount);
+//             }
+//         }
+
+//         setEditingEntryIndex(index);
+//         setIsEditMode(true);
+
+//         // Focus on debit search after loading
+//         setTimeout(() => {
+//             const debitSearchInput = document.getElementById('headerDebitSearch');
+//             if (debitSearchInput) {
+//                 debitSearchInput.focus();
+//             }
+//         }, 100);
+//     };
+
+//     const cancelEdit = () => {
+//         setHeaderDebitAccount(null);
+//         setHeaderDebitAmount('');
+//         setHeaderCreditAccount(null);
+//         setHeaderCreditAmount('');
+//         setEditingEntryIndex(null);
+//         setIsEditMode(false);
+
+//         setNotification({
+//             show: true,
+//             message: 'Edit cancelled.',
+//             type: 'info'
+//         });
+//     };
+
+//     const updateEntry = () => {
+//         const debitAmount = parseFloat(headerDebitAmount) || 0;
+//         const creditAmount = parseFloat(headerCreditAmount) || 0;
+
+//         // Validate if at least one entry is provided
+//         if (!headerDebitAccount && !headerCreditAccount) {
+//             setNotification({
+//                 show: true,
+//                 message: 'Please select at least one account',
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         const newEntries = [...formData.entries];
+//         const debitEntriesList = newEntries.filter(entry => entry.entryType === 'Debit');
+//         const creditEntriesList = newEntries.filter(entry => entry.entryType === 'Credit');
+
+//         // Update debit entry if exists in the row
+//         if (headerDebitAccount && debitEntriesList[editingEntryIndex]) {
+//             const originalDebitIndex = newEntries.findIndex(e => e.id === debitEntriesList[editingEntryIndex].id);
+//             if (originalDebitIndex !== -1) {
+//                 newEntries[originalDebitIndex] = {
+//                     ...newEntries[originalDebitIndex],
+//                     accountId: headerDebitAccount.id,
+//                     accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+//                     amount: debitAmount.toString()
+//                 };
+//             }
+//         } else if (!headerDebitAccount && debitEntriesList[editingEntryIndex]) {
+//             // Remove debit entry if it exists and no debit provided
+//             const originalDebitIndex = newEntries.findIndex(e => e.id === debitEntriesList[editingEntryIndex].id);
+//             if (originalDebitIndex !== -1) {
+//                 newEntries.splice(originalDebitIndex, 1);
+//             }
+//         }
+
+//         // Update credit entry if exists in the row
+//         if (headerCreditAccount && creditEntriesList[editingEntryIndex]) {
+//             const originalCreditIndex = newEntries.findIndex(e => e.id === creditEntriesList[editingEntryIndex].id);
+//             if (originalCreditIndex !== -1) {
+//                 newEntries[originalCreditIndex] = {
+//                     ...newEntries[originalCreditIndex],
+//                     accountId: headerCreditAccount.id,
+//                     accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+//                     amount: creditAmount.toString()
+//                 };
+//             }
+//         } else if (!headerCreditAccount && creditEntriesList[editingEntryIndex]) {
+//             // Remove credit entry if it exists and no credit provided
+//             const originalCreditIndex = newEntries.findIndex(e => e.id === creditEntriesList[editingEntryIndex].id);
+//             if (originalCreditIndex !== -1) {
+//                 newEntries.splice(originalCreditIndex, 1);
+//             }
+//         }
+
+//         // Add new entries if they don't exist
+//         if (headerDebitAccount && !debitEntriesList[editingEntryIndex]) {
+//             newEntries.push({
+//                 id: null,
+//                 accountId: headerDebitAccount.id,
+//                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+//                 entryType: 'Debit',
+//                 amount: debitAmount.toString(),
+//                 lineNumber: newEntries.length + 1,
+//                 description: '',
+//                 referenceNumber: ''
+//             });
+//         }
+
+//         if (headerCreditAccount && !creditEntriesList[editingEntryIndex]) {
+//             newEntries.push({
+//                 id: null,
+//                 accountId: headerCreditAccount.id,
+//                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+//                 entryType: 'Credit',
+//                 amount: creditAmount.toString(),
+//                 lineNumber: newEntries.length + 1,
+//                 description: '',
+//                 referenceNumber: ''
+//             });
+//         }
+
+//         setFormData(prev => ({ ...prev, entries: newEntries }));
+
+//         // Reset header fields and edit mode
+//         setHeaderDebitAccount(null);
+//         setHeaderDebitAmount('');
+//         setHeaderCreditAccount(null);
+//         setHeaderCreditAmount('');
+//         setEditingEntryIndex(null);
+//         setIsEditMode(false);
+
+//         setNotification({
+//             show: true,
+//             message: 'Entry updated successfully!',
+//             type: 'success'
+//         });
+
+//         // Focus on debit search after update
+//         setTimeout(() => {
+//             const debitSearchInput = document.getElementById('headerDebitSearch');
+//             if (debitSearchInput) {
+//                 debitSearchInput.focus();
+//                 debitSearchInput.select();
+//             }
+//         }, 100);
+//     };
+
+//     const insertEntry = () => {
+//         const debitAmount = parseFloat(headerDebitAmount) || 0;
+//         const creditAmount = parseFloat(headerCreditAmount) || 0;
+
+//         const newEntries = [...formData.entries];
+//         let lineNumber = newEntries.length + 1;
+
+//         // Case 1: Both debit and credit entries provided
+//         if (headerDebitAccount && headerDebitAmount && headerCreditAccount && headerCreditAmount) {
+//             if (debitAmount !== creditAmount) {
+//                 setNotification({
+//                     show: true,
+//                     message: `Debit amount (${debitAmount}) must equal credit amount (${creditAmount})`,
+//                     type: 'error'
+//                 });
+//                 return;
+//             }
+
+//             newEntries.push({
+//                 id: null,
+//                 accountId: headerDebitAccount.id,
+//                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+//                 entryType: 'Debit',
+//                 amount: debitAmount,
+//                 lineNumber: lineNumber++,
+//                 description: '',
+//                 referenceNumber: ''
+//             });
+
+//             newEntries.push({
+//                 id: null,
+//                 accountId: headerCreditAccount.id,
+//                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+//                 entryType: 'Credit',
+//                 amount: creditAmount,
+//                 lineNumber: lineNumber++,
+//                 description: '',
+//                 referenceNumber: ''
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+
+//             // Reset header fields
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const debitSearchInput = document.getElementById('headerDebitSearch');
+//                 if (debitSearchInput) {
+//                     debitSearchInput.focus();
+//                     debitSearchInput.select();
+//                 }
+//             }, 50);
+//         }
+//         // Case 2: Only debit entry provided
+//         else if (headerDebitAccount && headerDebitAmount && !headerCreditAccount && !headerCreditAmount) {
+//             newEntries.push({
+//                 id: null,
+//                 accountId: headerDebitAccount.id,
+//                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+//                 entryType: 'Debit',
+//                 amount: debitAmount,
+//                 lineNumber: lineNumber++,
+//                 description: '',
+//                 referenceNumber: ''
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const debitSearchInput = document.getElementById('headerDebitSearch');
+//                 if (debitSearchInput) {
+//                     debitSearchInput.focus();
+//                     debitSearchInput.select();
+//                 }
+//             }, 50);
+//         }
+//         // Case 3: Only credit entry provided
+//         else if (!headerDebitAccount && !headerDebitAmount && headerCreditAccount && headerCreditAmount) {
+//             newEntries.push({
+//                 id: null,
+//                 accountId: headerCreditAccount.id,
+//                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+//                 entryType: 'Credit',
+//                 amount: creditAmount,
+//                 lineNumber: lineNumber++,
+//                 description: '',
+//                 referenceNumber: ''
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const creditSearchInput = document.getElementById('headerCreditSearch');
+//                 if (creditSearchInput) {
+//                     creditSearchInput.focus();
+//                     creditSearchInput.select();
+//                 }
+//             }, 50);
+//         }
+//         else {
+//             setNotification({
+//                 show: true,
+//                 message: 'Please fill either both debit and credit entries, or one of them',
+//                 type: 'error'
+//             });
+//         }
+//     };
+
+//     const removeEntry = (index) => {
+//         // When removing a row, we need to remove both debit and credit entries at that index
+//         const debitEntriesList = formData.entries.filter(entry => entry.entryType === 'Debit');
+//         const creditEntriesList = formData.entries.filter(entry => entry.entryType === 'Credit');
+
+//         const debitToRemove = debitEntriesList[index];
+//         const creditToRemove = creditEntriesList[index];
+
+//         let newEntries = [...formData.entries];
+
+//         if (debitToRemove) {
+//             const debitIndex = newEntries.findIndex(e => e.id === debitToRemove.id);
+//             if (debitIndex !== -1) {
+//                 newEntries.splice(debitIndex, 1);
+//             }
+//         }
+
+//         if (creditToRemove) {
+//             const creditIndex = newEntries.findIndex(e => e.id === creditToRemove.id);
+//             if (creditIndex !== -1) {
+//                 newEntries.splice(creditIndex, 1);
+//             }
+//         }
+
+//         setFormData(prev => ({ ...prev, entries: newEntries }));
+//     };
+
+//     const handleAccountSearch = (e) => {
+//         const searchText = e.target.value;
+//         setAccountSearchQuery(searchText);
+//         setAccountSearchPage(1);
+
+//         if (searchText.trim() !== '' && accountShouldShowLastSearchResults) {
+//             setAccountShouldShowLastSearchResults(false);
+//             setAccountLastSearchQuery('');
+//         }
+
+//         const timer = setTimeout(() => {
+//             fetchAccountsFromBackend(searchText, 1);
+//         }, 300);
+
+//         return () => clearTimeout(timer);
+//     };
+
+//     const selectAccount = (account) => {
+//         if (currentSelectionType === 'debit') {
+//             setHeaderDebitAccount(account);
+//             setShowAccountModal(false);
+//             setTimeout(() => {
+//                 document.getElementById('headerDebitAmount')?.focus();
+//             }, 100);
+//         } else {
+//             setHeaderCreditAccount(account);
+//             setShowAccountModal(false);
+//             setTimeout(() => {
+//                 document.getElementById('headerCreditAmount')?.focus();
+//             }, 100);
+//         }
+//     };
+
+//     const handleInputChange = (e) => {
+//         const { name, value } = e.target;
+//         setFormData(prev => ({ ...prev, [name]: value }));
+//     };
+
+//     const handleSubmit = async (print = false) => {
+//         // Filter out entries with empty account or amount
+//         const validEntries = formData.entries.filter(entry =>
+//             entry.accountId && entry.amount && parseFloat(entry.amount) > 0
+//         );
+
+//         // Check if we have at least one debit and one credit entry
+//         const hasDebit = validEntries.some(entry => entry.entryType === 'Debit');
+//         const hasCredit = validEntries.some(entry => entry.entryType === 'Credit');
+
+//         if (!hasDebit || !hasCredit) {
+//             setNotification({
+//                 show: true,
+//                 message: 'At least one debit and one credit entry is required',
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         if (totals.totalDebit !== totals.totalCredit) {
+//             setNotification({
+//                 show: true,
+//                 message: `Total debit (${totals.totalDebit.toFixed(2)}) must equal total credit (${totals.totalCredit.toFixed(2)})`,
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         setIsSaving(true);
+
+//         try {
+//             const parseDate = (dateString) => {
+//                 if (!dateString) return new Date().toISOString();
+
+//                 // If it's already a valid date string in YYYY-MM-DD format
+//                 if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+//                     // Create date at UTC to avoid timezone issues
+//                     const date = new Date(dateString);
+//                     date.setUTCHours(0, 0, 0, 0);
+//                     return date.toISOString();
+//                 }
+//                 return new Date(dateString).toISOString();
+//             };
+
+//             // Prepare payload with unified entries array
+//             const payload = {
+//                 date: parseDate(formData.date),
+//                 nepaliDate: formData.nepaliDate,
+//                 description: formData.description,
+//                 entries: validEntries.map(entry => ({
+//                     id: entry.id,
+//                     accountId: entry.accountId,
+//                     entryType: entry.entryType,
+//                     amount: parseFloat(entry.amount),
+//                     lineNumber: entry.lineNumber,
+//                     description: entry.description || '',
+//                     referenceNumber: entry.referenceNumber || ''
+//                 })),
+//                 print: print || printAfterSave
+//             };
+
+//             const response = await api.put(`/api/retailer/journal/edit/${id}`, payload);
+
+//             setNotification({
+//                 show: true,
+//                 message: 'Journal voucher updated successfully!',
+//                 type: 'success'
+//             });
+
+//             // If print was requested, fetch print data and print
+//             if ((print || printAfterSave) && response.data.data?.journalVoucher?.id) {
+//                 try {
+//                     const printResponse = await api.get(`/api/retailer/journal/${response.data.data.journalVoucher.id}/print`);
+//                     printVoucherImmediately(printResponse.data.data);
+//                     setTimeout(() => handleBack(), 500);
+//                 } catch (printError) {
+//                     console.error('Error fetching print data:', printError);
+//                     setNotification({
+//                         show: true,
+//                         message: 'Journal voucher updated but failed to load print data',
+//                         type: 'warning'
+//                     });
+//                     setTimeout(() => handleBack(), 1000);
+//                 }
+//             } else {
+//                 setTimeout(() => handleBack(), 500);
+//             }
+//         } catch (err) {
+//             console.error('Error updating journal voucher:', err);
+//             setNotification({
+//                 show: true,
+//                 message: err.response?.data?.error || 'Failed to update journal voucher. Please try again.',
+//                 type: 'error'
+//             });
+//         } finally {
+//             setIsSaving(false);
+//         }
+//     };
+
+//     const handleCancelVoucher = async () => {
+//         if (window.confirm("Are you sure you want to cancel this voucher?")) {
+//             try {
+//                 await api.post(`/api/retailer/journals/cancel/${billNumber}`);
+//                 setNotification({
+//                     show: true,
+//                     message: 'Voucher canceled successfully!',
+//                     type: 'success'
+//                 });
+//                 setFormData(prev => ({ ...prev, status: 'Canceled' }));
+//             } catch (err) {
+//                 setNotification({
+//                     show: true,
+//                     message: err.response?.data?.message || 'Failed to cancel voucher',
+//                     type: 'error'
+//                 });
+//             }
+//         }
+//     };
+
+//     const handleReactivateVoucher = async () => {
+//         if (window.confirm("Are you sure you want to reactivate this voucher?")) {
+//             try {
+//                 await api.post(`/api/retailer/journals/reactivate/${billNumber}`);
+//                 setNotification({
+//                     show: true,
+//                     message: 'Voucher reactivated successfully!',
+//                     type: 'success'
+//                 });
+//                 setFormData(prev => ({ ...prev, status: 'Active' }));
+//             } catch (err) {
+//                 setNotification({
+//                     show: true,
+//                     message: err.response?.data?.message || 'Failed to reactivate voucher',
+//                     type: 'error'
+//                 });
+//             }
+//         }
+//     };
+
+//     const handleBack = () => {
+//         navigate(-1);
+//     };
+
+//     const handleKeyDown = (e, currentFieldId) => {
+//         if (e.key === 'Enter') {
+//             e.preventDefault();
+//             const form = e.target.form;
+//             const inputs = Array.from(form.querySelectorAll('input, select, textarea')).filter(
+//                 el => !el.hidden && !el.disabled && el.offsetParent !== null
+//             );
+//             const currentIndex = inputs.findIndex(input => input.id === currentFieldId);
+
+//             if (currentIndex > -1 && currentIndex < inputs.length - 1) {
+//                 inputs[currentIndex + 1].focus();
+//             }
+//         }
+//     };
+
+//     // const loadMoreAccounts = () => {
+//     //     if (!isAccountSearching) {
+//     //         fetchAccountsFromBackend(accountSearchQuery, accountSearchPage + 1);
+//     //     }
+//     // };
+
+//     const loadMoreAccounts = () => {
+//         if (!isAccountSearching && hasMoreAccountResults) {
+//             const nextPage = accountSearchPage + 1;
+//             fetchAccountsFromBackend(accountSearchQuery, nextPage, true); // Pass true for append
+//         }
+//     };
+
+//     const handlePrintAfterSaveChange = (e) => {
+//         const isChecked = e.target.checked;
+//         setPrintAfterSave(isChecked);
+//         localStorage.setItem('printAfterSaveJournalEdit', isChecked);
+//     };
+
+//     // const printVoucherImmediately = (printData) => {
+//     //     const tempDiv = document.createElement('div');
+//     //     tempDiv.style.position = 'absolute';
+//     //     tempDiv.style.left = '-9999px';
+//     //     document.body.appendChild(tempDiv);
+
+//     //     const debitEntries = printData.debitEntries || [];
+//     //     const creditEntries = printData.creditEntries || [];
+
+//     //     let rows = '';
+//     //     let totalDebit = 0;
+//     //     let totalCredit = 0;
+//     //     let rowNumber = 1;
+
+//     //     debitEntries.forEach(entry => {
+//     //         rows += `
+//     //             <tr>
+//     //                 <td class="print-text-center">${rowNumber++}</td>
+//     //                 <td>${entry.accountName}</td>
+//     //                 <td class="print-text-right">${entry.amount.toFixed(2)}</td>
+//     //                 <td class="print-text-right">0.00</td>
+//     //             </tr>
+//     //         `;
+//     //         totalDebit += entry.amount;
+//     //     });
+
+//     //     creditEntries.forEach(entry => {
+//     //         rows += `
+//     //             <tr>
+//     //                 <td class="print-text-center">${rowNumber++}</td>
+//     //                 <td>${entry.accountName}</td>
+//     //                 <td class="print-text-right">0.00</td>
+//     //                 <td class="print-text-right">${entry.amount.toFixed(2)}</td>
+//     //             </tr>
+//     //         `;
+//     //         totalCredit += entry.amount;
+//     //     });
+
+//     //     tempDiv.innerHTML = `
+//     //         <div id="printableContent">
+//     //             <div class="print-voucher-container">
+//     //                 <div class="print-voucher-header">
+//     //                     <div class="print-company-name">${printData.currentCompanyName}</div>
+//     //                     <div class="print-company-details">
+//     //                         ${printData.currentCompany?.address || ''}
+//     //                         <br />
+//     //                         Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
+//     //                     </div>
+//     //                     <div class="print-voucher-title">JOURNAL VOUCHER</div>
+//     //                 </div>
+
+//     //                 <div class="print-voucher-details">
+//     //                     <div>
+//     //                         <div><strong>Vch. No:</strong> ${printData.journalVoucher?.billNumber}</div>
+//     //                     </div>
+//     //                     <div>
+//     //                         <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.journalVoucher.nepaliDate) : formatDateForInput(printData.journalVoucher.date)}(${new Date(printData.journalVoucher.date).toLocaleDateString()})</div>
+//     //                     </div>
+//     //                 </div>
+
+//     //                 <table class="print-voucher-table">
+//     //                     <thead>
+//     //                         <tr>
+//     //                             <th>S.N</th>
+//     //                             <th>Particular</th>
+//     //                             <th>Debit Amount</th>
+//     //                             <th>Credit Amount</th>
+//     //                         </tr>
+//     //                     </thead>
+//     //                     <tbody>${rows}</tbody>
+//     //                     <tfoot>
+//     //                         <tr>
+//     //                             <th colSpan="2">Total</th>
+//     //                             <th>${totalDebit.toFixed(2)}</th>
+//     //                             <th>${totalCredit.toFixed(2)}</th>
+//     //                         </tr>
+//     //                     </tfoot>
+//     //                 </table>
+
+//     //                 <div style="margin-top: 3mm;">
+//     //                     <strong>Note:</strong> ${printData.journalVoucher?.description || 'N/A'}
+//     //                 </div>
+
+//     //                 <div class="print-signature-area">
+//     //                     <div class="print-signature-box">
+//     //                         <div style="margin-bottom: 1mm;">
+//     //                             <strong>${printData.journalVoucher?.user?.name || 'N/A'}</strong>
+//     //                         </div>
+//     //                         Prepared By
+//     //                     </div>
+//     //                     <div class="print-signature-box">
+//     //                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//     //                         Checked By
+//     //                     </div>
+//     //                     <div class="print-signature-box">
+//     //                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//     //                         Approved By
+//     //                     </div>
+//     //                 </div>
+//     //             </div>
+//     //         </div>
+//     //     `;
+
+//     //     const styles = `
+//     //         @media print {
+//     //             @page { size: A4; margin: 5mm; }
+//     //             body { font-family: 'Arial Narrow', Arial, sans-serif; font-size: 9pt; line-height: 1.2; color: #000; background: white; margin: 0; padding: 0; }
+//     //             .print-voucher-container { width: 100%; max-width: 210mm; margin: 0 auto; padding: 2mm; }
+//     //             .print-voucher-header { text-align: center; margin-bottom: 3mm; border-bottom: 1px dashed #000; padding-bottom: 2mm; }
+//     //             .print-voucher-title { font-size: 12pt; font-weight: bold; margin: 2mm 0; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
+//     //             .print-company-name { font-size: 16pt; font-weight: bold; }
+//     //             .print-company-details { font-size: 8pt; margin: 1mm 0; }
+//     //             .print-voucher-details { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
+//     //             .print-voucher-table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; }
+//     //             .print-voucher-table thead { border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
+//     //             .print-voucher-table th { background-color: transparent; border: 1px solid #000; padding: 1mm; text-align: left; font-weight: bold; }
+//     //             .print-voucher-table td { border: 1px solid #000; padding: 1mm; }
+//     //             .print-text-right { text-align: right; }
+//     //             .print-text-center { text-align: center; }
+//     //             .print-signature-area { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 8pt; }
+//     //             .print-signature-box { text-align: center; width: 30%; border-top: 1px dashed #000; padding-top: 1mm; font-weight: bold; }
+//     //         }
+//     //     `;
+
+//     //     const printWindow = window.open('', '_blank');
+//     //     printWindow.document.write(`
+//     //         <html>
+//     //             <head>
+//     //                 <title>Journal_Voucher_${printData.journalVoucher?.billNumber}</title>
+//     //                 <style>${styles}</style>
+//     //             </head>
+//     //             <body>
+//     //                 ${tempDiv.innerHTML}
+//     //                 <script>
+//     //                     window.onload = function() {
+//     //                         setTimeout(function() {
+//     //                             window.print();
+//     //                             window.close();
+//     //                         }, 200);
+//     //                     };
+//     //                 </script>
+//     //             </body>
+//     //         </html>
+//     //     `);
+//     //     printWindow.document.close();
+//     //     document.body.removeChild(tempDiv);
+//     // };
+
+//     const printVoucherImmediately = (printData) => {
+//         const tempDiv = document.createElement('div');
+//         tempDiv.style.position = 'absolute';
+//         tempDiv.style.left = '-9999px';
+//         document.body.appendChild(tempDiv);
+
+//         const debitEntries = printData.debitEntries || [];
+//         const creditEntries = printData.creditEntries || [];
+//         const journal = printData.journalVoucher;
+//         const isCanceled = journal?.status === 'Canceled';
+
+//         // Calculate totals
+//         const totalDebit = debitEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+//         const totalCredit = creditEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+
+//         // Combine debit and credit entries into rows
+//         const maxRows = Math.max(debitEntries.length, creditEntries.length);
+//         const combinedRows = [];
+//         for (let i = 0; i < maxRows; i++) {
+//             combinedRows.push({
+//                 debitEntry: debitEntries[i] || null,
+//                 creditEntry: creditEntries[i] || null,
+//                 rowNumber: i + 1
+//             });
+//         }
+
+//         // Format date for print
+//         const formatDateForPrint = (dateString, format = 'english') => {
+//             if (!dateString) return 'N/A';
+//             try {
+//                 const date = new Date(dateString);
+//                 if (isNaN(date.getTime())) return 'N/A';
+//                 if (format === 'nepali') {
+//                     const nepaliDate = new NepaliDate(date);
+//                     return nepaliDate.format('YYYY-MM-DD');
+//                 }
+//                 const year = date.getFullYear();
+//                 const month = String(date.getMonth() + 1).padStart(2, '0');
+//                 const day = String(date.getDate()).padStart(2, '0');
+//                 return `${year}-${month}-${day}`;
+//             } catch (e) {
+//                 return 'N/A';
+//             }
+//         };
+
+//         // Format to 2 decimal places
+//         const formatTo2Decimal = (num) => {
+//             if (num === null || num === undefined) return '0.00';
+//             const rounded = Math.round(num * 100) / 100;
+//             const parts = rounded.toString().split(".");
+//             if (!parts[1]) return parts[0] + ".00";
+//             if (parts[1].length === 1) return parts[0] + "." + parts[1] + "0";
+//             return rounded.toString();
+//         };
+
+//         // Number to words function
+//         const numberToWords = (num) => {
+//             const ones = [
+//                 '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+//                 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+//                 'Seventeen', 'Eighteen', 'Nineteen'
+//             ];
+//             const tens = [
+//                 '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
+//             ];
+//             const scales = ['', 'Thousand', 'Million', 'Billion'];
+
+//             const convertHundreds = (num) => {
+//                 let words = '';
+//                 if (num > 99) {
+//                     words += ones[Math.floor(num / 100)] + ' Hundred ';
+//                     num %= 100;
+//                 }
+//                 if (num > 19) {
+//                     words += tens[Math.floor(num / 10)] + ' ';
+//                     num %= 10;
+//                 }
+//                 if (num > 0) {
+//                     words += ones[num] + ' ';
+//                 }
+//                 return words.trim();
+//             };
+
+//             if (num === 0) return 'Zero';
+//             if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
+
+//             let words = '';
+//             for (let i = 0; i < scales.length; i++) {
+//                 let unit = Math.pow(1000, scales.length - i - 1);
+//                 let currentNum = Math.floor(num / unit);
+//                 if (currentNum > 0) {
+//                     words += convertHundreds(currentNum) + ' ' + scales[scales.length - i - 1] + ' ';
+//                 }
+//                 num %= unit;
+//             }
+//             return words.trim();
+//         };
+
+//         const numberToWordsWithPaisa = (amount) => {
+//             const rupees = Math.floor(amount);
+//             const paisa = Math.round((amount - rupees) * 100);
+//             let result = numberToWords(rupees) + ' Rupees';
+//             if (paisa > 0) {
+//                 result += ' and ' + numberToWords(paisa) + ' Paisa';
+//             }
+//             return result;
+//         };
+
+//         let rows = '';
+//         combinedRows.forEach((row) => {
+//             rows += `
+//             <tr>
+//                 <td class="print-text-center">${row.rowNumber}</td>
+//                 <td class="print-text-left">
+//                     ${row.debitEntry ? (
+//                     !isCanceled ?
+//                         `${row.debitEntry.accountName}${row.debitEntry.referenceNumber ? `<br/><small class="text-muted">Ref: ${row.debitEntry.referenceNumber}</small>` : ''}` :
+//                         '<span class="text-danger">Canceled</span>'
+//                 ) : '<span class="text-muted">--</span>'}
+//                 </td>
+//                 <td class="print-text-center">
+//                     ${row.debitEntry && !isCanceled ? formatTo2Decimal(row.debitEntry.amount) :
+//                     row.debitEntry && isCanceled ? '<span class="text-danger">0.00</span>' : '-'}
+//                 </td>
+//                 <td class="print-text-left">
+//                     ${row.creditEntry ? (
+//                     !isCanceled ?
+//                         `${row.creditEntry.accountName}${row.creditEntry.referenceNumber ? `<br/><small class="text-muted">Ref: ${row.creditEntry.referenceNumber}</small>` : ''}` :
+//                         '<span class="text-danger">Canceled</span>'
+//                 ) : '<span class="text-muted">--</span>'}
+//                 </td>
+//                 <td class="print-text-center">
+//                     ${row.creditEntry && !isCanceled ? formatTo2Decimal(row.creditEntry.amount) :
+//                     row.creditEntry && isCanceled ? '<span class="text-danger">0.00</span>' : '-'}
+//                 </td>
+//             </tr>
+//         `;
+//         });
+
+//         tempDiv.innerHTML = `
+//         <div id="printableContent">
+//             <div class="print-voucher-container">
+//                 <div class="print-voucher-header">
+//                     <div class="print-company-name">${printData.currentCompanyName}</div>
+//                     <div class="print-company-details">
+//                         ${printData.currentCompany?.address || ''}${printData.currentCompany?.city ? ', ' + printData.currentCompany.city : ''}
+//                         <br />
+//                         Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
+//                     </div>
+//                     <div class="print-voucher-title">JOURNAL VOUCHER</div>
+//                 </div>
+
+//                 <div class="print-voucher-details">
+//                     <div>
+//                         <div><strong>Vch. No:</strong> ${journal?.billNumber || 'N/A'}</div>
+//                     </div>
+//                     <div>
+//                 <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.journalVoucher.nepaliDate) : formatDateForInput(printData.journalVoucher.date)}(${new Date(printData.journalVoucher.date).toLocaleDateString()})</div>
+//                     </div>
+//                 </div>
+
+//                 <table class="print-voucher-table">
+//                     <thead>
+//                         <tr>
+//                             <th>S.N</th>
+//                             <th>Debit Account</th>
+//                             <th>Debit(Rs.)</th>
+//                             <th>Credit Account</th>
+//                             <th>Credit(Rs.)</th>
+//                         </tr>
+//                     </thead>
+//                     <tbody>
+//                         ${rows}
+//                     </tbody>
+//                     <tfoot>
+//                         <tr>
+//                             <td colspan="2" style="border-bottom: 1px solid #000; font-weight: bold;">Total</td>
+//                             <td class="print-text-center" style="border-bottom: 1px solid #000;">
+//                                 <strong>${!isCanceled ? formatTo2Decimal(totalDebit) : '<span class="text-danger">0.00</span>'}</strong>
+//                             </td>
+//                             <td style="border-bottom: 1px solid #000;"></td>
+//                             <td class="print-text-center" style="border-bottom: 1px solid #000;">
+//                                 <strong>${!isCanceled ? formatTo2Decimal(totalCredit) : '<span class="text-danger">0.00</span>'}</strong>
+//                             </td>
+//                         </tr>
+//                     </tfoot>
+//                 </table>
+
+//                 <div style="margin-top: 3mm;">
+//                     <div><strong>Note:</strong> ${journal?.description || ''}</div>
+//                 </div>
+
+//                 <div class="print-amount-in-words" style="margin-top: 3mm; padding: 1mm; border: 1px dashed #000;">
+//                     <strong>In Words:</strong> ${numberToWordsWithPaisa(totalCredit)} Only.
+//                 </div>
+
+//                 <br /><br />
+//                 <div class="print-signature-area">
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">
+//                             <strong>${journal?.user?.name || 'N/A'}</strong>
+//                         </div>
+//                         Prepared By
+//                     </div>
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//                         Checked By
+//                     </div>
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//                         Approved By
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//     `;
+
+//         const styles = `
+//         @media print {
+//             @page {
+//                 size: A4;
+//                 margin: 5mm;
+//             }
+
+//             body {
+//                 font-family: 'Arial Narrow', Arial, sans-serif;
+//                 font-size: 9pt;
+//                 line-height: 1.2;
+//                 color: #000;
+//                 background: white;
+//                 margin: 0;
+//                 padding: 0;
+//             }
+
+//             .print-voucher-container {
+//                 width: 100%;
+//                 max-width: 210mm;
+//                 margin: 0 auto;
+//                 padding: 2mm;
+//             }
+
+//             .print-voucher-header {
+//                 text-align: center;
+//                 margin-bottom: 3mm;
+//                 border-bottom: 1px solid #000;
+//                 padding-bottom: 2mm;
+//             }
+
+//             .print-voucher-title {
+//                 font-size: 12pt;
+//                 font-weight: bold;
+//                 margin: 2mm 0;
+//                 text-transform: uppercase;
+//             }
+
+//             .print-company-name {
+//                 font-size: 16pt;
+//                 font-weight: bold;
+//             }
+
+//             .print-company-details {
+//                 font-size: 8pt;
+//                 margin: 1mm 0;
+//                 font-weight: bold;
+//             }
+
+//             .print-voucher-details {
+//                 display: flex;
+//                 justify-content: space-between;
+//                 margin: 2mm 0;
+//                 font-size: 8pt;
+//             }
+
+//             .print-voucher-table {
+//                 width: 100%;
+//                 border-collapse: collapse;
+//                 margin: 3mm 0;
+//                 font-size: 8pt;
+//                 border: none;
+//                 table-layout: fixed;
+//             }
+
+//             .print-voucher-table thead {
+//                 border-top: 1px solid #000;
+//                 border-bottom: 1px solid #000;
+//             }
+
+//             .print-voucher-table th {
+//                 background-color: transparent;
+//                 border: none;
+//                 padding: 1mm;
+//                 text-align: left;
+//                 font-weight: bold;
+//             }
+
+//             .print-voucher-table td {
+//                 border: none;
+//                 padding: 1mm;
+//                 border-bottom: 1px solid #eee;
+//             }
+
+//             .print-voucher-table th:nth-child(1),
+//             .print-voucher-table td:nth-child(1) {
+//                 width: 8%;
+//                 text-align: center;
+//             }
+
+//             .print-voucher-table th:nth-child(2),
+//             .print-voucher-table td:nth-child(2) {
+//                 width: 30%;
+//                 text-align: left;
+//             }
+
+//             .print-voucher-table th:nth-child(3),
+//             .print-voucher-table td:nth-child(3) {
+//                 width: 16%;
+//                 text-align: center;
+//             }
+
+//             .print-voucher-table th:nth-child(4),
+//             .print-voucher-table td:nth-child(4) {
+//                 width: 30%;
+//                 text-align: left;
+//             }
+
+//             .print-voucher-table th:nth-child(5),
+//             .print-voucher-table td:nth-child(5) {
+//                 width: 16%;
+//                 text-align: center;
+//             }
+
+//             .print-text-center {
+//                 text-align: center;
+//             }
+
+//             .print-text-left {
+//                 text-align: left;
+//             }
+
+//             .print-signature-area {
+//                 display: flex;
+//                 justify-content: space-between;
+//                 margin-top: 5mm;
+//                 font-size: 8pt;
+//             }
+
+//             .print-signature-box {
+//                 text-align: center;
+//                 width: 30%;
+//                 border-top: 1px solid #000;
+//                 padding-top: 1mm;
+//                 font-weight: bold;
+//             }
+
+//             .text-danger {
+//                 color: #dc3545 !important;
+//             }
+
+//             .text-muted {
+//                 color: #999 !important;
+//             }
+
+//             .print-amount-in-words {
+//                 font-style: italic;
+//             }
+//         }
+//     `;
+
+//         const printWindow = window.open('', '_blank');
+//         printWindow.document.write(`
+//         <html>
+//             <head>
+//                 <title>Journal_Voucher_${journal?.billNumber || 'print'}</title>
+//                 <style>${styles}</style>
+//             </head>
+//             <body>
+//                 ${tempDiv.innerHTML}
+//                 <script>
+//                     window.onload = function() {
+//                         setTimeout(function() {
+//                             window.print();
+//                             window.close();
+//                         }, 200);
+//                     };
+//                 </script>
+//             </body>
+//         </html>
+//     `);
+//         printWindow.document.close();
+//         document.body.removeChild(tempDiv);
+//     };
+
+//     const formatDateForInput = (date) => {
+//         if (!date) return '';
+
+//         if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+//             return date;
+//         }
+
+//         try {
+//             const d = new Date(date);
+//             if (isNaN(d.getTime())) return '';
+
+//             const year = d.getFullYear();
+//             const month = String(d.getMonth() + 1).padStart(2, '0');
+//             const day = String(d.getDate()).padStart(2, '0');
+
+//             return `${year}-${month}-${day}`;
+//         } catch (error) {
+//             console.error('Error formatting date:', error);
+//             return '';
+//         }
+//     };
+
+//     const getFocusTargetOnModalClose = () => {
+//         const hasTransactions = formData.entries.length > 0 &&
+//             formData.entries.some(entry => entry.accountId && entry.amount > 0);
+//         const isTotalsBalanced = totals.totalDebit === totals.totalCredit && totals.totalDebit > 0;
+
+//         if (hasTransactions && isTotalsBalanced) {
+//             return 'saveBill';
+//         }
+//         if (currentSelectionType === 'debit') {
+//             return 'headerDebitAmount';
+//         } else {
+//             return 'headerCreditAmount';
+//         }
+//     };
+
+//     if (isLoading) {
+//         return (
+//             <div className="container-fluid">
+//                 <Header />
+//                 <div className="text-center py-5">
+//                     <div className="spinner-border" role="status">
+//                         <span className="visually-hidden">Loading...</span>
+//                     </div>
+//                 </div>
+//             </div>
+//         );
+//     }
+
+//     if (error) return <div className="alert alert-danger mt-5">{error}</div>;
+
+//     const isCanceled = formData.status === 'Canceled';
+
+//     // Get debit and credit entries for display
+//     const debitEntries = formData.entries.filter(entry => entry.entryType === 'Debit');
+//     const creditEntries = formData.entries.filter(entry => entry.entryType === 'Credit');
+//     const maxRows = Math.max(debitEntries.length, creditEntries.length);
+
+//     return (
+//         <div className='container-fluid'>
+//             <Header />
+//             <div className="card mt-2 shadow-lg p-2 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+//                 <div className="card-header">
+//                     <div className="d-flex justify-content-between align-items-center">
+//                         <h2 className="card-title mb-0">
+//                             <i className="bi bi-file-text me-2"></i>
+//                             Edit Journal Voucher
+//                         </h2>
+//                         <div className="d-flex align-items-center gap-2">
+//                             {isCanceled && (
+//                                 <span className="badge bg-danger" style={{ fontSize: '0.7rem' }}>Voucher Canceled</span>
+//                             )}
+//                             {!isCanceled ? (
+//                                 <button type="button" className="btn btn-danger btn-sm d-flex align-items-center" onClick={handleCancelVoucher} style={{ height: '26px', padding: '0 12px', fontSize: '0.8rem' }}>
+//                                     <i className="bi bi-x-circle me-1"></i> Cancel Voucher
+//                                 </button>
+//                             ) : (
+//                                 <button type="button" className="btn btn-success btn-sm d-flex align-items-center" onClick={handleReactivateVoucher} style={{ height: '26px', padding: '0 12px', fontSize: '0.8rem' }}>
+//                                     <i className="bi bi-check-circle me-1"></i> Reactivate Voucher
+//                                 </button>
+//                             )}
+//                         </div>
+//                     </div>
+//                 </div>
+//                 <div className="card-body p-2 p-md-3">
+//                     <form id='journalForm' onSubmit={(e) => {
+//                         e.preventDefault();
+//                         handleSubmit(false);
+//                     }}>
+//                         {/* Date and Basic Info Row */}
+//                         <div className="row g-2 mb-3">
+//                             {companyDateFormat === 'nepali' ? (
+//                                 <>
+//                                     <div className="col-12 col-md-6 col-lg-2">
+//                                         <div className="position-relative">
+//                                             <NepaliDatePicker
+//                                                 value={formData.nepaliDate}
+//                                                 onChange={(bsDate) => {
+//                                                     setFormData(prev => ({
+//                                                         ...prev,
+//                                                         nepaliDate: bsDate
+//                                                     }));
+//                                                     setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+//                                                     // Auto-convert to AD when we have a complete valid date
+//                                                     if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
+//                                                         console.log('Converting BS to AD:', bsDate);
+//                                                         const adDate = convertBsToAd(bsDate);
+//                                                         console.log('Converted AD date:', adDate);
+//                                                         if (adDate) {
+//                                                             setFormData(prev => ({
+//                                                                 ...prev,
+//                                                                 date: adDate
+//                                                             }));
+//                                                         }
+//                                                     }
+//                                                 }}
+//                                                 autoFocus={true}
+//                                                 required={true}
+//                                                 className={dateErrors.nepaliDate ? 'is-invalid' : ''}
+//                                                 onKeyDown={(e) => {
+//                                                     handleKeyDown(e, 'nepaliDate');
+//                                                 }}
+//                                                 dateErrors={dateErrors}
+//                                                 setDateErrors={setDateErrors}
+//                                                 disabled={isCanceled}
+//                                             />
+//                                             <label
+//                                                 className="position-absolute"
+//                                                 style={{
+//                                                     top: '-0.5rem',
+//                                                     left: '0.75rem',
+//                                                     fontSize: '0.75rem',
+//                                                     backgroundColor: 'white',
+//                                                     padding: '0 0.25rem',
+//                                                     color: '#6c757d',
+//                                                     fontWeight: '500'
+//                                                 }}
+//                                             >
+//                                                 Date (BS): <span className="text-danger">*</span>
+//                                             </label>
+//                                             {dateErrors.nepaliDate && (
+//                                                 <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+//                                                     {dateErrors.nepaliDate}
+//                                                 </div>
+//                                             )}
+//                                         </div>
+//                                     </div>
+
+//                                     <div className="col-12 col-md-6 col-lg-2">
+//                                         <div className="position-relative">
+//                                             <input
+//                                                 type="date"
+//                                                 name="date"
+//                                                 id="date"
+//                                                 className="form-control form-control-sm"
+//                                                 value={formData.date || ''}
+//                                                 onChange={(e) => {
+//                                                     const value = e.target.value;
+//                                                     setFormData(prev => ({ ...prev, date: value }));
+
+//                                                     // Convert AD to BS when user changes AD date
+//                                                     if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+//                                                         const bsDate = convertAdToBs(value);
+//                                                         if (bsDate && isValidNepaliDate(bsDate)) {
+//                                                             setFormData(prev => ({
+//                                                                 ...prev,
+//                                                                 nepaliDate: bsDate
+//                                                             }));
+//                                                         }
+//                                                     }
+//                                                 }}
+//                                                 onKeyDown={(e) => {
+//                                                     if (e.key === 'Enter') {
+//                                                         handleKeyDown(e, 'date');
+//                                                     }
+//                                                 }}
+//                                                 disabled={isCanceled}
+//                                                 style={{
+//                                                     height: '26px',
+//                                                     fontSize: '0.875rem',
+//                                                     paddingTop: '0.75rem',
+//                                                     width: '100%',
+//                                                     backgroundColor: isCanceled ? '#e9ecef' : ''
+//                                                 }}
+//                                             />
+//                                             <label
+//                                                 className="position-absolute"
+//                                                 style={{
+//                                                     top: '-0.5rem',
+//                                                     left: '0.75rem',
+//                                                     fontSize: '0.75rem',
+//                                                     backgroundColor: 'white',
+//                                                     padding: '0 0.25rem',
+//                                                     color: '#6c757d',
+//                                                     fontWeight: '500'
+//                                                 }}
+//                                             >
+//                                                 Date (AD):
+//                                             </label>
+//                                         </div>
+//                                     </div>
+//                                 </>
+//                             ) : (
+//                                 // English date format section
+//                                 <div className="col-12 col-md-6 col-lg-2">
+//                                     <div className="position-relative">
+//                                         <input
+//                                             type="date"
+//                                             name="date"
+//                                             id="date"
+//                                             className="form-control form-control-sm"
+//                                             ref={transactionDateRef}
+//                                             value={formData.date}
+//                                             onChange={(e) => {
+//                                                 const value = e.target.value;
+//                                                 const selectedDate = new Date(value);
+//                                                 const today = new Date();
+//                                                 today.setHours(0, 0, 0, 0);
+
+//                                                 if (selectedDate > today) {
+//                                                     const todayStr = today.toISOString().split('T')[0];
+//                                                     setFormData({ ...formData, date: todayStr });
+
+//                                                     setNotification({
+//                                                         show: true,
+//                                                         message: 'Future date not allowed. Auto-corrected to today.',
+//                                                         type: 'warning',
+//                                                         duration: 3000
+//                                                     });
+//                                                 } else {
+//                                                     setFormData({ ...formData, date: value });
+//                                                 }
+//                                             }}
+//                                             onKeyDown={(e) => handleKeyDown(e, 'date')}
+//                                             max={new Date().toISOString().split('T')[0]}
+//                                             disabled={isCanceled}
+//                                             style={{
+//                                                 height: '26px',
+//                                                 fontSize: '0.875rem',
+//                                                 paddingTop: '0.75rem',
+//                                                 width: '100%',
+//                                                 backgroundColor: isCanceled ? '#e9ecef' : ''
+//                                             }}
+//                                         />
+//                                         <label className="position-absolute" style={{
+//                                             top: '-0.5rem',
+//                                             left: '0.75rem',
+//                                             fontSize: '0.75rem',
+//                                             backgroundColor: 'white',
+//                                             padding: '0 0.25rem',
+//                                             color: '#6c757d',
+//                                             fontWeight: '500'
+//                                         }}>
+//                                             Date: <span className="text-danger">*</span>
+//                                         </label>
+//                                     </div>
+//                                 </div>
+//                             )}
+
+//                             <div className="col-12 col-md-6 col-lg-2">
+//                                 <div className="position-relative">
+//                                     <input
+//                                         type="text"
+//                                         name="billNumber"
+//                                         id="billNumber"
+//                                         className="form-control form-control-sm"
+//                                         value={billNumber}
+//                                         readOnly
+//                                         onKeyDown={(e) => {
+//                                             if (e.key === 'Enter') {
+//                                                 e.preventDefault();
+//                                                 document.getElementById('description')?.focus();
+//                                             }
+//                                         }}
+//                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+//                                     />
+//                                     <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                         Vch. No:
+//                                     </label>
+//                                 </div>
+//                             </div>
+
+//                             <div className="col-12 col-md-6 col-lg-6">
+//                                 <div className="position-relative">
+//                                     <input
+//                                         type="text"
+//                                         name="description"
+//                                         id="description"
+//                                         className="form-control form-control-sm"
+//                                         placeholder="Enter description"
+//                                         value={formData.description}
+//                                         onChange={handleInputChange}
+//                                         onKeyDown={(e) => handleKeyDown(e, 'description')}
+//                                         autoComplete='off'
+//                                         disabled={isCanceled}
+//                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%', backgroundColor: isCanceled ? '#e9ecef' : '' }}
+//                                     />
+//                                     <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                         Description:
+//                                     </label>
+//                                 </div>
+//                             </div>
+//                         </div>
+
+//                         {/* Scrollable Table Container */}
+//                         <div
+//                             className="table-responsive"
+//                             style={{
+//                                 minHeight: "270px",
+//                                 maxHeight: "270px",
+//                                 overflowY: "auto",
+//                                 border: formData.entries.filter(e => e.accountId && e.amount > 0).length > 0
+//                                     ? '1px solid #dee2e6'
+//                                     : '1px dashed #ced4da',
+//                                 backgroundColor: '#fff'
+//                             }}
+//                             ref={itemsTableRef}
+//                         >
+//                             <table className="table table-sm table-bordered table-hover mb-0">
+//                                 <thead className="sticky-top bg-light">
+//                                     {/* Header Entry Row */}
+//                                     <tr style={{
+//                                         height: '26px',
+//                                         backgroundColor: '#ffffff',
+//                                         position: 'sticky',
+//                                         top: 0,
+//                                         zIndex: 10,
+//                                         boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
+//                                     }}>
+//                                         <td width="5%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>#</span>
+//                                         </td>
+//                                         <td width="30%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <input
+//                                                 type="text"
+//                                                 id="headerDebitSearch"
+//                                                 className="form-control form-control-sm"
+//                                                 placeholder="Select Debit Account"
+//                                                 value={headerDebitAccount ? `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}` : ''}
+//                                                 onFocus={() => {
+//                                                     setCurrentSelectionType('debit');
+//                                                     setShowAccountModal(true);
+//                                                     setAccountSearchQuery('');
+//                                                 }}
+//                                                 readOnly
+//                                                 disabled={isCanceled}
+//                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: isCanceled ? '#e9ecef' : '#ffffff' }}
+//                                             />
+//                                         </td>
+//                                         <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <input
+//                                                 type="number"
+//                                                 id="headerDebitAmount"
+//                                                 className="form-control form-control-sm"
+//                                                 placeholder="Debit Amount"
+//                                                 value={headerDebitAmount}
+//                                                 onChange={(e) => setHeaderDebitAmount(e.target.value)}
+//                                                 onKeyDown={(e) => {
+//                                                     if (e.key === 'Enter') {
+//                                                         e.preventDefault();
+//                                                         document.getElementById('headerCreditSearch')?.focus();
+//                                                     }
+//                                                 }}
+//                                                 disabled={isCanceled}
+//                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: isCanceled ? '#e9ecef' : '#ffffff' }}
+//                                             />
+//                                         </td>
+//                                         <td width="35%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <input
+//                                                 type="text"
+//                                                 id="headerCreditSearch"
+//                                                 className="form-control form-control-sm"
+//                                                 placeholder="Select Credit Account"
+//                                                 value={headerCreditAccount ? `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}` : ''}
+//                                                 onFocus={() => {
+//                                                     setCurrentSelectionType('credit');
+//                                                     setShowAccountModal(true);
+//                                                     setAccountSearchQuery('');
+//                                                 }}
+//                                                 onKeyDown={(e) => {
+//                                                     if (e.key === 'Enter') {
+//                                                         e.preventDefault();
+//                                                         if (showAccountModal) {
+//                                                             setShowAccountModal(false);
+//                                                         }
+//                                                         setTimeout(() => {
+//                                                             document.getElementById('headerCreditAmount')?.focus();
+//                                                         }, 50);
+//                                                     }
+//                                                 }}
+//                                                 readOnly
+//                                                 disabled={isCanceled}
+//                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: isCanceled ? '#e9ecef' : '#ffffff' }}
+//                                             />
+//                                         </td>
+//                                         <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <input
+//                                                 type="number"
+//                                                 id="headerCreditAmount"
+//                                                 className="form-control form-control-sm"
+//                                                 placeholder="Credit Amount"
+//                                                 value={headerCreditAmount}
+//                                                 onChange={(e) => setHeaderCreditAmount(e.target.value)}
+//                                                 onKeyDown={(e) => {
+//                                                     if ((e.key === 'Tab' || e.key === 'Enter')) {
+//                                                         e.preventDefault();
+//                                                         if (isEditMode) {
+//                                                             document.getElementById('updateButton')?.focus();
+//                                                         } else {
+//                                                             document.getElementById('insertButton')?.focus();
+//                                                         }
+//                                                     }
+//                                                 }}
+//                                                 disabled={isCanceled}
+//                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: isCanceled ? '#e9ecef' : '#ffffff' }}
+//                                             />
+//                                         </td>
+//                                         <td width="10%" style={{ padding: '2px', textAlign: 'center', backgroundColor: '#ffffff' }}>
+//                                             {isEditMode ? (
+//                                                 <div className="d-flex gap-1">
+//                                                     <button
+//                                                         type="button"
+//                                                         id="updateButton"
+//                                                         className="btn btn-sm btn-warning py-0 px-2"
+//                                                         onClick={updateEntry}
+//                                                         style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#ffc107', borderColor: '#ffc107' }}
+//                                                     >
+//                                                         UPDATE
+//                                                     </button>
+//                                                     <button
+//                                                         type="button"
+//                                                         className="btn btn-sm btn-secondary py-0 px-2"
+//                                                         onClick={cancelEdit}
+//                                                         style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold' }}
+//                                                     >
+//                                                         CANCEL
+//                                                     </button>
+//                                                 </div>
+//                                             ) : (
+//                                                 <button
+//                                                     type="button"
+//                                                     id="insertButton"
+//                                                     className="btn btn-sm btn-success py-0 px-2"
+//                                                     onClick={insertEntry}
+//                                                     disabled={isCanceled || (!headerDebitAccount && !headerCreditAccount) ||
+//                                                         (headerDebitAccount && !headerDebitAmount) ||
+//                                                         (headerCreditAccount && !headerCreditAmount)}
+//                                                     style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#198754', borderColor: '#198754' }}
+//                                                 >
+//                                                     INSERT
+//                                                 </button>
+//                                             )}
+//                                         </td>
+//                                     </tr>
+
+//                                     {/* Column headers row */}
+//                                     <tr style={{
+//                                         height: '26px',
+//                                         backgroundColor: '#e9ecef',
+//                                         position: 'sticky',
+//                                         top: '26px',
+//                                         zIndex: 9
+//                                     }}>
+//                                         <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.N.</th>
+//                                         <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Account</th>
+//                                         <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Amount (Rs.)</th>
+//                                         <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Account</th>
+//                                         <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Amount (Rs.)</th>
+//                                         <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>Actions</th>
+//                                     </tr>
+//                                 </thead>
+
+//                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
+//                                     {(() => {
+//                                         // Get debit and credit entries from unified entries array
+//                                         const debitEntriesList = formData.entries
+//                                             .filter(entry => entry.entryType === 'Debit')
+//                                             .map(entry => ({
+//                                                 id: entry.id,
+//                                                 accountId: entry.accountId,
+//                                                 accountName: entry.accountName,
+//                                                 amount: entry.amount
+//                                             }));
+
+//                                         const creditEntriesList = formData.entries
+//                                             .filter(entry => entry.entryType === 'Credit')
+//                                             .map(entry => ({
+//                                                 id: entry.id,
+//                                                 accountId: entry.accountId,
+//                                                 accountName: entry.accountName,
+//                                                 amount: entry.amount
+//                                             }));
+
+//                                         const maxLength = Math.max(debitEntriesList.length, creditEntriesList.length);
+
+//                                         // Create paired entries
+//                                         const pairedEntries = [];
+//                                         for (let i = 0; i < maxLength; i++) {
+//                                             pairedEntries.push({
+//                                                 debitEntry: debitEntriesList[i] || { accountId: '', accountName: '', amount: 0 },
+//                                                 creditEntry: creditEntriesList[i] || { accountId: '', accountName: '', amount: 0 }
+//                                             });
+//                                         }
+
+//                                         return pairedEntries.map((item, index) => {
+//                                             const debitEntry = item.debitEntry;
+//                                             const creditEntry = item.creditEntry;
+//                                             const isBeingEdited = editingEntryIndex === index;
+
+//                                             return (
+//                                                 <tr key={index} style={{
+//                                                     height: 'auto',
+//                                                     minHeight: '26px',
+//                                                     backgroundColor: isBeingEdited ? '#fff3cd' : 'transparent'
+//                                                 }}>
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>{index + 1}</td>
+
+//                                                     {/* Debit Account Column */}
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {debitEntry.accountName ? (
+//                                                             <>
+//                                                                 <div>{debitEntry.accountName}</div>
+//                                                                 {debitEntry.accountId && (
+//                                                                     <div className="mt-1">
+//                                                                         <AccountBalanceDisplay
+//                                                                             accountId={debitEntry.accountId}
+//                                                                             api={api}
+//                                                                             newTransactionAmount={parseFloat(debitEntry.amount) || 0}
+//                                                                             compact={true}
+//                                                                             transactionType="payment"
+//                                                                             dateFormat={companyDateFormat}
+//                                                                             isEditMode={true}
+//                                                                         />
+//                                                                     </div>
+//                                                                 )}
+//                                                             </>
+//                                                         ) : (
+//                                                             <span className="text-muted">-- No Entry --</span>
+//                                                         )}
+//                                                     </td>
+
+//                                                     {/* Debit Amount Column */}
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {debitEntry.amount > 0 ? debitEntry.amount : '-'}
+//                                                     </td>
+
+//                                                     {/* Credit Account Column */}
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {creditEntry.accountName ? (
+//                                                             <>
+//                                                                 <div>{creditEntry.accountName}</div>
+//                                                                 {creditEntry.accountId && (
+//                                                                     <div className="mt-1">
+//                                                                         <AccountBalanceDisplay
+//                                                                             accountId={creditEntry.accountId}
+//                                                                             api={api}
+//                                                                             newTransactionAmount={parseFloat(creditEntry.amount) || 0}
+//                                                                             compact={true}
+//                                                                             transactionType="receipt"
+//                                                                             dateFormat={companyDateFormat}
+//                                                                             isEditMode={true}
+//                                                                         />
+//                                                                     </div>
+//                                                                 )}
+//                                                             </>
+//                                                         ) : (
+//                                                             <span className="text-muted">-- No Entry --</span>
+//                                                         )}
+//                                                     </td>
+
+//                                                     {/* Credit Amount Column */}
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {creditEntry.amount > 0 ? creditEntry.amount : '-'}
+//                                                     </td>
+
+//                                                     {/* Action Buttons Column */}
+//                                                     <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+//                                                         <div className="d-flex gap-1 justify-content-center">
+//                                                             <button
+//                                                                 type="button"
+//                                                                 className="btn btn-sm btn-warning py-0 px-1"
+//                                                                 onClick={() => startEditEntry(index)}
+//                                                                 disabled={isCanceled}
+//                                                                 title="Edit this row"
+//                                                                 style={{
+//                                                                     height: '18px',
+//                                                                     width: '18px',
+//                                                                     minWidth: '18px',
+//                                                                     fontSize: '0.6rem',
+//                                                                     backgroundColor: '#ffc107',
+//                                                                     borderColor: '#ffc107'
+//                                                                 }}
+//                                                             >
+//                                                                 <i className="bi bi-pencil"></i>
+//                                                             </button>
+//                                                             <button
+//                                                                 type="button"
+//                                                                 className="btn btn-sm btn-danger py-0 px-1"
+//                                                                 onClick={() => removeEntry(index)}
+//                                                                 disabled={isCanceled}
+//                                                                 title="Delete this row"
+//                                                                 style={{
+//                                                                     height: '18px',
+//                                                                     width: '18px',
+//                                                                     minWidth: '18px',
+//                                                                     fontSize: '0.6rem',
+//                                                                     backgroundColor: '#dc3545',
+//                                                                     borderColor: '#dc3545'
+//                                                                 }}
+//                                                             >
+//                                                                 <i className="bi bi-trash"></i>
+//                                                             </button>
+//                                                         </div>
+//                                                     </td>
+//                                                 </tr>
+//                                             );
+//                                         });
+//                                     })()}
+
+//                                     {formData.entries.filter(e => e.accountId && e.amount > 0).length === 0 && (
+//                                         <tr style={{ height: '24px' }}>
+//                                             <td colSpan="6" className="text-center text-muted py-1" style={{ fontSize: '0.75rem' }}>
+//                                                 No entries added yet. Use the header row above to add entries.
+//                                             </td>
+//                                         </tr>
+//                                     )}
+//                                 </tbody>
+
+//                                 <tfoot>
+//                                     <tr className="table-active">
+//                                         <th colSpan="2" className="text-end">Total Debit:</th>
+//                                         <th className="text-primary">Rs. {totals.totalDebit.toFixed(2)}</th>
+//                                         <th className="text-end">Total Credit:</th>
+//                                         <th className="text-primary">Rs. {totals.totalCredit.toFixed(2)}</th>
+//                                         <th></th>
+//                                     </tr>
+//                                 </tfoot>
+//                             </table>
+//                         </div>
+
+//                         {/* Validation Messages */}
+//                         {totals.totalDebit !== totals.totalCredit && totals.totalDebit > 0 && (
+//                             <div className="alert alert-warning mt-2">
+//                                 <i className="fas fa-exclamation-triangle me-2"></i>
+//                                 Total debit and credit amounts must be equal
+//                             </div>
+//                         )}
+
+//                         {/* Action Buttons */}
+//                         <div className="d-flex justify-content-between align-items-center mt-2">
+//                             <div className="form-check mb-0 d-flex align-items-center">
+//                                 <input
+//                                     className="form-check-input mt-0"
+//                                     type="checkbox"
+//                                     id="printAfterSave"
+//                                     checked={printAfterSave}
+//                                     onChange={handlePrintAfterSaveChange}
+//                                     disabled={isCanceled}
+//                                     style={{ height: '14px', width: '14px' }}
+//                                 />
+//                                 <label className="form-check-label ms-2" htmlFor="printAfterSave" style={{ fontSize: '0.8rem' }}>
+//                                     Print after update
+//                                 </label>
+//                             </div>
+
+//                             <div className="d-flex gap-2">
+//                                 <button
+//                                     type="button"
+//                                     className="btn btn-secondary btn-sm d-flex align-items-center"
+//                                     onClick={handleBack}
+//                                     disabled={isSaving}
+//                                     style={{ height: '26px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}
+//                                 >
+//                                     <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.9rem' }}></i> Back
+//                                 </button>
+
+//                                 <button
+//                                     type="submit"
+//                                     className="btn btn-primary btn-sm d-flex align-items-center"
+//                                     id="saveBill"
+//                                     disabled={isSaving || isCanceled || totals.totalDebit !== totals.totalCredit}
+//                                     style={{ height: '26px', padding: '0 16px', fontSize: '0.8rem', fontWeight: '500' }}
+//                                 >
+//                                     {isSaving ? (
+//                                         <>
+//                                             <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style={{ width: '10px', height: '10px' }}></span>
+//                                             Updating...
+//                                         </>
+//                                     ) : (
+//                                         <>
+//                                             <i className="bi bi-save me-1" style={{ fontSize: '0.9rem' }}></i> Update
+//                                         </>
+//                                     )}
+//                                 </button>
+//                             </div>
+//                         </div>
+//                     </form>
+//                 </div>
+//             </div>
+
+//             {/* Account Modal */}
+//             {/* {showAccountModal && (
+//                 <>
+//                     <div className="modal-backdrop fade show" style={{ zIndex: 1040 }}></div>
+//                     <div
+//                         className="modal fade show"
+//                         tabIndex="-1"
+//                         style={{ display: 'block', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}
+//                         onKeyDown={(e) => {
+//                             if (e.key === 'Escape') {
+//                                 e.preventDefault();
+//                                 setShowAccountModal(false);
+//                                 const focusTargetId = getFocusTargetOnModalClose();
+//                                 setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+//                             }
+//                         }}
+//                     >
+//                         <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '70%' }}>
+//                             <div className="modal-content" style={{ height: '400px' }}>
+//                                 <div className="modal-header py-1">
+//                                     <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
+//                                         Select {currentSelectionType === 'debit' ? 'Debit' : 'Credit'} Account
+//                                     </h5>
+//                                     <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
+//                                         {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
+//                                     </small>
+//                                     <button
+//                                         type="button"
+//                                         className="btn-close"
+//                                         onClick={() => {
+//                                             setShowAccountModal(false);
+//                                             const focusTargetId = getFocusTargetOnModalClose();
+//                                             setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+//                                         }}
+//                                     ></button>
+//                                 </div>
+//                                 <div className="p-2 bg-white sticky-top">
+//                                     <input
+//                                         type="text"
+//                                         id="searchAccount"
+//                                         className="form-control form-control-sm"
+//                                         placeholder="Search Account... (Press F6 to create new account)"
+//                                         autoFocus
+//                                         autoComplete='off'
+//                                         value={accountSearchQuery}
+//                                         onChange={handleAccountSearch}
+//                                         onKeyDown={(e) => {
+//                                             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+//                                                 e.preventDefault();
+//                                                 const firstAccountItem = document.querySelector('.account-item');
+//                                                 if (firstAccountItem) firstAccountItem.focus();
+//                                             } else if (e.key === 'Enter') {
+//                                                 e.preventDefault();
+//                                                 const activeItem = document.querySelector('.account-item.active');
+//                                                 if (activeItem) {
+//                                                     const accountId = activeItem.getAttribute('data-account-id');
+//                                                     const account = accounts.find(a => a.id === accountId);
+//                                                     if (account) selectAccount(account);
+//                                                 } else {
+//                                                     setShowAccountModal(false);
+//                                                     const focusTargetId = getFocusTargetOnModalClose();
+//                                                     setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+//                                                 }
+//                                             } else if (e.key === 'F6') {
+//                                                 e.preventDefault();
+//                                                 // Create account functionality can be added here
+//                                             }
+//                                         }}
+//                                         ref={accountSearchRef}
+//                                         style={{ height: '24px', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+//                                     />
+//                                 </div>
+//                                 <div className="modal-body p-0">
+//                                     <div style={{ height: 'calc(400px - 120px)' }}>
+//                                         <VirtualizedAccountList
+//                                             accounts={accounts}
+//                                             onAccountClick={selectAccount}
+//                                             searchRef={accountSearchRef}
+//                                             hasMore={hasMoreAccountResults}
+//                                             isSearching={isAccountSearching}
+//                                             onLoadMore={loadMoreAccounts}
+//                                             totalAccounts={totalAccounts}
+//                                             page={accountSearchPage}
+//                                             searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
+//                                         />
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </>
+//             )} */}
+
+//             {/* Account Modal - Using AccountModalForJournal */}
+//             {showAccountModal && (
+//                 <AccountModalForJournal
+//                     show={showAccountModal}
+//                     onClose={() => {
+//                         setShowAccountModal(false);
+//                         const focusTargetId = getFocusTargetOnModalClose();
+//                         setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+//                     }}
+//                     onSelectAccount={selectAccount}
+//                     accounts={accounts}
+//                     totalAccounts={totalAccounts}
+//                     isSearching={isAccountSearching}
+//                     hasMore={hasMoreAccountResults}
+//                     searchQuery={accountSearchQuery}
+//                     onSearch={(query) => {
+//                         setAccountSearchQuery(query);
+//                         setAccountSearchPage(1);
+//                         if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+//                             setAccountShouldShowLastSearchResults(false);
+//                             setAccountLastSearchQuery('');
+//                         }
+//                         const timer = setTimeout(() => {
+//                             fetchAccountsFromBackend(query, 1);
+//                         }, 300);
+//                         return () => clearTimeout(timer);
+//                     }}
+//                     onLoadMore={loadMoreAccounts}
+//                     page={accountSearchPage}
+//                     onCreateAccount={() => {
+//                         // Handle account creation if needed
+//                         setShowAccountModal(false);
+//                         setNotification({
+//                             show: true,
+//                             message: 'Account creation is available in the Accounts section',
+//                             type: 'info'
+//                         });
+//                     }}
+//                     selectedAccountId={null}
+//                     autoFocus={false}
+//                     title={`Select ${currentSelectionType === 'debit' ? 'Debit' : 'Credit'} Account`}
+//                 />
+//             )}
+
+//             <NotificationToast
+//                 show={notification.show}
+//                 message={notification.message}
+//                 type={notification.type}
+//                 onClose={() => setNotification({ ...notification, show: false })}
+//             />
+
+//             {showProductModal && (
+//                 <ProductModal onClose={() => setShowProductModal(false)} />
+//             )}
+//         </div>
+//     );
+// };
+
+// export default EditJournalVoucher;
+
+//------------------------------------------------------------------------end1
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -55,19 +2358,14 @@ const convertAdToBs = (adDate) => {
     }
 };
 
-
-// Helper function to format AD date to YYYY-MM-DD
 const formatAdDate = (date) => {
     if (!date) return null;
-
     try {
         const d = new Date(date);
         if (isNaN(d.getTime())) return null;
-
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
-
         return `${year}-${month}-${day}`;
     } catch (error) {
         console.error('Error formatting AD date:', error);
@@ -75,54 +2373,34 @@ const formatAdDate = (date) => {
     }
 };
 
-// Get Nepali month days for validation
 const getNepaliMonthDays = (year, month) => {
     const monthDays = {
-        1: 31,  // Baisakh
-        2: 31,  // Jestha
-        3: 32,  // Ashad
-        4: 32,  // Shrawan
-        5: 31,  // Bhadra
-        6: 31,  // Ashwin
-        7: 30,  // Kartik
-        8: 30,  // Mangsir
-        9: 30,  // Poush
-        10: 30, // Magh
-        11: 30, // Falgun
-        12: 30  // Chaitra
+        1: 31, 2: 31, 3: 32, 4: 32, 5: 31, 6: 31,
+        7: 30, 8: 30, 9: 30, 10: 30, 11: 30, 12: 30
     };
-
     if (month === 3) {
         const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
         return ashad31Years.includes(year) ? 31 : 32;
     }
-
     if (month === 11) {
         const isLeapYear = (year + 1) % 4 === 0;
         return isLeapYear ? 30 : 29;
     }
-
     return monthDays[month] || 30;
 };
 
-// Enhanced validation with month day limits
 const isValidNepaliDateEnhanced = (dateStr) => {
     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
-
     const [year, month, day] = dateStr.split('-').map(Number);
-
     if (year < 1970 || year > 2100) return false;
     if (month < 1 || month > 12) return false;
-
     const maxDays = getNepaliMonthDays(year, month);
     if (day < 1 || day > maxDays) return false;
-
     try {
         const nepaliDate = new NepaliDate(dateStr);
         const bsYear = nepaliDate.getYear();
         const bsMonth = nepaliDate.getMonth() + 1;
         const bsDay = nepaliDate.getDate();
-
         return (bsYear === year && bsMonth === month && bsDay === day);
     } catch {
         return false;
@@ -152,8 +2430,16 @@ const EditJournalVoucher = () => {
     const [headerCreditAccount, setHeaderCreditAccount] = useState(null);
     const [headerCreditAmount, setHeaderCreditAmount] = useState('');
     const [currentSelectionType, setCurrentSelectionType] = useState('debit');
-    const [editingEntryIndex, setEditingEntryIndex] = useState(null);
-    const [isEditMode, setIsEditMode] = useState(false);
+
+    // ===== Inline row-level edit state =====
+    const [editingRowIndex, setEditingRowIndex] = useState(null);
+    const [inlineEditData, setInlineEditData] = useState({
+        debitAccount: null,
+        debitAmount: '',
+        creditAccount: null,
+        creditAmount: ''
+    });
+    const [inlineSelectionType, setInlineSelectionType] = useState(null);
 
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -197,7 +2483,6 @@ const EditJournalVoucher = () => {
 
             if (response.data.success) {
                 if (append) {
-                    // APPEND to existing accounts instead of replacing
                     setAccounts(prev => [...prev, ...response.data.accounts]);
                 } else {
                     setAccounts(response.data.accounts);
@@ -246,7 +2531,9 @@ const EditJournalVoucher = () => {
         };
     }, []);
 
-    // Fetch journal data
+    // ============================================================
+    // FETCH JOURNAL EDIT DATA
+    // ============================================================
     useEffect(() => {
         const fetchJournalData = async () => {
             try {
@@ -255,16 +2542,15 @@ const EditJournalVoucher = () => {
                 const response = await api.get(`/api/retailer/journal/edit/${id}`);
                 const { data } = response.data;
 
-                // Set company date format first
                 const isNepaliFormat = data.companyDateFormat === 'nepali';
                 setCompanyDateFormat(data.companyDateFormat || 'nepali');
 
-                setAccounts(data.accounts || []);
+                const accountsFromApi = data.accounts || [];
+                setAccounts(accountsFromApi);
 
                 const journalVoucher = data.journalVoucher;
                 const entries = data.entries || [];
 
-                // Format date properly
                 const formatDate = (dateValue) => {
                     if (!dateValue) return '';
                     if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
@@ -283,48 +2569,60 @@ const EditJournalVoucher = () => {
                     }
                 };
 
-                // Get the nepali date from journal
                 const nepaliDateStr = formatDate(journalVoucher.nepaliDate) || currentNepaliDate;
                 const adDateStr = formatDate(journalVoucher.date) || new Date().toISOString().split('T')[0];
 
-                // Ensure we have both dates
                 let finalNepaliDate = nepaliDateStr;
                 let finalAdDate = adDateStr;
 
-                // If nepali format, ensure AD is converted from BS
                 if (isNepaliFormat) {
-                    // If we have BS date but no AD, convert
                     if (nepaliDateStr && !adDateStr) {
                         const convertedAd = convertBsToAd(nepaliDateStr);
-                        if (convertedAd) {
-                            finalAdDate = convertedAd;
-                        }
+                        if (convertedAd) finalAdDate = convertedAd;
                     }
-                    // If we have AD date but no BS, convert
                     if (adDateStr && !nepaliDateStr) {
                         const convertedBs = convertAdToBs(adDateStr);
-                        if (convertedBs) {
-                            finalNepaliDate = convertedBs;
-                        }
+                        if (convertedBs) finalNepaliDate = convertedBs;
                     }
                 }
 
                 setBillNumber(journalVoucher.billNumber || '');
-                setFormData({
-                    date: finalAdDate,
-                    nepaliDate: finalNepaliDate,
-                    description: journalVoucher.description || '',
-                    status: journalVoucher.status || 'Active',
-                    entries: entries.map(entry => ({
+
+                // Build entries EXACTLY the way AddJournalVoucher builds them:
+                // accountName = "uniqueNumber - name"
+                const mappedEntries = entries.map(entry => {
+                    // Try to find the full account to get uniqueNumber
+                    const fullAccount = accountsFromApi.find(acc => acc.id === entry.accountId);
+
+                    let accountName;
+                    if (fullAccount) {
+                        accountName = `${fullAccount.uniqueNumber || ''} - ${fullAccount.name}`;
+                    } else if (entry.accountUniqueNumber != null) {
+                        // Backend may have sent the unique number separately
+                        accountName = `${entry.accountUniqueNumber || ''} - ${entry.accountName || ''}`;
+                    } else {
+                        // Fallback: use whatever the backend returned for accountName as-is
+                        accountName = entry.accountName || '';
+                    }
+
+                    return {
                         id: entry.id,
                         accountId: entry.accountId,
-                        accountName: entry.accountName,
+                        accountName: accountName,
                         entryType: entry.entryType,
                         amount: entry.amount?.toString() || '',
                         lineNumber: entry.lineNumber,
                         description: entry.description || '',
                         referenceNumber: entry.referenceNumber || ''
-                    }))
+                    };
+                });
+
+                setFormData({
+                    date: finalAdDate,
+                    nepaliDate: finalNepaliDate,
+                    description: journalVoucher.description || '',
+                    status: journalVoucher.status || 'Active',
+                    entries: mappedEntries
                 });
 
                 setIsInitialDataLoaded(true);
@@ -341,7 +2639,6 @@ const EditJournalVoucher = () => {
         }
     }, [id]);
 
-    // Set focus on date input after initial load
     useEffect(() => {
         if (isInitialDataLoaded && transactionDateRef.current) {
             const timer = setTimeout(() => {
@@ -351,7 +2648,6 @@ const EditJournalVoucher = () => {
         }
     }, [isInitialDataLoaded, companyDateFormat]);
 
-    // Auto-scroll to bottom when new entries are added
     useEffect(() => {
         if (itemsTableRef.current && formData.entries.length > 0) {
             setTimeout(() => {
@@ -362,7 +2658,6 @@ const EditJournalVoucher = () => {
 
     useEffect(() => {
         if (showAccountModal) {
-            // Reset ALL search-related state
             setAccountSearchQuery('');
             setAccountSearchPage(1);
             setAccounts([]);
@@ -371,73 +2666,69 @@ const EditJournalVoucher = () => {
             setAccountLastSearchQuery('');
             setAccountShouldShowLastSearchResults(false);
 
-            // Fetch fresh accounts from page 1 with no search
-            // Use a small delay to ensure state is reset first
             setTimeout(() => {
                 fetchAccountsFromBackend('', 1, false);
             }, 50);
         }
     }, [showAccountModal]);
 
+    // ============================================================
+    // ROW-LEVEL INLINE EDIT HANDLERS (same as AddJournalVoucher)
+    // ============================================================
     const startEditEntry = (index) => {
-        // Get the paired entry - find the corresponding debit and credit entries
         const debitEntriesList = formData.entries.filter(entry => entry.entryType === 'Debit');
         const creditEntriesList = formData.entries.filter(entry => entry.entryType === 'Credit');
 
         const debitEntry = debitEntriesList[index];
         const creditEntry = creditEntriesList[index];
 
-        // Load debit data if exists
-        if (debitEntry && debitEntry.accountId && debitEntry.amount) {
-            const debitAccount = accounts.find(acc => acc.id === debitEntry.accountId);
-            if (debitAccount) {
-                setHeaderDebitAccount(debitAccount);
-                setHeaderDebitAmount(debitEntry.amount);
-            }
-        }
+        const debitAccount = debitEntry?.accountId
+            ? (accounts.find(acc => acc.id === debitEntry.accountId) || {
+                id: debitEntry.accountId,
+                name: debitEntry.accountName?.split(' - ').slice(1).join(' - ') || debitEntry.accountName,
+                uniqueNumber: debitEntry.accountName?.split(' - ')[0] || ''
+            })
+            : null;
 
-        // Load credit data if exists
-        if (creditEntry && creditEntry.accountId && creditEntry.amount) {
-            const creditAccount = accounts.find(acc => acc.id === creditEntry.accountId);
-            if (creditAccount) {
-                setHeaderCreditAccount(creditAccount);
-                setHeaderCreditAmount(creditEntry.amount);
-            }
-        }
+        const creditAccount = creditEntry?.accountId
+            ? (accounts.find(acc => acc.id === creditEntry.accountId) || {
+                id: creditEntry.accountId,
+                name: creditEntry.accountName?.split(' - ').slice(1).join(' - ') || creditEntry.accountName,
+                uniqueNumber: creditEntry.accountName?.split(' - ')[0] || ''
+            })
+            : null;
 
-        setEditingEntryIndex(index);
-        setIsEditMode(true);
+        setEditingRowIndex(index);
+        setInlineEditData({
+            debitAccount: debitAccount,
+            debitAmount: debitEntry?.amount?.toString() || '',
+            creditAccount: creditAccount,
+            creditAmount: creditEntry?.amount?.toString() || ''
+        });
 
-        // Focus on debit search after loading
         setTimeout(() => {
-            const debitSearchInput = document.getElementById('headerDebitSearch');
-            if (debitSearchInput) {
-                debitSearchInput.focus();
-            }
+            const amountInput = document.getElementById(`inline-debit-amount-${index}`);
+            if (amountInput) amountInput.focus();
         }, 100);
     };
 
-    const cancelEdit = () => {
-        setHeaderDebitAccount(null);
-        setHeaderDebitAmount('');
-        setHeaderCreditAccount(null);
-        setHeaderCreditAmount('');
-        setEditingEntryIndex(null);
-        setIsEditMode(false);
-
-        setNotification({
-            show: true,
-            message: 'Edit cancelled.',
-            type: 'info'
+    const cancelInlineEdit = () => {
+        setEditingRowIndex(null);
+        setInlineEditData({
+            debitAccount: null,
+            debitAmount: '',
+            creditAccount: null,
+            creditAmount: ''
         });
+        setInlineSelectionType(null);
     };
 
-    const updateEntry = () => {
-        const debitAmount = parseFloat(headerDebitAmount) || 0;
-        const creditAmount = parseFloat(headerCreditAmount) || 0;
+    const updateInlineEntry = () => {
+        const { debitAccount, debitAmount, creditAccount, creditAmount } = inlineEditData;
+        const debitAmt = parseFloat(debitAmount) || 0;
+        const creditAmt = parseFloat(creditAmount) || 0;
 
-        // Validate if at least one entry is provided
-        if (!headerDebitAccount && !headerCreditAccount) {
+        if (!debitAccount && !creditAccount) {
             setNotification({
                 show: true,
                 message: 'Please select at least one account',
@@ -450,65 +2741,57 @@ const EditJournalVoucher = () => {
         const debitEntriesList = newEntries.filter(entry => entry.entryType === 'Debit');
         const creditEntriesList = newEntries.filter(entry => entry.entryType === 'Credit');
 
-        // Update debit entry if exists in the row
-        if (headerDebitAccount && debitEntriesList[editingEntryIndex]) {
-            const originalDebitIndex = newEntries.findIndex(e => e.id === debitEntriesList[editingEntryIndex].id);
-            if (originalDebitIndex !== -1) {
-                newEntries[originalDebitIndex] = {
-                    ...newEntries[originalDebitIndex],
-                    accountId: headerDebitAccount.id,
-                    accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
-                    amount: debitAmount.toString()
+        const rowIndex = editingRowIndex;
+
+        // ----- Update or remove Debit entry -----
+        if (debitAccount && debitEntriesList[rowIndex]) {
+            const idx = newEntries.findIndex(e => e.id === debitEntriesList[rowIndex].id);
+            if (idx !== -1) {
+                newEntries[idx] = {
+                    ...newEntries[idx],
+                    accountId: debitAccount.id,
+                    accountName: `${debitAccount.uniqueNumber || ''} - ${debitAccount.name}`,
+                    amount: debitAmt.toString()
                 };
             }
-        } else if (!headerDebitAccount && debitEntriesList[editingEntryIndex]) {
-            // Remove debit entry if it exists and no debit provided
-            const originalDebitIndex = newEntries.findIndex(e => e.id === debitEntriesList[editingEntryIndex].id);
-            if (originalDebitIndex !== -1) {
-                newEntries.splice(originalDebitIndex, 1);
-            }
-        }
-
-        // Update credit entry if exists in the row
-        if (headerCreditAccount && creditEntriesList[editingEntryIndex]) {
-            const originalCreditIndex = newEntries.findIndex(e => e.id === creditEntriesList[editingEntryIndex].id);
-            if (originalCreditIndex !== -1) {
-                newEntries[originalCreditIndex] = {
-                    ...newEntries[originalCreditIndex],
-                    accountId: headerCreditAccount.id,
-                    accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
-                    amount: creditAmount.toString()
-                };
-            }
-        } else if (!headerCreditAccount && creditEntriesList[editingEntryIndex]) {
-            // Remove credit entry if it exists and no credit provided
-            const originalCreditIndex = newEntries.findIndex(e => e.id === creditEntriesList[editingEntryIndex].id);
-            if (originalCreditIndex !== -1) {
-                newEntries.splice(originalCreditIndex, 1);
-            }
-        }
-
-        // Add new entries if they don't exist
-        if (headerDebitAccount && !debitEntriesList[editingEntryIndex]) {
+        } else if (!debitAccount && debitEntriesList[rowIndex]) {
+            const idx = newEntries.findIndex(e => e.id === debitEntriesList[rowIndex].id);
+            if (idx !== -1) newEntries.splice(idx, 1);
+        } else if (debitAccount && !debitEntriesList[rowIndex]) {
             newEntries.push({
-                id: null,
-                accountId: headerDebitAccount.id,
-                accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+                id: Date.now(),
+                accountId: debitAccount.id,
+                accountName: `${debitAccount.uniqueNumber || ''} - ${debitAccount.name}`,
                 entryType: 'Debit',
-                amount: debitAmount.toString(),
+                amount: debitAmt.toString(),
                 lineNumber: newEntries.length + 1,
                 description: '',
                 referenceNumber: ''
             });
         }
 
-        if (headerCreditAccount && !creditEntriesList[editingEntryIndex]) {
+        const updatedCreditList = newEntries.filter(entry => entry.entryType === 'Credit');
+
+        if (creditAccount && updatedCreditList[rowIndex]) {
+            const idx = newEntries.findIndex(e => e.id === updatedCreditList[rowIndex].id);
+            if (idx !== -1) {
+                newEntries[idx] = {
+                    ...newEntries[idx],
+                    accountId: creditAccount.id,
+                    accountName: `${creditAccount.uniqueNumber || ''} - ${creditAccount.name}`,
+                    amount: creditAmt.toString()
+                };
+            }
+        } else if (!creditAccount && updatedCreditList[rowIndex]) {
+            const idx = newEntries.findIndex(e => e.id === updatedCreditList[rowIndex].id);
+            if (idx !== -1) newEntries.splice(idx, 1);
+        } else if (creditAccount && !updatedCreditList[rowIndex]) {
             newEntries.push({
-                id: null,
-                accountId: headerCreditAccount.id,
-                accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+                id: Date.now() + 1,
+                accountId: creditAccount.id,
+                accountName: `${creditAccount.uniqueNumber || ''} - ${creditAccount.name}`,
                 entryType: 'Credit',
-                amount: creditAmount.toString(),
+                amount: creditAmt.toString(),
                 lineNumber: newEntries.length + 1,
                 description: '',
                 referenceNumber: ''
@@ -516,31 +2799,18 @@ const EditJournalVoucher = () => {
         }
 
         setFormData(prev => ({ ...prev, entries: newEntries }));
-
-        // Reset header fields and edit mode
-        setHeaderDebitAccount(null);
-        setHeaderDebitAmount('');
-        setHeaderCreditAccount(null);
-        setHeaderCreditAmount('');
-        setEditingEntryIndex(null);
-        setIsEditMode(false);
+        cancelInlineEdit();
 
         setNotification({
             show: true,
             message: 'Entry updated successfully!',
             type: 'success'
         });
-
-        // Focus on debit search after update
-        setTimeout(() => {
-            const debitSearchInput = document.getElementById('headerDebitSearch');
-            if (debitSearchInput) {
-                debitSearchInput.focus();
-                debitSearchInput.select();
-            }
-        }, 100);
     };
 
+    // ============================================================
+    // HEADER INSERT (same as AddJournalVoucher)
+    // ============================================================
     const insertEntry = () => {
         const debitAmount = parseFloat(headerDebitAmount) || 0;
         const creditAmount = parseFloat(headerCreditAmount) || 0;
@@ -548,19 +2818,9 @@ const EditJournalVoucher = () => {
         const newEntries = [...formData.entries];
         let lineNumber = newEntries.length + 1;
 
-        // Case 1: Both debit and credit entries provided
         if (headerDebitAccount && headerDebitAmount && headerCreditAccount && headerCreditAmount) {
-            if (debitAmount !== creditAmount) {
-                setNotification({
-                    show: true,
-                    message: `Debit amount (${debitAmount}) must equal credit amount (${creditAmount})`,
-                    type: 'error'
-                });
-                return;
-            }
-
             newEntries.push({
-                id: null,
+                id: Date.now(),
                 accountId: headerDebitAccount.id,
                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
                 entryType: 'Debit',
@@ -571,7 +2831,7 @@ const EditJournalVoucher = () => {
             });
 
             newEntries.push({
-                id: null,
+                id: Date.now() + 1,
                 accountId: headerCreditAccount.id,
                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
                 entryType: 'Credit',
@@ -583,7 +2843,6 @@ const EditJournalVoucher = () => {
 
             setFormData(prev => ({ ...prev, entries: newEntries }));
 
-            // Reset header fields
             setHeaderDebitAccount(null);
             setHeaderDebitAmount('');
             setHeaderCreditAccount(null);
@@ -597,10 +2856,9 @@ const EditJournalVoucher = () => {
                 }
             }, 50);
         }
-        // Case 2: Only debit entry provided
         else if (headerDebitAccount && headerDebitAmount && !headerCreditAccount && !headerCreditAmount) {
             newEntries.push({
-                id: null,
+                id: Date.now(),
                 accountId: headerDebitAccount.id,
                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
                 entryType: 'Debit',
@@ -625,10 +2883,9 @@ const EditJournalVoucher = () => {
                 }
             }, 50);
         }
-        // Case 3: Only credit entry provided
         else if (!headerDebitAccount && !headerDebitAmount && headerCreditAccount && headerCreditAmount) {
             newEntries.push({
-                id: null,
+                id: Date.now(),
                 accountId: headerCreditAccount.id,
                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
                 entryType: 'Credit',
@@ -663,7 +2920,6 @@ const EditJournalVoucher = () => {
     };
 
     const removeEntry = (index) => {
-        // When removing a row, we need to remove both debit and credit entries at that index
         const debitEntriesList = formData.entries.filter(entry => entry.entryType === 'Debit');
         const creditEntriesList = formData.entries.filter(entry => entry.entryType === 'Credit');
 
@@ -674,39 +2930,40 @@ const EditJournalVoucher = () => {
 
         if (debitToRemove) {
             const debitIndex = newEntries.findIndex(e => e.id === debitToRemove.id);
-            if (debitIndex !== -1) {
-                newEntries.splice(debitIndex, 1);
-            }
+            if (debitIndex !== -1) newEntries.splice(debitIndex, 1);
         }
 
         if (creditToRemove) {
             const creditIndex = newEntries.findIndex(e => e.id === creditToRemove.id);
-            if (creditIndex !== -1) {
-                newEntries.splice(creditIndex, 1);
-            }
+            if (creditIndex !== -1) newEntries.splice(creditIndex, 1);
         }
 
         setFormData(prev => ({ ...prev, entries: newEntries }));
     };
 
-    const handleAccountSearch = (e) => {
-        const searchText = e.target.value;
-        setAccountSearchQuery(searchText);
-        setAccountSearchPage(1);
-
-        if (searchText.trim() !== '' && accountShouldShowLastSearchResults) {
-            setAccountShouldShowLastSearchResults(false);
-            setAccountLastSearchQuery('');
+    // ============================================================
+    // ACCOUNT SELECTION (same as AddJournalVoucher)
+    // ============================================================
+    const selectAccount = (account) => {
+        if (editingRowIndex !== null && inlineSelectionType) {
+            if (inlineSelectionType === 'debit') {
+                setInlineEditData(prev => ({ ...prev, debitAccount: account }));
+                setShowAccountModal(false);
+                setInlineSelectionType(null);
+                setTimeout(() => {
+                    document.getElementById(`inline-debit-amount-${editingRowIndex}`)?.focus();
+                }, 100);
+            } else if (inlineSelectionType === 'credit') {
+                setInlineEditData(prev => ({ ...prev, creditAccount: account }));
+                setShowAccountModal(false);
+                setInlineSelectionType(null);
+                setTimeout(() => {
+                    document.getElementById(`inline-credit-amount-${editingRowIndex}`)?.focus();
+                }, 100);
+            }
+            return;
         }
 
-        const timer = setTimeout(() => {
-            fetchAccountsFromBackend(searchText, 1);
-        }, 300);
-
-        return () => clearTimeout(timer);
-    };
-
-    const selectAccount = (account) => {
         if (currentSelectionType === 'debit') {
             setHeaderDebitAccount(account);
             setShowAccountModal(false);
@@ -728,12 +2985,10 @@ const EditJournalVoucher = () => {
     };
 
     const handleSubmit = async (print = false) => {
-        // Filter out entries with empty account or amount
         const validEntries = formData.entries.filter(entry =>
             entry.accountId && entry.amount && parseFloat(entry.amount) > 0
         );
 
-        // Check if we have at least one debit and one credit entry
         const hasDebit = validEntries.some(entry => entry.entryType === 'Debit');
         const hasCredit = validEntries.some(entry => entry.entryType === 'Credit');
 
@@ -760,10 +3015,7 @@ const EditJournalVoucher = () => {
         try {
             const parseDate = (dateString) => {
                 if (!dateString) return new Date().toISOString();
-
-                // If it's already a valid date string in YYYY-MM-DD format
                 if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-                    // Create date at UTC to avoid timezone issues
                     const date = new Date(dateString);
                     date.setUTCHours(0, 0, 0, 0);
                     return date.toISOString();
@@ -771,7 +3023,6 @@ const EditJournalVoucher = () => {
                 return new Date(dateString).toISOString();
             };
 
-            // Prepare payload with unified entries array
             const payload = {
                 date: parseDate(formData.date),
                 nepaliDate: formData.nepaliDate,
@@ -796,7 +3047,6 @@ const EditJournalVoucher = () => {
                 type: 'success'
             });
 
-            // If print was requested, fetch print data and print
             if ((print || printAfterSave) && response.data.data?.journalVoucher?.id) {
                 try {
                     const printResponse = await api.get(`/api/retailer/journal/${response.data.data.journalVoucher.id}/print`);
@@ -885,16 +3135,10 @@ const EditJournalVoucher = () => {
         }
     };
 
-    // const loadMoreAccounts = () => {
-    //     if (!isAccountSearching) {
-    //         fetchAccountsFromBackend(accountSearchQuery, accountSearchPage + 1);
-    //     }
-    // };
-
     const loadMoreAccounts = () => {
         if (!isAccountSearching && hasMoreAccountResults) {
             const nextPage = accountSearchPage + 1;
-            fetchAccountsFromBackend(accountSearchQuery, nextPage, true); // Pass true for append
+            fetchAccountsFromBackend(accountSearchQuery, nextPage, true);
         }
     };
 
@@ -903,154 +3147,6 @@ const EditJournalVoucher = () => {
         setPrintAfterSave(isChecked);
         localStorage.setItem('printAfterSaveJournalEdit', isChecked);
     };
-
-    // const printVoucherImmediately = (printData) => {
-    //     const tempDiv = document.createElement('div');
-    //     tempDiv.style.position = 'absolute';
-    //     tempDiv.style.left = '-9999px';
-    //     document.body.appendChild(tempDiv);
-
-    //     const debitEntries = printData.debitEntries || [];
-    //     const creditEntries = printData.creditEntries || [];
-
-    //     let rows = '';
-    //     let totalDebit = 0;
-    //     let totalCredit = 0;
-    //     let rowNumber = 1;
-
-    //     debitEntries.forEach(entry => {
-    //         rows += `
-    //             <tr>
-    //                 <td class="print-text-center">${rowNumber++}</td>
-    //                 <td>${entry.accountName}</td>
-    //                 <td class="print-text-right">${entry.amount.toFixed(2)}</td>
-    //                 <td class="print-text-right">0.00</td>
-    //             </tr>
-    //         `;
-    //         totalDebit += entry.amount;
-    //     });
-
-    //     creditEntries.forEach(entry => {
-    //         rows += `
-    //             <tr>
-    //                 <td class="print-text-center">${rowNumber++}</td>
-    //                 <td>${entry.accountName}</td>
-    //                 <td class="print-text-right">0.00</td>
-    //                 <td class="print-text-right">${entry.amount.toFixed(2)}</td>
-    //             </tr>
-    //         `;
-    //         totalCredit += entry.amount;
-    //     });
-
-    //     tempDiv.innerHTML = `
-    //         <div id="printableContent">
-    //             <div class="print-voucher-container">
-    //                 <div class="print-voucher-header">
-    //                     <div class="print-company-name">${printData.currentCompanyName}</div>
-    //                     <div class="print-company-details">
-    //                         ${printData.currentCompany?.address || ''}
-    //                         <br />
-    //                         Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
-    //                     </div>
-    //                     <div class="print-voucher-title">JOURNAL VOUCHER</div>
-    //                 </div>
-
-    //                 <div class="print-voucher-details">
-    //                     <div>
-    //                         <div><strong>Vch. No:</strong> ${printData.journalVoucher?.billNumber}</div>
-    //                     </div>
-    //                     <div>
-    //                         <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.journalVoucher.nepaliDate) : formatDateForInput(printData.journalVoucher.date)}(${new Date(printData.journalVoucher.date).toLocaleDateString()})</div>
-    //                     </div>
-    //                 </div>
-
-    //                 <table class="print-voucher-table">
-    //                     <thead>
-    //                         <tr>
-    //                             <th>S.N</th>
-    //                             <th>Particular</th>
-    //                             <th>Debit Amount</th>
-    //                             <th>Credit Amount</th>
-    //                         </tr>
-    //                     </thead>
-    //                     <tbody>${rows}</tbody>
-    //                     <tfoot>
-    //                         <tr>
-    //                             <th colSpan="2">Total</th>
-    //                             <th>${totalDebit.toFixed(2)}</th>
-    //                             <th>${totalCredit.toFixed(2)}</th>
-    //                         </tr>
-    //                     </tfoot>
-    //                 </table>
-
-    //                 <div style="margin-top: 3mm;">
-    //                     <strong>Note:</strong> ${printData.journalVoucher?.description || 'N/A'}
-    //                 </div>
-
-    //                 <div class="print-signature-area">
-    //                     <div class="print-signature-box">
-    //                         <div style="margin-bottom: 1mm;">
-    //                             <strong>${printData.journalVoucher?.user?.name || 'N/A'}</strong>
-    //                         </div>
-    //                         Prepared By
-    //                     </div>
-    //                     <div class="print-signature-box">
-    //                         <div style="margin-bottom: 1mm;">&nbsp;</div>
-    //                         Checked By
-    //                     </div>
-    //                     <div class="print-signature-box">
-    //                         <div style="margin-bottom: 1mm;">&nbsp;</div>
-    //                         Approved By
-    //                     </div>
-    //                 </div>
-    //             </div>
-    //         </div>
-    //     `;
-
-    //     const styles = `
-    //         @media print {
-    //             @page { size: A4; margin: 5mm; }
-    //             body { font-family: 'Arial Narrow', Arial, sans-serif; font-size: 9pt; line-height: 1.2; color: #000; background: white; margin: 0; padding: 0; }
-    //             .print-voucher-container { width: 100%; max-width: 210mm; margin: 0 auto; padding: 2mm; }
-    //             .print-voucher-header { text-align: center; margin-bottom: 3mm; border-bottom: 1px dashed #000; padding-bottom: 2mm; }
-    //             .print-voucher-title { font-size: 12pt; font-weight: bold; margin: 2mm 0; text-transform: uppercase; text-decoration: underline; letter-spacing: 1px; }
-    //             .print-company-name { font-size: 16pt; font-weight: bold; }
-    //             .print-company-details { font-size: 8pt; margin: 1mm 0; }
-    //             .print-voucher-details { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
-    //             .print-voucher-table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; }
-    //             .print-voucher-table thead { border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
-    //             .print-voucher-table th { background-color: transparent; border: 1px solid #000; padding: 1mm; text-align: left; font-weight: bold; }
-    //             .print-voucher-table td { border: 1px solid #000; padding: 1mm; }
-    //             .print-text-right { text-align: right; }
-    //             .print-text-center { text-align: center; }
-    //             .print-signature-area { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 8pt; }
-    //             .print-signature-box { text-align: center; width: 30%; border-top: 1px dashed #000; padding-top: 1mm; font-weight: bold; }
-    //         }
-    //     `;
-
-    //     const printWindow = window.open('', '_blank');
-    //     printWindow.document.write(`
-    //         <html>
-    //             <head>
-    //                 <title>Journal_Voucher_${printData.journalVoucher?.billNumber}</title>
-    //                 <style>${styles}</style>
-    //             </head>
-    //             <body>
-    //                 ${tempDiv.innerHTML}
-    //                 <script>
-    //                     window.onload = function() {
-    //                         setTimeout(function() {
-    //                             window.print();
-    //                             window.close();
-    //                         }, 200);
-    //                     };
-    //                 </script>
-    //             </body>
-    //         </html>
-    //     `);
-    //     printWindow.document.close();
-    //     document.body.removeChild(tempDiv);
-    // };
 
     const printVoucherImmediately = (printData) => {
         const tempDiv = document.createElement('div');
@@ -1063,11 +3159,9 @@ const EditJournalVoucher = () => {
         const journal = printData.journalVoucher;
         const isCanceled = journal?.status === 'Canceled';
 
-        // Calculate totals
         const totalDebit = debitEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
         const totalCredit = creditEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
 
-        // Combine debit and credit entries into rows
         const maxRows = Math.max(debitEntries.length, creditEntries.length);
         const combinedRows = [];
         for (let i = 0; i < maxRows; i++) {
@@ -1078,7 +3172,6 @@ const EditJournalVoucher = () => {
             });
         }
 
-        // Format date for print
         const formatDateForPrint = (dateString, format = 'english') => {
             if (!dateString) return 'N/A';
             try {
@@ -1097,7 +3190,6 @@ const EditJournalVoucher = () => {
             }
         };
 
-        // Format to 2 decimal places
         const formatTo2Decimal = (num) => {
             if (num === null || num === undefined) return '0.00';
             const rounded = Math.round(num * 100) / 100;
@@ -1107,16 +3199,11 @@ const EditJournalVoucher = () => {
             return rounded.toString();
         };
 
-        // Number to words function
         const numberToWords = (num) => {
-            const ones = [
-                '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
                 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-                'Seventeen', 'Eighteen', 'Nineteen'
-            ];
-            const tens = [
-                '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
-            ];
+                'Seventeen', 'Eighteen', 'Nineteen'];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
             const scales = ['', 'Thousand', 'Million', 'Billion'];
 
             const convertHundreds = (num) => {
@@ -1209,7 +3296,9 @@ const EditJournalVoucher = () => {
                         <div><strong>Vch. No:</strong> ${journal?.billNumber || 'N/A'}</div>
                     </div>
                     <div>
-                <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.journalVoucher.nepaliDate) : formatDateForInput(printData.journalVoucher.date)}(${new Date(printData.journalVoucher.date).toLocaleDateString()})</div>
+                        <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ?
+                formatDateForPrint(journal?.nepaliDate, 'Nepali') :
+                formatDateForPrint(journal?.date)}(${journal?.date ? new Date(journal.date).toLocaleDateString() : 'N/A'})</div>
                     </div>
                 </div>
 
@@ -1271,152 +3360,30 @@ const EditJournalVoucher = () => {
 
         const styles = `
         @media print {
-            @page {
-                size: A4;
-                margin: 5mm;
-            }
-
-            body {
-                font-family: 'Arial Narrow', Arial, sans-serif;
-                font-size: 9pt;
-                line-height: 1.2;
-                color: #000;
-                background: white;
-                margin: 0;
-                padding: 0;
-            }
-
-            .print-voucher-container {
-                width: 100%;
-                max-width: 210mm;
-                margin: 0 auto;
-                padding: 2mm;
-            }
-
-            .print-voucher-header {
-                text-align: center;
-                margin-bottom: 3mm;
-                border-bottom: 1px solid #000;
-                padding-bottom: 2mm;
-            }
-
-            .print-voucher-title {
-                font-size: 12pt;
-                font-weight: bold;
-                margin: 2mm 0;
-                text-transform: uppercase;
-            }
-
-            .print-company-name {
-                font-size: 16pt;
-                font-weight: bold;
-            }
-
-            .print-company-details {
-                font-size: 8pt;
-                margin: 1mm 0;
-                font-weight: bold;
-            }
-
-            .print-voucher-details {
-                display: flex;
-                justify-content: space-between;
-                margin: 2mm 0;
-                font-size: 8pt;
-            }
-
-            .print-voucher-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 3mm 0;
-                font-size: 8pt;
-                border: none;
-                table-layout: fixed;
-            }
-
-            .print-voucher-table thead {
-                border-top: 1px solid #000;
-                border-bottom: 1px solid #000;
-            }
-
-            .print-voucher-table th {
-                background-color: transparent;
-                border: none;
-                padding: 1mm;
-                text-align: left;
-                font-weight: bold;
-            }
-
-            .print-voucher-table td {
-                border: none;
-                padding: 1mm;
-                border-bottom: 1px solid #eee;
-            }
-
-            .print-voucher-table th:nth-child(1),
-            .print-voucher-table td:nth-child(1) {
-                width: 8%;
-                text-align: center;
-            }
-
-            .print-voucher-table th:nth-child(2),
-            .print-voucher-table td:nth-child(2) {
-                width: 30%;
-                text-align: left;
-            }
-
-            .print-voucher-table th:nth-child(3),
-            .print-voucher-table td:nth-child(3) {
-                width: 16%;
-                text-align: center;
-            }
-
-            .print-voucher-table th:nth-child(4),
-            .print-voucher-table td:nth-child(4) {
-                width: 30%;
-                text-align: left;
-            }
-
-            .print-voucher-table th:nth-child(5),
-            .print-voucher-table td:nth-child(5) {
-                width: 16%;
-                text-align: center;
-            }
-
-            .print-text-center {
-                text-align: center;
-            }
-
-            .print-text-left {
-                text-align: left;
-            }
-
-            .print-signature-area {
-                display: flex;
-                justify-content: space-between;
-                margin-top: 5mm;
-                font-size: 8pt;
-            }
-
-            .print-signature-box {
-                text-align: center;
-                width: 30%;
-                border-top: 1px solid #000;
-                padding-top: 1mm;
-                font-weight: bold;
-            }
-
-            .text-danger {
-                color: #dc3545 !important;
-            }
-
-            .text-muted {
-                color: #999 !important;
-            }
-
-            .print-amount-in-words {
-                font-style: italic;
-            }
+            @page { size: A4; margin: 5mm; }
+            body { font-family: 'Arial Narrow', Arial, sans-serif; font-size: 9pt; line-height: 1.2; color: #000; background: white; margin: 0; padding: 0; }
+            .print-voucher-container { width: 100%; max-width: 210mm; margin: 0 auto; padding: 2mm; }
+            .print-voucher-header { text-align: center; margin-bottom: 3mm; border-bottom: 1px solid #000; padding-bottom: 2mm; }
+            .print-voucher-title { font-size: 12pt; font-weight: bold; margin: 2mm 0; text-transform: uppercase; }
+            .print-company-name { font-size: 16pt; font-weight: bold; }
+            .print-company-details { font-size: 8pt; margin: 1mm 0; font-weight: bold; }
+            .print-voucher-details { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
+            .print-voucher-table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; border: none; table-layout: fixed; }
+            .print-voucher-table thead { border-top: 1px solid #000; border-bottom: 1px solid #000; }
+            .print-voucher-table th { background-color: transparent; border: none; padding: 1mm; text-align: left; font-weight: bold; }
+            .print-voucher-table td { border: none; padding: 1mm; border-bottom: 1px solid #eee; }
+            .print-voucher-table th:nth-child(1), .print-voucher-table td:nth-child(1) { width: 8%; text-align: center; }
+            .print-voucher-table th:nth-child(2), .print-voucher-table td:nth-child(2) { width: 30%; text-align: left; }
+            .print-voucher-table th:nth-child(3), .print-voucher-table td:nth-child(3) { width: 16%; text-align: center; }
+            .print-voucher-table th:nth-child(4), .print-voucher-table td:nth-child(4) { width: 30%; text-align: left; }
+            .print-voucher-table th:nth-child(5), .print-voucher-table td:nth-child(5) { width: 16%; text-align: center; }
+            .print-text-center { text-align: center; }
+            .print-text-left { text-align: left; }
+            .print-signature-area { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 8pt; }
+            .print-signature-box { text-align: center; width: 30%; border-top: 1px solid #000; padding-top: 1mm; font-weight: bold; }
+            .text-danger { color: #dc3545 !important; }
+            .text-muted { color: #999 !important; }
+            .print-amount-in-words { font-style: italic; }
         }
     `;
 
@@ -1446,19 +3413,13 @@ const EditJournalVoucher = () => {
 
     const formatDateForInput = (date) => {
         if (!date) return '';
-
-        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-            return date;
-        }
-
+        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
         try {
             const d = new Date(date);
             if (isNaN(d.getTime())) return '';
-
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
-
             return `${year}-${month}-${day}`;
         } catch (error) {
             console.error('Error formatting date:', error);
@@ -1467,6 +3428,12 @@ const EditJournalVoucher = () => {
     };
 
     const getFocusTargetOnModalClose = () => {
+        if (editingRowIndex !== null) {
+            return inlineSelectionType === 'debit'
+                ? `inline-debit-amount-${editingRowIndex}`
+                : `inline-credit-amount-${editingRowIndex}`;
+        }
+
         const hasTransactions = formData.entries.length > 0 &&
             formData.entries.some(entry => entry.accountId && entry.amount > 0);
         const isTotalsBalanced = totals.totalDebit === totals.totalCredit && totals.totalDebit > 0;
@@ -1498,7 +3465,6 @@ const EditJournalVoucher = () => {
 
     const isCanceled = formData.status === 'Canceled';
 
-    // Get debit and credit entries for display
     const debitEntries = formData.entries.filter(entry => entry.entryType === 'Debit');
     const creditEntries = formData.entries.filter(entry => entry.entryType === 'Credit');
     const maxRows = Math.max(debitEntries.length, creditEntries.length);
@@ -1549,11 +3515,8 @@ const EditJournalVoucher = () => {
                                                     }));
                                                     setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
 
-                                                    // Auto-convert to AD when we have a complete valid date
                                                     if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
-                                                        console.log('Converting BS to AD:', bsDate);
                                                         const adDate = convertBsToAd(bsDate);
-                                                        console.log('Converted AD date:', adDate);
                                                         if (adDate) {
                                                             setFormData(prev => ({
                                                                 ...prev,
@@ -1606,7 +3569,6 @@ const EditJournalVoucher = () => {
                                                     const value = e.target.value;
                                                     setFormData(prev => ({ ...prev, date: value }));
 
-                                                    // Convert AD to BS when user changes AD date
                                                     if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
                                                         const bsDate = convertAdToBs(value);
                                                         if (bsDate && isValidNepaliDate(bsDate)) {
@@ -1649,7 +3611,6 @@ const EditJournalVoucher = () => {
                                     </div>
                                 </>
                             ) : (
-                                // English date format section
                                 <div className="col-12 col-md-6 col-lg-2">
                                     <div className="position-relative">
                                         <input
@@ -1791,8 +3752,8 @@ const EditJournalVoucher = () => {
                                                     setAccountSearchQuery('');
                                                 }}
                                                 readOnly
-                                                disabled={isCanceled}
-                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: isCanceled ? '#e9ecef' : '#ffffff' }}
+                                                disabled={isCanceled || editingRowIndex !== null}
+                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: (isCanceled || editingRowIndex !== null) ? '#e9ecef' : '#ffffff' }}
                                             />
                                         </td>
                                         <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
@@ -1809,8 +3770,8 @@ const EditJournalVoucher = () => {
                                                         document.getElementById('headerCreditSearch')?.focus();
                                                     }
                                                 }}
-                                                disabled={isCanceled}
-                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: isCanceled ? '#e9ecef' : '#ffffff' }}
+                                                disabled={isCanceled || editingRowIndex !== null}
+                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: (isCanceled || editingRowIndex !== null) ? '#e9ecef' : '#ffffff' }}
                                             />
                                         </td>
                                         <td width="35%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
@@ -1837,8 +3798,8 @@ const EditJournalVoucher = () => {
                                                     }
                                                 }}
                                                 readOnly
-                                                disabled={isCanceled}
-                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: isCanceled ? '#e9ecef' : '#ffffff' }}
+                                                disabled={isCanceled || editingRowIndex !== null}
+                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: (isCanceled || editingRowIndex !== null) ? '#e9ecef' : '#ffffff' }}
                                             />
                                         </td>
                                         <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
@@ -1852,56 +3813,29 @@ const EditJournalVoucher = () => {
                                                 onKeyDown={(e) => {
                                                     if ((e.key === 'Tab' || e.key === 'Enter')) {
                                                         e.preventDefault();
-                                                        if (isEditMode) {
-                                                            document.getElementById('updateButton')?.focus();
-                                                        } else {
-                                                            document.getElementById('insertButton')?.focus();
-                                                        }
+                                                        document.getElementById('insertButton')?.focus();
                                                     }
                                                 }}
-                                                disabled={isCanceled}
-                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: isCanceled ? '#e9ecef' : '#ffffff' }}
+                                                disabled={isCanceled || editingRowIndex !== null}
+                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: (isCanceled || editingRowIndex !== null) ? '#e9ecef' : '#ffffff' }}
                                             />
                                         </td>
                                         <td width="10%" style={{ padding: '2px', textAlign: 'center', backgroundColor: '#ffffff' }}>
-                                            {isEditMode ? (
-                                                <div className="d-flex gap-1">
-                                                    <button
-                                                        type="button"
-                                                        id="updateButton"
-                                                        className="btn btn-sm btn-warning py-0 px-2"
-                                                        onClick={updateEntry}
-                                                        style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#ffc107', borderColor: '#ffc107' }}
-                                                    >
-                                                        UPDATE
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-secondary py-0 px-2"
-                                                        onClick={cancelEdit}
-                                                        style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold' }}
-                                                    >
-                                                        CANCEL
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    id="insertButton"
-                                                    className="btn btn-sm btn-success py-0 px-2"
-                                                    onClick={insertEntry}
-                                                    disabled={isCanceled || (!headerDebitAccount && !headerCreditAccount) ||
-                                                        (headerDebitAccount && !headerDebitAmount) ||
-                                                        (headerCreditAccount && !headerCreditAmount)}
-                                                    style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#198754', borderColor: '#198754' }}
-                                                >
-                                                    INSERT
-                                                </button>
-                                            )}
+                                            <button
+                                                type="button"
+                                                id="insertButton"
+                                                className="btn btn-sm btn-success py-0 px-2"
+                                                onClick={insertEntry}
+                                                disabled={isCanceled || editingRowIndex !== null || (!headerDebitAccount && !headerCreditAccount) ||
+                                                    (headerDebitAccount && !headerDebitAmount) ||
+                                                    (headerCreditAccount && !headerCreditAmount)}
+                                                style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#198754', borderColor: '#198754' }}
+                                            >
+                                                INSERT
+                                            </button>
                                         </td>
                                     </tr>
 
-                                    {/* Column headers row */}
                                     <tr style={{
                                         height: '26px',
                                         backgroundColor: '#e9ecef',
@@ -1914,13 +3848,12 @@ const EditJournalVoucher = () => {
                                         <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Amount (Rs.)</th>
                                         <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Account</th>
                                         <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Amount (Rs.)</th>
-                                        <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>Actions</th>
+                                        <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
                                     </tr>
                                 </thead>
 
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
                                     {(() => {
-                                        // Get debit and credit entries from unified entries array
                                         const debitEntriesList = formData.entries
                                             .filter(entry => entry.entryType === 'Debit')
                                             .map(entry => ({
@@ -1941,7 +3874,6 @@ const EditJournalVoucher = () => {
 
                                         const maxLength = Math.max(debitEntriesList.length, creditEntriesList.length);
 
-                                        // Create paired entries
                                         const pairedEntries = [];
                                         for (let i = 0; i < maxLength; i++) {
                                             pairedEntries.push({
@@ -1953,19 +3885,33 @@ const EditJournalVoucher = () => {
                                         return pairedEntries.map((item, index) => {
                                             const debitEntry = item.debitEntry;
                                             const creditEntry = item.creditEntry;
-                                            const isBeingEdited = editingEntryIndex === index;
+                                            const isInlineEditing = editingRowIndex === index;
 
                                             return (
-                                                <tr key={index} style={{
-                                                    height: 'auto',
-                                                    minHeight: '26px',
-                                                    backgroundColor: isBeingEdited ? '#fff3cd' : 'transparent'
-                                                }}>
-                                                    <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>{index + 1}</td>
-
-                                                    {/* Debit Account Column */}
+                                                <tr key={index} style={{ height: 'auto', minHeight: '26px' }}>
                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {debitEntry.accountName ? (
+                                                        {index + 1}
+                                                    </td>
+
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+                                                        {isInlineEditing ? (
+                                                            <input
+                                                                type="text"
+                                                                className="form-control form-control-sm"
+                                                                placeholder="Select Debit Account"
+                                                                value={inlineEditData.debitAccount
+                                                                    ? `${inlineEditData.debitAccount.uniqueNumber || ''} - ${inlineEditData.debitAccount.name}`
+                                                                    : ''}
+                                                                onFocus={() => {
+                                                                    setInlineSelectionType('debit');
+                                                                    setCurrentSelectionType('debit');
+                                                                    setShowAccountModal(true);
+                                                                    setAccountSearchQuery('');
+                                                                }}
+                                                                readOnly
+                                                                style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                            />
+                                                        ) : debitEntry.accountName ? (
                                                             <>
                                                                 <div>{debitEntry.accountName}</div>
                                                                 {debitEntry.accountId && (
@@ -1987,14 +3933,39 @@ const EditJournalVoucher = () => {
                                                         )}
                                                     </td>
 
-                                                    {/* Debit Amount Column */}
                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {debitEntry.amount > 0 ? debitEntry.amount : '-'}
+                                                        {isInlineEditing ? (
+                                                            <input
+                                                                type="number"
+                                                                id={`inline-debit-amount-${index}`}
+                                                                className="form-control form-control-sm"
+                                                                placeholder="Debit Amount"
+                                                                value={inlineEditData.debitAmount}
+                                                                onChange={(e) => setInlineEditData(prev => ({ ...prev, debitAmount: e.target.value }))}
+                                                                style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                            />
+                                                        ) : debitEntry.amount > 0 ? debitEntry.amount : '-'}
                                                     </td>
 
-                                                    {/* Credit Account Column */}
                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {creditEntry.accountName ? (
+                                                        {isInlineEditing ? (
+                                                            <input
+                                                                type="text"
+                                                                className="form-control form-control-sm"
+                                                                placeholder="Select Credit Account"
+                                                                value={inlineEditData.creditAccount
+                                                                    ? `${inlineEditData.creditAccount.uniqueNumber || ''} - ${inlineEditData.creditAccount.name}`
+                                                                    : ''}
+                                                                onFocus={() => {
+                                                                    setInlineSelectionType('credit');
+                                                                    setCurrentSelectionType('credit');
+                                                                    setShowAccountModal(true);
+                                                                    setAccountSearchQuery('');
+                                                                }}
+                                                                readOnly
+                                                                style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                            />
+                                                        ) : creditEntry.accountName ? (
                                                             <>
                                                                 <div>{creditEntry.accountName}</div>
                                                                 {creditEntry.accountId && (
@@ -2016,48 +3987,95 @@ const EditJournalVoucher = () => {
                                                         )}
                                                     </td>
 
-                                                    {/* Credit Amount Column */}
                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {creditEntry.amount > 0 ? creditEntry.amount : '-'}
+                                                        {isInlineEditing ? (
+                                                            <input
+                                                                type="number"
+                                                                id={`inline-credit-amount-${index}`}
+                                                                className="form-control form-control-sm"
+                                                                placeholder="Credit Amount"
+                                                                value={inlineEditData.creditAmount}
+                                                                onChange={(e) => setInlineEditData(prev => ({ ...prev, creditAmount: e.target.value }))}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' || e.key === 'Tab') {
+                                                                        e.preventDefault();
+                                                                        updateInlineEntry();
+                                                                    }
+                                                                }}
+                                                                style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                            />
+                                                        ) : creditEntry.amount > 0 ? creditEntry.amount : '-'}
                                                     </td>
 
-                                                    {/* Action Buttons Column */}
                                                     <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
                                                         <div className="d-flex gap-1 justify-content-center">
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-sm btn-warning py-0 px-1"
-                                                                onClick={() => startEditEntry(index)}
-                                                                disabled={isCanceled}
-                                                                title="Edit this row"
-                                                                style={{
-                                                                    height: '18px',
-                                                                    width: '18px',
-                                                                    minWidth: '18px',
-                                                                    fontSize: '0.6rem',
-                                                                    backgroundColor: '#ffc107',
-                                                                    borderColor: '#ffc107'
-                                                                }}
-                                                            >
-                                                                <i className="bi bi-pencil"></i>
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-sm btn-danger py-0 px-1"
-                                                                onClick={() => removeEntry(index)}
-                                                                disabled={isCanceled}
-                                                                title="Delete this row"
-                                                                style={{
-                                                                    height: '18px',
-                                                                    width: '18px',
-                                                                    minWidth: '18px',
-                                                                    fontSize: '0.6rem',
-                                                                    backgroundColor: '#dc3545',
-                                                                    borderColor: '#dc3545'
-                                                                }}
-                                                            >
-                                                                <i className="bi bi-trash"></i>
-                                                            </button>
+                                                            {isInlineEditing ? (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-success py-0 px-1"
+                                                                        onClick={updateInlineEntry}
+                                                                        title="Save changes"
+                                                                        style={{
+                                                                            height: '18px',
+                                                                            minWidth: '18px',
+                                                                            fontSize: '0.6rem'
+                                                                        }}
+                                                                    >
+                                                                        <i className="bi bi-check"></i>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-secondary py-0 px-1"
+                                                                        onClick={cancelInlineEdit}
+                                                                        title="Cancel edit"
+                                                                        style={{
+                                                                            height: '18px',
+                                                                            minWidth: '18px',
+                                                                            fontSize: '0.6rem'
+                                                                        }}
+                                                                    >
+                                                                        <i className="bi bi-x"></i>
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-warning py-0 px-1"
+                                                                        onClick={() => startEditEntry(index)}
+                                                                        disabled={isCanceled || editingRowIndex !== null}
+                                                                        title="Edit this row"
+                                                                        style={{
+                                                                            height: '18px',
+                                                                            width: '18px',
+                                                                            minWidth: '18px',
+                                                                            fontSize: '0.6rem',
+                                                                            backgroundColor: '#ffc107',
+                                                                            borderColor: '#ffc107'
+                                                                        }}
+                                                                    >
+                                                                        <i className="bi bi-pencil"></i>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-danger py-0 px-1"
+                                                                        onClick={() => removeEntry(index)}
+                                                                        disabled={isCanceled || editingRowIndex !== null}
+                                                                        title="Delete this row"
+                                                                        style={{
+                                                                            height: '18px',
+                                                                            width: '18px',
+                                                                            minWidth: '18px',
+                                                                            fontSize: '0.6rem',
+                                                                            backgroundColor: '#dc3545',
+                                                                            borderColor: '#dc3545'
+                                                                        }}
+                                                                    >
+                                                                        <i className="bi bi-trash"></i>
+                                                                    </button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -2076,9 +4094,9 @@ const EditJournalVoucher = () => {
 
                                 <tfoot>
                                     <tr className="table-active">
-                                        <th colSpan="2" className="text-end">Total Debit:</th>
+                                        <th colSpan="2" className="text-end">Total:</th>
                                         <th className="text-primary">Rs. {totals.totalDebit.toFixed(2)}</th>
-                                        <th className="text-end">Total Credit:</th>
+                                        <th className="text-end">Total:</th>
                                         <th className="text-primary">Rs. {totals.totalCredit.toFixed(2)}</th>
                                         <th></th>
                                     </tr>
@@ -2086,7 +4104,6 @@ const EditJournalVoucher = () => {
                             </table>
                         </div>
 
-                        {/* Validation Messages */}
                         {totals.totalDebit !== totals.totalCredit && totals.totalDebit > 0 && (
                             <div className="alert alert-warning mt-2">
                                 <i className="fas fa-exclamation-triangle me-2"></i>
@@ -2094,7 +4111,6 @@ const EditJournalVoucher = () => {
                             </div>
                         )}
 
-                        {/* Action Buttons */}
                         <div className="d-flex justify-content-between align-items-center mt-2">
                             <div className="form-check mb-0 d-flex align-items-center">
                                 <input
@@ -2146,105 +4162,12 @@ const EditJournalVoucher = () => {
                 </div>
             </div>
 
-            {/* Account Modal */}
-            {/* {showAccountModal && (
-                <>
-                    <div className="modal-backdrop fade show" style={{ zIndex: 1040 }}></div>
-                    <div
-                        className="modal fade show"
-                        tabIndex="-1"
-                        style={{ display: 'block', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                                e.preventDefault();
-                                setShowAccountModal(false);
-                                const focusTargetId = getFocusTargetOnModalClose();
-                                setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
-                            }
-                        }}
-                    >
-                        <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '70%' }}>
-                            <div className="modal-content" style={{ height: '400px' }}>
-                                <div className="modal-header py-1">
-                                    <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
-                                        Select {currentSelectionType === 'debit' ? 'Debit' : 'Credit'} Account
-                                    </h5>
-                                    <small className="ms-auto text-muted" style={{ fontSize: '0.7rem' }}>
-                                        {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
-                                    </small>
-                                    <button
-                                        type="button"
-                                        className="btn-close"
-                                        onClick={() => {
-                                            setShowAccountModal(false);
-                                            const focusTargetId = getFocusTargetOnModalClose();
-                                            setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
-                                        }}
-                                    ></button>
-                                </div>
-                                <div className="p-2 bg-white sticky-top">
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Search Account... (Press F6 to create new account)"
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={accountSearchQuery}
-                                        onChange={handleAccountSearch}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) firstAccountItem.focus();
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const activeItem = document.querySelector('.account-item.active');
-                                                if (activeItem) {
-                                                    const accountId = activeItem.getAttribute('data-account-id');
-                                                    const account = accounts.find(a => a.id === accountId);
-                                                    if (account) selectAccount(account);
-                                                } else {
-                                                    setShowAccountModal(false);
-                                                    const focusTargetId = getFocusTargetOnModalClose();
-                                                    setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                // Create account functionality can be added here
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{ height: '24px', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                    />
-                                </div>
-                                <div className="modal-body p-0">
-                                    <div style={{ height: 'calc(400px - 120px)' }}>
-                                        <VirtualizedAccountList
-                                            accounts={accounts}
-                                            onAccountClick={selectAccount}
-                                            searchRef={accountSearchRef}
-                                            hasMore={hasMoreAccountResults}
-                                            isSearching={isAccountSearching}
-                                            onLoadMore={loadMoreAccounts}
-                                            totalAccounts={totalAccounts}
-                                            page={accountSearchPage}
-                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )} */}
-
-            {/* Account Modal - Using AccountModalForJournal */}
             {showAccountModal && (
                 <AccountModalForJournal
                     show={showAccountModal}
                     onClose={() => {
                         setShowAccountModal(false);
+                        setInlineSelectionType(null);
                         const focusTargetId = getFocusTargetOnModalClose();
                         setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
                     }}
@@ -2269,8 +4192,8 @@ const EditJournalVoucher = () => {
                     onLoadMore={loadMoreAccounts}
                     page={accountSearchPage}
                     onCreateAccount={() => {
-                        // Handle account creation if needed
                         setShowAccountModal(false);
+                        setInlineSelectionType(null);
                         setNotification({
                             show: true,
                             message: 'Account creation is available in the Accounts section',
@@ -2279,7 +4202,7 @@ const EditJournalVoucher = () => {
                     }}
                     selectedAccountId={null}
                     autoFocus={false}
-                    title={`Select ${currentSelectionType === 'debit' ? 'Debit' : 'Credit'} Account`}
+                    title={`Select ${(inlineSelectionType || currentSelectionType) === 'debit' ? 'Debit' : 'Credit'} Account`}
                 />
             )}
 

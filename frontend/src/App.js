@@ -53,7 +53,7 @@ import AddCashSalesReturn from './components/retailer/salesReturn/AddCashSalesRe
 import SalesReturnPrint from './components/retailer/salesReturn/Print';
 import SalesVatReport from './components/retailer/sales/SalesVatReport';
 import PurchaseVatReport from './components/retailer/purchase/PurchaseVatReport';
-import SalesReturnVatReport from './components/retailer/salesReturn/SalesReturnVatRreport';
+import SalesReturnVatReport from './components/retailer/salesReturn/SalesReturnVatReport';
 import PurchaseReturnVatReport from './components/retailer/purchaseReturn/PurchaseReturnVatReport';
 import MonthlyVatSummary from './components/retailer/miscellaneous/MonthlyVatSummary';
 import AddPayment from './components/retailer/payment/AddPayment';

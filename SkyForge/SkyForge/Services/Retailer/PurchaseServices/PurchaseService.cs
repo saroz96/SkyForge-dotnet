@@ -3507,14 +3507,15 @@ namespace SkyForge.Services.Retailer.PurchaseServices
             return await _billNumberService.GetNextBillNumberAsync(companyId, fiscalYearId, "purchase");
         }
 
-        public async Task<bool> CheckDuplicateInvoiceAsync(string partyBillNumber, Guid companyId)
+        public async Task<bool> CheckDuplicateInvoiceAsync(string partyBillNumber, Guid companyId, Guid fiscalYearId)
         {
             if (string.IsNullOrWhiteSpace(partyBillNumber))
                 return false;
 
             return await _context.PurchaseBills
                 .AnyAsync(pb => pb.CompanyId == companyId &&
-                               pb.PartyBillNumber == partyBillNumber.Trim());
+                                pb.FiscalYearId == fiscalYearId &&
+                                pb.PartyBillNumber == partyBillNumber.Trim());
         }
 
         public async Task<LastPurchaseDataDTO> GetLastPurchaseDataAsync(Guid itemId, Guid companyId)

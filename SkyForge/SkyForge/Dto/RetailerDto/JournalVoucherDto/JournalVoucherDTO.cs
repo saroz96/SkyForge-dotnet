@@ -221,6 +221,7 @@ namespace SkyForge.Dto.RetailerDto.JournalVoucherDto
         public Guid Id { get; set; }
         public Guid AccountId { get; set; }
         public string AccountName { get; set; } = string.Empty;
+        public int? AccountUniqueNumber { get; set; }
         public string EntryType { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public string? Description { get; set; }

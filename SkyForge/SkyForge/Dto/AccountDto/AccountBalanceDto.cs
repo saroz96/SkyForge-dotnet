@@ -16,5 +16,13 @@ namespace SkyForge.Dto.AccountDto
         public decimal Balance { get; set; }
         public string BalanceType { get; set; } = string.Empty; // "Dr" or "Cr"
         public decimal RawBalance { get; set; }
+
+        public decimal OpeningBalance { get; set; }
+        public string OpeningBalanceType { get; set; } = "Dr";
+
+        // Optional additional fields
+        public Guid? OpeningBalanceId { get; set; }
+        public DateTime? OpeningBalanceDate { get; set; }
+        public string? OpeningBalanceNepaliDate { get; set; }
     }
 }

@@ -11,7 +11,7 @@ namespace SkyForge.Services.Retailer.PurchaseServices
         Task<IEnumerable<PurchaseBillResponseDTO>> GetPurchaseBillsAsync(Guid companyId, DateTime? fromDate = null, DateTime? toDate = null);
         Task<bool> DeletePurchaseBillAsync(Guid id, Guid companyId);
         Task<string> GetNextBillNumberAsync(Guid companyId, Guid fiscalYearId);
-        Task<bool> CheckDuplicateInvoiceAsync(string partyBillNumber, Guid companyId);
+        Task<bool> CheckDuplicateInvoiceAsync(string partyBillNumber, Guid companyId, Guid fiscalYearId);
         Task<PurchaseEntryDataDTO> GetPurchaseEntryDataAsync(Guid companyId, Guid fiscalYearId, Guid userId);
         Task<string> GetCurrentBillNumberAsync(Guid companyId, Guid fiscalYearId);
         Task<PurchaseRegisterDataDTO> GetPurchaseRegisterAsync(Guid companyId, Guid fiscalYearId, string? fromDate = null, string? toDate = null);

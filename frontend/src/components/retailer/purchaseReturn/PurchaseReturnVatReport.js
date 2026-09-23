@@ -1,15 +1,15 @@
 // import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // import { useNavigate } from 'react-router-dom';
-// import axios from 'axios';
 // import Header from '../Header';
 // import NepaliDate from 'nepali-datetime';
-// import '../../../stylesheet/noDateIcon.css';
 // import Loader from '../../Loader';
 // import * as XLSX from 'xlsx';
 // import NotificationToast from '../../NotificationToast';
 // import { FixedSizeList as List } from 'react-window';
 // import AutoSizer from 'react-virtualized-auto-sizer';
-// import api, { refreshToken } from '../../services/api';
+// import api from '../../services/api';
+// import { FiFileText, FiPrinter, FiDownload, FiSearch, FiRefreshCw, FiCalendar, FiX } from 'react-icons/fi';
+// import './PurchaseReturnVatReport.css';
 
 // // Helper functions for date conversion
 // const convertBsToAd = (bsDate) => {
@@ -110,6 +110,7 @@
 // const PurchaseReturnVatReport = () => {
 //     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
 //     const currentEnglishDate = new Date().toISOString().split('T')[0];
+//     const [exporting, setExporting] = useState(false);
 
 //     const [dateErrors, setDateErrors] = useState({
 //         fromDate: '',
@@ -148,13 +149,12 @@
 //     });
 
 //     const [loading, setLoading] = useState(false);
-//     const [exporting, setExporting] = useState(false);
 //     const [error, setError] = useState(null);
 //     const [searchQuery, setSearchQuery] = useState('');
 //     const [selectedRowIndex, setSelectedRowIndex] = useState(0);
 //     const [filteredReports, setFilteredReports] = useState([]);
 
-//     // Column resizing state - Updated with BS Date and AD Date columns
+//     // Column resizing state
 //     const [columnWidths, setColumnWidths] = useState({
 //         bsDate: 80,
 //         adDate: 80,
@@ -180,11 +180,6 @@
 //     const tableBodyRef = useRef(null);
 //     const [shouldFetch, setShouldFetch] = useState(false);
 //     const navigate = useNavigate();
-
-//     // Helper function to check if date format is Nepali
-//     const isNepaliDateFormat = useCallback(() => {
-//         return company.dateFormat && company.dateFormat.toLowerCase() === 'nepali';
-//     }, [company.dateFormat]);
 
 //     // Fetch initial data - RUNS ONLY ONCE on mount
 //     useEffect(() => {
@@ -257,7 +252,7 @@
 //         fetchInitialData();
 //     }, []);
 
-//     // Fetch purchase return VAT report data when generate is clicked - ONLY UPDATES REPORT DATA, NOT INPUT FIELDS
+//     // Fetch VAT report data when generate is clicked
 //     useEffect(() => {
 //         const fetchVatReportData = async () => {
 //             if (!shouldFetch) return;
@@ -265,7 +260,6 @@
 //             try {
 //                 setLoading(true);
 //                 const params = new URLSearchParams();
-//                 // Use AD dates for API call
 //                 if (dateRange.fromDateAd) params.append('fromDate', dateRange.fromDateAd);
 //                 if (dateRange.toDateAd) params.append('toDate', dateRange.toDateAd);
 //                 params.append('dateFormat', company.dateFormat);
@@ -433,7 +427,6 @@
 //         }
 //     };
 
-//     // Validate and auto-correct Nepali date
 //     const validateAndCorrectNepaliDate = (dateStr) => {
 //         if (!dateStr) return null;
 //         if (isValidNepaliDate(dateStr)) return dateStr;
@@ -465,19 +458,12 @@
 //         });
 //     }, []);
 
-//     const formatDate = useCallback((dateString) => {
-//         if (!dateString) return '';
-//         try {
-//             if (company.dateFormat === 'nepali') {
-//                 return new NepaliDate(dateString).format('YYYY-MM-DD');
-//             }
-//             return new Date(dateString).toISOString().split('T')[0];
-//         } catch (error) {
-//             return dateString;
-//         }
-//     }, [company.dateFormat]);
+//     const formatCurrencyForExport = (num) => {
+//         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
+//         return number.toFixed(2);
+//     };
 
-//     const exportToExcel = async () => {
+//     const handleExportExcel = async () => {
 //         if (!data.purchaseReturnVatReport || data.purchaseReturnVatReport.length === 0) {
 //             setNotification({
 //                 show: true,
@@ -489,57 +475,78 @@
 
 //         setExporting(true);
 //         try {
-//             const excelData = [];
 //             const currentDate = new Date().toISOString().split('T')[0];
+//             const excelData = [];
 
-//             excelData.push(['Company Name:', data.currentCompanyName || '']);
-//             excelData.push(['Report Type:', 'Purchase Return VAT Report']);
+//             // Header information
+//             excelData.push(['Purchase Return VAT Report']);
+//             excelData.push(['Company:', data.currentCompanyName || 'N/A']);
+//             excelData.push(['Address:', data.company?.address || '', data.company?.city ? ', ' + data.company?.city : '']);
+//             excelData.push(['PAN:', data.company?.pan || '']);
 //             excelData.push(['From Date (BS):', dateRange.fromDate]);
 //             excelData.push(['To Date (BS):', dateRange.toDate]);
-//             excelData.push(['Export Date:', currentDate]);
+//             excelData.push(['From Date (AD):', dateRange.fromDateAd]);
+//             excelData.push(['To Date (AD):', dateRange.toDateAd]);
+//             excelData.push(['Total Bills:', filteredReports.length]);
+//             if (searchQuery) excelData.push(['Search:', searchQuery]);
+//             excelData.push(['Export Date:', new Date().toLocaleString()]);
 //             excelData.push([]);
 
 //             const headers = [
-//                 'Miti', 'Date (AD)', 'Vch. No.', 'Supplier\'s Name', 'Supplier\'s PAN',
-//                 'Total Amount', 'Discount', 'Non-VAT Return', 'Taxable Amt.', 'VAT'
+//                 'S.No', 'Miti', 'Date (AD)', 'Vch. No.', 'Supplier\'s Name',
+//                 'Supplier\'s PAN', 'Total Amount', 'Discount', 'Non-VAT Return',
+//                 'Taxable Amt.', 'VAT'
 //             ];
 //             excelData.push(headers);
 
-//             filteredReports.forEach((report) => {
+//             let totalTotalAmount = 0;
+//             let totalDiscount = 0;
+//             let totalNonVatPurchaseReturn = 0;
+//             let totalTaxable = 0;
+//             let totalVat = 0;
+
+//             filteredReports.forEach((report, index) => {
 //                 excelData.push([
+//                     index + 1,
 //                     report.nepaliDate || '',
 //                     report.date ? new Date(report.date).toLocaleDateString('en-CA') : '',
-//                     report.billNumber,
+//                     report.billNumber || '',
 //                     report.accountName || '',
-//                     report.panNumber,
-//                     formatCurrency(report.totalAmount),
-//                     formatCurrency(report.discountAmount),
-//                     formatCurrency(report.nonVatPurchaseReturn),
-//                     formatCurrency(report.taxableAmount),
-//                     formatCurrency(report.vatAmount)
+//                     report.panNumber || '',
+//                     formatCurrencyForExport(report.totalAmount),
+//                     formatCurrencyForExport(report.discountAmount),
+//                     formatCurrencyForExport(report.nonVatPurchaseReturn),
+//                     formatCurrencyForExport(report.taxableAmount),
+//                     formatCurrencyForExport(report.vatAmount)
 //                 ]);
+
+//                 totalTotalAmount += parseFloat(report.totalAmount || 0);
+//                 totalDiscount += parseFloat(report.discountAmount || 0);
+//                 totalNonVatPurchaseReturn += parseFloat(report.nonVatPurchaseReturn || 0);
+//                 totalTaxable += parseFloat(report.taxableAmount || 0);
+//                 totalVat += parseFloat(report.vatAmount || 0);
 //             });
 
 //             excelData.push([]);
 //             excelData.push([
-//                 'TOTALS', '', '', '', '',
-//                 formatCurrency(totals.totalAmount),
-//                 formatCurrency(totals.discountAmount),
-//                 formatCurrency(totals.nonVatPurchaseReturn),
-//                 formatCurrency(totals.taxableAmount),
-//                 formatCurrency(totals.vatAmount)
+//                 '', '', '', '', 'GRAND TOTALS',
+//                 '', formatCurrencyForExport(totalTotalAmount),
+//                 formatCurrencyForExport(totalDiscount),
+//                 formatCurrencyForExport(totalNonVatPurchaseReturn),
+//                 formatCurrencyForExport(totalTaxable),
+//                 formatCurrencyForExport(totalVat)
 //             ]);
 
 //             const ws = XLSX.utils.aoa_to_sheet(excelData);
 //             ws['!cols'] = [
-//                 { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 25 }, { wch: 12 },
-//                 { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }
+//                 { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 25 },
+//                 { wch: 14 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }
 //             ];
 
 //             const wb = XLSX.utils.book_new();
 //             XLSX.utils.book_append_sheet(wb, ws, 'Purchase Return VAT Report');
 
-//             const fileName = `Purchase_Return_VAT_Report_${dateRange.fromDate}_to_${dateRange.toDate}.xlsx`;
+//             const fileName = `Purchase_Return_VAT_Report_${dateRange.fromDate}_to_${dateRange.toDate}_${currentDate}.xlsx`;
 //             XLSX.writeFile(wb, fileName);
 
 //             setNotification({
@@ -580,106 +587,145 @@
 //             return;
 //         }
 
-//         const printHeader = `
-//             <div class="print-header">
-//                 <h1 style="font-size: 14px; margin: 0;">${data.currentCompanyName || 'Company Name'}</h1>
-//                 <p style="font-size: 8px; margin: 2px 0;">
-//                     ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
-//                     PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
-//                 </p>
-//                 <hr style="margin: 2px 0;">
-//             </div>
-//         `;
+//         let tableContent = generatePrintContent();
 
+//         printWindow.document.write(`
+//             <html>
+//                 <head>
+//                     <title>Purchase Return VAT Report</title>
+//                     <meta charset="UTF-8">
+//                     <style>
+//                         @page { margin: 5mm; }
+//                         body { 
+//                             font-family: 'Segoe UI', Arial, sans-serif; 
+//                             font-size: 10px; 
+//                             margin: 0;
+//                             padding: 5mm;
+//                             background: #fff;
+//                             color: #000;
+//                         }
+//                         table { 
+//                             width: 100%; 
+//                             border-collapse: collapse; 
+//                             page-break-inside: auto;
+//                             font-size: 10px;
+//                         }
+//                         tr { page-break-inside: avoid; page-break-after: auto; }
+//                         th, td { 
+//                             border: 1px solid #333; 
+//                             padding: 4px 6px; 
+//                             text-align: left; 
+//                             white-space: nowrap;
+//                         }
+//                         th { 
+//                             background-color: #e8e8e8 !important; 
+//                             -webkit-print-color-adjust: exact; 
+//                             print-color-adjust: exact;
+//                             font-size: 11px;
+//                             font-weight: 700;
+//                             color: #1a1a1a;
+//                         }
+//                         td { font-size: 10px; padding: 4px 6px; }
+//                         .print-header { text-align: center; margin-bottom: 10px; }
+//                         .text-end { text-align: right; }
+//                         .nowrap { white-space: nowrap; }
+//                         .report-title {
+//                             text-align: center;
+//                             text-decoration: underline;
+//                             font-size: 14px;
+//                             font-weight: 700;
+//                             margin: 6px 0;
+//                             color: #1a1a1a;
+//                             letter-spacing: 0.5px;
+//                         }
+//                         .grand-total-row td {
+//                             font-weight: 700;
+//                             border-top: 3px double #000;
+//                             background-color: #f5f5f5 !important;
+//                             -webkit-print-color-adjust: exact;
+//                             print-color-adjust: exact;
+//                         }
+//                         .company-name {
+//                             font-size: 18px;
+//                             font-weight: 700;
+//                             margin: 0;
+//                             padding: 0;
+//                             color: #1a1a1a;
+//                             letter-spacing: 1px;
+//                         }
+//                         .company-details {
+//                             font-size: 10px;
+//                             margin: 4px 0;
+//                             color: #333;
+//                             line-height: 1.4;
+//                         }
+//                         .footer {
+//                             margin-top: 15px;
+//                             font-size: 9px;
+//                             text-align: center;
+//                             border-top: 1px solid #ccc;
+//                             padding-top: 8px;
+//                             color: #666;
+//                         }
+//                         .total-label { font-size: 11px; font-weight: 600; }
+//                         @media print {
+//                             body { padding: 10px; }
+//                             th, td { padding: 3px 5px; }
+//                         }
+//                     </style>
+//                 </head>
+//                 <body>
+//                     ${tableContent}
+//                     <script>
+//                         window.onload = function() {
+//                             setTimeout(function() { 
+//                                 window.print();
+//                                 setTimeout(function() {
+//                                     window.close();
+//                                 }, 500);
+//                             }, 300);
+//                         };
+//                     <\/script>
+//                 </body>
+//             </html>
+//         `);
+//         printWindow.document.close();
+//     };
+
+//     const generatePrintContent = () => {
 //         let tableContent = `
-//         <style>
-//             @page {
-//                 margin: 3mm;
-//             }
-//             body { 
-//                 font-family: Arial, sans-serif; 
-//                 font-size: 7px; 
-//                 margin: 0;
-//                 padding: 2mm;
-//             }
-//             table { 
-//                 width: 100%; 
-//                 border-collapse: collapse; 
-//                 page-break-inside: auto;
-//                 font-size: 6px;
-//             }
-//             tr { 
-//                 page-break-inside: avoid; 
-//                 page-break-after: auto; 
-//             }
-//             th, td { 
-//                 border: 1px solid #000; 
-//                 padding: 2px 3px; 
-//                 text-align: left; 
-//                 white-space: nowrap;
-//             }
-//             th { 
-//                 background-color: #f2f2f2 !important; 
-//                 -webkit-print-color-adjust: exact;
-//                 print-color-adjust: exact;
-//                 font-size: 10px;
-//                 font-weight: bold;
-//                 padding: 3px 3px;
-//             }
-//             td {
-//                 font-size: 8px;
-//                 padding: 2px 3px;
-//             }
-//             .print-header { 
-//                 text-align: center; 
-//                 margin-bottom: 5px; 
-//             }
-//             .nowrap {
-//                 white-space: nowrap;
-//             }
-//             h1 {
-//                 font-size: 14px;
-//                 margin: 0;
-//             }
-//             .report-title {
-//                 text-align: center;
-//                 text-decoration: underline;
-//                 font-size: 11px;
-//                 font-weight: bold;
-//                 margin: 3px 0;
-//             }
-//             .grand-total-row td {
-//                 font-weight: bold;
-//                 border-top: 2px solid #000;
-//                 font-size: 7px;
-//             }
-//             .text-end {
-//                 text-align: right;
-//             }
-//         </style>
-//         ${printHeader}
-//         <div class="report-title">Purchase Return VAT Report</div>
-//         <div style="margin-bottom: 5px; font-size: 8px; display: flex; justify-content: space-between;">
-//             <div><strong>From Date (BS):</strong> ${dateRange.fromDate}</div>
-//             <div><strong>To Date (BS):</strong> ${dateRange.toDate}</div>
-//             <div><strong>Printed:</strong> ${new Date().toLocaleString()}</div>
-//         </div>
-//         <table cellspacing="0">
-//             <thead>
-//                 <tr>
-//                     <th class="nowrap">Miti</th>
-//                     <th class="nowrap">Date</th>
-//                     <th class="nowrap">Vch. No.</th>
-//                     <th class="nowrap">Supplier's Name</th>
-//                     <th class="nowrap">Supplier's PAN</th>
-//                     <th class="nowrap text-end">Total Amount</th>
-//                     <th class="nowrap text-end">Discount</th>
-//                     <th class="nowrap text-end">Non-VAT Return</th>
-//                     <th class="nowrap text-end">Taxable Amt.</th>
-//                     <th class="nowrap text-end">VAT</th>
-//                 </tr>
-//             </thead>
-//             <tbody>
+//             <div class="print-header">
+//                 <div class="company-name">${data.currentCompanyName || 'Company Name'}</div>
+//                 <div class="company-details">
+//                     ${data.company?.address || ''}${data.company?.city ? ', ' + data.company?.city : ''}<br>
+//                     PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
+//                 </div>
+//                 <hr style="margin:6px 0; border: 1px solid #ccc;">
+//                 <div class="report-title">Purchase Return VAT Report</div>
+//                 <div class="statement-info">
+//                     <strong>From (BS):</strong> ${dateRange.fromDate} &nbsp;|&nbsp;
+//                     <strong>To (BS):</strong> ${dateRange.toDate} &nbsp;|&nbsp;
+//                     <strong>From (AD):</strong> ${dateRange.fromDateAd} &nbsp;|&nbsp;
+//                     <strong>To (AD):</strong> ${dateRange.toDateAd} &nbsp;|&nbsp;
+//                     <strong>Total Bills:</strong> ${filteredReports.length}
+//                 </div>
+//             </div>
+//             <table cellspacing="0">
+//                 <thead>
+//                     <tr>
+//                         <th class="nowrap">Miti</th>
+//                         <th class="nowrap">Date</th>
+//                         <th class="nowrap">Vch. No.</th>
+//                         <th class="nowrap">Supplier's Name</th>
+//                         <th class="nowrap">Supplier's PAN</th>
+//                         <th class="nowrap text-end">Total Amount</th>
+//                         <th class="nowrap text-end">Discount</th>
+//                         <th class="nowrap text-end">Non-VAT Return</th>
+//                         <th class="nowrap text-end">Taxable Amt.</th>
+//                         <th class="nowrap text-end">VAT</th>
+//                     </tr>
+//                 </thead>
+//                 <tbody>
 //         `;
 
 //         let printTotals = {
@@ -692,18 +738,18 @@
 
 //         filteredReports.forEach((report) => {
 //             tableContent += `
-//             <tr>
-//                 <td class="nowrap">${report.nepaliDate || ''}</td>
-//                 <td class="nowrap">${report.date ? new Date(report.date).toLocaleDateString('en-CA') : ''}</td>
-//                 <td class="nowrap">${report.billNumber}</td>
-//                 <td class="nowrap">${report.accountName || ''}</td>
-//                 <td class="nowrap">${report.panNumber}</td>
-//                 <td class="text-end">${formatCurrency(report.totalAmount)}</td>
-//                 <td class="text-end">${formatCurrency(report.discountAmount)}</td>
-//                 <td class="text-end">${formatCurrency(report.nonVatPurchaseReturn)}</td>
-//                 <td class="text-end">${formatCurrency(report.taxableAmount)}</td>
-//                 <td class="text-end">${formatCurrency(report.vatAmount)}</td>
-//             </tr>
+//                 <tr>
+//                     <td class="nowrap">${report.nepaliDate || ''}</td>
+//                     <td class="nowrap">${report.date ? new Date(report.date).toLocaleDateString() : ''}</td>
+//                     <td class="nowrap">${report.billNumber || ''}</td>
+//                     <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">${report.accountName || ''}</td>
+//                     <td class="nowrap">${report.panNumber || ''}</td>
+//                     <td class="text-end">${(report.totalAmount || 0).toFixed(2)}</td>
+//                     <td class="text-end">${(report.discountAmount || 0).toFixed(2)}</td>
+//                     <td class="text-end">${(report.nonVatPurchaseReturn || 0).toFixed(2)}</td>
+//                     <td class="text-end">${(report.taxableAmount || 0).toFixed(2)}</td>
+//                     <td class="text-end">${(report.vatAmount || 0).toFixed(2)}</td>
+//                 </tr>
 //             `;
 
 //             printTotals.totalAmount += parseFloat(report.totalAmount || 0);
@@ -714,42 +760,19 @@
 //         });
 
 //         tableContent += `
-//             <tr class="grand-total-row">
-//                 <td colspan="5" style="font-weight: bold;">Grand Totals</td>
-//                 <td class="text-end" style="font-weight: bold;">${formatCurrency(printTotals.totalAmount)}</td>
-//                 <td class="text-end" style="font-weight: bold;">${formatCurrency(printTotals.discountAmount)}</td>
-//                 <td class="text-end" style="font-weight: bold;">${formatCurrency(printTotals.nonVatPurchaseReturn)}</td>
-//                 <td class="text-end" style="font-weight: bold;">${formatCurrency(printTotals.taxableAmount)}</td>
-//                 <td class="text-end" style="font-weight: bold;">${formatCurrency(printTotals.vatAmount)}</td>
-//             </tr>
-//             </tbody>
-//         </table>
-//         <div class="print-footer" style="margin-top: 8px; font-size: 7px; text-align: center; border-top: 1px solid #ccc; padding-top: 4px;">
-//             Printed from ${data.currentCompanyName || 'Company Name'} | ${new Date().toLocaleString()}
-//         </div>
+//                 <tr class="grand-total-row">
+//                     <td colspan="5" class="text-end total-label">GRAND TOTALS</td>
+//                     <td class="text-end total-label">${printTotals.totalAmount.toFixed(2)}</td>
+//                     <td class="text-end total-label">${printTotals.discountAmount.toFixed(2)}</td>
+//                     <td class="text-end total-label">${printTotals.nonVatPurchaseReturn.toFixed(2)}</td>
+//                     <td class="text-end total-label">${printTotals.taxableAmount.toFixed(2)}</td>
+//                     <td class="text-end total-label">${printTotals.vatAmount.toFixed(2)}</td>
+//                 </tr>
+//                 </tbody>
+//             </table>
 //         `;
 
-//         printWindow.document.write(`
-//             <!DOCTYPE html>
-//             <html>
-//             <head>
-//                 <title>Purchase Return VAT Report - ${data.currentCompanyName || 'Company Name'}</title>
-//                 <meta charset="UTF-8">
-//             </head>
-//             <body>
-//                 ${tableContent}
-//                 <script>
-//                     window.onload = function() {
-//                         setTimeout(function() {
-//                             window.print();
-//                             window.close();
-//                         }, 200);
-//                     };
-//                 <\/script>
-//             </body>
-//             </html>
-//         `);
-//         printWindow.document.close();
+//         return tableContent;
 //     };
 
 //     const resetColumnWidths = () => {
@@ -765,13 +788,19 @@
 //             taxableAmount: 100,
 //             vatAmount: 80
 //         });
+//         setNotification({
+//             show: true,
+//             message: 'Column widths reset',
+//             type: 'success',
+//             duration: 2000
+//         });
 //     };
 
 //     // Resize Handle Component
 //     const ResizeHandle = React.memo(({ onResizeStart, left, columnName }) => {
 //         return (
 //             <div
-//                 className="resize-handle"
+//                 className="prv-resize-handle"
 //                 style={{
 //                     position: 'absolute',
 //                     top: 0,
@@ -791,7 +820,7 @@
 //         );
 //     });
 
-//     // Table Header Component - Updated with BS Date and AD Date columns
+//     // Table Header Component
 //     const TableHeader = React.memo(() => {
 //         const totalWidth = columnWidths.bsDate + columnWidths.adDate + columnWidths.returnNo +
 //             columnWidths.supplierName + columnWidths.panNumber + columnWidths.totalAmount +
@@ -807,12 +836,11 @@
 
 //         return (
 //             <div
-//                 className="d-flex bg-light border-bottom sticky-top"
+//                 className="prv-header"
 //                 style={{
-//                     zIndex: 2,
-//                     height: '28px',
 //                     minWidth: `${totalWidth}px`,
-//                     userSelect: isResizing ? 'none' : 'auto'
+//                     zIndex: 2,
+//                     height: '28px'
 //                 }}
 //                 onMouseMove={(e) => {
 //                     if (isResizing && resizingColumn) {
@@ -838,62 +866,62 @@
 //                 }}
 //             >
 //                 {/* BS Date */}
-//                 <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, minWidth: '80px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Miti</strong>
+//                 <div className="prv-header-cell prv-header-cell--center" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, minWidth: '80px' }}>
+//                     <strong>Miti</strong>
 //                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.bsDate - 2} columnName="bsDate" />
 //                 </div>
 
 //                 {/* AD Date */}
-//                 <div className="d-flex align-items-center justify-content-center px-1 border-end position-relative" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, minWidth: '80px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Date</strong>
+//                 <div className="prv-header-cell prv-header-cell--center" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, minWidth: '80px' }}>
+//                     <strong>Date</strong>
 //                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.adDate - 2} columnName="adDate" />
 //                 </div>
 
 //                 {/* Vch. No. */}
-//                 <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.returnNo}px`, flexShrink: 0, minWidth: '60px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Vch. No.</strong>
-//                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.returnNo - 2} columnName="returnNo" />
+//                 <div className="prv-header-cell" style={{ width: `${columnWidths.returnNo}px`, flexShrink: 0, minWidth: '60px' }}>
+//                     <strong>Vch. No.</strong>
+//                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.returnNo - 3} columnName="returnNo" />
 //                 </div>
 
 //                 {/* Supplier's Name */}
-//                 <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.supplierName}px`, flexShrink: 0, minWidth: '100px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Supplier's Name</strong>
-//                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.supplierName - 2} columnName="supplierName" />
+//                 <div className="prv-header-cell" style={{ width: `${columnWidths.supplierName}px`, flexShrink: 0, minWidth: '100px' }}>
+//                     <strong>Supplier's Name</strong>
+//                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.supplierName - 3} columnName="supplierName" />
 //                 </div>
 
 //                 {/* Supplier's PAN */}
-//                 <div className="d-flex align-items-center px-1 border-end position-relative" style={{ width: `${columnWidths.panNumber}px`, flexShrink: 0, minWidth: '80px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Supplier's PAN</strong>
-//                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.panNumber - 2} columnName="panNumber" />
+//                 <div className="prv-header-cell" style={{ width: `${columnWidths.panNumber}px`, flexShrink: 0, minWidth: '80px' }}>
+//                     <strong>Supplier's PAN</strong>
+//                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.panNumber - 3} columnName="panNumber" />
 //                 </div>
 
 //                 {/* Total Amount */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.totalAmount}px`, flexShrink: 0, minWidth: '80px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Total Amount</strong>
+//                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.totalAmount}px`, flexShrink: 0, minWidth: '80px' }}>
+//                     <strong>Total Amount</strong>
 //                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.totalAmount - 2} columnName="totalAmount" />
 //                 </div>
 
 //                 {/* Discount */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, minWidth: '80px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Discount</strong>
+//                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, minWidth: '80px' }}>
+//                     <strong>Discount</strong>
 //                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.discount - 2} columnName="discount" />
 //                 </div>
 
 //                 {/* Non-VAT Return */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.nonVatPurchaseReturn}px`, flexShrink: 0, minWidth: '80px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Non-VAT Return</strong>
+//                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.nonVatPurchaseReturn}px`, flexShrink: 0, minWidth: '80px' }}>
+//                     <strong>Non-VAT Return</strong>
 //                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.nonVatPurchaseReturn - 2} columnName="nonVatPurchaseReturn" />
 //                 </div>
 
 //                 {/* Taxable Amt. */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 border-end position-relative" style={{ width: `${columnWidths.taxableAmount}px`, flexShrink: 0, minWidth: '80px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>Taxable Amt.</strong>
+//                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.taxableAmount}px`, flexShrink: 0, minWidth: '80px' }}>
+//                     <strong>Taxable Amt.</strong>
 //                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.taxableAmount - 2} columnName="taxableAmount" />
 //                 </div>
 
 //                 {/* VAT */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 position-relative" style={{ width: `${columnWidths.vatAmount}px`, flexShrink: 0, minWidth: '80px' }}>
-//                     <strong style={{ fontSize: '0.75rem' }}>VAT</strong>
+//                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.vatAmount}px`, flexShrink: 0, minWidth: '80px' }}>
+//                     <strong>VAT</strong>
 //                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.vatAmount - 2} columnName="vatAmount" />
 //                 </div>
 
@@ -904,9 +932,9 @@
 //         );
 //     });
 
-//     // Table Row Component - Updated with BS Date and AD Date columns
+//     // Table Row Component
 //     const TableRow = React.memo(({ index, style, data: rowData }) => {
-//         const { reports, selectedRowIndex, formatCurrency, formatDate, handleRowClick } = rowData;
+//         const { reports, selectedRowIndex, formatCurrency, handleRowClick } = rowData;
 //         const report = reports[index];
 
 //         if (!report) return null;
@@ -922,62 +950,61 @@
 //                     height: '28px',
 //                     minHeight: '28px',
 //                     padding: '0',
-//                     borderBottom: '1px solid #dee2e6',
+//                     borderBottom: '1px solid #e2e8f0',
 //                     cursor: 'pointer',
-//                     backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
+//                     backgroundColor: isSelected ? '#eff6ff' : (index % 2 === 0 ? '#f8fafc' : 'white')
 //                 }}
+//                 className="prv-row"
 //                 onClick={() => handleRowClick(index)}
 //             >
 //                 {/* BS Date */}
-//                 <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{report.nepaliDate || ''}</span>
+//                 <div className="prv-cell prv-cell--center" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
+//                     <span>{report.nepaliDate || ''}</span>
 //                 </div>
 
 //                 {/* AD Date */}
-//                 <div className="d-flex align-items-center justify-content-center px-1 border-end" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{report.date ? new Date(report.date).toLocaleDateString() : ''}</span>
+//                 <div className="prv-cell prv-cell--center" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
+//                     <span>{report.date ? new Date(report.date).toLocaleDateString() : ''}</span>
 //                 </div>
 
 //                 {/* Vch. No. */}
-//                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.returnNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{report.billNumber}</span>
+//                 <div className="prv-cell" style={{ width: `${columnWidths.returnNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+//                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{report.billNumber || ''}</span>
 //                 </div>
 
 //                 {/* Supplier's Name */}
-//                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.supplierName}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={report.accountName}>
-//                     <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-//                         {report.accountName || ''}
-//                     </span>
+//                 <div className="prv-cell" style={{ width: `${columnWidths.supplierName}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={report.accountName || ''}>
+//                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{report.accountName || ''}</span>
 //                 </div>
 
 //                 {/* Supplier's PAN */}
-//                 <div className="d-flex align-items-center px-1 border-end" style={{ width: `${columnWidths.panNumber}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{report.panNumber}</span>
+//                 <div className="prv-cell" style={{ width: `${columnWidths.panNumber}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
+//                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{report.panNumber || ''}</span>
 //                 </div>
 
 //                 {/* Total Amount */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.totalAmount}px`, flexShrink: 0, height: '100%' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{formatCurrency(report.totalAmount)}</span>
+//                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.totalAmount}px`, flexShrink: 0, height: '100%' }}>
+//                     <span>{formatCurrency(report.totalAmount)}</span>
 //                 </div>
 
 //                 {/* Discount */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, height: '100%' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{formatCurrency(report.discountAmount)}</span>
+//                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, height: '100%' }}>
+//                     <span>{formatCurrency(report.discountAmount)}</span>
 //                 </div>
 
 //                 {/* Non-VAT Return */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.nonVatPurchaseReturn}px`, flexShrink: 0, height: '100%' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{formatCurrency(report.nonVatPurchaseReturn)}</span>
+//                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.nonVatPurchaseReturn}px`, flexShrink: 0, height: '100%' }}>
+//                     <span>{formatCurrency(report.nonVatPurchaseReturn)}</span>
 //                 </div>
 
 //                 {/* Taxable Amt. */}
-//                 <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.taxableAmount}px`, flexShrink: 0, height: '100%' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{formatCurrency(report.taxableAmount)}</span>
+//                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.taxableAmount}px`, flexShrink: 0, height: '100%' }}>
+//                     <span>{formatCurrency(report.taxableAmount)}</span>
 //                 </div>
 
 //                 {/* VAT */}
-//                 <div className="d-flex align-items-center justify-content-end px-1" style={{ width: `${columnWidths.vatAmount}px`, flexShrink: 0, height: '100%' }}>
-//                     <span style={{ fontSize: '0.75rem' }}>{formatCurrency(report.vatAmount)}</span>
+//                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.vatAmount}px`, flexShrink: 0, height: '100%' }}>
+//                     <span>{formatCurrency(report.vatAmount)}</span>
 //                 </div>
 //             </div>
 //         );
@@ -989,380 +1016,273 @@
 //         return prevReport === nextReport && prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex;
 //     });
 
-//     // Reset component state when unmounting to prevent navigation issues
-//     useEffect(() => {
-//         return () => {
-//             setShouldFetch(false);
-//             setLoading(false);
-//             setError(null);
-//         };
-//     }, []);
+//     if (loading && data.purchaseReturnVatReport.length === 0) return <Loader />;
 
-//     if (loading && !data.purchaseReturnVatReport.length) return <Loader />;
+//     if (error && data.purchaseReturnVatReport.length === 0) {
+//         return (
+//             <div className="prv-page">
+//                 <Header />
+//                 <div className="prv-shell">
+//                     <div className="prv-state">
+//                         <h3>Error</h3>
+//                         <p>{error}</p>
+//                     </div>
+//                 </div>
+//             </div>
+//         );
+//     }
 
 //     return (
-//         <div className="container-fluid">
+//         <div className="prv-page">
 //             <Header />
-//             <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
-//                 <div className="card-header bg-white py-0">
-//                     <h1 className="h4 mb-0 text-center text-primary">Purchase Return VAT Report</h1>
+
+//             <div className="prv-shell">
+//                 {/* Top Bar */}
+//                 <div className="prv-topbar">
+//                     <div className="prv-topbar__left">
+//                         <div className="prv-topbar__icon"><FiFileText /></div>
+//                         <div><h1>Purchase Return VAT Report</h1></div>
+//                     </div>
+//                     <div className="prv-topbar__actions">
+//                         <button className="prv-btn-icon" onClick={handleExportExcel} disabled={data.purchaseReturnVatReport.length === 0 || exporting}>
+//                             <FiDownload /> {exporting ? '…' : 'Excel'}
+//                         </button>
+//                         <button className="prv-btn-icon" onClick={handlePrint} disabled={filteredReports.length === 0}>
+//                             <FiPrinter /> Print
+//                         </button>
+//                         <button className="prv-btn-icon" onClick={resetColumnWidths} title="Reset columns">
+//                             <FiRefreshCw /> Reset
+//                         </button>
+//                     </div>
 //                 </div>
 
-//                 <div className="card-body p-2 p-md-3">
-//                     <div className="row g-2 mb-3">
-//                         {/* From Date BS Field */}
-//                         <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-//                             <div className="position-relative">
-//                                 <input
-//                                     type="text"
-//                                     name="fromDate"
-//                                     id="fromDate"
-//                                     ref={fromDateRef}
-//                                     className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
-//                                     value={dateRange.fromDate || ''}
-//                                     onChange={(e) => {
-//                                         const value = e.target.value;
-//                                         const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
-//                                         const adDate = convertBsToAd(sanitizedValue);
-//                                         setDateRange(prev => ({
-//                                             ...prev,
-//                                             fromDate: sanitizedValue,
-//                                             fromDateAd: adDate || prev.fromDateAd
-//                                         }));
-//                                         setDateErrors(prev => ({ ...prev, fromDate: '' }));
-//                                     }}
-//                                     onKeyDown={(e) => {
-//                                         const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
-//                                         if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && e.key !== '/' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
-//                                             e.preventDefault();
-//                                         }
-//                                         if (e.key === 'Enter') {
-//                                             e.preventDefault();
-//                                             const dateStr = e.target.value.trim();
-//                                             if (!dateStr) {
-//                                                 const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-//                                                 const correctedDate = company.dateFormat === 'nepali' ? currentDate.format('YYYY-MM-DD') : currentDate.toISOString().split('T')[0];
-//                                                 setDateRange(prev => ({ ...prev, fromDate: correctedDate }));
-//                                                 setDateErrors(prev => ({ ...prev, fromDate: '' }));
-//                                                 setNotification({ show: true, message: 'Date required. Auto-corrected to current date.', type: 'warning', duration: 3000 });
-//                                                 handleKeyDown(e, 'fromDateAd');
-//                                             } else if (dateErrors.fromDate) {
-//                                                 e.target.focus();
-//                                             } else {
-//                                                 handleKeyDown(e, 'fromDateAd');
-//                                             }
-//                                         }
-//                                     }}
-//                                     onBlur={(e) => {
-//                                         const dateStr = e.target.value.trim();
-//                                         if (!dateStr) return;
-//                                         const correctedDate = validateAndCorrectNepaliDate(dateStr);
-//                                         if (!correctedDate) {
-//                                             const fallbackDate = currentNepaliDate;
-//                                             const adDate = convertBsToAd(fallbackDate);
-//                                             setDateRange(prev => ({ ...prev, fromDate: fallbackDate, fromDateAd: adDate }));
-//                                             setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected to current date.', type: 'warning', duration: 3000 });
-//                                         }
-//                                     }}
-//                                     placeholder="YYYY-MM-DD (BS)"
-//                                     required
-//                                     autoFocus
-//                                     autoComplete="off"
-//                                     style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
-//                                 />
-//                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-//                                     From (BS): <span className="text-danger">*</span>
-//                                 </label>
-//                             </div>
-//                         </div>
-
-//                         {/* From Date AD Field */}
-//                         <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-//                             <div className="position-relative">
-//                                 <input
-//                                     type="date"
-//                                     name="fromDateAd"
-//                                     id="fromDateAd"
-//                                     className="form-control form-control-sm"
-//                                     value={dateRange.fromDateAd || ''}
-//                                     onChange={(e) => {
-//                                         const value = e.target.value;
-//                                         const bsDate = convertAdToBs(value);
-//                                         setDateRange(prev => ({
-//                                             ...prev,
-//                                             fromDateAd: value,
-//                                             fromDate: bsDate || prev.fromDate
-//                                         }));
-//                                     }}
-//                                     onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'toDate'); }}
-//                                     style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
-//                                 />
-//                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-//                                     From (AD):
-//                                 </label>
-//                             </div>
-//                         </div>
-
-//                         {/* To Date BS Field */}
-//                         <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-//                             <div className="position-relative">
-//                                 <input
-//                                     type="text"
-//                                     name="toDate"
-//                                     id="toDate"
-//                                     ref={toDateRef}
-//                                     className={`form-control form-control-sm no-date-icon ${dateErrors.toDate ? 'is-invalid' : ''}`}
-//                                     value={dateRange.toDate || ''}
-//                                     onChange={(e) => {
-//                                         const value = e.target.value;
-//                                         const sanitizedValue = value.replace(/[^0-9/-]/g, '').slice(0, 10);
-//                                         const adDate = convertBsToAd(sanitizedValue);
-//                                         setDateRange(prev => ({
-//                                             ...prev,
-//                                             toDate: sanitizedValue,
-//                                             toDateAd: adDate || prev.toDateAd
-//                                         }));
-//                                         setDateErrors(prev => ({ ...prev, toDate: '' }));
-//                                     }}
-//                                     onKeyDown={(e) => {
-//                                         const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
-//                                         if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && e.key !== '/' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
-//                                             e.preventDefault();
-//                                         }
-//                                         if (e.key === 'Enter') {
-//                                             e.preventDefault();
-//                                             const dateStr = e.target.value.trim();
-//                                             if (!dateStr) {
-//                                                 const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
-//                                                 const correctedDate = company.dateFormat === 'nepali' ? currentDate.format('YYYY-MM-DD') : currentDate.toISOString().split('T')[0];
-//                                                 setDateRange(prev => ({ ...prev, toDate: correctedDate }));
-//                                                 setDateErrors(prev => ({ ...prev, toDate: '' }));
-//                                                 setNotification({ show: true, message: 'Date required. Auto-corrected to current date.', type: 'warning', duration: 3000 });
-//                                                 handleKeyDown(e, 'toDateAd');
-//                                             } else if (dateErrors.toDate) {
-//                                                 e.target.focus();
-//                                             } else {
-//                                                 handleKeyDown(e, 'toDateAd');
-//                                             }
-//                                         }
-//                                     }}
-//                                     onBlur={(e) => {
-//                                         const dateStr = e.target.value.trim();
-//                                         if (!dateStr) return;
-//                                         const correctedDate = validateAndCorrectNepaliDate(dateStr);
-//                                         if (!correctedDate) {
-//                                             const fallbackDate = currentNepaliDate;
-//                                             const adDate = convertBsToAd(fallbackDate);
-//                                             setDateRange(prev => ({ ...prev, toDate: fallbackDate, toDateAd: adDate }));
-//                                             setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected to current date.', type: 'warning', duration: 3000 });
-//                                         }
-//                                     }}
-//                                     placeholder="YYYY-MM-DD (BS)"
-//                                     required
-//                                     autoComplete="off"
-//                                     style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
-//                                 />
-//                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-//                                     To (BS): <span className="text-danger">*</span>
-//                                 </label>
-//                             </div>
-//                         </div>
-
-//                         {/* To Date AD Field */}
-//                         <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-//                             <div className="position-relative">
-//                                 <input
-//                                     type="date"
-//                                     name="toDateAd"
-//                                     id="toDateAd"
-//                                     className="form-control form-control-sm"
-//                                     value={dateRange.toDateAd || ''}
-//                                     onChange={(e) => {
-//                                         const value = e.target.value;
-//                                         const bsDate = convertAdToBs(value);
-//                                         setDateRange(prev => ({
-//                                             ...prev,
-//                                             toDateAd: value,
-//                                             toDate: bsDate || prev.toDate
-//                                         }));
-//                                     }}
-//                                     onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'generateReport'); }}
-//                                     style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
-//                                 />
-//                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-//                                     To (AD):
-//                                 </label>
-//                             </div>
-//                         </div>
-
-//                         {/* Generate Report Button */}
-//                         <div className="col-12 col-md-1">
-//                             <button type="button" id="generateReport" ref={generateReportRef}
-//                                 className="btn btn-primary btn-sm" onClick={handleGenerateReport}
-//                                 style={{ height: '30px', fontSize: '0.8rem', padding: '0 12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
-//                                 <i className="bi bi-search"></i>Generate
-//                             </button>
-//                         </div>
-
-//                         {/* Search Row */}
-//                         <div className="col-12" style={{ flex: '0 0 auto', width: '12%' }}>
-//                             <div className="position-relative">
-//                                 <div className="input-group input-group-sm">
-//                                     <input
-//                                         type="text"
-//                                         className="form-control form-control-sm"
-//                                         id="searchInput"
-//                                         ref={searchInputRef}
-//                                         placeholder=""
-//                                         value={searchQuery}
-//                                         onChange={(e) => setSearchQuery(e.target.value)}
-//                                         disabled={data.purchaseReturnVatReport.length === 0}
-//                                         autoComplete='off'
-//                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
-//                                     />
-//                                 </div>
-//                                 <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
-//                                     Search
-//                                 </label>
-//                             </div>
-//                         </div>
-
-//                         {/* Action Buttons */}
-//                         <div className="col-12 col-md-auto d-flex align-items-end justify-content-end gap-2">
-//                             <button className="btn btn-success btn-sm d-flex align-items-center"
-//                                 onClick={exportToExcel} disabled={data.purchaseReturnVatReport.length === 0 || exporting}
-//                                 style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
-//                                 {exporting ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-file-excel"></i>}
-//                                 Excel
-//                             </button>
-//                             <button className="btn btn-secondary btn-sm d-flex align-items-center"
-//                                 onClick={handlePrint} disabled={filteredReports.length === 0}
-//                                 style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap' }}>
-//                                 <i className="bi bi-printer"></i>
-//                             </button>
-//                             <button className="btn btn-secondary btn-sm d-flex align-items-center"
-//                                 onClick={resetColumnWidths} title="Reset column widths to default"
-//                                 style={{ height: '30px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}>
-//                                 <i className="bi bi-x-circle"></i>
-//                             </button>
-//                         </div>
+//                 {/* Toolbar */}
+//                 <div className="prv-toolbar">
+//                     <div className="prv-field prv-field--date">
+//                         <label>From (BS) <span className="req">*</span></label>
+//                         <input
+//                             type="text"
+//                             id="fromDate"
+//                             ref={fromDateRef}
+//                             className={dateErrors.fromDate ? 'is-invalid' : ''}
+//                             value={dateRange.fromDate || ''}
+//                             onChange={(e) => {
+//                                 const value = e.target.value.replace(/[^0-9/-]/g, '').slice(0, 10);
+//                                 const adDate = convertBsToAd(value);
+//                                 setDateRange(prev => ({
+//                                     ...prev,
+//                                     fromDate: value,
+//                                     fromDateAd: adDate || prev.fromDateAd
+//                                 }));
+//                                 setDateErrors(prev => ({ ...prev, fromDate: '' }));
+//                             }}
+//                             onKeyDown={(e) => handleKeyDown(e, 'fromDateAd')}
+//                             onBlur={(e) => {
+//                                 const dateStr = e.target.value.trim();
+//                                 if (!dateStr) return;
+//                                 const correctedDate = validateAndCorrectNepaliDate(dateStr);
+//                                 if (!correctedDate) {
+//                                     const fallbackDate = currentNepaliDate;
+//                                     const adDate = convertBsToAd(fallbackDate);
+//                                     setDateRange(prev => ({ ...prev, fromDate: fallbackDate, fromDateAd: adDate }));
+//                                     setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected.', type: 'warning' });
+//                                 }
+//                             }}
+//                             placeholder="YYYY-MM-DD"
+//                             autoFocus
+//                             autoComplete="off"
+//                         />
+//                         {dateErrors.fromDate && <div className="prv-field-error">{dateErrors.fromDate}</div>}
 //                     </div>
 
-//                     {error && (
-//                         <div className="alert alert-danger text-center py-1 mb-2 small" style={{ fontSize: '0.75rem' }}>
-//                             {error}
-//                             <button type="button" className="btn-close btn-sm ms-2" style={{ fontSize: '10px' }} onClick={() => setError(null)}></button>
-//                         </div>
-//                     )}
+//                     <div className="prv-field prv-field--date">
+//                         <label>From (AD)</label>
+//                         <input
+//                             type="date"
+//                             id="fromDateAd"
+//                             value={dateRange.fromDateAd || ''}
+//                             onChange={(e) => {
+//                                 const value = e.target.value;
+//                                 const bsDate = convertAdToBs(value);
+//                                 setDateRange(prev => ({
+//                                     ...prev,
+//                                     fromDateAd: value,
+//                                     fromDate: bsDate || prev.fromDate
+//                                 }));
+//                             }}
+//                             onKeyDown={(e) => handleKeyDown(e, 'toDate')}
+//                         />
+//                     </div>
 
+//                     <div className="prv-field prv-field--date">
+//                         <label>To (BS) <span className="req">*</span></label>
+//                         <input
+//                             type="text"
+//                             id="toDate"
+//                             ref={toDateRef}
+//                             className={dateErrors.toDate ? 'is-invalid' : ''}
+//                             value={dateRange.toDate || ''}
+//                             onChange={(e) => {
+//                                 const value = e.target.value.replace(/[^0-9/-]/g, '').slice(0, 10);
+//                                 const adDate = convertBsToAd(value);
+//                                 setDateRange(prev => ({
+//                                     ...prev,
+//                                     toDate: value,
+//                                     toDateAd: adDate || prev.toDateAd
+//                                 }));
+//                                 setDateErrors(prev => ({ ...prev, toDate: '' }));
+//                             }}
+//                             onKeyDown={(e) => handleKeyDown(e, 'toDateAd')}
+//                             onBlur={(e) => {
+//                                 const dateStr = e.target.value.trim();
+//                                 if (!dateStr) return;
+//                                 const correctedDate = validateAndCorrectNepaliDate(dateStr);
+//                                 if (!correctedDate) {
+//                                     const fallbackDate = currentNepaliDate;
+//                                     const adDate = convertBsToAd(fallbackDate);
+//                                     setDateRange(prev => ({ ...prev, toDate: fallbackDate, toDateAd: adDate }));
+//                                     setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected.', type: 'warning' });
+//                                 }
+//                             }}
+//                             placeholder="YYYY-MM-DD"
+//                             autoComplete="off"
+//                         />
+//                         {dateErrors.toDate && <div className="prv-field-error">{dateErrors.toDate}</div>}
+//                     </div>
+
+//                     <div className="prv-field prv-field--date">
+//                         <label>To (AD)</label>
+//                         <input
+//                             type="date"
+//                             id="toDateAd"
+//                             value={dateRange.toDateAd || ''}
+//                             onChange={(e) => {
+//                                 const value = e.target.value;
+//                                 const bsDate = convertAdToBs(value);
+//                                 setDateRange(prev => ({
+//                                     ...prev,
+//                                     toDateAd: value,
+//                                     toDate: bsDate || prev.toDate
+//                                 }));
+//                             }}
+//                             onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
+//                         />
+//                     </div>
+
+//                     <button type="button" id="generateReport" ref={generateReportRef} className="prv-btn-gen" onClick={handleGenerateReport} disabled={loading}>
+//                         {loading ? <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12 }} /> : <><FiSearch className="me-1" /> Generate</>}
+//                     </button>
+
+//                     <div className="prv-toolbar-divider" />
+
+//                     <div className="prv-field prv-field--search">
+//                         <label>Search</label>
+//                         <div className="prv-search-wrap">
+//                             <FiSearch className="prv-search-icon" />
+//                             <input
+//                                 type="text"
+//                                 id="searchInput"
+//                                 ref={searchInputRef}
+//                                 value={searchQuery}
+//                                 onChange={(e) => setSearchQuery(e.target.value)}
+//                                 disabled={data.purchaseReturnVatReport.length === 0}
+//                                 autoComplete="off"
+//                             />
+//                             {searchQuery && <button className="prv-search-clear" onClick={() => setSearchQuery('')}>×</button>}
+//                         </div>
+//                     </div>
+//                 </div>
+
+//                 {error && (
+//                     <div className="prv-alert">
+//                         <FiX /> {error}
+//                         <button type="button" className="btn-close btn-sm ms-auto" onClick={() => setError(null)} />
+//                     </div>
+//                 )}
+
+//                 {/* Main Content */}
+//                 <div className="prv-main">
 //                     {data.purchaseReturnVatReport.length === 0 && !loading ? (
-//                         <div className="alert alert-info text-center py-3" style={{ fontSize: '0.875rem' }}>
-//                             <i className="fas fa-info-circle me-2"></i>
-//                             Please select date range and click "Generate Report" to view purchase return VAT report
+//                         <div className="prv-state">
+//                             <FiCalendar size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+//                             <h3>Select date range & generate</h3>
+//                             <p>Choose a date range, then click Generate.</p>
+//                         </div>
+//                     ) : loading ? (
+//                         <div className="prv-state"><div className="spinner-border text-primary" /><p>Loading data...</p></div>
+//                     ) : filteredReports.length === 0 ? (
+//                         <div className="prv-state">
+//                             <FiSearch size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+//                             <h3>No records found</h3>
+//                             <p>{searchQuery ? 'Try a different search term' : 'No data for the selected date range'}</p>
 //                         </div>
 //                     ) : (
 //                         <>
-//                             <div
-//                                 style={{
-//                                     height: "400px",
-//                                     border: '1px solid #dee2e6',
-//                                     backgroundColor: '#fff',
-//                                     position: 'relative'
-//                                 }}
-//                                 ref={tableBodyRef}
-//                             >
-//                                 {loading ? (
-//                                     <div className="d-flex flex-column justify-content-center align-items-center h-100">
-//                                         <div className="spinner-border spinner-border-sm text-primary" role="status">
-//                                             <span className="visually-hidden">Loading...</span>
-//                                         </div>
-//                                         <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>
-//                                             Loading purchase return VAT report...
-//                                         </p>
-//                                     </div>
-//                                 ) : filteredReports.length === 0 ? (
-//                                     <div className="d-flex flex-column justify-content-center align-items-center h-100">
-//                                         <i className="bi bi-search text-muted" style={{ fontSize: '1.5rem' }}></i>
-//                                         <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>
-//                                             No records found
-//                                         </h6>
-//                                         <p className="text-muted small" style={{ fontSize: '0.75rem' }}>
-//                                             {searchQuery ? 'Try a different search term' : 'No data for the selected date range'}
-//                                         </p>
-//                                     </div>
-//                                 ) : (
-//                                     <AutoSizer>
-//                                         {({ height, width }) => {
-//                                             const totalWidth = columnWidths.bsDate + columnWidths.adDate +
-//                                                 columnWidths.returnNo + columnWidths.supplierName +
-//                                                 columnWidths.panNumber + columnWidths.totalAmount +
-//                                                 columnWidths.discount + columnWidths.nonVatPurchaseReturn +
-//                                                 columnWidths.taxableAmount + columnWidths.vatAmount;
-
-//                                             return (
-//                                                 <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
-//                                                     <TableHeader />
-//                                                     <List
-//                                                         height={height - 28}
-//                                                         itemCount={filteredReports.length}
-//                                                         itemSize={28}
-//                                                         width={Math.max(width, totalWidth)}
-//                                                         itemData={{
-//                                                             reports: filteredReports,
-//                                                             selectedRowIndex,
-//                                                             formatCurrency,
-//                                                             formatDate,
-//                                                             handleRowClick: (index) => setSelectedRowIndex(index)
-//                                                         }}
-//                                                     >
-//                                                         {TableRow}
-//                                                     </List>
-//                                                 </div>
-//                                             );
-//                                         }}
-//                                     </AutoSizer>
-//                                 )}
+//                             <div className="prv-main__bar">
+//                                 <span><strong>{filteredReports.length}</strong> bills</span>
+//                                 <span>{dateRange.fromDate} — {dateRange.toDate}</span>
 //                             </div>
+//                             <div className="prv-table-wrap" ref={tableBodyRef}>
+//                                 <AutoSizer>
+//                                     {({ height, width }) => {
+//                                         const totalWidth = columnWidths.bsDate + columnWidths.adDate +
+//                                             columnWidths.returnNo + columnWidths.supplierName +
+//                                             columnWidths.panNumber + columnWidths.totalAmount +
+//                                             columnWidths.discount + columnWidths.nonVatPurchaseReturn +
+//                                             columnWidths.taxableAmount + columnWidths.vatAmount;
 
-//                             {/* Footer with totals */}
-//                             {filteredReports.length > 0 && (
-//                                 <div
-//                                     className="d-flex bg-light border-top sticky-bottom"
-//                                     style={{ zIndex: 2, height: '28px', borderTop: '2px solid #dee2e6' }}
-//                                 >
-//                                     <div
-//                                         className="d-flex align-items-center px-1"
-//                                         style={{ width: `${columnWidths.bsDate + columnWidths.adDate + columnWidths.returnNo + columnWidths.supplierName + columnWidths.panNumber}px`, flexShrink: 0, height: '100%' }}
-//                                     >
-//                                         <strong style={{ fontSize: '0.75rem' }}>Grand Totals:</strong>
-//                                     </div>
-//                                     <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.totalAmount}px`, flexShrink: 0, height: '100%' }}>
-//                                         <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.totalAmount)}</strong>
-//                                     </div>
-//                                     <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, height: '100%' }}>
-//                                         <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.discountAmount)}</strong>
-//                                     </div>
-//                                     <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.nonVatPurchaseReturn}px`, flexShrink: 0, height: '100%' }}>
-//                                         <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.nonVatPurchaseReturn)}</strong>
-//                                     </div>
-//                                     <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.taxableAmount}px`, flexShrink: 0, height: '100%' }}>
-//                                         <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.taxableAmount)}</strong>
-//                                     </div>
-//                                     <div className="d-flex align-items-center justify-content-end px-1 border-start" style={{ width: `${columnWidths.vatAmount}px`, flexShrink: 0, height: '100%' }}>
-//                                         <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.vatAmount)}</strong>
-//                                     </div>
+//                                         return (
+//                                             <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
+//                                                 <TableHeader />
+//                                                 <List
+//                                                     height={height - 28}
+//                                                     itemCount={filteredReports.length}
+//                                                     itemSize={28}
+//                                                     width={Math.max(width, totalWidth)}
+//                                                     itemData={{
+//                                                         reports: filteredReports,
+//                                                         selectedRowIndex,
+//                                                         formatCurrency,
+//                                                         handleRowClick: (index) => setSelectedRowIndex(index)
+//                                                     }}
+//                                                 >
+//                                                     {TableRow}
+//                                                 </List>
+//                                             </div>
+//                                         );
+//                                     }}
+//                                 </AutoSizer>
+//                             </div>
+//                             <div className="prv-footer">
+//                                 <div className="prv-footer-cell" style={{ width: `${columnWidths.bsDate + columnWidths.adDate + columnWidths.returnNo + columnWidths.supplierName + columnWidths.panNumber}px`, flexShrink: 0 }}>
+//                                     <strong>Grand Totals:</strong>
 //                                 </div>
-//                             )}
+//                                 <div className="prv-footer-cell prv-footer-cell--end" style={{ width: `${columnWidths.totalAmount}px`, flexShrink: 0 }}>
+//                                     <strong>{formatCurrency(totals.totalAmount)}</strong>
+//                                 </div>
+//                                 <div className="prv-footer-cell prv-footer-cell--end" style={{ width: `${columnWidths.discount}px`, flexShrink: 0 }}>
+//                                     <strong>{formatCurrency(totals.discountAmount)}</strong>
+//                                 </div>
+//                                 <div className="prv-footer-cell prv-footer-cell--end" style={{ width: `${columnWidths.nonVatPurchaseReturn}px`, flexShrink: 0 }}>
+//                                     <strong>{formatCurrency(totals.nonVatPurchaseReturn)}</strong>
+//                                 </div>
+//                                 <div className="prv-footer-cell prv-footer-cell--end" style={{ width: `${columnWidths.taxableAmount}px`, flexShrink: 0 }}>
+//                                     <strong>{formatCurrency(totals.taxableAmount)}</strong>
+//                                 </div>
+//                                 <div className="prv-footer-cell prv-footer-cell--end" style={{ width: `${columnWidths.vatAmount}px`, flexShrink: 0 }}>
+//                                     <strong>{formatCurrency(totals.vatAmount)}</strong>
+//                                 </div>
+//                             </div>
 //                         </>
 //                     )}
 //                 </div>
 //             </div>
 
-//             {/* Notification Toast */}
 //             <NotificationToast
 //                 show={notification.show}
 //                 message={notification.message}
 //                 type={notification.type}
+//                 duration={notification.duration}
 //                 onClose={() => setNotification({ ...notification, show: false })}
 //             />
 //         </div>
@@ -1371,7 +1291,7 @@
 
 // export default PurchaseReturnVatReport;
 
-//-------------------------------------------------end1
+//------------------------------------------------------------------end1
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -1383,30 +1303,22 @@ import NotificationToast from '../../NotificationToast';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import api from '../../services/api';
-import { FiFileText, FiPrinter, FiDownload, FiSearch, FiRefreshCw, FiCalendar, FiX } from 'react-icons/fi';
+import { FiFileText, FiPrinter, FiDownload, FiSearch, FiRefreshCw, FiCalendar, FiX, FiGrid, FiList } from 'react-icons/fi';
 import './PurchaseReturnVatReport.css';
 
-// Helper functions for date conversion
+// ============================================================
+// Helpers
+// ============================================================
 const convertBsToAd = (bsDate) => {
     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
-
     try {
         const nepaliDate = new NepaliDate(bsDate);
-        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') {
-            console.error('Invalid NepaliDate object or missing getDateObject method');
-            return null;
-        }
-
+        if (!nepaliDate || typeof nepaliDate.getDateObject !== 'function') return null;
         const jsDate = nepaliDate.getDateObject();
-        if (!jsDate || isNaN(jsDate.getTime())) {
-            console.error('Invalid AD date generated from BS date:', bsDate);
-            return null;
-        }
-
+        if (!jsDate || isNaN(jsDate.getTime())) return null;
         const year = jsDate.getFullYear();
         const month = String(jsDate.getMonth() + 1).padStart(2, '0');
         const day = String(jsDate.getDate()).padStart(2, '0');
-
         return `${year}-${month}-${day}`;
     } catch (error) {
         console.error('Error converting BS to AD:', error.message, 'Date:', bsDate);
@@ -1416,7 +1328,6 @@ const convertBsToAd = (bsDate) => {
 
 const convertAdToBs = (adDate) => {
     if (!adDate) return null;
-
     try {
         let date;
         if (typeof adDate === 'string') {
@@ -1430,27 +1341,13 @@ const convertAdToBs = (adDate) => {
         } else {
             return null;
         }
-
-        if (isNaN(date.getTime())) {
-            console.error('Invalid AD date:', adDate);
-            return null;
-        }
-
+        if (isNaN(date.getTime())) return null;
         const nepaliDate = new NepaliDate(date);
-        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
-            console.error('Invalid NepaliDate object');
-            return null;
-        }
-
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') return null;
         const year = nepaliDate.getYear();
         const month = nepaliDate.getMonth();
         const day = nepaliDate.getDate();
-
-        if (!year || month === undefined || !day) {
-            console.error('Invalid BS components generated');
-            return null;
-        }
-
+        if (!year || month === undefined || !day) return null;
         return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     } catch (error) {
         console.error('Error converting AD to BS:', error.message, 'Date:', adDate);
@@ -1460,21 +1357,15 @@ const convertAdToBs = (adDate) => {
 
 const isValidNepaliDate = (dateStr) => {
     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
-
     try {
         const [year, month, day] = dateStr.split('-').map(Number);
         if (month < 1 || month > 12) return false;
         if (day < 1 || day > 32) return false;
-
         const nepaliDate = new NepaliDate(dateStr);
-        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') {
-            return false;
-        }
-
+        if (!nepaliDate || typeof nepaliDate.getYear !== 'function') return false;
         const bsYear = nepaliDate.getYear();
         const bsMonth = nepaliDate.getMonth() + 1;
         const bsDay = nepaliDate.getDate();
-
         return (bsYear === year && bsMonth === month && bsDay === day);
     } catch (error) {
         console.warn('Invalid Nepali date:', dateStr, error.message);
@@ -1482,6 +1373,47 @@ const isValidNepaliDate = (dateStr) => {
     }
 };
 
+/**
+ * Build IRD Annex-5 style rows for Purchase Return (खरिद फिर्ता खाता).
+ * Columns per PDF:
+ *  - मिति
+ *  - बीजक नं.
+ *  - परज्ञापनपत्र नं.  → partyBillNumber
+ *  - आपूर्तिकर्ताको नाम
+ *  - जम्मा फिर्ता मूल्य (रु)
+ *  - कर छूट हुने वस्तु वा सेवाको फिर्ता / पैठारी मूल्य (रु) → nonVatPurchaseReturn
+ *  - करयोग्य फिर्ता (पूंजीगत बाहेक): मूल्य + कर → taxableAmount + vatAmount
+ *  - करयोग्य पैठारी फिर्ता (पूंजीगत बाहेक): मूल्य + कर → 0 (not tracked)
+ *  - पूंजीगत करयोग्य फिर्ता / पैठारी: मूल्य + कर → 0 (not tracked)
+ */
+const buildIrdRows = (reports = []) => {
+    return reports.map((r) => {
+        const totalReturn = Number(r.totalAmount || 0);
+        const nonVatReturn = Number(r.nonVatPurchaseReturn || 0);
+        const taxableAmount = Number(r.taxableAmount || 0);
+        const vatAmount = Number(r.vatAmount || 0);
+
+        return {
+            date: r.nepaliDate || '',
+            invoiceNo: r.billNumber || '',
+            parjapatraNo: r.partyBillNumber || '',
+            supplierName: r.accountName || '',
+            supplierPan: r.panNumber || '',
+            totalReturn: totalReturn,
+            taxExemptReturn: nonVatReturn,
+            taxableReturnValue: taxableAmount,
+            taxableReturnVat: vatAmount,
+            taxableImportReturnValue: 0,
+            taxableImportReturnVat: 0,
+            capitalTaxableReturnValue: 0,
+            capitalTaxableReturnVat: 0
+        };
+    });
+};
+
+// ============================================================
+// Component
+// ============================================================
 const PurchaseReturnVatReport = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
@@ -1505,7 +1437,9 @@ const PurchaseReturnVatReport = () => {
         fiscalYear: {}
     });
 
-    // SPLIT STATE: Separate date range from report data
+    // View mode: 'table' | 'ird'
+    const [viewMode, setViewMode] = useState('table');
+
     const [dateRange, setDateRange] = useState({
         fromDate: '',
         toDate: '',
@@ -1529,7 +1463,6 @@ const PurchaseReturnVatReport = () => {
     const [selectedRowIndex, setSelectedRowIndex] = useState(0);
     const [filteredReports, setFilteredReports] = useState([]);
 
-    // Column resizing state
     const [columnWidths, setColumnWidths] = useState({
         bsDate: 80,
         adDate: 80,
@@ -1556,7 +1489,7 @@ const PurchaseReturnVatReport = () => {
     const [shouldFetch, setShouldFetch] = useState(false);
     const navigate = useNavigate();
 
-    // Fetch initial data - RUNS ONLY ONCE on mount
+    // Fetch initial data
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -1614,11 +1547,7 @@ const PurchaseReturnVatReport = () => {
                 }
             } catch (err) {
                 console.error('Error fetching initial data:', err);
-                setNotification({
-                    show: true,
-                    message: 'Error loading data',
-                    type: 'error'
-                });
+                setNotification({ show: true, message: 'Error loading data', type: 'error' });
             } finally {
                 setLoading(false);
             }
@@ -1627,11 +1556,10 @@ const PurchaseReturnVatReport = () => {
         fetchInitialData();
     }, []);
 
-    // Fetch VAT report data when generate is clicked
+    // Fetch report on generate
     useEffect(() => {
         const fetchVatReportData = async () => {
             if (!shouldFetch) return;
-
             try {
                 setLoading(true);
                 const params = new URLSearchParams();
@@ -1658,21 +1586,13 @@ const PurchaseReturnVatReport = () => {
                 } else {
                     const errorMsg = response.data.error || 'Failed to fetch purchase return VAT report';
                     setError(errorMsg);
-                    setNotification({
-                        show: true,
-                        message: errorMsg,
-                        type: 'error'
-                    });
+                    setNotification({ show: true, message: errorMsg, type: 'error' });
                 }
             } catch (err) {
                 console.error('Fetch error:', err);
                 const errorMsg = err.response?.data?.error || 'Failed to fetch purchase return VAT report';
                 setError(errorMsg);
-                setNotification({
-                    show: true,
-                    message: errorMsg,
-                    type: 'error'
-                });
+                setNotification({ show: true, message: errorMsg, type: 'error' });
             } finally {
                 setLoading(false);
                 setShouldFetch(false);
@@ -1686,27 +1606,25 @@ const PurchaseReturnVatReport = () => {
         };
     }, [shouldFetch, company.dateFormat, dateRange.fromDateAd, dateRange.toDateAd]);
 
-    // Filter reports based on search
+    // Filter
     useEffect(() => {
         const filtered = data.purchaseReturnVatReport.filter(report => {
             const billNumber = report.billNumber ? report.billNumber.toString().toLowerCase() : '';
             const accountName = report.accountName ? report.accountName.toString().toLowerCase() : '';
             const panNumber = report.panNumber ? report.panNumber.toString().toLowerCase() : '';
-
             return (
                 billNumber.includes(searchQuery.toLowerCase()) ||
                 accountName.includes(searchQuery.toLowerCase()) ||
                 panNumber.includes(searchQuery.toLowerCase())
             );
         });
-
         setFilteredReports(filtered);
         if (selectedRowIndex >= filtered.length && filtered.length > 0) {
             setSelectedRowIndex(0);
         }
     }, [data.purchaseReturnVatReport, searchQuery, selectedRowIndex]);
 
-    // Calculate totals
+    // Table totals
     const totals = useMemo(() => {
         return filteredReports.reduce((acc, report) => ({
             totalAmount: acc.totalAmount + (report.totalAmount || 0),
@@ -1723,15 +1641,36 @@ const PurchaseReturnVatReport = () => {
         });
     }, [filteredReports]);
 
-    // Save/load column widths
+    // IRD rows and totals
+    const irdRows = useMemo(() => buildIrdRows(filteredReports), [filteredReports]);
+
+    const irdTotals = useMemo(() => {
+        return irdRows.reduce((acc, r) => ({
+            totalReturn: acc.totalReturn + (r.totalReturn || 0),
+            taxExemptReturn: acc.taxExemptReturn + (r.taxExemptReturn || 0),
+            taxableReturnValue: acc.taxableReturnValue + (r.taxableReturnValue || 0),
+            taxableReturnVat: acc.taxableReturnVat + (r.taxableReturnVat || 0),
+            taxableImportReturnValue: acc.taxableImportReturnValue + (r.taxableImportReturnValue || 0),
+            taxableImportReturnVat: acc.taxableImportReturnVat + (r.taxableImportReturnVat || 0),
+            capitalTaxableReturnValue: acc.capitalTaxableReturnValue + (r.capitalTaxableReturnValue || 0),
+            capitalTaxableReturnVat: acc.capitalTaxableReturnVat + (r.capitalTaxableReturnVat || 0)
+        }), {
+            totalReturn: 0,
+            taxExemptReturn: 0,
+            taxableReturnValue: 0,
+            taxableReturnVat: 0,
+            taxableImportReturnValue: 0,
+            taxableImportReturnVat: 0,
+            capitalTaxableReturnValue: 0,
+            capitalTaxableReturnVat: 0
+        });
+    }, [irdRows]);
+
+    // Column widths persistence
     useEffect(() => {
         const savedWidths = localStorage.getItem('purchaseReturnVatTableColumnWidths');
         if (savedWidths) {
-            try {
-                setColumnWidths(JSON.parse(savedWidths));
-            } catch (e) {
-                console.error('Failed to load column widths:', e);
-            }
+            try { setColumnWidths(JSON.parse(savedWidths)); } catch (e) { /* ignore */ }
         }
     }, []);
 
@@ -1739,15 +1678,13 @@ const PurchaseReturnVatReport = () => {
         localStorage.setItem('purchaseReturnVatTableColumnWidths', JSON.stringify(columnWidths));
     }, [columnWidths]);
 
-    // Keyboard navigation
+    // Keyboard nav (table only)
     useEffect(() => {
-        const handleKeyDown = (e) => {
+        const handleKeyDownNav = (e) => {
+            if (viewMode !== 'table') return;
             if (filteredReports.length === 0) return;
-
             const activeElement = document.activeElement;
-            if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT') {
-                return;
-            }
+            if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT') return;
 
             switch (e.key) {
                 case 'ArrowUp':
@@ -1762,19 +1699,14 @@ const PurchaseReturnVatReport = () => {
                     break;
             }
         };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [filteredReports]);
+        window.addEventListener('keydown', handleKeyDownNav);
+        return () => window.removeEventListener('keydown', handleKeyDownNav);
+    }, [filteredReports, viewMode]);
 
     const handleGenerateReport = () => {
         if (!dateRange.fromDate || !dateRange.toDate) {
             setError('Please select both from and to dates');
-            setNotification({
-                show: true,
-                message: 'Please select both from and to dates',
-                type: 'warning'
-            });
+            setNotification({ show: true, message: 'Please select both from and to dates', type: 'warning' });
             return;
         }
         setShouldFetch(true);
@@ -1785,16 +1717,12 @@ const PurchaseReturnVatReport = () => {
             e.preventDefault();
             if (nextFieldId) {
                 const nextField = document.getElementById(nextFieldId);
-                if (nextField) {
-                    nextField.focus();
-                }
+                if (nextField) nextField.focus();
             } else {
                 const focusableElements = Array.from(
                     document.querySelectorAll('input, select, button, [tabindex]:not([tabindex="-1"])')
                 ).filter(el => !el.disabled && el.offsetParent !== null);
-
                 const currentIndex = focusableElements.findIndex(el => el === e.target);
-
                 if (currentIndex > -1 && currentIndex < focusableElements.length - 1) {
                     focusableElements[currentIndex + 1].focus();
                 }
@@ -1805,22 +1733,17 @@ const PurchaseReturnVatReport = () => {
     const validateAndCorrectNepaliDate = (dateStr) => {
         if (!dateStr) return null;
         if (isValidNepaliDate(dateStr)) return dateStr;
-
         const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
         if (match) {
             let [_, year, month, day] = match;
             month = parseInt(month, 10);
             day = parseInt(day, 10);
-
             if (month < 1) month = 1;
             if (month > 12) month = 12;
             if (day < 1) day = 1;
             if (day > 32) day = 32;
-
             const correctedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            if (isValidNepaliDate(correctedDate)) {
-                return correctedDate;
-            }
+            if (isValidNepaliDate(correctedDate)) return correctedDate;
         }
         return null;
     };
@@ -1838,13 +1761,12 @@ const PurchaseReturnVatReport = () => {
         return number.toFixed(2);
     };
 
+    // ============================================================
+    // EXCEL EXPORT
+    // ============================================================
     const handleExportExcel = async () => {
         if (!data.purchaseReturnVatReport || data.purchaseReturnVatReport.length === 0) {
-            setNotification({
-                show: true,
-                message: 'No data available to export. Please generate a report first.',
-                type: 'warning'
-            });
+            setNotification({ show: true, message: 'No data available to export. Please generate a report first.', type: 'warning' });
             return;
         }
 
@@ -1853,10 +1775,9 @@ const PurchaseReturnVatReport = () => {
             const currentDate = new Date().toISOString().split('T')[0];
             const excelData = [];
 
-            // Header information
-            excelData.push(['Purchase Return VAT Report']);
+            excelData.push([viewMode === 'ird' ? 'खरिद फिर्ता खाता (Purchase Return VAT Return)' : 'Purchase Return VAT Report']);
             excelData.push(['Company:', data.currentCompanyName || 'N/A']);
-            excelData.push(['Address:', data.company?.address || '', data.company?.city ? ', ' + data.company?.city : '']);
+            excelData.push(['Address:', data.company?.address || '', data.company?.city ? ', ' + data.company.city : '']);
             excelData.push(['PAN:', data.company?.pan || '']);
             excelData.push(['From Date (BS):', dateRange.fromDate]);
             excelData.push(['To Date (BS):', dateRange.toDate]);
@@ -1867,142 +1788,163 @@ const PurchaseReturnVatReport = () => {
             excelData.push(['Export Date:', new Date().toLocaleString()]);
             excelData.push([]);
 
-            const headers = [
-                'S.No', 'Miti', 'Date (AD)', 'Vch. No.', 'Supplier\'s Name',
-                'Supplier\'s PAN', 'Total Amount', 'Discount', 'Non-VAT Return',
-                'Taxable Amt.', 'VAT'
-            ];
-            excelData.push(headers);
-
-            let totalTotalAmount = 0;
-            let totalDiscount = 0;
-            let totalNonVatPurchaseReturn = 0;
-            let totalTaxable = 0;
-            let totalVat = 0;
-
-            filteredReports.forEach((report, index) => {
+            if (viewMode === 'ird') {
                 excelData.push([
-                    index + 1,
-                    report.nepaliDate || '',
-                    report.date ? new Date(report.date).toLocaleDateString('en-CA') : '',
-                    report.billNumber || '',
-                    report.accountName || '',
-                    report.panNumber || '',
-                    formatCurrencyForExport(report.totalAmount),
-                    formatCurrencyForExport(report.discountAmount),
-                    formatCurrencyForExport(report.nonVatPurchaseReturn),
-                    formatCurrencyForExport(report.taxableAmount),
-                    formatCurrencyForExport(report.vatAmount)
+                    'मिति', 'बीजक नं.', 'परज्ञापनपत्र नं.', 'आपूर्तिकर्ताको नाम',
+                    'जम्मा फिर्ता मूल्य (रु)',
+                    'कर छूट हुने वस्तु वा सेवाको फिर्ता / पैठारी मूल्य (रु)',
+                    'करयोग्य फिर्ता (पूंजीगत बाहेक) मूल्य (रु)',
+                    'करयोग्य फिर्ता (पूंजीगत बाहेक) कर (रु)',
+                    'करयोग्य पैठारी फिर्ता (पूंजीगत बाहेक) मूल्य (रु)',
+                    'करयोग्य पैठारी फिर्ता (पूंजीगत बाहेक) कर (रु)',
+                    'पूंजीगत करयोग्य फिर्ता / पैठारी मूल्य (रु)',
+                    'पूंजीगत करयोग्य फिर्ता / पैठारी कर (रु)'
+                ]);
+                irdRows.forEach(r => {
+                    excelData.push([
+                        r.date, r.invoiceNo, r.parjapatraNo, r.supplierName,
+                        formatCurrencyForExport(r.totalReturn),
+                        formatCurrencyForExport(r.taxExemptReturn),
+                        formatCurrencyForExport(r.taxableReturnValue),
+                        formatCurrencyForExport(r.taxableReturnVat),
+                        formatCurrencyForExport(r.taxableImportReturnValue),
+                        formatCurrencyForExport(r.taxableImportReturnVat),
+                        formatCurrencyForExport(r.capitalTaxableReturnValue),
+                        formatCurrencyForExport(r.capitalTaxableReturnVat)
+                    ]);
+                });
+                excelData.push([]);
+                excelData.push([
+                    'Total Bill:', irdRows.length, '', '',
+                    formatCurrencyForExport(irdTotals.totalReturn),
+                    formatCurrencyForExport(irdTotals.taxExemptReturn),
+                    formatCurrencyForExport(irdTotals.taxableReturnValue),
+                    formatCurrencyForExport(irdTotals.taxableReturnVat),
+                    formatCurrencyForExport(irdTotals.taxableImportReturnValue),
+                    formatCurrencyForExport(irdTotals.taxableImportReturnVat),
+                    formatCurrencyForExport(irdTotals.capitalTaxableReturnValue),
+                    formatCurrencyForExport(irdTotals.capitalTaxableReturnVat)
+                ]);
+            } else {
+                excelData.push([
+                    'S.No', 'Miti', 'Date (AD)', 'Vch. No.', "Supplier's Name",
+                    "Supplier's PAN", 'Total Amount', 'Discount', 'Non-VAT Return',
+                    'Taxable Amt.', 'VAT'
                 ]);
 
-                totalTotalAmount += parseFloat(report.totalAmount || 0);
-                totalDiscount += parseFloat(report.discountAmount || 0);
-                totalNonVatPurchaseReturn += parseFloat(report.nonVatPurchaseReturn || 0);
-                totalTaxable += parseFloat(report.taxableAmount || 0);
-                totalVat += parseFloat(report.vatAmount || 0);
-            });
+                filteredReports.forEach((report, index) => {
+                    excelData.push([
+                        index + 1,
+                        report.nepaliDate || '',
+                        report.date ? new Date(report.date).toLocaleDateString('en-CA') : '',
+                        report.billNumber || '',
+                        report.accountName || '',
+                        report.panNumber || '',
+                        formatCurrencyForExport(report.totalAmount),
+                        formatCurrencyForExport(report.discountAmount),
+                        formatCurrencyForExport(report.nonVatPurchaseReturn),
+                        formatCurrencyForExport(report.taxableAmount),
+                        formatCurrencyForExport(report.vatAmount)
+                    ]);
+                });
 
-            excelData.push([]);
-            excelData.push([
-                '', '', '', '', 'GRAND TOTALS',
-                '', formatCurrencyForExport(totalTotalAmount),
-                formatCurrencyForExport(totalDiscount),
-                formatCurrencyForExport(totalNonVatPurchaseReturn),
-                formatCurrencyForExport(totalTaxable),
-                formatCurrencyForExport(totalVat)
-            ]);
+                excelData.push([]);
+                excelData.push([
+                    '', '', '', '', 'GRAND TOTALS', '',
+                    formatCurrencyForExport(totals.totalAmount),
+                    formatCurrencyForExport(totals.discountAmount),
+                    formatCurrencyForExport(totals.nonVatPurchaseReturn),
+                    formatCurrencyForExport(totals.taxableAmount),
+                    formatCurrencyForExport(totals.vatAmount)
+                ]);
+            }
 
             const ws = XLSX.utils.aoa_to_sheet(excelData);
-            ws['!cols'] = [
-                { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 25 },
-                { wch: 14 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }
-            ];
+            ws['!cols'] = viewMode === 'ird'
+                ? [{ wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 28 },
+                   { wch: 18 }, { wch: 30 },
+                   { wch: 26 }, { wch: 22 },
+                   { wch: 26 }, { wch: 22 },
+                   { wch: 26 }, { wch: 22 }]
+                : [{ wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 25 },
+                   { wch: 14 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }];
 
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Purchase Return VAT Report');
+            XLSX.utils.book_append_sheet(wb, ws, viewMode === 'ird' ? 'खरिद फिर्ता खाता' : 'Purchase Return VAT Report');
 
-            const fileName = `Purchase_Return_VAT_Report_${dateRange.fromDate}_to_${dateRange.toDate}_${currentDate}.xlsx`;
+            const fileName = viewMode === 'ird'
+                ? `Purchase_Return_VAT_Return_${dateRange.fromDate}_to_${dateRange.toDate}_${currentDate}.xlsx`
+                : `Purchase_Return_VAT_Report_${dateRange.fromDate}_to_${dateRange.toDate}_${currentDate}.xlsx`;
+
             XLSX.writeFile(wb, fileName);
 
-            setNotification({
-                show: true,
-                message: 'Excel file exported successfully!',
-                type: 'success'
-            });
+            setNotification({ show: true, message: 'Excel file exported successfully!', type: 'success' });
         } catch (err) {
             console.error('Error exporting to Excel:', err);
-            setNotification({
-                show: true,
-                message: 'Failed to export Excel file: ' + err.message,
-                type: 'error'
-            });
+            setNotification({ show: true, message: 'Failed to export Excel file: ' + err.message, type: 'error' });
         } finally {
             setExporting(false);
         }
     };
 
+    // ============================================================
+    // PRINT
+    // ============================================================
     const handlePrint = () => {
         if (filteredReports.length === 0) {
-            setNotification({
-                show: true,
-                message: 'No data to print. Please generate a report first.',
-                type: 'warning'
-            });
+            setNotification({ show: true, message: 'No data to print. Please generate a report first.', type: 'warning' });
             return;
         }
 
         const printWindow = window.open("", "_blank");
-
         if (!printWindow) {
-            setNotification({
-                show: true,
-                message: 'Popup blocked. Please allow popups for this site.',
-                type: 'error'
-            });
+            setNotification({ show: true, message: 'Popup blocked. Please allow popups for this site.', type: 'error' });
             return;
         }
 
-        let tableContent = generatePrintContent();
+        const tableContent = viewMode === 'ird' ? generateIrdPrintContent() : generateTablePrintContent();
 
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Purchase Return VAT Report</title>
+                    <title>${viewMode === 'ird' ? 'Purchase Return VAT Return' : 'Purchase Return VAT Report'}</title>
                     <meta charset="UTF-8">
                     <style>
-                        @page { margin: 5mm; }
-                        body { 
-                            font-family: 'Segoe UI', Arial, sans-serif; 
-                            font-size: 10px; 
+                        @page { margin: 5mm; size: A4 landscape; }
+                        body {
+                            font-family: 'Segoe UI', Arial, sans-serif;
+                            font-size: 10px;
                             margin: 0;
                             padding: 5mm;
                             background: #fff;
                             color: #000;
                         }
-                        table { 
-                            width: 100%; 
-                            border-collapse: collapse; 
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
                             page-break-inside: auto;
                             font-size: 10px;
                         }
                         tr { page-break-inside: avoid; page-break-after: auto; }
-                        th, td { 
-                            border: 1px solid #333; 
-                            padding: 4px 6px; 
-                            text-align: left; 
+                        th, td {
+                            border: 1px solid #333;
+                            padding: 4px 6px;
+                            text-align: left;
                             white-space: nowrap;
                         }
-                        th { 
-                            background-color: #e8e8e8 !important; 
-                            -webkit-print-color-adjust: exact; 
+                        th {
+                            background-color: #e8e8e8 !important;
+                            -webkit-print-color-adjust: exact;
                             print-color-adjust: exact;
                             font-size: 11px;
                             font-weight: 700;
                             color: #1a1a1a;
+                            text-align: center;
                         }
                         td { font-size: 10px; padding: 4px 6px; }
                         .print-header { text-align: center; margin-bottom: 10px; }
                         .text-end { text-align: right; }
+                        .text-center { text-align: center; }
                         .nowrap { white-space: nowrap; }
                         .report-title {
                             text-align: center;
@@ -2053,7 +1995,7 @@ const PurchaseReturnVatReport = () => {
                     ${tableContent}
                     <script>
                         window.onload = function() {
-                            setTimeout(function() { 
+                            setTimeout(function() {
                                 window.print();
                                 setTimeout(function() {
                                     window.close();
@@ -2067,12 +2009,13 @@ const PurchaseReturnVatReport = () => {
         printWindow.document.close();
     };
 
-    const generatePrintContent = () => {
-        let tableContent = `
+    // -------- Table print (existing) --------
+    const generateTablePrintContent = () => {
+        let html = `
             <div class="print-header">
                 <div class="company-name">${data.currentCompanyName || 'Company Name'}</div>
                 <div class="company-details">
-                    ${data.company?.address || ''}${data.company?.city ? ', ' + data.company?.city : ''}<br>
+                    ${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}<br>
                     PAN: ${data.company?.pan || ''} | Phone: ${data.company?.phone || ''}
                 </div>
                 <hr style="margin:6px 0; border: 1px solid #ccc;">
@@ -2104,29 +2047,24 @@ const PurchaseReturnVatReport = () => {
         `;
 
         let printTotals = {
-            totalAmount: 0,
-            discountAmount: 0,
-            nonVatPurchaseReturn: 0,
-            taxableAmount: 0,
-            vatAmount: 0
+            totalAmount: 0, discountAmount: 0, nonVatPurchaseReturn: 0, taxableAmount: 0, vatAmount: 0
         };
 
         filteredReports.forEach((report) => {
-            tableContent += `
+            html += `
                 <tr>
                     <td class="nowrap">${report.nepaliDate || ''}</td>
                     <td class="nowrap">${report.date ? new Date(report.date).toLocaleDateString() : ''}</td>
                     <td class="nowrap">${report.billNumber || ''}</td>
                     <td style="white-space: normal; word-wrap: break-word; max-width: 150px;">${report.accountName || ''}</td>
                     <td class="nowrap">${report.panNumber || ''}</td>
-                    <td class="text-end">${(report.totalAmount || 0).toFixed(2)}</td>
-                    <td class="text-end">${(report.discountAmount || 0).toFixed(2)}</td>
-                    <td class="text-end">${(report.nonVatPurchaseReturn || 0).toFixed(2)}</td>
-                    <td class="text-end">${(report.taxableAmount || 0).toFixed(2)}</td>
-                    <td class="text-end">${(report.vatAmount || 0).toFixed(2)}</td>
+                    <td class="text-end">${formatCurrency(report.totalAmount)}</td>
+                    <td class="text-end">${formatCurrency(report.discountAmount)}</td>
+                    <td class="text-end">${formatCurrency(report.nonVatPurchaseReturn)}</td>
+                    <td class="text-end">${formatCurrency(report.taxableAmount)}</td>
+                    <td class="text-end">${formatCurrency(report.vatAmount)}</td>
                 </tr>
             `;
-
             printTotals.totalAmount += parseFloat(report.totalAmount || 0);
             printTotals.discountAmount += parseFloat(report.discountAmount || 0);
             printTotals.nonVatPurchaseReturn += parseFloat(report.nonVatPurchaseReturn || 0);
@@ -2134,44 +2072,114 @@ const PurchaseReturnVatReport = () => {
             printTotals.vatAmount += parseFloat(report.vatAmount || 0);
         });
 
-        tableContent += `
+        html += `
                 <tr class="grand-total-row">
                     <td colspan="5" class="text-end total-label">GRAND TOTALS</td>
-                    <td class="text-end total-label">${printTotals.totalAmount.toFixed(2)}</td>
-                    <td class="text-end total-label">${printTotals.discountAmount.toFixed(2)}</td>
-                    <td class="text-end total-label">${printTotals.nonVatPurchaseReturn.toFixed(2)}</td>
-                    <td class="text-end total-label">${printTotals.taxableAmount.toFixed(2)}</td>
-                    <td class="text-end total-label">${printTotals.vatAmount.toFixed(2)}</td>
+                    <td class="text-end total-label">${formatCurrency(printTotals.totalAmount)}</td>
+                    <td class="text-end total-label">${formatCurrency(printTotals.discountAmount)}</td>
+                    <td class="text-end total-label">${formatCurrency(printTotals.nonVatPurchaseReturn)}</td>
+                    <td class="text-end total-label">${formatCurrency(printTotals.taxableAmount)}</td>
+                    <td class="text-end total-label">${formatCurrency(printTotals.vatAmount)}</td>
                 </tr>
                 </tbody>
             </table>
         `;
 
-        return tableContent;
+        return html;
+    };
+
+    // -------- IRD print (खरिद फिर्ता खाता) --------
+    const generateIrdPrintContent = () => {
+        const t = irdTotals;
+
+        let html = `
+            <div class="print-header" style="text-align:center;">
+                <div style="font-size:16px;font-weight:700;">खरिद फिर्ता खाता</div>
+                <div style="font-size:10px;margin-top:2px;">(नियम २३ को उपनियम (१) को खण्ड (छ) संग सम्बन्धित)</div>
+                <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:10px;">
+                    <div><strong>करदाता दर्ता नं:</strong> ${data.company?.pan || ''}</div>
+                    <div><strong>करदाताको नाम:</strong> ${data.currentCompanyName || ''}</div>
+                    <div><strong>कर अवधि:</strong> ${dateRange.fromDate} देखि ${dateRange.toDate} सम्म</div>
+                </div>
+                <hr style="margin:6px 0; border: 1px solid #ccc;">
+            </div>
+            <table cellspacing="0" style="font-size:9px;">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="nowrap">मिति</th>
+                        <th rowspan="2" class="nowrap">बीजक नं.</th>
+                        <th rowspan="2" class="nowrap">परज्ञापनपत्र नं.</th>
+                        <th rowspan="2" class="nowrap">आपूर्तिकर्ताको नाम</th>
+                        <th rowspan="2" class="nowrap text-end">जम्मा फिर्ता मूल्य (रु)</th>
+                        <th rowspan="2" class="nowrap text-end">कर छूट हुने वस्तु वा सेवाको फिर्ता / पैठारी मूल्य (रु)</th>
+                        <th colspan="2" class="nowrap text-center">करयोग्य फिर्ता (पूंजीगत बाहेक)</th>
+                        <th colspan="2" class="nowrap text-center">करयोग्य पैठारी फिर्ता (पूंजीगत बाहेक)</th>
+                        <th colspan="2" class="nowrap text-center">पूंजीगत करयोग्य फिर्ता / पैठारी</th>
+                    </tr>
+                    <tr>
+                        <th class="nowrap text-end">मूल्य (रु)</th>
+                        <th class="nowrap text-end">कर (रु)</th>
+                        <th class="nowrap text-end">मूल्य (रु)</th>
+                        <th class="nowrap text-end">कर (रु)</th>
+                        <th class="nowrap text-end">मूल्य (रु)</th>
+                        <th class="nowrap text-end">कर (रु)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        irdRows.forEach((r) => {
+            html += `
+                <tr>
+                    <td class="nowrap">${r.date}</td>
+                    <td class="nowrap">${r.invoiceNo}</td>
+                    <td class="nowrap">${r.parjapatraNo}</td>
+                    <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;" title="${r.supplierName}">${r.supplierName}</td>
+                    <td class="text-end">${formatCurrency(r.totalReturn)}</td>
+                    <td class="text-end">${formatCurrency(r.taxExemptReturn)}</td>
+                    <td class="text-end">${formatCurrency(r.taxableReturnValue)}</td>
+                    <td class="text-end">${formatCurrency(r.taxableReturnVat)}</td>
+                    <td class="text-end">${formatCurrency(r.taxableImportReturnValue)}</td>
+                    <td class="text-end">${formatCurrency(r.taxableImportReturnVat)}</td>
+                    <td class="text-end">${formatCurrency(r.capitalTaxableReturnValue)}</td>
+                    <td class="text-end">${formatCurrency(r.capitalTaxableReturnVat)}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                <tr class="grand-total-row">
+                    <td colspan="4" class="text-end total-label">Total Bill: ${irdRows.length} &nbsp; Total</td>
+                    <td class="text-end total-label">${formatCurrency(t.totalReturn)}</td>
+                    <td class="text-end total-label">${formatCurrency(t.taxExemptReturn)}</td>
+                    <td class="text-end total-label">${formatCurrency(t.taxableReturnValue)}</td>
+                    <td class="text-end total-label">${formatCurrency(t.taxableReturnVat)}</td>
+                    <td class="text-end total-label">${formatCurrency(t.taxableImportReturnValue)}</td>
+                    <td class="text-end total-label">${formatCurrency(t.taxableImportReturnVat)}</td>
+                    <td class="text-end total-label">${formatCurrency(t.capitalTaxableReturnValue)}</td>
+                    <td class="text-end total-label">${formatCurrency(t.capitalTaxableReturnVat)}</td>
+                </tr>
+                </tbody>
+            </table>
+            <div class="footer">
+                Generated on ${new Date().toLocaleString()}
+            </div>
+        `;
+
+        return html;
     };
 
     const resetColumnWidths = () => {
         setColumnWidths({
-            bsDate: 80,
-            adDate: 80,
-            returnNo: 100,
-            supplierName: 200,
-            panNumber: 100,
-            totalAmount: 100,
-            discount: 100,
-            nonVatPurchaseReturn: 120,
-            taxableAmount: 100,
-            vatAmount: 80
+            bsDate: 80, adDate: 80, returnNo: 100, supplierName: 200, panNumber: 100,
+            totalAmount: 100, discount: 100, nonVatPurchaseReturn: 120, taxableAmount: 100, vatAmount: 80
         });
-        setNotification({
-            show: true,
-            message: 'Column widths reset',
-            type: 'success',
-            duration: 2000
-        });
+        setNotification({ show: true, message: 'Column widths reset', type: 'success', duration: 2000 });
     };
 
-    // Resize Handle Component
+    // ============================================================
+    // Small components for table view
+    // ============================================================
     const ResizeHandle = React.memo(({ onResizeStart, left, columnName }) => {
         return (
             <div
@@ -2187,15 +2195,11 @@ const PurchaseReturnVatReport = () => {
                     zIndex: 10,
                     userSelect: 'none'
                 }}
-                onMouseDown={(e) => {
-                    e.preventDefault();
-                    onResizeStart(e, columnName);
-                }}
+                onMouseDown={(e) => { e.preventDefault(); onResizeStart(e, columnName); }}
             />
         );
     });
 
-    // Table Header Component
     const TableHeader = React.memo(() => {
         const totalWidth = columnWidths.bsDate + columnWidths.adDate + columnWidths.returnNo +
             columnWidths.supplierName + columnWidths.panNumber + columnWidths.totalAmount +
@@ -2212,94 +2216,57 @@ const PurchaseReturnVatReport = () => {
         return (
             <div
                 className="prv-header"
-                style={{
-                    minWidth: `${totalWidth}px`,
-                    zIndex: 2,
-                    height: '28px'
-                }}
+                style={{ minWidth: `${totalWidth}px`, zIndex: 2, height: '28px' }}
                 onMouseMove={(e) => {
                     if (isResizing && resizingColumn) {
                         const diff = e.clientX - startX;
                         const newWidth = Math.max(60, startWidth + diff);
-                        setColumnWidths(prev => ({
-                            ...prev,
-                            [resizingColumn]: newWidth
-                        }));
+                        setColumnWidths(prev => ({ ...prev, [resizingColumn]: newWidth }));
                     }
                 }}
-                onMouseUp={() => {
-                    if (isResizing) {
-                        setIsResizing(false);
-                        setResizingColumn(null);
-                    }
-                }}
-                onMouseLeave={() => {
-                    if (isResizing) {
-                        setIsResizing(false);
-                        setResizingColumn(null);
-                    }
-                }}
+                onMouseUp={() => { if (isResizing) { setIsResizing(false); setResizingColumn(null); } }}
+                onMouseLeave={() => { if (isResizing) { setIsResizing(false); setResizingColumn(null); } }}
             >
-                {/* BS Date */}
                 <div className="prv-header-cell prv-header-cell--center" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong>Miti</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.bsDate - 2} columnName="bsDate" />
                 </div>
-
-                {/* AD Date */}
                 <div className="prv-header-cell prv-header-cell--center" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong>Date</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.adDate - 2} columnName="adDate" />
                 </div>
-
-                {/* Vch. No. */}
                 <div className="prv-header-cell" style={{ width: `${columnWidths.returnNo}px`, flexShrink: 0, minWidth: '60px' }}>
                     <strong>Vch. No.</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.returnNo - 3} columnName="returnNo" />
                 </div>
-
-                {/* Supplier's Name */}
                 <div className="prv-header-cell" style={{ width: `${columnWidths.supplierName}px`, flexShrink: 0, minWidth: '100px' }}>
                     <strong>Supplier's Name</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.supplierName - 3} columnName="supplierName" />
                 </div>
-
-                {/* Supplier's PAN */}
                 <div className="prv-header-cell" style={{ width: `${columnWidths.panNumber}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong>Supplier's PAN</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.panNumber - 3} columnName="panNumber" />
                 </div>
-
-                {/* Total Amount */}
                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.totalAmount}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong>Total Amount</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.totalAmount - 2} columnName="totalAmount" />
                 </div>
-
-                {/* Discount */}
                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong>Discount</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.discount - 2} columnName="discount" />
                 </div>
-
-                {/* Non-VAT Return */}
                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.nonVatPurchaseReturn}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong>Non-VAT Return</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.nonVatPurchaseReturn - 2} columnName="nonVatPurchaseReturn" />
                 </div>
-
-                {/* Taxable Amt. */}
                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.taxableAmount}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong>Taxable Amt.</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.taxableAmount - 2} columnName="taxableAmount" />
                 </div>
-
-                {/* VAT */}
                 <div className="prv-header-cell prv-header-cell--end" style={{ width: `${columnWidths.vatAmount}px`, flexShrink: 0, minWidth: '80px' }}>
                     <strong>VAT</strong>
                     <ResizeHandle onResizeStart={handleResizeStart} left={columnWidths.vatAmount - 2} columnName="vatAmount" />
                 </div>
-
                 {isResizing && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, cursor: 'col-resize' }} />
                 )}
@@ -2307,13 +2274,10 @@ const PurchaseReturnVatReport = () => {
         );
     });
 
-    // Table Row Component
     const TableRow = React.memo(({ index, style, data: rowData }) => {
         const { reports, selectedRowIndex, formatCurrency, handleRowClick } = rowData;
         const report = reports[index];
-
         if (!report) return null;
-
         const isSelected = selectedRowIndex === index;
 
         return (
@@ -2332,52 +2296,33 @@ const PurchaseReturnVatReport = () => {
                 className="prv-row"
                 onClick={() => handleRowClick(index)}
             >
-                {/* BS Date */}
                 <div className="prv-cell prv-cell--center" style={{ width: `${columnWidths.bsDate}px`, flexShrink: 0, height: '100%' }}>
                     <span>{report.nepaliDate || ''}</span>
                 </div>
-
-                {/* AD Date */}
                 <div className="prv-cell prv-cell--center" style={{ width: `${columnWidths.adDate}px`, flexShrink: 0, height: '100%' }}>
                     <span>{report.date ? new Date(report.date).toLocaleDateString() : ''}</span>
                 </div>
-
-                {/* Vch. No. */}
                 <div className="prv-cell" style={{ width: `${columnWidths.returnNo}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{report.billNumber || ''}</span>
                 </div>
-
-                {/* Supplier's Name */}
                 <div className="prv-cell" style={{ width: `${columnWidths.supplierName}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }} title={report.accountName || ''}>
                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{report.accountName || ''}</span>
                 </div>
-
-                {/* Supplier's PAN */}
                 <div className="prv-cell" style={{ width: `${columnWidths.panNumber}px`, flexShrink: 0, height: '100%', overflow: 'hidden' }}>
                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{report.panNumber || ''}</span>
                 </div>
-
-                {/* Total Amount */}
                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.totalAmount}px`, flexShrink: 0, height: '100%' }}>
                     <span>{formatCurrency(report.totalAmount)}</span>
                 </div>
-
-                {/* Discount */}
                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.discount}px`, flexShrink: 0, height: '100%' }}>
                     <span>{formatCurrency(report.discountAmount)}</span>
                 </div>
-
-                {/* Non-VAT Return */}
                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.nonVatPurchaseReturn}px`, flexShrink: 0, height: '100%' }}>
                     <span>{formatCurrency(report.nonVatPurchaseReturn)}</span>
                 </div>
-
-                {/* Taxable Amt. */}
                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.taxableAmount}px`, flexShrink: 0, height: '100%' }}>
                     <span>{formatCurrency(report.taxableAmount)}</span>
                 </div>
-
-                {/* VAT */}
                 <div className="prv-cell prv-cell--end" style={{ width: `${columnWidths.vatAmount}px`, flexShrink: 0, height: '100%' }}>
                     <span>{formatCurrency(report.vatAmount)}</span>
                 </div>
@@ -2390,6 +2335,96 @@ const PurchaseReturnVatReport = () => {
         const nextReport = nextProps.data.reports[nextProps.index];
         return prevReport === nextReport && prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex;
     });
+
+    // ============================================================
+    // IRD view (in-app)
+    // ============================================================
+    const IrdReturnView = () => {
+        return (
+            <div className="prv-ird-wrap">
+                <div className="prv-ird-header">
+                    <div className="prv-ird-title">खरिद फिर्ता खाता</div>
+                    <div className="prv-ird-subtitle">(नियम २३ को उपनियम (१) को खण्ड (छ) संग सम्बन्धित)</div>
+                    <div className="prv-ird-meta">
+                        <div><strong>करदाता दर्ता नं:</strong> {data.company?.pan || '-'}</div>
+                        <div><strong>करदाताको नाम:</strong> {data.currentCompanyName || '-'}</div>
+                        <div><strong>कर अवधि:</strong> {dateRange.fromDate} देखि {dateRange.toDate} सम्म</div>
+                    </div>
+                </div>
+
+                <div className="prv-ird-table-scroll">
+                    <table className="prv-ird-table">
+                        <thead>
+                            <tr>
+                                <th rowSpan="2">मिति</th>
+                                <th rowSpan="2">बीजक नं.</th>
+                                <th rowSpan="2">परज्ञापनपत्र नं.</th>
+                                <th rowSpan="2">आपूर्तिकर्ताको नाम</th>
+                                <th rowSpan="2" className="text-end">जम्मा फिर्ता मूल्य (रु)</th>
+                                <th rowSpan="2" className="text-end">कर छूट हुने वस्तु वा सेवाको फिर्ता / पैठारी मूल्य (रु)</th>
+                                <th colSpan="2" className="text-center">करयोग्य फिर्ता (पूंजीगत बाहेक)</th>
+                                <th colSpan="2" className="text-center">करयोग्य पैठारी फिर्ता (पूंजीगत बाहेक)</th>
+                                <th colSpan="2" className="text-center">पूंजीगत करयोग्य फिर्ता / पैठारी</th>
+                            </tr>
+                            <tr>
+                                <th className="text-end">मूल्य (रु)</th>
+                                <th className="text-end">कर (रु)</th>
+                                <th className="text-end">मूल्य (रु)</th>
+                                <th className="text-end">कर (रु)</th>
+                                <th className="text-end">मूल्य (रु)</th>
+                                <th className="text-end">कर (रु)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {irdRows.length === 0 ? (
+                                <tr>
+                                    <td colSpan="12" className="text-center" style={{ padding: '20px', color: '#888' }}>
+                                        No data
+                                    </td>
+                                </tr>
+                            ) : (
+                                irdRows.map((r, idx) => (
+                                    <tr key={idx} className={idx % 2 === 0 ? 'odd' : ''}>
+                                        <td>{r.date}</td>
+                                        <td>{r.invoiceNo}</td>
+                                        <td>{r.parjapatraNo}</td>
+                                        <td className="prv-ird-name" title={r.supplierName}>
+                                            {r.supplierName}
+                                        </td>
+                                        <td className="text-end">{formatCurrency(r.totalReturn)}</td>
+                                        <td className="text-end">{formatCurrency(r.taxExemptReturn)}</td>
+                                        <td className="text-end">{formatCurrency(r.taxableReturnValue)}</td>
+                                        <td className="text-end">{formatCurrency(r.taxableReturnVat)}</td>
+                                        <td className="text-end">{formatCurrency(r.taxableImportReturnValue)}</td>
+                                        <td className="text-end">{formatCurrency(r.taxableImportReturnVat)}</td>
+                                        <td className="text-end">{formatCurrency(r.capitalTaxableReturnValue)}</td>
+                                        <td className="text-end">{formatCurrency(r.capitalTaxableReturnVat)}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                        {irdRows.length > 0 && (
+                            <tfoot>
+                                <tr className="prv-ird-total-row">
+                                    <td colSpan="4" className="text-end">
+                                        <strong>Total Bill: {irdRows.length} &nbsp; Total</strong>
+                                    </td>
+                                    <td className="text-end"><strong>{formatCurrency(irdTotals.totalReturn)}</strong></td>
+                                    <td className="text-end"><strong>{formatCurrency(irdTotals.taxExemptReturn)}</strong></td>
+                                    <td className="text-end"><strong>{formatCurrency(irdTotals.taxableReturnValue)}</strong></td>
+                                    <td className="text-end"><strong>{formatCurrency(irdTotals.taxableReturnVat)}</strong></td>
+                                    <td className="text-end"><strong>{formatCurrency(irdTotals.taxableImportReturnValue)}</strong></td>
+                                    <td className="text-end"><strong>{formatCurrency(irdTotals.taxableImportReturnVat)}</strong></td>
+                                    <td className="text-end"><strong>{formatCurrency(irdTotals.capitalTaxableReturnValue)}</strong></td>
+                                    <td className="text-end"><strong>{formatCurrency(irdTotals.capitalTaxableReturnVat)}</strong></td>
+                                </tr>
+                            </tfoot>
+                        )}
+                    </table>
+                </div>
+            </div>
+        );
+    };
 
     if (loading && data.purchaseReturnVatReport.length === 0) return <Loader />;
 
@@ -2419,15 +2454,36 @@ const PurchaseReturnVatReport = () => {
                         <div><h1>Purchase Return VAT Report</h1></div>
                     </div>
                     <div className="prv-topbar__actions">
+                        {/* View toggle */}
+                        <div className="prv-view-toggle" role="group" aria-label="View mode">
+                            <button
+                                type="button"
+                                className={`prv-view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                                onClick={() => setViewMode('table')}
+                                title="Table view"
+                            >
+                                <FiGrid /> Table
+                            </button>
+                            <button
+                                type="button"
+                                className={`prv-view-btn ${viewMode === 'ird' ? 'active' : ''}`}
+                                onClick={() => setViewMode('ird')}
+                                title="IRD VAT Return format"
+                            >
+                                <FiList /> IRD
+                            </button>
+                        </div>
                         <button className="prv-btn-icon" onClick={handleExportExcel} disabled={data.purchaseReturnVatReport.length === 0 || exporting}>
                             <FiDownload /> {exporting ? '…' : 'Excel'}
                         </button>
                         <button className="prv-btn-icon" onClick={handlePrint} disabled={filteredReports.length === 0}>
                             <FiPrinter /> Print
                         </button>
-                        <button className="prv-btn-icon" onClick={resetColumnWidths} title="Reset columns">
-                            <FiRefreshCw /> Reset
-                        </button>
+                        {viewMode === 'table' && (
+                            <button className="prv-btn-icon" onClick={resetColumnWidths} title="Reset columns">
+                                <FiRefreshCw /> Reset
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -2575,7 +2631,7 @@ const PurchaseReturnVatReport = () => {
                     </div>
                 )}
 
-                {/* Main Content */}
+                {/* Main content */}
                 <div className="prv-main">
                     {data.purchaseReturnVatReport.length === 0 && !loading ? (
                         <div className="prv-state">
@@ -2584,13 +2640,24 @@ const PurchaseReturnVatReport = () => {
                             <p>Choose a date range, then click Generate.</p>
                         </div>
                     ) : loading ? (
-                        <div className="prv-state"><div className="spinner-border text-primary" /><p>Loading data...</p></div>
+                        <div className="prv-state">
+                            <div className="spinner-border text-primary" />
+                            <p>Loading data...</p>
+                        </div>
                     ) : filteredReports.length === 0 ? (
                         <div className="prv-state">
                             <FiSearch size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
                             <h3>No records found</h3>
                             <p>{searchQuery ? 'Try a different search term' : 'No data for the selected date range'}</p>
                         </div>
+                    ) : viewMode === 'ird' ? (
+                        <>
+                            <div className="prv-main__bar">
+                                <span><strong>{filteredReports.length}</strong> bills</span>
+                                <span>{dateRange.fromDate} — {dateRange.toDate}</span>
+                            </div>
+                            <IrdReturnView />
+                        </>
                     ) : (
                         <>
                             <div className="prv-main__bar">
