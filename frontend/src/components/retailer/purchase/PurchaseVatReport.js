@@ -1399,7 +1399,7 @@ const isValidNepaliDate = (dateStr) => {
  * Columns per PDF:
  *  - मिति
  *  - बीजक नं.
- *  - परज्ञापनपत्र नं.  (uses partyBillNumber)
+ *  - प्रज्ञापनपत्र नं.  (uses partyBillNumber)
  *  - आपूर्तिकर्ताको नाम
  *  - जम्मा खरिद मूल्य (रु)
  *  - कर छूट हुने वस्तु वा सेवाको खरिद / पैठारी मूल्य (रु)  → nonVatPurchase
@@ -1864,7 +1864,7 @@ const PurchaseVatReport = () => {
 
             if (viewMode === 'ird') {
                 excelData.push([
-                    'मिति', 'बीजक नं.', 'परज्ञापनपत्र नं.', 'आपूर्तिकर्ताको नाम',
+                    'मिति', 'बीजक नं.', 'प्रज्ञापनपत्र नं.', 'आपूर्तिकर्ताको नाम',
                     'जम्मा खरिद मूल्य (रु)',
                     'कर छूट हुने वस्तु वा सेवाको खरिद / पैठारी मूल्य (रु)',
                     'करयोग्य खरिद (पूंजीगत बाहेक) मूल्य (रु)',
@@ -2216,7 +2216,7 @@ const PurchaseVatReport = () => {
                     <tr>
                         <th rowspan="2" class="nowrap">मिति</th>
                         <th rowspan="2" class="nowrap">बीजक नं.</th>
-                        <th rowspan="2" class="nowrap">परज्ञापनपत्र नं.</th>
+                        <th rowspan="2" class="nowrap">प्रज्ञापनपत्र नं.</th>
                         <th rowspan="2" class="nowrap">आपूर्तिकर्ताको नाम</th>
                         <th rowspan="2" class="nowrap text-end">जम्मा खरिद मूल्य (रु)</th>
                         <th rowspan="2" class="nowrap text-end">कर छूट हुने वस्तु वा सेवाको खरिद / पैठारी मूल्य (रु)</th>
@@ -2512,7 +2512,7 @@ const PurchaseVatReport = () => {
                             <tr>
                                 <th rowSpan="2">मिति</th>
                                 <th rowSpan="2">बीजक नं.</th>
-                                <th rowSpan="2">परज्ञापनपत्र नं.</th>
+                                <th rowSpan="2">प्रज्ञापनपत्र नं.</th>
                                 <th rowSpan="2">आपूर्तिकर्ताको नाम</th>
                                 <th rowSpan="2" className="text-end">जम्मा खरिद मूल्य (रु)</th>
                                 <th rowSpan="2" className="text-end">कर छूट हुने वस्तु वा सेवाको खरिद / पैठारी मूल्य (रु)</th>
