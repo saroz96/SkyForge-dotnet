@@ -375,7 +375,95 @@ namespace SkyForge.Controllers.Retailer
                 });
             }
         }
-        
+
+
+        // Public endpoint - No authentication required!
+        // [HttpGet("public-statement/{token}")]
+        // [AllowAnonymous] // This allows access without login
+        // public async Task<IActionResult> GetPublicStatement(string token)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("Public statement accessed with token: {Token}", token);
+
+        //         // Validate token - check if it exists in your database
+        //         var accountToken = await _context.AccountShareTokens
+        //             .FirstOrDefaultAsync(t => t.Token == token && t.IsActive);
+
+        //         if (accountToken == null)
+        //         {
+        //             return NotFound("Invalid or expired share link");
+        //         }
+
+        //         // Check if the account exists
+        //         var account = await _context.Accounts
+        //             .Include(a => a.AccountGroup)
+        //             .FirstOrDefaultAsync(a => a.Id == accountToken.AccountId);
+
+        //         if (account == null)
+        //         {
+        //             return NotFound("Account not found");
+        //         }
+
+        //         // Get company and fiscal year
+        //         var company = await _context.Companies
+        //             .FirstOrDefaultAsync(c => c.Id == account.CompanyId);
+
+        //         if (company == null)
+        //         {
+        //             return NotFound("Company not found");
+        //         }
+
+        //         var fiscalYear = await _context.FiscalYears
+        //             .FirstOrDefaultAsync(f => f.CompanyId == company.Id && f.IsActive);
+
+        //         if (fiscalYear == null)
+        //         {
+        //             fiscalYear = await _context.FiscalYears
+        //                 .Where(f => f.CompanyId == company.Id)
+        //                 .OrderByDescending(f => f.StartDate)
+        //                 .FirstOrDefaultAsync();
+        //         }
+
+        //         // Get statement data
+        //         // Use current date range or fiscal year date range
+        //         DateTime fromDate = fiscalYear?.StartDate ?? DateTime.UtcNow.AddMonths(-1);
+        //         DateTime toDate = DateTime.UtcNow;
+
+        //         var request = new StatementRequestDTO
+        //         {
+        //             AccountId = account.Id,
+        //             FromDate = fromDate,
+        //             ToDate = toDate,
+        //             PaymentMode = "all",
+        //             IncludeItems = false,
+        //             DateFormat = company.DateFormat?.ToString() ?? "english"
+        //         };
+
+        //         // Get the statement using your existing service
+        //         var response = await _statementService.GetStatementAsync(
+        //             company.Id,
+        //             fiscalYear?.Id ?? Guid.Empty,
+        //             Guid.Empty, // No user needed for public view
+        //             request);
+
+        //         if (!response.Success)
+        //         {
+        //             return StatusCode(500, "Error generating statement");
+        //         }
+
+        //         // Generate HTML response
+        //         var html = GeneratePublicStatementHTML(account, company, response.Data, fromDate, toDate);
+
+        //         return Content(html, "text/html");
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error generating public statement for token: {Token}", token);
+        //         return StatusCode(500, "An error occurred while generating the statement");
+        //     }
+        // }
+
         private string GeneratePublicStatementHTML(Account account, Company company, StatementDataDTO data, DateTime fromDate, DateTime toDate)
         {
             // Get Nepali dates from the data - use the first item's NepaliDate or generate from AD

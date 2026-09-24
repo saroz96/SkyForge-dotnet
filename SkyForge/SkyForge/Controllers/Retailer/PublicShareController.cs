@@ -887,7 +887,7 @@ namespace SkyForge.Controllers.Public
         </tfoot>
     </table>
     <div class=""last-updated"">
-        <strong>Last Updated:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
+                <strong>Last Updated:</strong> {DateTime.UtcNow:yyyy-MM-dd} | Powered by Ams Software
     </div>
 </body>
 </html>";

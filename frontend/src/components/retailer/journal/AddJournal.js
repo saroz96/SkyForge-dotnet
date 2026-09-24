@@ -2157,6 +2157,4381 @@
 
 //---------------------------------------------------------end1
 
+// import React, { useState, useEffect, useRef, useMemo } from 'react';
+// import { useNavigate } from 'react-router-dom';
+// import axios from 'axios';
+// import NepaliDate from 'nepali-datetime';
+// import NotificationToast from '../../NotificationToast';
+// import Header from '../Header';
+// import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
+// import ProductModal from '../dashboard/modals/ProductModal';
+// import { usePageNotRefreshContext } from '../PageNotRefreshContext';
+// import VirtualizedAccountList from '../../VirtualizedAccountList';
+// import useDebounce from '../../../hooks/useDebounce';
+// import NepaliDatePicker from '../../NepaliDatePicker';
+// import {
+//     isValidNepaliDate,
+//     getCurrentNepaliDate,
+//     getNepaliMonthDaysComprehensive
+// } from '../../NepaliDateUtils';
+// import api, { refreshToken } from '../../services/api';
+// import AccountModalForJournal from './AccountModalForJournal';
+
+// const convertBsToAd = (bsDate) => {
+//     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+//     try {
+//         const nepaliDate = new NepaliDate(bsDate);
+//         const jsDate = nepaliDate.getDateObject();
+//         if (!jsDate || isNaN(jsDate.getTime())) return null;
+//         const year = jsDate.getFullYear();
+//         const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+//         const day = String(jsDate.getDate()).padStart(2, '0');
+//         return `${year}-${month}-${day}`;
+//     } catch (error) {
+//         console.error('Error converting BS to AD:', error);
+//         return null;
+//     }
+// };
+
+// const convertAdToBs = (adDate) => {
+//     if (!adDate) return null;
+//     try {
+//         let date;
+//         if (typeof adDate === 'string') {
+//             if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+//                 date = new Date(adDate + 'T00:00:00');
+//             } else {
+//                 date = new Date(adDate);
+//             }
+//         } else if (adDate instanceof Date) {
+//             date = adDate;
+//         } else { return null; }
+//         if (isNaN(date.getTime())) return null;
+//         const nepaliDate = new NepaliDate(date);
+//         return `${nepaliDate.getYear()}-${String(nepaliDate.getMonth() + 1).padStart(2, '0')}-${String(nepaliDate.getDate()).padStart(2, '0')}`;
+//     } catch (error) {
+//         console.error('Error converting AD to BS:', error);
+//         return null;
+//     }
+// };
+
+
+// // Helper function to format AD date to YYYY-MM-DD
+// const formatAdDate = (date) => {
+//     if (!date) return null;
+
+//     try {
+//         const d = new Date(date);
+//         if (isNaN(d.getTime())) return null;
+
+//         const year = d.getFullYear();
+//         const month = String(d.getMonth() + 1).padStart(2, '0');
+//         const day = String(d.getDate()).padStart(2, '0');
+
+//         return `${year}-${month}-${day}`;
+//     } catch (error) {
+//         console.error('Error formatting AD date:', error);
+//         return null;
+//     }
+// };
+
+// // Get Nepali month days for validation
+// const getNepaliMonthDays = (year, month) => {
+//     const monthDays = {
+//         1: 31,  // Baisakh
+//         2: 31,  // Jestha
+//         3: 32,  // Ashad
+//         4: 32,  // Shrawan
+//         5: 31,  // Bhadra
+//         6: 31,  // Ashwin
+//         7: 30,  // Kartik
+//         8: 30,  // Mangsir
+//         9: 30,  // Poush
+//         10: 30, // Magh
+//         11: 30, // Falgun
+//         12: 30  // Chaitra
+//     };
+
+//     if (month === 3) {
+//         const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
+//         return ashad31Years.includes(year) ? 31 : 32;
+//     }
+
+//     if (month === 11) {
+//         const isLeapYear = (year + 1) % 4 === 0;
+//         return isLeapYear ? 30 : 29;
+//     }
+
+//     return monthDays[month] || 30;
+// };
+
+// // Enhanced validation with month day limits
+// const isValidNepaliDateEnhanced = (dateStr) => {
+//     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+
+//     const [year, month, day] = dateStr.split('-').map(Number);
+
+//     if (year < 1970 || year > 2100) return false;
+//     if (month < 1 || month > 12) return false;
+
+//     const maxDays = getNepaliMonthDays(year, month);
+//     if (day < 1 || day > maxDays) return false;
+
+//     try {
+//         const nepaliDate = new NepaliDate(dateStr);
+//         const bsYear = nepaliDate.getYear();
+//         const bsMonth = nepaliDate.getMonth() + 1;
+//         const bsDay = nepaliDate.getDate();
+
+//         return (bsYear === year && bsMonth === month && bsDay === day);
+//     } catch {
+//         return false;
+//     }
+// };
+
+// const AddJournalVoucher = () => {
+//     const navigate = useNavigate();
+//     const { draftSave, setDraftSave, clearDraft } = usePageNotRefreshContext();
+//     const accountSearchRef = useRef(null);
+//     const itemsTableRef = useRef(null);
+//     const [showProductModal, setShowProductModal] = useState(false);
+//     const [printAfterSave, setPrintAfterSave] = useState(
+//         localStorage.getItem('printAfterSaveJournal') === 'true' || false
+//     );
+//     const [isSaving, setIsSaving] = useState(false);
+//     const [notification, setNotification] = useState({
+//         show: false,
+//         message: '',
+//         type: 'success'
+//     });
+//     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+//     // Add near your other state declarations (around line 60-80)
+//     const [useVoucherLastDateForJournal, setUseVoucherLastDateForJournal] = useState(false);
+//     const [lastJournalDate, setLastJournalDate] = useState(null);
+//     // Header selection states
+//     const [headerDebitAccount, setHeaderDebitAccount] = useState(null);
+//     const [headerDebitAmount, setHeaderDebitAmount] = useState('');
+//     const [headerCreditAccount, setHeaderCreditAccount] = useState(null);
+//     const [headerCreditAmount, setHeaderCreditAmount] = useState('');
+//     const [currentSelectionType, setCurrentSelectionType] = useState('debit');
+//     const [editingEntryIndex, setEditingEntryIndex] = useState(null);
+//     const [isEditMode, setIsEditMode] = useState(false);
+
+//     // ===== Inline row-level edit state =====
+//     const [editingRowIndex, setEditingRowIndex] = useState(null);
+//     const [inlineEditData, setInlineEditData] = useState({
+//         debitAccount: null,
+//         debitAmount: '',
+//         creditAccount: null,
+//         creditAmount: ''
+//     });
+//     const [inlineSelectionType, setInlineSelectionType] = useState(null); // 'debit' | 'credit'
+
+//     // Updated formData to use unified entries array
+//     const [formData, setFormData] = useState({
+//         date: new Date().toISOString().split('T')[0],
+//         nepaliDate: currentNepaliDate,
+//         description: '',
+//         entries: []  // Unified entries array
+//     });
+
+//     const [accounts, setAccounts] = useState([]);
+//     const [nextBillNumber, setNextBillNumber] = useState('');
+//     const [currentBillNumber, setCurrentBillNumber] = useState('');
+//     const [companyDateFormat, setCompanyDateFormat] = useState('nepali');
+//     const [isLoading, setIsLoading] = useState(true);
+//     const [error, setError] = useState(null);
+//     const [showAccountModal, setShowAccountModal] = useState(false);
+//     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+//     const transactionDateRef = useRef(null);
+//     const [dateErrors, setDateErrors] = useState({
+//         nepaliDate: ''
+//     });
+
+//     // Account search states
+//     const [isAccountSearching, setIsAccountSearching] = useState(false);
+//     const [accountSearchPage, setAccountSearchPage] = useState(1);
+//     const [hasMoreAccountResults, setHasMoreAccountResults] = useState(false);
+//     const [totalAccounts, setTotalAccounts] = useState(0);
+//     const [accountSearchQuery, setAccountSearchQuery] = useState('');
+//     const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
+//     const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
+
+//     const getCurrentBillNumber = async () => {
+//         try {
+//             const response = await api.get('/api/retailer/journal/current-number');
+//             return response.data.data.currentJournalBillNumber;
+//         } catch (error) {
+//             console.error('Error getting current bill number:', error);
+//             return null;
+//         }
+//     };
+
+//     // Replace the existing fetchAccountsFromBackend with this version
+//     const fetchAccountsFromBackend = async (searchTerm = '', page = 1, append = false) => {
+//         try {
+//             setIsAccountSearching(true);
+//             const response = await api.get('/api/retailer/all/accounts/search', {
+//                 params: {
+//                     search: searchTerm,
+//                     page: page,
+//                     limit: searchTerm.trim() ? 15 : 25,
+//                 }
+//             });
+
+//             if (response.data.success) {
+//                 if (append) {
+//                     // APPEND to existing accounts instead of replacing
+//                     setAccounts(prev => [...prev, ...response.data.accounts]);
+//                 } else {
+//                     setAccounts(response.data.accounts);
+//                 }
+//                 setHasMoreAccountResults(response.data.pagination.hasNextPage);
+//                 setTotalAccounts(response.data.pagination.totalAccounts);
+//                 setAccountSearchPage(page);
+
+//                 if (searchTerm.trim() !== '') {
+//                     setAccountLastSearchQuery(searchTerm);
+//                     setAccountShouldShowLastSearchResults(true);
+//                 }
+//             }
+//         } catch (error) {
+//             console.error('Error fetching accounts:', error);
+//             setNotification({
+//                 show: true,
+//                 message: 'Error loading accounts',
+//                 type: 'error'
+//             });
+//         } finally {
+//             setIsAccountSearching(false);
+//         }
+//     };
+
+//     const totals = useMemo(() => {
+//         const totalDebit = formData.entries
+//             .filter(entry => entry.entryType === 'Debit')
+//             .reduce((sum, entry) => sum + (parseFloat(entry.amount) || 0), 0);
+//         const totalCredit = formData.entries
+//             .filter(entry => entry.entryType === 'Credit')
+//             .reduce((sum, entry) => sum + (parseFloat(entry.amount) || 0), 0);
+//         return { totalDebit, totalCredit };
+//     }, [formData.entries]);
+
+//     useEffect(() => {
+//         const handleF9Key = (e) => {
+//             if (e.key === 'F9') {
+//                 e.preventDefault();
+//                 setShowProductModal(prev => !prev);
+//             }
+//         };
+//         window.addEventListener('keydown', handleF9Key);
+//         return () => {
+//             window.removeEventListener('keydown', handleF9Key);
+//         };
+//     }, []);
+
+//     // Fetch date preference setting from backend for Journal
+//     const fetchDatePreference = async () => {
+//         try {
+//             console.log('=== fetchDatePreferenceForJournal CALLED ===');
+//             const response = await api.get('/api/retailer/date-preference/journal');
+//             console.log('Date preference response:', response.data);
+
+//             if (response.data.success) {
+//                 const useVoucherDate = response.data.data.useVoucherLastDate;
+//                 console.log('useVoucherLastDateForJournal value from API:', useVoucherDate);
+//                 setUseVoucherLastDateForJournal(useVoucherDate);
+//                 return useVoucherDate;
+//             }
+//             return false;
+//         } catch (error) {
+//             console.error('Error fetching date preference:', error);
+//             return false;
+//         }
+//     };
+
+//     // Fetch last journal date from backend
+//     const fetchLastJournalDate = async () => {
+//         try {
+//             console.log('=== fetchLastJournalDate CALLED ===');
+
+//             // Use the endpoint: /api/retailer/last-journal-date
+//             const response = await api.get('/api/retailer/last-journal-date');
+//             console.log('Last journal date response:', response.data);
+
+//             if (response.data.success && response.data.data) {
+//                 const data = response.data.data;
+//                 const isNepaliFormat = companyDateFormat === 'nepali';
+
+//                 // Get the appropriate date based on company format
+//                 let lastDate = null;
+//                 if (isNepaliFormat) {
+//                     // Use Nepali date field from response
+//                     lastDate = data.nepaliDate;
+//                     console.log('Using Nepali date field:', lastDate);
+//                 } else {
+//                     // Use English date field from response
+//                     lastDate = data.date;
+//                     console.log('Using English date field:', lastDate);
+//                 }
+
+//                 if (lastDate) {
+//                     // Format the date (it should already be in YYYY-MM-DD format from backend)
+//                     let formattedDate = lastDate;
+//                     if (typeof lastDate === 'string' && lastDate.includes('T')) {
+//                         formattedDate = lastDate.split('T')[0];
+//                     }
+//                     console.log('Formatted last journal date:', formattedDate);
+//                     setLastJournalDate(formattedDate);
+//                     return formattedDate;
+//                 }
+//             }
+
+//             console.log('No last journal date found - returning null');
+//             return null;
+//         } catch (error) {
+//             console.error('Error fetching last journal date:', error);
+//             return null;
+//         }
+//     };
+
+//     useEffect(() => {
+//         const fetchJournalFormData = async () => {
+//             try {
+//                 setIsLoading(true);
+
+//                 // Get current bill number (does NOT increment)
+//                 const currentBillNum = await getCurrentBillNumber();
+
+//                 // Fetch form data
+//                 const response = await api.get('/api/retailer/journal');
+//                 const { data } = response;
+
+//                 // Get company date format first
+//                 const isNepaliFormat = data.data.companyDateFormat === 'nepali';
+//                 setCompanyDateFormat(data.data.companyDateFormat);
+
+//                 // Fetch date preference (useVoucherLastDate setting from backend)
+//                 const useVoucherDate = await fetchDatePreference();
+
+//                 // Fetch last journal date if needed
+//                 let lastDate = null;
+//                 if (useVoucherDate) {
+//                     lastDate = await fetchLastJournalDate();
+//                 }
+
+//                 let transactionDate = '';
+//                 let invoiceDate = '';
+
+//                 console.log('Setting dates - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+//                 // Set dates based on preference
+//                 if (useVoucherDate && lastDate) {
+//                     // Use last voucher date
+//                     if (isNepaliFormat) {
+//                         transactionDate = lastDate;
+//                         invoiceDate = lastDate;
+//                     } else {
+//                         transactionDate = lastDate;
+//                         invoiceDate = lastDate;
+//                     }
+//                     console.log('Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+//                 } else {
+//                     // Use current system date
+//                     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+//                     if (isNepaliFormat) {
+//                         transactionDate = currentNepaliDate;
+//                         invoiceDate = currentNepaliDate;
+//                     } else {
+//                         const today = new Date().toISOString().split('T')[0];
+//                         transactionDate = today;
+//                         invoiceDate = today;
+//                     }
+//                     console.log('Using SYSTEM date:', { transactionDate, invoiceDate });
+//                 }
+
+//                 setAccounts(data.data.accounts);
+//                 setCurrentBillNumber(currentBillNum);
+//                 setNextBillNumber(currentBillNum);
+
+//                 // Set form data with the determined dates
+//                 setFormData({
+//                     date: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : ''),
+//                     nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
+//                     description: '',
+//                     entries: []
+//                 });
+
+//                 setIsInitialDataLoaded(true);
+//                 setIsLoading(false);
+//             } catch (err) {
+//                 setError(err.response?.data?.message || 'Failed to load journal voucher form');
+//                 setIsLoading(false);
+//             }
+//         };
+
+//         fetchJournalFormData();
+//     }, []);
+
+//     // Auto-scroll to bottom when new entries are added
+//     useEffect(() => {
+//         if (itemsTableRef.current && formData.entries.length > 0) {
+//             setTimeout(() => {
+//                 itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
+//             }, 10);
+//         }
+//     }, [formData.entries]);
+
+//     useEffect(() => {
+//         if (isInitialDataLoaded && transactionDateRef.current) {
+//             const timer = setTimeout(() => {
+//                 transactionDateRef.current.focus();
+//             }, 50);
+//             return () => clearTimeout(timer);
+//         }
+//     }, [isInitialDataLoaded, companyDateFormat]);
+
+//     useEffect(() => {
+//         if (showAccountModal) {
+//             // Reset ALL search-related state
+//             setAccountSearchQuery('');
+//             setAccountSearchPage(1);
+//             setAccounts([]);
+//             setHasMoreAccountResults(false);
+//             setTotalAccounts(0);
+//             setAccountLastSearchQuery('');
+//             setAccountShouldShowLastSearchResults(false);
+
+//             // Fetch fresh accounts from page 1 with no search
+//             // Use a small delay to ensure state is reset first
+//             setTimeout(() => {
+//                 fetchAccountsFromBackend('', 1, false);
+//             }, 50);
+//         }
+//     }, [showAccountModal]);
+
+//     // ============================================================
+//     // ROW-LEVEL INLINE EDIT HANDLERS
+//     // ============================================================
+//     const startEditEntry = (index) => {
+//         // Get the paired entries for this row
+//         const debitEntriesList = formData.entries.filter(entry => entry.entryType === 'Debit');
+//         const creditEntriesList = formData.entries.filter(entry => entry.entryType === 'Credit');
+
+//         const debitEntry = debitEntriesList[index];
+//         const creditEntry = creditEntriesList[index];
+
+//         // Find full account objects; fallback to reconstructed object from accountName
+//         const debitAccount = debitEntry?.accountId
+//             ? (accounts.find(acc => acc.id === debitEntry.accountId) || {
+//                 id: debitEntry.accountId,
+//                 name: debitEntry.accountName?.split(' - ').slice(1).join(' - ') || debitEntry.accountName,
+//                 uniqueNumber: debitEntry.accountName?.split(' - ')[0] || ''
+//             })
+//             : null;
+
+//         const creditAccount = creditEntry?.accountId
+//             ? (accounts.find(acc => acc.id === creditEntry.accountId) || {
+//                 id: creditEntry.accountId,
+//                 name: creditEntry.accountName?.split(' - ').slice(1).join(' - ') || creditEntry.accountName,
+//                 uniqueNumber: creditEntry.accountName?.split(' - ')[0] || ''
+//             })
+//             : null;
+
+//         setEditingRowIndex(index);
+//         setInlineEditData({
+//             debitAccount: debitAccount,
+//             debitAmount: debitEntry?.amount?.toString() || '',
+//             creditAccount: creditAccount,
+//             creditAmount: creditEntry?.amount?.toString() || ''
+//         });
+
+//         // Focus on debit amount if account exists, else focus on account field
+//         setTimeout(() => {
+//             const amountInput = document.getElementById(`inline-debit-amount-${index}`);
+//             if (amountInput) amountInput.focus();
+//         }, 100);
+//     };
+
+//     const cancelInlineEdit = () => {
+//         setEditingRowIndex(null);
+//         setInlineEditData({
+//             debitAccount: null,
+//             debitAmount: '',
+//             creditAccount: null,
+//             creditAmount: ''
+//         });
+//         setInlineSelectionType(null);
+//     };
+
+//     const updateInlineEntry = () => {
+//         const { debitAccount, debitAmount, creditAccount, creditAmount } = inlineEditData;
+//         const debitAmt = parseFloat(debitAmount) || 0;
+//         const creditAmt = parseFloat(creditAmount) || 0;
+
+//         if (!debitAccount && !creditAccount) {
+//             setNotification({
+//                 show: true,
+//                 message: 'Please select at least one account',
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         const newEntries = [...formData.entries];
+//         const debitEntriesList = newEntries.filter(entry => entry.entryType === 'Debit');
+//         const creditEntriesList = newEntries.filter(entry => entry.entryType === 'Credit');
+
+//         const rowIndex = editingRowIndex;
+
+//         // ----- Update or remove Debit entry -----
+//         if (debitAccount && debitEntriesList[rowIndex]) {
+//             const idx = newEntries.findIndex(e => e.id === debitEntriesList[rowIndex].id);
+//             if (idx !== -1) {
+//                 newEntries[idx] = {
+//                     ...newEntries[idx],
+//                     accountId: debitAccount.id,
+//                     accountName: `${debitAccount.uniqueNumber || ''} - ${debitAccount.name}`,
+//                     amount: debitAmt.toString()
+//                 };
+//             }
+//         } else if (!debitAccount && debitEntriesList[rowIndex]) {
+//             const idx = newEntries.findIndex(e => e.id === debitEntriesList[rowIndex].id);
+//             if (idx !== -1) newEntries.splice(idx, 1);
+//         } else if (debitAccount && !debitEntriesList[rowIndex]) {
+//             newEntries.push({
+//                 id: Date.now(),
+//                 accountId: debitAccount.id,
+//                 accountName: `${debitAccount.uniqueNumber || ''} - ${debitAccount.name}`,
+//                 entryType: 'Debit',
+//                 amount: debitAmt.toString(),
+//                 lineNumber: newEntries.length + 1,
+//                 description: '',
+//                 referenceNumber: ''
+//             });
+//         }
+
+//         // ----- Recompute credit list (may have changed) -----
+//         const updatedCreditList = newEntries.filter(entry => entry.entryType === 'Credit');
+
+//         if (creditAccount && updatedCreditList[rowIndex]) {
+//             const idx = newEntries.findIndex(e => e.id === updatedCreditList[rowIndex].id);
+//             if (idx !== -1) {
+//                 newEntries[idx] = {
+//                     ...newEntries[idx],
+//                     accountId: creditAccount.id,
+//                     accountName: `${creditAccount.uniqueNumber || ''} - ${creditAccount.name}`,
+//                     amount: creditAmt.toString()
+//                 };
+//             }
+//         } else if (!creditAccount && updatedCreditList[rowIndex]) {
+//             const idx = newEntries.findIndex(e => e.id === updatedCreditList[rowIndex].id);
+//             if (idx !== -1) newEntries.splice(idx, 1);
+//         } else if (creditAccount && !updatedCreditList[rowIndex]) {
+//             newEntries.push({
+//                 id: Date.now() + 1,
+//                 accountId: creditAccount.id,
+//                 accountName: `${creditAccount.uniqueNumber || ''} - ${creditAccount.name}`,
+//                 entryType: 'Credit',
+//                 amount: creditAmt.toString(),
+//                 lineNumber: newEntries.length + 1,
+//                 description: '',
+//                 referenceNumber: ''
+//             });
+//         }
+
+//         setFormData(prev => ({ ...prev, entries: newEntries }));
+//         cancelInlineEdit();
+
+//         setNotification({
+//             show: true,
+//             message: 'Entry updated successfully!',
+//             type: 'success'
+//         });
+//     };
+
+//     // ============================================================
+//     // HEADER INSERT (still used for adding NEW entries)
+//     // ============================================================
+//     const insertEntry = () => {
+//         const debitAmount = parseFloat(headerDebitAmount) || 0;
+//         const creditAmount = parseFloat(headerCreditAmount) || 0;
+
+//         const newEntries = [...formData.entries];
+//         let lineNumber = newEntries.length + 1;
+
+//         // Case 1: Both debit and credit entries provided
+//         if (headerDebitAccount && headerDebitAmount && headerCreditAccount && headerCreditAmount) {
+//             newEntries.push({
+//                 id: Date.now(),
+//                 accountId: headerDebitAccount.id,
+//                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+//                 entryType: 'Debit',
+//                 amount: debitAmount,
+//                 lineNumber: lineNumber++
+//             });
+
+//             newEntries.push({
+//                 id: Date.now() + 1,
+//                 accountId: headerCreditAccount.id,
+//                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+//                 entryType: 'Credit',
+//                 amount: creditAmount,
+//                 lineNumber: lineNumber++
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+
+//             // Reset header fields
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const debitSearchInput = document.getElementById('headerDebitSearch');
+//                 if (debitSearchInput) {
+//                     debitSearchInput.focus();
+//                     debitSearchInput.select();
+//                 }
+//             }, 50);
+//         }
+//         // Case 2: Only debit entry provided
+//         else if (headerDebitAccount && headerDebitAmount && !headerCreditAccount && !headerCreditAmount) {
+//             newEntries.push({
+//                 id: Date.now(),
+//                 accountId: headerDebitAccount.id,
+//                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+//                 entryType: 'Debit',
+//                 amount: debitAmount,
+//                 lineNumber: lineNumber++
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const debitSearchInput = document.getElementById('headerDebitSearch');
+//                 if (debitSearchInput) {
+//                     debitSearchInput.focus();
+//                     debitSearchInput.select();
+//                 }
+//             }, 50);
+//         }
+//         // Case 3: Only credit entry provided
+//         else if (!headerDebitAccount && !headerDebitAmount && headerCreditAccount && headerCreditAmount) {
+//             newEntries.push({
+//                 id: Date.now(),
+//                 accountId: headerCreditAccount.id,
+//                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+//                 entryType: 'Credit',
+//                 amount: creditAmount,
+//                 lineNumber: lineNumber++
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const creditSearchInput = document.getElementById('headerCreditSearch');
+//                 if (creditSearchInput) {
+//                     creditSearchInput.focus();
+//                     creditSearchInput.select();
+//                 }
+//             }, 50);
+//         }
+//         else {
+//             setNotification({
+//                 show: true,
+//                 message: 'Please fill either both debit and credit entries, or one of them',
+//                 type: 'error'
+//             });
+//         }
+//     };
+
+//     const removeEntry = (index) => {
+//         // When removing a row, we need to remove both debit and credit entries at that index
+//         const debitEntriesList = formData.entries.filter(entry => entry.entryType === 'Debit');
+//         const creditEntriesList = formData.entries.filter(entry => entry.entryType === 'Credit');
+
+//         const debitToRemove = debitEntriesList[index];
+//         const creditToRemove = creditEntriesList[index];
+
+//         let newEntries = [...formData.entries];
+
+//         if (debitToRemove) {
+//             const debitIndex = newEntries.findIndex(e => e.id === debitToRemove.id);
+//             if (debitIndex !== -1) {
+//                 newEntries.splice(debitIndex, 1);
+//             }
+//         }
+
+//         if (creditToRemove) {
+//             const creditIndex = newEntries.findIndex(e => e.id === creditToRemove.id);
+//             if (creditIndex !== -1) {
+//                 newEntries.splice(creditIndex, 1);
+//             }
+//         }
+
+//         setFormData(prev => ({ ...prev, entries: newEntries }));
+//     };
+
+//     // ============================================================
+//     // ACCOUNT SELECTION (handles both header + inline edit targets)
+//     // ============================================================
+//     const selectAccount = (account) => {
+//         // ---- If we're editing a row inline, route selection there ----
+//         if (editingRowIndex !== null && inlineSelectionType) {
+//             if (inlineSelectionType === 'debit') {
+//                 setInlineEditData(prev => ({ ...prev, debitAccount: account }));
+//                 setShowAccountModal(false);
+//                 setInlineSelectionType(null);
+//                 setTimeout(() => {
+//                     document.getElementById(`inline-debit-amount-${editingRowIndex}`)?.focus();
+//                 }, 100);
+//             } else if (inlineSelectionType === 'credit') {
+//                 setInlineEditData(prev => ({ ...prev, creditAccount: account }));
+//                 setShowAccountModal(false);
+//                 setInlineSelectionType(null);
+//                 setTimeout(() => {
+//                     document.getElementById(`inline-credit-amount-${editingRowIndex}`)?.focus();
+//                 }, 100);
+//             }
+//             return;
+//         }
+
+//         // ---- Otherwise, fall back to header behaviour ----
+//         if (currentSelectionType === 'debit') {
+//             setHeaderDebitAccount(account);
+//             setShowAccountModal(false);
+//             setTimeout(() => {
+//                 document.getElementById('headerDebitAmount')?.focus();
+//             }, 100);
+//         } else {
+//             setHeaderCreditAccount(account);
+//             setShowAccountModal(false);
+//             setTimeout(() => {
+//                 document.getElementById('headerCreditAmount')?.focus();
+//             }, 100);
+//         }
+//     };
+
+//     const handleInputChange = (e) => {
+//         const { name, value } = e.target;
+//         setFormData(prev => ({ ...prev, [name]: value }));
+//     };
+
+//     const resetAfterSave = async () => {
+//         try {
+//             // Get current bill number (this increments the counter)
+//             const currentBillNum = await getCurrentBillNumber();
+//             setCurrentBillNumber(currentBillNum);
+//             setNextBillNumber(currentBillNum);
+
+//             const isNepaliFormat = companyDateFormat === 'nepali';
+
+//             // Fetch current date preference (don't rely on state, fetch fresh)
+//             const useVoucherDate = await fetchDatePreference();
+
+//             // Fetch last journal date if needed
+//             let lastDate = null;
+//             if (useVoucherDate) {
+//                 lastDate = await fetchLastJournalDate();
+//             }
+
+//             let transactionDate = '';
+//             let invoiceDate = '';
+
+//             console.log('resetAfterSave - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
+
+//             // Set dates based on preference
+//             if (useVoucherDate && lastDate) {
+//                 if (isNepaliFormat) {
+//                     transactionDate = lastDate;
+//                     invoiceDate = lastDate;
+//                 } else {
+//                     transactionDate = lastDate;
+//                     invoiceDate = lastDate;
+//                 }
+//                 console.log('resetAfterSave - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+//             } else {
+//                 const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+//                 if (isNepaliFormat) {
+//                     transactionDate = currentNepaliDate;
+//                     invoiceDate = currentNepaliDate;
+//                 } else {
+//                     const today = new Date().toISOString().split('T')[0];
+//                     transactionDate = today;
+//                     invoiceDate = today;
+//                 }
+//                 console.log('resetAfterSave - Using SYSTEM date:', { transactionDate, invoiceDate });
+//             }
+
+//             setFormData({
+//                 date: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : ''),
+//                 nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
+//                 description: '',
+//                 entries: []
+//             });
+
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+//             cancelInlineEdit();
+
+//             setTimeout(() => {
+//                 if (companyDateFormat === 'nepali') {
+//                     document.getElementById('nepaliDate')?.focus();
+//                 } else {
+//                     document.getElementById('date')?.focus();
+//                 }
+//             }, 100);
+//         } catch (err) {
+//             console.error('Error resetting after save:', err);
+//             setNotification({
+//                 show: true,
+//                 message: 'Error refreshing form data',
+//                 type: 'error'
+//             });
+//         }
+//     };
+
+//     const handleSubmit = async (print = false) => {
+//         // Filter out entries with empty account or amount
+//         const validEntries = formData.entries.filter(entry => entry.accountId && entry.amount > 0);
+
+//         // Check if we have at least one debit and one credit entry
+//         const hasDebit = validEntries.some(entry => entry.entryType === 'Debit');
+//         const hasCredit = validEntries.some(entry => entry.entryType === 'Credit');
+
+//         if (!hasDebit || !hasCredit) {
+//             setNotification({
+//                 show: true,
+//                 message: 'At least one debit and one credit entry is required',
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         if (totals.totalDebit !== totals.totalCredit) {
+//             setNotification({
+//                 show: true,
+//                 message: `Total debit (${totals.totalDebit.toFixed(2)}) must equal total credit (${totals.totalCredit.toFixed(2)})`,
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         setIsSaving(true);
+
+//         try {
+//             const parseDate = (dateString) => {
+//                 if (!dateString) return new Date().toISOString();
+
+//                 // If it's already a valid date string in YYYY-MM-DD format
+//                 if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+//                     // Create date at UTC to avoid timezone issues
+//                     const date = new Date(dateString);
+//                     date.setUTCHours(0, 0, 0, 0);
+//                     return date.toISOString();
+//                 }
+//                 return new Date(dateString).toISOString();
+//             };
+
+//             // Prepare payload with unified entries array
+//             const payload = {
+//                 date: parseDate(formData.date),
+//                 nepaliDate: formData.nepaliDate,
+//                 description: formData.description,
+//                 entries: validEntries.map(entry => ({
+//                     accountId: entry.accountId,
+//                     entryType: entry.entryType,
+//                     amount: parseFloat(entry.amount),
+//                     lineNumber: entry.lineNumber,
+//                     description: entry.description || ''
+//                 })),
+//                 print: print || printAfterSave
+//             };
+
+//             const response = await api.post('/api/retailer/journal', payload);
+
+//             setNotification({
+//                 show: true,
+//                 message: 'Journal voucher saved successfully!',
+//                 type: 'success'
+//             });
+
+//             clearDraft();
+
+//             if ((print || printAfterSave) && response.data.data?.journalVoucher?.id) {
+//                 try {
+//                     const printResponse = await api.get(`/api/retailer/journal/${response.data.data.journalVoucher.id}/print`);
+//                     printVoucherImmediately(printResponse.data.data);
+//                     await resetAfterSave();
+//                 } catch (printError) {
+//                     console.error('Error fetching print data:', printError);
+//                     setNotification({
+//                         show: true,
+//                         message: 'Journal voucher saved but failed to load print data',
+//                         type: 'warning'
+//                     });
+//                     await resetAfterSave();
+//                 }
+//             } else {
+//                 await resetAfterSave();
+//             }
+//         } catch (err) {
+//             console.error('Save error:', err.response?.data);
+//             setNotification({
+//                 show: true,
+//                 message: err.response?.data?.error || 'Failed to save journal voucher',
+//                 type: 'error'
+//             });
+//         } finally {
+//             setIsSaving(false);
+//         }
+//     };
+
+//     const handlePrintAfterSaveChange = (e) => {
+//         const isChecked = e.target.checked;
+//         setPrintAfterSave(isChecked);
+//         localStorage.setItem('printAfterSaveJournal', isChecked);
+//     };
+
+//     const handleKeyDown = (e, currentFieldId) => {
+//         if (e.key === 'Enter') {
+//             e.preventDefault();
+//             const form = e.target.form;
+//             const inputs = Array.from(form.querySelectorAll('input, select, textarea')).filter(
+//                 el => !el.hidden && !el.disabled && el.offsetParent !== null
+//             );
+//             const currentIndex = inputs.findIndex(input => input.id === currentFieldId);
+
+//             if (currentIndex > -1 && currentIndex < inputs.length - 1) {
+//                 inputs[currentIndex + 1].focus();
+//             }
+//         }
+//     };
+
+
+//     // Replace the existing loadMoreAccounts with this version
+//     const loadMoreAccounts = () => {
+//         if (!isAccountSearching && hasMoreAccountResults) {
+//             const nextPage = accountSearchPage + 1;
+//             // Pass true for append parameter
+//             fetchAccountsFromBackend(accountSearchQuery, nextPage, true);
+//         }
+//     };
+
+//     const printVoucherImmediately = (printData) => {
+//         const tempDiv = document.createElement('div');
+//         tempDiv.style.position = 'absolute';
+//         tempDiv.style.left = '-9999px';
+//         document.body.appendChild(tempDiv);
+
+//         const debitEntries = printData.debitEntries || [];
+//         const creditEntries = printData.creditEntries || [];
+//         const journal = printData.journalVoucher;
+//         const isCanceled = journal?.status === 'Canceled';
+
+//         // Calculate totals
+//         const totalDebit = debitEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+//         const totalCredit = creditEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+
+//         // Combine debit and credit entries into rows
+//         const maxRows = Math.max(debitEntries.length, creditEntries.length);
+//         const combinedRows = [];
+//         for (let i = 0; i < maxRows; i++) {
+//             combinedRows.push({
+//                 debitEntry: debitEntries[i] || null,
+//                 creditEntry: creditEntries[i] || null,
+//                 rowNumber: i + 1
+//             });
+//         }
+
+//         // Format date for print
+//         const formatDateForPrint = (dateString, format = 'english') => {
+//             if (!dateString) return 'N/A';
+//             try {
+//                 const date = new Date(dateString);
+//                 if (isNaN(date.getTime())) return 'N/A';
+//                 if (format === 'nepali') {
+//                     const nepaliDate = new NepaliDate(date);
+//                     return nepaliDate.format('YYYY-MM-DD');
+//                 }
+//                 const year = date.getFullYear();
+//                 const month = String(date.getMonth() + 1).padStart(2, '0');
+//                 const day = String(date.getDate()).padStart(2, '0');
+//                 return `${year}-${month}-${day}`;
+//             } catch (e) {
+//                 return 'N/A';
+//             }
+//         };
+
+//         // Format to 2 decimal places
+//         const formatTo2Decimal = (num) => {
+//             if (num === null || num === undefined) return '0.00';
+//             const rounded = Math.round(num * 100) / 100;
+//             const parts = rounded.toString().split(".");
+//             if (!parts[1]) return parts[0] + ".00";
+//             if (parts[1].length === 1) return parts[0] + "." + parts[1] + "0";
+//             return rounded.toString();
+//         };
+
+//         // Number to words function
+//         const numberToWords = (num) => {
+//             const ones = [
+//                 '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+//                 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+//                 'Seventeen', 'Eighteen', 'Nineteen'
+//             ];
+//             const tens = [
+//                 '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
+//             ];
+//             const scales = ['', 'Thousand', 'Million', 'Billion'];
+
+//             const convertHundreds = (num) => {
+//                 let words = '';
+//                 if (num > 99) {
+//                     words += ones[Math.floor(num / 100)] + ' Hundred ';
+//                     num %= 100;
+//                 }
+//                 if (num > 19) {
+//                     words += tens[Math.floor(num / 10)] + ' ';
+//                     num %= 10;
+//                 }
+//                 if (num > 0) {
+//                     words += ones[num] + ' ';
+//                 }
+//                 return words.trim();
+//             };
+
+//             if (num === 0) return 'Zero';
+//             if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
+
+//             let words = '';
+//             for (let i = 0; i < scales.length; i++) {
+//                 let unit = Math.pow(1000, scales.length - i - 1);
+//                 let currentNum = Math.floor(num / unit);
+//                 if (currentNum > 0) {
+//                     words += convertHundreds(currentNum) + ' ' + scales[scales.length - i - 1] + ' ';
+//                 }
+//                 num %= unit;
+//             }
+//             return words.trim();
+//         };
+
+//         const numberToWordsWithPaisa = (amount) => {
+//             const rupees = Math.floor(amount);
+//             const paisa = Math.round((amount - rupees) * 100);
+//             let result = numberToWords(rupees) + ' Rupees';
+//             if (paisa > 0) {
+//                 result += ' and ' + numberToWords(paisa) + ' Paisa';
+//             }
+//             return result;
+//         };
+
+//         let rows = '';
+//         combinedRows.forEach((row) => {
+//             rows += `
+//             <tr>
+//                 <td class="print-text-center">${row.rowNumber}</td>
+//                 <td class="print-text-left">
+//                     ${row.debitEntry ? (
+//                     !isCanceled ? row.debitEntry.accountName : '<span class="text-danger">Canceled</span>'
+//                 ) : '<span class="text-muted">--</span>'}
+//                 </td>
+//                 <td class="print-text-center">
+//                     ${row.debitEntry && !isCanceled ? formatTo2Decimal(row.debitEntry.amount) :
+//                     row.debitEntry && isCanceled ? '<span class="text-danger">0.00</span>' : '-'}
+//                 </td>
+//                 <td class="print-text-left">
+//                     ${row.creditEntry ? (
+//                     !isCanceled ? row.creditEntry.accountName : '<span class="text-danger">Canceled</span>'
+//                 ) : '<span class="text-muted">--</span>'}
+//                 </td>
+//                 <td class="print-text-center">
+//                     ${row.creditEntry && !isCanceled ? formatTo2Decimal(row.creditEntry.amount) :
+//                     row.creditEntry && isCanceled ? '<span class="text-danger">0.00</span>' : '-'}
+//                 </td>
+//             </tr>
+//         `;
+//         });
+
+//         tempDiv.innerHTML = `
+//         <div id="printableContent">
+//             <div class="print-voucher-container">
+//                 <div class="print-voucher-header">
+//                     <div class="print-company-name">${printData.currentCompanyName}</div>
+//                     <div class="print-company-details">
+//                         ${printData.currentCompany?.address || ''}${printData.currentCompany?.city ? ', ' + printData.currentCompany.city : ''}
+//                         <br />
+//                         Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
+//                     </div>
+//                     <div class="print-voucher-title">JOURNAL VOUCHER</div>
+//                 </div>
+
+//                 <div class="print-voucher-details">
+//                     <div>
+//                         <div><strong>Vch. No:</strong> ${journal?.billNumber || 'N/A'}</div>
+//                     </div>
+//                     <div>
+//                         <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ?
+//                 formatDateForPrint(journal?.nepaliDate, 'Nepali') :
+//                 formatDateForPrint(journal?.date)}(${journal?.date ? new Date(journal.date).toLocaleDateString() : 'N/A'})</div>
+//                     </div>
+//                 </div>
+
+//                 <table class="print-voucher-table">
+//                     <thead>
+//                         <tr>
+//                             <th>S.N</th>
+//                             <th>Debit Account</th>
+//                             <th>Debit(Rs.)</th>
+//                             <th>Credit Account</th>
+//                             <th>Credit(Rs.)</th>
+//                         </tr>
+//                     </thead>
+//                     <tbody>
+//                         ${rows}
+//                     </tbody>
+//                     <tfoot>
+//                         <tr>
+//                             <td colspan="2" style="border-bottom: 1px solid #000; font-weight: bold;">Total</td>
+//                             <td class="print-text-center" style="border-bottom: 1px solid #000;">
+//                                 <strong>${!isCanceled ? formatTo2Decimal(totalDebit) : '<span class="text-danger">0.00</span>'}</strong>
+//                             </td>
+//                             <td style="border-bottom: 1px solid #000;"></td>
+//                             <td class="print-text-center" style="border-bottom: 1px solid #000;">
+//                                 <strong>${!isCanceled ? formatTo2Decimal(totalCredit) : '<span class="text-danger">0.00</span>'}</strong>
+//                             </td>
+//                         </tr>
+//                     </tfoot>
+//                 </table>
+
+//                 <div style="margin-top: 3mm;">
+//                     <div><strong>Note:</strong> ${journal?.description || ''}</div>
+//                 </div>
+
+//                 <div class="print-amount-in-words" style="margin-top: 3mm; padding: 1mm; border: 1px dashed #000;">
+//                     <strong>In Words:</strong> ${numberToWordsWithPaisa(totalCredit)} Only.
+//                 </div>
+
+//                 <br /><br />
+//                 <div class="print-signature-area">
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">
+//                             <strong>${journal?.user?.name || 'N/A'}</strong>
+//                         </div>
+//                         Prepared By
+//                     </div>
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//                         Checked By
+//                     </div>
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//                         Approved By
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//     `;
+
+//         const styles = `
+//         @media print {
+//             @page {
+//                 size: A4;
+//                 margin: 5mm;
+//             }
+
+//             body {
+//                 font-family: 'Arial Narrow', Arial, sans-serif;
+//                 font-size: 9pt;
+//                 line-height: 1.2;
+//                 color: #000;
+//                 background: white;
+//                 margin: 0;
+//                 padding: 0;
+//             }
+
+//             .print-voucher-container {
+//                 width: 100%;
+//                 max-width: 210mm;
+//                 margin: 0 auto;
+//                 padding: 2mm;
+//             }
+
+//             .print-voucher-header {
+//                 text-align: center;
+//                 margin-bottom: 3mm;
+//                 border-bottom: 1px solid #000;
+//                 padding-bottom: 2mm;
+//             }
+
+//             .print-voucher-title {
+//                 font-size: 12pt;
+//                 font-weight: bold;
+//                 margin: 2mm 0;
+//                 text-transform: uppercase;
+//             }
+
+//             .print-company-name {
+//                 font-size: 16pt;
+//                 font-weight: bold;
+//             }
+
+//             .print-company-details {
+//                 font-size: 8pt;
+//                 margin: 1mm 0;
+//                 font-weight: bold;
+//             }
+
+//             .print-voucher-details {
+//                 display: flex;
+//                 justify-content: space-between;
+//                 margin: 2mm 0;
+//                 font-size: 8pt;
+//             }
+
+//             .print-voucher-table {
+//                 width: 100%;
+//                 border-collapse: collapse;
+//                 margin: 3mm 0;
+//                 font-size: 8pt;
+//                 border: none;
+//                 table-layout: fixed;
+//             }
+
+//             .print-voucher-table thead {
+//                 border-top: 1px solid #000;
+//                 border-bottom: 1px solid #000;
+//             }
+
+//             .print-voucher-table th {
+//                 background-color: transparent;
+//                 border: none;
+//                 padding: 1mm;
+//                 text-align: left;
+//                 font-weight: bold;
+//             }
+
+//             .print-voucher-table td {
+//                 border: none;
+//                 padding: 1mm;
+//                 border-bottom: 1px solid #eee;
+//             }
+
+//             .print-voucher-table th:nth-child(1),
+//             .print-voucher-table td:nth-child(1) {
+//                 width: 8%;
+//                 text-align: center;
+//             }
+
+//             .print-voucher-table th:nth-child(2),
+//             .print-voucher-table td:nth-child(2) {
+//                 width: 30%;
+//                 text-align: left;
+//             }
+
+//             .print-voucher-table th:nth-child(3),
+//             .print-voucher-table td:nth-child(3) {
+//                 width: 16%;
+//                 text-align: center;
+//             }
+
+//             .print-voucher-table th:nth-child(4),
+//             .print-voucher-table td:nth-child(4) {
+//                 width: 30%;
+//                 text-align: left;
+//             }
+
+//             .print-voucher-table th:nth-child(5),
+//             .print-voucher-table td:nth-child(5) {
+//                 width: 16%;
+//                 text-align: center;
+//             }
+
+//             .print-text-center {
+//                 text-align: center;
+//             }
+
+//             .print-text-left {
+//                 text-align: left;
+//             }
+
+//             .print-signature-area {
+//                 display: flex;
+//                 justify-content: space-between;
+//                 margin-top: 5mm;
+//                 font-size: 8pt;
+//             }
+
+//             .print-signature-box {
+//                 text-align: center;
+//                 width: 30%;
+//                 border-top: 1px solid #000;
+//                 padding-top: 1mm;
+//                 font-weight: bold;
+//             }
+
+//             .text-danger {
+//                 color: #dc3545 !important;
+//             }
+
+//             .text-muted {
+//                 color: #999 !important;
+//             }
+
+//             .print-amount-in-words {
+//                 font-style: italic;
+//             }
+//         }
+//     `;
+
+//         const printWindow = window.open('', '_blank');
+//         printWindow.document.write(`
+//         <html>
+//             <head>
+//                 <title>Journal_Voucher_${journal?.billNumber || 'print'}</title>
+//                 <style>${styles}</style>
+//             </head>
+//             <body>
+//                 ${tempDiv.innerHTML}
+//                 <script>
+//                     window.onload = function() {
+//                         setTimeout(function() {
+//                             window.print();
+//                             window.close();
+//                         }, 200);
+//                     };
+//                 </script>
+//             </body>
+//         </html>
+//     `);
+//         printWindow.document.close();
+//         document.body.removeChild(tempDiv);
+//     };
+
+//     const formatDateForInput = (date) => {
+//         if (!date) return '';
+
+//         if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+//             return date;
+//         }
+
+//         try {
+//             const d = new Date(date);
+//             if (isNaN(d.getTime())) return '';
+
+//             const year = d.getFullYear();
+//             const month = String(d.getMonth() + 1).padStart(2, '0');
+//             const day = String(d.getDate()).padStart(2, '0');
+
+//             return `${year}-${month}-${day}`;
+//         } catch (error) {
+//             console.error('Error formatting date:', error);
+//             return '';
+//         }
+//     };
+
+//     const getFocusTargetOnModalClose = () => {
+//         // If we were inline-editing, refocus the row's input
+//         if (editingRowIndex !== null) {
+//             return inlineSelectionType === 'debit'
+//                 ? `inline-debit-amount-${editingRowIndex}`
+//                 : `inline-credit-amount-${editingRowIndex}`;
+//         }
+
+//         const hasTransactions = formData.entries.length > 0 &&
+//             formData.entries.some(entry => entry.accountId && entry.amount > 0);
+//         const isTotalsBalanced = totals.totalDebit === totals.totalCredit && totals.totalDebit > 0;
+
+//         if (hasTransactions && isTotalsBalanced) {
+//             return 'saveBill';
+//         }
+//         if (currentSelectionType === 'debit') {
+//             return 'headerDebitAmount';
+//         } else {
+//             return 'headerCreditAmount';
+//         }
+//     };
+
+//     if (error) return <div className="alert alert-danger mt-5">{error}</div>;
+
+//     const isCanceled = formData.status === 'Canceled';
+
+//     // Get debit and credit entries for display
+//     const debitEntries = formData.entries.filter(entry => entry.entryType === 'Debit');
+//     const creditEntries = formData.entries.filter(entry => entry.entryType === 'Credit');
+//     const maxRows = Math.max(debitEntries.length, creditEntries.length);
+
+//     return (
+//         <div className='container-fluid'>
+//             <Header />
+//             <div className="card mt-2 shadow-lg p-2 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+//                 <div className="card-header">
+//                     <div className="d-flex justify-content-between align-items-center">
+//                         <h2 className="card-title mb-0">
+//                             <i className="bi bi-file-text me-2"></i>
+//                             Journal Voucher Entry
+//                         </h2>
+//                     </div>
+//                 </div>
+//                 <div className="card-body p-2 p-md-3">
+//                     <form id='journalForm' onSubmit={(e) => {
+//                         e.preventDefault();
+//                         handleSubmit(false);
+//                     }}>
+//                         {/* Date and Basic Info Row */}
+//                         <div className="row g-2 mb-3">
+//                             {companyDateFormat === 'nepali' ? (
+//                                 <>
+//                                     <div className="col-12 col-md-6 col-lg-2">
+//                                         <div className="position-relative">
+//                                             <NepaliDatePicker
+//                                                 value={formData.nepaliDate}
+//                                                 onChange={(bsDate) => {
+//                                                     setFormData(prev => ({
+//                                                         ...prev,
+//                                                         nepaliDate: bsDate
+//                                                     }));
+//                                                     setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+//                                                     // Auto-convert to AD when we have a complete valid date
+//                                                     if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
+//                                                         console.log('Converting BS to AD:', bsDate);
+//                                                         const adDate = convertBsToAd(bsDate);
+//                                                         console.log('Converted AD date:', adDate);
+//                                                         if (adDate) {
+//                                                             setFormData(prev => ({
+//                                                                 ...prev,
+//                                                                 date: adDate
+//                                                             }));
+//                                                         }
+//                                                     }
+//                                                 }}
+//                                                 autoFocus={true}
+//                                                 required={true}
+//                                                 className={dateErrors.nepaliDate ? 'is-invalid' : ''}
+//                                                 onKeyDown={(e) => {
+//                                                     handleKeyDown(e, 'nepaliDate');
+//                                                 }}
+//                                                 dateErrors={dateErrors}
+//                                                 setDateErrors={setDateErrors}
+//                                             />
+//                                             <label
+//                                                 className="position-absolute"
+//                                                 style={{
+//                                                     top: '-0.5rem',
+//                                                     left: '0.75rem',
+//                                                     fontSize: '0.75rem',
+//                                                     backgroundColor: 'white',
+//                                                     padding: '0 0.25rem',
+//                                                     color: '#6c757d',
+//                                                     fontWeight: '500'
+//                                                 }}
+//                                             >
+//                                                 Date (BS): <span className="text-danger">*</span>
+//                                             </label>
+//                                             {dateErrors.nepaliDate && (
+//                                                 <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+//                                                     {dateErrors.nepaliDate}
+//                                                 </div>
+//                                             )}
+//                                         </div>
+//                                     </div>
+
+//                                     <div className="col-12 col-md-6 col-lg-2">
+//                                         <div className="position-relative">
+//                                             <input
+//                                                 type="date"
+//                                                 name="date"
+//                                                 id="date"
+//                                                 className="form-control form-control-sm"
+//                                                 value={formData.date || ''}
+//                                                 onChange={(e) => {
+//                                                     const value = e.target.value;
+//                                                     setFormData(prev => ({ ...prev, date: value }));
+
+//                                                     // Convert AD to BS when user changes AD date
+//                                                     if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+//                                                         const bsDate = convertAdToBs(value);
+//                                                         if (bsDate && isValidNepaliDate(bsDate)) {
+//                                                             setFormData(prev => ({
+//                                                                 ...prev,
+//                                                                 nepaliDate: bsDate
+//                                                             }));
+//                                                         }
+//                                                     }
+//                                                 }}
+//                                                 onKeyDown={(e) => {
+//                                                     if (e.key === 'Enter') {
+//                                                         handleKeyDown(e, 'date');
+//                                                     }
+//                                                 }}
+//                                                 style={{
+//                                                     height: '26px',
+//                                                     fontSize: '0.875rem',
+//                                                     paddingTop: '0.75rem',
+//                                                     width: '100%'
+//                                                 }}
+//                                             />
+//                                             <label
+//                                                 className="position-absolute"
+//                                                 style={{
+//                                                     top: '-0.5rem',
+//                                                     left: '0.75rem',
+//                                                     fontSize: '0.75rem',
+//                                                     backgroundColor: 'white',
+//                                                     padding: '0 0.25rem',
+//                                                     color: '#6c757d',
+//                                                     fontWeight: '500'
+//                                                 }}
+//                                             >
+//                                                 Date (AD):
+//                                             </label>
+//                                         </div>
+//                                     </div>
+//                                 </>
+//                             ) : (
+//                                 // English date format section
+//                                 <div className="col-12 col-md-6 col-lg-2">
+//                                     <div className="position-relative">
+//                                         <input
+//                                             type="date"
+//                                             name="date"
+//                                             id="date"
+//                                             className="form-control form-control-sm"
+//                                             ref={transactionDateRef}
+//                                             value={formData.date}
+//                                             onChange={handleInputChange}
+//                                             onKeyDown={(e) => handleKeyDown(e, 'date')}
+//                                             max={new Date().toISOString().split('T')[0]}
+//                                             style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+//                                         />
+//                                         <label className="position-absolute" style={{
+//                                             top: '-0.5rem',
+//                                             left: '0.75rem',
+//                                             fontSize: '0.75rem',
+//                                             backgroundColor: 'white',
+//                                             padding: '0 0.25rem',
+//                                             color: '#6c757d',
+//                                             fontWeight: '500'
+//                                         }}>
+//                                             Date: <span className="text-danger">*</span>
+//                                         </label>
+//                                     </div>
+//                                 </div>
+//                             )}
+
+//                             <div className="col-12 col-md-6 col-lg-2">
+//                                 <div className="position-relative">
+//                                     <input
+//                                         type="text"
+//                                         name="billNumber"
+//                                         id="billNumber"
+//                                         className="form-control form-control-sm"
+//                                         value={nextBillNumber}
+//                                         readOnly
+//                                         onKeyDown={(e) => {
+//                                             if (e.key === 'Enter') {
+//                                                 e.preventDefault();
+//                                                 document.getElementById('description')?.focus();
+//                                             }
+//                                         }}
+//                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+//                                     />
+//                                     <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                         Vch. No:
+//                                     </label>
+//                                 </div>
+//                             </div>
+
+//                             <div className="col-12 col-md-6 col-lg-6">
+//                                 <div className="position-relative">
+//                                     <input
+//                                         type="text"
+//                                         name="description"
+//                                         id="description"
+//                                         className="form-control form-control-sm"
+//                                         placeholder="Enter description"
+//                                         value={formData.description}
+//                                         onChange={handleInputChange}
+//                                         onKeyDown={(e) => handleKeyDown(e, 'description')}
+//                                         autoComplete='off'
+//                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+//                                     />
+//                                     <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                         Description:
+//                                     </label>
+//                                 </div>
+//                             </div>
+//                         </div>
+
+//                         {/* Scrollable Table Container */}
+//                         <div
+//                             className="table-responsive"
+//                             style={{
+//                                 minHeight: "270px",
+//                                 maxHeight: "270px",
+//                                 overflowY: "auto",
+//                                 border: formData.entries.filter(e => e.accountId && e.amount > 0).length > 0
+//                                     ? '1px solid #dee2e6'
+//                                     : '1px dashed #ced4da',
+//                                 backgroundColor: '#fff'
+//                             }}
+//                             ref={itemsTableRef}
+//                         >
+//                             <table className="table table-sm table-bordered table-hover mb-0">
+//                                 <thead className="sticky-top bg-light">
+//                                     {/* Header Entry Row */}
+//                                     <tr style={{
+//                                         height: '26px',
+//                                         backgroundColor: '#ffffff',
+//                                         position: 'sticky',
+//                                         top: 0,
+//                                         zIndex: 10,
+//                                         boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
+//                                     }}>
+//                                         <td width="5%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>#</span>
+//                                         </td>
+//                                         <td width="30%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <input
+//                                                 type="text"
+//                                                 id="headerDebitSearch"
+//                                                 className="form-control form-control-sm"
+//                                                 placeholder="Select Debit Account"
+//                                                 value={headerDebitAccount ? `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}` : ''}
+//                                                 onFocus={() => {
+//                                                     setCurrentSelectionType('debit');
+//                                                     setShowAccountModal(true);
+//                                                     setAccountSearchQuery('');
+//                                                 }}
+//                                                 readOnly
+//                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+//                                             />
+//                                         </td>
+//                                         <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <input
+//                                                 type="number"
+//                                                 id="headerDebitAmount"
+//                                                 className="form-control form-control-sm"
+//                                                 placeholder="Debit Amount"
+//                                                 value={headerDebitAmount}
+//                                                 onChange={(e) => setHeaderDebitAmount(e.target.value)}
+//                                                 onKeyDown={(e) => {
+//                                                     if (e.key === 'Enter') {
+//                                                         e.preventDefault();
+//                                                         document.getElementById('headerCreditSearch')?.focus();
+//                                                     }
+//                                                 }}
+//                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+//                                             />
+//                                         </td>
+//                                         <td width="35%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <input
+//                                                 type="text"
+//                                                 id="headerCreditSearch"
+//                                                 className="form-control form-control-sm"
+//                                                 placeholder="Select Credit Account"
+//                                                 value={headerCreditAccount ? `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}` : ''}
+//                                                 onFocus={() => {
+//                                                     setCurrentSelectionType('credit');
+//                                                     setShowAccountModal(true);
+//                                                     setAccountSearchQuery('');
+//                                                 }}
+//                                                 onKeyDown={(e) => {
+//                                                     if (e.key === 'Enter') {
+//                                                         e.preventDefault();
+//                                                         if (showAccountModal) {
+//                                                             setShowAccountModal(false);
+//                                                         }
+//                                                         setTimeout(() => {
+//                                                             document.getElementById('headerCreditAmount')?.focus();
+//                                                         }, 50);
+//                                                     }
+//                                                 }}
+//                                                 readOnly
+//                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+//                                             />
+//                                         </td>
+//                                         <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                             <input
+//                                                 type="number"
+//                                                 id="headerCreditAmount"
+//                                                 className="form-control form-control-sm"
+//                                                 placeholder="Credit Amount"
+//                                                 value={headerCreditAmount}
+//                                                 onChange={(e) => setHeaderCreditAmount(e.target.value)}
+//                                                 onKeyDown={(e) => {
+//                                                     if ((e.key === 'Tab' || e.key === 'Enter')) {
+//                                                         e.preventDefault();
+//                                                         document.getElementById('insertButton')?.focus();
+//                                                     }
+//                                                 }}
+//                                                 style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+//                                             />
+//                                         </td>
+//                                         <td width="10%" style={{ padding: '2px', textAlign: 'center', backgroundColor: '#ffffff' }}>
+//                                             <button
+//                                                 type="button"
+//                                                 id="insertButton"
+//                                                 className="btn btn-sm btn-success py-0 px-2"
+//                                                 onClick={insertEntry}
+//                                                 disabled={isCanceled || editingRowIndex !== null || (!headerDebitAccount && !headerCreditAccount) ||
+//                                                     (headerDebitAccount && !headerDebitAmount) ||
+//                                                     (headerCreditAccount && !headerCreditAmount)}
+//                                                 style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#198754', borderColor: '#198754' }}
+//                                             >
+//                                                 INSERT
+//                                             </button>
+//                                         </td>
+//                                     </tr>
+
+//                                     {/* Column headers row */}
+//                                     <tr style={{
+//                                         height: '26px',
+//                                         backgroundColor: '#e9ecef',
+//                                         position: 'sticky',
+//                                         top: '26px',
+//                                         zIndex: 9
+//                                     }}>
+//                                         <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.N.</th>
+//                                         <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Account</th>
+//                                         <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Amount (Rs.)</th>
+//                                         <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Account</th>
+//                                         <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Amount (Rs.)</th>
+//                                         <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
+//                                     </tr>
+//                                 </thead>
+
+//                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
+//                                     {(() => {
+//                                         // Get debit and credit entries from unified entries array
+//                                         const debitEntriesList = formData.entries
+//                                             .filter(entry => entry.entryType === 'Debit')
+//                                             .map(entry => ({
+//                                                 accountId: entry.accountId,
+//                                                 accountName: entry.accountName,
+//                                                 amount: entry.amount
+//                                             }));
+
+//                                         const creditEntriesList = formData.entries
+//                                             .filter(entry => entry.entryType === 'Credit')
+//                                             .map(entry => ({
+//                                                 accountId: entry.accountId,
+//                                                 accountName: entry.accountName,
+//                                                 amount: entry.amount
+//                                             }));
+
+//                                         const maxLength = Math.max(debitEntriesList.length, creditEntriesList.length);
+
+//                                         // Create paired entries
+//                                         const pairedEntries = [];
+//                                         for (let i = 0; i < maxLength; i++) {
+//                                             pairedEntries.push({
+//                                                 debitEntry: debitEntriesList[i] || { accountId: '', accountName: '', amount: 0 },
+//                                                 creditEntry: creditEntriesList[i] || { accountId: '', accountName: '', amount: 0 }
+//                                             });
+//                                         }
+
+//                                         return pairedEntries.map((item, index) => {
+//                                             const debitEntry = item.debitEntry;
+//                                             const creditEntry = item.creditEntry;
+//                                             const isInlineEditing = editingRowIndex === index;
+
+//                                             return (
+//                                                 <tr key={index} style={{ height: 'auto', minHeight: '26px' }}>
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {index + 1}
+//                                                     </td>
+
+//                                                     {/* Debit Account Column */}
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {isInlineEditing ? (
+//                                                             <input
+//                                                                 type="text"
+//                                                                 className="form-control form-control-sm"
+//                                                                 placeholder="Select Debit Account"
+//                                                                 value={inlineEditData.debitAccount
+//                                                                     ? `${inlineEditData.debitAccount.uniqueNumber || ''} - ${inlineEditData.debitAccount.name}`
+//                                                                     : ''}
+//                                                                 onFocus={() => {
+//                                                                     setInlineSelectionType('debit');
+//                                                                     setCurrentSelectionType('debit');
+//                                                                     setShowAccountModal(true);
+//                                                                     setAccountSearchQuery('');
+//                                                                 }}
+//                                                                 readOnly
+//                                                                 style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                             />
+//                                                         ) : debitEntry.accountName ? (
+//                                                             <>
+//                                                                 <div>{debitEntry.accountName}</div>
+//                                                                 {debitEntry.accountId && (
+//                                                                     <div className="mt-1">
+//                                                                         <AccountBalanceDisplay
+//                                                                             accountId={debitEntry.accountId}
+//                                                                             api={api}
+//                                                                             newTransactionAmount={parseFloat(debitEntry.amount) || 0}
+//                                                                             compact={true}
+//                                                                             transactionType="payment"
+//                                                                             dateFormat={companyDateFormat}
+//                                                                         />
+//                                                                     </div>
+//                                                                 )}
+//                                                             </>
+//                                                         ) : (
+//                                                             <span className="text-muted">-- No Entry --</span>
+//                                                         )}
+//                                                     </td>
+
+//                                                     {/* Debit Amount Column */}
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {isInlineEditing ? (
+//                                                             <input
+//                                                                 type="number"
+//                                                                 id={`inline-debit-amount-${index}`}
+//                                                                 className="form-control form-control-sm"
+//                                                                 placeholder="Debit Amount"
+//                                                                 value={inlineEditData.debitAmount}
+//                                                                 onChange={(e) => setInlineEditData(prev => ({ ...prev, debitAmount: e.target.value }))}
+//                                                                 style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                             />
+//                                                         ) : debitEntry.amount > 0 ? debitEntry.amount : '-'}
+//                                                     </td>
+
+//                                                     {/* Credit Account Column */}
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {isInlineEditing ? (
+//                                                             <input
+//                                                                 type="text"
+//                                                                 className="form-control form-control-sm"
+//                                                                 placeholder="Select Credit Account"
+//                                                                 value={inlineEditData.creditAccount
+//                                                                     ? `${inlineEditData.creditAccount.uniqueNumber || ''} - ${inlineEditData.creditAccount.name}`
+//                                                                     : ''}
+//                                                                 onFocus={() => {
+//                                                                     setInlineSelectionType('credit');
+//                                                                     setCurrentSelectionType('credit');
+//                                                                     setShowAccountModal(true);
+//                                                                     setAccountSearchQuery('');
+//                                                                 }}
+//                                                                 readOnly
+//                                                                 style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                             />
+//                                                         ) : creditEntry.accountName ? (
+//                                                             <>
+//                                                                 <div>{creditEntry.accountName}</div>
+//                                                                 {creditEntry.accountId && (
+//                                                                     <div className="mt-1">
+//                                                                         <AccountBalanceDisplay
+//                                                                             accountId={creditEntry.accountId}
+//                                                                             api={api}
+//                                                                             newTransactionAmount={parseFloat(creditEntry.amount) || 0}
+//                                                                             compact={true}
+//                                                                             transactionType="receipt"
+//                                                                             dateFormat={companyDateFormat}
+//                                                                         />
+//                                                                     </div>
+//                                                                 )}
+//                                                             </>
+//                                                         ) : (
+//                                                             <span className="text-muted">-- No Entry --</span>
+//                                                         )}
+//                                                     </td>
+
+//                                                     {/* Credit Amount Column */}
+//                                                     <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                         {isInlineEditing ? (
+//                                                             <input
+//                                                                 type="number"
+//                                                                 id={`inline-credit-amount-${index}`}
+//                                                                 className="form-control form-control-sm"
+//                                                                 placeholder="Credit Amount"
+//                                                                 value={inlineEditData.creditAmount}
+//                                                                 onChange={(e) => setInlineEditData(prev => ({ ...prev, creditAmount: e.target.value }))}
+//                                                                 onKeyDown={(e) => {
+//                                                                     if (e.key === 'Enter' || e.key === 'Tab') {
+//                                                                         e.preventDefault();
+//                                                                         updateInlineEntry();
+//                                                                     }
+//                                                                 }}
+//                                                                 style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                             />
+//                                                         ) : creditEntry.amount > 0 ? creditEntry.amount : '-'}
+//                                                     </td>
+
+//                                                     {/* Action Column */}
+//                                                     <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+//                                                         <div className="d-flex gap-1 justify-content-center">
+//                                                             {isInlineEditing ? (
+//                                                                 <>
+//                                                                     <button
+//                                                                         type="button"
+//                                                                         className="btn btn-sm btn-success py-0 px-1"
+//                                                                         onClick={updateInlineEntry}
+//                                                                         title="Save changes"
+//                                                                         style={{
+//                                                                             height: '18px',
+//                                                                             minWidth: '18px',
+//                                                                             fontSize: '0.6rem'
+//                                                                         }}
+//                                                                     >
+//                                                                         <i className="bi bi-check"></i>
+//                                                                     </button>
+//                                                                     <button
+//                                                                         type="button"
+//                                                                         className="btn btn-sm btn-secondary py-0 px-1"
+//                                                                         onClick={cancelInlineEdit}
+//                                                                         title="Cancel edit"
+//                                                                         style={{
+//                                                                             height: '18px',
+//                                                                             minWidth: '18px',
+//                                                                             fontSize: '0.6rem'
+//                                                                         }}
+//                                                                     >
+//                                                                         <i className="bi bi-x"></i>
+//                                                                     </button>
+//                                                                 </>
+//                                                             ) : (
+//                                                                 <>
+//                                                                     <button
+//                                                                         type="button"
+//                                                                         className="btn btn-sm btn-warning py-0 px-1"
+//                                                                         onClick={() => startEditEntry(index)}
+//                                                                         disabled={isCanceled || editingRowIndex !== null}
+//                                                                         title="Edit this row"
+//                                                                         style={{
+//                                                                             height: '18px',
+//                                                                             width: '18px',
+//                                                                             minWidth: '18px',
+//                                                                             fontSize: '0.6rem',
+//                                                                             backgroundColor: '#ffc107',
+//                                                                             borderColor: '#ffc107'
+//                                                                         }}
+//                                                                     >
+//                                                                         <i className="bi bi-pencil"></i>
+//                                                                     </button>
+//                                                                     <button
+//                                                                         type="button"
+//                                                                         className="btn btn-sm btn-danger py-0 px-1"
+//                                                                         onClick={() => removeEntry(index)}
+//                                                                         disabled={editingRowIndex !== null}
+//                                                                         style={{
+//                                                                             height: '18px',
+//                                                                             width: '18px',
+//                                                                             minWidth: '18px',
+//                                                                             fontSize: '0.6rem',
+//                                                                             backgroundColor: '#dc3545',
+//                                                                             borderColor: '#dc3545'
+//                                                                         }}
+//                                                                     >
+//                                                                         <i className="bi bi-trash"></i>
+//                                                                     </button>
+//                                                                 </>
+//                                                             )}
+//                                                         </div>
+//                                                     </td>
+//                                                 </tr>
+//                                             );
+//                                         });
+//                                     })()}
+
+//                                     {formData.entries.filter(e => e.accountId && e.amount > 0).length === 0 && (
+//                                         <tr style={{ height: '24px' }}>
+//                                             <td colSpan="6" className="text-center text-muted py-1" style={{ fontSize: '0.75rem' }}>
+//                                                 No entries added yet. Use the header row above to add entries.
+//                                             </td>
+//                                         </tr>
+//                                     )}
+//                                 </tbody>
+
+//                                 <tfoot>
+//                                     <tr className="table-active">
+//                                         <th colSpan="2" className="text-end">Total:</th>
+//                                         <th className="text-primary">Rs. {totals.totalDebit.toFixed(2)}</th>
+//                                         <th className="text-end">Total:</th>
+//                                         <th className="text-primary">Rs. {totals.totalCredit.toFixed(2)}</th>
+//                                         <th></th>
+//                                     </tr>
+//                                 </tfoot>
+//                             </table>
+//                         </div>
+
+//                         {/* Validation Messages */}
+//                         {totals.totalDebit !== totals.totalCredit && (
+//                             <div className="alert alert-warning mt-2">
+//                                 <i className="fas fa-exclamation-triangle me-2"></i>
+//                                 Total debit and credit amounts must be equal
+//                             </div>
+//                         )}
+
+//                         {/* Action Buttons */}
+//                         <div className="d-flex justify-content-between align-items-center mt-2">
+//                             <div className="form-check mb-0 d-flex align-items-center">
+//                                 <input
+//                                     className="form-check-input mt-0"
+//                                     type="checkbox"
+//                                     id="printAfterSave"
+//                                     checked={printAfterSave}
+//                                     onChange={handlePrintAfterSaveChange}
+//                                     style={{ height: '14px', width: '14px' }}
+//                                 />
+//                                 <label className="form-check-label ms-2" htmlFor="printAfterSave" style={{ fontSize: '0.8rem' }}>
+//                                     Print after save
+//                                 </label>
+//                             </div>
+
+//                             <div className="d-flex gap-2">
+//                                 <button
+//                                     type="button"
+//                                     className="btn btn-secondary btn-sm d-flex align-items-center"
+//                                     onClick={resetAfterSave}
+//                                     disabled={isSaving}
+//                                     style={{ height: '26px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}
+//                                 >
+//                                     <i className="bi bi-arrow-counterclockwise me-1" style={{ fontSize: '0.9rem' }}></i> Reset
+//                                 </button>
+
+//                                 <button
+//                                     type="submit"
+//                                     className="btn btn-primary btn-sm d-flex align-items-center"
+//                                     id="saveBill"
+//                                     disabled={isSaving || totals.totalDebit !== totals.totalCredit}
+//                                     style={{ height: '26px', padding: '0 16px', fontSize: '0.8rem', fontWeight: '500' }}
+//                                 >
+//                                     {isSaving ? (
+//                                         <>
+//                                             <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style={{ width: '10px', height: '10px' }}></span>
+//                                             Saving...
+//                                         </>
+//                                     ) : (
+//                                         <>
+//                                             <i className="bi bi-save me-1" style={{ fontSize: '0.9rem' }}></i> Save
+//                                         </>
+//                                     )}
+//                                 </button>
+//                             </div>
+//                         </div>
+//                     </form>
+//                 </div>
+//             </div>
+
+//             {/* Account Modal */}
+//             {showAccountModal && (
+//                 <AccountModalForJournal
+//                     show={showAccountModal}
+//                     onClose={() => {
+//                         setShowAccountModal(false);
+//                         // Clear inline selection intent so next modal open is clean
+//                         setInlineSelectionType(null);
+//                         const focusTargetId = getFocusTargetOnModalClose();
+//                         setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+//                     }}
+//                     onSelectAccount={selectAccount}
+//                     accounts={accounts}
+//                     totalAccounts={totalAccounts}
+//                     isSearching={isAccountSearching}
+//                     hasMore={hasMoreAccountResults}
+//                     searchQuery={accountSearchQuery}
+//                     onSearch={(query) => {
+//                         setAccountSearchQuery(query);
+//                         setAccountSearchPage(1);
+//                         if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+//                             setAccountShouldShowLastSearchResults(false);
+//                             setAccountLastSearchQuery('');
+//                         }
+//                         const timer = setTimeout(() => {
+//                             fetchAccountsFromBackend(query, 1, false);
+//                         }, 300);
+//                         return () => clearTimeout(timer);
+//                     }}
+//                     onLoadMore={loadMoreAccounts}
+//                     page={accountSearchPage}
+//                     onCreateAccount={() => {
+//                         setShowAccountModal(false);
+//                         setInlineSelectionType(null);
+//                         setNotification({
+//                             show: true,
+//                             message: 'Account creation is available in the Accounts section',
+//                             type: 'info'
+//                         });
+//                     }}
+//                     selectedAccountId={null}
+//                     autoFocus={false}
+//                     title={`Select ${(inlineSelectionType || currentSelectionType) === 'debit' ? 'Debit' : 'Credit'} Account`}
+//                 />
+//             )}
+
+//             <NotificationToast
+//                 show={notification.show}
+//                 message={notification.message}
+//                 type={notification.type}
+//                 onClose={() => setNotification({ ...notification, show: false })}
+//             />
+
+//             {showProductModal && (
+//                 <ProductModal onClose={() => setShowProductModal(false)} />
+//             )}
+//         </div>
+//     );
+// };
+
+// export default AddJournalVoucher;
+
+//---------------------------------------------------------end2
+
+// import React, { useState, useEffect, useRef, useMemo } from 'react';
+// import { useNavigate } from 'react-router-dom';
+// import axios from 'axios';
+// import NepaliDate from 'nepali-datetime';
+// import NotificationToast from '../../NotificationToast';
+// import Header from '../Header';
+// import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
+// import ProductModal from '../dashboard/modals/ProductModal';
+// import { usePageNotRefreshContext } from '../PageNotRefreshContext';
+// import VirtualizedAccountList from '../../VirtualizedAccountList';
+// import useDebounce from '../../../hooks/useDebounce';
+// import NepaliDatePicker from '../../NepaliDatePicker';
+// import {
+//     isValidNepaliDate,
+//     getCurrentNepaliDate,
+//     getNepaliMonthDaysComprehensive
+// } from '../../NepaliDateUtils';
+// import api, { refreshToken } from '../../services/api';
+// import AccountModalForJournal from './AccountModalForJournal';
+
+// const convertBsToAd = (bsDate) => {
+//     if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
+//     try {
+//         const nepaliDate = new NepaliDate(bsDate);
+//         const jsDate = nepaliDate.getDateObject();
+//         if (!jsDate || isNaN(jsDate.getTime())) return null;
+//         const year = jsDate.getFullYear();
+//         const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+//         const day = String(jsDate.getDate()).padStart(2, '0');
+//         return `${year}-${month}-${day}`;
+//     } catch (error) {
+//         console.error('Error converting BS to AD:', error);
+//         return null;
+//     }
+// };
+
+// const convertAdToBs = (adDate) => {
+//     if (!adDate) return null;
+//     try {
+//         let date;
+//         if (typeof adDate === 'string') {
+//             if (/^\d{4}-\d{2}-\d{2}$/.test(adDate)) {
+//                 date = new Date(adDate + 'T00:00:00');
+//             } else {
+//                 date = new Date(adDate);
+//             }
+//         } else if (adDate instanceof Date) {
+//             date = adDate;
+//         } else { return null; }
+//         if (isNaN(date.getTime())) return null;
+//         const nepaliDate = new NepaliDate(date);
+//         return `${nepaliDate.getYear()}-${String(nepaliDate.getMonth() + 1).padStart(2, '0')}-${String(nepaliDate.getDate()).padStart(2, '0')}`;
+//     } catch (error) {
+//         console.error('Error converting AD to BS:', error);
+//         return null;
+//     }
+// };
+
+// const formatAdDate = (date) => {
+//     if (!date) return null;
+//     try {
+//         const d = new Date(date);
+//         if (isNaN(d.getTime())) return null;
+//         const year = d.getFullYear();
+//         const month = String(d.getMonth() + 1).padStart(2, '0');
+//         const day = String(d.getDate()).padStart(2, '0');
+//         return `${year}-${month}-${day}`;
+//     } catch (error) {
+//         console.error('Error formatting AD date:', error);
+//         return null;
+//     }
+// };
+
+// const getNepaliMonthDays = (year, month) => {
+//     const monthDays = {
+//         1: 31, 2: 31, 3: 32, 4: 32, 5: 31, 6: 31,
+//         7: 30, 8: 30, 9: 30, 10: 30, 11: 30, 12: 30
+//     };
+//     if (month === 3) {
+//         const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
+//         return ashad31Years.includes(year) ? 31 : 32;
+//     }
+//     if (month === 11) {
+//         const isLeapYear = (year + 1) % 4 === 0;
+//         return isLeapYear ? 30 : 29;
+//     }
+//     return monthDays[month] || 30;
+// };
+
+// const isValidNepaliDateEnhanced = (dateStr) => {
+//     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+//     const [year, month, day] = dateStr.split('-').map(Number);
+//     if (year < 1970 || year > 2100) return false;
+//     if (month < 1 || month > 12) return false;
+//     const maxDays = getNepaliMonthDays(year, month);
+//     if (day < 1 || day > maxDays) return false;
+//     try {
+//         const nepaliDate = new NepaliDate(dateStr);
+//         const bsYear = nepaliDate.getYear();
+//         const bsMonth = nepaliDate.getMonth() + 1;
+//         const bsDay = nepaliDate.getDate();
+//         return (bsYear === year && bsMonth === month && bsDay === day);
+//     } catch {
+//         return false;
+//     }
+// };
+
+// const AddJournalVoucher = () => {
+//     const navigate = useNavigate();
+//     const { draftSave, setDraftSave, clearDraft } = usePageNotRefreshContext();
+//     const accountSearchRef = useRef(null);
+//     const itemsTableRef = useRef(null);
+//     const [showProductModal, setShowProductModal] = useState(false);
+//     const [printAfterSave, setPrintAfterSave] = useState(
+//         localStorage.getItem('printAfterSaveJournal') === 'true' || false
+//     );
+//     const [isSaving, setIsSaving] = useState(false);
+//     const [notification, setNotification] = useState({
+//         show: false,
+//         message: '',
+//         type: 'success'
+//     });
+//     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+
+//     // Entry mode toggle: 'single' (Busy style) or 'paired' (legacy header)
+//     const [entryMode, setEntryMode] = useState(
+//         localStorage.getItem('journalEntryMode') || 'single'
+//     );
+
+//     const [useVoucherLastDateForJournal, setUseVoucherLastDateForJournal] = useState(false);
+//     const [lastJournalDate, setLastJournalDate] = useState(null);
+
+//     // ============================================================
+//     // SINGLE-ROW (Busy-style) HEADER ENTRY STATE
+//     // ============================================================
+//     const [singleHeaderEntry, setSingleHeaderEntry] = useState({
+//         dc: 'D',
+//         account: null,
+//         debitAmount: '',
+//         creditAmount: '',
+//         instType: '',
+//         instNo: '',
+//         narration: ''
+//     });
+
+//     // ============================================================
+//     // PAIRED (legacy) HEADER ENTRY STATE — KEPT AS-IS
+//     // ============================================================
+//     const [headerDebitAccount, setHeaderDebitAccount] = useState(null);
+//     const [headerDebitAmount, setHeaderDebitAmount] = useState('');
+//     const [headerCreditAccount, setHeaderCreditAccount] = useState(null);
+//     const [headerCreditAmount, setHeaderCreditAmount] = useState('');
+//     const [currentSelectionType, setCurrentSelectionType] = useState('debit');
+//     const [editingEntryIndex, setEditingEntryIndex] = useState(null);
+//     const [isEditMode, setIsEditMode] = useState(false);
+
+//     // Inline row-level edit state
+//     const [editingRowIndex, setEditingRowIndex] = useState(null);
+//     const [inlineEditData, setInlineEditData] = useState({
+//         dc: 'D',
+//         account: null,
+//         debitAmount: '',
+//         creditAmount: '',
+//         instType: '',
+//         instNo: '',
+//         narration: ''
+//     });
+//     const [inlineSelectionType, setInlineSelectionType] = useState(null); // 'account' | 'debit' | 'credit'
+
+//     const [formData, setFormData] = useState({
+//         date: new Date().toISOString().split('T')[0],
+//         nepaliDate: currentNepaliDate,
+//         description: '',
+//         entries: []
+//     });
+
+//     const [accounts, setAccounts] = useState([]);
+//     const [nextBillNumber, setNextBillNumber] = useState('');
+//     const [currentBillNumber, setCurrentBillNumber] = useState('');
+//     const [companyDateFormat, setCompanyDateFormat] = useState('nepali');
+//     const [isLoading, setIsLoading] = useState(true);
+//     const [error, setError] = useState(null);
+//     const [showAccountModal, setShowAccountModal] = useState(false);
+//     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+//     const transactionDateRef = useRef(null);
+//     const [dateErrors, setDateErrors] = useState({ nepaliDate: '' });
+
+//     // Account search states
+//     const [isAccountSearching, setIsAccountSearching] = useState(false);
+//     const [accountSearchPage, setAccountSearchPage] = useState(1);
+//     const [hasMoreAccountResults, setHasMoreAccountResults] = useState(false);
+//     const [totalAccounts, setTotalAccounts] = useState(0);
+//     const [accountSearchQuery, setAccountSearchQuery] = useState('');
+//     const [accountLastSearchQuery, setAccountLastSearchQuery] = useState('');
+//     const [accountShouldShowLastSearchResults, setAccountShouldShowLastSearchResults] = useState(false);
+
+//     const getCurrentBillNumber = async () => {
+//         try {
+//             const response = await api.get('/api/retailer/journal/current-number');
+//             return response.data.data.currentJournalBillNumber;
+//         } catch (error) {
+//             console.error('Error getting current bill number:', error);
+//             return null;
+//         }
+//     };
+
+//     const fetchAccountsFromBackend = async (searchTerm = '', page = 1, append = false) => {
+//         try {
+//             setIsAccountSearching(true);
+//             const response = await api.get('/api/retailer/all/accounts/search', {
+//                 params: {
+//                     search: searchTerm,
+//                     page: page,
+//                     limit: searchTerm.trim() ? 15 : 25,
+//                 }
+//             });
+
+//             if (response.data.success) {
+//                 if (append) {
+//                     setAccounts(prev => [...prev, ...response.data.accounts]);
+//                 } else {
+//                     setAccounts(response.data.accounts);
+//                 }
+//                 setHasMoreAccountResults(response.data.pagination.hasNextPage);
+//                 setTotalAccounts(response.data.pagination.totalAccounts);
+//                 setAccountSearchPage(page);
+
+//                 if (searchTerm.trim() !== '') {
+//                     setAccountLastSearchQuery(searchTerm);
+//                     setAccountShouldShowLastSearchResults(true);
+//                 }
+//             }
+//         } catch (error) {
+//             console.error('Error fetching accounts:', error);
+//             setNotification({
+//                 show: true,
+//                 message: 'Error loading accounts',
+//                 type: 'error'
+//             });
+//         } finally {
+//             setIsAccountSearching(false);
+//         }
+//     };
+
+//     const totals = useMemo(() => {
+//         const totalDebit = formData.entries
+//             .filter(entry => entry.entryType === 'Debit')
+//             .reduce((sum, entry) => sum + (parseFloat(entry.amount) || 0), 0);
+//         const totalCredit = formData.entries
+//             .filter(entry => entry.entryType === 'Credit')
+//             .reduce((sum, entry) => sum + (parseFloat(entry.amount) || 0), 0);
+//         return { totalDebit, totalCredit };
+//     }, [formData.entries]);
+
+//     useEffect(() => {
+//         const handleF9Key = (e) => {
+//             if (e.key === 'F9') {
+//                 e.preventDefault();
+//                 setShowProductModal(prev => !prev);
+//             }
+//         };
+//         window.addEventListener('keydown', handleF9Key);
+//         return () => window.removeEventListener('keydown', handleF9Key);
+//     }, []);
+
+//     // Ctrl+Enter to post (Busy style)
+//     useEffect(() => {
+//         const handler = (e) => {
+//             if (e.ctrlKey && e.key === 'Enter') {
+//                 e.preventDefault();
+//                 document.getElementById('journalForm')?.requestSubmit();
+//             }
+//         };
+//         window.addEventListener('keydown', handler);
+//         return () => window.removeEventListener('keydown', handler);
+//     }, []);
+
+//     // Persist entry mode
+//     useEffect(() => {
+//         localStorage.setItem('journalEntryMode', entryMode);
+//     }, [entryMode]);
+
+//     const fetchDatePreference = async () => {
+//         try {
+//             const response = await api.get('/api/retailer/date-preference/journal');
+//             if (response.data.success) {
+//                 const useVoucherDate = response.data.data.useVoucherLastDate;
+//                 setUseVoucherLastDateForJournal(useVoucherDate);
+//                 return useVoucherDate;
+//             }
+//             return false;
+//         } catch (error) {
+//             console.error('Error fetching date preference:', error);
+//             return false;
+//         }
+//     };
+
+//     const fetchLastJournalDate = async () => {
+//         try {
+//             const response = await api.get('/api/retailer/last-journal-date');
+//             if (response.data.success && response.data.data) {
+//                 const data = response.data.data;
+//                 const isNepaliFormat = companyDateFormat === 'nepali';
+//                 let lastDate = isNepaliFormat ? data.nepaliDate : data.date;
+//                 if (lastDate) {
+//                     let formattedDate = lastDate;
+//                     if (typeof lastDate === 'string' && lastDate.includes('T')) {
+//                         formattedDate = lastDate.split('T')[0];
+//                     }
+//                     setLastJournalDate(formattedDate);
+//                     return formattedDate;
+//                 }
+//             }
+//             return null;
+//         } catch (error) {
+//             console.error('Error fetching last journal date:', error);
+//             return null;
+//         }
+//     };
+
+//     useEffect(() => {
+//         const fetchJournalFormData = async () => {
+//             try {
+//                 setIsLoading(true);
+//                 const currentBillNum = await getCurrentBillNumber();
+//                 const response = await api.get('/api/retailer/journal');
+//                 const { data } = response;
+//                 const isNepaliFormat = data.data.companyDateFormat === 'nepali';
+//                 setCompanyDateFormat(data.data.companyDateFormat);
+
+//                 const useVoucherDate = await fetchDatePreference();
+//                 let lastDate = null;
+//                 if (useVoucherDate) lastDate = await fetchLastJournalDate();
+
+//                 let transactionDate = '';
+//                 let invoiceDate = '';
+
+//                 if (useVoucherDate && lastDate) {
+//                     transactionDate = lastDate;
+//                     invoiceDate = lastDate;
+//                 } else {
+//                     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+//                     if (isNepaliFormat) {
+//                         transactionDate = currentNepaliDate;
+//                         invoiceDate = currentNepaliDate;
+//                     } else {
+//                         const today = new Date().toISOString().split('T')[0];
+//                         transactionDate = today;
+//                         invoiceDate = today;
+//                     }
+//                 }
+
+//                 setAccounts(data.data.accounts);
+//                 setCurrentBillNumber(currentBillNum);
+//                 setNextBillNumber(currentBillNum);
+
+//                 setFormData({
+//                     date: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : ''),
+//                     nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
+//                     description: '',
+//                     entries: []
+//                 });
+
+//                 setIsInitialDataLoaded(true);
+//                 setIsLoading(false);
+//             } catch (err) {
+//                 setError(err.response?.data?.message || 'Failed to load journal voucher form');
+//                 setIsLoading(false);
+//             }
+//         };
+
+//         fetchJournalFormData();
+//     }, []);
+
+//     useEffect(() => {
+//         if (itemsTableRef.current && formData.entries.length > 0) {
+//             setTimeout(() => {
+//                 itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
+//             }, 10);
+//         }
+//     }, [formData.entries]);
+
+//     useEffect(() => {
+//         if (isInitialDataLoaded && transactionDateRef.current) {
+//             const timer = setTimeout(() => transactionDateRef.current.focus(), 50);
+//             return () => clearTimeout(timer);
+//         }
+//     }, [isInitialDataLoaded, companyDateFormat]);
+
+//     useEffect(() => {
+//         if (showAccountModal) {
+//             setAccountSearchQuery('');
+//             setAccountSearchPage(1);
+//             setAccounts([]);
+//             setHasMoreAccountResults(false);
+//             setTotalAccounts(0);
+//             setAccountLastSearchQuery('');
+//             setAccountShouldShowLastSearchResults(false);
+
+//             setTimeout(() => {
+//                 fetchAccountsFromBackend('', 1, false);
+//             }, 50);
+//         }
+//     }, [showAccountModal]);
+
+//     // ============================================================
+//     // SINGLE-ROW (Busy-style) INSERT
+//     // ============================================================
+//     const insertSingleEntry = () => {
+//         const { dc, account, debitAmount, creditAmount, instType, instNo, narration } = singleHeaderEntry;
+
+//         if (!account) {
+//             setNotification({ show: true, message: 'Please select an account', type: 'error' });
+//             return;
+//         }
+
+//         const amount = dc === 'D' ? parseFloat(debitAmount) : parseFloat(creditAmount);
+//         if (!amount || amount <= 0) {
+//             setNotification({ show: true, message: 'Please enter a valid amount', type: 'error' });
+//             return;
+//         }
+
+//         const newEntry = {
+//             id: Date.now(),
+//             accountId: account.id,
+//             accountName: `${account.uniqueNumber || ''} - ${account.name}`,
+//             entryType: dc === 'D' ? 'Debit' : 'Credit',
+//             amount: amount,
+//             lineNumber: formData.entries.length + 1,
+//             instType: instType || '',
+//             instNo: instNo || '',
+//             description: narration || ''
+//         };
+
+//         setFormData(prev => ({ ...prev, entries: [...prev.entries, newEntry] }));
+
+//         // Keep D/C, clear rest — Busy rapid-entry behavior
+//         setSingleHeaderEntry({
+//             dc: singleHeaderEntry.dc,
+//             account: null,
+//             debitAmount: '',
+//             creditAmount: '',
+//             instType: '',
+//             instNo: '',
+//             narration: ''
+//         });
+
+//         setTimeout(() => {
+//             document.getElementById('singleHeaderDC')?.focus();
+//         }, 50);
+//     };
+
+//     // ============================================================
+//     // PAIRED (legacy) HEADER INSERT — UNCHANGED
+//     // ============================================================
+//     const insertEntry = () => {
+//         const debitAmount = parseFloat(headerDebitAmount) || 0;
+//         const creditAmount = parseFloat(headerCreditAmount) || 0;
+
+//         const newEntries = [...formData.entries];
+//         let lineNumber = newEntries.length + 1;
+
+//         if (headerDebitAccount && headerDebitAmount && headerCreditAccount && headerCreditAmount) {
+//             newEntries.push({
+//                 id: Date.now(),
+//                 accountId: headerDebitAccount.id,
+//                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+//                 entryType: 'Debit',
+//                 amount: debitAmount,
+//                 lineNumber: lineNumber++,
+//                 instType: '',
+//                 instNo: '',
+//                 description: ''
+//             });
+
+//             newEntries.push({
+//                 id: Date.now() + 1,
+//                 accountId: headerCreditAccount.id,
+//                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+//                 entryType: 'Credit',
+//                 amount: creditAmount,
+//                 lineNumber: lineNumber++,
+//                 instType: '',
+//                 instNo: '',
+//                 description: ''
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const debitSearchInput = document.getElementById('headerDebitSearch');
+//                 if (debitSearchInput) {
+//                     debitSearchInput.focus();
+//                     debitSearchInput.select();
+//                 }
+//             }, 50);
+//         } else if (headerDebitAccount && headerDebitAmount && !headerCreditAccount && !headerCreditAmount) {
+//             newEntries.push({
+//                 id: Date.now(),
+//                 accountId: headerDebitAccount.id,
+//                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
+//                 entryType: 'Debit',
+//                 amount: debitAmount,
+//                 lineNumber: lineNumber++,
+//                 instType: '',
+//                 instNo: '',
+//                 description: ''
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const debitSearchInput = document.getElementById('headerDebitSearch');
+//                 if (debitSearchInput) {
+//                     debitSearchInput.focus();
+//                     debitSearchInput.select();
+//                 }
+//             }, 50);
+//         } else if (!headerDebitAccount && !headerDebitAmount && headerCreditAccount && headerCreditAmount) {
+//             newEntries.push({
+//                 id: Date.now(),
+//                 accountId: headerCreditAccount.id,
+//                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
+//                 entryType: 'Credit',
+//                 amount: creditAmount,
+//                 lineNumber: lineNumber++,
+//                 instType: '',
+//                 instNo: '',
+//                 description: ''
+//             });
+
+//             setFormData(prev => ({ ...prev, entries: newEntries }));
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setTimeout(() => {
+//                 const creditSearchInput = document.getElementById('headerCreditSearch');
+//                 if (creditSearchInput) {
+//                     creditSearchInput.focus();
+//                     creditSearchInput.select();
+//                 }
+//             }, 50);
+//         } else {
+//             setNotification({
+//                 show: true,
+//                 message: 'Please fill either both debit and credit entries, or one of them',
+//                 type: 'error'
+//             });
+//         }
+//     };
+
+//     // ============================================================
+//     // REMOVE — index-based (works for both modes)
+//     // ============================================================
+//     const removeEntry = (index) => {
+//         const newEntries = [...formData.entries];
+//         newEntries.splice(index, 1);
+//         setFormData(prev => ({ ...prev, entries: newEntries }));
+//     };
+
+//     // ============================================================
+//     // INLINE ROW EDIT (works for both modes)
+//     // ============================================================
+//     const startEditEntry = (index) => {
+//         const entry = formData.entries[index];
+//         if (!entry) return;
+
+//         const account = entry.accountId
+//             ? (accounts.find(acc => acc.id === entry.accountId) || {
+//                 id: entry.accountId,
+//                 name: entry.accountName?.split(' - ').slice(1).join(' - ') || entry.accountName,
+//                 uniqueNumber: entry.accountName?.split(' - ')[0] || ''
+//             })
+//             : null;
+
+//         const isDebit = entry.entryType === 'Debit';
+
+//         setEditingRowIndex(index);
+//         setInlineEditData({
+//             dc: isDebit ? 'D' : 'C',
+//             account: account,
+//             debitAmount: isDebit ? (entry.amount?.toString() || '') : '',
+//             creditAmount: !isDebit ? (entry.amount?.toString() || '') : '',
+//             instType: entry.instType || '',
+//             instNo: entry.instNo || '',
+//             narration: entry.description || ''
+//         });
+
+//         setTimeout(() => {
+//             const targetId = isDebit ? `inline-debit-amount-${index}` : `inline-credit-amount-${index}`;
+//             document.getElementById(targetId)?.focus();
+//         }, 100);
+//     };
+
+//     const cancelInlineEdit = () => {
+//         setEditingRowIndex(null);
+//         setInlineEditData({
+//             dc: 'D',
+//             account: null,
+//             debitAmount: '',
+//             creditAmount: '',
+//             instType: '',
+//             instNo: '',
+//             narration: ''
+//         });
+//         setInlineSelectionType(null);
+//     };
+
+//     const updateInlineEntry = () => {
+//         const { dc, account, debitAmount, creditAmount, instType, instNo, narration } = inlineEditData;
+
+//         if (!account) {
+//             setNotification({ show: true, message: 'Account is required', type: 'error' });
+//             return;
+//         }
+
+//         const amount = dc === 'D' ? parseFloat(debitAmount) : parseFloat(creditAmount);
+//         if (!amount || amount <= 0) {
+//             setNotification({ show: true, message: 'Valid amount is required', type: 'error' });
+//             return;
+//         }
+
+//         const newEntries = [...formData.entries];
+//         newEntries[editingRowIndex] = {
+//             ...newEntries[editingRowIndex],
+//             accountId: account.id,
+//             accountName: `${account.uniqueNumber || ''} - ${account.name}`,
+//             entryType: dc === 'D' ? 'Debit' : 'Credit',
+//             amount: amount,
+//             instType: instType || '',
+//             instNo: instNo || '',
+//             description: narration || ''
+//         };
+
+//         setFormData(prev => ({ ...prev, entries: newEntries }));
+//         cancelInlineEdit();
+//         setNotification({ show: true, message: 'Entry updated successfully!', type: 'success' });
+//     };
+
+//     // ============================================================
+//     // ACCOUNT SELECT ROUTER — routes to correct target
+//     // ============================================================
+//     const selectAccount = (account) => {
+//         // Inline row edit
+//         if (editingRowIndex !== null && inlineSelectionType === 'account') {
+//             setInlineEditData(prev => ({ ...prev, account }));
+//             setShowAccountModal(false);
+//             setInlineSelectionType(null);
+//             setTimeout(() => {
+//                 // Focus the active amount input based on current dc
+//                 const targetId = inlineEditData.dc === 'D'
+//                     ? `inline-debit-amount-${editingRowIndex}`
+//                     : `inline-credit-amount-${editingRowIndex}`;
+//                 document.getElementById(targetId)?.focus();
+//             }, 100);
+//             return;
+//         }
+
+//         // Single header entry (Busy style)
+//         if (currentSelectionType === 'single') {
+//             setSingleHeaderEntry(prev => ({ ...prev, account }));
+//             setShowAccountModal(false);
+//             setTimeout(() => {
+//                 const targetId = singleHeaderEntry.dc === 'D'
+//                     ? 'singleHeaderDebitAmount'
+//                     : 'singleHeaderCreditAmount';
+//                 document.getElementById(targetId)?.focus();
+//             }, 100);
+//             return;
+//         }
+
+//         // Legacy paired header
+//         if (currentSelectionType === 'debit') {
+//             setHeaderDebitAccount(account);
+//             setShowAccountModal(false);
+//             setTimeout(() => document.getElementById('headerDebitAmount')?.focus(), 100);
+//         } else {
+//             setHeaderCreditAccount(account);
+//             setShowAccountModal(false);
+//             setTimeout(() => document.getElementById('headerCreditAmount')?.focus(), 100);
+//         }
+//     };
+
+//     const handleInputChange = (e) => {
+//         const { name, value } = e.target;
+//         setFormData(prev => ({ ...prev, [name]: value }));
+//     };
+
+//     const resetAfterSave = async () => {
+//         try {
+//             const currentBillNum = await getCurrentBillNumber();
+//             setCurrentBillNumber(currentBillNum);
+//             setNextBillNumber(currentBillNum);
+
+//             const isNepaliFormat = companyDateFormat === 'nepali';
+//             const useVoucherDate = await fetchDatePreference();
+
+//             let lastDate = null;
+//             if (useVoucherDate) lastDate = await fetchLastJournalDate();
+
+//             let transactionDate = '';
+//             let invoiceDate = '';
+
+//             if (useVoucherDate && lastDate) {
+//                 transactionDate = lastDate;
+//                 invoiceDate = lastDate;
+//             } else {
+//                 const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+//                 if (isNepaliFormat) {
+//                     transactionDate = currentNepaliDate;
+//                     invoiceDate = currentNepaliDate;
+//                 } else {
+//                     const today = new Date().toISOString().split('T')[0];
+//                     transactionDate = today;
+//                     invoiceDate = today;
+//                 }
+//             }
+
+//             setFormData({
+//                 date: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : ''),
+//                 nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
+//                 description: '',
+//                 entries: []
+//             });
+
+//             setHeaderDebitAccount(null);
+//             setHeaderDebitAmount('');
+//             setHeaderCreditAccount(null);
+//             setHeaderCreditAmount('');
+
+//             setSingleHeaderEntry({
+//                 dc: 'D',
+//                 account: null,
+//                 debitAmount: '',
+//                 creditAmount: '',
+//                 instType: '',
+//                 instNo: '',
+//                 narration: ''
+//             });
+
+//             cancelInlineEdit();
+
+//             setTimeout(() => {
+//                 if (companyDateFormat === 'nepali') {
+//                     document.getElementById('nepaliDate')?.focus();
+//                 } else {
+//                     document.getElementById('date')?.focus();
+//                 }
+//             }, 100);
+//         } catch (err) {
+//             console.error('Error resetting after save:', err);
+//             setNotification({ show: true, message: 'Error refreshing form data', type: 'error' });
+//         }
+//     };
+
+//     const handleSubmit = async (print = false) => {
+//         const validEntries = formData.entries.filter(entry => entry.accountId && entry.amount > 0);
+
+//         const hasDebit = validEntries.some(entry => entry.entryType === 'Debit');
+//         const hasCredit = validEntries.some(entry => entry.entryType === 'Credit');
+
+//         if (!hasDebit || !hasCredit) {
+//             setNotification({
+//                 show: true,
+//                 message: 'At least one debit and one credit entry is required',
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         if (totals.totalDebit !== totals.totalCredit) {
+//             setNotification({
+//                 show: true,
+//                 message: `Total debit (${totals.totalDebit.toFixed(2)}) must equal total credit (${totals.totalCredit.toFixed(2)})`,
+//                 type: 'error'
+//             });
+//             return;
+//         }
+
+//         setIsSaving(true);
+
+//         try {
+//             const parseDate = (dateString) => {
+//                 if (!dateString) return new Date().toISOString();
+//                 if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+//                     const date = new Date(dateString);
+//                     date.setUTCHours(0, 0, 0, 0);
+//                     return date.toISOString();
+//                 }
+//                 return new Date(dateString).toISOString();
+//             };
+
+//             const payload = {
+//                 date: parseDate(formData.date),
+//                 nepaliDate: formData.nepaliDate,
+//                 description: formData.description,
+//                 entries: validEntries.map(entry => ({
+//                     accountId: entry.accountId,
+//                     entryType: entry.entryType,
+//                     amount: parseFloat(entry.amount),
+//                     lineNumber: entry.lineNumber,
+//                     description: entry.description || '',
+//                     instType: entry.instType || '',
+//                     instNo: entry.instNo || ''
+//                 })),
+//                 print: print || printAfterSave
+//             };
+
+//             const response = await api.post('/api/retailer/journal', payload);
+
+//             setNotification({ show: true, message: 'Journal voucher saved successfully!', type: 'success' });
+//             clearDraft();
+
+//             if ((print || printAfterSave) && response.data.data?.journalVoucher?.id) {
+//                 try {
+//                     const printResponse = await api.get(`/api/retailer/journal/${response.data.data.journalVoucher.id}/print`);
+//                     printVoucherImmediately(printResponse.data.data);
+//                     await resetAfterSave();
+//                 } catch (printError) {
+//                     console.error('Error fetching print data:', printError);
+//                     setNotification({ show: true, message: 'Saved but failed to load print data', type: 'warning' });
+//                     await resetAfterSave();
+//                 }
+//             } else {
+//                 await resetAfterSave();
+//             }
+//         } catch (err) {
+//             console.error('Save error:', err.response?.data);
+//             setNotification({
+//                 show: true,
+//                 message: err.response?.data?.error || 'Failed to save journal voucher',
+//                 type: 'error'
+//             });
+//         } finally {
+//             setIsSaving(false);
+//         }
+//     };
+
+//     const handlePrintAfterSaveChange = (e) => {
+//         const isChecked = e.target.checked;
+//         setPrintAfterSave(isChecked);
+//         localStorage.setItem('printAfterSaveJournal', isChecked);
+//     };
+
+//     const handleKeyDown = (e, currentFieldId) => {
+//         if (e.key === 'Enter') {
+//             e.preventDefault();
+//             const form = e.target.form;
+//             const inputs = Array.from(form.querySelectorAll('input, select, textarea')).filter(
+//                 el => !el.hidden && !el.disabled && el.offsetParent !== null
+//             );
+//             const currentIndex = inputs.findIndex(input => input.id === currentFieldId);
+
+//             if (currentIndex > -1 && currentIndex < inputs.length - 1) {
+//                 inputs[currentIndex + 1].focus();
+//             }
+//         }
+//     };
+
+//     const loadMoreAccounts = () => {
+//         if (!isAccountSearching && hasMoreAccountResults) {
+//             const nextPage = accountSearchPage + 1;
+//             fetchAccountsFromBackend(accountSearchQuery, nextPage, true);
+//         }
+//     };
+
+//     // ============================================================
+//     // PRINT
+//     // ============================================================
+//     const printVoucherImmediately = (printData) => {
+//         const tempDiv = document.createElement('div');
+//         tempDiv.style.position = 'absolute';
+//         tempDiv.style.left = '-9999px';
+//         document.body.appendChild(tempDiv);
+
+//         const debitEntries = printData.debitEntries || [];
+//         const creditEntries = printData.creditEntries || [];
+//         const journal = printData.journalVoucher;
+//         const isCanceled = journal?.status === 'Canceled';
+
+//         const totalDebit = debitEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+//         const totalCredit = creditEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+
+//         const formatDateForPrint = (dateString, format = 'english') => {
+//             if (!dateString) return 'N/A';
+//             try {
+//                 const date = new Date(dateString);
+//                 if (isNaN(date.getTime())) return 'N/A';
+//                 if (format === 'nepali') {
+//                     const nepaliDate = new NepaliDate(date);
+//                     return nepaliDate.format('YYYY-MM-DD');
+//                 }
+//                 const year = date.getFullYear();
+//                 const month = String(date.getMonth() + 1).padStart(2, '0');
+//                 const day = String(date.getDate()).padStart(2, '0');
+//                 return `${year}-${month}-${day}`;
+//             } catch (e) {
+//                 return 'N/A';
+//             }
+//         };
+
+//         const formatTo2Decimal = (num) => {
+//             if (num === null || num === undefined) return '0.00';
+//             const rounded = Math.round(num * 100) / 100;
+//             const parts = rounded.toString().split(".");
+//             if (!parts[1]) return parts[0] + ".00";
+//             if (parts[1].length === 1) return parts[0] + "." + parts[1] + "0";
+//             return rounded.toString();
+//         };
+
+//         const numberToWords = (num) => {
+//             const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+//             const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+//             const scales = ['', 'Thousand', 'Million', 'Billion'];
+
+//             const convertHundreds = (num) => {
+//                 let words = '';
+//                 if (num > 99) {
+//                     words += ones[Math.floor(num / 100)] + ' Hundred ';
+//                     num %= 100;
+//                 }
+//                 if (num > 19) {
+//                     words += tens[Math.floor(num / 10)] + ' ';
+//                     num %= 10;
+//                 }
+//                 if (num > 0) words += ones[num] + ' ';
+//                 return words.trim();
+//             };
+
+//             if (num === 0) return 'Zero';
+//             if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
+
+//             let words = '';
+//             for (let i = 0; i < scales.length; i++) {
+//                 let unit = Math.pow(1000, scales.length - i - 1);
+//                 let currentNum = Math.floor(num / unit);
+//                 if (currentNum > 0) {
+//                     words += convertHundreds(currentNum) + ' ' + scales[scales.length - i - 1] + ' ';
+//                 }
+//                 num %= unit;
+//             }
+//             return words.trim();
+//         };
+
+//         const numberToWordsWithPaisa = (amount) => {
+//             const rupees = Math.floor(amount);
+//             const paisa = Math.round((amount - rupees) * 100);
+//             let result = numberToWords(rupees) + ' Rupees';
+//             if (paisa > 0) result += ' and ' + numberToWords(paisa) + ' Paisa';
+//             return result;
+//         };
+
+//         // ============================================================
+//         // PRINT TABLE — Busy-style single list with D/C column
+//         // ============================================================
+//         const allEntries = [
+//             ...debitEntries.map(e => ({ ...e, entryType: 'Debit' })),
+//             ...creditEntries.map(e => ({ ...e, entryType: 'Credit' }))
+//         ];
+
+//         let rows = '';
+//         allEntries.forEach((entry, index) => {
+//             const isDebit = entry.entryType === 'Debit';
+//             rows += `
+//             <tr>
+//                 <td class="print-text-center">${index + 1}</td>
+//                 <td class="print-text-center">${isCanceled ? '<span class="text-danger">X</span>' : (isDebit ? 'D' : 'C')}</td>
+//                 <td class="print-text-left">${isCanceled ? '<span class="text-danger">Canceled</span>' : entry.accountName}</td>
+//                 <td class="print-text-center">${!isCanceled && isDebit ? formatTo2Decimal(entry.amount) : '--N.A.--'}</td>
+//                 <td class="print-text-center">${!isCanceled && !isDebit ? formatTo2Decimal(entry.amount) : '--N.A.--'}</td>
+//                 <td class="print-text-left">${entry.instType || ''}</td>
+//                 <td class="print-text-left">${entry.instNo || ''}</td>
+//                 <td class="print-text-left">${entry.description || ''}</td>
+//             </tr>
+//         `;
+//         });
+
+//         tempDiv.innerHTML = `
+//         <div id="printableContent">
+//             <div class="print-voucher-container">
+//                 <div class="print-voucher-header">
+//                     <div class="print-company-name">${printData.currentCompanyName}</div>
+//                     <div class="print-company-details">
+//                         ${printData.currentCompany?.address || ''}${printData.currentCompany?.city ? ', ' + printData.currentCompany.city : ''}
+//                         <br />
+//                         Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || 'N/A'}
+//                     </div>
+//                     <div class="print-voucher-title">JOURNAL VOUCHER</div>
+//                 </div>
+
+//                 <div class="print-voucher-details">
+//                     <div>
+//                         <div><strong>Vch. No:</strong> ${journal?.billNumber || 'N/A'}</div>
+//                     </div>
+//                     <div>
+//                         <div><strong>Date:</strong> ${printData.companyDateFormat === 'nepali' ?
+//                 formatDateForPrint(journal?.nepaliDate, 'Nepali') :
+//                 formatDateForPrint(journal?.date)}(${journal?.date ? new Date(journal.date).toLocaleDateString() : 'N/A'})</div>
+//                     </div>
+//                 </div>
+
+//                 <table class="print-voucher-table">
+//                     <thead>
+//                         <tr>
+//                             <th>S.No</th>
+//                             <th>D/C</th>
+//                             <th>Account</th>
+//                             <th>Debit (Rs.)</th>
+//                             <th>Credit (Rs.)</th>
+//                             <th>Inst. Type</th>
+//                             <th>Inst. No.</th>
+//                             <th>Short Narration</th>
+//                         </tr>
+//                     </thead>
+//                     <tbody>
+//                         ${rows}
+//                     </tbody>
+//                     <tfoot>
+//                         <tr>
+//                             <td colspan="3" style="border-bottom: 1px solid #000; font-weight: bold;">Total</td>
+//                             <td class="print-text-center" style="border-bottom: 1px solid #000;">
+//                                 <strong>${!isCanceled ? formatTo2Decimal(totalDebit) : '<span class="text-danger">0.00</span>'}</strong>
+//                             </td>
+//                             <td class="print-text-center" style="border-bottom: 1px solid #000;">
+//                                 <strong>${!isCanceled ? formatTo2Decimal(totalCredit) : '<span class="text-danger">0.00</span>'}</strong>
+//                             </td>
+//                             <td colspan="3" style="border-bottom: 1px solid #000;"></td>
+//                         </tr>
+//                     </tfoot>
+//                 </table>
+
+//                 <div style="margin-top: 3mm;">
+//                     <div><strong>Note:</strong> ${journal?.description || ''}</div>
+//                 </div>
+
+//                 <div class="print-amount-in-words" style="margin-top: 3mm; padding: 1mm; border: 1px dashed #000;">
+//                     <strong>In Words:</strong> ${numberToWordsWithPaisa(totalCredit)} Only.
+//                 </div>
+
+//                 <br /><br />
+//                 <div class="print-signature-area">
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;"><strong>${journal?.user?.name || 'N/A'}</strong></div>
+//                         Prepared By
+//                     </div>
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//                         Checked By
+//                     </div>
+//                     <div class="print-signature-box">
+//                         <div style="margin-bottom: 1mm;">&nbsp;</div>
+//                         Approved By
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//     `;
+
+//         const styles = `
+//         @media print {
+//             @page { size: A4; margin: 5mm; }
+//             body {
+//                 font-family: 'Arial Narrow', Arial, sans-serif;
+//                 font-size: 9pt;
+//                 line-height: 1.2;
+//                 color: #000;
+//                 background: white;
+//                 margin: 0; padding: 0;
+//             }
+//             .print-voucher-container { width: 100%; max-width: 210mm; margin: 0 auto; padding: 2mm; }
+//             .print-voucher-header { text-align: center; margin-bottom: 3mm; border-bottom: 1px solid #000; padding-bottom: 2mm; }
+//             .print-voucher-title { font-size: 12pt; font-weight: bold; margin: 2mm 0; text-transform: uppercase; }
+//             .print-company-name { font-size: 16pt; font-weight: bold; }
+//             .print-company-details { font-size: 8pt; margin: 1mm 0; font-weight: bold; }
+//             .print-voucher-details { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
+//             .print-voucher-table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; border: none; table-layout: fixed; }
+//             .print-voucher-table thead { border-top: 1px solid #000; border-bottom: 1px solid #000; }
+//             .print-voucher-table th { background-color: transparent; border: none; padding: 1mm; text-align: left; font-weight: bold; }
+//             .print-voucher-table td { border: none; padding: 1mm; border-bottom: 1px solid #eee; }
+//             .print-text-center { text-align: center; }
+//             .print-text-left { text-align: left; }
+//             .print-signature-area { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 8pt; }
+//             .print-signature-box { text-align: center; width: 30%; border-top: 1px solid #000; padding-top: 1mm; font-weight: bold; }
+//             .text-danger { color: #dc3545 !important; }
+//             .print-amount-in-words { font-style: italic; }
+//         }
+//     `;
+
+//         const printWindow = window.open('', '_blank');
+//         printWindow.document.write(`
+//         <html>
+//             <head>
+//                 <title>Journal_Voucher_${journal?.billNumber || 'print'}</title>
+//                 <style>${styles}</style>
+//             </head>
+//             <body>
+//                 ${tempDiv.innerHTML}
+//                 <script>
+//                     window.onload = function() {
+//                         setTimeout(function() {
+//                             window.print();
+//                             window.close();
+//                         }, 200);
+//                     };
+//                 </script>
+//             </body>
+//         </html>
+//     `);
+//         printWindow.document.close();
+//         document.body.removeChild(tempDiv);
+//     };
+
+//     const formatDateForInput = (date) => {
+//         if (!date) return '';
+//         if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+//         try {
+//             const d = new Date(date);
+//             if (isNaN(d.getTime())) return '';
+//             const year = d.getFullYear();
+//             const month = String(d.getMonth() + 1).padStart(2, '0');
+//             const day = String(d.getDate()).padStart(2, '0');
+//             return `${year}-${month}-${day}`;
+//         } catch (error) {
+//             return '';
+//         }
+//     };
+
+//     const getFocusTargetOnModalClose = () => {
+//         if (editingRowIndex !== null) {
+//             return inlineEditData.dc === 'D'
+//                 ? `inline-debit-amount-${editingRowIndex}`
+//                 : `inline-credit-amount-${editingRowIndex}`;
+//         }
+
+//         const hasTransactions = formData.entries.length > 0 &&
+//             formData.entries.some(entry => entry.accountId && entry.amount > 0);
+//         const isTotalsBalanced = totals.totalDebit === totals.totalCredit && totals.totalDebit > 0;
+
+//         if (hasTransactions && isTotalsBalanced) {
+//             return 'saveBill';
+//         }
+
+//         if (currentSelectionType === 'single') {
+//             return singleHeaderEntry.dc === 'D'
+//                 ? 'singleHeaderDebitAmount'
+//                 : 'singleHeaderCreditAmount';
+//         }
+//         if (currentSelectionType === 'debit') {
+//             return 'headerDebitAmount';
+//         } else {
+//             return 'headerCreditAmount';
+//         }
+//     };
+
+//     if (error) return <div className="alert alert-danger mt-5">{error}</div>;
+
+//     const isCanceled = formData.status === 'Canceled';
+
+//     return (
+//         <div className='container-fluid'>
+//             <Header />
+//             <div className="card mt-2 shadow-lg p-2 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+//                 <div className="card-header">
+//                     <div className="d-flex justify-content-between align-items-center">
+//                         <h2 className="card-title mb-0">
+//                             <i className="bi bi-file-text me-2"></i>
+//                             Journal Voucher Entry
+//                         </h2>
+//                         <div className="btn-group btn-group-sm" role="group">
+//                             <button
+//                                 type="button"
+//                                 className={`btn ${entryMode === 'single' ? 'btn-primary' : 'btn-outline-primary'}`}
+//                                 onClick={() => setEntryMode('single')}
+//                                 style={{ fontSize: '0.75rem' }}
+//                             >
+//                                 Busy Mode
+//                             </button>
+//                             <button
+//                                 type="button"
+//                                 className={`btn ${entryMode === 'paired' ? 'btn-primary' : 'btn-outline-primary'}`}
+//                                 onClick={() => setEntryMode('paired')}
+//                                 style={{ fontSize: '0.75rem' }}
+//                             >
+//                                 Paired Mode
+//                             </button>
+//                         </div>
+//                     </div>
+//                 </div>
+//                 <div className="card-body p-2 p-md-3">
+//                     <form id='journalForm' onSubmit={(e) => {
+//                         e.preventDefault();
+//                         handleSubmit(false);
+//                     }}>
+//                         {/* Date and Basic Info Row */}
+//                         <div className="row g-2 mb-3">
+//                             {companyDateFormat === 'nepali' ? (
+//                                 <>
+//                                     <div className="col-12 col-md-6 col-lg-2">
+//                                         <div className="position-relative">
+//                                             <NepaliDatePicker
+//                                                 value={formData.nepaliDate}
+//                                                 onChange={(bsDate) => {
+//                                                     setFormData(prev => ({ ...prev, nepaliDate: bsDate }));
+//                                                     setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
+
+//                                                     if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
+//                                                         const adDate = convertBsToAd(bsDate);
+//                                                         if (adDate) {
+//                                                             setFormData(prev => ({ ...prev, date: adDate }));
+//                                                         }
+//                                                     }
+//                                                 }}
+//                                                 autoFocus={true}
+//                                                 required={true}
+//                                                 className={dateErrors.nepaliDate ? 'is-invalid' : ''}
+//                                                 onKeyDown={(e) => handleKeyDown(e, 'nepaliDate')}
+//                                                 dateErrors={dateErrors}
+//                                                 setDateErrors={setDateErrors}
+//                                             />
+//                                             <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                                 Date (BS): <span className="text-danger">*</span>
+//                                             </label>
+//                                             {dateErrors.nepaliDate && (
+//                                                 <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+//                                                     {dateErrors.nepaliDate}
+//                                                 </div>
+//                                             )}
+//                                         </div>
+//                                     </div>
+
+//                                     <div className="col-12 col-md-6 col-lg-2">
+//                                         <div className="position-relative">
+//                                             <input
+//                                                 type="date"
+//                                                 name="date"
+//                                                 id="date"
+//                                                 className="form-control form-control-sm"
+//                                                 value={formData.date || ''}
+//                                                 onChange={(e) => {
+//                                                     const value = e.target.value;
+//                                                     setFormData(prev => ({ ...prev, date: value }));
+//                                                     if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+//                                                         const bsDate = convertAdToBs(value);
+//                                                         if (bsDate && isValidNepaliDate(bsDate)) {
+//                                                             setFormData(prev => ({ ...prev, nepaliDate: bsDate }));
+//                                                         }
+//                                                     }
+//                                                 }}
+//                                                 onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'date'); }}
+//                                                 style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+//                                             />
+//                                             <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                                 Date (AD):
+//                                             </label>
+//                                         </div>
+//                                     </div>
+//                                 </>
+//                             ) : (
+//                                 <div className="col-12 col-md-6 col-lg-2">
+//                                     <div className="position-relative">
+//                                         <input
+//                                             type="date"
+//                                             name="date"
+//                                             id="date"
+//                                             className="form-control form-control-sm"
+//                                             ref={transactionDateRef}
+//                                             value={formData.date}
+//                                             onChange={handleInputChange}
+//                                             onKeyDown={(e) => handleKeyDown(e, 'date')}
+//                                             max={new Date().toISOString().split('T')[0]}
+//                                             style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+//                                         />
+//                                         <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                             Date: <span className="text-danger">*</span>
+//                                         </label>
+//                                     </div>
+//                                 </div>
+//                             )}
+
+//                             <div className="col-12 col-md-6 col-lg-2">
+//                                 <div className="position-relative">
+//                                     <input
+//                                         type="text"
+//                                         name="billNumber"
+//                                         id="billNumber"
+//                                         className="form-control form-control-sm"
+//                                         value={nextBillNumber}
+//                                         readOnly
+//                                         onKeyDown={(e) => {
+//                                             if (e.key === 'Enter') {
+//                                                 e.preventDefault();
+//                                                 document.getElementById('description')?.focus();
+//                                             }
+//                                         }}
+//                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+//                                     />
+//                                     <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                         Vch. No:
+//                                     </label>
+//                                 </div>
+//                             </div>
+
+//                             <div className="col-12 col-md-6 col-lg-6">
+//                                 <div className="position-relative">
+//                                     <input
+//                                         type="text"
+//                                         name="description"
+//                                         id="description"
+//                                         className="form-control form-control-sm"
+//                                         placeholder="Enter description"
+//                                         value={formData.description}
+//                                         onChange={handleInputChange}
+//                                         onKeyDown={(e) => handleKeyDown(e, 'description')}
+//                                         autoComplete='off'
+//                                         style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
+//                                     />
+//                                     <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
+//                                         Description:
+//                                     </label>
+//                                 </div>
+//                             </div>
+//                         </div>
+
+//                         {/* Scrollable Table Container */}
+//                         <div
+//                             className="table-responsive"
+//                             style={{
+//                                 minHeight: "270px",
+//                                 maxHeight: "270px",
+//                                 overflowY: "auto",
+//                                 border: formData.entries.filter(e => e.accountId && e.amount > 0).length > 0
+//                                     ? '1px solid #dee2e6'
+//                                     : '1px dashed #ced4da',
+//                                 backgroundColor: '#fff'
+//                             }}
+//                             ref={itemsTableRef}
+//                         >
+//                             <table className="table table-sm table-bordered table-hover mb-0">
+//                                 <thead className="sticky-top bg-light">
+//                                     {/* ============================== */}
+//                                     {/* SINGLE (Busy) HEADER ENTRY ROW */}
+//                                     {/* ============================== */}
+//                                     {entryMode === 'single' && (
+//                                         <tr style={{
+//                                             height: '28px',
+//                                             backgroundColor: '#fff',
+//                                             position: 'sticky',
+//                                             top: 0,
+//                                             zIndex: 10,
+//                                             boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
+//                                         }}>
+//                                             <td width="4%" style={{ padding: '2px', fontSize: '0.75rem', textAlign: 'center' }}>#</td>
+//                                             <td width="5%" style={{ padding: '2px' }}>
+//                                                 <select
+//                                                     id="singleHeaderDC"
+//                                                     className="form-select form-select-sm"
+//                                                     value={singleHeaderEntry.dc}
+//                                                     onChange={(e) => {
+//                                                         const newDc = e.target.value;
+//                                                         setSingleHeaderEntry(prev => ({
+//                                                             ...prev,
+//                                                             dc: newDc
+//                                                             // ⛔ do NOT clear debitAmount / creditAmount
+//                                                         }));
+//                                                         // Focus the amount input for the newly selected side
+//                                                         setTimeout(() => {
+//                                                                 document.getElementById('singleHeaderAccount')?.focus();
+
+//                                                         }, 30);
+//                                                     }}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             document.getElementById('singleHeaderAccount')?.focus();
+//                                                         }
+//                                                     }}
+//                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 2px' }}
+//                                                 >
+//                                                     <option value="D">D</option>
+//                                                     <option value="C">C</option>
+//                                                 </select>
+//                                             </td>
+//                                             <td width="22%" style={{ padding: '2px' }}>
+//                                                 <input
+//                                                     type="text"
+//                                                     id="singleHeaderAccount"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Select Account"
+//                                                     value={singleHeaderEntry.account ? `${singleHeaderEntry.account.uniqueNumber || ''} - ${singleHeaderEntry.account.name}` : ''}
+//                                                     onFocus={() => {
+//                                                         setCurrentSelectionType('single');
+//                                                         setShowAccountModal(true);
+//                                                         setAccountSearchQuery('');
+//                                                     }}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             // Move focus to active amount field
+//                                                             const targetId = singleHeaderEntry.dc === 'D'
+//                                                                 ? 'singleHeaderDebitAmount'
+//                                                                 : 'singleHeaderCreditAmount';
+//                                                             document.getElementById(targetId)?.focus();
+//                                                         }
+//                                                     }}
+//                                                     readOnly
+//                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px', cursor: 'pointer' }}
+//                                                 />
+//                                             </td>
+
+//                                             {/* Debit Amount input — always visible, enabled only when D/C = D */}
+//                                             <td width="11%" style={{ padding: '2px' }}>
+//                                                 <input
+//                                                     type="number"
+//                                                     id="singleHeaderDebitAmount"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Debit Amt"
+//                                                     value={singleHeaderEntry.debitAmount}
+//                                                     disabled={singleHeaderEntry.dc !== 'D'}
+//                                                     onChange={(e) => {
+//                                                         const val = e.target.value;
+//                                                         setSingleHeaderEntry(prev => ({ ...prev, debitAmount: val }));
+//                                                     }}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             document.getElementById('singleHeaderInstType')?.focus();
+//                                                         }
+//                                                     }}
+//                                                     style={{
+//                                                         height: '22px',
+//                                                         fontSize: '0.75rem',
+//                                                         padding: '0 4px',
+//                                                         backgroundColor: singleHeaderEntry.dc === 'D' ? '#fff' : '#f8f9fa'
+//                                                     }}
+//                                                 />
+//                                             </td>
+
+//                                             {/* Credit Amount input — always visible, enabled only when D/C = C */}
+//                                             <td width="11%" style={{ padding: '2px' }}>
+//                                                 <input
+//                                                     type="number"
+//                                                     id="singleHeaderCreditAmount"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Credit Amt"
+//                                                     value={singleHeaderEntry.creditAmount}
+//                                                     disabled={singleHeaderEntry.dc !== 'C'}
+//                                                     onChange={(e) => {
+//                                                         const val = e.target.value;
+//                                                         setSingleHeaderEntry(prev => ({ ...prev, creditAmount: val }));
+//                                                     }}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             document.getElementById('singleHeaderInstType')?.focus();
+//                                                         }
+//                                                     }}
+//                                                     style={{
+//                                                         height: '22px',
+//                                                         fontSize: '0.75rem',
+//                                                         padding: '0 4px',
+//                                                         backgroundColor: singleHeaderEntry.dc === 'C' ? '#fff' : '#f8f9fa'
+//                                                     }}
+//                                                 />
+//                                             </td>
+
+//                                             <td width="10%" style={{ padding: '2px' }}>
+//                                                 <input
+//                                                     type="text"
+//                                                     id="singleHeaderInstType"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Inst. Type"
+//                                                     value={singleHeaderEntry.instType}
+//                                                     onChange={(e) => setSingleHeaderEntry(prev => ({ ...prev, instType: e.target.value }))}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             document.getElementById('singleHeaderInstNo')?.focus();
+//                                                         }
+//                                                     }}
+//                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                 />
+//                                             </td>
+//                                             <td width="10%" style={{ padding: '2px' }}>
+//                                                 <input
+//                                                     type="text"
+//                                                     id="singleHeaderInstNo"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Inst. No."
+//                                                     value={singleHeaderEntry.instNo}
+//                                                     onChange={(e) => setSingleHeaderEntry(prev => ({ ...prev, instNo: e.target.value }))}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             document.getElementById('singleHeaderNarration')?.focus();
+//                                                         }
+//                                                     }}
+//                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                 />
+//                                             </td>
+//                                             <td width="15%" style={{ padding: '2px' }}>
+//                                                 <input
+//                                                     type="text"
+//                                                     id="singleHeaderNarration"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Short Narration"
+//                                                     value={singleHeaderEntry.narration}
+//                                                     onChange={(e) => setSingleHeaderEntry(prev => ({ ...prev, narration: e.target.value }))}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             insertSingleEntry();
+//                                                         }
+//                                                     }}
+//                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                 />
+//                                             </td>
+//                                             <td width="7%" style={{ padding: '2px', textAlign: 'center' }}>
+//                                                 <button
+//                                                     type="button"
+//                                                     className="btn btn-sm btn-success py-0 px-2"
+//                                                     onClick={insertSingleEntry}
+//                                                     disabled={
+//                                                         !singleHeaderEntry.account ||
+//                                                         !(singleHeaderEntry.dc === 'D'
+//                                                             ? singleHeaderEntry.debitAmount
+//                                                             : singleHeaderEntry.creditAmount)
+//                                                     }
+//                                                     style={{ height: '22px', fontSize: '0.7rem', fontWeight: 'bold' }}
+//                                                 >
+//                                                     INS
+//                                                 </button>
+//                                             </td>
+//                                         </tr>
+//                                     )}
+
+//                                     {/* ============================== */}
+//                                     {/* PAIRED (legacy) HEADER ENTRY ROW */}
+//                                     {/* ============================== */}
+//                                     {entryMode === 'paired' && (
+//                                         <tr style={{
+//                                             height: '26px',
+//                                             backgroundColor: '#ffffff',
+//                                             position: 'sticky',
+//                                             top: 0,
+//                                             zIndex: 10,
+//                                             boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
+//                                         }}>
+//                                             <td width="5%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                                 <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>#</span>
+//                                             </td>
+//                                             <td width="30%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                                 <input
+//                                                     type="text"
+//                                                     id="headerDebitSearch"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Select Debit Account"
+//                                                     value={headerDebitAccount ? `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}` : ''}
+//                                                     onFocus={() => {
+//                                                         setCurrentSelectionType('debit');
+//                                                         setShowAccountModal(true);
+//                                                         setAccountSearchQuery('');
+//                                                     }}
+//                                                     readOnly
+//                                                     style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+//                                                 />
+//                                             </td>
+//                                             <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                                 <input
+//                                                     type="number"
+//                                                     id="headerDebitAmount"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Debit Amount"
+//                                                     value={headerDebitAmount}
+//                                                     onChange={(e) => setHeaderDebitAmount(e.target.value)}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             document.getElementById('headerCreditSearch')?.focus();
+//                                                         }
+//                                                     }}
+//                                                     style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+//                                                 />
+//                                             </td>
+//                                             <td width="35%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                                 <input
+//                                                     type="text"
+//                                                     id="headerCreditSearch"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Select Credit Account"
+//                                                     value={headerCreditAccount ? `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}` : ''}
+//                                                     onFocus={() => {
+//                                                         setCurrentSelectionType('credit');
+//                                                         setShowAccountModal(true);
+//                                                         setAccountSearchQuery('');
+//                                                     }}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             if (showAccountModal) setShowAccountModal(false);
+//                                                             setTimeout(() => document.getElementById('headerCreditAmount')?.focus(), 50);
+//                                                         }
+//                                                     }}
+//                                                     readOnly
+//                                                     style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+//                                                 />
+//                                             </td>
+//                                             <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+//                                                 <input
+//                                                     type="number"
+//                                                     id="headerCreditAmount"
+//                                                     className="form-control form-control-sm"
+//                                                     placeholder="Credit Amount"
+//                                                     value={headerCreditAmount}
+//                                                     onChange={(e) => setHeaderCreditAmount(e.target.value)}
+//                                                     onKeyDown={(e) => {
+//                                                         if ((e.key === 'Tab' || e.key === 'Enter')) {
+//                                                             e.preventDefault();
+//                                                             document.getElementById('insertButton')?.focus();
+//                                                         }
+//                                                     }}
+//                                                     style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+//                                                 />
+//                                             </td>
+//                                             <td width="10%" style={{ padding: '2px', textAlign: 'center', backgroundColor: '#ffffff' }}>
+//                                                 <button
+//                                                     type="button"
+//                                                     id="insertButton"
+//                                                     className="btn btn-sm btn-success py-0 px-2"
+//                                                     onClick={insertEntry}
+//                                                     disabled={isCanceled || editingRowIndex !== null || (!headerDebitAccount && !headerCreditAccount) ||
+//                                                         (headerDebitAccount && !headerDebitAmount) ||
+//                                                         (headerCreditAccount && !headerCreditAmount)}
+//                                                     style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#198754', borderColor: '#198754' }}
+//                                                 >
+//                                                     INSERT
+//                                                 </button>
+//                                             </td>
+//                                         </tr>
+//                                     )}
+
+//                                     {/* Column headers row — differs based on mode */}
+//                                     <tr style={{
+//                                         height: '26px',
+//                                         backgroundColor: '#e9ecef',
+//                                         position: 'sticky',
+//                                         top: entryMode === 'single' ? '28px' : '26px',
+//                                         zIndex: 9
+//                                     }}>
+//                                         {entryMode === 'single' ? (
+//                                             <>
+//                                                 <th width="4%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.No</th>
+//                                                 <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>D/C</th>
+//                                                 <th width="22%" style={{ padding: '3px', fontSize: '0.75rem' }}>Account</th>
+//                                                 <th width="11%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit (Rs.)</th>
+//                                                 <th width="11%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit (Rs.)</th>
+//                                                 <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Inst. Type</th>
+//                                                 <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Inst. No.</th>
+//                                                 <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Short Narration</th>
+//                                                 <th width="7%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
+//                                             </>
+//                                         ) : (
+//                                             <>
+//                                                 <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.N.</th>
+//                                                 <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Account</th>
+//                                                 <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Amount (Rs.)</th>
+//                                                 <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Account</th>
+//                                                 <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Amount (Rs.)</th>
+//                                                 <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
+//                                             </>
+//                                         )}
+//                                     </tr>
+//                                 </thead>
+
+//                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
+//                                     {entryMode === 'single' ? (
+//                                         // ============================================================
+//                                         // SINGLE (Busy) MODE — one row per entry
+//                                         // ============================================================
+//                                         <>
+//                                             {formData.entries.map((entry, index) => {
+//                                                 const isInlineEditing = editingRowIndex === index;
+//                                                 const isDebit = entry.entryType === 'Debit';
+
+//                                                 return (
+//                                                     <tr key={entry.id || index} style={{ minHeight: '26px' }}>
+//                                                         <td style={{ padding: '3px', fontSize: '0.75rem', textAlign: 'center' }}>
+//                                                             {index + 1}
+//                                                         </td>
+
+//                                                         <td style={{ padding: '3px' }}>
+//                                                             {isInlineEditing ? (
+//                                                                 <select
+//                                                                     className="form-select form-select-sm"
+//                                                                     value={inlineEditData.dc}
+//                                                                     onChange={(e) => {
+//                                                                         const newDc = e.target.value;
+//                                                                         setInlineEditData(prev => ({
+//                                                                             ...prev,
+//                                                                             dc: newDc
+//                                                                             // don't move amounts
+//                                                                         }));
+//                                                                         setTimeout(() => {
+//                                                                             const targetId = newDc === 'D'
+//                                                                                 ? `inline-debit-amount-${index}`
+//                                                                                 : `inline-credit-amount-${index}`;
+//                                                                             document.getElementById(targetId)?.focus();
+//                                                                         }, 30);
+//                                                                     }}
+//                                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 2px' }}
+//                                                                 >
+//                                                                     <option value="D">D</option>
+//                                                                     <option value="C">C</option>
+//                                                                 </select>
+//                                                             ) : (
+//                                                                 <span className={`badge ${isDebit ? 'bg-primary' : 'bg-success'}`}>
+//                                                                     {isDebit ? 'D' : 'C'}
+//                                                                 </span>
+//                                                             )}
+//                                                         </td>
+
+//                                                         <td style={{ padding: '3px', fontSize: '0.75rem' }}>
+//                                                             {isInlineEditing ? (
+//                                                                 <input
+//                                                                     type="text"
+//                                                                     className="form-control form-control-sm"
+//                                                                     value={inlineEditData.account ? `${inlineEditData.account.uniqueNumber || ''} - ${inlineEditData.account.name}` : ''}
+//                                                                     onFocus={() => {
+//                                                                         setInlineSelectionType('account');
+//                                                                         setCurrentSelectionType('debit'); // dummy to avoid 'single' conflict
+//                                                                         setShowAccountModal(true);
+//                                                                         setAccountSearchQuery('');
+//                                                                     }}
+//                                                                     readOnly
+//                                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px', cursor: 'pointer' }}
+//                                                                 />
+//                                                             ) : (
+//                                                                 <>
+//                                                                     <div>{entry.accountName}</div>
+//                                                                     {entry.accountId && (
+//                                                                         <div className="mt-1">
+//                                                                             <AccountBalanceDisplay
+//                                                                                 accountId={entry.accountId}
+//                                                                                 api={api}
+//                                                                                 newTransactionAmount={parseFloat(entry.amount) || 0}
+//                                                                                 compact={true}
+//                                                                                 transactionType={isDebit ? 'payment' : 'receipt'}
+//                                                                                 dateFormat={companyDateFormat}
+//                                                                             />
+//                                                                         </div>
+//                                                                     )}
+//                                                                 </>
+//                                                             )}
+//                                                         </td>
+
+//                                                         {/* Debit amount column */}
+//                                                         <td style={{ padding: '3px', fontSize: '0.75rem', textAlign: 'right' }}>
+//                                                             {isInlineEditing ? (
+//                                                                 <input
+//                                                                     type="number"
+//                                                                     id={`inline-debit-amount-${index}`}
+//                                                                     className="form-control form-control-sm"
+//                                                                     value={inlineEditData.debitAmount}
+//                                                                     disabled={inlineEditData.dc !== 'D'}
+//                                                                     onChange={(e) => setInlineEditData(prev => ({ ...prev, debitAmount: e.target.value }))}
+//                                                                     onKeyDown={(e) => {
+//                                                                         if (e.key === 'Enter') {
+//                                                                             e.preventDefault();
+//                                                                             updateInlineEntry();
+//                                                                         }
+//                                                                     }}
+//                                                                     style={{
+//                                                                         height: '22px',
+//                                                                         fontSize: '0.75rem',
+//                                                                         padding: '0 4px',
+//                                                                         backgroundColor: inlineEditData.dc === 'D' ? '#fff' : '#f8f9fa'
+//                                                                     }}
+//                                                                 />
+//                                                             ) : isDebit ? (
+//                                                                 parseFloat(entry.amount).toFixed(2)
+//                                                             ) : (
+//                                                                 <span className="text-muted">--N.A.--</span>
+//                                                             )}
+//                                                         </td>
+
+//                                                         {/* Credit amount column */}
+//                                                         <td style={{ padding: '3px', fontSize: '0.75rem', textAlign: 'right' }}>
+//                                                             {isInlineEditing ? (
+//                                                                 <input
+//                                                                     type="number"
+//                                                                     id={`inline-credit-amount-${index}`}
+//                                                                     className="form-control form-control-sm"
+//                                                                     value={inlineEditData.creditAmount}
+//                                                                     disabled={inlineEditData.dc !== 'C'}
+//                                                                     onChange={(e) => setInlineEditData(prev => ({ ...prev, creditAmount: e.target.value }))}
+//                                                                     onKeyDown={(e) => {
+//                                                                         if (e.key === 'Enter') {
+//                                                                             e.preventDefault();
+//                                                                             updateInlineEntry();
+//                                                                         }
+//                                                                     }}
+//                                                                     style={{
+//                                                                         height: '22px',
+//                                                                         fontSize: '0.75rem',
+//                                                                         padding: '0 4px',
+//                                                                         backgroundColor: inlineEditData.dc === 'C' ? '#fff' : '#f8f9fa'
+//                                                                     }}
+//                                                                 />
+//                                                             ) : !isDebit ? (
+//                                                                 parseFloat(entry.amount).toFixed(2)
+//                                                             ) : (
+//                                                                 <span className="text-muted">--N.A.--</span>
+//                                                             )}
+//                                                         </td>
+
+//                                                         <td style={{ padding: '3px', fontSize: '0.75rem' }}>
+//                                                             {isInlineEditing ? (
+//                                                                 <input
+//                                                                     type="text"
+//                                                                     className="form-control form-control-sm"
+//                                                                     value={inlineEditData.instType}
+//                                                                     onChange={(e) => setInlineEditData(prev => ({ ...prev, instType: e.target.value }))}
+//                                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                                 />
+//                                                             ) : (
+//                                                                 entry.instType || <span className="text-muted">--N.A.--</span>
+//                                                             )}
+//                                                         </td>
+
+//                                                         <td style={{ padding: '3px', fontSize: '0.75rem' }}>
+//                                                             {isInlineEditing ? (
+//                                                                 <input
+//                                                                     type="text"
+//                                                                     className="form-control form-control-sm"
+//                                                                     value={inlineEditData.instNo}
+//                                                                     onChange={(e) => setInlineEditData(prev => ({ ...prev, instNo: e.target.value }))}
+//                                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                                 />
+//                                                             ) : (
+//                                                                 entry.instNo || ''
+//                                                             )}
+//                                                         </td>
+
+//                                                         <td style={{ padding: '3px', fontSize: '0.75rem' }}>
+//                                                             {isInlineEditing ? (
+//                                                                 <input
+//                                                                     type="text"
+//                                                                     className="form-control form-control-sm"
+//                                                                     value={inlineEditData.narration}
+//                                                                     onChange={(e) => setInlineEditData(prev => ({ ...prev, narration: e.target.value }))}
+//                                                                     onKeyDown={(e) => {
+//                                                                         if (e.key === 'Enter') {
+//                                                                             e.preventDefault();
+//                                                                             updateInlineEntry();
+//                                                                         }
+//                                                                     }}
+//                                                                     style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                                 />
+//                                                             ) : (
+//                                                                 entry.description || ''
+//                                                             )}
+//                                                         </td>
+
+//                                                         <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap' }}>
+//                                                             <div className="d-flex gap-1 justify-content-center">
+//                                                                 {isInlineEditing ? (
+//                                                                     <>
+//                                                                         <button type="button" className="btn btn-sm btn-success py-0 px-1" onClick={updateInlineEntry} title="Save" style={{ height: '18px', minWidth: '18px', fontSize: '0.6rem' }}>
+//                                                                             <i className="bi bi-check"></i>
+//                                                                         </button>
+//                                                                         <button type="button" className="btn btn-sm btn-secondary py-0 px-1" onClick={cancelInlineEdit} title="Cancel" style={{ height: '18px', minWidth: '18px', fontSize: '0.6rem' }}>
+//                                                                             <i className="bi bi-x"></i>
+//                                                                         </button>
+//                                                                     </>
+//                                                                 ) : (
+//                                                                     <>
+//                                                                         <button type="button" className="btn btn-sm btn-warning py-0 px-1" onClick={() => startEditEntry(index)} disabled={editingRowIndex !== null} style={{ height: '18px', width: '18px', fontSize: '0.6rem' }}>
+//                                                                             <i className="bi bi-pencil"></i>
+//                                                                         </button>
+//                                                                         <button type="button" className="btn btn-sm btn-danger py-0 px-1" onClick={() => removeEntry(index)} disabled={editingRowIndex !== null} style={{ height: '18px', width: '18px', fontSize: '0.6rem' }}>
+//                                                                             <i className="bi bi-trash"></i>
+//                                                                         </button>
+//                                                                     </>
+//                                                                 )}
+//                                                             </div>
+//                                                         </td>
+//                                                     </tr>
+//                                                 );
+//                                             })}
+//                                             {formData.entries.length === 0 && (
+//                                                 <tr>
+//                                                     <td colSpan="9" className="text-center text-muted py-2" style={{ fontSize: '0.75rem' }}>
+//                                                         No entries yet. Use the header row above (D/C → Account → Amount → Enter).
+//                                                     </td>
+//                                                 </tr>
+//                                             )}
+//                                         </>
+//                                     ) : (
+//                                         // ============================================================
+//                                         // PAIRED (legacy) MODE — debit/credit pairs
+//                                         // ============================================================
+//                                         <>
+//                                             {(() => {
+//                                                 const debitEntriesList = formData.entries
+//                                                     .filter(entry => entry.entryType === 'Debit')
+//                                                     .map(entry => ({
+//                                                         accountId: entry.accountId,
+//                                                         accountName: entry.accountName,
+//                                                         amount: entry.amount
+//                                                     }));
+
+//                                                 const creditEntriesList = formData.entries
+//                                                     .filter(entry => entry.entryType === 'Credit')
+//                                                     .map(entry => ({
+//                                                         accountId: entry.accountId,
+//                                                         accountName: entry.accountName,
+//                                                         amount: entry.amount
+//                                                     }));
+
+//                                                 const maxLength = Math.max(debitEntriesList.length, creditEntriesList.length);
+//                                                 const pairedEntries = [];
+//                                                 for (let i = 0; i < maxLength; i++) {
+//                                                     pairedEntries.push({
+//                                                         debitEntry: debitEntriesList[i] || { accountId: '', accountName: '', amount: 0 },
+//                                                         creditEntry: creditEntriesList[i] || { accountId: '', accountName: '', amount: 0 }
+//                                                     });
+//                                                 }
+
+//                                                 return pairedEntries.map((item, index) => {
+//                                                     const debitEntry = item.debitEntry;
+//                                                     const creditEntry = item.creditEntry;
+//                                                     const isInlineEditing = editingRowIndex === index;
+
+//                                                     return (
+//                                                         <tr key={index} style={{ minHeight: '26px' }}>
+//                                                             <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                                 {index + 1}
+//                                                             </td>
+//                                                             <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                                 {isInlineEditing ? (
+//                                                                     <input
+//                                                                         type="text"
+//                                                                         className="form-control form-control-sm"
+//                                                                         placeholder="Select Debit Account"
+//                                                                         value={inlineEditData.account
+//                                                                             ? `${inlineEditData.account.uniqueNumber || ''} - ${inlineEditData.account.name}`
+//                                                                             : ''}
+//                                                                         onFocus={() => {
+//                                                                             setInlineSelectionType('account');
+//                                                                             setShowAccountModal(true);
+//                                                                             setAccountSearchQuery('');
+//                                                                         }}
+//                                                                         readOnly
+//                                                                         style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                                     />
+//                                                                 ) : debitEntry.accountName ? (
+//                                                                     <>
+//                                                                         <div>{debitEntry.accountName}</div>
+//                                                                         {debitEntry.accountId && (
+//                                                                             <div className="mt-1">
+//                                                                                 <AccountBalanceDisplay
+//                                                                                     accountId={debitEntry.accountId}
+//                                                                                     api={api}
+//                                                                                     newTransactionAmount={parseFloat(debitEntry.amount) || 0}
+//                                                                                     compact={true}
+//                                                                                     transactionType="payment"
+//                                                                                     dateFormat={companyDateFormat}
+//                                                                                 />
+//                                                                             </div>
+//                                                                         )}
+//                                                                     </>
+//                                                                 ) : (
+//                                                                     <span className="text-muted">-- No Entry --</span>
+//                                                                 )}
+//                                                             </td>
+//                                                             <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                                 {isInlineEditing ? (
+//                                                                     <input
+//                                                                         type="number"
+//                                                                         id={`inline-debit-amount-${index}`}
+//                                                                         className="form-control form-control-sm"
+//                                                                         placeholder="Debit Amount"
+//                                                                         value={inlineEditData.debitAmount}
+//                                                                         onChange={(e) => setInlineEditData(prev => ({ ...prev, debitAmount: e.target.value }))}
+//                                                                         style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                                     />
+//                                                                 ) : debitEntry.amount > 0 ? debitEntry.amount : '-'}
+//                                                             </td>
+//                                                             <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                                 {isInlineEditing ? (
+//                                                                     <input
+//                                                                         type="text"
+//                                                                         className="form-control form-control-sm"
+//                                                                         placeholder="Select Credit Account"
+//                                                                         value={inlineEditData.account
+//                                                                             ? `${inlineEditData.account.uniqueNumber || ''} - ${inlineEditData.account.name}`
+//                                                                             : ''}
+//                                                                         onFocus={() => {
+//                                                                             setInlineSelectionType('account');
+//                                                                             setShowAccountModal(true);
+//                                                                             setAccountSearchQuery('');
+//                                                                         }}
+//                                                                         readOnly
+//                                                                         style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                                     />
+//                                                                 ) : creditEntry.accountName ? (
+//                                                                     <>
+//                                                                         <div>{creditEntry.accountName}</div>
+//                                                                         {creditEntry.accountId && (
+//                                                                             <div className="mt-1">
+//                                                                                 <AccountBalanceDisplay
+//                                                                                     accountId={creditEntry.accountId}
+//                                                                                     api={api}
+//                                                                                     newTransactionAmount={parseFloat(creditEntry.amount) || 0}
+//                                                                                     compact={true}
+//                                                                                     transactionType="receipt"
+//                                                                                     dateFormat={companyDateFormat}
+//                                                                                 />
+//                                                                             </div>
+//                                                                         )}
+//                                                                     </>
+//                                                                 ) : (
+//                                                                     <span className="text-muted">-- No Entry --</span>
+//                                                                 )}
+//                                                             </td>
+//                                                             <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+//                                                                 {isInlineEditing ? (
+//                                                                     <input
+//                                                                         type="number"
+//                                                                         id={`inline-credit-amount-${index}`}
+//                                                                         className="form-control form-control-sm"
+//                                                                         placeholder="Credit Amount"
+//                                                                         value={inlineEditData.creditAmount}
+//                                                                         onChange={(e) => setInlineEditData(prev => ({ ...prev, creditAmount: e.target.value }))}
+//                                                                         onKeyDown={(e) => {
+//                                                                             if (e.key === 'Enter' || e.key === 'Tab') {
+//                                                                                 e.preventDefault();
+//                                                                                 updateInlineEntry();
+//                                                                             }
+//                                                                         }}
+//                                                                         style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+//                                                                     />
+//                                                                 ) : creditEntry.amount > 0 ? creditEntry.amount : '-'}
+//                                                             </td>
+//                                                             <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+//                                                                 <div className="d-flex gap-1 justify-content-center">
+//                                                                     {isInlineEditing ? (
+//                                                                         <>
+//                                                                             <button type="button" className="btn btn-sm btn-success py-0 px-1" onClick={updateInlineEntry} style={{ height: '18px', minWidth: '18px', fontSize: '0.6rem' }}>
+//                                                                                 <i className="bi bi-check"></i>
+//                                                                             </button>
+//                                                                             <button type="button" className="btn btn-sm btn-secondary py-0 px-1" onClick={cancelInlineEdit} style={{ height: '18px', minWidth: '18px', fontSize: '0.6rem' }}>
+//                                                                                 <i className="bi bi-x"></i>
+//                                                                             </button>
+//                                                                         </>
+//                                                                     ) : (
+//                                                                         <>
+//                                                                             <button type="button" className="btn btn-sm btn-warning py-0 px-1" onClick={() => startEditEntry(index)} disabled={editingRowIndex !== null} style={{ height: '18px', width: '18px', fontSize: '0.6rem' }}>
+//                                                                                 <i className="bi bi-pencil"></i>
+//                                                                             </button>
+//                                                                             <button type="button" className="btn btn-sm btn-danger py-0 px-1" onClick={() => removeEntry(index)} disabled={editingRowIndex !== null} style={{ height: '18px', width: '18px', fontSize: '0.6rem' }}>
+//                                                                                 <i className="bi bi-trash"></i>
+//                                                                             </button>
+//                                                                         </>
+//                                                                     )}
+//                                                                 </div>
+//                                                             </td>
+//                                                         </tr>
+//                                                     );
+//                                                 });
+//                                             })()}
+
+//                                             {formData.entries.filter(e => e.accountId && e.amount > 0).length === 0 && (
+//                                                 <tr style={{ height: '24px' }}>
+//                                                     <td colSpan="6" className="text-center text-muted py-1" style={{ fontSize: '0.75rem' }}>
+//                                                         No entries added yet. Use the header row above to add entries.
+//                                                     </td>
+//                                                 </tr>
+//                                             )}
+//                                         </>
+//                                     )}
+//                                 </tbody>
+
+//                                 <tfoot>
+//                                     {entryMode === 'single' ? (
+//                                         <tr className="table-active">
+//                                             <th colSpan="3" className="text-end">Total:</th>
+//                                             <th className="text-primary text-end">Rs. {totals.totalDebit.toFixed(2)}</th>
+//                                             <th className="text-primary text-end">Rs. {totals.totalCredit.toFixed(2)}</th>
+//                                             <th colSpan="4"></th>
+//                                         </tr>
+//                                     ) : (
+//                                         <tr className="table-active">
+//                                             <th colSpan="2" className="text-end">Total:</th>
+//                                             <th className="text-primary">Rs. {totals.totalDebit.toFixed(2)}</th>
+//                                             <th className="text-end">Total:</th>
+//                                             <th className="text-primary">Rs. {totals.totalCredit.toFixed(2)}</th>
+//                                             <th></th>
+//                                         </tr>
+//                                     )}
+//                                 </tfoot>
+//                             </table>
+//                         </div>
+
+//                         {/* Validation Messages */}
+//                         {totals.totalDebit !== totals.totalCredit && (
+//                             <div className="alert alert-warning mt-2">
+//                                 <i className="fas fa-exclamation-triangle me-2"></i>
+//                                 Total debit and credit amounts must be equal
+//                             </div>
+//                         )}
+
+//                         {/* Action Buttons */}
+//                         <div className="d-flex justify-content-between align-items-center mt-2">
+//                             <div className="form-check mb-0 d-flex align-items-center">
+//                                 <input
+//                                     className="form-check-input mt-0"
+//                                     type="checkbox"
+//                                     id="printAfterSave"
+//                                     checked={printAfterSave}
+//                                     onChange={handlePrintAfterSaveChange}
+//                                     style={{ height: '14px', width: '14px' }}
+//                                 />
+//                                 <label className="form-check-label ms-2" htmlFor="printAfterSave" style={{ fontSize: '0.8rem' }}>
+//                                     Print after save
+//                                 </label>
+//                             </div>
+
+//                             <div className="d-flex gap-2">
+//                                 <button
+//                                     type="button"
+//                                     className="btn btn-secondary btn-sm d-flex align-items-center"
+//                                     onClick={resetAfterSave}
+//                                     disabled={isSaving}
+//                                     style={{ height: '26px', padding: '0 12px', fontSize: '0.8rem', fontWeight: '500' }}
+//                                 >
+//                                     <i className="bi bi-arrow-counterclockwise me-1" style={{ fontSize: '0.9rem' }}></i> Reset
+//                                 </button>
+
+//                                 <button
+//                                     type="submit"
+//                                     className="btn btn-primary btn-sm d-flex align-items-center"
+//                                     id="saveBill"
+//                                     disabled={isSaving || totals.totalDebit !== totals.totalCredit}
+//                                     style={{ height: '26px', padding: '0 16px', fontSize: '0.8rem', fontWeight: '500' }}
+//                                 >
+//                                     {isSaving ? (
+//                                         <>
+//                                             <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style={{ width: '10px', height: '10px' }}></span>
+//                                             Saving...
+//                                         </>
+//                                     ) : (
+//                                         <>
+//                                             <i className="bi bi-save me-1" style={{ fontSize: '0.9rem' }}></i> Save
+//                                         </>
+//                                     )}
+//                                 </button>
+//                             </div>
+//                         </div>
+//                     </form>
+//                 </div>
+//             </div>
+
+//             {/* Account Modal */}
+//             {showAccountModal && (
+//                 <AccountModalForJournal
+//                     show={showAccountModal}
+//                     onClose={() => {
+//                         setShowAccountModal(false);
+//                         setInlineSelectionType(null);
+//                         const focusTargetId = getFocusTargetOnModalClose();
+//                         setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
+//                     }}
+//                     onSelectAccount={selectAccount}
+//                     accounts={accounts}
+//                     totalAccounts={totalAccounts}
+//                     isSearching={isAccountSearching}
+//                     hasMore={hasMoreAccountResults}
+//                     searchQuery={accountSearchQuery}
+//                     onSearch={(query) => {
+//                         setAccountSearchQuery(query);
+//                         setAccountSearchPage(1);
+//                         if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+//                             setAccountShouldShowLastSearchResults(false);
+//                             setAccountLastSearchQuery('');
+//                         }
+//                         const timer = setTimeout(() => {
+//                             fetchAccountsFromBackend(query, 1, false);
+//                         }, 300);
+//                         return () => clearTimeout(timer);
+//                     }}
+//                     onLoadMore={loadMoreAccounts}
+//                     page={accountSearchPage}
+//                     onCreateAccount={() => {
+//                         setShowAccountModal(false);
+//                         setInlineSelectionType(null);
+//                         setNotification({
+//                             show: true,
+//                             message: 'Account creation is available in the Accounts section',
+//                             type: 'info'
+//                         });
+//                     }}
+//                     selectedAccountId={null}
+//                     autoFocus={false}
+//                     title={`Select ${
+//                         currentSelectionType === 'single'
+//                             ? (singleHeaderEntry.dc === 'D' ? 'Debit' : 'Credit')
+//                             : (currentSelectionType === 'debit' ? 'Debit' : 'Credit')
+//                     } Account`}
+//                 />
+//             )}
+
+//             <NotificationToast
+//                 show={notification.show}
+//                 message={notification.message}
+//                 type={notification.type}
+//                 onClose={() => setNotification({ ...notification, show: false })}
+//             />
+
+//             {showProductModal && (
+//                 <ProductModal onClose={() => setShowProductModal(false)} />
+//             )}
+//         </div>
+//     );
+// };
+
+// export default AddJournalVoucher;
+
+//--------------------------------------------------end3
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -2215,19 +6590,14 @@ const convertAdToBs = (adDate) => {
     }
 };
 
-
-// Helper function to format AD date to YYYY-MM-DD
 const formatAdDate = (date) => {
     if (!date) return null;
-
     try {
         const d = new Date(date);
         if (isNaN(d.getTime())) return null;
-
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
-
         return `${year}-${month}-${day}`;
     } catch (error) {
         console.error('Error formatting AD date:', error);
@@ -2235,54 +6605,34 @@ const formatAdDate = (date) => {
     }
 };
 
-// Get Nepali month days for validation
 const getNepaliMonthDays = (year, month) => {
     const monthDays = {
-        1: 31,  // Baisakh
-        2: 31,  // Jestha
-        3: 32,  // Ashad
-        4: 32,  // Shrawan
-        5: 31,  // Bhadra
-        6: 31,  // Ashwin
-        7: 30,  // Kartik
-        8: 30,  // Mangsir
-        9: 30,  // Poush
-        10: 30, // Magh
-        11: 30, // Falgun
-        12: 30  // Chaitra
+        1: 31, 2: 31, 3: 32, 4: 32, 5: 31, 6: 31,
+        7: 30, 8: 30, 9: 30, 10: 30, 11: 30, 12: 30
     };
-
     if (month === 3) {
         const ashad31Years = [2078, 2079, 2082, 2083, 2086, 2087];
         return ashad31Years.includes(year) ? 31 : 32;
     }
-
     if (month === 11) {
         const isLeapYear = (year + 1) % 4 === 0;
         return isLeapYear ? 30 : 29;
     }
-
     return monthDays[month] || 30;
 };
 
-// Enhanced validation with month day limits
 const isValidNepaliDateEnhanced = (dateStr) => {
     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
-
     const [year, month, day] = dateStr.split('-').map(Number);
-
     if (year < 1970 || year > 2100) return false;
     if (month < 1 || month > 12) return false;
-
     const maxDays = getNepaliMonthDays(year, month);
     if (day < 1 || day > maxDays) return false;
-
     try {
         const nepaliDate = new NepaliDate(dateStr);
         const bsYear = nepaliDate.getYear();
         const bsMonth = nepaliDate.getMonth() + 1;
         const bsDay = nepaliDate.getDate();
-
         return (bsYear === year && bsMonth === month && bsDay === day);
     } catch {
         return false;
@@ -2305,10 +6655,28 @@ const AddJournalVoucher = () => {
         type: 'success'
     });
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    // Add near your other state declarations (around line 60-80)
+
+    // Entry mode toggle: 'single' (Busy style) or 'paired' (legacy header)
+    const [entryMode, setEntryMode] = useState(
+        localStorage.getItem('journalEntryMode') || 'single'
+    );
+
     const [useVoucherLastDateForJournal, setUseVoucherLastDateForJournal] = useState(false);
     const [lastJournalDate, setLastJournalDate] = useState(null);
-    // Header selection states
+
+    // ============================================================
+    // SINGLE-ROW (Busy-style) HEADER ENTRY STATE
+    // ============================================================
+    const [singleHeaderEntry, setSingleHeaderEntry] = useState({
+        dc: 'D',
+        account: null,
+        debitAmount: '',
+        creditAmount: ''
+    });
+
+    // ============================================================
+    // PAIRED (legacy) HEADER ENTRY STATE — KEPT AS-IS
+    // ============================================================
     const [headerDebitAccount, setHeaderDebitAccount] = useState(null);
     const [headerDebitAmount, setHeaderDebitAmount] = useState('');
     const [headerCreditAccount, setHeaderCreditAccount] = useState(null);
@@ -2317,22 +6685,21 @@ const AddJournalVoucher = () => {
     const [editingEntryIndex, setEditingEntryIndex] = useState(null);
     const [isEditMode, setIsEditMode] = useState(false);
 
-    // ===== Inline row-level edit state =====
+    // Inline row-level edit state
     const [editingRowIndex, setEditingRowIndex] = useState(null);
     const [inlineEditData, setInlineEditData] = useState({
-        debitAccount: null,
+        dc: 'D',
+        account: null,
         debitAmount: '',
-        creditAccount: null,
         creditAmount: ''
     });
-    const [inlineSelectionType, setInlineSelectionType] = useState(null); // 'debit' | 'credit'
+    const [inlineSelectionType, setInlineSelectionType] = useState(null); // 'account' | 'debit' | 'credit'
 
-    // Updated formData to use unified entries array
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         nepaliDate: currentNepaliDate,
         description: '',
-        entries: []  // Unified entries array
+        entries: []
     });
 
     const [accounts, setAccounts] = useState([]);
@@ -2344,9 +6711,7 @@ const AddJournalVoucher = () => {
     const [showAccountModal, setShowAccountModal] = useState(false);
     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
     const transactionDateRef = useRef(null);
-    const [dateErrors, setDateErrors] = useState({
-        nepaliDate: ''
-    });
+    const [dateErrors, setDateErrors] = useState({ nepaliDate: '' });
 
     // Account search states
     const [isAccountSearching, setIsAccountSearching] = useState(false);
@@ -2367,7 +6732,6 @@ const AddJournalVoucher = () => {
         }
     };
 
-    // Replace the existing fetchAccountsFromBackend with this version
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1, append = false) => {
         try {
             setIsAccountSearching(true);
@@ -2381,7 +6745,6 @@ const AddJournalVoucher = () => {
 
             if (response.data.success) {
                 if (append) {
-                    // APPEND to existing accounts instead of replacing
                     setAccounts(prev => [...prev, ...response.data.accounts]);
                 } else {
                     setAccounts(response.data.accounts);
@@ -2425,21 +6788,31 @@ const AddJournalVoucher = () => {
             }
         };
         window.addEventListener('keydown', handleF9Key);
-        return () => {
-            window.removeEventListener('keydown', handleF9Key);
-        };
+        return () => window.removeEventListener('keydown', handleF9Key);
     }, []);
 
-    // Fetch date preference setting from backend for Journal
+    // Ctrl+Enter to post (Busy style)
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('journalForm')?.requestSubmit();
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
+    // Persist entry mode
+    useEffect(() => {
+        localStorage.setItem('journalEntryMode', entryMode);
+    }, [entryMode]);
+
     const fetchDatePreference = async () => {
         try {
-            console.log('=== fetchDatePreferenceForJournal CALLED ===');
             const response = await api.get('/api/retailer/date-preference/journal');
-            console.log('Date preference response:', response.data);
-
             if (response.data.success) {
                 const useVoucherDate = response.data.data.useVoucherLastDate;
-                console.log('useVoucherLastDateForJournal value from API:', useVoucherDate);
                 setUseVoucherLastDateForJournal(useVoucherDate);
                 return useVoucherDate;
             }
@@ -2450,44 +6823,22 @@ const AddJournalVoucher = () => {
         }
     };
 
-    // Fetch last journal date from backend
     const fetchLastJournalDate = async () => {
         try {
-            console.log('=== fetchLastJournalDate CALLED ===');
-
-            // Use the endpoint: /api/retailer/last-journal-date
             const response = await api.get('/api/retailer/last-journal-date');
-            console.log('Last journal date response:', response.data);
-
             if (response.data.success && response.data.data) {
                 const data = response.data.data;
                 const isNepaliFormat = companyDateFormat === 'nepali';
-
-                // Get the appropriate date based on company format
-                let lastDate = null;
-                if (isNepaliFormat) {
-                    // Use Nepali date field from response
-                    lastDate = data.nepaliDate;
-                    console.log('Using Nepali date field:', lastDate);
-                } else {
-                    // Use English date field from response
-                    lastDate = data.date;
-                    console.log('Using English date field:', lastDate);
-                }
-
+                let lastDate = isNepaliFormat ? data.nepaliDate : data.date;
                 if (lastDate) {
-                    // Format the date (it should already be in YYYY-MM-DD format from backend)
                     let formattedDate = lastDate;
                     if (typeof lastDate === 'string' && lastDate.includes('T')) {
                         formattedDate = lastDate.split('T')[0];
                     }
-                    console.log('Formatted last journal date:', formattedDate);
                     setLastJournalDate(formattedDate);
                     return formattedDate;
                 }
             }
-
-            console.log('No last journal date found - returning null');
             return null;
         } catch (error) {
             console.error('Error fetching last journal date:', error);
@@ -2499,45 +6850,23 @@ const AddJournalVoucher = () => {
         const fetchJournalFormData = async () => {
             try {
                 setIsLoading(true);
-
-                // Get current bill number (does NOT increment)
                 const currentBillNum = await getCurrentBillNumber();
-
-                // Fetch form data
                 const response = await api.get('/api/retailer/journal');
                 const { data } = response;
-
-                // Get company date format first
                 const isNepaliFormat = data.data.companyDateFormat === 'nepali';
                 setCompanyDateFormat(data.data.companyDateFormat);
 
-                // Fetch date preference (useVoucherLastDate setting from backend)
                 const useVoucherDate = await fetchDatePreference();
-
-                // Fetch last journal date if needed
                 let lastDate = null;
-                if (useVoucherDate) {
-                    lastDate = await fetchLastJournalDate();
-                }
+                if (useVoucherDate) lastDate = await fetchLastJournalDate();
 
                 let transactionDate = '';
                 let invoiceDate = '';
 
-                console.log('Setting dates - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
-
-                // Set dates based on preference
                 if (useVoucherDate && lastDate) {
-                    // Use last voucher date
-                    if (isNepaliFormat) {
-                        transactionDate = lastDate;
-                        invoiceDate = lastDate;
-                    } else {
-                        transactionDate = lastDate;
-                        invoiceDate = lastDate;
-                    }
-                    console.log('Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+                    transactionDate = lastDate;
+                    invoiceDate = lastDate;
                 } else {
-                    // Use current system date
                     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
                     if (isNepaliFormat) {
                         transactionDate = currentNepaliDate;
@@ -2547,14 +6876,12 @@ const AddJournalVoucher = () => {
                         transactionDate = today;
                         invoiceDate = today;
                     }
-                    console.log('Using SYSTEM date:', { transactionDate, invoiceDate });
                 }
 
                 setAccounts(data.data.accounts);
                 setCurrentBillNumber(currentBillNum);
                 setNextBillNumber(currentBillNum);
 
-                // Set form data with the determined dates
                 setFormData({
                     date: !isNepaliFormat ? invoiceDate : (isNepaliFormat ? convertBsToAd(invoiceDate) : ''),
                     nepaliDate: isNepaliFormat ? transactionDate : new NepaliDate().format('YYYY-MM-DD'),
@@ -2573,7 +6900,6 @@ const AddJournalVoucher = () => {
         fetchJournalFormData();
     }, []);
 
-    // Auto-scroll to bottom when new entries are added
     useEffect(() => {
         if (itemsTableRef.current && formData.entries.length > 0) {
             setTimeout(() => {
@@ -2584,16 +6910,13 @@ const AddJournalVoucher = () => {
 
     useEffect(() => {
         if (isInitialDataLoaded && transactionDateRef.current) {
-            const timer = setTimeout(() => {
-                transactionDateRef.current.focus();
-            }, 50);
+            const timer = setTimeout(() => transactionDateRef.current.focus(), 50);
             return () => clearTimeout(timer);
         }
     }, [isInitialDataLoaded, companyDateFormat]);
 
     useEffect(() => {
         if (showAccountModal) {
-            // Reset ALL search-related state
             setAccountSearchQuery('');
             setAccountSearchPage(1);
             setAccounts([]);
@@ -2602,8 +6925,6 @@ const AddJournalVoucher = () => {
             setAccountLastSearchQuery('');
             setAccountShouldShowLastSearchResults(false);
 
-            // Fetch fresh accounts from page 1 with no search
-            // Use a small delay to ensure state is reset first
             setTimeout(() => {
                 fetchAccountsFromBackend('', 1, false);
             }, 50);
@@ -2611,147 +6932,49 @@ const AddJournalVoucher = () => {
     }, [showAccountModal]);
 
     // ============================================================
-    // ROW-LEVEL INLINE EDIT HANDLERS
+    // SINGLE-ROW (Busy-style) INSERT
     // ============================================================
-    const startEditEntry = (index) => {
-        // Get the paired entries for this row
-        const debitEntriesList = formData.entries.filter(entry => entry.entryType === 'Debit');
-        const creditEntriesList = formData.entries.filter(entry => entry.entryType === 'Credit');
+    const insertSingleEntry = () => {
+        const { dc, account, debitAmount, creditAmount } = singleHeaderEntry;
 
-        const debitEntry = debitEntriesList[index];
-        const creditEntry = creditEntriesList[index];
-
-        // Find full account objects; fallback to reconstructed object from accountName
-        const debitAccount = debitEntry?.accountId
-            ? (accounts.find(acc => acc.id === debitEntry.accountId) || {
-                id: debitEntry.accountId,
-                name: debitEntry.accountName?.split(' - ').slice(1).join(' - ') || debitEntry.accountName,
-                uniqueNumber: debitEntry.accountName?.split(' - ')[0] || ''
-            })
-            : null;
-
-        const creditAccount = creditEntry?.accountId
-            ? (accounts.find(acc => acc.id === creditEntry.accountId) || {
-                id: creditEntry.accountId,
-                name: creditEntry.accountName?.split(' - ').slice(1).join(' - ') || creditEntry.accountName,
-                uniqueNumber: creditEntry.accountName?.split(' - ')[0] || ''
-            })
-            : null;
-
-        setEditingRowIndex(index);
-        setInlineEditData({
-            debitAccount: debitAccount,
-            debitAmount: debitEntry?.amount?.toString() || '',
-            creditAccount: creditAccount,
-            creditAmount: creditEntry?.amount?.toString() || ''
-        });
-
-        // Focus on debit amount if account exists, else focus on account field
-        setTimeout(() => {
-            const amountInput = document.getElementById(`inline-debit-amount-${index}`);
-            if (amountInput) amountInput.focus();
-        }, 100);
-    };
-
-    const cancelInlineEdit = () => {
-        setEditingRowIndex(null);
-        setInlineEditData({
-            debitAccount: null,
-            debitAmount: '',
-            creditAccount: null,
-            creditAmount: ''
-        });
-        setInlineSelectionType(null);
-    };
-
-    const updateInlineEntry = () => {
-        const { debitAccount, debitAmount, creditAccount, creditAmount } = inlineEditData;
-        const debitAmt = parseFloat(debitAmount) || 0;
-        const creditAmt = parseFloat(creditAmount) || 0;
-
-        if (!debitAccount && !creditAccount) {
-            setNotification({
-                show: true,
-                message: 'Please select at least one account',
-                type: 'error'
-            });
+        if (!account) {
+            setNotification({ show: true, message: 'Please select an account', type: 'error' });
             return;
         }
 
-        const newEntries = [...formData.entries];
-        const debitEntriesList = newEntries.filter(entry => entry.entryType === 'Debit');
-        const creditEntriesList = newEntries.filter(entry => entry.entryType === 'Credit');
-
-        const rowIndex = editingRowIndex;
-
-        // ----- Update or remove Debit entry -----
-        if (debitAccount && debitEntriesList[rowIndex]) {
-            const idx = newEntries.findIndex(e => e.id === debitEntriesList[rowIndex].id);
-            if (idx !== -1) {
-                newEntries[idx] = {
-                    ...newEntries[idx],
-                    accountId: debitAccount.id,
-                    accountName: `${debitAccount.uniqueNumber || ''} - ${debitAccount.name}`,
-                    amount: debitAmt.toString()
-                };
-            }
-        } else if (!debitAccount && debitEntriesList[rowIndex]) {
-            const idx = newEntries.findIndex(e => e.id === debitEntriesList[rowIndex].id);
-            if (idx !== -1) newEntries.splice(idx, 1);
-        } else if (debitAccount && !debitEntriesList[rowIndex]) {
-            newEntries.push({
-                id: Date.now(),
-                accountId: debitAccount.id,
-                accountName: `${debitAccount.uniqueNumber || ''} - ${debitAccount.name}`,
-                entryType: 'Debit',
-                amount: debitAmt.toString(),
-                lineNumber: newEntries.length + 1,
-                description: '',
-                referenceNumber: ''
-            });
+        const amount = dc === 'D' ? parseFloat(debitAmount) : parseFloat(creditAmount);
+        if (!amount || amount <= 0) {
+            setNotification({ show: true, message: 'Please enter a valid amount', type: 'error' });
+            return;
         }
 
-        // ----- Recompute credit list (may have changed) -----
-        const updatedCreditList = newEntries.filter(entry => entry.entryType === 'Credit');
+        const newEntry = {
+            id: Date.now(),
+            accountId: account.id,
+            accountName: `${account.uniqueNumber || ''} - ${account.name}`,
+            entryType: dc === 'D' ? 'Debit' : 'Credit',
+            amount: amount,
+            lineNumber: formData.entries.length + 1,
+            description: ''
+        };
 
-        if (creditAccount && updatedCreditList[rowIndex]) {
-            const idx = newEntries.findIndex(e => e.id === updatedCreditList[rowIndex].id);
-            if (idx !== -1) {
-                newEntries[idx] = {
-                    ...newEntries[idx],
-                    accountId: creditAccount.id,
-                    accountName: `${creditAccount.uniqueNumber || ''} - ${creditAccount.name}`,
-                    amount: creditAmt.toString()
-                };
-            }
-        } else if (!creditAccount && updatedCreditList[rowIndex]) {
-            const idx = newEntries.findIndex(e => e.id === updatedCreditList[rowIndex].id);
-            if (idx !== -1) newEntries.splice(idx, 1);
-        } else if (creditAccount && !updatedCreditList[rowIndex]) {
-            newEntries.push({
-                id: Date.now() + 1,
-                accountId: creditAccount.id,
-                accountName: `${creditAccount.uniqueNumber || ''} - ${creditAccount.name}`,
-                entryType: 'Credit',
-                amount: creditAmt.toString(),
-                lineNumber: newEntries.length + 1,
-                description: '',
-                referenceNumber: ''
-            });
-        }
+        setFormData(prev => ({ ...prev, entries: [...prev.entries, newEntry] }));
 
-        setFormData(prev => ({ ...prev, entries: newEntries }));
-        cancelInlineEdit();
-
-        setNotification({
-            show: true,
-            message: 'Entry updated successfully!',
-            type: 'success'
+        // Keep D/C, clear rest — Busy rapid-entry behavior
+        setSingleHeaderEntry({
+            dc: singleHeaderEntry.dc,
+            account: null,
+            debitAmount: '',
+            creditAmount: ''
         });
+
+        setTimeout(() => {
+            document.getElementById('singleHeaderDC')?.focus();
+        }, 50);
     };
 
     // ============================================================
-    // HEADER INSERT (still used for adding NEW entries)
+    // PAIRED (legacy) HEADER INSERT — UNCHANGED
     // ============================================================
     const insertEntry = () => {
         const debitAmount = parseFloat(headerDebitAmount) || 0;
@@ -2760,7 +6983,6 @@ const AddJournalVoucher = () => {
         const newEntries = [...formData.entries];
         let lineNumber = newEntries.length + 1;
 
-        // Case 1: Both debit and credit entries provided
         if (headerDebitAccount && headerDebitAmount && headerCreditAccount && headerCreditAmount) {
             newEntries.push({
                 id: Date.now(),
@@ -2768,7 +6990,8 @@ const AddJournalVoucher = () => {
                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
                 entryType: 'Debit',
                 amount: debitAmount,
-                lineNumber: lineNumber++
+                lineNumber: lineNumber++,
+                description: ''
             });
 
             newEntries.push({
@@ -2777,12 +7000,11 @@ const AddJournalVoucher = () => {
                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
                 entryType: 'Credit',
                 amount: creditAmount,
-                lineNumber: lineNumber++
+                lineNumber: lineNumber++,
+                description: ''
             });
 
             setFormData(prev => ({ ...prev, entries: newEntries }));
-
-            // Reset header fields
             setHeaderDebitAccount(null);
             setHeaderDebitAmount('');
             setHeaderCreditAccount(null);
@@ -2795,20 +7017,18 @@ const AddJournalVoucher = () => {
                     debitSearchInput.select();
                 }
             }, 50);
-        }
-        // Case 2: Only debit entry provided
-        else if (headerDebitAccount && headerDebitAmount && !headerCreditAccount && !headerCreditAmount) {
+        } else if (headerDebitAccount && headerDebitAmount && !headerCreditAccount && !headerCreditAmount) {
             newEntries.push({
                 id: Date.now(),
                 accountId: headerDebitAccount.id,
                 accountName: `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}`,
                 entryType: 'Debit',
                 amount: debitAmount,
-                lineNumber: lineNumber++
+                lineNumber: lineNumber++,
+                description: ''
             });
 
             setFormData(prev => ({ ...prev, entries: newEntries }));
-
             setHeaderDebitAccount(null);
             setHeaderDebitAmount('');
             setHeaderCreditAccount(null);
@@ -2821,20 +7041,18 @@ const AddJournalVoucher = () => {
                     debitSearchInput.select();
                 }
             }, 50);
-        }
-        // Case 3: Only credit entry provided
-        else if (!headerDebitAccount && !headerDebitAmount && headerCreditAccount && headerCreditAmount) {
+        } else if (!headerDebitAccount && !headerDebitAmount && headerCreditAccount && headerCreditAmount) {
             newEntries.push({
                 id: Date.now(),
                 accountId: headerCreditAccount.id,
                 accountName: `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}`,
                 entryType: 'Credit',
                 amount: creditAmount,
-                lineNumber: lineNumber++
+                lineNumber: lineNumber++,
+                description: ''
             });
 
             setFormData(prev => ({ ...prev, entries: newEntries }));
-
             setHeaderDebitAccount(null);
             setHeaderDebitAmount('');
             setHeaderCreditAccount(null);
@@ -2847,8 +7065,7 @@ const AddJournalVoucher = () => {
                     creditSearchInput.select();
                 }
             }, 50);
-        }
-        else {
+        } else {
             setNotification({
                 show: true,
                 message: 'Please fill either both debit and credit entries, or one of them',
@@ -2857,70 +7074,126 @@ const AddJournalVoucher = () => {
         }
     };
 
+    // ============================================================
+    // REMOVE — index-based (works for both modes)
+    // ============================================================
     const removeEntry = (index) => {
-        // When removing a row, we need to remove both debit and credit entries at that index
-        const debitEntriesList = formData.entries.filter(entry => entry.entryType === 'Debit');
-        const creditEntriesList = formData.entries.filter(entry => entry.entryType === 'Credit');
-
-        const debitToRemove = debitEntriesList[index];
-        const creditToRemove = creditEntriesList[index];
-
-        let newEntries = [...formData.entries];
-
-        if (debitToRemove) {
-            const debitIndex = newEntries.findIndex(e => e.id === debitToRemove.id);
-            if (debitIndex !== -1) {
-                newEntries.splice(debitIndex, 1);
-            }
-        }
-
-        if (creditToRemove) {
-            const creditIndex = newEntries.findIndex(e => e.id === creditToRemove.id);
-            if (creditIndex !== -1) {
-                newEntries.splice(creditIndex, 1);
-            }
-        }
-
+        const newEntries = [...formData.entries];
+        newEntries.splice(index, 1);
         setFormData(prev => ({ ...prev, entries: newEntries }));
     };
 
     // ============================================================
-    // ACCOUNT SELECTION (handles both header + inline edit targets)
+    // INLINE ROW EDIT (works for both modes)
     // ============================================================
-    const selectAccount = (account) => {
-        // ---- If we're editing a row inline, route selection there ----
-        if (editingRowIndex !== null && inlineSelectionType) {
-            if (inlineSelectionType === 'debit') {
-                setInlineEditData(prev => ({ ...prev, debitAccount: account }));
-                setShowAccountModal(false);
-                setInlineSelectionType(null);
-                setTimeout(() => {
-                    document.getElementById(`inline-debit-amount-${editingRowIndex}`)?.focus();
-                }, 100);
-            } else if (inlineSelectionType === 'credit') {
-                setInlineEditData(prev => ({ ...prev, creditAccount: account }));
-                setShowAccountModal(false);
-                setInlineSelectionType(null);
-                setTimeout(() => {
-                    document.getElementById(`inline-credit-amount-${editingRowIndex}`)?.focus();
-                }, 100);
-            }
+    const startEditEntry = (index) => {
+        const entry = formData.entries[index];
+        if (!entry) return;
+
+        const account = entry.accountId
+            ? (accounts.find(acc => acc.id === entry.accountId) || {
+                id: entry.accountId,
+                name: entry.accountName?.split(' - ').slice(1).join(' - ') || entry.accountName,
+                uniqueNumber: entry.accountName?.split(' - ')[0] || ''
+            })
+            : null;
+
+        const isDebit = entry.entryType === 'Debit';
+
+        setEditingRowIndex(index);
+        setInlineEditData({
+            dc: isDebit ? 'D' : 'C',
+            account: account,
+            debitAmount: isDebit ? (entry.amount?.toString() || '') : '',
+            creditAmount: !isDebit ? (entry.amount?.toString() || '') : ''
+        });
+
+        setTimeout(() => {
+            const targetId = isDebit ? `inline-debit-amount-${index}` : `inline-credit-amount-${index}`;
+            document.getElementById(targetId)?.focus();
+        }, 100);
+    };
+
+    const cancelInlineEdit = () => {
+        setEditingRowIndex(null);
+        setInlineEditData({
+            dc: 'D',
+            account: null,
+            debitAmount: '',
+            creditAmount: ''
+        });
+        setInlineSelectionType(null);
+    };
+
+    const updateInlineEntry = () => {
+        const { dc, account, debitAmount, creditAmount } = inlineEditData;
+
+        if (!account) {
+            setNotification({ show: true, message: 'Account is required', type: 'error' });
             return;
         }
 
-        // ---- Otherwise, fall back to header behaviour ----
+        const amount = dc === 'D' ? parseFloat(debitAmount) : parseFloat(creditAmount);
+        if (!amount || amount <= 0) {
+            setNotification({ show: true, message: 'Valid amount is required', type: 'error' });
+            return;
+        }
+
+        const newEntries = [...formData.entries];
+        newEntries[editingRowIndex] = {
+            ...newEntries[editingRowIndex],
+            accountId: account.id,
+            accountName: `${account.uniqueNumber || ''} - ${account.name}`,
+            entryType: dc === 'D' ? 'Debit' : 'Credit',
+            amount: amount,
+            description: ''
+        };
+
+        setFormData(prev => ({ ...prev, entries: newEntries }));
+        cancelInlineEdit();
+        setNotification({ show: true, message: 'Entry updated successfully!', type: 'success' });
+    };
+
+    // ============================================================
+    // ACCOUNT SELECT ROUTER — routes to correct target
+    // ============================================================
+    const selectAccount = (account) => {
+        // Inline row edit
+        if (editingRowIndex !== null && inlineSelectionType === 'account') {
+            setInlineEditData(prev => ({ ...prev, account }));
+            setShowAccountModal(false);
+            setInlineSelectionType(null);
+            setTimeout(() => {
+                const targetId = inlineEditData.dc === 'D'
+                    ? `inline-debit-amount-${editingRowIndex}`
+                    : `inline-credit-amount-${editingRowIndex}`;
+                document.getElementById(targetId)?.focus();
+            }, 100);
+            return;
+        }
+
+        // Single header entry (Busy style)
+        if (currentSelectionType === 'single') {
+            setSingleHeaderEntry(prev => ({ ...prev, account }));
+            setShowAccountModal(false);
+            setTimeout(() => {
+                const targetId = singleHeaderEntry.dc === 'D'
+                    ? 'singleHeaderDebitAmount'
+                    : 'singleHeaderCreditAmount';
+                document.getElementById(targetId)?.focus();
+            }, 100);
+            return;
+        }
+
+        // Legacy paired header
         if (currentSelectionType === 'debit') {
             setHeaderDebitAccount(account);
             setShowAccountModal(false);
-            setTimeout(() => {
-                document.getElementById('headerDebitAmount')?.focus();
-            }, 100);
+            setTimeout(() => document.getElementById('headerDebitAmount')?.focus(), 100);
         } else {
             setHeaderCreditAccount(account);
             setShowAccountModal(false);
-            setTimeout(() => {
-                document.getElementById('headerCreditAmount')?.focus();
-            }, 100);
+            setTimeout(() => document.getElementById('headerCreditAmount')?.focus(), 100);
         }
     };
 
@@ -2931,37 +7204,22 @@ const AddJournalVoucher = () => {
 
     const resetAfterSave = async () => {
         try {
-            // Get current bill number (this increments the counter)
             const currentBillNum = await getCurrentBillNumber();
             setCurrentBillNumber(currentBillNum);
             setNextBillNumber(currentBillNum);
 
             const isNepaliFormat = companyDateFormat === 'nepali';
-
-            // Fetch current date preference (don't rely on state, fetch fresh)
             const useVoucherDate = await fetchDatePreference();
 
-            // Fetch last journal date if needed
             let lastDate = null;
-            if (useVoucherDate) {
-                lastDate = await fetchLastJournalDate();
-            }
+            if (useVoucherDate) lastDate = await fetchLastJournalDate();
 
             let transactionDate = '';
             let invoiceDate = '';
 
-            console.log('resetAfterSave - useVoucherDate:', useVoucherDate, 'lastDate:', lastDate);
-
-            // Set dates based on preference
             if (useVoucherDate && lastDate) {
-                if (isNepaliFormat) {
-                    transactionDate = lastDate;
-                    invoiceDate = lastDate;
-                } else {
-                    transactionDate = lastDate;
-                    invoiceDate = lastDate;
-                }
-                console.log('resetAfterSave - Using LAST VOUCHER date:', { transactionDate, invoiceDate });
+                transactionDate = lastDate;
+                invoiceDate = lastDate;
             } else {
                 const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
                 if (isNepaliFormat) {
@@ -2972,7 +7230,6 @@ const AddJournalVoucher = () => {
                     transactionDate = today;
                     invoiceDate = today;
                 }
-                console.log('resetAfterSave - Using SYSTEM date:', { transactionDate, invoiceDate });
             }
 
             setFormData({
@@ -2986,6 +7243,14 @@ const AddJournalVoucher = () => {
             setHeaderDebitAmount('');
             setHeaderCreditAccount(null);
             setHeaderCreditAmount('');
+
+            setSingleHeaderEntry({
+                dc: 'D',
+                account: null,
+                debitAmount: '',
+                creditAmount: ''
+            });
+
             cancelInlineEdit();
 
             setTimeout(() => {
@@ -2997,19 +7262,13 @@ const AddJournalVoucher = () => {
             }, 100);
         } catch (err) {
             console.error('Error resetting after save:', err);
-            setNotification({
-                show: true,
-                message: 'Error refreshing form data',
-                type: 'error'
-            });
+            setNotification({ show: true, message: 'Error refreshing form data', type: 'error' });
         }
     };
 
     const handleSubmit = async (print = false) => {
-        // Filter out entries with empty account or amount
         const validEntries = formData.entries.filter(entry => entry.accountId && entry.amount > 0);
 
-        // Check if we have at least one debit and one credit entry
         const hasDebit = validEntries.some(entry => entry.entryType === 'Debit');
         const hasCredit = validEntries.some(entry => entry.entryType === 'Credit');
 
@@ -3036,10 +7295,7 @@ const AddJournalVoucher = () => {
         try {
             const parseDate = (dateString) => {
                 if (!dateString) return new Date().toISOString();
-
-                // If it's already a valid date string in YYYY-MM-DD format
                 if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-                    // Create date at UTC to avoid timezone issues
                     const date = new Date(dateString);
                     date.setUTCHours(0, 0, 0, 0);
                     return date.toISOString();
@@ -3047,7 +7303,6 @@ const AddJournalVoucher = () => {
                 return new Date(dateString).toISOString();
             };
 
-            // Prepare payload with unified entries array
             const payload = {
                 date: parseDate(formData.date),
                 nepaliDate: formData.nepaliDate,
@@ -3064,12 +7319,7 @@ const AddJournalVoucher = () => {
 
             const response = await api.post('/api/retailer/journal', payload);
 
-            setNotification({
-                show: true,
-                message: 'Journal voucher saved successfully!',
-                type: 'success'
-            });
-
+            setNotification({ show: true, message: 'Journal voucher saved successfully!', type: 'success' });
             clearDraft();
 
             if ((print || printAfterSave) && response.data.data?.journalVoucher?.id) {
@@ -3079,11 +7329,7 @@ const AddJournalVoucher = () => {
                     await resetAfterSave();
                 } catch (printError) {
                     console.error('Error fetching print data:', printError);
-                    setNotification({
-                        show: true,
-                        message: 'Journal voucher saved but failed to load print data',
-                        type: 'warning'
-                    });
+                    setNotification({ show: true, message: 'Saved but failed to load print data', type: 'warning' });
                     await resetAfterSave();
                 }
             } else {
@@ -3122,16 +7368,16 @@ const AddJournalVoucher = () => {
         }
     };
 
-
-    // Replace the existing loadMoreAccounts with this version
     const loadMoreAccounts = () => {
         if (!isAccountSearching && hasMoreAccountResults) {
             const nextPage = accountSearchPage + 1;
-            // Pass true for append parameter
             fetchAccountsFromBackend(accountSearchQuery, nextPage, true);
         }
     };
 
+    // ============================================================
+    // PRINT
+    // ============================================================
     const printVoucherImmediately = (printData) => {
         const tempDiv = document.createElement('div');
         tempDiv.style.position = 'absolute';
@@ -3143,22 +7389,9 @@ const AddJournalVoucher = () => {
         const journal = printData.journalVoucher;
         const isCanceled = journal?.status === 'Canceled';
 
-        // Calculate totals
         const totalDebit = debitEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
         const totalCredit = creditEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
 
-        // Combine debit and credit entries into rows
-        const maxRows = Math.max(debitEntries.length, creditEntries.length);
-        const combinedRows = [];
-        for (let i = 0; i < maxRows; i++) {
-            combinedRows.push({
-                debitEntry: debitEntries[i] || null,
-                creditEntry: creditEntries[i] || null,
-                rowNumber: i + 1
-            });
-        }
-
-        // Format date for print
         const formatDateForPrint = (dateString, format = 'english') => {
             if (!dateString) return 'N/A';
             try {
@@ -3177,7 +7410,6 @@ const AddJournalVoucher = () => {
             }
         };
 
-        // Format to 2 decimal places
         const formatTo2Decimal = (num) => {
             if (num === null || num === undefined) return '0.00';
             const rounded = Math.round(num * 100) / 100;
@@ -3187,16 +7419,9 @@ const AddJournalVoucher = () => {
             return rounded.toString();
         };
 
-        // Number to words function
         const numberToWords = (num) => {
-            const ones = [
-                '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-                'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-                'Seventeen', 'Eighteen', 'Nineteen'
-            ];
-            const tens = [
-                '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
-            ];
+            const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
             const scales = ['', 'Thousand', 'Million', 'Billion'];
 
             const convertHundreds = (num) => {
@@ -3209,9 +7434,7 @@ const AddJournalVoucher = () => {
                     words += tens[Math.floor(num / 10)] + ' ';
                     num %= 10;
                 }
-                if (num > 0) {
-                    words += ones[num] + ' ';
-                }
+                if (num > 0) words += ones[num] + ' ';
                 return words.trim();
             };
 
@@ -3234,35 +7457,28 @@ const AddJournalVoucher = () => {
             const rupees = Math.floor(amount);
             const paisa = Math.round((amount - rupees) * 100);
             let result = numberToWords(rupees) + ' Rupees';
-            if (paisa > 0) {
-                result += ' and ' + numberToWords(paisa) + ' Paisa';
-            }
+            if (paisa > 0) result += ' and ' + numberToWords(paisa) + ' Paisa';
             return result;
         };
 
+        // ============================================================
+        // PRINT TABLE — Busy-style single list with D/C column
+        // ============================================================
+        const allEntries = [
+            ...debitEntries.map(e => ({ ...e, entryType: 'Debit' })),
+            ...creditEntries.map(e => ({ ...e, entryType: 'Credit' }))
+        ];
+
         let rows = '';
-        combinedRows.forEach((row) => {
+        allEntries.forEach((entry, index) => {
+            const isDebit = entry.entryType === 'Debit';
             rows += `
             <tr>
-                <td class="print-text-center">${row.rowNumber}</td>
-                <td class="print-text-left">
-                    ${row.debitEntry ? (
-                    !isCanceled ? row.debitEntry.accountName : '<span class="text-danger">Canceled</span>'
-                ) : '<span class="text-muted">--</span>'}
-                </td>
-                <td class="print-text-center">
-                    ${row.debitEntry && !isCanceled ? formatTo2Decimal(row.debitEntry.amount) :
-                    row.debitEntry && isCanceled ? '<span class="text-danger">0.00</span>' : '-'}
-                </td>
-                <td class="print-text-left">
-                    ${row.creditEntry ? (
-                    !isCanceled ? row.creditEntry.accountName : '<span class="text-danger">Canceled</span>'
-                ) : '<span class="text-muted">--</span>'}
-                </td>
-                <td class="print-text-center">
-                    ${row.creditEntry && !isCanceled ? formatTo2Decimal(row.creditEntry.amount) :
-                    row.creditEntry && isCanceled ? '<span class="text-danger">0.00</span>' : '-'}
-                </td>
+                <td class="print-text-center">${index + 1}</td>
+                <td class="print-text-center">${isCanceled ? '<span class="text-danger">X</span>' : (isDebit ? 'D' : 'C')}</td>
+                <td class="print-text-left">${isCanceled ? '<span class="text-danger">Canceled</span>' : entry.accountName}</td>
+                <td class="print-text-center">${!isCanceled && isDebit ? formatTo2Decimal(entry.amount) : '--N.A.--'}</td>
+                <td class="print-text-center">${!isCanceled && !isDebit ? formatTo2Decimal(entry.amount) : '--N.A.--'}</td>
             </tr>
         `;
         });
@@ -3294,11 +7510,11 @@ const AddJournalVoucher = () => {
                 <table class="print-voucher-table">
                     <thead>
                         <tr>
-                            <th>S.N</th>
-                            <th>Debit Account</th>
-                            <th>Debit(Rs.)</th>
-                            <th>Credit Account</th>
-                            <th>Credit(Rs.)</th>
+                            <th>S.No</th>
+                            <th>D/C</th>
+                            <th>Account</th>
+                            <th>Debit (Rs.)</th>
+                            <th>Credit (Rs.)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -3306,11 +7522,10 @@ const AddJournalVoucher = () => {
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="2" style="border-bottom: 1px solid #000; font-weight: bold;">Total</td>
+                            <td colspan="3" style="border-bottom: 1px solid #000; font-weight: bold;">Total</td>
                             <td class="print-text-center" style="border-bottom: 1px solid #000;">
                                 <strong>${!isCanceled ? formatTo2Decimal(totalDebit) : '<span class="text-danger">0.00</span>'}</strong>
                             </td>
-                            <td style="border-bottom: 1px solid #000;"></td>
                             <td class="print-text-center" style="border-bottom: 1px solid #000;">
                                 <strong>${!isCanceled ? formatTo2Decimal(totalCredit) : '<span class="text-danger">0.00</span>'}</strong>
                             </td>
@@ -3329,9 +7544,7 @@ const AddJournalVoucher = () => {
                 <br /><br />
                 <div class="print-signature-area">
                     <div class="print-signature-box">
-                        <div style="margin-bottom: 1mm;">
-                            <strong>${journal?.user?.name || 'N/A'}</strong>
-                        </div>
+                        <div style="margin-bottom: 1mm;"><strong>${journal?.user?.name || 'N/A'}</strong></div>
                         Prepared By
                     </div>
                     <div class="print-signature-box">
@@ -3349,152 +7562,31 @@ const AddJournalVoucher = () => {
 
         const styles = `
         @media print {
-            @page {
-                size: A4;
-                margin: 5mm;
-            }
-
+            @page { size: A4; margin: 5mm; }
             body {
                 font-family: 'Arial Narrow', Arial, sans-serif;
                 font-size: 9pt;
                 line-height: 1.2;
                 color: #000;
                 background: white;
-                margin: 0;
-                padding: 0;
+                margin: 0; padding: 0;
             }
-
-            .print-voucher-container {
-                width: 100%;
-                max-width: 210mm;
-                margin: 0 auto;
-                padding: 2mm;
-            }
-
-            .print-voucher-header {
-                text-align: center;
-                margin-bottom: 3mm;
-                border-bottom: 1px solid #000;
-                padding-bottom: 2mm;
-            }
-
-            .print-voucher-title {
-                font-size: 12pt;
-                font-weight: bold;
-                margin: 2mm 0;
-                text-transform: uppercase;
-            }
-
-            .print-company-name {
-                font-size: 16pt;
-                font-weight: bold;
-            }
-
-            .print-company-details {
-                font-size: 8pt;
-                margin: 1mm 0;
-                font-weight: bold;
-            }
-
-            .print-voucher-details {
-                display: flex;
-                justify-content: space-between;
-                margin: 2mm 0;
-                font-size: 8pt;
-            }
-
-            .print-voucher-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 3mm 0;
-                font-size: 8pt;
-                border: none;
-                table-layout: fixed;
-            }
-
-            .print-voucher-table thead {
-                border-top: 1px solid #000;
-                border-bottom: 1px solid #000;
-            }
-
-            .print-voucher-table th {
-                background-color: transparent;
-                border: none;
-                padding: 1mm;
-                text-align: left;
-                font-weight: bold;
-            }
-
-            .print-voucher-table td {
-                border: none;
-                padding: 1mm;
-                border-bottom: 1px solid #eee;
-            }
-
-            .print-voucher-table th:nth-child(1),
-            .print-voucher-table td:nth-child(1) {
-                width: 8%;
-                text-align: center;
-            }
-
-            .print-voucher-table th:nth-child(2),
-            .print-voucher-table td:nth-child(2) {
-                width: 30%;
-                text-align: left;
-            }
-
-            .print-voucher-table th:nth-child(3),
-            .print-voucher-table td:nth-child(3) {
-                width: 16%;
-                text-align: center;
-            }
-
-            .print-voucher-table th:nth-child(4),
-            .print-voucher-table td:nth-child(4) {
-                width: 30%;
-                text-align: left;
-            }
-
-            .print-voucher-table th:nth-child(5),
-            .print-voucher-table td:nth-child(5) {
-                width: 16%;
-                text-align: center;
-            }
-
-            .print-text-center {
-                text-align: center;
-            }
-
-            .print-text-left {
-                text-align: left;
-            }
-
-            .print-signature-area {
-                display: flex;
-                justify-content: space-between;
-                margin-top: 5mm;
-                font-size: 8pt;
-            }
-
-            .print-signature-box {
-                text-align: center;
-                width: 30%;
-                border-top: 1px solid #000;
-                padding-top: 1mm;
-                font-weight: bold;
-            }
-
-            .text-danger {
-                color: #dc3545 !important;
-            }
-
-            .text-muted {
-                color: #999 !important;
-            }
-
-            .print-amount-in-words {
-                font-style: italic;
-            }
+            .print-voucher-container { width: 100%; max-width: 210mm; margin: 0 auto; padding: 2mm; }
+            .print-voucher-header { text-align: center; margin-bottom: 3mm; border-bottom: 1px solid #000; padding-bottom: 2mm; }
+            .print-voucher-title { font-size: 12pt; font-weight: bold; margin: 2mm 0; text-transform: uppercase; }
+            .print-company-name { font-size: 16pt; font-weight: bold; }
+            .print-company-details { font-size: 8pt; margin: 1mm 0; font-weight: bold; }
+            .print-voucher-details { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
+            .print-voucher-table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 8pt; border: none; table-layout: fixed; }
+            .print-voucher-table thead { border-top: 1px solid #000; border-bottom: 1px solid #000; }
+            .print-voucher-table th { background-color: transparent; border: none; padding: 1mm; text-align: left; font-weight: bold; }
+            .print-voucher-table td { border: none; padding: 1mm; border-bottom: 1px solid #eee; }
+            .print-text-center { text-align: center; }
+            .print-text-left { text-align: left; }
+            .print-signature-area { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 8pt; }
+            .print-signature-box { text-align: center; width: 30%; border-top: 1px solid #000; padding-top: 1mm; font-weight: bold; }
+            .text-danger { color: #dc3545 !important; }
+            .print-amount-in-words { font-style: italic; }
         }
     `;
 
@@ -3524,30 +7616,22 @@ const AddJournalVoucher = () => {
 
     const formatDateForInput = (date) => {
         if (!date) return '';
-
-        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-            return date;
-        }
-
+        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
         try {
             const d = new Date(date);
             if (isNaN(d.getTime())) return '';
-
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
-
             return `${year}-${month}-${day}`;
         } catch (error) {
-            console.error('Error formatting date:', error);
             return '';
         }
     };
 
     const getFocusTargetOnModalClose = () => {
-        // If we were inline-editing, refocus the row's input
         if (editingRowIndex !== null) {
-            return inlineSelectionType === 'debit'
+            return inlineEditData.dc === 'D'
                 ? `inline-debit-amount-${editingRowIndex}`
                 : `inline-credit-amount-${editingRowIndex}`;
         }
@@ -3558,6 +7642,12 @@ const AddJournalVoucher = () => {
 
         if (hasTransactions && isTotalsBalanced) {
             return 'saveBill';
+        }
+
+        if (currentSelectionType === 'single') {
+            return singleHeaderEntry.dc === 'D'
+                ? 'singleHeaderDebitAmount'
+                : 'singleHeaderCreditAmount';
         }
         if (currentSelectionType === 'debit') {
             return 'headerDebitAmount';
@@ -3570,11 +7660,6 @@ const AddJournalVoucher = () => {
 
     const isCanceled = formData.status === 'Canceled';
 
-    // Get debit and credit entries for display
-    const debitEntries = formData.entries.filter(entry => entry.entryType === 'Debit');
-    const creditEntries = formData.entries.filter(entry => entry.entryType === 'Credit');
-    const maxRows = Math.max(debitEntries.length, creditEntries.length);
-
     return (
         <div className='container-fluid'>
             <Header />
@@ -3585,6 +7670,69 @@ const AddJournalVoucher = () => {
                             <i className="bi bi-file-text me-2"></i>
                             Journal Voucher Entry
                         </h2>
+                        {/* <div className="btn-group btn-group-sm" role="group">
+                            <button
+                                type="button"
+                                className={`btn ${entryMode === 'single' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                onClick={() => setEntryMode('single')}
+                                style={{ fontSize: '0.75rem' }}
+                            >
+                                Single Mode
+                            </button>
+                            <button
+                                type="button"
+                                className={`btn ${entryMode === 'paired' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                onClick={() => setEntryMode('paired')}
+                                style={{ fontSize: '0.75rem' }}
+                            >
+                                Paired Mode
+                            </button>
+                        </div> */}
+
+                        <div
+                            className="btn-group btn-group-sm shadow-sm"
+                            role="group"
+                            aria-label="Entry mode selector"
+                            style={{ border: '1px solid #0d6efd', borderRadius: '6px', overflow: 'hidden' }}
+                        >
+                            <button
+                                type="button"
+                                className={`btn ${entryMode === 'single' ? 'btn-primary' : 'btn-light'}`}
+                                onClick={() => setEntryMode('single')}
+                                style={{
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600',
+                                    padding: '5px 14px',
+                                    color: entryMode === 'single' ? '#fff' : '#0d6efd',
+                                    backgroundColor: entryMode === 'single' ? '#0d6efd' : '#fff',
+                                    border: 'none',
+                                    borderRight: '1px solid #0d6efd',
+                                    transition: 'all 0.15s ease-in-out'
+                                }}
+                                title="Single-row entry (Busy style)"
+                            >
+                                <i className="bi bi-list-ul me-1"></i>
+                                Single Mode
+                            </button>
+                            <button
+                                type="button"
+                                className={`btn ${entryMode === 'paired' ? 'btn-primary' : 'btn-light'}`}
+                                onClick={() => setEntryMode('paired')}
+                                style={{
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600',
+                                    padding: '5px 14px',
+                                    color: entryMode === 'paired' ? '#fff' : '#0d6efd',
+                                    backgroundColor: entryMode === 'paired' ? '#0d6efd' : '#fff',
+                                    border: 'none',
+                                    transition: 'all 0.15s ease-in-out'
+                                }}
+                                title="Paired debit/credit entry"
+                            >
+                                <i className="bi bi-columns-gap me-1"></i>
+                                Paired Mode
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div className="card-body p-2 p-md-3">
@@ -3601,46 +7749,24 @@ const AddJournalVoucher = () => {
                                             <NepaliDatePicker
                                                 value={formData.nepaliDate}
                                                 onChange={(bsDate) => {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        nepaliDate: bsDate
-                                                    }));
+                                                    setFormData(prev => ({ ...prev, nepaliDate: bsDate }));
                                                     setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
 
-                                                    // Auto-convert to AD when we have a complete valid date
                                                     if (bsDate && bsDate.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(bsDate)) {
-                                                        console.log('Converting BS to AD:', bsDate);
                                                         const adDate = convertBsToAd(bsDate);
-                                                        console.log('Converted AD date:', adDate);
                                                         if (adDate) {
-                                                            setFormData(prev => ({
-                                                                ...prev,
-                                                                date: adDate
-                                                            }));
+                                                            setFormData(prev => ({ ...prev, date: adDate }));
                                                         }
                                                     }
                                                 }}
                                                 autoFocus={true}
                                                 required={true}
                                                 className={dateErrors.nepaliDate ? 'is-invalid' : ''}
-                                                onKeyDown={(e) => {
-                                                    handleKeyDown(e, 'nepaliDate');
-                                                }}
+                                                onKeyDown={(e) => handleKeyDown(e, 'nepaliDate')}
                                                 dateErrors={dateErrors}
                                                 setDateErrors={setDateErrors}
                                             />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
+                                            <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                 Date (BS): <span className="text-danger">*</span>
                                             </label>
                                             {dateErrors.nepaliDate && (
@@ -3662,49 +7788,23 @@ const AddJournalVoucher = () => {
                                                 onChange={(e) => {
                                                     const value = e.target.value;
                                                     setFormData(prev => ({ ...prev, date: value }));
-
-                                                    // Convert AD to BS when user changes AD date
                                                     if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
                                                         const bsDate = convertAdToBs(value);
                                                         if (bsDate && isValidNepaliDate(bsDate)) {
-                                                            setFormData(prev => ({
-                                                                ...prev,
-                                                                nepaliDate: bsDate
-                                                            }));
+                                                            setFormData(prev => ({ ...prev, nepaliDate: bsDate }));
                                                         }
                                                     }
                                                 }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        handleKeyDown(e, 'date');
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%'
-                                                }}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') handleKeyDown(e, 'date'); }}
+                                                style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                             />
-                                            <label
-                                                className="position-absolute"
-                                                style={{
-                                                    top: '-0.5rem',
-                                                    left: '0.75rem',
-                                                    fontSize: '0.75rem',
-                                                    backgroundColor: 'white',
-                                                    padding: '0 0.25rem',
-                                                    color: '#6c757d',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
+                                            <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                                 Date (AD):
                                             </label>
                                         </div>
                                     </div>
                                 </>
                             ) : (
-                                // English date format section
                                 <div className="col-12 col-md-6 col-lg-2">
                                     <div className="position-relative">
                                         <input
@@ -3719,15 +7819,7 @@ const AddJournalVoucher = () => {
                                             max={new Date().toISOString().split('T')[0]}
                                             style={{ height: '26px', fontSize: '0.875rem', paddingTop: '0.75rem', width: '100%' }}
                                         />
-                                        <label className="position-absolute" style={{
-                                            top: '-0.5rem',
-                                            left: '0.75rem',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: 'white',
-                                            padding: '0 0.25rem',
-                                            color: '#6c757d',
-                                            fontWeight: '500'
-                                        }}>
+                                        <label className="position-absolute" style={{ top: '-0.5rem', left: '0.75rem', fontSize: '0.75rem', backgroundColor: 'white', padding: '0 0.25rem', color: '#6c757d', fontWeight: '500' }}>
                                             Date: <span className="text-danger">*</span>
                                         </label>
                                     </div>
@@ -3794,378 +7886,664 @@ const AddJournalVoucher = () => {
                         >
                             <table className="table table-sm table-bordered table-hover mb-0">
                                 <thead className="sticky-top bg-light">
-                                    {/* Header Entry Row */}
-                                    <tr style={{
-                                        height: '26px',
-                                        backgroundColor: '#ffffff',
-                                        position: 'sticky',
-                                        top: 0,
-                                        zIndex: 10,
-                                        boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
-                                    }}>
-                                        <td width="5%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>#</span>
-                                        </td>
-                                        <td width="30%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <input
-                                                type="text"
-                                                id="headerDebitSearch"
-                                                className="form-control form-control-sm"
-                                                placeholder="Select Debit Account"
-                                                value={headerDebitAccount ? `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}` : ''}
-                                                onFocus={() => {
-                                                    setCurrentSelectionType('debit');
-                                                    setShowAccountModal(true);
-                                                    setAccountSearchQuery('');
-                                                }}
-                                                readOnly
-                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
-                                            />
-                                        </td>
-                                        <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <input
-                                                type="number"
-                                                id="headerDebitAmount"
-                                                className="form-control form-control-sm"
-                                                placeholder="Debit Amount"
-                                                value={headerDebitAmount}
-                                                onChange={(e) => setHeaderDebitAmount(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        document.getElementById('headerCreditSearch')?.focus();
-                                                    }
-                                                }}
-                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
-                                            />
-                                        </td>
-                                        <td width="35%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <input
-                                                type="text"
-                                                id="headerCreditSearch"
-                                                className="form-control form-control-sm"
-                                                placeholder="Select Credit Account"
-                                                value={headerCreditAccount ? `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}` : ''}
-                                                onFocus={() => {
-                                                    setCurrentSelectionType('credit');
-                                                    setShowAccountModal(true);
-                                                    setAccountSearchQuery('');
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        if (showAccountModal) {
-                                                            setShowAccountModal(false);
-                                                        }
+                                    {/* ============================== */}
+                                    {/* SINGLE (Busy) HEADER ENTRY ROW */}
+                                    {/* ============================== */}
+                                    {entryMode === 'single' && (
+                                        <tr style={{
+                                            height: '28px',
+                                            backgroundColor: '#fff',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 10,
+                                            boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
+                                        }}>
+                                            <td width="4%" style={{ padding: '2px', fontSize: '0.75rem', textAlign: 'center' }}>#</td>
+                                            <td width="6%" style={{ padding: '2px' }}>
+                                                <select
+                                                    id="singleHeaderDC"
+                                                    className="form-select form-select-sm"
+                                                    value={singleHeaderEntry.dc}
+                                                    onChange={(e) => {
+                                                        const newDc = e.target.value;
+                                                        setSingleHeaderEntry(prev => ({
+                                                            ...prev,
+                                                            dc: newDc
+                                                        }));
                                                         setTimeout(() => {
-                                                            document.getElementById('headerCreditAmount')?.focus();
-                                                        }, 50);
-                                                    }
-                                                }}
-                                                readOnly
-                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
-                                            />
-                                        </td>
-                                        <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <input
-                                                type="number"
-                                                id="headerCreditAmount"
-                                                className="form-control form-control-sm"
-                                                placeholder="Credit Amount"
-                                                value={headerCreditAmount}
-                                                onChange={(e) => setHeaderCreditAmount(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if ((e.key === 'Tab' || e.key === 'Enter')) {
-                                                        e.preventDefault();
-                                                        document.getElementById('insertButton')?.focus();
-                                                    }
-                                                }}
-                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
-                                            />
-                                        </td>
-                                        <td width="10%" style={{ padding: '2px', textAlign: 'center', backgroundColor: '#ffffff' }}>
-                                            <button
-                                                type="button"
-                                                id="insertButton"
-                                                className="btn btn-sm btn-success py-0 px-2"
-                                                onClick={insertEntry}
-                                                disabled={isCanceled || editingRowIndex !== null || (!headerDebitAccount && !headerCreditAccount) ||
-                                                    (headerDebitAccount && !headerDebitAmount) ||
-                                                    (headerCreditAccount && !headerCreditAmount)}
-                                                style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#198754', borderColor: '#198754' }}
-                                            >
-                                                INSERT
-                                            </button>
-                                        </td>
-                                    </tr>
+                                                            document.getElementById('singleHeaderAccount')?.focus();
+                                                        }, 30);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            document.getElementById('singleHeaderAccount')?.focus();
+                                                        }
+                                                    }}
+                                                    style={{ height: '22px', fontSize: '0.75rem', padding: '0 2px' }}
+                                                >
+                                                    <option value="D">D</option>
+                                                    <option value="C">C</option>
+                                                </select>
+                                            </td>
+                                            <td width="30%" style={{ padding: '2px' }}>
+                                                <input
+                                                    type="text"
+                                                    id="singleHeaderAccount"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Select Account"
+                                                    value={singleHeaderEntry.account ? `${singleHeaderEntry.account.uniqueNumber || ''} - ${singleHeaderEntry.account.name}` : ''}
+                                                    onFocus={() => {
+                                                        setCurrentSelectionType('single');
+                                                        setShowAccountModal(true);
+                                                        setAccountSearchQuery('');
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            const targetId = singleHeaderEntry.dc === 'D'
+                                                                ? 'singleHeaderDebitAmount'
+                                                                : 'singleHeaderCreditAmount';
+                                                            document.getElementById(targetId)?.focus();
+                                                        }
+                                                    }}
+                                                    readOnly
+                                                    style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px', cursor: 'pointer' }}
+                                                />
+                                            </td>
 
-                                    {/* Column headers row */}
+                                            {/* Debit Amount input — always visible, enabled only when D/C = D */}
+                                            <td width="16%" style={{ padding: '2px' }}>
+                                                <input
+                                                    type="number"
+                                                    id="singleHeaderDebitAmount"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Debit Amt"
+                                                    value={singleHeaderEntry.debitAmount}
+                                                    disabled={singleHeaderEntry.dc !== 'D'}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setSingleHeaderEntry(prev => ({ ...prev, debitAmount: val }));
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            insertSingleEntry();
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '22px',
+                                                        fontSize: '0.75rem',
+                                                        padding: '0 4px',
+                                                        backgroundColor: singleHeaderEntry.dc === 'D' ? '#fff' : '#f8f9fa'
+                                                    }}
+                                                />
+                                            </td>
+
+                                            {/* Credit Amount input — always visible, enabled only when D/C = C */}
+                                            <td width="16%" style={{ padding: '2px' }}>
+                                                <input
+                                                    type="number"
+                                                    id="singleHeaderCreditAmount"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Credit Amt"
+                                                    value={singleHeaderEntry.creditAmount}
+                                                    disabled={singleHeaderEntry.dc !== 'C'}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setSingleHeaderEntry(prev => ({ ...prev, creditAmount: val }));
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            insertSingleEntry();
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '22px',
+                                                        fontSize: '0.75rem',
+                                                        padding: '0 4px',
+                                                        backgroundColor: singleHeaderEntry.dc === 'C' ? '#fff' : '#f8f9fa'
+                                                    }}
+                                                />
+                                            </td>
+
+                                            <td width="28%" style={{ padding: '2px' }}></td>
+
+                                            <td width="7%" style={{ padding: '2px', textAlign: 'center' }}>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-success py-0 px-2"
+                                                    onClick={insertSingleEntry}
+                                                    disabled={
+                                                        !singleHeaderEntry.account ||
+                                                        !(singleHeaderEntry.dc === 'D'
+                                                            ? singleHeaderEntry.debitAmount
+                                                            : singleHeaderEntry.creditAmount)
+                                                    }
+                                                    style={{ height: '22px', fontSize: '0.7rem', fontWeight: 'bold' }}
+                                                >
+                                                    INS
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {/* ============================== */}
+                                    {/* PAIRED (legacy) HEADER ENTRY ROW */}
+                                    {/* ============================== */}
+                                    {entryMode === 'paired' && (
+                                        <tr style={{
+                                            height: '26px',
+                                            backgroundColor: '#ffffff',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 10,
+                                            boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
+                                        }}>
+                                            <td width="5%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>#</span>
+                                            </td>
+                                            <td width="30%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <input
+                                                    type="text"
+                                                    id="headerDebitSearch"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Select Debit Account"
+                                                    value={headerDebitAccount ? `${headerDebitAccount.uniqueNumber || ''} - ${headerDebitAccount.name}` : ''}
+                                                    onFocus={() => {
+                                                        setCurrentSelectionType('debit');
+                                                        setShowAccountModal(true);
+                                                        setAccountSearchQuery('');
+                                                    }}
+                                                    readOnly
+                                                    style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+                                                />
+                                            </td>
+                                            <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <input
+                                                    type="number"
+                                                    id="headerDebitAmount"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Debit Amount"
+                                                    value={headerDebitAmount}
+                                                    onChange={(e) => setHeaderDebitAmount(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            document.getElementById('headerCreditSearch')?.focus();
+                                                        }
+                                                    }}
+                                                    style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+                                                />
+                                            </td>
+                                            <td width="35%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <input
+                                                    type="text"
+                                                    id="headerCreditSearch"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Select Credit Account"
+                                                    value={headerCreditAccount ? `${headerCreditAccount.uniqueNumber || ''} - ${headerCreditAccount.name}` : ''}
+                                                    onFocus={() => {
+                                                        setCurrentSelectionType('credit');
+                                                        setShowAccountModal(true);
+                                                        setAccountSearchQuery('');
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            if (showAccountModal) setShowAccountModal(false);
+                                                            setTimeout(() => document.getElementById('headerCreditAmount')?.focus(), 50);
+                                                        }
+                                                    }}
+                                                    readOnly
+                                                    style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+                                                />
+                                            </td>
+                                            <td width="15%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <input
+                                                    type="number"
+                                                    id="headerCreditAmount"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Credit Amount"
+                                                    value={headerCreditAmount}
+                                                    onChange={(e) => setHeaderCreditAmount(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if ((e.key === 'Tab' || e.key === 'Enter')) {
+                                                            e.preventDefault();
+                                                            document.getElementById('insertButton')?.focus();
+                                                        }
+                                                    }}
+                                                    style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px', backgroundColor: '#ffffff' }}
+                                                />
+                                            </td>
+                                            <td width="10%" style={{ padding: '2px', textAlign: 'center', backgroundColor: '#ffffff' }}>
+                                                <button
+                                                    type="button"
+                                                    id="insertButton"
+                                                    className="btn btn-sm btn-success py-0 px-2"
+                                                    onClick={insertEntry}
+                                                    disabled={isCanceled || editingRowIndex !== null || (!headerDebitAccount && !headerCreditAccount) ||
+                                                        (headerDebitAccount && !headerDebitAmount) ||
+                                                        (headerCreditAccount && !headerCreditAmount)}
+                                                    style={{ height: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#198754', borderColor: '#198754' }}
+                                                >
+                                                    INSERT
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {/* Column headers row — differs based on mode */}
                                     <tr style={{
                                         height: '26px',
                                         backgroundColor: '#e9ecef',
                                         position: 'sticky',
-                                        top: '26px',
+                                        top: entryMode === 'single' ? '28px' : '26px',
                                         zIndex: 9
                                     }}>
-                                        <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.N.</th>
-                                        <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Account</th>
-                                        <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Amount (Rs.)</th>
-                                        <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Account</th>
-                                        <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Amount (Rs.)</th>
-                                        <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
+                                        {entryMode === 'single' ? (
+                                            <>
+                                                <th width="4%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.No</th>
+                                                <th width="6%" style={{ padding: '3px', fontSize: '0.75rem' }}>D/C</th>
+                                                <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Account</th>
+                                                <th width="16%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit (Rs.)</th>
+                                                <th width="16%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit (Rs.)</th>
+                                                <th width="28%" style={{ padding: '3px', fontSize: '0.75rem' }}></th>
+                                                <th width="7%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.N.</th>
+                                                <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Account</th>
+                                                <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Debit Amount (Rs.)</th>
+                                                <th width="30%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Account</th>
+                                                <th width="15%" style={{ padding: '3px', fontSize: '0.75rem' }}>Credit Amount (Rs.)</th>
+                                                <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
+                                            </>
+                                        )}
                                     </tr>
                                 </thead>
 
                                 <tbody id="items" style={{ backgroundColor: '#fff' }}>
-                                    {(() => {
-                                        // Get debit and credit entries from unified entries array
-                                        const debitEntriesList = formData.entries
-                                            .filter(entry => entry.entryType === 'Debit')
-                                            .map(entry => ({
-                                                accountId: entry.accountId,
-                                                accountName: entry.accountName,
-                                                amount: entry.amount
-                                            }));
+                                    {entryMode === 'single' ? (
+                                        // ============================================================
+                                        // SINGLE (Busy) MODE — one row per entry
+                                        // ============================================================
+                                        <>
+                                            {formData.entries.map((entry, index) => {
+                                                const isInlineEditing = editingRowIndex === index;
+                                                const isDebit = entry.entryType === 'Debit';
 
-                                        const creditEntriesList = formData.entries
-                                            .filter(entry => entry.entryType === 'Credit')
-                                            .map(entry => ({
-                                                accountId: entry.accountId,
-                                                accountName: entry.accountName,
-                                                amount: entry.amount
-                                            }));
+                                                return (
+                                                    <tr key={entry.id || index} style={{ minHeight: '26px' }}>
+                                                        <td style={{ padding: '3px', fontSize: '0.75rem', textAlign: 'center' }}>
+                                                            {index + 1}
+                                                        </td>
 
-                                        const maxLength = Math.max(debitEntriesList.length, creditEntriesList.length);
-
-                                        // Create paired entries
-                                        const pairedEntries = [];
-                                        for (let i = 0; i < maxLength; i++) {
-                                            pairedEntries.push({
-                                                debitEntry: debitEntriesList[i] || { accountId: '', accountName: '', amount: 0 },
-                                                creditEntry: creditEntriesList[i] || { accountId: '', accountName: '', amount: 0 }
-                                            });
-                                        }
-
-                                        return pairedEntries.map((item, index) => {
-                                            const debitEntry = item.debitEntry;
-                                            const creditEntry = item.creditEntry;
-                                            const isInlineEditing = editingRowIndex === index;
-
-                                            return (
-                                                <tr key={index} style={{ height: 'auto', minHeight: '26px' }}>
-                                                    <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {index + 1}
-                                                    </td>
-
-                                                    {/* Debit Account Column */}
-                                                    <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {isInlineEditing ? (
-                                                            <input
-                                                                type="text"
-                                                                className="form-control form-control-sm"
-                                                                placeholder="Select Debit Account"
-                                                                value={inlineEditData.debitAccount
-                                                                    ? `${inlineEditData.debitAccount.uniqueNumber || ''} - ${inlineEditData.debitAccount.name}`
-                                                                    : ''}
-                                                                onFocus={() => {
-                                                                    setInlineSelectionType('debit');
-                                                                    setCurrentSelectionType('debit');
-                                                                    setShowAccountModal(true);
-                                                                    setAccountSearchQuery('');
-                                                                }}
-                                                                readOnly
-                                                                style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
-                                                            />
-                                                        ) : debitEntry.accountName ? (
-                                                            <>
-                                                                <div>{debitEntry.accountName}</div>
-                                                                {debitEntry.accountId && (
-                                                                    <div className="mt-1">
-                                                                        <AccountBalanceDisplay
-                                                                            accountId={debitEntry.accountId}
-                                                                            api={api}
-                                                                            newTransactionAmount={parseFloat(debitEntry.amount) || 0}
-                                                                            compact={true}
-                                                                            transactionType="payment"
-                                                                            dateFormat={companyDateFormat}
-                                                                        />
-                                                                    </div>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-muted">-- No Entry --</span>
-                                                        )}
-                                                    </td>
-
-                                                    {/* Debit Amount Column */}
-                                                    <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {isInlineEditing ? (
-                                                            <input
-                                                                type="number"
-                                                                id={`inline-debit-amount-${index}`}
-                                                                className="form-control form-control-sm"
-                                                                placeholder="Debit Amount"
-                                                                value={inlineEditData.debitAmount}
-                                                                onChange={(e) => setInlineEditData(prev => ({ ...prev, debitAmount: e.target.value }))}
-                                                                style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
-                                                            />
-                                                        ) : debitEntry.amount > 0 ? debitEntry.amount : '-'}
-                                                    </td>
-
-                                                    {/* Credit Account Column */}
-                                                    <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {isInlineEditing ? (
-                                                            <input
-                                                                type="text"
-                                                                className="form-control form-control-sm"
-                                                                placeholder="Select Credit Account"
-                                                                value={inlineEditData.creditAccount
-                                                                    ? `${inlineEditData.creditAccount.uniqueNumber || ''} - ${inlineEditData.creditAccount.name}`
-                                                                    : ''}
-                                                                onFocus={() => {
-                                                                    setInlineSelectionType('credit');
-                                                                    setCurrentSelectionType('credit');
-                                                                    setShowAccountModal(true);
-                                                                    setAccountSearchQuery('');
-                                                                }}
-                                                                readOnly
-                                                                style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
-                                                            />
-                                                        ) : creditEntry.accountName ? (
-                                                            <>
-                                                                <div>{creditEntry.accountName}</div>
-                                                                {creditEntry.accountId && (
-                                                                    <div className="mt-1">
-                                                                        <AccountBalanceDisplay
-                                                                            accountId={creditEntry.accountId}
-                                                                            api={api}
-                                                                            newTransactionAmount={parseFloat(creditEntry.amount) || 0}
-                                                                            compact={true}
-                                                                            transactionType="receipt"
-                                                                            dateFormat={companyDateFormat}
-                                                                        />
-                                                                    </div>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-muted">-- No Entry --</span>
-                                                        )}
-                                                    </td>
-
-                                                    {/* Credit Amount Column */}
-                                                    <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
-                                                        {isInlineEditing ? (
-                                                            <input
-                                                                type="number"
-                                                                id={`inline-credit-amount-${index}`}
-                                                                className="form-control form-control-sm"
-                                                                placeholder="Credit Amount"
-                                                                value={inlineEditData.creditAmount}
-                                                                onChange={(e) => setInlineEditData(prev => ({ ...prev, creditAmount: e.target.value }))}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter' || e.key === 'Tab') {
-                                                                        e.preventDefault();
-                                                                        updateInlineEntry();
-                                                                    }
-                                                                }}
-                                                                style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
-                                                            />
-                                                        ) : creditEntry.amount > 0 ? creditEntry.amount : '-'}
-                                                    </td>
-
-                                                    {/* Action Column */}
-                                                    <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
-                                                        <div className="d-flex gap-1 justify-content-center">
+                                                        <td style={{ padding: '3px' }}>
                                                             {isInlineEditing ? (
-                                                                <>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-success py-0 px-1"
-                                                                        onClick={updateInlineEntry}
-                                                                        title="Save changes"
-                                                                        style={{
-                                                                            height: '18px',
-                                                                            minWidth: '18px',
-                                                                            fontSize: '0.6rem'
-                                                                        }}
-                                                                    >
-                                                                        <i className="bi bi-check"></i>
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-secondary py-0 px-1"
-                                                                        onClick={cancelInlineEdit}
-                                                                        title="Cancel edit"
-                                                                        style={{
-                                                                            height: '18px',
-                                                                            minWidth: '18px',
-                                                                            fontSize: '0.6rem'
-                                                                        }}
-                                                                    >
-                                                                        <i className="bi bi-x"></i>
-                                                                    </button>
-                                                                </>
+                                                                <select
+                                                                    className="form-select form-select-sm"
+                                                                    value={inlineEditData.dc}
+                                                                    onChange={(e) => {
+                                                                        const newDc = e.target.value;
+                                                                        setInlineEditData(prev => ({
+                                                                            ...prev,
+                                                                            dc: newDc
+                                                                        }));
+                                                                        setTimeout(() => {
+                                                                            const targetId = newDc === 'D'
+                                                                                ? `inline-debit-amount-${index}`
+                                                                                : `inline-credit-amount-${index}`;
+                                                                            document.getElementById(targetId)?.focus();
+                                                                        }, 30);
+                                                                    }}
+                                                                    style={{ height: '22px', fontSize: '0.75rem', padding: '0 2px' }}
+                                                                >
+                                                                    <option value="D">D</option>
+                                                                    <option value="C">C</option>
+                                                                </select>
+                                                            ) : (
+                                                                <span className={`badge ${isDebit ? 'bg-primary' : 'bg-success'}`}>
+                                                                    {isDebit ? 'D' : 'C'}
+                                                                </span>
+                                                            )}
+                                                        </td>
+
+                                                        <td style={{ padding: '3px', fontSize: '0.75rem' }}>
+                                                            {isInlineEditing ? (
+                                                                <input
+                                                                    type="text"
+                                                                    className="form-control form-control-sm"
+                                                                    value={inlineEditData.account ? `${inlineEditData.account.uniqueNumber || ''} - ${inlineEditData.account.name}` : ''}
+                                                                    onFocus={() => {
+                                                                        setInlineSelectionType('account');
+                                                                        setCurrentSelectionType('debit');
+                                                                        setShowAccountModal(true);
+                                                                        setAccountSearchQuery('');
+                                                                    }}
+                                                                    readOnly
+                                                                    style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px', cursor: 'pointer' }}
+                                                                />
                                                             ) : (
                                                                 <>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-warning py-0 px-1"
-                                                                        onClick={() => startEditEntry(index)}
-                                                                        disabled={isCanceled || editingRowIndex !== null}
-                                                                        title="Edit this row"
-                                                                        style={{
-                                                                            height: '18px',
-                                                                            width: '18px',
-                                                                            minWidth: '18px',
-                                                                            fontSize: '0.6rem',
-                                                                            backgroundColor: '#ffc107',
-                                                                            borderColor: '#ffc107'
-                                                                        }}
-                                                                    >
-                                                                        <i className="bi bi-pencil"></i>
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-danger py-0 px-1"
-                                                                        onClick={() => removeEntry(index)}
-                                                                        disabled={editingRowIndex !== null}
-                                                                        style={{
-                                                                            height: '18px',
-                                                                            width: '18px',
-                                                                            minWidth: '18px',
-                                                                            fontSize: '0.6rem',
-                                                                            backgroundColor: '#dc3545',
-                                                                            borderColor: '#dc3545'
-                                                                        }}
-                                                                    >
-                                                                        <i className="bi bi-trash"></i>
-                                                                    </button>
+                                                                    <div>{entry.accountName}</div>
+                                                                    {entry.accountId && (
+                                                                        <div className="mt-1">
+                                                                            <AccountBalanceDisplay
+                                                                                accountId={entry.accountId}
+                                                                                api={api}
+                                                                                newTransactionAmount={parseFloat(entry.amount) || 0}
+                                                                                compact={true}
+                                                                                transactionType={isDebit ? 'payment' : 'receipt'}
+                                                                                dateFormat={companyDateFormat}
+                                                                            />
+                                                                        </div>
+                                                                    )}
                                                                 </>
                                                             )}
-                                                        </div>
+                                                        </td>
+
+                                                        {/* Debit amount column */}
+                                                        <td style={{ padding: '3px', fontSize: '0.75rem', textAlign: 'right' }}>
+                                                            {isInlineEditing ? (
+                                                                <input
+                                                                    type="number"
+                                                                    id={`inline-debit-amount-${index}`}
+                                                                    className="form-control form-control-sm"
+                                                                    value={inlineEditData.debitAmount}
+                                                                    disabled={inlineEditData.dc !== 'D'}
+                                                                    onChange={(e) => setInlineEditData(prev => ({ ...prev, debitAmount: e.target.value }))}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            updateInlineEntry();
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        height: '22px',
+                                                                        fontSize: '0.75rem',
+                                                                        padding: '0 4px',
+                                                                        backgroundColor: inlineEditData.dc === 'D' ? '#fff' : '#f8f9fa'
+                                                                    }}
+                                                                />
+                                                            ) : isDebit ? (
+                                                                parseFloat(entry.amount).toFixed(2)
+                                                            ) : (
+                                                                <span className="text-muted">--N.A.--</span>
+                                                            )}
+                                                        </td>
+
+                                                        {/* Credit amount column */}
+                                                        <td style={{ padding: '3px', fontSize: '0.75rem', textAlign: 'right' }}>
+                                                            {isInlineEditing ? (
+                                                                <input
+                                                                    type="number"
+                                                                    id={`inline-credit-amount-${index}`}
+                                                                    className="form-control form-control-sm"
+                                                                    value={inlineEditData.creditAmount}
+                                                                    disabled={inlineEditData.dc !== 'C'}
+                                                                    onChange={(e) => setInlineEditData(prev => ({ ...prev, creditAmount: e.target.value }))}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            updateInlineEntry();
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        height: '22px',
+                                                                        fontSize: '0.75rem',
+                                                                        padding: '0 4px',
+                                                                        backgroundColor: inlineEditData.dc === 'C' ? '#fff' : '#f8f9fa'
+                                                                    }}
+                                                                />
+                                                            ) : !isDebit ? (
+                                                                parseFloat(entry.amount).toFixed(2)
+                                                            ) : (
+                                                                <span className="text-muted">--N.A.--</span>
+                                                            )}
+                                                        </td>
+
+                                                        <td style={{ padding: '3px', fontSize: '0.75rem' }}></td>
+
+                                                        <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap' }}>
+                                                            <div className="d-flex gap-1 justify-content-center">
+                                                                {isInlineEditing ? (
+                                                                    <>
+                                                                        <button type="button" className="btn btn-sm btn-success py-0 px-1" onClick={updateInlineEntry} title="Save" style={{ height: '18px', minWidth: '18px', fontSize: '0.6rem' }}>
+                                                                            <i className="bi bi-check"></i>
+                                                                        </button>
+                                                                        <button type="button" className="btn btn-sm btn-secondary py-0 px-1" onClick={cancelInlineEdit} title="Cancel" style={{ height: '18px', minWidth: '18px', fontSize: '0.6rem' }}>
+                                                                            <i className="bi bi-x"></i>
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <button type="button" className="btn btn-sm btn-warning py-0 px-1" onClick={() => startEditEntry(index)} disabled={editingRowIndex !== null} style={{ height: '18px', width: '18px', fontSize: '0.6rem' }}>
+                                                                            <i className="bi bi-pencil"></i>
+                                                                        </button>
+                                                                        <button type="button" className="btn btn-sm btn-danger py-0 px-1" onClick={() => removeEntry(index)} disabled={editingRowIndex !== null} style={{ height: '18px', width: '18px', fontSize: '0.6rem' }}>
+                                                                            <i className="bi bi-trash"></i>
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {formData.entries.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="7" className="text-center text-muted py-2" style={{ fontSize: '0.75rem' }}>
+                                                        No entries yet. Use the header row above (D/C → Account → Amount → Enter).
                                                     </td>
                                                 </tr>
-                                            );
-                                        });
-                                    })()}
+                                            )}
+                                        </>
+                                    ) : (
+                                        // ============================================================
+                                        // PAIRED (legacy) MODE — debit/credit pairs
+                                        // ============================================================
+                                        <>
+                                            {(() => {
+                                                const debitEntriesList = formData.entries
+                                                    .filter(entry => entry.entryType === 'Debit')
+                                                    .map(entry => ({
+                                                        accountId: entry.accountId,
+                                                        accountName: entry.accountName,
+                                                        amount: entry.amount
+                                                    }));
 
-                                    {formData.entries.filter(e => e.accountId && e.amount > 0).length === 0 && (
-                                        <tr style={{ height: '24px' }}>
-                                            <td colSpan="6" className="text-center text-muted py-1" style={{ fontSize: '0.75rem' }}>
-                                                No entries added yet. Use the header row above to add entries.
-                                            </td>
-                                        </tr>
+                                                const creditEntriesList = formData.entries
+                                                    .filter(entry => entry.entryType === 'Credit')
+                                                    .map(entry => ({
+                                                        accountId: entry.accountId,
+                                                        accountName: entry.accountName,
+                                                        amount: entry.amount
+                                                    }));
+
+                                                const maxLength = Math.max(debitEntriesList.length, creditEntriesList.length);
+                                                const pairedEntries = [];
+                                                for (let i = 0; i < maxLength; i++) {
+                                                    pairedEntries.push({
+                                                        debitEntry: debitEntriesList[i] || { accountId: '', accountName: '', amount: 0 },
+                                                        creditEntry: creditEntriesList[i] || { accountId: '', accountName: '', amount: 0 }
+                                                    });
+                                                }
+
+                                                return pairedEntries.map((item, index) => {
+                                                    const debitEntry = item.debitEntry;
+                                                    const creditEntry = item.creditEntry;
+                                                    const isInlineEditing = editingRowIndex === index;
+
+                                                    return (
+                                                        <tr key={index} style={{ minHeight: '26px' }}>
+                                                            <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+                                                                {index + 1}
+                                                            </td>
+                                                            <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+                                                                {isInlineEditing ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        className="form-control form-control-sm"
+                                                                        placeholder="Select Debit Account"
+                                                                        value={inlineEditData.account
+                                                                            ? `${inlineEditData.account.uniqueNumber || ''} - ${inlineEditData.account.name}`
+                                                                            : ''}
+                                                                        onFocus={() => {
+                                                                            setInlineSelectionType('account');
+                                                                            setShowAccountModal(true);
+                                                                            setAccountSearchQuery('');
+                                                                        }}
+                                                                        readOnly
+                                                                        style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                                    />
+                                                                ) : debitEntry.accountName ? (
+                                                                    <>
+                                                                        <div>{debitEntry.accountName}</div>
+                                                                        {debitEntry.accountId && (
+                                                                            <div className="mt-1">
+                                                                                <AccountBalanceDisplay
+                                                                                    accountId={debitEntry.accountId}
+                                                                                    api={api}
+                                                                                    newTransactionAmount={parseFloat(debitEntry.amount) || 0}
+                                                                                    compact={true}
+                                                                                    transactionType="payment"
+                                                                                    dateFormat={companyDateFormat}
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-muted">-- No Entry --</span>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+                                                                {isInlineEditing ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        id={`inline-debit-amount-${index}`}
+                                                                        className="form-control form-control-sm"
+                                                                        placeholder="Debit Amount"
+                                                                        value={inlineEditData.debitAmount}
+                                                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, debitAmount: e.target.value }))}
+                                                                        style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                                    />
+                                                                ) : debitEntry.amount > 0 ? debitEntry.amount : '-'}
+                                                            </td>
+                                                            <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+                                                                {isInlineEditing ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        className="form-control form-control-sm"
+                                                                        placeholder="Select Credit Account"
+                                                                        value={inlineEditData.account
+                                                                            ? `${inlineEditData.account.uniqueNumber || ''} - ${inlineEditData.account.name}`
+                                                                            : ''}
+                                                                        onFocus={() => {
+                                                                            setInlineSelectionType('account');
+                                                                            setShowAccountModal(true);
+                                                                            setAccountSearchQuery('');
+                                                                        }}
+                                                                        readOnly
+                                                                        style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                                    />
+                                                                ) : creditEntry.accountName ? (
+                                                                    <>
+                                                                        <div>{creditEntry.accountName}</div>
+                                                                        {creditEntry.accountId && (
+                                                                            <div className="mt-1">
+                                                                                <AccountBalanceDisplay
+                                                                                    accountId={creditEntry.accountId}
+                                                                                    api={api}
+                                                                                    newTransactionAmount={parseFloat(creditEntry.amount) || 0}
+                                                                                    compact={true}
+                                                                                    transactionType="receipt"
+                                                                                    dateFormat={companyDateFormat}
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-muted">-- No Entry --</span>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ padding: '3px', fontSize: '0.75rem', verticalAlign: 'top' }}>
+                                                                {isInlineEditing ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        id={`inline-credit-amount-${index}`}
+                                                                        className="form-control form-control-sm"
+                                                                        placeholder="Credit Amount"
+                                                                        value={inlineEditData.creditAmount}
+                                                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, creditAmount: e.target.value }))}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter' || e.key === 'Tab') {
+                                                                                e.preventDefault();
+                                                                                updateInlineEntry();
+                                                                            }
+                                                                        }}
+                                                                        style={{ height: '22px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                                    />
+                                                                ) : creditEntry.amount > 0 ? creditEntry.amount : '-'}
+                                                            </td>
+                                                            <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                                                                <div className="d-flex gap-1 justify-content-center">
+                                                                    {isInlineEditing ? (
+                                                                        <>
+                                                                            <button type="button" className="btn btn-sm btn-success py-0 px-1" onClick={updateInlineEntry} style={{ height: '18px', minWidth: '18px', fontSize: '0.6rem' }}>
+                                                                                <i className="bi bi-check"></i>
+                                                                            </button>
+                                                                            <button type="button" className="btn btn-sm btn-secondary py-0 px-1" onClick={cancelInlineEdit} style={{ height: '18px', minWidth: '18px', fontSize: '0.6rem' }}>
+                                                                                <i className="bi bi-x"></i>
+                                                                            </button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button type="button" className="btn btn-sm btn-warning py-0 px-1" onClick={() => startEditEntry(index)} disabled={editingRowIndex !== null} style={{ height: '18px', width: '18px', fontSize: '0.6rem' }}>
+                                                                                <i className="bi bi-pencil"></i>
+                                                                            </button>
+                                                                            <button type="button" className="btn btn-sm btn-danger py-0 px-1" onClick={() => removeEntry(index)} disabled={editingRowIndex !== null} style={{ height: '18px', width: '18px', fontSize: '0.6rem' }}>
+                                                                                <i className="bi bi-trash"></i>
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                });
+                                            })()}
+
+                                            {formData.entries.filter(e => e.accountId && e.amount > 0).length === 0 && (
+                                                <tr style={{ height: '24px' }}>
+                                                    <td colSpan="6" className="text-center text-muted py-1" style={{ fontSize: '0.75rem' }}>
+                                                        No entries added yet. Use the header row above to add entries.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </>
                                     )}
                                 </tbody>
 
                                 <tfoot>
-                                    <tr className="table-active">
-                                        <th colSpan="2" className="text-end">Total:</th>
-                                        <th className="text-primary">Rs. {totals.totalDebit.toFixed(2)}</th>
-                                        <th className="text-end">Total:</th>
-                                        <th className="text-primary">Rs. {totals.totalCredit.toFixed(2)}</th>
-                                        <th></th>
-                                    </tr>
+                                    {entryMode === 'single' ? (
+                                        <tr className="table-active">
+                                            <th colSpan="3" className="text-end">Total:</th>
+                                            <th className="text-primary text-end">Rs. {totals.totalDebit.toFixed(2)}</th>
+                                            <th className="text-primary text-end">Rs. {totals.totalCredit.toFixed(2)}</th>
+                                            <th colSpan="2"></th>
+                                        </tr>
+                                    ) : (
+                                        <tr className="table-active">
+                                            <th colSpan="2" className="text-end">Total:</th>
+                                            <th className="text-primary">Rs. {totals.totalDebit.toFixed(2)}</th>
+                                            <th className="text-end">Total:</th>
+                                            <th className="text-primary">Rs. {totals.totalCredit.toFixed(2)}</th>
+                                            <th></th>
+                                        </tr>
+                                    )}
                                 </tfoot>
                             </table>
                         </div>
@@ -4235,7 +8613,6 @@ const AddJournalVoucher = () => {
                     show={showAccountModal}
                     onClose={() => {
                         setShowAccountModal(false);
-                        // Clear inline selection intent so next modal open is clean
                         setInlineSelectionType(null);
                         const focusTargetId = getFocusTargetOnModalClose();
                         setTimeout(() => document.getElementById(focusTargetId)?.focus(), 50);
@@ -4271,7 +8648,10 @@ const AddJournalVoucher = () => {
                     }}
                     selectedAccountId={null}
                     autoFocus={false}
-                    title={`Select ${(inlineSelectionType || currentSelectionType) === 'debit' ? 'Debit' : 'Credit'} Account`}
+                    title={`Select ${currentSelectionType === 'single'
+                            ? (singleHeaderEntry.dc === 'D' ? 'Debit' : 'Credit')
+                            : (currentSelectionType === 'debit' ? 'Debit' : 'Credit')
+                        } Account`}
                 />
             )}
 
