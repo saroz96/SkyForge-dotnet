@@ -1,0 +1,291 @@
+/* PublicShareStatement.css */
+.ps-page {
+    --st-primary: #1e3a5f;
+    --st-primary-light: #2563eb;
+    --st-primary-soft: #eff6ff;
+    --st-surface: #eef2f7;
+    --st-card: #ffffff;
+    --st-border: #e2e8f0;
+    --st-border-strong: #cbd5e1;
+    --st-text: #0f172a;
+    --st-muted: #64748b;
+    --st-danger: #dc2626;
+    --st-success: #059669;
+    --st-warning: #d97706;
+    --st-radius: 6px;
+
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--st-surface);
+    padding: 0.5rem 0.6rem 0.75rem;
+}
+
+.ps-shell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: 0.5rem;
+}
+
+/* --- Action bar (screen only, hidden on print) --- */
+.ps-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.ps-actions__left,
+.ps-actions__right {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.ps-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    height: 30px;
+    padding: 0 0.8rem;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.ps-btn--secondary {
+    background: #fff;
+    border-color: var(--st-border-strong);
+    color: var(--st-text);
+}
+
+.ps-btn--secondary:hover {
+    background: #f1f5f9;
+}
+
+.ps-btn--primary {
+    background: var(--st-primary-light);
+    color: #fff;
+}
+
+.ps-btn--primary:hover {
+    background: #1d4ed8;
+}
+
+/* --- Card wrapping the statement --- */
+.ps-card {
+    background: var(--st-card);
+    border: 1px solid var(--st-border);
+    border-radius: var(--st-radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* --- Statement header (company + meta) --- */
+.ps-head {
+    text-align: center;
+    padding: 0.75rem 1rem 0.65rem;
+    border-bottom: 2px solid var(--st-border-strong);
+    background: #f8fafc;
+}
+
+.ps-head__company {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--st-text);
+    letter-spacing: 0.5px;
+    margin: 0 0 0.15rem;
+}
+
+.ps-head__details {
+    font-size: 0.7rem;
+    color: #475569;
+    line-height: 1.45;
+}
+
+.ps-head__title {
+    display: inline-block;
+    margin-top: 0.55rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    color: var(--st-text);
+}
+
+.ps-head__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1.1rem;
+    margin-top: 0.55rem;
+    font-size: 0.7rem;
+    color: #444;
+}
+
+.ps-head__meta strong {
+    color: var(--st-text);
+    font-weight: 600;
+}
+
+/* --- Table (same look as .st-table) --- */
+.ps-table-wrap {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+.ps-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.7rem;
+    background: #fff;
+}
+
+.ps-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f1f5f9;
+    border-bottom: 2px solid var(--st-border-strong);
+    border-right: 1px solid var(--st-border);
+    padding: 0.3rem 0.4rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--st-muted);
+    white-space: nowrap;
+    user-select: none;
+    text-align: left;
+}
+
+.ps-table thead th:last-child {
+    border-right: none;
+}
+
+.ps-table thead th.num {
+    text-align: right;
+}
+
+.ps-table tbody tr {
+    transition: background 0.15s;
+}
+
+.ps-table tbody tr:nth-child(even) {
+    background: #fafbfc;
+}
+
+.ps-table tbody tr:hover {
+    background: var(--st-primary-soft);
+}
+
+.ps-table td {
+    padding: 0.25rem 0.4rem;
+    border-bottom: 1px solid var(--st-border);
+    border-right: 1px solid var(--st-border);
+    vertical-align: middle;
+    color: var(--st-text);
+}
+
+.ps-table td:last-child {
+    border-right: none;
+}
+
+.ps-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Sticky totals footer --- */
+.ps-table tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: #e8edf3;
+    font-weight: 700;
+    border-top: 2px solid var(--st-border-strong);
+    padding: 0.35rem 0.4rem;
+    color: var(--st-text);
+    /* keep the bottom edge clean when the last row has a border */
+    box-shadow: 0 -1px 0 var(--st-border);
+}
+
+/* --- States --- */
+.ps-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--st-muted);
+    padding: 2rem 1rem;
+    text-align: center;
+    min-height: 200px;
+}
+
+.ps-state h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--st-text);
+    margin: 0 0 0.25rem;
+}
+
+.ps-state p {
+    font-size: 0.75rem;
+    margin: 0;
+}
+
+/* --- Footer under table --- */
+.ps-foot {
+    text-align: center;
+    font-size: 0.68rem;
+    color: var(--st-muted);
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--st-border);
+    background: #f8fafc;
+}
+
+.ps-foot strong {
+    color: var(--st-text);
+}
+
+/* --- Error alert --- */
+.ps-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 5px;
+    font-size: 0.75rem;
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+/* --- Hide screen-only bits when printing --- */
+@media print {
+    .ps-actions {
+        display: none !important;
+    }
+
+    .ps-page {
+        background: #fff;
+        padding: 0;
+    }
+
+    .ps-card {
+        border: none;
+        border-radius: 0;
+    }
+}

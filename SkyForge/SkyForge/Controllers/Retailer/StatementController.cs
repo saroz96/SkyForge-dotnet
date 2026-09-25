@@ -20,15 +20,19 @@ namespace SkyForge.Controllers.Retailer
         private readonly ApplicationDbContext _context;
         private readonly ILogger<StatementController> _logger;
         private readonly IStatementService _statementService;
+        private readonly IConfiguration _config;
+
 
         public StatementController(
             ApplicationDbContext context,
             ILogger<StatementController> logger,
-            IStatementService statementService)
+            IStatementService statementService,
+             IConfiguration config)
         {
             _context = context;
             _logger = logger;
             _statementService = statementService;
+            _config = config;
         }
 
         // GET: api/retailer/statement
@@ -851,48 +855,120 @@ namespace SkyForge.Controllers.Retailer
                 .TrimEnd('=');
         }
 
+        // [HttpPost("generate-share-token")]
+        // public async Task<IActionResult> GenerateShareToken([FromBody] GenerateShareTokenRequest request)
+        // {
+        //     try
+        //     {
+        //         // Get company ID from claims
+        //         var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+        //         if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyIdGuid))
+        //         {
+        //             return BadRequest(new { success = false, error = "No company selected" });
+        //         }
+
+        //         // Verify account belongs to the company
+        //         var account = await _context.Accounts
+        //             .FirstOrDefaultAsync(a => a.Id == request.AccountId && a.CompanyId == companyIdGuid);
+
+        //         if (account == null)
+        //         {
+        //             return NotFound(new { success = false, error = "Account not found" });
+        //         }
+
+        //         // Check if token already exists
+        //         var existingToken = await _context.AccountShareTokens
+        //             .FirstOrDefaultAsync(t => t.AccountId == request.AccountId);
+
+        //         if (existingToken != null)
+        //         {
+        //             // Return existing token with NEW /s/ URL
+        //             var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        //             var shareableUrl = $"{baseUrl}/s/{existingToken.Token}";
+
+        //             return Ok(new
+        //             {
+        //                 success = true,
+        //                 shareableUrl = shareableUrl,
+        //                 token = existingToken.Token,
+        //                 isNew = false,
+        //                 message = "Existing share link retrieved"
+        //             });
+        //         }
+
+        //         // Generate new token using cryptographic RNG
+        //         var token = GenerateUniqueToken();
+        //         var userId = User.FindFirst("userId")?.Value ?? "system";
+
+        //         var shareToken = new AccountShareToken
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             AccountId = request.AccountId,
+        //             Token = token,
+        //             IsActive = true,
+        //             CreatedAt = DateTime.UtcNow,
+        //             CreatedBy = userId
+        //         };
+
+        //         await _context.AccountShareTokens.AddAsync(shareToken);
+        //         await _context.SaveChangesAsync();
+
+        //         var baseUrlNew = $"{Request.Scheme}://{Request.Host}";
+        //         var shareableUrlNew = $"{baseUrlNew}/s/{token}";    // ← /s/ instead of /api/retailer/public-statement/
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             shareableUrl = shareableUrlNew,
+        //             token = token,
+        //             isNew = true,
+        //             message = "Share link generated successfully"
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error generating share token");
+        //         return StatusCode(500, new { success = false, error = "Failed to generate share link" });
+        //     }
+        // }
+
         [HttpPost("generate-share-token")]
         public async Task<IActionResult> GenerateShareToken([FromBody] GenerateShareTokenRequest request)
         {
             try
             {
-                // Get company ID from claims
                 var companyIdClaim = User.FindFirst("currentCompany")?.Value;
                 if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyIdGuid))
-                {
                     return BadRequest(new { success = false, error = "No company selected" });
-                }
 
-                // Verify account belongs to the company
                 var account = await _context.Accounts
                     .FirstOrDefaultAsync(a => a.Id == request.AccountId && a.CompanyId == companyIdGuid);
 
                 if (account == null)
-                {
                     return NotFound(new { success = false, error = "Account not found" });
-                }
 
-                // Check if token already exists
+                // ============================================================
+                // THE KEY FIX — use FRONTEND base URL from configuration
+                // ============================================================
+                var frontendBase = _config["AppSettings:FrontendBaseUrl"]?.TrimEnd('/')
+                                   ?? "https://amsacc.com";
+
                 var existingToken = await _context.AccountShareTokens
                     .FirstOrDefaultAsync(t => t.AccountId == request.AccountId);
 
                 if (existingToken != null)
                 {
-                    // Return existing token with NEW /s/ URL
-                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                    var shareableUrl = $"{baseUrl}/s/{existingToken.Token}";
-
+                    var shareableUrl = $"{frontendBase}/s/{existingToken.Token}";
                     return Ok(new
                     {
                         success = true,
-                        shareableUrl = shareableUrl,
+                        shareableUrl,
                         token = existingToken.Token,
                         isNew = false,
                         message = "Existing share link retrieved"
                     });
                 }
 
-                // Generate new token using cryptographic RNG
                 var token = GenerateUniqueToken();
                 var userId = User.FindFirst("userId")?.Value ?? "system";
 
@@ -909,13 +985,11 @@ namespace SkyForge.Controllers.Retailer
                 await _context.AccountShareTokens.AddAsync(shareToken);
                 await _context.SaveChangesAsync();
 
-                var baseUrlNew = $"{Request.Scheme}://{Request.Host}";
-                var shareableUrlNew = $"{baseUrlNew}/s/{token}";    // ← /s/ instead of /api/retailer/public-statement/
-
+                var newShareableUrl = $"{frontendBase}/s/{token}";
                 return Ok(new
                 {
                     success = true,
-                    shareableUrl = shareableUrlNew,
+                    shareableUrl = newShareableUrl,
                     token = token,
                     isNew = true,
                     message = "Share link generated successfully"

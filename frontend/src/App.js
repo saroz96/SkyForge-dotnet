@@ -150,6 +150,8 @@ import { useSessionManager } from './hooks/useSessionManager';
 import BulkDeleteItems from './components/retailer/Items/BulkDeleteItems';
 import UpdateBalancesPage from './components/fiscalYear/UpdateBalancesPage';
 import DayBook from './components/retailer/dayBook/DayBook';
+import PublicSharePage from './components/retailer/miscellaneous/PublicSharePage';
+import PublicShareStatement from './components/retailer/miscellaneous/PublicShareStatement';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
@@ -189,6 +191,9 @@ function AppContent() {
             <Route path="/auth/verify-email" element={<ResendVerification />} />
             <Route path="/auth/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/s/:token" element={<PublicSharePage />} />
+            <Route path="/s/:token/statement" element={<PublicShareStatement />} />
+
             <Route
               path="/auth/login"
               element={!currentUser ? <LoginForm /> : <Navigate to="/dashboard" replace />}
