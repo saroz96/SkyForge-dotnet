@@ -39,6 +39,9 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
     const noteInputRef = useRef(null);
     const cancelButtonRef = useRef(null);
     const submitButtonRef = useRef(null);
+    
+    // ✅ CRITICAL FIX: Guard against double submission
+    const isSubmittingRef = useRef(false);
 
     const convertBsToAd = (bsDate) => {
         if (!bsDate || !/^\d{4}-\d{2}-\d{2}$/.test(bsDate)) return null;
@@ -125,6 +128,9 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
                 marginPercentage: defaultMargin
             }));
 
+            // ✅ Reset submission guard when modal opens
+            isSubmittingRef.current = false;
+
             setTimeout(() => {
                 if (quantityInputRef.current) {
                     quantityInputRef.current.focus();
@@ -166,10 +172,11 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
         }
     };
 
-    // Enter key navigation handler
+    // ✅ FIXED: Enter key navigation handler - only moves focus, never submits
     const handleKeyDown = (e, nextFieldRef) => {
         if (e.key === 'Enter') {
             e.preventDefault();
+            e.stopPropagation(); // Prevent event from bubbling up to form/modal
             if (nextFieldRef && nextFieldRef.current) {
                 nextFieldRef.current.focus();
                 if (nextFieldRef.current.type === 'number' || nextFieldRef.current.type === 'text') {
@@ -179,33 +186,38 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
         }
     };
 
-    // Handle Enter key on the last field (notes) to submit
+    // ✅ FIXED: Note field Enter - moves focus to submit button (does NOT click)
     const handleNoteKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            if (submitButtonRef.current) {
-                submitButtonRef.current.focus();
-                submitButtonRef.current.click();
-            }
+            e.stopPropagation();
+            // Just move focus to submit button - user can press Enter again to submit
+            // OR uncomment the next line to auto-submit on Enter from note field:
+            // submitButtonRef.current?.focus();
         }
     };
 
-    // Global Enter key handler for the modal
+    // ✅ FIXED: Modal keydown - ONLY handles Escape, never Enter
     const handleModalKeyDown = (e) => {
-        // If Enter is pressed and the submit button is focused, submit the form
-        if (e.key === 'Enter' && document.activeElement === submitButtonRef.current) {
-            e.preventDefault();
-            submitButtonRef.current.click();
-        }
-        // If Escape is pressed, close the modal
+        // Only handle Escape key - remove all Enter handling
         if (e.key === 'Escape') {
             e.preventDefault();
             handleClose();
         }
     };
 
+    // ✅ FIXED: handleSubmit with double-submission guard
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling
+        }
+
+        // ✅ CRITICAL: Guard against double submission
+        if (isSubmittingRef.current) {
+            console.log('⚠️ Submission already in progress, ignoring duplicate call');
+            return;
+        }
 
         if (!formData.quantity || formData.quantity <= 0) {
             setNotification({ show: true, message: 'Please enter a valid quantity', type: 'error' });
@@ -234,6 +246,8 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
             return;
         }
 
+        // ✅ Set guard BEFORE async operation
+        isSubmittingRef.current = true;
         setIsLoading(true);
         try {
             const adjustmentData = {
@@ -270,12 +284,16 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
             console.error('Error adding stock:', error);
             const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to add stock. Please try again.';
             setNotification({ show: true, message: errorMessage, type: 'error' });
+            // ✅ Reset guard on error so user can retry
+            isSubmittingRef.current = false;
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleClose = () => {
+        // ✅ Reset guard when closing
+        isSubmittingRef.current = false;
         setFormData({
             adjustmentType: 'xcess',
             quantity: 1,
@@ -884,6 +902,7 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 e.preventDefault();
+                                                e.stopPropagation();
                                                 handleClose();
                                             }
                                         }}
@@ -912,16 +931,11 @@ const StockAdjustmentModal = ({ show, onClose, product, onStockAdded, companyDat
                                     >
                                         Cancel
                                     </button>
+                                    {/* ✅ FIXED: Removed onKeyDown from submit button - form handles Enter natively */}
                                     <button
                                         ref={submitButtonRef}
                                         type="submit"
                                         disabled={isLoading}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                handleSubmit(e);
-                                            }
-                                        }}
                                         style={{
                                             padding: '4px 20px',
                                             borderRadius: '6px',

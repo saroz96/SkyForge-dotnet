@@ -392,8 +392,8 @@ namespace SkyForge.Middleware
             // Transaction endpoints
             string[] transactionEndpoints = {
                 "/api/retailer/purchase",
-                "/api/retailer/credit-sales",
-                "/api/retailer/cash-sales",
+                "/api/retailer/sales",
+                "/api/retailer/sales-open",
                 "/api/retailer/sales-return",
                 "/api/retailer/cash/sales-return",
                 "/api/retailer/purchase-return",
