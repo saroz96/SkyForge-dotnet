@@ -16,7 +16,7 @@ namespace SkyForge.Dto.RetailerDto.PurchaseBillDto
         public decimal? WsUnit { get; set; }
 
         [Required]
-        [Range(0.001, double.MaxValue)]
+        [Range(0, double.MaxValue)]
         public decimal Quantity { get; set; }
 
         [Range(0, double.MaxValue)]

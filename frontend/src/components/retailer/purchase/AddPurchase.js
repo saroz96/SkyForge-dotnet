@@ -2218,7 +2218,7 @@ const AddPurchase = () => {
                     batchNumber: item.batchNumber,
                     expiryDate: item.expiryDate,
                     wsUnit: item.wsUnit || 1,
-                    quantity: item.quantity,
+                    quantity: item.quantity || 0,
                     bonus: item.bonus || 0,
                     puPrice: item.puPrice,
                     price: item.price || 0,
